@@ -58,6 +58,21 @@
     animation: bounce-in 1s ease-out;
   }
   
+  /* Hero Image */
+  .hero-image-full {
+    transition: all 0.3s ease;
+    filter: brightness(0.9) saturate(1.1);
+  }
+  
+  .hero-image-full:hover {
+    transform: scale(1.02);
+    filter: brightness(1) saturate(1.2);
+  }
+  
+  .hero-card:hover .hero-image-full {
+    filter: brightness(1.1) saturate(1.3);
+  }
+  
   /* Navigation */
   nav {
     background: rgba(34, 77, 98, 0.2);

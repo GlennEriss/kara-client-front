@@ -163,13 +163,12 @@ const Homepage = () => {
             
             <div className="animate-fade-in-right">
               <div className="relative">
-                <div className="hero-card w-full h-96 rounded-3xl flex items-center justify-center floating">
-                  <div className="text-center">
-                    <div className="text-8xl text-kara-gold mb-4">
-                      <Users size={120} />
-                    </div>
-                    <h3 className="text-2xl font-bold text-white">Solidarité Active</h3>
-                  </div>
+                <div className="hero-card w-full h-96 rounded-3xl overflow-hidden floating">
+                  <img 
+                    src="/imgkara.webp" 
+                    alt="KARA - Solidarité Active" 
+                    className="hero-image-full w-full h-full object-cover"
+                  />
                 </div>
                 <div className="hero-badge absolute -top-6 -right-6 w-24 h-24 bg-kara-gold rounded-full flex items-center justify-center animate-bounce-in">
                   <Star className="text-white" size={32} />
