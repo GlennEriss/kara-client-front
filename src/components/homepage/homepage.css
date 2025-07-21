@@ -1,0 +1,505 @@
+/* Import de la police Montserrat */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap');
+
+/* Variables CSS pour les couleurs KARA */
+:root {
+    --kara-blue: #224D62;
+    --kara-gold: #CBB171;
+    --kara-blue-rgb: 34, 77, 98;
+    --kara-gold-rgb: 203, 177, 113;
+  }
+  
+  /* Classes personnalisées pour les couleurs */
+  .text-kara-blue {
+    color: var(--kara-blue);
+  }
+  
+  .text-kara-gold {
+    color: var(--kara-gold);
+  }
+  
+  .bg-kara-blue {
+    background-color: var(--kara-blue);
+  }
+  
+  .bg-kara-gold {
+    background-color: var(--kara-gold);
+  }
+  
+  /* Police Montserrat */
+  .font-montserrat {
+    font-family: 'Montserrat', sans-serif;
+  }
+  
+  /* Hero Section */
+  .hero-section {
+    background: linear-gradient(135deg, var(--kara-blue) 0%, #1a3b4d 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23CBB171" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23CBB171" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23CBB171" opacity="0.05"/><circle cx="10" cy="90" r="0.5" fill="%23CBB171" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+    animation: floating 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  
+  .hero-card {
+    background: linear-gradient(145deg, rgba(203, 177, 113, 0.2) 0%, transparent 100%);
+  }
+  
+  .hero-badge {
+    animation: bounce-in 1s ease-out;
+  }
+  
+  /* Navigation */
+  nav {
+    background: rgba(34, 77, 98, 0.2);
+    backdrop-filter: blur(5px);
+  }
+  
+  .navbar-scrolled {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .navbar-scrolled .text-white {
+    color: var(--kara-blue) !important;
+  }
+  
+  .navbar-scrolled .text-white:hover {
+    color: var(--kara-gold) !important;
+  }
+  
+  .mobile-menu {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Boutons */
+  .btn-primary {
+    background: linear-gradient(45deg, var(--kara-blue), #1a3b4d);
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-primary:hover {
+    background: linear-gradient(45deg, #1a3b4d, var(--kara-blue));
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(var(--kara-blue-rgb), 0.3);
+    color: white;
+  }
+  
+  .btn-secondary {
+    background: linear-gradient(45deg, var(--kara-gold), #b8a165);
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-secondary:hover {
+    background: linear-gradient(45deg, #b8a165, var(--kara-gold));
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(var(--kara-gold-rgb), 0.3);
+    color: white;
+  }
+  
+  /* Cards */
+  .card-hover {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(203, 177, 113, 0.2);
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(var(--kara-blue-rgb), 0.15);
+    border-color: var(--kara-gold);
+  }
+  
+  .service-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid rgba(203, 177, 113, 0.2);
+    transition: all 0.3s ease;
+  }
+  
+  .service-card:hover {
+    border-color: var(--kara-gold);
+    box-shadow: 0 15px 35px rgba(var(--kara-gold-rgb), 0.2);
+    transform: translateY(-5px);
+  }
+  
+  .adhesion-card {
+    background: linear-gradient(135deg, var(--kara-blue) 0%, #1a3b4d 100%);
+  }
+  
+  .contact-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    box-shadow: 0 20px 40px rgba(var(--kara-blue-rgb), 0.1);
+    border: 1px solid rgba(203, 177, 113, 0.2);
+  }
+  
+  .contact-card:hover {
+    box-shadow: 0 25px 50px rgba(var(--kara-blue-rgb), 0.15);
+  }
+  
+  /* Icônes objectives */
+  .objective-icon {
+    transition: all 0.3s ease;
+  }
+  
+  .objective-card:hover .objective-icon {
+    transform: scale(1.1);
+  }
+  
+  /* Section Divider */
+  .section-divider {
+    background: linear-gradient(90deg, transparent, var(--kara-gold), transparent);
+    height: 2px;
+    width: 100px;
+  }
+  
+  /* Text Gradient */
+  .text-gradient {
+    background: linear-gradient(45deg, var(--kara-blue), var(--kara-gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Footer */
+  .footer-section {
+    background-color: var(--kara-blue);
+  }
+  
+  /* Animations */
+  @keyframes floating {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fade-in-left {
+    0% {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes fade-in-right {
+    0% {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes slide-in-left {
+    0% {
+      opacity: 0;
+      transform: translateX(-100px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes slide-in-right {
+    0% {
+      opacity: 0;
+      transform: translateX(100px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes bounce-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.9);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes scale-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Classes d'animation */
+  .animate-fade-in-up {
+    animation: fade-in-up 0.8s ease-out;
+  }
+  
+  .animate-fade-in-left {
+    animation: fade-in-left 0.8s ease-out;
+  }
+  
+  .animate-fade-in-right {
+    animation: fade-in-right 0.8s ease-out;
+  }
+  
+  .animate-slide-in-left {
+    animation: slide-in-left 1s ease-out;
+  }
+  
+  .animate-slide-in-right {
+    animation: slide-in-right 1s ease-out;
+  }
+  
+  .animate-bounce-in {
+    animation: bounce-in 1s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scale-in 0.6s ease-out;
+  }
+  
+  .floating {
+    animation: floating 3s ease-in-out infinite;
+  }
+  
+  /* Animation delays pour les éléments multiples */
+  .animate-fade-in-up:nth-child(1) { animation-delay: 0.1s; }
+  .animate-fade-in-up:nth-child(2) { animation-delay: 0.2s; }
+  .animate-fade-in-up:nth-child(3) { animation-delay: 0.3s; }
+  .animate-fade-in-up:nth-child(4) { animation-delay: 0.4s; }
+  
+  .animate-scale-in:nth-child(1) { animation-delay: 0.1s; }
+  .animate-scale-in:nth-child(2) { animation-delay: 0.3s; }
+  .animate-scale-in:nth-child(3) { animation-delay: 0.5s; }
+  
+  /* Boutons voir plus/voir moins */
+  .voir-plus-btn {
+    background: linear-gradient(45deg, var(--kara-blue), var(--kara-gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    border: none;
+    padding: 0.5rem 0;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .voir-plus-btn:hover {
+    transform: translateY(-1px);
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .hero-section h1 {
+      font-size: 3rem;
+    }
+    
+    .hero-card {
+      height: 20rem;
+    }
+    
+    .section-divider {
+      width: 80px;
+    }
+    
+    .objective-icon {
+      width: 4rem;
+      height: 4rem;
+    }
+    
+    .service-card {
+      margin-bottom: 1rem;
+      padding: 1.5rem !important;
+    }
+    
+    .service-card h3 {
+      font-size: 1.1rem !important;
+    }
+    
+    .service-card p {
+      font-size: 0.9rem !important;
+      line-height: 1.4 !important;
+    }
+  }
+  
+  @media (max-width: 640px) {
+    .hero-section h1 {
+      font-size: 2.5rem;
+      line-height: 1.2;
+    }
+    
+    .hero-card {
+      height: 16rem;
+    }
+    
+    .hero-card .text-8xl {
+      font-size: 4rem;
+    }
+    
+    .btn-primary, .btn-secondary {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+    }
+    
+    /* Amélioration des espacements en mobile */
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    
+    .service-card {
+      padding: 1.25rem !important;
+    }
+    
+    .contact-card {
+      padding: 2rem !important;
+    }
+    
+    .adhesion-card {
+      padding: 2rem !important;
+    }
+    
+    /* Réduction des tailles de police pour les textes longs */
+    .text-xl {
+      font-size: 1.1rem !important;
+    }
+    
+    .text-lg {
+      font-size: 1rem !important;
+    }
+  }
+  
+  /* Interactions et états de focus pour l'accessibilité */
+  .btn-primary:focus,
+  .btn-secondary:focus {
+    outline: 2px solid var(--kara-gold);
+    outline-offset: 2px;
+  }
+  
+  button:focus {
+    outline: 2px solid var(--kara-gold);
+    outline-offset: 2px;
+  }
+  
+  /* Transitions fluides pour tous les éléments interactifs */
+  button,
+  .card-hover,
+  .service-card,
+  .contact-card,
+  .objective-icon {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Effet de survol pour les liens de navigation */
+  nav button:hover {
+    transform: translateY(-1px);
+  }
+  
+  /* Amélioration des performances des animations */
+  .animate-fade-in-up,
+  .animate-fade-in-left,
+  .animate-fade-in-right,
+  .animate-slide-in-left,
+  .animate-slide-in-right,
+  .animate-bounce-in,
+  .animate-scale-in,
+  .floating {
+    will-change: transform, opacity;
+  }
+  
+  /* Styles pour les éléments en cours d'animation */
+  .animate-fade-in-up,
+  .animate-fade-in-left,
+  .animate-fade-in-right,
+  .animate-slide-in-left,
+  .animate-slide-in-right,
+  .animate-scale-in {
+    opacity: 0;
+    animation-fill-mode: forwards;
+  }
+  
+  /* Logo KARA styles */
+  .logo-kara {
+    height: 80px;
+    width: auto;
+    transition: all 0.3s ease;
+    filter: brightness(0) invert(1); /* Logo blanc par défaut */
+  }
+  
+  .logo-kara:hover {
+    filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(35deg);
+    transform: scale(1.05);
+  }
+  
+  /* Logo dans navbar scrollée */
+  .navbar-scrolled .logo-kara {
+    filter: none; /* Logo coloré quand navbar scrollée */
+  }
+  
+  .navbar-scrolled .logo-kara:hover {
+    filter: sepia(1) saturate(1.2) hue-rotate(35deg);
+    transform: scale(1.05);
+  }
+  
+  /* Logo dans footer */
+  .footer-logo {
+    height: 80px;
+    width: auto;
+    filter: brightness(0) invert(1);
+  }
+
+  /* Couleurs de surbrillance pour la sélection de texte */
+  ::selection {
+    background-color: var(--kara-gold);
+    color: white;
+  }
+  
+  ::-moz-selection {
+    background-color: var(--kara-gold);
+    color: white;
+  }
