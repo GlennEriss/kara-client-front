@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Menu, X, Heart, Users, Lightbulb, Gift, CalendarCheck, PiggyBank, Cross, HandHeart, MousePointer, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Star, Home, HeartHandshake, ChevronDown, ChevronUp } from 'lucide-react'
 import './homepage.css'
-
+import { useRouter } from 'next/navigation'
+import routes from '@/constantes/routes'
 const Homepage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [expandedTexts, setExpandedTexts] = useState<Record<string, boolean>>({})
-
+  const router = useRouter()
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50)
@@ -34,11 +35,15 @@ const Homepage = () => {
     }))
   }
 
-  const TruncatedText = ({ 
-    id, 
-    fullText, 
-    truncatedText, 
-    className = "text-lg leading-relaxed text-gray-700" 
+  const handleRegister = () => {
+    router.push(routes.public.register)
+  }
+
+  const TruncatedText = ({
+    id,
+    fullText,
+    truncatedText,
+    className = "text-lg leading-relaxed text-gray-700"
   }: {
     id: string
     fullText: string
@@ -46,7 +51,7 @@ const Homepage = () => {
     className?: string
   }) => {
     const isExpanded = expandedTexts[id]
-    
+
     return (
       <div>
         <p className={className}>
@@ -73,19 +78,18 @@ const Homepage = () => {
   return (
     <div className="min-h-screen bg-white font-montserrat">
       {/* Navigation */}
-      <nav className={`fixed w-full z-50 transition-all duration-300 py-4 ${
-        isScrolled ? 'navbar-scrolled' : ''
-      }`}>
+      <nav className={`fixed w-full z-50 transition-all duration-300 py-4 ${isScrolled ? 'navbar-scrolled' : ''
+        }`}>
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center">
             <div className="cursor-pointer">
-              <img 
-                src="/Logo-Kara.webp" 
-                alt="KARA Logo" 
+              <img
+                src="/Logo-Kara.webp"
+                alt="KARA Logo"
                 className="logo-kara"
               />
             </div>
-            
+
             {/* Desktop Navigation */}
             <div className="hidden md:flex space-x-8">
               {['accueil', 'qui-sommes-nous', 'objectifs', 'services', 'adhesion', 'contact'].map((item) => (
@@ -100,7 +104,7 @@ const Homepage = () => {
             </div>
 
             {/* Mobile Menu Toggle */}
-            <button 
+            <button
               className="md:hidden text-white"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
@@ -131,26 +135,26 @@ const Homepage = () => {
       <section id="accueil" className="hero-section min-h-screen flex items-center">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-                          <div className="text-white space-y-6 animate-fade-in-left">
-                <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
-                  KARA
-                  <span className="block text-kara-gold">Mutuelle de Solidarité</span>
-                </h1>
-                <TruncatedText
-                  id="hero-description"
-                  fullText="Une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue."
-                  truncatedText="Une famille élargie et inclusive, un réseau de cœurs ouverts..."
-                  className="text-xl font-light leading-relaxed opacity-90"
-                />
+            <div className="text-white space-y-6 animate-fade-in-left">
+              <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
+                KARA
+                <span className="block text-kara-gold">Mutuelle de Solidarité</span>
+              </h1>
+              <TruncatedText
+                id="hero-description"
+                fullText="Une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue."
+                truncatedText="Une famille élargie et inclusive, un réseau de cœurs ouverts..."
+                className="text-xl font-light leading-relaxed opacity-90"
+              />
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Button 
+                <Button
                   className="btn-primary px-8 py-4 rounded-full font-semibold text-lg"
                   onClick={() => scrollToSection('adhesion')}
                 >
                   <Heart className="mr-2" size={20} />
                   Nous Rejoindre
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   className="btn-secondary px-8 py-4 rounded-full font-semibold text-lg"
                   onClick={() => scrollToSection('qui-sommes-nous')}
@@ -160,13 +164,13 @@ const Homepage = () => {
                 </Button>
               </div>
             </div>
-            
+
             <div className="animate-fade-in-right">
               <div className="relative">
                 <div className="hero-card w-full h-96 rounded-3xl overflow-hidden floating">
-                  <img 
-                    src="/imgkara.webp" 
-                    alt="KARA - Solidarité Active" 
+                  <img
+                    src="/imgkara.webp"
+                    alt="KARA - Solidarité Active"
                     className="hero-image-full w-full h-full object-cover"
                   />
                 </div>
@@ -186,29 +190,29 @@ const Homepage = () => {
             <h2 className="text-4xl font-bold text-kara-blue mb-4">Qui sommes-nous?</h2>
             <div className="section-divider mx-auto"></div>
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <Card className="card-hover animate-slide-in-left">
               <CardContent className="p-8">
                 <div className="text-6xl text-kara-gold mb-6 text-center">
                   <Home size={80} />
                 </div>
-                                 <TruncatedText
-                   id="qui-sommes-nous-1"
-                   fullText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité, la mutuelle KARA est une association gabonaise à but non lucratif s'inscrivant dans une démarche purement sociale."
-                   truncatedText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité..."
-                 />
+                <TruncatedText
+                  id="qui-sommes-nous-1"
+                  fullText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité, la mutuelle KARA est une association gabonaise à but non lucratif s'inscrivant dans une démarche purement sociale."
+                  truncatedText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité..."
+                />
               </CardContent>
             </Card>
-            
+
             <Card className="card-hover animate-slide-in-right">
               <CardContent className="p-8">
                 <div className="text-6xl text-kara-blue mb-6 text-center">
                   <HeartHandshake size={80} />
                 </div>
-                                 <p className="text-lg leading-relaxed text-gray-700">
-                   Kara c'est d'abord une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
-                 </p>
+                <p className="text-lg leading-relaxed text-gray-700">
+                  Kara c'est d'abord une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -222,39 +226,39 @@ const Homepage = () => {
             <h2 className="text-4xl font-bold text-kara-blue mb-4">Nos Objectifs</h2>
             <div className="section-divider mx-auto"></div>
           </div>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center animate-scale-in objective-card">
               <div className="objective-icon bg-gradient-to-br from-kara-blue to-kara-blue/80 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
                 <Users className="text-white" size={32} />
               </div>
               <h3 className="text-xl font-bold text-kara-blue mb-4">Solidarité Active</h3>
-                             <TruncatedText
-                 id="objectifs-1"
-                 fullText="Encourager la solidarité active entre les membres en mettant tout en œuvre pour accompagner humainement, financièrement et matériellement chacun des membres dans ses événements heureux comme malheureux."
-                 truncatedText="Encourager la solidarité active entre les membres en mettant tout en œuvre pour accompagner humainement, financièrement et matériellement..."
-                 className="text-gray-700 leading-relaxed"
-               />
+              <TruncatedText
+                id="objectifs-1"
+                fullText="Encourager la solidarité active entre les membres en mettant tout en œuvre pour accompagner humainement, financièrement et matériellement chacun des membres dans ses événements heureux comme malheureux."
+                truncatedText="Encourager la solidarité active entre les membres en mettant tout en œuvre pour accompagner humainement, financièrement et matériellement..."
+                className="text-gray-700 leading-relaxed"
+              />
             </div>
-            
+
             <div className="text-center animate-scale-in objective-card" style={{ animationDelay: '0.2s' }}>
               <div className="objective-icon bg-gradient-to-br from-kara-gold to-kara-gold/80 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
                 <Lightbulb className="text-white" size={32} />
               </div>
               <h3 className="text-xl font-bold text-kara-blue mb-4">Initiatives Jeunesse</h3>
-                             <p className="text-gray-700 leading-relaxed">
-                 Servir de point d'ancrage à la réalisation des initiatives portées par la jeunesse.
-               </p>
+              <p className="text-gray-700 leading-relaxed">
+                Servir de point d'ancrage à la réalisation des initiatives portées par la jeunesse.
+              </p>
             </div>
-            
+
             <div className="text-center animate-scale-in objective-card" style={{ animationDelay: '0.4s' }}>
               <div className="objective-icon bg-gradient-to-br from-kara-blue to-kara-gold rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
                 <Gift className="text-white" size={32} />
               </div>
               <h3 className="text-xl font-bold text-kara-blue mb-4">Actions Caritatives</h3>
-                             <p className="text-gray-700 leading-relaxed">
-                 Nous croyons que chaque membre a quelque chose à donner, c'est pourquoi la mutuelle KARA s'ouvre au monde par les actions charitables auprès des nécessiteux.
-               </p>
+              <p className="text-gray-700 leading-relaxed">
+                Nous croyons que chaque membre a quelque chose à donner, c'est pourquoi la mutuelle KARA s'ouvre au monde par les actions charitables auprès des nécessiteux.
+              </p>
             </div>
           </div>
         </div>
@@ -267,55 +271,55 @@ const Homepage = () => {
             <h2 className="text-4xl font-bold text-kara-blue mb-4">Quels services proposons-nous?</h2>
             <div className="section-divider mx-auto"></div>
           </div>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <Card className="service-card animate-fade-in-up">
               <CardContent className="p-8 text-center">
                 <CalendarCheck className="text-kara-blue mx-auto mb-6" size={64} />
                 <h3 className="text-xl font-bold text-kara-blue mb-4">L'entraide mensuelle</h3>
-                                 <p className="text-gray-700 text-sm leading-relaxed">
-                   Comme toute association, Kara vit des cotisations mensuelles de ses membres et du soutien des bénévoles. À travers l'entraide mensuelle, chacun participe activement au fonctionnement régulier de notre mutuelle.
-                 </p>
+                <p className="text-gray-700 text-sm leading-relaxed">
+                  Comme toute association, Kara vit des cotisations mensuelles de ses membres et du soutien des bénévoles. À travers l'entraide mensuelle, chacun participe activement au fonctionnement régulier de notre mutuelle.
+                </p>
               </CardContent>
             </Card>
-            
+
             <Card className="service-card animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
               <CardContent className="p-8 text-center">
                 <PiggyBank className="text-kara-gold mx-auto mb-6" size={64} />
                 <h3 className="text-xl font-bold text-kara-blue mb-4">La Caisse spéciale</h3>
-                                 <TruncatedText
-                   id="service-caisse-speciale"
-                   fullText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre. En contrepartie des versements mensuels, la mutuelle KARA assure la conservation et la mise à disposition de ces fonds aux épargnants en cas de besoin."
-                   truncatedText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre..."
-                   className="text-gray-700 text-sm leading-relaxed"
-                 />
+                <TruncatedText
+                  id="service-caisse-speciale"
+                  fullText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre. En contrepartie des versements mensuels, la mutuelle KARA assure la conservation et la mise à disposition de ces fonds aux épargnants en cas de besoin."
+                  truncatedText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre..."
+                  className="text-gray-700 text-sm leading-relaxed"
+                />
               </CardContent>
             </Card>
-            
+
             <Card className="service-card animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
               <CardContent className="p-8 text-center">
                 <Cross className="text-kara-blue mx-auto mb-6" size={64} />
                 <h3 className="text-xl font-bold text-kara-blue mb-4">La caisse imprévue</h3>
-                                 <p className="text-gray-700 text-sm leading-relaxed">
-                   Comme son nom l'indique cette caisse répond au besoin d'alléger les urgences imprévues. Les membres y ont droit sous forme d'accompagnement.
-                 </p>
+                <p className="text-gray-700 text-sm leading-relaxed">
+                  Comme son nom l'indique cette caisse répond au besoin d'alléger les urgences imprévues. Les membres y ont droit sous forme d'accompagnement.
+                </p>
               </CardContent>
             </Card>
-            
+
             <Card className="service-card animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
               <CardContent className="p-8 text-center">
                 <HandHeart className="text-kara-gold mx-auto mb-6" size={64} />
                 <h3 className="text-xl font-bold text-kara-blue mb-4">La caisse bienfaiteur</h3>
-                                 <TruncatedText
-                   id="service-bienfaiteur"
-                   fullText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur» de contribuer exceptionnellement aux œuvres caritatives qu'elle organise."
-                   truncatedText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur»..."
-                   className="text-gray-700 text-sm leading-relaxed"
-                 />
+                <TruncatedText
+                  id="service-bienfaiteur"
+                  fullText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur» de contribuer exceptionnellement aux œuvres caritatives qu'elle organise."
+                  truncatedText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur»..."
+                  className="text-gray-700 text-sm leading-relaxed"
+                />
               </CardContent>
             </Card>
           </div>
-          
+
           <div className="text-center mt-12">
             <h3 className="text-2xl font-bold text-gradient">Avec KARA, la solidarité est une force !</h3>
           </div>
@@ -329,17 +333,17 @@ const Homepage = () => {
             <div className="animate-fade-in-up">
               <h2 className="text-4xl font-bold text-kara-blue mb-8">Comment adhérer à KARA ?</h2>
               <div className="section-divider mx-auto mb-12"></div>
-              
+
               <Card className="adhesion-card p-12 text-white">
                 <CardContent>
                   <MousePointer className="text-kara-gold mx-auto mb-8" size={80} />
-                                     <TruncatedText
-                     id="adhesion"
-                     fullText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur. En adhérant à KARA, vous faîtes le choix d'impacter positivement le monde de votre façon et de semer une graine d'amour dans un cœur."
-                     truncatedText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur..."
-                     className="text-xl leading-relaxed mb-8"
-                   />
-                  <Button className="btn-secondary px-12 py-4 rounded-full font-bold text-lg mb-6">
+                  <TruncatedText
+                    id="adhesion"
+                    fullText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur. En adhérant à KARA, vous faîtes le choix d'impacter positivement le monde de votre façon et de semer une graine d'amour dans un cœur."
+                    truncatedText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur..."
+                    className="text-xl leading-relaxed mb-8"
+                  />
+                  <Button onClick={handleRegister} className="btn-secondary px-12 py-4 rounded-full font-bold text-lg mb-6">
                     <Users className="mr-3" size={20} />
                     Adhérer Maintenant
                   </Button>
@@ -363,7 +367,7 @@ const Homepage = () => {
               Pour obtenir des informations supplémentaires et discuter amplement avec les représentants de la mutuelle KARA, contactez le secrétaire général.
             </p>
           </div>
-          
+
           <div className="max-w-2xl mx-auto">
             <Card className="contact-card p-12 animate-scale-in">
               <CardContent>
@@ -400,16 +404,16 @@ const Homepage = () => {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
-              <img 
-                src="/Logo-Kara.webp" 
-                alt="KARA Logo" 
+              <img
+                src="/Logo-Kara.webp"
+                alt="KARA Logo"
                 className="footer-logo mb-4"
               />
               <p className="text-gray-300 leading-relaxed">
                 Une mutuelle gabonaise à but non lucratif dédiée à la solidarité active et à l'entraide communautaire.
               </p>
             </div>
-            
+
             <div>
               <h4 className="text-xl font-semibold mb-4">Liens Rapides</h4>
               <ul className="space-y-2">
@@ -420,7 +424,7 @@ const Homepage = () => {
                   { id: 'adhesion', label: 'Adhésion' }
                 ].map((link) => (
                   <li key={link.id}>
-                    <button 
+                    <button
                       onClick={() => scrollToSection(link.id)}
                       className="text-gray-300 hover:text-kara-gold transition-colors"
                     >
@@ -430,7 +434,7 @@ const Homepage = () => {
                 ))}
               </ul>
             </div>
-            
+
             <div>
               <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
               <div className="flex space-x-4">
@@ -449,9 +453,9 @@ const Homepage = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="border-t border-gray-600 mt-8 pt-8 text-center">
-            <p className="text-gray-300">© 2024 KARA - Mutuelle de Solidarité. Tous droits réservés.</p>
+            <p className="text-gray-300">© 2025 KARA - Mutuelle de Solidarité. Tous droits réservés.</p>
           </div>
         </div>
       </footer>
