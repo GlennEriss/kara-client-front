@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { NATIONALITY_NAMES, SelectCountry, NATIONALITY_OPTIONS } from '@/components/ui/select-country'
 import { 
   User, 
   Calendar, 
@@ -19,20 +21,27 @@ import {
   Upload, 
   Camera,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  MapPin,
+  FileText,
+  Church,
+  Car,
+  Hash
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { RegisterFormData } from '@/types/schemas'
+import PRIORITY_COUNTRIES from '@/constantes/country-code'
 
 interface Step1Props {
   form: any // Type du form de react-hook-form
 }
 
+
+
+// Données pour les selects (corrigées pour correspondre au schéma)
 // Données pour les selects
 const GENDER_OPTIONS = [
-  { value: 'Masculin', label: 'Masculin' },
-  { value: 'Féminin', label: 'Féminin' },
-  { value: 'Autre', label: 'Autre' }
+  { value: 'Homme', label: 'Homme' },
+  { value: 'Femme', label: 'Femme' }
 ]
 
 const IDENTITY_DOCUMENT_OPTIONS = [
@@ -41,6 +50,8 @@ const IDENTITY_DOCUMENT_OPTIONS = [
   { value: 'Carte scolaire', label: 'Carte scolaire' },
   { value: 'Carte consulaire', label: 'Carte consulaire' },
   { value: 'Carte d\'identité', label: 'Carte d\'identité' },
+  { value: 'NIP', label: 'NIP' },
+  { value: 'CNI', label: 'CNI' },
   { value: 'Autre', label: 'Autre' }
 ]
 
@@ -73,8 +84,20 @@ export default function Step1({ form }: Step1Props) {
     'identity.lastName',
     'identity.firstName', 
     'identity.email',
-    'identity.birthDate'
+    'identity.birthDate',
+    'identity.birthPlace',
+    'identity.birthCertificateNumber',
+    'identity.prayerPlace',
+    'identity.nationality',
+    'identity.hasCar'
   ])
+
+  // Définir la nationalité par défaut au chargement (Gabon)
+  React.useEffect(() => {
+    if (!watch('identity.nationality')) {
+      setValue('identity.nationality', 'GA')
+    }
+  }, [])
 
   // Gestion de l'upload de photo
   const handlePhotoUpload = (file: File) => {
@@ -248,7 +271,7 @@ export default function Step1({ form }: Step1Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
             <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full min-w-0">
               <Label htmlFor="email" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Email <span className="text-red-500">*</span>
+                Email (optionnel)
               </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
@@ -304,8 +327,119 @@ export default function Step1({ form }: Step1Props) {
             </div>
           </div>
 
+          {/* Lieu de naissance et Numéro d'acte de naissance */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full min-w-0">
+              <Label htmlFor="birthPlace" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Lieu de naissance <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                <Input
+                  id="birthPlace"
+                  {...register('identity.birthPlace')}
+                  placeholder="Ville, Pays"
+                  className={cn(
+                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                    errors?.identity?.birthPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
+                    watchedFields[4] && !errors?.identity?.birthPlace && "border-green-300 bg-green-50/30"
+                  )}
+                />
+                {watchedFields[4] && !errors?.identity?.birthPlace && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                )}
+              </div>
+              {errors?.identity?.birthPlace && (
+                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.identity.birthPlace.message}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-500 w-full min-w-0">
+              <Label htmlFor="birthCertificateNumber" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Numéro d'acte de naissance <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                <Input
+                  id="birthCertificateNumber"
+                  {...register('identity.birthCertificateNumber')}
+                  placeholder="Numéro de l'acte"
+                  className={cn(
+                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                    errors?.identity?.birthCertificateNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
+                    watchedFields[5] && !errors?.identity?.birthCertificateNumber && "border-green-300 bg-green-50/30"
+                  )}
+                />
+                {watchedFields[5] && !errors?.identity?.birthCertificateNumber && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                )}
+              </div>
+              {errors?.identity?.birthCertificateNumber && (
+                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.identity.birthCertificateNumber.message}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Lieu de prière et Code entremetteur */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full min-w-0">
+              <Label htmlFor="prayerPlace" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Lieu de prière <span className="text-red-500">*</span>
+              </Label>
+              <div className="relative">
+                <Church className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                <Input
+                  id="prayerPlace"
+                  {...register('identity.prayerPlace')}
+                  placeholder="Mosquée, Église, etc."
+                  className={cn(
+                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                    errors?.identity?.prayerPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
+                    watchedFields[6] && !errors?.identity?.prayerPlace && "border-green-300 bg-green-50/30"
+                  )}
+                />
+                {watchedFields[6] && !errors?.identity?.prayerPlace && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                )}
+              </div>
+              {errors?.identity?.prayerPlace && (
+                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.identity.prayerPlace.message}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full min-w-0">
+              <Label htmlFor="intermediaryCode" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Code entremetteur (optionnel)
+              </Label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                <Input
+                  id="intermediaryCode"
+                  {...register('identity.intermediaryCode')}
+                  placeholder="Code de référence"
+                  className="pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full"
+                />
+              </div>
+              {errors?.identity?.intermediaryCode && (
+                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.identity.intermediaryCode.message}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Contacts */}
-          <div className="space-y-3 sm:space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-400 w-full min-w-0">
+          <div className="space-y-3 sm:space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full min-w-0">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 w-full">
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Numéros de téléphone <span className="text-red-500">*</span>
@@ -357,10 +491,10 @@ export default function Step1({ form }: Step1Props) {
             )}
           </div>
 
-          {/* Selects */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 w-full">
+          {/* Selects et Checkbox */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
             {/* Sexe */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full min-w-0">
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-900 w-full min-w-0">
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Sexe <span className="text-red-500">*</span>
               </Label>
@@ -381,8 +515,23 @@ export default function Step1({ form }: Step1Props) {
               </Select>
             </div>
 
+            {/* Nationalité */}
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-950 w-full min-w-0">
+              <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Nationalité <span className="text-red-500">*</span>
+              </Label>
+              <SelectCountry
+                value={watch('identity.nationality')}
+                onValueChange={(value) => setValue('identity.nationality', value)}
+                error={errors?.identity?.nationality?.message}
+                showValidation={!!watchedFields[7]}
+                placeholder="Sélectionner nationalité"
+                defaultValue="GA"
+              />
+            </div>
+
             {/* Pièce d'identité */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-600 w-full min-w-0">
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-1000 w-full min-w-0">
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Pièce d'identité <span className="text-red-500">*</span>
               </Label>
@@ -404,7 +553,7 @@ export default function Step1({ form }: Step1Props) {
             </div>
 
             {/* Situation matrimoniale */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full min-w-0">
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-1100 w-full min-w-0">
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Situation matrimoniale <span className="text-red-500">*</span>
               </Label>
@@ -425,15 +574,33 @@ export default function Step1({ form }: Step1Props) {
               </Select>
             </div>
           </div>
+
+          {/* Checkbox pour la voiture */}
+          <div className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-1200 w-full">
+            <div className="flex items-center space-x-3 p-4 bg-[#224D62]/5 rounded-lg border border-[#CBB171]/20">
+              <Checkbox
+                id="hasCar"
+                checked={watchedFields[8]}
+                onCheckedChange={(checked) => setValue('identity.hasCar', checked)}
+                className="border-[#CBB171] data-[state=checked]:bg-[#224D62] data-[state=checked]:border-[#224D62]"
+              />
+              <div className="flex items-center space-x-2">
+                <Car className="w-4 h-4 text-[#CBB171]" />
+                <Label htmlFor="hasCar" className="text-xs sm:text-sm font-medium text-[#224D62] cursor-pointer">
+                  Je possède une voiture
+                </Label>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Message d'aide */}
-      <div className="text-center p-3 sm:p-4 bg-[#224D62]/5 rounded-lg border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words">
+      <div className="text-center p-3 sm:p-4 bg-[#224D62]/5 rounded-lg border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-1300 w-full max-w-full break-words">
         <p className="text-xs sm:text-sm text-[#224D62]">
           💡 <strong>Conseil :</strong> Assurez-vous que vos informations correspondent exactement à vos documents officiels
         </p>
       </div>
     </div>
   )
-} 
+}

@@ -1,6 +1,7 @@
 const routes = {
     public: {
         register: '/register',
+        login: '/login',
     }
 }
 

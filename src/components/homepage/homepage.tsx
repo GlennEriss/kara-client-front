@@ -101,6 +101,17 @@ const Homepage = () => {
                   {item.replace('-', ' ')}
                 </button>
               ))}
+              <Button
+                variant={isScrolled ? 'outline' : 'default'}
+                className={
+                  isScrolled
+                    ? 'text-kara-blue border-2 border-kara-blue hover:bg-kara-blue hover:text-white transition-colors duration-300'
+                    : 'bg-kara-blue text-white hover:bg-kara-gold hover:text-white border-none transition-colors duration-300'
+                }
+                onClick={() => router.push(routes.public.login)}
+              >
+                Se connecter
+              </Button>
             </div>
 
             {/* Mobile Menu Toggle */}
@@ -125,6 +136,13 @@ const Homepage = () => {
                     {item.replace('-', ' ')}
                   </button>
                 ))}
+                <Button
+                  variant="outline"
+                  className="w-full text-kara-blue border-kara-blue hover:bg-kara-blue hover:text-white transition-colors"
+                  onClick={() => router.push(routes.public.login)}
+                >
+                  Se connecter
+                </Button>
               </div>
             </div>
           )}

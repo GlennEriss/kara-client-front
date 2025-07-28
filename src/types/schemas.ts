@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Énumérations pour les options fixes (valeurs en français)
-export const GenderEnum = z.enum(['Masculin', 'Féminin', 'Autre'])
+export const GenderEnum = z.enum(['Homme', 'Femme'])
 
 export const IdentityDocumentEnum = z.enum([
   'Passeport',
@@ -9,6 +9,8 @@ export const IdentityDocumentEnum = z.enum([
   'Carte scolaire',
   'Carte consulaire',
   'Carte d\'identité',
+  'NIP',
+  'CNI',
   'Autre'
 ])
 
@@ -56,6 +58,18 @@ export const identitySchema = z.object({
       return age >= 16 && age <= 120
     }, 'Vous devez avoir entre 16 et 120 ans'),
   
+  birthPlace: z.string()
+    .min(2, 'Le lieu de naissance doit contenir au moins 2 caractères')
+    .max(100, 'Le lieu de naissance ne peut pas dépasser 100 caractères'),
+  
+  birthCertificateNumber: z.string()
+    .min(1, 'Le numéro d\'acte de naissance est requis')
+    .max(50, 'Le numéro d\'acte de naissance ne peut pas dépasser 50 caractères'),
+  
+  prayerPlace: z.string()
+    .min(2, 'Le lieu de prière doit contenir au moins 2 caractères')
+    .max(100, 'Le lieu de prière ne peut pas dépasser 100 caractères'),
+  
   contacts: z.array(
     z.string()
       .min(8, 'Le numéro de téléphone doit contenir au moins 8 chiffres')
@@ -66,15 +80,26 @@ export const identitySchema = z.object({
     .max(2, 'Maximum 2 numéros de téléphone'),
   
   email: z.string()
-    .min(1, 'L\'email est requis')
     .email('Format d\'email invalide')
-    .max(100, 'L\'email ne peut pas dépasser 100 caractères'),
+    .max(100, 'L\'email ne peut pas dépasser 100 caractères')
+    .optional(),
   
   gender: GenderEnum,
+  
+  nationality: z.string()
+    .min(2, 'La nationalité doit contenir au moins 2 caractères')
+    .max(50, 'La nationalité ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'La nationalité ne peut contenir que des lettres, espaces, apostrophes et tirets'),
   
   identityDocument: IdentityDocumentEnum,
   
   maritalStatus: MaritalStatusEnum,
+  
+  hasCar: z.boolean().default(false),
+  
+  intermediaryCode: z.string()
+    .max(50, 'Le code entremetteur ne peut pas dépasser 50 caractères')
+    .optional(),
   
   photo: z.instanceof(File)
     .optional()
@@ -101,6 +126,10 @@ export const addressSchema = z.object({
   district: z.string()
     .min(2, 'Le quartier doit contenir au moins 2 caractères')
     .max(100, 'Le quartier ne peut pas dépasser 100 caractères'),
+  
+  arrondissement: z.string()
+    .min(2, 'L\'arrondissement doit contenir au moins 2 caractères')
+    .max(50, 'L\'arrondissement ne peut pas dépasser 50 caractères'),
   
   additionalInfo: z.string()
     .max(200, 'Les informations complémentaires ne peuvent pas dépasser 200 caractères')
@@ -348,17 +377,24 @@ export const defaultValues: RegisterFormData = {
     lastName: '',
     firstName: '',
     birthDate: '',
+    birthPlace: '',
+    birthCertificateNumber: '',
+    prayerPlace: '',
     contacts: [''],
     email: '',
-    gender: 'Masculin',
+    gender: 'Homme',
+    nationality: '',
     identityDocument: 'Carte d\'identité',
     maritalStatus: 'Célibataire',
+    hasCar: false,
+    intermediaryCode: '',
     photo: undefined
   },
   address: {
     province: '',
     city: '',
     district: '',
+    arrondissement: '',
     additionalInfo: ''
   },
   company: {
