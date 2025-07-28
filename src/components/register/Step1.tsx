@@ -71,7 +71,7 @@ export default function Step1({ form }: Step1Props) {
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { register, watch, setValue, formState: { errors }, control } = form
+  const { register, watch, setValue, setError, clearErrors, formState: { errors }, control } = form
 
   // Field array pour les contacts
   const { fields, append, remove } = useFieldArray({
@@ -89,7 +89,8 @@ export default function Step1({ form }: Step1Props) {
     'identity.birthCertificateNumber',
     'identity.prayerPlace',
     'identity.nationality',
-    'identity.hasCar'
+    'identity.hasCar',
+    'identity.photo'
   ])
 
   // Définir la nationalité par défaut au chargement (Gabon)
@@ -98,6 +99,19 @@ export default function Step1({ form }: Step1Props) {
       setValue('identity.nationality', 'GA')
     }
   }, [])
+
+  // Validation de la photo obligatoire
+  React.useEffect(() => {
+    const photo = watch('identity.photo')
+    if (!photo) {
+      setError('identity.photo', {
+        type: 'required',
+        message: 'Une photo est requise'
+      })
+    } else {
+      clearErrors('identity.photo')
+    }
+  }, [watchedFields[9], setError, clearErrors])
 
   // Gestion de l'upload de photo
   const handlePhotoUpload = (file: File) => {
@@ -108,6 +122,7 @@ export default function Step1({ form }: Step1Props) {
       }
       reader.readAsDataURL(file)
       setValue('identity.photo', file)
+      clearErrors('identity.photo') // Effacer l'erreur quand une photo est sélectionnée
     }
   }
 
@@ -149,7 +164,7 @@ export default function Step1({ form }: Step1Props) {
             <CardContent className="p-4 sm:p-6 w-full">
               <div className="text-center space-y-4 w-full">
                 <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Photo de profil (optionnel)
+                  Photo de profil <span className="text-red-500">*</span>
                 </Label>
                 {/* Zone d'upload avec drag & drop */}
                 <div
@@ -203,6 +218,12 @@ export default function Step1({ form }: Step1Props) {
                     className="hidden"
                   />
                 </div>
+                {errors?.identity?.photo && (
+                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{errors.identity.photo.message}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
