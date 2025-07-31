@@ -19,7 +19,8 @@ import {
   TrendingUp,
   Coffee,
   GraduationCap,
-  UserX
+  UserX,
+  Info
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -79,18 +80,18 @@ export default function Step3({ form }: Step3Props) {
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header avec animation */}
-      <div className="text-center space-y-2 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
-        <div className="inline-flex items-center space-x-2 px-3 sm:px-4 py-2 bg-[#224D62]/10 rounded-full">
-          <Briefcase className="w-5 h-5 text-[#224D62]" />
-          <span className="text-[#224D62] font-medium text-sm sm:text-base">Informations professionnelles</span>
+      <div className="text-center space-y-3 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
+        <div className="inline-flex items-center space-x-3 px-5 sm:px-6 py-3 bg-gradient-to-r from-[#224D62]/10 via-[#CBB171]/10 to-[#224D62]/10 rounded-full shadow-lg border border-[#224D62]/20">
+          <Briefcase className="w-6 h-6 text-[#224D62]" />
+          <span className="text-[#224D62] font-bold text-base sm:text-lg">Informations professionnelles</span>
         </div>
-        <p className="text-gray-600 text-xs sm:text-sm break-words">
+        <p className="text-[#224D62]/80 text-sm sm:text-base break-words font-medium">
           Renseignez vos informations d'emploi (section optionnelle)
         </p>
       </div>
 
       {/* Toggle principal avec card attractive */}
-      <Card className="border-2 border-[#CBB171]/20 bg-gradient-to-br from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 zoom-in-95 duration-700 delay-200 w-full">
+      <Card className="border-2 border-[#224D62]/20 bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 animate-in fade-in-0 zoom-in-95 duration-700 delay-200 w-full shadow-lg">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 w-full">
             <div className="flex items-center space-x-3 w-full min-w-0">
@@ -165,11 +166,11 @@ export default function Step3({ form }: Step3Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.company?.companyName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[0] && !errors?.company?.companyName && "border-green-300 bg-green-50/30"
+                    watchedFields[0] && !errors?.company?.companyName && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[0] && !errors?.company?.companyName && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.company?.companyName && (
@@ -200,7 +201,7 @@ export default function Step3({ form }: Step3Props) {
                     className={cn(
                       "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                       errors?.company?.companyAddress?.province && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[1] && !errors?.company?.companyAddress?.province && "border-green-300 bg-green-50/30"
+                      watchedFields[1] && !errors?.company?.companyAddress?.province && "border-[#CBB171] bg-[#CBB171]/5"
                     )}
                   />
                 </div>
@@ -216,7 +217,7 @@ export default function Step3({ form }: Step3Props) {
                     className={cn(
                       "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                       errors?.company?.companyAddress?.city && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[2] && !errors?.company?.companyAddress?.city && "border-green-300 bg-green-50/30"
+                      watchedFields[2] && !errors?.company?.companyAddress?.city && "border-[#CBB171] bg-[#CBB171]/5"
                     )}
                   />
                 </div>
@@ -232,7 +233,7 @@ export default function Step3({ form }: Step3Props) {
                     className={cn(
                       "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                       errors?.company?.companyAddress?.district && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[3] && !errors?.company?.companyAddress?.district && "border-green-300 bg-green-50/30"
+                      watchedFields[3] && !errors?.company?.companyAddress?.district && "border-[#CBB171] bg-[#CBB171]/5"
                     )}
                   />
                 </div>
@@ -256,12 +257,12 @@ export default function Step3({ form }: Step3Props) {
                     className={cn(
                       "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                       errors?.company?.profession && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[4] && !errors?.company?.profession && "border-green-300 bg-green-50/30"
+                      watchedFields[4] && !errors?.company?.profession && "border-[#CBB171] bg-[#CBB171]/5"
                     )}
                   />
-                  {watchedFields[4] && !errors?.company?.profession && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200 z-10" />
-                  )}
+                                  {watchedFields[4] && !errors?.company?.profession && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                )}
                   {/* Suggestions professions */}
                   {showProfessionSuggestions && (
                     <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 max-h-32 sm:max-h-48 overflow-y-auto w-full">
@@ -306,12 +307,12 @@ export default function Step3({ form }: Step3Props) {
                     className={cn(
                       "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                       errors?.company?.seniority && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[5] && !errors?.company?.seniority && "border-green-300 bg-green-50/30"
+                      watchedFields[5] && !errors?.company?.seniority && "border-[#CBB171] bg-[#CBB171]/5"
                     )}
                   />
-                  {watchedFields[5] && !errors?.company?.seniority && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200 z-10" />
-                  )}
+                                  {watchedFields[5] && !errors?.company?.seniority && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                )}
                   {/* Suggestions ancienneté */}
                   {showSenioritySuggestions && (
                     <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full">
@@ -370,10 +371,13 @@ export default function Step3({ form }: Step3Props) {
         )}
       </div>
       {/* Message d'information */}
-      <div className="text-center p-3 sm:p-4 bg-[#CBB171]/5 rounded-lg border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words">
-        <p className="text-xs sm:text-sm text-[#224D62]">
-          💼 <strong>Information :</strong> Ces données professionnelles nous aident à mieux vous connaître et adapter nos services
-        </p>
+      <div className="text-center p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words shadow-lg">
+        <div className="flex items-center justify-center space-x-3">
+          <Info className="w-6 h-6 text-[#CBB171]" />
+          <p className="text-sm sm:text-base text-[#224D62] font-bold">
+            <strong>Information :</strong> Ces données professionnelles nous aident à mieux vous connaître et adapter nos services
+          </p>
+        </div>
       </div>
     </div>
   )

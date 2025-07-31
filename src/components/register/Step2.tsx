@@ -46,8 +46,8 @@ interface PhotonResult {
   }
 }
 
-// Génération des options d'arrondissement (1 à 29)
-const ARRONDISSEMENT_OPTIONS = Array.from({ length: 29 }, (_, i) => {
+// Génération des options d'arrondissement (1 à 8)
+const ARRONDISSEMENT_OPTIONS = Array.from({ length: 8 }, (_, i) => {
   const num = i + 1
   let suffix = 'ème'
   if (num === 1) suffix = 'er'
@@ -169,29 +169,29 @@ export default function Step2({ form }: Step2Props) {
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header avec animation */}
-      <div className="text-center space-y-2 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
-        <div className="inline-flex items-center space-x-2 px-3 sm:px-4 py-2 bg-[#224D62]/10 rounded-full">
-          <MapPin className="w-5 h-5 text-[#224D62]" />
-          <span className="text-[#224D62] font-medium text-sm sm:text-base">Adresse de résidence</span>
+      <div className="text-center space-y-3 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
+        <div className="inline-flex items-center space-x-3 px-5 sm:px-6 py-3 bg-gradient-to-r from-[#224D62]/10 via-[#CBB171]/10 to-[#224D62]/10 rounded-full shadow-lg border border-[#224D62]/20">
+          <MapPin className="w-6 h-6 text-[#224D62]" />
+          <span className="text-[#224D62] font-bold text-base sm:text-lg">Adresse de résidence</span>
         </div>
-        <p className="text-gray-600 text-xs sm:text-sm break-words">
+        <p className="text-[#224D62]/80 text-sm sm:text-base break-words font-medium">
           Recherchez votre quartier pour localiser automatiquement votre adresse
         </p>
       </div>
 
       {/* Illustration de carte stylisée */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-2xl p-4 sm:p-6 animate-in fade-in-0 zoom-in-95 duration-700 delay-200 w-full">
-        <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-[#CBB171]/10 rounded-full -translate-y-10 sm:-translate-y-16 translate-x-10 sm:translate-x-16"></div>
-        <div className="absolute bottom-0 left-0 w-16 sm:w-24 h-16 sm:h-24 bg-[#224D62]/10 rounded-full translate-y-8 sm:translate-y-12 -translate-x-8 sm:-translate-x-12"></div>
-        <div className="relative flex items-center justify-center space-x-2 sm:space-x-4 py-2 sm:py-4">
-          <div className="flex items-center space-x-2 text-[#224D62] text-xs sm:text-base">
-            <Globe className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="font-medium">Géolocalisation</span>
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-2xl p-6 sm:p-8 animate-in fade-in-0 zoom-in-95 duration-700 delay-200 w-full shadow-lg border border-[#224D62]/20">
+        <div className="absolute top-0 right-0 w-32 sm:w-40 h-32 sm:h-40 bg-gradient-to-bl from-[#224D62]/20 to-transparent rounded-full opacity-30 -translate-y-12 sm:-translate-y-20 translate-x-12 sm:translate-x-20"></div>
+        <div className="absolute bottom-0 left-0 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-tr from-[#CBB171]/20 to-transparent rounded-full opacity-30 translate-y-10 sm:translate-y-16 -translate-x-10 sm:-translate-x-16"></div>
+        <div className="relative flex items-center justify-center space-x-4 sm:space-x-6 py-4 sm:py-6">
+          <div className="flex items-center space-x-3 text-[#224D62] text-sm sm:text-base">
+            <Globe className="w-6 h-6 sm:w-7 sm:h-7" />
+            <span className="font-bold">Géolocalisation</span>
           </div>
-          <div className="w-2 h-2 bg-[#CBB171] rounded-full animate-pulse"></div>
-          <div className="flex items-center space-x-2 text-[#CBB171] text-xs sm:text-sm">
-            <Navigation className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="text-sm">Gabon</span>
+          <div className="w-3 h-3 bg-gradient-to-r from-[#224D62] to-[#CBB171] rounded-full animate-pulse shadow-lg"></div>
+          <div className="flex items-center space-x-3 text-[#CBB171] text-sm sm:text-base">
+            <Navigation className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className="font-bold">Gabon</span>
           </div>
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function Step2({ form }: Step2Props) {
                 className={cn(
                   "pl-10 pr-12 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                   errors?.address?.district && "border-red-300 focus:border-red-500 bg-red-50/50",
-                  selectedLocation && "border-green-300 bg-green-50/30"
+                  selectedLocation && "border-[#CBB171] bg-[#CBB171]/5"
                 )}
               />
               
@@ -225,7 +225,7 @@ export default function Step2({ form }: Step2Props) {
               
               {/* Success checkmark */}
               {selectedLocation && !isSearching && (
-                <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200 z-10" />
+                <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
               )}
 
               {/* Résultats de recherche */}
@@ -282,14 +282,14 @@ export default function Step2({ form }: Step2Props) {
           {/* Informations automatiques */}
           {selectedLocation && (
             <div className="space-y-4 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-200 w-full min-w-0">
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="p-4 bg-[#CBB171]/5 rounded-lg border border-[#CBB171]/20">
                 <div className="flex items-center space-x-2 mb-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-800">
+                  <CheckCircle className="w-4 h-4 text-[#CBB171]" />
+                  <span className="text-sm font-medium text-[#224D62]">
                     Localisation détectée
                   </span>
                 </div>
-                <div className="text-xs text-green-700">
+                <div className="text-xs text-[#224D62]/80">
                   {formatResultDisplay(selectedLocation)}
                 </div>
               </div>
@@ -303,7 +303,7 @@ export default function Step2({ form }: Step2Props) {
           <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
             <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
               Ville <span className="text-red-500">*</span>
-              <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 text-[10px] sm:text-xs">
+              <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
                 Automatique
               </Badge>
             </Label>
@@ -322,7 +322,7 @@ export default function Step2({ form }: Step2Props) {
           <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-200 w-full min-w-0">
             <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
               Province <span className="text-red-500">*</span>
-              <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 text-[10px] sm:text-xs">
+              <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
                 Automatique
               </Badge>
             </Label>
@@ -341,7 +341,7 @@ export default function Step2({ form }: Step2Props) {
           <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-250 w-full min-w-0">
             <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
               Quartier <span className="text-red-500">*</span>
-              <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 text-[10px] sm:text-xs">
+              <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
                 Automatique
               </Badge>
             </Label>
@@ -374,7 +374,7 @@ export default function Step2({ form }: Step2Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.address?.arrondissement && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[3] && !errors?.address?.arrondissement && "border-green-300 bg-green-50/30"
+                    watchedFields[3] && !errors?.address?.arrondissement && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 >
                   <SelectValue placeholder="Sélectionnez un arrondissement..." />
@@ -388,7 +388,7 @@ export default function Step2({ form }: Step2Props) {
                 </SelectContent>
               </Select>
               {watchedFields[3] && !errors?.address?.arrondissement && (
-                <CheckCircle className="absolute right-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200 z-10" />
+                <CheckCircle className="absolute right-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
               )}
             </div>
             {errors?.address?.arrondissement && (
@@ -423,7 +423,7 @@ export default function Step2({ form }: Step2Props) {
             <div className="text-xs text-gray-500 flex items-center space-x-1 break-words">
               <span>Ces détails aideront à mieux vous localiser</span>
               {watchedFields[4] && (
-                <CheckCircle className="w-3 h-3 text-green-500 animate-in zoom-in-50 duration-200" />
+                <CheckCircle className="w-3 h-3 text-[#CBB171] animate-in zoom-in-50 duration-200" />
               )}
             </div>
           </div>
@@ -431,24 +431,24 @@ export default function Step2({ form }: Step2Props) {
       </div>
 
       {/* Messages d'aide */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
-        <div className="p-3 sm:p-4 bg-[#224D62]/5 rounded-lg border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full break-words">
-          <div className="flex items-start space-x-2">
-            <Search className="w-4 h-4 text-[#224D62] mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="text-xs sm:text-sm font-medium text-[#224D62]">Recherche intelligente</p>
-              <p className="text-[10px] sm:text-xs text-gray-600">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+        <div className="p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full break-words shadow-lg">
+          <div className="flex items-start space-x-3">
+            <Search className="w-6 h-6 text-[#CBB171] flex-shrink-0" />
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base font-bold text-[#224D62]">Recherche intelligente</p>
+              <p className="text-sm text-[#224D62]/80">
                 Tapez le nom de votre quartier et sélectionnez dans les suggestions
               </p>
             </div>
           </div>
         </div>
-        <div className="p-3 sm:p-4 bg-[#CBB171]/5 rounded-lg border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full break-words">
-          <div className="flex items-start space-x-2">
-            <MapPin className="w-4 h-4 text-[#CBB171] mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="text-xs sm:text-sm font-medium text-[#CBB171]">Géolocalisation</p>
-              <p className="text-[10px] sm:text-xs text-gray-600">
+        <div className="p-4 sm:p-6 bg-gradient-to-r from-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full break-words shadow-lg">
+          <div className="flex items-start space-x-3">
+            <MapPin className="w-6 h-6 text-[#CBB171] flex-shrink-0" />
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base font-bold text-[#224D62]">Géolocalisation</p>
+              <p className="text-sm text-[#224D62]/80">
                 Ville et province remplies automatiquement. Saisissez l'arrondissement manuellement.
               </p>
             </div>

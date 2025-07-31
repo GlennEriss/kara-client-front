@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { NATIONALITY_NAMES, SelectCountry, NATIONALITY_OPTIONS } from '@/components/ui/select-country'
 import { 
   User, 
@@ -18,15 +17,15 @@ import {
   Phone, 
   Plus, 
   Trash2, 
-  Upload, 
   Camera,
   CheckCircle,
   AlertCircle,
   MapPin,
   FileText,
   Church,
-  Car,
-  Hash
+  Hash,
+  CreditCard,
+  Lightbulb
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import PRIORITY_COUNTRIES from '@/constantes/country-code'
@@ -89,7 +88,7 @@ export default function Step1({ form }: Step1Props) {
     'identity.birthCertificateNumber',
     'identity.prayerPlace',
     'identity.nationality',
-    'identity.hasCar',
+    'identity.identityDocumentNumber',
     'identity.photo'
   ])
 
@@ -100,7 +99,7 @@ export default function Step1({ form }: Step1Props) {
     }
   }, [])
 
-  // Validation de la photo obligatoire
+  // Validation de la photo obligatoire et restauration de la preview
   React.useEffect(() => {
     const photo = watch('identity.photo')
     if (!photo) {
@@ -110,19 +109,24 @@ export default function Step1({ form }: Step1Props) {
       })
     } else {
       clearErrors('identity.photo')
+      // Restaurer la preview si on a une photo mais pas de preview
+      if (photo && !photoPreview && typeof photo === 'string' && photo.startsWith('data:')) {
+        setPhotoPreview(photo)
+      }
     }
-  }, [watchedFields[9], setError, clearErrors])
+  }, [watchedFields[9], setError, clearErrors, photoPreview])
 
   // Gestion de l'upload de photo
   const handlePhotoUpload = (file: File) => {
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string)
+        const dataUrl = e.target?.result as string
+        setPhotoPreview(dataUrl)
+        setValue('identity.photo', dataUrl) // Stocker comme data URL pour la persistance
+        clearErrors('identity.photo') // Effacer l'erreur quand une photo est sélectionnée
       }
       reader.readAsDataURL(file)
-      setValue('identity.photo', file)
-      clearErrors('identity.photo') // Effacer l'erreur quand une photo est sélectionnée
     }
   }
 
@@ -147,12 +151,12 @@ export default function Step1({ form }: Step1Props) {
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header avec animation */}
-      <div className="text-center space-y-2 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
-        <div className="inline-flex items-center space-x-2 px-3 sm:px-4 py-2 bg-[#224D62]/10 rounded-full">
-          <User className="w-5 h-5 text-[#224D62]" />
-          <span className="text-[#224D62] font-medium text-sm sm:text-base">Informations d'identité</span>
+      <div className="text-center space-y-3 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
+        <div className="inline-flex items-center space-x-3 px-5 sm:px-6 py-3 bg-gradient-to-r from-[#224D62]/10 via-[#CBB171]/10 to-[#224D62]/10 rounded-full shadow-lg border border-[#224D62]/20">
+          <User className="w-6 h-6 text-[#224D62]" />
+          <span className="text-[#224D62] font-bold text-base sm:text-lg">Informations d'identité</span>
         </div>
-        <p className="text-gray-600 text-xs sm:text-sm break-words">
+        <p className="text-[#224D62]/80 text-sm sm:text-base break-words font-medium">
           Renseignez vos informations personnelles pour créer votre profil
         </p>
       </div>
@@ -160,81 +164,80 @@ export default function Step1({ form }: Step1Props) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 w-full">
         {/* Section Photo */}
         <div className="lg:col-span-1 w-full min-w-0">
-          <Card className="border-2 border-dashed border-[#CBB171]/30 bg-gradient-to-br from-[#CBB171]/5 to-[#224D62]/5 transition-all duration-300 hover:border-[#CBB171]/50 w-full">
-            <CardContent className="p-4 sm:p-6 w-full">
-              <div className="text-center space-y-4 w-full">
-                <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Photo de profil <span className="text-red-500">*</span>
-                </Label>
-                {/* Zone d'upload avec drag & drop */}
-                <div
-                  className={cn(
-                    "relative border-2 border-dashed rounded-xl p-4 sm:p-6 transition-all duration-300 cursor-pointer group w-full",
-                    isDragOver 
-                      ? "border-[#224D62] bg-[#224D62]/5" 
-                      : "border-[#CBB171]/40 hover:border-[#CBB171]/60",
-                    photoPreview && "border-solid border-[#224D62]/20"
-                  )}
-                  onDrop={handleDrop}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
-                  onDragLeave={() => setIsDragOver(false)}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {photoPreview ? (
-                    <div className="space-y-3">
-                      <Avatar className="w-20 h-20 sm:w-24 sm:h-24 mx-auto ring-4 ring-[#CBB171]/20">
-                        <AvatarImage src={photoPreview} alt="Photo de profil" />
-                        <AvatarFallback className="bg-[#224D62]/10">
-                          <Camera className="w-8 h-8 text-[#224D62]" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="text-center">
-                        <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs sm:text-sm">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Photo ajoutée
-                        </Badge>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center space-y-3">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto bg-[#CBB171]/10 rounded-full flex items-center justify-center group-hover:bg-[#CBB171]/20 transition-colors">
-                        <Upload className="w-8 h-8 text-[#CBB171] group-hover:scale-110 transition-transform" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs sm:text-sm font-medium text-[#224D62]">
-                          Cliquez ou glissez votre photo
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          PNG, JPG, WebP (max 5MB)
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </div>
-                {errors?.identity?.photo && (
-                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{errors.identity.photo.message}</span>
+          <div className="text-center space-y-4 w-full">
+            <Label className="text-sm sm:text-base font-bold text-[#224D62]">
+              Photo de profil <span className="text-red-500">*</span>
+            </Label>
+            
+            {/* Zone d'upload simplifiée */}
+            <div
+              className={cn(
+                "relative w-32 h-32 sm:w-40 sm:h-40 mx-auto rounded-full border-2 border-dashed transition-all duration-300 cursor-pointer group",
+                isDragOver 
+                  ? "border-[#224D62] bg-[#224D62]/5 shadow-lg scale-105" 
+                  : "border-[#224D62]/30 hover:border-[#224D62]/50 hover:bg-[#224D62]/5 hover:scale-105",
+                photoPreview && "border-solid border-[#224D62]/50 bg-[#224D62]/5"
+              )}
+              onDrop={handleDrop}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+              onDragLeave={() => setIsDragOver(false)}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {photoPreview ? (
+                <div className="w-full h-full rounded-full overflow-hidden">
+                  <Avatar className="w-full h-full">
+                    <AvatarImage src={photoPreview} alt="Photo de profil" />
+                                      <AvatarFallback className="bg-[#224D62]/10">
+                    <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-[#224D62]" />
+                  </AvatarFallback>
+                  </Avatar>
+                  {/* Badge de succès */}
+                  <div className="absolute -top-2 -right-2">
+                    <Badge className="bg-gradient-to-r from-[#CBB171] to-[#224D62] text-white text-xs shadow-sm">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                    </Badge>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-r from-[#224D62]/10 to-[#CBB171]/10 group-hover:from-[#224D62]/20 group-hover:to-[#CBB171]/20 transition-all duration-300">
+                  <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-[#224D62] group-hover:scale-110 transition-transform" />
+                </div>
+              )}
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+            
+            {/* Texte d'aide */}
+            <div className="space-y-1">
+              <p className="text-sm text-gray-600 font-medium">
+                Cliquez pour ajouter une photo
+              </p>
+              <p className="text-xs text-gray-500">
+                PNG, JPG, WebP (max 5MB)
+              </p>
+            </div>
+            
+            {errors?.identity?.photo && (
+              <div className="flex items-center justify-center space-x-1 text-red-500 text-sm animate-in slide-in-from-top-2 duration-300 break-words">
+                <AlertCircle className="w-4 h-4" />
+                <span className="font-medium">{errors.identity.photo.message}</span>
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         </div>
 
         {/* Section Formulaire */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6 w-full min-w-0">
           {/* Nom et Prénom */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
-              <Label htmlFor="lastName" className="text-xs sm:text-sm font-medium text-[#224D62]">
+            <div className="space-y-3 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
+              <Label htmlFor="lastName" className="text-sm font-bold text-[#224D62]">
                 Nom <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
@@ -243,25 +246,25 @@ export default function Step1({ form }: Step1Props) {
                   {...register('identity.lastName')}
                   placeholder="Votre nom de famille"
                   className={cn(
-                    "pl-4 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                    errors?.identity?.lastName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[0] && !errors?.identity?.lastName && "border-green-300 bg-green-50/30"
+                    "h-12 pl-4 pr-12 border-2 border-[#224D62]/30 focus:border-[#224D62] focus:ring-4 focus:ring-[#224D62]/10 transition-all duration-300 w-full rounded-lg font-medium",
+                    errors?.identity?.lastName && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
+                    watchedFields[0] && !errors?.identity?.lastName && "border-[#CBB171] focus:border-[#CBB171] focus:ring-[#CBB171]/10 bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[0] && !errors?.identity?.lastName && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.identity?.lastName && (
-                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                  <AlertCircle className="w-3 h-3" />
+                <div className="flex items-center space-x-1 text-red-500 text-sm animate-in slide-in-from-left-2 duration-300 break-words font-medium">
+                  <AlertCircle className="w-4 h-4" />
                   <span>{errors.identity.lastName.message}</span>
                 </div>
               )}
             </div>
 
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
-              <Label htmlFor="firstName" className="text-xs sm:text-sm font-medium text-[#224D62]">
+            <div className="space-y-3 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
+              <Label htmlFor="firstName" className="text-sm font-bold text-[#224D62]">
                 Prénom <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
@@ -270,18 +273,18 @@ export default function Step1({ form }: Step1Props) {
                   {...register('identity.firstName')}
                   placeholder="Votre prénom"
                   className={cn(
-                    "pl-4 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                    errors?.identity?.firstName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[1] && !errors?.identity?.firstName && "border-green-300 bg-green-50/30"
+                    "h-12 pl-4 pr-12 border-2 border-[#224D62]/30 focus:border-[#224D62] focus:ring-4 focus:ring-[#224D62]/10 transition-all duration-300 w-full rounded-lg font-medium",
+                    errors?.identity?.firstName && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
+                    watchedFields[1] && !errors?.identity?.firstName && "border-[#CBB171] focus:border-[#CBB171] focus:ring-[#CBB171]/10 bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[1] && !errors?.identity?.firstName && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.identity?.firstName && (
-                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
-                  <AlertCircle className="w-3 h-3" />
+                <div className="flex items-center space-x-1 text-red-500 text-sm animate-in slide-in-from-right-2 duration-300 break-words font-medium">
+                  <AlertCircle className="w-4 h-4" />
                   <span>{errors.identity.firstName.message}</span>
                 </div>
               )}
@@ -304,11 +307,11 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.email && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[2] && !errors?.identity?.email && "border-green-300 bg-green-50/30"
+                    watchedFields[2] && !errors?.identity?.email && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[2] && !errors?.identity?.email && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.identity?.email && (
@@ -332,11 +335,11 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.birthDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[3] && !errors?.identity?.birthDate && "border-green-300 bg-green-50/30"
+                    watchedFields[3] && !errors?.identity?.birthDate && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[3] && !errors?.identity?.birthDate && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.identity?.birthDate && (
@@ -363,11 +366,11 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.birthPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[4] && !errors?.identity?.birthPlace && "border-green-300 bg-green-50/30"
+                    watchedFields[4] && !errors?.identity?.birthPlace && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[4] && !errors?.identity?.birthPlace && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.identity?.birthPlace && (
@@ -391,11 +394,11 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.birthCertificateNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[5] && !errors?.identity?.birthCertificateNumber && "border-green-300 bg-green-50/30"
+                    watchedFields[5] && !errors?.identity?.birthCertificateNumber && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[5] && !errors?.identity?.birthCertificateNumber && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.identity?.birthCertificateNumber && (
@@ -422,11 +425,11 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.prayerPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[6] && !errors?.identity?.prayerPlace && "border-green-300 bg-green-50/30"
+                    watchedFields[6] && !errors?.identity?.prayerPlace && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
                 {watchedFields[6] && !errors?.identity?.prayerPlace && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200" />
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
               {errors?.identity?.prayerPlace && (
@@ -573,54 +576,70 @@ export default function Step1({ form }: Step1Props) {
               </Select>
             </div>
 
-            {/* Situation matrimoniale */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-1100 w-full min-w-0">
-              <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Situation matrimoniale <span className="text-red-500">*</span>
+            {/* Numéro de pièce d'identité */}
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-1050 w-full min-w-0">
+              <Label htmlFor="identityDocumentNumber" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Numéro de pièce d'identité <span className="text-red-500">*</span>
               </Label>
-              <Select 
-                onValueChange={(value) => setValue('identity.maritalStatus', value)}
-                defaultValue={watch('identity.maritalStatus')}
-              >
-                <SelectTrigger className="border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MARITAL_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                <Input
+                  id="identityDocumentNumber"
+                  {...register('identity.identityDocumentNumber')}
+                  placeholder="Numéro de votre pièce d'identité"
+                  className={cn(
+                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                    errors?.identity?.identityDocumentNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
+                    watchedFields[8] && !errors?.identity?.identityDocumentNumber && "border-[#CBB171] bg-[#CBB171]/5"
+                  )}
+                />
+                {watchedFields[8] && !errors?.identity?.identityDocumentNumber && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+                )}
+              </div>
+              {errors?.identity?.identityDocumentNumber && (
+                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.identity.identityDocumentNumber.message}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Checkbox pour la voiture */}
-          <div className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-1200 w-full">
-            <div className="flex items-center space-x-3 p-4 bg-[#224D62]/5 rounded-lg border border-[#CBB171]/20">
-              <Checkbox
-                id="hasCar"
-                checked={watchedFields[8]}
-                onCheckedChange={(checked) => setValue('identity.hasCar', checked)}
-                className="border-[#CBB171] data-[state=checked]:bg-[#224D62] data-[state=checked]:border-[#224D62]"
-              />
-              <div className="flex items-center space-x-2">
-                <Car className="w-4 h-4 text-[#CBB171]" />
-                <Label htmlFor="hasCar" className="text-xs sm:text-sm font-medium text-[#224D62] cursor-pointer">
-                  Je possède une voiture
-                </Label>
-              </div>
-            </div>
+          {/* Situation matrimoniale (seule) */}
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-1100 w-full max-w-md">
+            <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+              Situation matrimoniale <span className="text-red-500">*</span>
+            </Label>
+            <Select 
+              onValueChange={(value) => setValue('identity.maritalStatus', value)}
+              defaultValue={watch('identity.maritalStatus')}
+            >
+              <SelectTrigger className="border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full">
+                <SelectValue placeholder="Sélectionner" />
+              </SelectTrigger>
+              <SelectContent>
+                {MARITAL_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+
         </div>
       </div>
 
       {/* Message d'aide */}
-      <div className="text-center p-3 sm:p-4 bg-[#224D62]/5 rounded-lg border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-1300 w-full max-w-full break-words">
-        <p className="text-xs sm:text-sm text-[#224D62]">
-          💡 <strong>Conseil :</strong> Assurez-vous que vos informations correspondent exactement à vos documents officiels
-        </p>
+      <div className="text-center p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-1300 w-full max-w-full break-words shadow-lg">
+        <div className="flex items-center justify-center space-x-3">
+          <Lightbulb className="w-6 h-6 text-[#CBB171]" />
+          <p className="text-sm sm:text-base text-[#224D62] font-bold">
+            <strong>Conseil :</strong> Assurez-vous que vos informations correspondent exactement à vos documents officiels
+          </p>
+        </div>
       </div>
     </div>
   )

@@ -83,7 +83,7 @@ export const SelectCountry: React.FC<SelectCountryProps> = ({
           className={cn(
             "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
             error && "border-red-300 focus:border-red-500 bg-red-50/50",
-            hasValidValue && showValidation && "border-green-300 bg-green-50/30",
+            hasValidValue && showValidation && "border-[#CBB171] bg-[#CBB171]/5",
             disabled && "opacity-50 cursor-not-allowed",
             className
           )}
@@ -122,7 +122,7 @@ export const SelectCountry: React.FC<SelectCountryProps> = ({
       
       {/* Validation checkmark */}
       {hasValidValue && showValidation && (
-        <CheckCircle className="absolute right-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500 animate-in zoom-in-50 duration-200 z-10" />
+        <CheckCircle className="absolute right-8 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
       )}
       
       {/* Error message */}

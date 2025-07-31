@@ -4,9 +4,9 @@ import React, { Suspense, lazy } from 'react'
 import { useRegister } from '@/providers/RegisterProvider'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
+
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Send, Save, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Lazy loading des composants step pour optimiser les performances
@@ -32,7 +32,7 @@ const STEPS_CONFIG = [
   { id: 1, title: 'Identité', description: 'Informations personnelles' },
   { id: 2, title: 'Adresse', description: 'Lieu de résidence' },
   { id: 3, title: 'Entreprise', description: 'Informations professionnelles' },
-  { id: 4, title: 'Assurance', description: 'Couverture d\'assurance' },
+  { id: 4, title: 'Véhicule', description: 'Assurance automobile' },
 ] as const
 
 function Register() {
@@ -135,21 +135,32 @@ function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 py-4 sm:py-8 w-full max-w-full overflow-x-hidden">
-      <div className="container mx-auto max-w-4xl px-2 sm:px-4 w-full">
+    <div className="min-h-screen bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 py-4 sm:py-8 w-full max-w-full overflow-x-hidden relative">
+      {/* Background decorations */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#224D62]/10 to-transparent rounded-full opacity-30 transform translate-x-48 -translate-y-48"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[#CBB171]/10 to-transparent rounded-full opacity-30 transform -translate-x-48 translate-y-48"></div>
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-[#224D62]/10 to-[#CBB171]/10 rounded-full opacity-20 transform -translate-x-32 -translate-y-32"></div>
+      </div>
+
+      <div className="container mx-auto max-w-4xl px-2 sm:px-4 w-full relative z-10">
         
         {/* Header avec indicateur de cache */}
         <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2 sm:gap-0 w-full">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-0 w-full">
             <div className="w-full min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">Inscription</h1>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base break-words">Complétez votre profil en {totalSteps} étapes</p>
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[#224D62] via-[#224D62] to-[#CBB171] bg-clip-text text-transparent break-words">
+                Inscription
+              </h1>
+              <p className="text-[#224D62]/80 mt-2 text-sm sm:text-base break-words">
+                Complétez votre profil en {totalSteps} étapes simples
+              </p>
             </div>
             
             {/* Indicateurs de cache et actions */}
-            <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <div className="flex items-center space-x-3 w-full sm:w-auto">
               {hasCachedData() && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800 whitespace-nowrap">
+                <Badge className="bg-gradient-to-r from-[#224D62] to-[#CBB171] text-white whitespace-nowrap shadow-sm">
                   📄 Données sauvegardées
                 </Badge>
               )}
@@ -158,7 +169,7 @@ function Register() {
                 variant="outline"
                 size="sm"
                 onClick={saveToCache}
-                className="hidden sm:flex items-center space-x-1"
+                className="hidden sm:flex items-center space-x-1 border-[#224D62]/30 text-[#224D62] hover:bg-[#224D62]/5 hover:border-[#224D62]/50 transition-all duration-200"
               >
                 <Save className="w-4 h-4" />
                 <span>Sauvegarder</span>
@@ -168,7 +179,7 @@ function Register() {
                 variant="outline"
                 size="sm"
                 onClick={handleReset}
-                className="text-red-600 hover:text-red-700"
+                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-200"
               >
                 <RotateCcw className="w-4 h-4" />
               </Button>
@@ -176,45 +187,80 @@ function Register() {
           </div>
 
           {/* Barre de progression */}
-          <div className="space-y-2 w-full">
-            <div className="flex justify-between text-xs sm:text-sm text-gray-600">
+          <div className="space-y-3 w-full">
+            <div className="flex justify-between text-sm text-[#224D62] font-medium">
               <span>Progression</span>
-              <span>{Math.round(getStepProgress())}%</span>
+              <span className="text-[#224D62]">{Math.round(getStepProgress())}%</span>
             </div>
-            <Progress value={getStepProgress()} className="h-2" />
+            <div className="relative">
+              {/* Fond de la barre */}
+              <div className="h-3 bg-gray-200 rounded-full shadow-inner w-full"></div>
+              {/* Barre de progression */}
+              <div 
+                className="absolute top-0 left-0 h-3 bg-gradient-to-r from-[#224D62] via-[#224D62] to-[#CBB171] rounded-full shadow-sm transition-all duration-500 ease-out"
+                style={{ width: `${getStepProgress()}%` }}
+              ></div>
+            </div>
           </div>
         </div>
 
         {/* Indicateur des étapes */}
-        <div className="mb-6 sm:mb-8 w-full overflow-x-auto">
-          <div className="flex items-center justify-between flex-nowrap gap-2 sm:gap-0 min-w-0 w-full overflow-x-auto pb-2">
+        <div className="mb-8 sm:mb-10 w-full overflow-x-auto">
+          <div className="flex items-center justify-between flex-nowrap gap-2 sm:gap-0 min-w-0 w-full overflow-x-auto pb-4">
             {STEPS_CONFIG.map((step, index) => (
               <div key={step.id} className="flex items-center min-w-0">
                 <div
                   className={cn(
-                    "flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 text-xs sm:text-sm font-medium transition-colors shrink-0",
+                    "relative flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full text-sm sm:text-base font-bold transition-all duration-300 shrink-0 shadow-lg",
                     currentStep === step.id
-                      ? "border-primary bg-primary text-white"
+                      ? "bg-gradient-to-r from-[#224D62] to-[#CBB171] text-white border-2 border-white shadow-[#224D62]/20 scale-110"
                       : completedSteps.has(step.id)
-                      ? "border-green-500 bg-green-500 text-white"
-                      : "border-gray-300 bg-white text-gray-500"
+                      ? "bg-gradient-to-r from-[#CBB171] to-[#224D62] text-white border-2 border-white shadow-[#CBB171]/20"
+                      : "bg-white text-gray-400 border-2 border-gray-200 shadow-gray-100"
                   )}
                 >
-                  {completedSteps.has(step.id) ? "✓" : step.id}
+                  {completedSteps.has(step.id) ? (
+                    <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                  ) : (
+                    step.id
+                  )}
+                  
+                  {/* Glow effect for current step */}
+                  {currentStep === step.id && (
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#224D62] to-[#CBB171] opacity-30 animate-pulse -z-10 scale-150"></div>
+                  )}
                 </div>
                 
-                <div className="ml-2 sm:ml-3 hidden sm:block min-w-0">
+                <div className="ml-3 sm:ml-4 hidden sm:block min-w-0">
                   <div className={cn(
-                    "text-xs sm:text-sm font-medium truncate",
-                    currentStep === step.id ? "text-primary" : "text-gray-900"
+                    "text-sm sm:text-base font-bold truncate transition-colors duration-200",
+                    currentStep === step.id 
+                      ? "text-[#224D62]" 
+                      : completedSteps.has(step.id)
+                      ? "text-[#CBB171]"
+                      : "text-gray-500"
                   )}>
                     {step.title}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-gray-500 truncate">{step.description}</div>
+                  <div className={cn(
+                    "text-xs sm:text-sm truncate transition-colors duration-200",
+                    currentStep === step.id 
+                      ? "text-[#224D62]/80" 
+                      : completedSteps.has(step.id)
+                      ? "text-[#CBB171]/80"
+                      : "text-gray-400"
+                  )}>
+                    {step.description}
+                  </div>
                 </div>
                 
                 {index < STEPS_CONFIG.length - 1 && (
-                  <div className="flex-1 h-0.5 bg-gray-300 mx-2 sm:mx-4 hidden sm:block min-w-0" />
+                  <div className={cn(
+                    "flex-1 h-1 mx-3 sm:mx-6 hidden sm:block min-w-0 rounded-full transition-all duration-300",
+                    completedSteps.has(step.id)
+                      ? "bg-gradient-to-r from-[#CBB171] to-[#224D62] shadow-sm"
+                      : "bg-gray-200"
+                  )} />
                 )}
               </div>
             ))}
@@ -222,29 +268,29 @@ function Register() {
         </div>
 
         {/* Contenu principal */}
-        <Card className="shadow-lg border-0 w-full max-w-full overflow-x-auto">
-          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
-            <CardTitle className="text-base sm:text-xl">
+        <Card className="shadow-2xl border-0 w-full max-w-full overflow-x-auto bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 border-b border-[#224D62]/20">
+            <CardTitle className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-[#224D62] to-[#CBB171] bg-clip-text text-transparent">
               Étape {currentStep}: {STEPS_CONFIG[currentStep - 1]?.title}
             </CardTitle>
           </CardHeader>
           
-          <CardContent className="p-3 sm:p-6 w-full max-w-full overflow-x-auto">
+          <CardContent className="p-4 sm:p-8 w-full max-w-full overflow-x-auto">
             {renderCurrentStep()}
           </CardContent>
         </Card>
 
         {/* Boutons de navigation */}
-        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 w-full">
+        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 w-full">
           {/* Mobile: flex-col, Desktop: flex-row */}
-          <div className="flex flex-col sm:flex-row w-full gap-2 sm:gap-4">
+          <div className="flex flex-col sm:flex-row w-full gap-3 sm:gap-4">
             <Button
               variant="outline"
               onClick={handlePrev}
               disabled={currentStep === 1 || isLoading}
-              className="flex items-center space-x-2 w-full sm:w-auto"
+              className="flex items-center justify-center space-x-2 w-full sm:w-auto h-12 border-2 border-[#224D62]/30 text-[#224D62] hover:border-[#224D62]/50 hover:text-[#224D62] hover:bg-[#224D62]/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
               <span>Précédent</span>
             </Button>
 
@@ -252,14 +298,14 @@ function Register() {
               <Button
                 onClick={handleNext}
                 disabled={isLoading}
-                className="flex items-center space-x-2 min-w-0 w-full sm:w-auto"
+                className="flex items-center justify-center space-x-2 min-w-0 w-full sm:w-auto h-12 bg-gradient-to-r bg-[#224D62] hover:from-[#224D62]/90 hover:via-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
               >
                 {isLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                 ) : (
                   <>
                     <span>Suivant</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-5 h-5" />
                   </>
                 )}
               </Button>
@@ -267,13 +313,13 @@ function Register() {
               <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex items-center space-x-2 min-w-0 w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                className="flex items-center justify-center space-x-2 min-w-0 w-full sm:w-auto h-12 bg-[#224D62] hover:from-[#CBB171]/90 hover:via-[#CBB171]/90 hover:to-[#224D62]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
+                    <Send className="w-5 h-5" />
                     <span>Finaliser</span>
                   </>
                 )}
@@ -285,7 +331,7 @@ function Register() {
             variant="outline"
             size="sm"
             onClick={saveToCache}
-            className="flex items-center space-x-1 w-full sm:w-auto"
+            className="flex items-center justify-center space-x-2 w-full sm:w-auto h-10 border-2 border-[#CBB171]/30 text-[#CBB171] hover:border-[#CBB171]/50 hover:bg-[#CBB171]/5 transition-all duration-200 font-medium"
           >
             <Save className="w-4 h-4" />
             <span>Sauvegarder</span>
@@ -293,8 +339,13 @@ function Register() {
         </div>
 
         {/* Message d'aide */}
-        <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-500 break-words">
-          Vos données sont automatiquement sauvegardées pendant 7 jours
+        <div className="mt-6 sm:mt-8 text-center">
+          <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 px-4 py-2 rounded-full border border-[#224D62]/20">
+            <Shield className="w-4 h-4 text-[#CBB171]" />
+            <span className="text-sm text-[#224D62] font-medium">
+              Vos données sont automatiquement sauvegardées pendant 7 jours
+            </span>
+          </div>
         </div>
       </div>
     </div>

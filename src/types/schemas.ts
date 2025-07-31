@@ -93,23 +93,39 @@ export const identitySchema = z.object({
   
   identityDocument: IdentityDocumentEnum,
   
-  maritalStatus: MaritalStatusEnum,
+  identityDocumentNumber: z.string()
+    .min(3, 'Le numéro de la pièce d\'identité doit contenir au moins 3 caractères')
+    .max(50, 'Le numéro de la pièce d\'identité ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-Z0-9\s\-\/]+$/, 'Le numéro ne peut contenir que des lettres, chiffres, espaces, tirets et slashs'),
   
-  hasCar: z.boolean().default(false),
+  maritalStatus: MaritalStatusEnum,
   
   intermediaryCode: z.string()
     .max(50, 'Le code entremetteur ne peut pas dépasser 50 caractères')
     .optional(),
   
-  photo: z.instanceof(File)
+  photo: z.union([
+    z.string().startsWith('data:image/', 'Format de photo invalide'),
+    z.instanceof(File)
+  ])
     .optional()
     .refine(
-      (file) => !file || file.size <= 5 * 1024 * 1024, // 5MB
-      'La photo ne doit pas dépasser 5MB'
-    )
-    .refine(
-      (file) => !file || ['image/jpeg', 'image/png', 'image/webp'].includes(file.type),
-      'Seuls les formats JPEG, PNG et WebP sont acceptés'
+      (value) => {
+        if (!value) return true
+        if (typeof value === 'string') {
+          // Pour les data URLs, on ne peut pas vérifier la taille facilement
+          // mais on peut vérifier le format
+          return value.startsWith('data:image/jpeg') || 
+                 value.startsWith('data:image/png') || 
+                 value.startsWith('data:image/webp')
+        }
+        if (value instanceof File) {
+          return value.size <= 5 * 1024 * 1024 && // 5MB
+                 ['image/jpeg', 'image/png', 'image/webp'].includes(value.type)
+        }
+        return false
+      },
+      'La photo doit être au format JPEG, PNG ou WebP et ne pas dépasser 5MB'
     )
 })
 
@@ -234,15 +250,13 @@ export const companySchema = z.object({
   path: ['seniority']
 })
 
-// ================== STEP 4: ASSURANCE (Optionnel) ==================
+// ================== STEP 4: VÉHICULE ET ASSURANCE AUTO (Optionnel) ==================
 export const insuranceSchema = z.object({
-  // Champ pour indiquer si l'utilisateur a une assurance
-  hasInsurance: z.boolean().default(false),
+  // Champ pour indiquer si l'utilisateur possède une voiture
+  hasCar: z.boolean().default(false),
   
-  // Les champs suivants ne sont requis que si hasInsurance = true
+  // Les champs suivants ne sont requis que si hasCar = true
   insuranceName: z.string().optional(),
-  
-  insuranceType: InsuranceTypeEnum.optional(),
   
   policyNumber: z.string().optional(),
   
@@ -256,23 +270,22 @@ export const insuranceSchema = z.object({
   
   additionalNotes: z.string().optional()
 }).refine((data) => {
-  // Si la personne a une assurance, certains champs deviennent obligatoires
-  if (data.hasInsurance) {
+  // Si la personne a une voiture, certains champs deviennent obligatoires
+  if (data.hasCar) {
     const hasInsuranceName = data.insuranceName && data.insuranceName.length >= 2 && data.insuranceName.length <= 100
-    const hasInsuranceType = !!data.insuranceType
     const hasPolicyNumber = data.policyNumber && data.policyNumber.length >= 3 && data.policyNumber.length <= 50
     const hasStartDate = data.startDate && data.startDate.length > 0
     const hasExpirationDate = data.expirationDate && data.expirationDate.length > 0
     
-    return hasInsuranceName && hasInsuranceType && hasPolicyNumber && hasStartDate && hasExpirationDate
+    return hasInsuranceName && hasPolicyNumber && hasStartDate && hasExpirationDate
   }
   return true
 }, {
-  message: 'Les informations principales d\'assurance sont requises',
+  message: 'Les informations principales d\'assurance auto sont requises si vous possédez une voiture',
   path: ['insuranceName']
 }).refine((data) => {
   // Vérifier que la date d'expiration est après la date de début
-  if (data.hasInsurance && data.startDate && data.expirationDate) {
+  if (data.hasCar && data.startDate && data.expirationDate) {
     const debut = new Date(data.startDate)
     const expiration = new Date(data.expirationDate)
     return expiration > debut
@@ -385,8 +398,8 @@ export const defaultValues: RegisterFormData = {
     gender: 'Homme',
     nationality: '',
     identityDocument: 'Carte d\'identité',
+    identityDocumentNumber: '',
     maritalStatus: 'Célibataire',
-    hasCar: false,
     intermediaryCode: '',
     photo: undefined
   },
@@ -409,9 +422,8 @@ export const defaultValues: RegisterFormData = {
     seniority: ''
   },
   insurance: {
-    hasInsurance: false,
+    hasCar: false,
     insuranceName: '',
-    insuranceType: 'Assurance maladie',
     policyNumber: '',
     startDate: '',
     expirationDate: '',
