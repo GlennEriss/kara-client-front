@@ -14,6 +14,7 @@ const Step1 = lazy(() => import('./Step1'))
 const Step2 = lazy(() => import('./Step2'))
 const Step3 = lazy(() => import('./Step3'))
 const Step4 = lazy(() => import('./Step4'))
+const Step5 = lazy(() => import('./Step5'))
 
 // Composant de fallback pour le lazy loading
 const StepSkeleton = () => (
@@ -44,6 +45,8 @@ function Register() {
     isLoading,
     isSubmitting,
     isCacheLoaded,
+    isSubmitted,
+    userData,
     nextStep,
     prevStep,
     submitForm,
@@ -131,6 +134,15 @@ function Register() {
           <p className="text-muted-foreground">Chargement du formulaire...</p>
         </div>
       </div>
+    )
+  }
+
+  // Affichage de l'étape de succès
+  if (isSubmitted) {
+    return (
+      <Suspense fallback={<StepSkeleton />}>
+        <Step5 userData={userData} />
+      </Suspense>
     )
   }
 

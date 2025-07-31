@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { NATIONALITY_NAMES, SelectCountry, NATIONALITY_OPTIONS } from '@/components/ui/select-country'
+import { SelectCountry } from '@/components/ui/select-country'
 import { 
   User, 
   Calendar, 
@@ -28,8 +27,6 @@ import {
   Lightbulb
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import PRIORITY_COUNTRIES from '@/constantes/country-code'
-
 interface Step1Props {
   form: any // Type du form de react-hook-form
 }

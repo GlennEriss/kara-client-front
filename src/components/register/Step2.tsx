@@ -12,7 +12,6 @@ import {
   MapPin, 
   Home, 
   Building2, 
-  Map,
   CheckCircle,
   AlertCircle,
   Navigation,
