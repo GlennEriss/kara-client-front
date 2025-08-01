@@ -13,13 +13,13 @@ export async function middleware(request: NextRequest) {
     // Redirection si pas de token sur routes admin
     if (!hasToken && isAdminRoutes) {
         console.log("Redirection vers login - pas de token d'authentification")
-        return NextResponse.redirect(new URL(routes.public.login, request.url))
+        return NextResponse.redirect(new URL(routes.public.login, request.nextUrl))
     }
     
     // Redirection si token présent sur pages d'auth
     if (hasToken && isAuthRoutes) {
         console.log("Redirection vers dashboard - token présent")
-        return NextResponse.redirect(new URL(routes.admin.dashboard, request.url))
+        return NextResponse.redirect(new URL(routes.admin.dashboard, request.nextUrl))
     }
     
     console.log(`Middleware: ${request.nextUrl.pathname} - Token: ${hasToken ? 'Présent' : 'Absent'}`)

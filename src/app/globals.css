@@ -178,23 +178,23 @@ html {
   .text-kara-blue {
     color: var(--kara-blue);
   }
-  
+
   .text-kara-gold {
     color: var(--kara-gold);
   }
-  
+
   .bg-kara-blue {
     background-color: var(--kara-blue);
   }
-  
+
   .bg-kara-gold {
     background-color: var(--kara-gold);
   }
-  
+
   .border-kara-blue {
     border-color: var(--kara-blue);
   }
-  
+
   .border-kara-gold {
     border-color: var(--kara-gold);
   }
@@ -205,11 +205,11 @@ html {
   h1 {
     @apply text-3xl;
   }
-  
+
   h2 {
     @apply text-2xl;
   }
-  
+
   h3 {
     @apply text-xl;
   }
