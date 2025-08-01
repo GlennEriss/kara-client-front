@@ -1,18 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "./firebase/auth";
 import routes from "./constantes/routes";
 
 export async function middleware(request: NextRequest) {
-    const user = auth.currentUser
+    // Récupérer le token depuis les cookies
+    const token = request.cookies.get('auth-token')?.value
+    
     const isAdminRoutes = Object.values(routes.admin).includes(request.nextUrl.pathname)
-    const isAuthRoutes = [routes.public.login, routes.public.register]
-    if (!user && isAdminRoutes) {
+    const isAuthRoutes = [routes.public.login, routes.public.register, routes.public.adminLogin].includes(request.nextUrl.pathname)
+    
+    // Vérification simple basée sur la présence du token
+    const hasToken = Boolean(token)
+    // Redirection si pas de token sur routes admin
+    if (!hasToken && isAdminRoutes) {
+        console.log("Redirection vers login - pas de token d'authentification")
         return NextResponse.redirect(new URL(routes.public.login, request.url))
     }
-    if (user && isAuthRoutes) {
+    
+    // Redirection si token présent sur pages d'auth
+    if (hasToken && isAuthRoutes) {
+        console.log("Redirection vers dashboard - token présent")
         return NextResponse.redirect(new URL(routes.admin.dashboard, request.url))
     }
-    console.log("user:",user)
+    
+    console.log(`Middleware: ${request.nextUrl.pathname} - Token: ${hasToken ? 'Présent' : 'Absent'}`)
     return NextResponse.next()
 }
 

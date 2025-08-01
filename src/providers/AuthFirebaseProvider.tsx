@@ -15,13 +15,13 @@ export default function AuthFirebaseProvider({ children }: AuthFirebaseProviderP
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // Utilisateur connecté - rafraîchir le token
-        console.log('🔐 Utilisateur connecté:', user.email)
+        //console.log('🔐 Utilisateur connecté:', user.email)
         await refreshAuthToken()
         // Démarrer le timer de rafraîchissement automatique
         startTokenRefreshTimer()
       } else {
         // Utilisateur déconnecté - supprimer le cookie et arrêter le timer
-        console.log('🚪 Utilisateur déconnecté')
+        //console.log('🚪 Utilisateur déconnecté')
         stopTokenRefreshTimer()
         document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=strict'
       }
