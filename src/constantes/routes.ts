@@ -1,5 +1,6 @@
 const routes = {
     public: {
+        homepage: '/',
         register: '/register',
         login: '/login',
     }

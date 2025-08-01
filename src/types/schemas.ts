@@ -435,6 +435,26 @@ export const stepSchemas = {
   4: insuranceSchema
 } as const
 
+// ================== ADMIN LOGIN SCHEMA ==================
+export const adminLoginSchema = z.object({
+  email: z.string()
+    .email('Format d\'email invalide')
+    .min(1, 'L\'email est requis'),
+  
+  password: z.string()
+    .min(6, 'Le mot de passe doit contenir au moins 6 caractères')
+    .max(100, 'Le mot de passe ne peut pas dépasser 100 caractères')
+})
+
+// Type pour les données de connexion admin
+export type AdminLoginFormData = z.infer<typeof adminLoginSchema>
+
+// Valeurs par défaut pour le formulaire admin
+export const adminLoginDefaultValues: AdminLoginFormData = {
+  email: '',
+  password: ''
+}
+
 // ================== VALEURS PAR DÉFAUT ==================
 export const defaultValues: RegisterFormData = {
   identity: {
