@@ -35,6 +35,12 @@ interface Step1Props {
 
 // Données pour les selects (corrigées pour correspondre au schéma)
 // Données pour les selects
+const CIVILITY_OPTIONS = [
+  { value: 'Monsieur', label: 'Monsieur' },
+  { value: 'Madame', label: 'Madame' },
+  { value: 'Mademoiselle', label: 'Mademoiselle' }
+]
+
 const GENDER_OPTIONS = [
   { value: 'Homme', label: 'Homme' },
   { value: 'Femme', label: 'Femme' }
@@ -77,6 +83,7 @@ export default function Step1({ form }: Step1Props) {
 
   // Watch pour les animations et la situation matrimoniale
   const watchedFields = watch([
+    'identity.civility',
     'identity.lastName',
     'identity.firstName', 
     'identity.email',
@@ -250,6 +257,40 @@ export default function Step1({ form }: Step1Props) {
 
         {/* Section Formulaire */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6 w-full min-w-0">
+          {/* Civilité */}
+          <div className="space-y-3 animate-in fade-in-0 slide-in-from-left-4 duration-600 w-full">
+            <Label className="text-sm font-bold text-[#224D62]">
+              Civilité <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex flex-wrap gap-4 sm:gap-6">
+              {CIVILITY_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center space-x-2 cursor-pointer group"
+                >
+                  <input
+                    type="radio"
+                    {...register('identity.civility')}
+                    value={option.value}
+                    className="w-4 h-4 border-[#224D62]/30 transition-all duration-200"
+                    style={{
+                      accentColor: '#224D62'
+                    }}
+                  />
+                  <span className="text-sm font-medium text-[#224D62] group-hover:text-[#CBB171] transition-colors duration-200">
+                    {option.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {errors?.identity?.civility && (
+              <div className="flex items-center space-x-1 text-red-500 text-sm animate-in slide-in-from-left-2 duration-300 break-words font-medium">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.identity.civility.message}</span>
+              </div>
+            )}
+          </div>
+
           {/* Nom et Prénom */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
             <div className="space-y-3 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
@@ -264,10 +305,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "h-12 pl-4 pr-12 border-2 border-[#224D62]/30 focus:border-[#224D62] focus:ring-4 focus:ring-[#224D62]/10 transition-all duration-300 w-full rounded-lg font-medium",
                     errors?.identity?.lastName && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
-                    watchedFields[0] && !errors?.identity?.lastName && "border-[#CBB171] focus:border-[#CBB171] focus:ring-[#CBB171]/10 bg-[#CBB171]/5"
+                    watchedFields[1] && !errors?.identity?.lastName && "border-[#CBB171] focus:border-[#CBB171] focus:ring-[#CBB171]/10 bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[0] && !errors?.identity?.lastName && (
+                {watchedFields[1] && !errors?.identity?.lastName && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -291,10 +332,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "h-12 pl-4 pr-12 border-2 border-[#224D62]/30 focus:border-[#224D62] focus:ring-4 focus:ring-[#224D62]/10 transition-all duration-300 w-full rounded-lg font-medium",
                     errors?.identity?.firstName && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
-                    watchedFields[1] && !errors?.identity?.firstName && "border-[#CBB171] focus:border-[#CBB171] focus:ring-[#CBB171]/10 bg-[#CBB171]/5"
+                    watchedFields[2] && !errors?.identity?.firstName && "border-[#CBB171] focus:border-[#CBB171] focus:ring-[#CBB171]/10 bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[1] && !errors?.identity?.firstName && (
+                {watchedFields[2] && !errors?.identity?.firstName && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -323,10 +364,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.email && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[2] && !errors?.identity?.email && "border-[#CBB171] bg-[#CBB171]/5"
+                    watchedFields[3] && !errors?.identity?.email && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[2] && !errors?.identity?.email && (
+                {watchedFields[3] && !errors?.identity?.email && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -351,10 +392,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.birthDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[3] && !errors?.identity?.birthDate && "border-[#CBB171] bg-[#CBB171]/5"
+                    watchedFields[4] && !errors?.identity?.birthDate && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[3] && !errors?.identity?.birthDate && (
+                {watchedFields[4] && !errors?.identity?.birthDate && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -382,10 +423,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.birthPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[4] && !errors?.identity?.birthPlace && "border-[#CBB171] bg-[#CBB171]/5"
+                    watchedFields[5] && !errors?.identity?.birthPlace && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[4] && !errors?.identity?.birthPlace && (
+                {watchedFields[5] && !errors?.identity?.birthPlace && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -410,10 +451,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.birthCertificateNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[5] && !errors?.identity?.birthCertificateNumber && "border-[#CBB171] bg-[#CBB171]/5"
+                    watchedFields[6] && !errors?.identity?.birthCertificateNumber && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[5] && !errors?.identity?.birthCertificateNumber && (
+                {watchedFields[6] && !errors?.identity?.birthCertificateNumber && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -441,10 +482,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.prayerPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[6] && !errors?.identity?.prayerPlace && "border-[#CBB171] bg-[#CBB171]/5"
+                    watchedFields[7] && !errors?.identity?.prayerPlace && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[6] && !errors?.identity?.prayerPlace && (
+                {watchedFields[7] && !errors?.identity?.prayerPlace && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -458,7 +499,7 @@ export default function Step1({ form }: Step1Props) {
 
             <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full min-w-0">
               <Label htmlFor="intermediaryCode" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Code entremetteur (optionnel)
+                Qui vous a référé?
               </Label>
               <div className="relative">
                 <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
@@ -564,7 +605,7 @@ export default function Step1({ form }: Step1Props) {
                 value={watch('identity.nationality')}
                 onValueChange={(value) => setValue('identity.nationality', value)}
                 error={errors?.identity?.nationality?.message}
-                showValidation={!!watchedFields[7]}
+                showValidation={!!watchedFields[8]}
                 placeholder="Sélectionner nationalité"
                 defaultValue="GA"
               />
@@ -606,10 +647,10 @@ export default function Step1({ form }: Step1Props) {
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.identity?.identityDocumentNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[8] && !errors?.identity?.identityDocumentNumber && "border-[#CBB171] bg-[#CBB171]/5"
+                    watchedFields[9] && !errors?.identity?.identityDocumentNumber && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[8] && !errors?.identity?.identityDocumentNumber && (
+                {watchedFields[9] && !errors?.identity?.identityDocumentNumber && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                 )}
               </div>
@@ -670,10 +711,10 @@ export default function Step1({ form }: Step1Props) {
                       className={cn(
                         "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                         errors?.identity?.spouseLastName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                        watchedFields[11] && !errors?.identity?.spouseLastName && "border-[#CBB171] bg-[#CBB171]/5"
+                        watchedFields[12] && !errors?.identity?.spouseLastName && "border-[#CBB171] bg-[#CBB171]/5"
                       )}
                     />
-                    {watchedFields[11] && !errors?.identity?.spouseLastName && (
+                    {watchedFields[12] && !errors?.identity?.spouseLastName && (
                       <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                     )}
                   </div>
@@ -698,10 +739,10 @@ export default function Step1({ form }: Step1Props) {
                       className={cn(
                         "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                         errors?.identity?.spouseFirstName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                        watchedFields[12] && !errors?.identity?.spouseFirstName && "border-[#CBB171] bg-[#CBB171]/5"
+                        watchedFields[13] && !errors?.identity?.spouseFirstName && "border-[#CBB171] bg-[#CBB171]/5"
                       )}
                     />
-                    {watchedFields[12] && !errors?.identity?.spouseFirstName && (
+                    {watchedFields[13] && !errors?.identity?.spouseFirstName && (
                       <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                     )}
                   </div>
@@ -729,10 +770,10 @@ export default function Step1({ form }: Step1Props) {
                       className={cn(
                         "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                         errors?.identity?.spousePhone && "border-red-300 focus:border-red-500 bg-red-50/50",
-                        watchedFields[13] && !errors?.identity?.spousePhone && "border-[#CBB171] bg-[#CBB171]/5"
+                        watchedFields[14] && !errors?.identity?.spousePhone && "border-[#CBB171] bg-[#CBB171]/5"
                       )}
                     />
-                    {watchedFields[13] && !errors?.identity?.spousePhone && (
+                    {watchedFields[14] && !errors?.identity?.spousePhone && (
                       <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                     )}
                   </div>

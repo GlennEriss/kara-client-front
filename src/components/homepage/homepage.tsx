@@ -23,7 +23,14 @@ const Homepage = () => {
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
+      // Calculer la position avec offset pour la navbar fixe
+      const navbarHeight = 100 // Hauteur approximative de la navbar + padding
+      const elementPosition = element.offsetTop - navbarHeight
+      
+      window.scrollTo({
+        top: elementPosition,
+        behavior: 'smooth'
+      })
       setIsMenuOpen(false)
     }
   }
@@ -209,28 +216,32 @@ const Homepage = () => {
             <div className="section-divider mx-auto"></div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <Card className="card-hover animate-slide-in-left">
-              <CardContent className="p-8">
+          <div className="grid md:grid-cols-2 gap-12 items-stretch">
+            <Card className="card-hover animate-slide-in-left h-full">
+              <CardContent className="p-8 flex flex-col h-full">
                 <div className="text-6xl text-kara-gold mb-6 text-center">
                   <Home size={80} />
                 </div>
-                <TruncatedText
-                  id="qui-sommes-nous-1"
-                  fullText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité, la mutuelle KARA est une association gabonaise à but non lucratif s'inscrivant dans une démarche purement sociale."
-                  truncatedText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité..."
-                />
+                <div className="flex-grow">
+                  <TruncatedText
+                    id="qui-sommes-nous-1"
+                    fullText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité, la mutuelle KARA est une association gabonaise à but non lucratif s'inscrivant dans une démarche purement sociale."
+                    truncatedText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité"
+                  />
+                </div>
               </CardContent>
             </Card>
 
-            <Card className="card-hover animate-slide-in-right">
-              <CardContent className="p-8">
+            <Card className="card-hover animate-slide-in-right h-full">
+              <CardContent className="p-8 flex flex-col h-full">
                 <div className="text-6xl text-kara-blue mb-6 text-center">
                   <HeartHandshake size={80} />
                 </div>
-                <p className="text-lg leading-relaxed text-gray-700">
-                  Kara c'est d'abord une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
-                </p>
+                <div className="flex-grow flex items-center">
+                  <p className="text-lg leading-relaxed text-gray-700">
+                    Kara c'est d'abord une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
