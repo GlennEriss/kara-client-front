@@ -23,7 +23,14 @@ const Homepage = () => {
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
+      // Calculer la position avec offset pour la navbar fixe
+      const navbarHeight = 100 // Hauteur approximative de la navbar + padding
+      const elementPosition = element.offsetTop - navbarHeight
+      
+      window.scrollTo({
+        top: elementPosition,
+        behavior: 'smooth'
+      })
       setIsMenuOpen(false)
     }
   }
