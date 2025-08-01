@@ -106,6 +106,99 @@ export const uploadProfilePhoto = async (file: File, userId: string): Promise<{ 
 };
 
 /**
+ * Upload document photo (recto/verso) to Firebase Storage
+ * @param file - The image file to upload
+ * @param userId - User identifier for organizing files
+ * @param documentType - Type of document (recto/verso)
+ * @returns Promise with url and path of uploaded file
+ */
+export const uploadDocumentPhoto = async (
+  file: File, 
+  userId: string, 
+  documentType: 'recto' | 'verso'
+): Promise<{ url: string; path: string }> => {
+  try {
+    // Get storage instance
+    const storage = getStorageInstance();
+    
+    console.log(`🔍 Uploading ${documentType} document photo for user:`, userId);
+    console.log('  - Storage instance details:');
+    console.log('  - App name:', storage.app.name);
+    console.log('  - Storage bucket:', storage.app.options.storageBucket);
+    
+    const timestamp = Date.now();
+    const fileName = `${timestamp}_document-${documentType}.webp`;
+    const filePath = `membership-documents/${userId}/${fileName}`;
+    
+    console.log('📁 Uploading to path:', filePath);
+    console.log('📄 File details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      documentType
+    });
+
+    const storageRef = ref(storage, filePath);
+    
+    console.log('🚀 Starting document upload...');
+    console.log('🔗 Storage ref:', storageRef.fullPath);
+    
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, file);
+    
+    console.log(`✅ ${documentType} document upload successful!`);
+
+    // Get download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    console.log('🔗 Download URL:', downloadURL);
+    
+    return {
+      url: downloadURL,
+      path: filePath
+    };
+  } catch (error: any) {
+    console.error(`❌ ${documentType} document upload failed:`, error);
+    console.error('🔍 Error details:', {
+      code: error.code,
+      message: error.message,
+      documentType
+    });
+    
+    // If it's an unauthorized error, try to force emulator connection
+    if (error.code === 'storage/unauthorized') {
+      console.log('🔄 Unauthorized error detected, trying to force emulator connection...');
+      
+      try {
+        const storage = getStorageInstance();
+        console.log('🔧 Forced storage instance creation');
+        
+        // Try upload again
+        const timestamp = Date.now();
+        const fileName = `${timestamp}_document-${documentType}.webp`;
+        const filePath = `membership-documents/${userId}/${fileName}`;
+        const storageRef = ref(storage, filePath);
+        
+        console.log('🔄 Retrying document upload...');
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        console.log(`✅ ${documentType} document retry successful!`);
+        return {
+          url: downloadURL,
+          path: filePath
+        };
+      } catch (retryError: any) {
+        console.error('❌ Document retry also failed:', retryError);
+        throw new Error(`Failed to upload ${documentType} document photo: ${retryError.message}`);
+      }
+    }
+    
+    throw new Error(`Failed to upload ${documentType} document photo: ${error.message}`);
+  }
+};
+
+/**
  * Generic file upload function that can be used for various file types.
  */
 export async function createFile(file: File, ownerId: string, location: string): Promise<{ url: string; path: string }> {
