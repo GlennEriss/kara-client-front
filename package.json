@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "emulator": "firebase emulators:start",
+    "emulator": "firebase emulators:start --import=./firebase-data --export-on-exit=./firebase-data",
     "dev:emulator": "npm run copy:env:dev && next dev --turbopack & npm run emulator",
     "build:preview": "npm run copy:env:prod && next build",
     "copy:env:dev": "cp .env.dev .env.local",

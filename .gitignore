@@ -34,6 +34,9 @@ yarn-error.log*
 firebase-debug.log*
 firestore-debug.log*
 
+# firebase emulator data (optional - keep if you want to commit test data)
+firebase-data/
+
 # env files (can opt-in for committing if needed)
 .env*
 
