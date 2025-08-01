@@ -83,6 +83,13 @@ export default function Step1({ form }: Step1Props) {
     name: "identity.contacts"
   })
 
+  // S'assurer qu'il y ait toujours au moins un champ de contact
+  React.useEffect(() => {
+    if (fields.length === 0) {
+      append('')
+    }
+  }, [fields.length, append])
+
   // Watch pour les animations et la situation matrimoniale
   const watchedFields = watch([
     'identity.civility',

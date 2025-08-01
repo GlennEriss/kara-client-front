@@ -9,7 +9,7 @@ import {
   stepSchemas,
   defaultValues
 } from '@/types/schemas'
-import { createMembershipRequest } from '@/db/membership.db'
+import { createMembershipRequest, getMembershipRequestById } from '@/db/membership.db'
 import { toast } from "sonner"
 
 // ================== CONSTANTES DE CACHE ==================
@@ -17,11 +17,16 @@ const CACHE_KEYS = {
   FORM_DATA: 'register-form-data',
   CURRENT_STEP: 'register-current-step',
   COMPLETED_STEPS: 'register-completed-steps',
-  TIMESTAMP: 'register-cache-timestamp'
+  TIMESTAMP: 'register-cache-timestamp',
+  MEMBERSHIP_ID: 'register-membership-id',
+  SUBMISSION_TIMESTAMP: 'register-submission-timestamp',
+  VERSION: 'register-cache-version'
 } as const
 
-const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000 // 7 jours en millisecondes
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000 // 24h en millisecondes (réduit de 7 jours)
+const SUBMISSION_CACHE_EXPIRY = 48 * 60 * 60 * 1000 // 48h pour l'état submitted
 const DEBOUNCE_DELAY = 500 // 500ms de délai pour la sauvegarde automatique
+const CACHE_VERSION = '2' // Version du cache pour forcer la migration
 
 // ================== TYPES ==================
 export interface StepErrors {
@@ -78,6 +83,7 @@ export interface RegisterContextType {
   isStepCompleted: (step: number) => boolean
   getStepProgress: () => number
   getStepData: <T>(step: keyof RegisterFormData) => T
+  checkMembershipStatus: () => Promise<boolean>
 }
 
 // ================== UTILITAIRES DE CACHE ==================
@@ -90,10 +96,25 @@ class CacheManager {
     return Date.now() - savedTime > CACHE_EXPIRY
   }
 
+  static isSubmissionExpired(): boolean {
+    const timestamp = localStorage.getItem(CACHE_KEYS.SUBMISSION_TIMESTAMP)
+    if (!timestamp) return true
+
+    const savedTime = parseInt(timestamp, 10)
+    return Date.now() - savedTime > SUBMISSION_CACHE_EXPIRY
+  }
+
   static saveFormData(data: Partial<RegisterFormData>): void {
     try {
-      localStorage.setItem(CACHE_KEYS.FORM_DATA, JSON.stringify(data))
+      // Nettoyer les données avant de sauvegarder
+      const cleanData = { ...data }
+      if ('insurance' in cleanData) {
+        delete (cleanData as any).insurance
+      }
+      
+      localStorage.setItem(CACHE_KEYS.FORM_DATA, JSON.stringify(cleanData))
       localStorage.setItem(CACHE_KEYS.TIMESTAMP, Date.now().toString())
+      localStorage.setItem(CACHE_KEYS.VERSION, CACHE_VERSION)
     } catch (error) {
       console.warn('Erreur lors de la sauvegarde du cache:', error)
     }
@@ -106,8 +127,25 @@ class CacheManager {
         return null
       }
 
+      // Vérifier la version du cache
+      const cachedVersion = localStorage.getItem(CACHE_KEYS.VERSION)
+      if (cachedVersion !== CACHE_VERSION) {
+        console.warn('Version du cache obsolète, nettoyage en cours...')
+        this.clearAll()
+        return null
+      }
+
       const data = localStorage.getItem(CACHE_KEYS.FORM_DATA)
-      return data ? JSON.parse(data) : null
+      if (data) {
+        const parsedData = JSON.parse(data)
+        // Nettoyer les données obsolètes (insurance)
+        if (parsedData.insurance) {
+          delete parsedData.insurance
+          console.warn('Suppression de la section insurance obsolète du cache')
+        }
+        return parsedData
+      }
+      return null
     } catch (error) {
       console.warn('Erreur lors du chargement du cache:', error)
       this.clearAll()
@@ -137,10 +175,64 @@ class CacheManager {
     }
   }
 
+  // Nouvelles méthodes pour gérer l'état submitted
+  static saveSubmissionData(membershipId: string, userData: { firstName?: string; lastName?: string }): void {
+    try {
+      localStorage.setItem(CACHE_KEYS.MEMBERSHIP_ID, membershipId)
+      localStorage.setItem(CACHE_KEYS.SUBMISSION_TIMESTAMP, Date.now().toString())
+      // Sauvegarder aussi les données utilisateur pour Step5
+      localStorage.setItem('register-user-data', JSON.stringify(userData))
+    } catch (error) {
+      console.warn('Erreur lors de la sauvegarde des données de soumission:', error)
+    }
+  }
+
+  static loadSubmissionData(): { membershipId: string; userData: { firstName?: string; lastName?: string } } | null {
+    try {
+      if (this.isSubmissionExpired()) {
+        this.clearSubmissionData()
+        return null
+      }
+
+      const membershipId = localStorage.getItem(CACHE_KEYS.MEMBERSHIP_ID)
+      const userData = localStorage.getItem('register-user-data')
+      
+      if (membershipId && userData) {
+        return {
+          membershipId,
+          userData: JSON.parse(userData)
+        }
+      }
+      return null
+    } catch (error) {
+      console.warn('Erreur lors du chargement des données de soumission:', error)
+      this.clearSubmissionData()
+      return null
+    }
+  }
+
+  static clearSubmissionData(): void {
+    localStorage.removeItem(CACHE_KEYS.MEMBERSHIP_ID)
+    localStorage.removeItem(CACHE_KEYS.SUBMISSION_TIMESTAMP)
+    localStorage.removeItem('register-user-data')
+  }
+
+  static hasValidSubmission(): boolean {
+    return !this.isSubmissionExpired() && !!localStorage.getItem(CACHE_KEYS.MEMBERSHIP_ID)
+  }
+
   static clearAll(): void {
     Object.values(CACHE_KEYS).forEach(key => {
       localStorage.removeItem(key)
     })
+    localStorage.removeItem('register-user-data')
+  }
+
+  static clearFormDataOnly(): void {
+    localStorage.removeItem(CACHE_KEYS.FORM_DATA)
+    localStorage.removeItem(CACHE_KEYS.TIMESTAMP)
+    localStorage.removeItem(CACHE_KEYS.CURRENT_STEP)
+    localStorage.removeItem(CACHE_KEYS.COMPLETED_STEPS)
   }
 
   static hasCachedData(): boolean {
@@ -180,11 +272,46 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
   // ================== CHARGEMENT INITIAL DU CACHE ==================
   useEffect(() => {
-    const loadCachedData = () => {
+    const loadCachedData = async () => {
       setIsLoading(true)
 
       try {
-        // Charger les données du formulaire
+        // Vérifier d'abord s'il y a une soumission valide (priorité)
+        const submissionData = CacheManager.loadSubmissionData()
+        if (submissionData) {
+          // Vérifier si le document existe encore dans Firestore
+          console.log('🔍 Vérification de l\'existence du membership:', submissionData.membershipId)
+          try {
+            const membershipExists = await getMembershipRequestById(submissionData.membershipId)
+            if (membershipExists) {
+              // Le document existe encore, afficher Step5
+              console.log('✅ Membership confirmé dans Firestore')
+              setIsSubmitted(true)
+              setUserData(submissionData.userData)
+              setIsCacheLoaded(true)
+              setIsLoading(false)
+              return
+            } else {
+              // Le document n'existe plus, nettoyer le cache
+              console.warn('❌ Membership supprimé de Firestore, nettoyage du cache')
+              CacheManager.clearSubmissionData()
+              // Continuer avec le chargement normal du formulaire
+            }
+          } catch (error) {
+            console.error('Erreur lors de la vérification du membership:', error)
+            // En cas d'erreur, on nettoie le cache par sécurité
+            CacheManager.clearSubmissionData()
+          }
+        }
+
+        // Vérifier et nettoyer les données obsolètes du cache
+        const cachedVersion = localStorage.getItem(CACHE_KEYS.VERSION)
+        if (cachedVersion !== CACHE_VERSION) {
+          console.warn('🔄 Migration du cache en cours - Ancien schéma détecté')
+          CacheManager.clearAll()
+        }
+
+        // Sinon, charger les données du formulaire normalement
         const cachedData = CacheManager.loadFormData()
         if (cachedData) {
           // Merger les données cachées avec les valeurs par défaut
@@ -350,6 +477,8 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     CacheManager.clearAll()
     setCompletedSteps(new Set())
     setCurrentStep(1)
+    setIsSubmitted(false)
+    setUserData(undefined)
   }, [])
 
   const hasCachedData = useCallback(() => {
@@ -363,21 +492,37 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     setSubmissionError(null) // Nettoyer les erreurs précédentes
 
     try {
-      // Valider le formulaire complet
-      const isValid = await trigger()
-      if (!isValid) {
-        throw new Error('Le formulaire contient des erreurs')
+      // Nettoyer les données avant validation
+      const currentData = getValues()
+      console.log('currentData', currentData)
+      if ('insurance' in currentData) {
+        console.warn('Suppression de la section insurance obsolète des données du formulaire')
+        delete (currentData as any).insurance
+        // Réinitialiser le formulaire avec les données nettoyées
+        reset({ ...defaultValues, ...currentData })
       }
 
       const formData = getValues()
 
       const membershipRequestId = await createMembershipRequest(formData)
-
+      console.log('membershipRequestId', membershipRequestId)
       if (!membershipRequestId) {
         throw new Error('Échec de l\'enregistrement de la demande d\'adhésion')
       }
 
-      // Succès - afficher toast de succès et nettoyer le cache
+      // Succès - sauvegarder les données de soumission et nettoyer le cache du formulaire
+      const userData = {
+        firstName: getValues('identity.firstName'),
+        lastName: getValues('identity.lastName')
+      }
+
+      // Vider le cache des données du formulaire
+      CacheManager.clearFormDataOnly()
+      
+      // Sauvegarder l'ID du membership et les données utilisateur pour 48h
+      CacheManager.saveSubmissionData(membershipRequestId, userData)
+
+      // Afficher toast de succès
       toast.success("Inscription réussie !", {
         description: "Votre demande d'adhésion a été enregistrée avec succès.",
         style: {
@@ -388,12 +533,8 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         duration: 4000
       })
 
-      clearCache()
       setIsSubmitted(true)
-      setUserData({
-        firstName: getValues('identity.firstName'),
-        lastName: getValues('identity.lastName')
-      })
+      setUserData(userData)
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error)
       
@@ -419,7 +560,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       setIsSubmitting(false)
       setIsLoading(false)
     }
-  }, [trigger, getValues, clearCache])
+  }, [trigger, getValues, reset])
 
   // ================== RESET ==================
   const resetForm = useCallback(() => {
@@ -429,8 +570,8 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     setIsSubmitted(false)
     setSubmissionError(null)
     setUserData(undefined)
-    clearCache()
-  }, [reset, clearCache])
+    CacheManager.clearAll() // Nettoie tout, y compris les données de soumission
+  }, [reset])
 
   // ================== UTILITAIRES ==================
   const isStepCompleted = useCallback((step: number): boolean => {
@@ -444,6 +585,54 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const getStepData = useCallback(function <T>(step: keyof RegisterFormData): T {
     return getValues(step) as T
   }, [getValues])
+
+  // ================== VÉRIFICATION DU STATUT ==================
+  const checkMembershipStatus = useCallback(async (): Promise<boolean> => {
+    const submissionData = CacheManager.loadSubmissionData()
+    if (!submissionData) {
+      return false
+    }
+
+    try {
+      console.log('🔍 Vérification manuelle du statut du membership:', submissionData.membershipId)
+      const membershipExists = await getMembershipRequestById(submissionData.membershipId)
+      
+      if (!membershipExists) {
+        console.warn('❌ Membership non trouvé, retour au formulaire')
+        CacheManager.clearSubmissionData()
+        setIsSubmitted(false)
+        setUserData(undefined)
+        setCurrentStep(1)
+        
+        toast.error("Demande introuvable", {
+          description: "Votre demande d'adhésion n'a pas été trouvée. Veuillez soumettre une nouvelle demande.",
+          style: {
+            background: '#EF4444',
+            color: 'white',
+            border: 'none'
+          },
+          duration: 5000
+        })
+        
+        return false
+      }
+      
+      console.log('✅ Membership confirmé')
+      return true
+    } catch (error) {
+      console.error('Erreur lors de la vérification:', error)
+      toast.error("Erreur de vérification", {
+        description: "Impossible de vérifier le statut de votre demande.",
+        style: {
+          background: '#EF4444',
+          color: 'white',
+          border: 'none'
+        },
+        duration: 3000
+      })
+      return false
+    }
+  }, [setIsSubmitted, setUserData, setCurrentStep])
 
   // ================== VALEUR DU CONTEXTE ==================
   const contextValue: RegisterContextType = {
@@ -471,6 +660,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     isStepCompleted,
     getStepProgress,
     getStepData,
+    checkMembershipStatus,
   }
 
   return (

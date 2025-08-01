@@ -417,10 +417,7 @@ export default function Step4({ form }: Step4Props) {
         {/* Date d'expiration */}
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full min-w-0">
           <Label htmlFor="expirationDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Date d'expiration
-                  <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
-                    Optionnel
-                  </Badge>
+            Date d'expiration <span className="text-red-500">*</span>
                 </Label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
@@ -430,25 +427,29 @@ export default function Step4({ form }: Step4Props) {
               {...register('documents.expirationDate')}
                     className={cn(
                       "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      watchedFields[4] && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                      errors?.documents?.expirationDate && "border-red-300 focus:border-red-500 bg-red-50/50",
+                      watchedFields[4] && !errors?.documents?.expirationDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
                     )}
                   />
                 </div>
-          {watchedFields[4] && (
+          {watchedFields[4] && !errors?.documents?.expirationDate && (
             <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
               <CheckCircle className="w-3 h-3" />
               <span>Date d'expiration ajoutée</span>
             </div>
-                  )}
+          )}
+          {errors?.documents?.expirationDate && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.expirationDate.message}</span>
+            </div>
+          )}
                 </div>
 
         {/* Lieu de délivrance */}
               <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-500 w-full min-w-0">
           <Label htmlFor="issuingPlace" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Lieu de délivrance
-            <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
-              Optionnel
-            </Badge>
+            Lieu de délivrance <span className="text-red-500">*</span>
                 </Label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
@@ -458,10 +459,23 @@ export default function Step4({ form }: Step4Props) {
               placeholder="Ex: Libreville, France..."
                     className={cn(
                 "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                watchedFields[5] && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                errors?.documents?.issuingPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
+                watchedFields[5] && !errors?.documents?.issuingPlace && "border-[#CBB171]/50 bg-[#CBB171]/5"
               )}
             />
                   </div>
+          {watchedFields[5] && !errors?.documents?.issuingPlace && (
+            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-right-2 duration-300">
+              <CheckCircle className="w-3 h-3" />
+              <span>Lieu de délivrance ajouté</span>
+            </div>
+          )}
+          {errors?.documents?.issuingPlace && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.issuingPlace.message}</span>
+            </div>
+          )}
               </div>
             </div>
 
@@ -469,10 +483,7 @@ export default function Step4({ form }: Step4Props) {
       <div className="w-full max-w-md">
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full min-w-0">
           <Label htmlFor="issuingDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Date de délivrance
-                  <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
-                    Optionnel
-                  </Badge>
+            Date de délivrance <span className="text-red-500">*</span>
                 </Label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
@@ -482,10 +493,23 @@ export default function Step4({ form }: Step4Props) {
               {...register('documents.issuingDate')}
               className={cn(
                 "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                watchedFields[6] && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                errors?.documents?.issuingDate && "border-red-300 focus:border-red-500 bg-red-50/50",
+                watchedFields[6] && !errors?.documents?.issuingDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
               )}
                         />
                       </div>
+          {watchedFields[6] && !errors?.documents?.issuingDate && (
+            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+              <CheckCircle className="w-3 h-3" />
+              <span>Date de délivrance ajoutée</span>
+            </div>
+          )}
+          {errors?.documents?.issuingDate && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.issuingDate.message}</span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -137,7 +137,8 @@ export const identitySchema = z.object({
   
   photo: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
-    z.instanceof(File)
+    z.instanceof(File),
+    z.undefined()
   ])
     .optional()
     .refine(
@@ -312,7 +313,8 @@ export const documentsSchema = z.object({
   // Photo de la pièce d'identité recto
   documentPhotoFront: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
-    z.instanceof(File)
+    z.instanceof(File),
+    z.undefined()
   ])
     .refine(
       (value) => {
@@ -355,31 +357,39 @@ export const documentsSchema = z.object({
       'La photo verso doit être au format JPEG, PNG ou WebP et ne pas dépasser 5MB'
     ),
   
-  // Date d'expiration (optionnelle selon le type de document)
+  // Date d'expiration (obligatoire)
   expirationDate: z.string()
-    .optional()
+    .min(1, 'La date d\'expiration est requise')
     .refine((date) => {
-      if (!date) return true // Optionnel
       const expirationDate = new Date(date)
       const today = new Date()
       return expirationDate > today
     }, 'La date d\'expiration doit être dans le futur'),
   
-  // Lieu de délivrance
+  // Lieu de délivrance (obligatoire)
   issuingPlace: z.string()
     .min(2, 'Le lieu de délivrance doit contenir au moins 2 caractères')
-    .max(100, 'Le lieu de délivrance ne peut pas dépasser 100 caractères')
-    .optional(),
+    .max(100, 'Le lieu de délivrance ne peut pas dépasser 100 caractères'),
   
-  // Date de délivrance
+  // Date de délivrance (obligatoire)
   issuingDate: z.string()
-    .optional()
+    .min(1, 'La date de délivrance est requise')
     .refine((date) => {
-      if (!date) return true // Optionnel
       const issuingDate = new Date(date)
       const today = new Date()
       return issuingDate <= today
     }, 'La date de délivrance ne peut pas être dans le futur')
+}).refine((data) => {
+  // Validation croisée : la date d'expiration doit être postérieure à la date de délivrance
+  if (data.issuingDate && data.expirationDate) {
+    const issuingDate = new Date(data.issuingDate)
+    const expirationDate = new Date(data.expirationDate)
+    return expirationDate > issuingDate
+  }
+  return true
+}, {
+  message: 'La date d\'expiration doit être postérieure à la date de délivrance',
+  path: ['expirationDate']
 })
 
 // ================== SCHÉMA COMPLET ==================
@@ -483,10 +493,10 @@ export const defaultValues: RegisterFormData = {
   documents: {
     identityDocument: 'NIP',
     identityDocumentNumber: '',
-    documentPhotoFront: '' as any, // Sera géré par le composant
+    documentPhotoFront: undefined as any, // Sera défini lors de l'upload
     documentPhotoBack: undefined,
-    expirationDate: '',
-    issuingPlace: '',
-    issuingDate: ''
+    expirationDate: '', // Obligatoire
+    issuingPlace: '', // Obligatoire
+    issuingDate: '' // Obligatoire
   }
 } 

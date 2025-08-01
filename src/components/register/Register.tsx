@@ -141,9 +141,19 @@ function Register() {
 
   // Affichage de l'étape de succès
   if (isSubmitted) {
+    // Récupérer l'ID du membership depuis le cache s'il est disponible
+    const submissionData = (() => {
+      try {
+        const membershipId = localStorage.getItem('register-membership-id')
+        return membershipId || undefined
+      } catch {
+        return undefined
+      }
+    })()
+
     return (
       <Suspense fallback={<StepSkeleton />}>
-        <Step5 userData={userData} />
+        <Step5 userData={userData} membershipId={submissionData} />
       </Suspense>
     )
   }
