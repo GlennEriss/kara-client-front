@@ -3,16 +3,14 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { 
-  RegisterFormData, 
-  IdentityFormData, 
-  AddressFormData, 
-  CompanyFormData, 
-  InsuranceFormData,
+import {
+  RegisterFormData,
   registerSchema,
   stepSchemas,
-  defaultValues 
+  defaultValues
 } from '@/types/schemas'
+import { createMembershipRequest } from '@/db/membership.db'
+import { toast } from "sonner"
 
 // ================== CONSTANTES DE CACHE ==================
 const CACHE_KEYS = {
@@ -42,34 +40,40 @@ export interface RegisterContextType {
   currentStep: number
   totalSteps: number
   completedSteps: Set<number>
-  
+
   // Form hook
   form: ReturnType<typeof useForm<RegisterFormData>>
-  
+
   // États de l'interface
   isLoading: boolean
   isSubmitting: boolean
   isCacheLoaded: boolean
-  
+  isSubmitted: boolean
+  submissionError: string | null
+  userData?: {
+    firstName?: string
+    lastName?: string
+  }
+
   // Fonctions de navigation
   nextStep: () => Promise<boolean>
   prevStep: () => void
   goToStep: (step: number) => void
-  
+
   // Fonctions de validation
   validateCurrentStep: () => Promise<boolean>
   validateStep: (step: number) => Promise<boolean>
-  
+
   // Fonctions de cache
   saveToCache: () => void
   loadFromCache: () => boolean
   clearCache: () => void
   hasCachedData: () => boolean
-  
+
   // Fonctions de soumission
   submitForm: () => Promise<void>
   resetForm: () => void
-  
+
   // Utilitaires
   isStepCompleted: (step: number) => boolean
   getStepProgress: () => number
@@ -81,7 +85,7 @@ class CacheManager {
   static isExpired(): boolean {
     const timestamp = localStorage.getItem(CACHE_KEYS.TIMESTAMP)
     if (!timestamp) return true
-    
+
     const savedTime = parseInt(timestamp, 10)
     return Date.now() - savedTime > CACHE_EXPIRY
   }
@@ -158,7 +162,10 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCacheLoaded, setIsCacheLoaded] = useState(false)
-  
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submissionError, setSubmissionError] = useState<string | null>(null)
+  const [userData, setUserData] = useState<{ firstName?: string; lastName?: string } | undefined>(undefined)
+
   const totalSteps = 4
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -175,7 +182,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   useEffect(() => {
     const loadCachedData = () => {
       setIsLoading(true)
-      
+
       try {
         // Charger les données du formulaire
         const cachedData = CacheManager.loadFormData()
@@ -242,14 +249,14 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     // Mapping correct step -> section du formulaire
     const stepToSectionMap = {
       1: 'identity',
-      2: 'address', 
+      2: 'address',
       3: 'company',
       4: 'insurance'
     } as const
-    
+
     const sectionKey = stepToSectionMap[step as keyof typeof stepToSectionMap] as keyof RegisterFormData
     const schema = stepSchemas[step as keyof typeof stepSchemas]
-    
+
     try {
       const stepData = getValues(sectionKey)
       await schema.parseAsync(stepData)
@@ -265,20 +272,20 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     // Mapping step -> section
     const stepToSectionMap = {
       1: 'identity',
-      2: 'address', 
+      2: 'address',
       3: 'company',
       4: 'insurance'
     } as const
-    
+
     const sectionKey = stepToSectionMap[currentStep as keyof typeof stepToSectionMap]
-    
+
     try {
       // Valider uniquement la section actuelle avec react-hook-form
       const isFormValid = await trigger(sectionKey)
-      
+
       // Valider avec le schéma Zod
       const isSchemaValid = await validateStep(currentStep)
-      
+
       console.log(`Validation step ${currentStep}:`, {
         sectionKey,
         isFormValid,
@@ -286,7 +293,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         formErrors: formState.errors[sectionKey],
         data: getValues(sectionKey)
       })
-      
+
       return isFormValid && isSchemaValid
     } catch (error) {
       console.error('Erreur validation step actuel:', error)
@@ -297,13 +304,13 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   // ================== NAVIGATION ==================
   const nextStep = useCallback(async (): Promise<boolean> => {
     const isValid = await validateCurrentStep()
-    
+
     if (isValid && currentStep < totalSteps) {
       setCompletedSteps(prev => new Set([...prev, currentStep]))
       setCurrentStep(prev => prev + 1)
       return true
     }
-    
+
     return false
   }, [currentStep, totalSteps, validateCurrentStep])
 
@@ -353,6 +360,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const submitForm = useCallback(async () => {
     setIsSubmitting(true)
     setIsLoading(true)
+    setSubmissionError(null) // Nettoyer les erreurs précédentes
 
     try {
       // Valider le formulaire complet
@@ -362,19 +370,50 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       }
 
       const formData = getValues()
-      
-      // Ici, ajoutez votre logique d'API
-      console.log('Soumission du formulaire:', formData)
-      
-      // Simulation d'un appel API
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Succès - nettoyer le cache
+
+      const membershipRequestId = await createMembershipRequest(formData)
+
+      if (!membershipRequestId) {
+        throw new Error('Échec de l\'enregistrement de la demande d\'adhésion')
+      }
+
+      // Succès - afficher toast de succès et nettoyer le cache
+      toast.success("Inscription réussie !", {
+        description: "Votre demande d'adhésion a été enregistrée avec succès.",
+        style: {
+          background: '#10B981',
+          color: 'white',
+          border: 'none'
+        },
+        duration: 4000
+      })
+
       clearCache()
-      console.log('Inscription réussie!')
-      
+      setIsSubmitted(true)
+      setUserData({
+        firstName: getValues('identity.firstName'),
+        lastName: getValues('identity.lastName')
+      })
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error)
+      
+      // Stocker l'erreur pour l'affichage
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Une erreur inattendue s\'est produite lors de l\'enregistrement'
+      setSubmissionError(errorMessage)
+
+      // Afficher toast d'erreur
+      toast.error("Échec de l'inscription", {
+        description: errorMessage,
+        style: {
+          background: '#EF4444',
+          color: 'white',
+          border: 'none'
+        },
+        duration: 5000
+      })
+      
       throw error
     } finally {
       setIsSubmitting(false)
@@ -387,6 +426,9 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     reset(defaultValues)
     setCurrentStep(1)
     setCompletedSteps(new Set())
+    setIsSubmitted(false)
+    setSubmissionError(null)
+    setUserData(undefined)
     clearCache()
   }, [reset, clearCache])
 
@@ -399,7 +441,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     return (completedSteps.size / totalSteps) * 100
   }, [completedSteps, totalSteps])
 
-  const getStepData = useCallback(function<T>(step: keyof RegisterFormData): T {
+  const getStepData = useCallback(function <T>(step: keyof RegisterFormData): T {
     return getValues(step) as T
   }, [getValues])
 
@@ -412,6 +454,9 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     isLoading,
     isSubmitting,
     isCacheLoaded,
+    isSubmitted,
+    submissionError,
+    userData,
     nextStep,
     prevStep,
     goToStep,
@@ -438,10 +483,10 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 // ================== HOOK PERSONNALISÉ ==================
 export function useRegister(): RegisterContextType {
   const context = useContext(RegisterContext)
-  
+
   if (context === undefined) {
     throw new Error('useRegister must be used within a RegisterProvider')
   }
-  
+
   return context
 } 

@@ -55,8 +55,8 @@ export const identitySchema = z.object({
       const birthDate = new Date(date)
       const today = new Date()
       const age = today.getFullYear() - birthDate.getFullYear()
-      return age >= 16 && age <= 120
-    }, 'Vous devez avoir entre 16 et 120 ans'),
+      return age >= 18 && age <= 120
+    }, 'Vous devez avoir au moins 18 ans'),
   
   birthPlace: z.string()
     .min(2, 'Le lieu de naissance doit contenir au moins 2 caractères')
@@ -77,7 +77,11 @@ export const identitySchema = z.object({
       .regex(/^[\+]?[0-9\s\-\(\)]+$/, 'Format de téléphone invalide')
   )
     .min(1, 'Au moins un numéro de téléphone est requis')
-    .max(2, 'Maximum 2 numéros de téléphone'),
+    .max(2, 'Maximum 2 numéros de téléphone')
+    .refine((contacts) => {
+      const uniqueContacts = new Set(contacts)
+      return uniqueContacts.size === contacts.length
+    }, 'Les numéros de téléphone doivent être uniques'),
   
   email: z.string()
     .email('Format d\'email invalide')
@@ -99,6 +103,34 @@ export const identitySchema = z.object({
     .regex(/^[a-zA-Z0-9\s\-\/]+$/, 'Le numéro ne peut contenir que des lettres, chiffres, espaces, tirets et slashs'),
   
   maritalStatus: MaritalStatusEnum,
+  
+  // Champs pour le conjoint (requis si marié, en couple, en concubinage ou pacsé)
+  spouseLastName: z.string()
+    .optional()
+    .refine((value) => {
+      // Si pas de valeur ou valeur vide, c'est valide (sera géré par la validation conditionnelle)
+      if (!value || value.trim() === '') return true
+      // Si une valeur est fournie, elle doit respecter les règles
+      return value.length >= 2 && value.length <= 50 && /^[a-zA-ZÀ-ÿ\s'-]+$/.test(value)
+    }, 'Le nom du conjoint doit contenir entre 2 et 50 caractères et uniquement des lettres, espaces, apostrophes et tirets'),
+  
+  spouseFirstName: z.string()
+    .optional()
+    .refine((value) => {
+      // Si pas de valeur ou valeur vide, c'est valide (sera géré par la validation conditionnelle)
+      if (!value || value.trim() === '') return true
+      // Si une valeur est fournie, elle doit respecter les règles
+      return value.length >= 2 && value.length <= 50 && /^[a-zA-ZÀ-ÿ\s'-]+$/.test(value)
+    }, 'Le prénom du conjoint doit contenir entre 2 et 50 caractères et uniquement des lettres, espaces, apostrophes et tirets'),
+  
+  spousePhone: z.string()
+    .optional()
+    .refine((value) => {
+      // Si pas de valeur ou valeur vide, c'est valide (sera géré par la validation conditionnelle)
+      if (!value || value.trim() === '') return true
+      // Si une valeur est fournie, elle doit respecter les règles
+      return value.length >= 8 && value.length <= 15 && /^[\+]?[0-9\s\-\(\)]+$/.test(value)
+    }, 'Le numéro du conjoint doit contenir entre 8 et 15 chiffres et respecter le format téléphonique'),
   
   intermediaryCode: z.string()
     .max(50, 'Le code entremetteur ne peut pas dépasser 50 caractères')
@@ -127,6 +159,25 @@ export const identitySchema = z.object({
       },
       'La photo doit être au format JPEG, PNG ou WebP et ne pas dépasser 5MB'
     )
+}).refine((data) => {
+  // Si la situation matrimoniale indique un conjoint, les champs du conjoint deviennent obligatoires
+  const marriedStatuses = ['En couple', 'Marié(e)', 'Concubinage', 'Pacsé(e)']
+  
+  if (marriedStatuses.includes(data.maritalStatus)) {
+    // Pour les situations avec conjoint, vérifier que les champs sont remplis
+    const hasSpouseLastName = data.spouseLastName && data.spouseLastName.trim().length >= 2
+    const hasSpouseFirstName = data.spouseFirstName && data.spouseFirstName.trim().length >= 2
+    const hasSpousePhone = data.spousePhone && data.spousePhone.trim().length >= 8
+    
+    return hasSpouseLastName && hasSpouseFirstName && hasSpousePhone
+  } else {
+    // Pour les situations sans conjoint, les champs du conjoint ne doivent pas bloquer la validation
+    // même s'ils contiennent des données (on les ignore)
+    return true
+  }
+}, {
+  message: 'Les informations du conjoint sont requises pour votre situation matrimoniale',
+  path: ['spouseLastName']
 })
 
 // ================== STEP 2: ADRESSE ==================
@@ -384,6 +435,26 @@ export const stepSchemas = {
   4: insuranceSchema
 } as const
 
+// ================== ADMIN LOGIN SCHEMA ==================
+export const adminLoginSchema = z.object({
+  email: z.string()
+    .email('Format d\'email invalide')
+    .min(1, 'L\'email est requis'),
+  
+  password: z.string()
+    .min(6, 'Le mot de passe doit contenir au moins 6 caractères')
+    .max(100, 'Le mot de passe ne peut pas dépasser 100 caractères')
+})
+
+// Type pour les données de connexion admin
+export type AdminLoginFormData = z.infer<typeof adminLoginSchema>
+
+// Valeurs par défaut pour le formulaire admin
+export const adminLoginDefaultValues: AdminLoginFormData = {
+  email: '',
+  password: ''
+}
+
 // ================== VALEURS PAR DÉFAUT ==================
 export const defaultValues: RegisterFormData = {
   identity: {
@@ -400,6 +471,9 @@ export const defaultValues: RegisterFormData = {
     identityDocument: 'Carte d\'identité',
     identityDocumentNumber: '',
     maritalStatus: 'Célibataire',
+    spouseLastName: '',
+    spouseFirstName: '',
+    spousePhone: '',
     intermediaryCode: '',
     photo: undefined
   },
