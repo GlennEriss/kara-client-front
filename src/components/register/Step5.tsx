@@ -22,17 +22,22 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
+import { useRegister } from '@/providers/RegisterProvider'
 
 interface Step5Props {
   userData?: {
     firstName?: string
     lastName?: string
   }
+  membershipId?: string
 }
 
-export default function Step5({ userData }: Step5Props) {
+export default function Step5({ userData, membershipId }: Step5Props) {
   const [copiedNumber, setCopiedNumber] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false)
+  
+  const { checkMembershipStatus } = useRegister()
 
   // Numéro depuis les variables d'environnement
   const agentNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_AIRTEL || "XX XX XX XX XX"
@@ -50,17 +55,26 @@ export default function Step5({ userData }: Step5Props) {
 
   const handleWhatsAppClick = () => {
     const message = encodeURIComponent(
-      `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 5000 FCFA pour finaliser mon inscription.`
+      `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA pour finaliser mon inscription.`
     )
     const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\s/g, '')}?text=${message}`
     window.open(whatsappUrl, '_blank')
+  }
+
+  const handleCheckStatus = async () => {
+    setIsCheckingStatus(true)
+    try {
+      await checkMembershipStatus()
+    } finally {
+      setIsCheckingStatus(false)
+    }
   }
 
   const steps = [
     {
       number: 1,
       title: "Transfert d'argent",
-      description: "Envoyez 5000 FCFA via Airtel Money",
+      description: "Envoyez 10300 FCFA via Airtel Money",
       icon: CreditCard,
       action: "Faire le transfert"
     },
@@ -109,9 +123,16 @@ export default function Step5({ userData }: Step5Props) {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-center space-x-3">
               <Shield className="w-6 h-6 text-green-600" />
-              <p className="text-sm sm:text-base text-green-800 font-medium">
-                Votre demande d'inscription à la <strong>Mutuelle Kara</strong> a été enregistrée
-              </p>
+              <div className="text-center">
+                <p className="text-sm sm:text-base text-green-800 font-medium">
+                  Votre demande d'inscription à la <strong>Mutuelle Kara</strong> a été enregistrée
+                </p>
+                {membershipId && (
+                  <p className="text-xs text-green-600 mt-1 font-mono">
+                    Référence: <strong>{membershipId.slice(0, 8).toUpperCase()}</strong>
+                  </p>
+                )}
+              </div>
               <Heart className="w-5 h-5 text-red-500 animate-pulse" />
             </div>
           </CardContent>
@@ -274,7 +295,7 @@ export default function Step5({ userData }: Step5Props) {
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-xs text-green-700 italic">
                     "Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara.
-                    Je vous envoie la capture d'écran de mon transfert de 5000 FCFA pour finaliser mon inscription."
+                    Je vous envoie la capture d'écran de mon transfert de 10300 FCFA pour finaliser mon inscription."
                   </p>
                 </div>
 
@@ -321,14 +342,30 @@ export default function Step5({ userData }: Step5Props) {
           Bienvenue dans la famille <strong>Mutuelle Kara</strong>.
           Nous sommes ravis de vous accompagner dans votre protection santé.
         </p>
-        <div className="text-center my-8">
-          <Button
-            onClick={() => window.location.href = routes.public.login}
-            className="bg-gradient-to-r from-[#224D62] to-[#CBB171] hover:from-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3 text-base"
-          >
-            <LogIn className="w-5 h-5 mr-2" />
-            Se connecter à mon espace
-          </Button>
+        <div className="text-center my-8 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              onClick={handleCheckStatus}
+              disabled={isCheckingStatus}
+              variant="outline"
+              className="border-[#224D62] text-[#224D62] hover:bg-[#224D62]/5 transition-all duration-200 px-6 py-3"
+            >
+              {isCheckingStatus ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#224D62] border-t-transparent mr-2" />
+              ) : (
+                <Shield className="w-4 h-4 mr-2" />
+              )}
+              {isCheckingStatus ? 'Vérification...' : 'Vérifier le statut'}
+            </Button>
+            
+            <Button
+              onClick={() => window.location.href = routes.public.login}
+              className="bg-gradient-to-r from-[#224D62] to-[#CBB171] hover:from-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3 text-base"
+            >
+              <LogIn className="w-5 h-5 mr-2" />
+              Se connecter à mon espace
+            </Button>
+          </div>
         </div>
       </div>
     </div>

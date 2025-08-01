@@ -1,449 +1,564 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useFieldArray } from 'react-hook-form'
+import React, { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Shield, 
   FileText, 
   Calendar, 
-  DollarSign,
-  Users,
-  Plus,
-  Trash2,
+  Camera,
+  Upload,
   CheckCircle,
   AlertCircle,
-  Car,
-  ShieldX,
-  Info
+  CreditCard,
+  MapPin,
+  Loader2
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/lib/utils'
 
 interface Step4Props {
   form: any // Type du form de react-hook-form
 }
 
-
-
-// Suggestions de compagnies d'assurance
-const INSURANCE_COMPANIES = [
-  'NSIA Assurances', 'SAHAM Assurance', 'GRAS SAVOYE', 'COLINA', 
-  'AGF Assurances', 'AXA Assurances', 'SUNU Assurances', 'UAP Assurances',
-  'SONAM', 'Star Assurances', 'Autre'
+// Options pour les types de documents d'identité
+const IDENTITY_DOCUMENT_OPTIONS = [
+  { value: 'Passeport', label: 'Passeport' },
+  { value: 'Carte de séjour', label: 'Carte de séjour' },
+  { value: 'Carte scolaire', label: 'Carte scolaire' },
+  { value: 'Carte consulaire', label: 'Carte consulaire' },
+  { value: 'NIP', label: 'NIP' },
+  { value: 'CNI', label: 'CNI' },
+  { value: 'Autre', label: 'Autre' }
 ]
 
 export default function Step4({ form }: Step4Props) {
-  const [showCompanySuggestions, setShowCompanySuggestions] = useState(false)
+  const [frontPhotoPreview, setFrontPhotoPreview] = useState<string | null>(null)
+  const [backPhotoPreview, setBackPhotoPreview] = useState<string | null>(null)
+  const [isDragOverFront, setIsDragOverFront] = useState(false)
+  const [isDragOverBack, setIsDragOverBack] = useState(false)
+  const [isCompressingFront, setIsCompressingFront] = useState(false)
+  const [isCompressingBack, setIsCompressingBack] = useState(false)
+  const [frontCompressionInfo, setFrontCompressionInfo] = useState<string | null>(null)
+  const [backCompressionInfo, setBackCompressionInfo] = useState<string | null>(null)
+  
+  const frontFileInputRef = useRef<HTMLInputElement>(null)
+  const backFileInputRef = useRef<HTMLInputElement>(null)
 
-  const { register, watch, setValue, formState: { errors }, control } = form
+  const { register, watch, setValue, setError, clearErrors, formState: { errors } } = form
 
-  // Field array pour les bénéficiaires
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "insurance.beneficiaries"
-  })
-
-  // Watch pour la logique conditionnelle et animations
-  const hasCar = watch('insurance.hasCar')
+  // Watch pour les animations et validation
   const watchedFields = watch([
-    'insurance.insuranceName',
-    'insurance.policyNumber',
-    'insurance.startDate',
-    'insurance.expirationDate',
-    'insurance.coverageAmount'
+    'documents.identityDocument',
+    'documents.identityDocumentNumber',
+    'documents.documentPhotoFront',
+    'documents.documentPhotoBack',
+    'documents.expirationDate',
+    'documents.issuingPlace',
+    'documents.issuingDate'
   ])
 
-  const handleToggleCar = (checked: boolean) => {
-    setValue('insurance.hasCar', checked)
+  // Restaurer les previews des photos si elles existent
+  React.useEffect(() => {
+    const frontPhoto = watch('documents.documentPhotoFront')
+    const backPhoto = watch('documents.documentPhotoBack')
     
-    // Reset des champs si désactivé
-    if (!checked) {
-      setValue('insurance.insuranceName', '')
-      setValue('insurance.policyNumber', '')
-      setValue('insurance.startDate', '')
-      setValue('insurance.expirationDate', '')
-      setValue('insurance.coverageAmount', '')
-      setValue('insurance.beneficiaries', [])
-      setValue('insurance.additionalNotes', '')
+    if (frontPhoto && !frontPhotoPreview && typeof frontPhoto === 'string' && frontPhoto.startsWith('data:')) {
+      setFrontPhotoPreview(frontPhoto)
+    }
+    if (backPhoto && !backPhotoPreview && typeof backPhoto === 'string' && backPhoto.startsWith('data:')) {
+      setBackPhotoPreview(backPhoto)
+    }
+  }, [watchedFields[2], watchedFields[3], frontPhotoPreview, backPhotoPreview, watch])
+
+  // Validation photo recto obligatoire
+  React.useEffect(() => {
+    const frontPhoto = watch('documents.documentPhotoFront')
+    if (!frontPhoto) {
+      setError('documents.documentPhotoFront', {
+        type: 'required',
+        message: 'La photo recto de la pièce d\'identité est requise'
+      })
+    } else {
+      clearErrors('documents.documentPhotoFront')
+    }
+  }, [watchedFields[2], setError, clearErrors, watch])
+
+  // Gestion de l'upload des photos avec compression
+  const handlePhotoUpload = async (file: File, isBack: boolean = false) => {
+    if (file && file.type.startsWith('image/')) {
+      // Définir les états de compression
+      if (isBack) {
+        setIsCompressingBack(true)
+        setBackCompressionInfo(null)
+      } else {
+        setIsCompressingFront(true)
+        setFrontCompressionInfo(null)
+      }
+      
+      try {
+        // Compresser l'image en WebP avec le preset document
+        const compressedDataUrl = await compressImage(file, IMAGE_COMPRESSION_PRESETS.document)
+        
+        // Obtenir les informations sur l'image compressée
+        const imageInfo = getImageInfo(compressedDataUrl)
+        
+        // Mettre à jour les états selon le type (recto/verso)
+        if (isBack) {
+          setBackPhotoPreview(compressedDataUrl)
+          setValue('documents.documentPhotoBack', compressedDataUrl)
+          setBackCompressionInfo(`${imageInfo.format} • ${imageInfo.sizeText}`)
+        } else {
+          setFrontPhotoPreview(compressedDataUrl)
+          setValue('documents.documentPhotoFront', compressedDataUrl)
+          clearErrors('documents.documentPhotoFront')
+          setFrontCompressionInfo(`${imageInfo.format} • ${imageInfo.sizeText}`)
+        }
+        
+      } catch (error) {
+        console.error('Erreur lors de la compression:', error)
+        const fieldName = isBack ? 'documents.documentPhotoBack' : 'documents.documentPhotoFront'
+        setError(fieldName, {
+          type: 'compression',
+          message: 'Erreur lors de la compression de l\'image'
+        })
+      } finally {
+        // Arrêter les états de compression
+        if (isBack) {
+          setIsCompressingBack(false)
+        } else {
+          setIsCompressingFront(false)
+        }
+      }
     }
   }
 
-  const handleCompanySelect = (company: string) => {
-    setValue('insurance.insuranceName', company)
-    setShowCompanySuggestions(false)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isBack: boolean = false) => {
+    const file = e.target.files?.[0]
+    if (file) handlePhotoUpload(file, isBack)
   }
 
-  const addBeneficiary = () => {
-    if (fields.length < 5) {
-      append('')
+  const handleDrop = (e: React.DragEvent, isBack: boolean = false) => {
+    e.preventDefault()
+    if (isBack) {
+      setIsDragOverBack(false)
+    } else {
+      setIsDragOverFront(false)
     }
+    const file = e.dataTransfer.files[0]
+    if (file) handlePhotoUpload(file, isBack)
   }
-
-
 
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header avec animation */}
       <div className="text-center space-y-3 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
         <div className="inline-flex items-center space-x-3 px-5 sm:px-6 py-3 bg-gradient-to-r from-[#224D62]/10 via-[#CBB171]/10 to-[#224D62]/10 rounded-full shadow-lg border border-[#224D62]/20">
-          <Car className="w-6 h-6 text-[#224D62]" />
-          <span className="text-[#224D62] font-bold text-base sm:text-lg">Véhicule et assurance auto</span>
+          <FileText className="w-6 h-6 text-[#224D62]" />
+          <span className="text-[#224D62] font-bold text-base sm:text-lg">Pièces d'identité</span>
         </div>
         <p className="text-[#224D62]/80 text-sm sm:text-base break-words font-medium">
-          Indiquez si vous possédez une voiture et renseignez votre assurance auto (section optionnelle)
+          Téléchargez les photos de votre pièce d'identité et complétez les informations
         </p>
       </div>
 
-      {/* Toggle principal avec card attractive */}
-      <Card className="border-2 border-[#224D62]/20 bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 animate-in fade-in-0 zoom-in-95 duration-700 delay-200 w-full shadow-lg">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 w-full">
-            <div className="flex items-center space-x-3 w-full min-w-0">
-              <div className={cn(
-                "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-500",
-                hasCar 
-                  ? "bg-[#224D62] text-white" 
-                  : "bg-gray-100 text-gray-400"
-              )}>
-                {hasCar ? <Car className="w-6 h-6" /> : <ShieldX className="w-6 h-6" />}
-              </div>
-              <div className="min-w-0">
-                <CardTitle className="text-base sm:text-lg text-[#224D62] truncate">
-                  {hasCar ? "Je possède une voiture" : "Je ne possède pas de voiture"}
-                </CardTitle>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1 break-words">
-                  {hasCar 
-                    ? "Complétez les détails de votre assurance auto" 
-                    : "Activez pour renseigner vos informations de véhicule et d'assurance"
-                  }
-                </p>
-              </div>
+      {/* Section principale - Type de document et numéro */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full">
+        {/* Type de pièce d'identité */}
+        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
+          <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+            Type de pièce d'identité <span className="text-red-500">*</span>
+          </Label>
+          <Select 
+            onValueChange={(value) => setValue('documents.identityDocument', value)}
+            defaultValue={watch('documents.identityDocument')}
+          >
+            <SelectTrigger className={cn(
+              "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+              watchedFields[0] && "border-[#CBB171] bg-[#CBB171]/5"
+            )}>
+              <SelectValue placeholder="Sélectionner le type de document" />
+            </SelectTrigger>
+            <SelectContent>
+              {IDENTITY_DOCUMENT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {watchedFields[0] && (
+            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+              <CheckCircle className="w-3 h-3" />
+              <span>Type sélectionné: {watchedFields[0]}</span>
             </div>
-            <div className="flex items-center space-x-3 w-full sm:w-auto">
-              <Label htmlFor="car-toggle" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                {hasCar ? "Véhicule" : "Pas de véhicule"}
+          )}
+        </div>
+
+        {/* Numéro de pièce d'identité */}
+        <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
+          <Label htmlFor="identityDocumentNumber" className="text-xs sm:text-sm font-medium text-[#224D62]">
+            Numéro de pièce d'identité <span className="text-red-500">*</span>
               </Label>
-              <Switch
-                id="car-toggle"
-                checked={hasCar}
-                onCheckedChange={handleToggleCar}
-                className="data-[state=checked]:bg-[#224D62]"
+          <div className="relative">
+            <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+            <Input
+              id="identityDocumentNumber"
+              {...register('documents.identityDocumentNumber')}
+              placeholder="Numéro de votre pièce d'identité"
+              className={cn(
+                "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                errors?.documents?.identityDocumentNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
+                watchedFields[1] && !errors?.documents?.identityDocumentNumber && "border-[#CBB171] bg-[#CBB171]/5"
+              )}
+            />
+            {watchedFields[1] && !errors?.documents?.identityDocumentNumber && (
+              <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+            )}
+          </div>
+          {errors?.documents?.identityDocumentNumber && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.identityDocumentNumber.message}</span>
+            </div>
+          )}
+            </div>
+          </div>
+
+      {/* Section upload des photos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 w-full">
+        {/* Photo recto (obligatoire) */}
+        <Card className="border-2 border-[#224D62]/20 bg-gradient-to-br from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 zoom-in-95 duration-700 delay-200">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base sm:text-lg text-[#224D62] flex items-center space-x-2">
+              <Camera className="w-5 h-5" />
+              <span>Photo recto <span className="text-red-500">*</span></span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Zone d'upload recto */}
+            <div
+                    className={cn(
+                "relative w-full h-48 sm:h-64 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer group",
+                isDragOverFront 
+                  ? "border-[#224D62] bg-[#224D62]/5 shadow-lg scale-105" 
+                  : "border-[#224D62]/30 hover:border-[#224D62]/50 hover:bg-[#224D62]/5",
+                frontPhotoPreview && "border-solid border-[#224D62]/50 bg-[#224D62]/5"
+              )}
+              onDrop={(e) => handleDrop(e, false)}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOverFront(true) }}
+              onDragLeave={() => setIsDragOverFront(false)}
+              onClick={() => frontFileInputRef.current?.click()}
+            >
+                            {isCompressingFront ? (
+                <div className="w-full h-full flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-[#224D62] animate-spin" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-[#224D62]">Compression en cours...</p>
+                    <p className="text-xs text-gray-500">Optimisation de l'image</p>
+                  </div>
+                </div>
+              ) : frontPhotoPreview ? (
+                <div className="w-full h-full rounded-lg overflow-hidden relative">
+                  <img 
+                    src={frontPhotoPreview} 
+                    alt="Pièce d'identité recto" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-gradient-to-r from-[#CBB171] to-[#224D62] text-white text-xs">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Ajoutée
+                    </Badge>
+                  </div>
+                  {frontCompressionInfo && (
+                    <div className="absolute top-2 left-2">
+                      <Badge variant="secondary" className="bg-white/90 text-[#224D62] text-xs">
+                        {frontCompressionInfo}
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="absolute bottom-2 left-2 right-2 flex space-x-2">
+                            <Button
+                              size="sm"
+                      variant="secondary"
+                      className="flex-1 bg-white/90 text-[#224D62] hover:bg-white"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        frontFileInputRef.current?.click()
+                      }}
+                    >
+                      <Upload className="w-3 h-3 mr-1" />
+                      Changer
+                            </Button>
+                        </div>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center space-y-3 group-hover:scale-105 transition-transform">
+                  <Upload className="w-8 h-8 sm:w-12 sm:h-12 text-[#224D62]/60" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-[#224D62]">Télécharger la photo recto</p>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP → Optimisé automatiquement</p>
+                  </div>
+                  </div>
+                )}
+              <input
+                ref={frontFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileChange(e, false)}
+                className="hidden"
               />
             </div>
-          </div>
-        </CardHeader>
-      </Card>
+            {errors?.documents?.documentPhotoFront && (
+              <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-top-2 duration-300">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.documents.documentPhotoFront.message}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Section conditionnelle des informations d'assurance auto */}
-      <div className={cn(
-        "transition-all duration-500 transform w-full",
-        hasCar 
-          ? "opacity-100 translate-y-0 scale-100" 
-          : "opacity-30 -translate-y-4 scale-95 pointer-events-none"
-      )}>
-        {!hasCar && (
-          <div className="text-center py-8 sm:py-12 space-y-4 w-full">
-            <div className="w-16 sm:w-20 h-16 sm:h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
-              <Car className="w-8 sm:w-10 h-8 sm:h-10 text-gray-400" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-base sm:text-lg font-medium text-gray-500">Section désactivée</h3>
-              <p className="text-xs sm:text-sm text-gray-400 break-words">
-                Activez le bouton ci-dessus pour renseigner vos informations de véhicule et d'assurance auto
-              </p>
-            </div>
-          </div>
-        )}
-        {hasCar && (
-          <div className="space-y-6 sm:space-y-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
-            {/* Nom de l'assurance auto */}
-            <div className="grid grid-cols-1 gap-3 sm:gap-6 w-full">
-              {/* Nom de l'assurance */}
-              <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
-                <Label htmlFor="insuranceName" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Nom de l'assurance auto <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative w-full min-w-0">
-                  <Car className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
-                  <Input
-                    id="insuranceName"
-                    {...register('insurance.insuranceName')}
-                    placeholder="Ex: NSIA Assurances, AXA..."
-                    onFocus={() => setShowCompanySuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowCompanySuggestions(false), 200)}
+        {/* Photo verso (optionnelle) */}
+        <Card className="border-2 border-[#CBB171]/20 bg-gradient-to-br from-[#CBB171]/5 to-[#224D62]/5 animate-in fade-in-0 zoom-in-95 duration-700 delay-300">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base sm:text-lg text-[#224D62] flex items-center space-x-2">
+              <Camera className="w-5 h-5" />
+              <span>Photo verso</span>
+              <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
+                Optionnel
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Zone d'upload verso */}
+            <div
                     className={cn(
-                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.insurance?.insuranceName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[0] && !errors?.insurance?.insuranceName && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
-                  />
-                  {watchedFields[0] && !errors?.insurance?.insuranceName && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
-                  )}
-                  {/* Suggestions compagnies */}
-                  {showCompanySuggestions && (
-                    <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 max-h-32 sm:max-h-48 overflow-y-auto w-full">
-                      <CardContent className="p-2">
-                        <div className="space-y-1">
-                          {INSURANCE_COMPANIES.map((company) => (
-                            <Button
-                              key={company}
-                              variant="ghost"
-                              size="sm"
-                              className="w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm"
-                              onMouseDown={() => handleCompanySelect(company)}
-                            >
-                              {company}
-                            </Button>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                "relative w-full h-48 sm:h-64 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer group",
+                isDragOverBack 
+                  ? "border-[#CBB171] bg-[#CBB171]/5 shadow-lg scale-105" 
+                  : "border-[#CBB171]/30 hover:border-[#CBB171]/50 hover:bg-[#CBB171]/5",
+                backPhotoPreview && "border-solid border-[#CBB171]/50 bg-[#CBB171]/5"
+              )}
+              onDrop={(e) => handleDrop(e, true)}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOverBack(true) }}
+              onDragLeave={() => setIsDragOverBack(false)}
+              onClick={() => backFileInputRef.current?.click()}
+            >
+                            {isCompressingBack ? (
+                <div className="w-full h-full flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-[#CBB171] animate-spin" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-[#224D62]">Compression en cours...</p>
+                    <p className="text-xs text-gray-500">Optimisation de l'image</p>
+                  </div>
                 </div>
-                {errors?.insurance?.insuranceName && (
-                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{errors.insurance.insuranceName.message}</span>
+              ) : backPhotoPreview ? (
+                <div className="w-full h-full rounded-lg overflow-hidden relative">
+                  <img 
+                    src={backPhotoPreview} 
+                    alt="Pièce d'identité verso" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-gradient-to-r from-[#224D62] to-[#CBB171] text-white text-xs">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Ajoutée
+                    </Badge>
+                  </div>
+                  {backCompressionInfo && (
+                    <div className="absolute top-2 left-2">
+                      <Badge variant="secondary" className="bg-white/90 text-[#224D62] text-xs">
+                        {backCompressionInfo}
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="absolute bottom-2 left-2 right-2 flex space-x-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="flex-1 bg-white/90 text-[#224D62] hover:bg-white"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        backFileInputRef.current?.click()
+                      }}
+                    >
+                      <Upload className="w-3 h-3 mr-1" />
+                      Changer
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center space-y-3 group-hover:scale-105 transition-transform">
+                  <Upload className="w-8 h-8 sm:w-12 sm:h-12 text-[#CBB171]/60" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-[#224D62]">Télécharger la photo verso</p>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP → Optimisé automatiquement</p>
+                  </div>
                   </div>
                 )}
-              </div>
+              <input
+                ref={backFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileChange(e, true)}
+                className="hidden"
+              />
             </div>
-            {/* Numéro de police et montant */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 w-full">
-              {/* Numéro de police */}
-              <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full min-w-0">
-                <Label htmlFor="policyNumber" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Numéro de police <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative w-full min-w-0">
-                  <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                  <Input
-                    id="policyNumber"
-                    {...register('insurance.policyNumber')}
-                    placeholder="Ex: POL-2024-001234"
-                    className={cn(
-                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.insurance?.policyNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[1] && !errors?.insurance?.policyNumber && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
-                  />
-                  {watchedFields[1] && !errors?.insurance?.policyNumber && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
-                  )}
-                </div>
-                {errors?.insurance?.policyNumber && (
-                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{errors.insurance.policyNumber.message}</span>
-                  </div>
-                )}
+          </CardContent>
+        </Card>
               </div>
-              {/* Montant de couverture */}
-              <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-300 w-full min-w-0">
-                <Label htmlFor="coverageAmount" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Montant de couverture
-                  <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
-                    Optionnel
-                  </Badge>
+
+      {/* Informations complémentaires du document */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+        {/* Date d'expiration */}
+        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full min-w-0">
+          <Label htmlFor="expirationDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
+            Date d'expiration <span className="text-red-500">*</span>
                 </Label>
-                <div className="relative w-full min-w-0">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
                   <Input
-                    id="coverageAmount"
-                    {...register('insurance.coverageAmount')}
-                    placeholder="Ex: 50000.00"
+              id="expirationDate"
+              type="date"
+              {...register('documents.expirationDate')}
                     className={cn(
                       "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      watchedFields[4] && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                      errors?.documents?.expirationDate && "border-red-300 focus:border-red-500 bg-red-50/50",
+                      watchedFields[4] && !errors?.documents?.expirationDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
                     )}
                   />
                 </div>
-                <div className="text-[10px] sm:text-xs text-gray-500">
-                  Format: 50000.00 (en FCFA)
-                </div>
-              </div>
+          {watchedFields[4] && !errors?.documents?.expirationDate && (
+            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+              <CheckCircle className="w-3 h-3" />
+              <span>Date d'expiration ajoutée</span>
             </div>
-            {/* Dates */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 w-full">
-              {/* Date de début */}
-              <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full min-w-0">
-                <Label htmlFor="startDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Date de début <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative w-full min-w-0">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                  <Input
-                    id="startDate"
-                    type="date"
-                    {...register('insurance.startDate')}
-                    className={cn(
-                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.insurance?.startDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[2] && !errors?.insurance?.startDate && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
-                  />
-                  {watchedFields[2] && !errors?.insurance?.startDate && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
-                  )}
+          )}
+          {errors?.documents?.expirationDate && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.expirationDate.message}</span>
+            </div>
+          )}
                 </div>
-                {errors?.insurance?.startDate && (
-                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{errors.insurance.startDate.message}</span>
-                  </div>
-                )}
-              </div>
-              {/* Date d'expiration */}
+
+        {/* Lieu de délivrance */}
               <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-500 w-full min-w-0">
-                <Label htmlFor="expirationDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Date d'expiration <span className="text-red-500">*</span>
+          <Label htmlFor="issuingPlace" className="text-xs sm:text-sm font-medium text-[#224D62]">
+            Lieu de délivrance <span className="text-red-500">*</span>
                 </Label>
-                <div className="relative w-full min-w-0">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
                   <Input
-                    id="expirationDate"
-                    type="date"
-                    {...register('insurance.expirationDate')}
+              id="issuingPlace"
+              {...register('documents.issuingPlace')}
+              placeholder="Ex: Libreville, France..."
                     className={cn(
-                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.insurance?.expirationDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[3] && !errors?.insurance?.expirationDate && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
-                  />
-                  {watchedFields[3] && !errors?.insurance?.expirationDate && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
-                  )}
-                </div>
-                {errors?.insurance?.expirationDate && (
-                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{errors.insurance.expirationDate.message}</span>
+                "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                errors?.documents?.issuingPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
+                watchedFields[5] && !errors?.documents?.issuingPlace && "border-[#CBB171]/50 bg-[#CBB171]/5"
+              )}
+            />
                   </div>
-                )}
+          {watchedFields[5] && !errors?.documents?.issuingPlace && (
+            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-right-2 duration-300">
+              <CheckCircle className="w-3 h-3" />
+              <span>Lieu de délivrance ajouté</span>
+            </div>
+          )}
+          {errors?.documents?.issuingPlace && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.issuingPlace.message}</span>
+            </div>
+          )}
               </div>
             </div>
-            {/* Bénéficiaires */}
-            <div className="space-y-3 sm:space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-600 w-full min-w-0">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 w-full">
-                <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Bénéficiaires 
-                  <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
-                    Optionnel
-                  </Badge>
+
+      {/* Date de délivrance */}
+      <div className="w-full max-w-md">
+        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full min-w-0">
+          <Label htmlFor="issuingDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
+            Date de délivrance <span className="text-red-500">*</span>
                 </Label>
-                {fields.length < 5 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addBeneficiary}
-                    className="border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10 transition-all duration-300 hover:scale-105 w-full sm:w-auto"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Ajouter
-                  </Button>
-                )}
-              </div>
-              {fields.length > 0 && (
-                <div className="space-y-2 sm:space-y-3 w-full">
-                  {fields.map((field, index) => (
-                    <div key={field.id} className="flex space-x-2 animate-in slide-in-from-left-4 duration-300 w-full min-w-0" style={{ animationDelay: `${index * 100}ms` }}>
-                      <div className="flex-1 relative min-w-0">
-                        <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                        <Input
-                          {...register(`insurance.beneficiaries.${index}`)}
-                          placeholder={`Bénéficiaire ${index + 1}`}
-                          className="pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full"
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+            <Input
+              id="issuingDate"
+              type="date"
+              {...register('documents.issuingDate')}
+              className={cn(
+                "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                errors?.documents?.issuingDate && "border-red-300 focus:border-red-500 bg-red-50/50",
+                watchedFields[6] && !errors?.documents?.issuingDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
+              )}
                         />
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => remove(index)}
-                        className="border-red-300 text-red-500 hover:bg-red-50 transition-all duration-300 hover:scale-105"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+          {watchedFields[6] && !errors?.documents?.issuingDate && (
+            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+              <CheckCircle className="w-3 h-3" />
+              <span>Date de délivrance ajoutée</span>
+            </div>
+          )}
+          {errors?.documents?.issuingDate && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.issuingDate.message}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Résumé du document */}
+      {(watchedFields[0] || frontPhotoPreview) && (
+        <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
+          <CardContent className="p-4 sm:p-6 w-full">
+            <div className="flex items-start space-x-4 w-full min-w-0">
+              <FileText className="w-6 h-6 text-[#224D62] mt-1 flex-shrink-0" />
+              <div className="space-y-2 min-w-0 flex-1">
+                <p className="text-sm sm:text-base font-medium text-[#224D62]">Pièce d'identité détectée</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-gray-600">
+                  {watchedFields[0] && (
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium">Type:</span>
+                      <span>{watchedFields[0]}</span>
                     </div>
-                  ))}
+                  )}
+                  {watchedFields[1] && (
+                    <div className="flex items-center space-x-1 truncate">
+                      <span className="font-medium">Numéro:</span>
+                      <span className="truncate">{watchedFields[1]}</span>
+                    </div>
+                  )}
+                  {frontPhotoPreview && (
+                    <div className="flex items-center space-x-1 text-[#CBB171]">
+                      <CheckCircle className="w-3 h-3" />
+                      <span>Photo recto ajoutée</span>
                 </div>
               )}
-              {fields.length === 0 && (
-                <div className="text-center py-4 sm:py-6 border-2 border-dashed border-gray-200 rounded-lg w-full">
-                  <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs sm:text-sm text-gray-500">Aucun bénéficiaire ajouté</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={addBeneficiary}
-                    className="mt-2 text-[#CBB171] hover:bg-[#CBB171]/10 w-full sm:w-auto"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Ajouter le premier bénéficiaire
-                  </Button>
+                  {backPhotoPreview && (
+                    <div className="flex items-center space-x-1 text-[#CBB171]">
+                      <CheckCircle className="w-3 h-3" />
+                      <span>Photo verso ajoutée</span>
                 </div>
               )}
             </div>
-            {/* Notes complémentaires */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700 w-full min-w-0">
-              <Label htmlFor="additionalNotes" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Notes complémentaires
-                <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
-                  Optionnel
-                </Badge>
-              </Label>
-              <div className="relative w-full min-w-0">
-                <Info className="absolute left-3 top-3 w-4 h-4 text-[#CBB171]" />
-                <Textarea
-                  id="additionalNotes"
-                  {...register('insurance.additionalNotes')}
-                  placeholder="Informations supplémentaires sur votre assurance..."
-                  rows={3}
-                  className="pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 resize-none w-full"
-                />
-              </div>
-            </div>
-            {/* Résumé de l'assurance auto */}
-            {watchedFields[0] && (
-              <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
-                <CardContent className="p-3 sm:p-4 w-full">
-                  <div className="flex items-start space-x-3 w-full min-w-0">
-                    <Car className="w-5 h-5 text-[#224D62] mt-1 flex-shrink-0" />
-                    <div className="space-y-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-medium text-[#224D62] truncate">Assurance auto détectée</p>
-                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">
-                        Assurance auto chez {watchedFields[0]}
-                        {watchedFields[1] && ` • Police: ${watchedFields[1]}`}
-                        {watchedFields[4] && ` • Couverture: ${watchedFields[4]} FCFA`}
-                      </p>
-                      {fields.length > 0 && (
-                        <p className="text-[10px] sm:text-xs text-[#CBB171]">
-                          {fields.length} bénéficiaire{fields.length > 1 ? 's' : ''} ajouté{fields.length > 1 ? 's' : ''}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
-          </div>
-        )}
-      </div>
+
       {/* Message final */}
       <div className="text-center p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words shadow-lg">
         <div className="flex items-center justify-center space-x-3">
-          <Shield className="w-6 h-6 text-[#CBB171]" />
+          <FileText className="w-6 h-6 text-[#CBB171]" />
           <p className="text-sm sm:text-base text-[#224D62] font-bold">
-            <strong>Assurance auto :</strong> Vos informations d'assurance véhicule nous permettent de mieux vous accompagner en cas de sinistre
+            <strong>Sécurité :</strong> Vos documents d'identité sont stockés de manière sécurisée et utilisés uniquement pour la vérification de votre identité
           </p>
         </div>
       </div>

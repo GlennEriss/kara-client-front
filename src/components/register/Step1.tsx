@@ -23,10 +23,10 @@ import {
   FileText,
   Church,
   Hash,
-  CreditCard,
-  Lightbulb
+  Lightbulb,
+  Loader2
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/lib/utils'
 interface Step1Props {
   form: any // Type du form de react-hook-form
 }
@@ -71,6 +71,8 @@ const MARITAL_STATUS_OPTIONS = [
 export default function Step1({ form }: Step1Props) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isCompressing, setIsCompressing] = useState(false)
+  const [compressionInfo, setCompressionInfo] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { register, watch, setValue, setError, clearErrors, formState: { errors }, control } = form
@@ -80,6 +82,13 @@ export default function Step1({ form }: Step1Props) {
     control,
     name: "identity.contacts"
   })
+
+  // S'assurer qu'il y ait toujours au moins un champ de contact
+  React.useEffect(() => {
+    if (fields.length === 0) {
+      append('')
+    }
+  }, [fields.length, append])
 
   // Watch pour les animations et la situation matrimoniale
   const watchedFields = watch([
@@ -92,12 +101,12 @@ export default function Step1({ form }: Step1Props) {
     'identity.birthCertificateNumber',
     'identity.prayerPlace',
     'identity.nationality',
-    'identity.identityDocumentNumber',
     'identity.photo',
     'identity.maritalStatus',
     'identity.spouseLastName',
     'identity.spouseFirstName',
-    'identity.spousePhone'
+    'identity.spousePhone',
+    'identity.hasCar'
   ])
 
   // Vérifier si la situation matrimoniale nécessite des infos conjoint
@@ -139,17 +148,34 @@ export default function Step1({ form }: Step1Props) {
     }
   }, [watchedFields[9], setError, clearErrors, photoPreview])
 
-  // Gestion de l'upload de photo
-  const handlePhotoUpload = (file: File) => {
+  // Gestion de l'upload de photo avec compression
+  const handlePhotoUpload = async (file: File) => {
     if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string
-        setPhotoPreview(dataUrl)
-        setValue('identity.photo', dataUrl) // Stocker comme data URL pour la persistance
-        clearErrors('identity.photo') // Effacer l'erreur quand une photo est sélectionnée
+      setIsCompressing(true)
+      setCompressionInfo(null)
+      
+      try {
+        // Compresser l'image en WebP avec le preset profile
+        const compressedDataUrl = await compressImage(file, IMAGE_COMPRESSION_PRESETS.profile)
+        
+        // Obtenir les informations sur l'image compressée
+        const imageInfo = getImageInfo(compressedDataUrl)
+        
+        // Mettre à jour les états
+        setPhotoPreview(compressedDataUrl)
+        setValue('identity.photo', compressedDataUrl)
+        clearErrors('identity.photo')
+        setCompressionInfo(`${imageInfo.format} • ${imageInfo.sizeText}`)
+        
+      } catch (error) {
+        console.error('Erreur lors de la compression:', error)
+        setError('identity.photo', {
+          type: 'compression',
+          message: 'Erreur lors de la compression de l\'image'
+        })
+      } finally {
+        setIsCompressing(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 
@@ -206,15 +232,22 @@ export default function Step1({ form }: Step1Props) {
               onDragLeave={() => setIsDragOver(false)}
               onClick={() => fileInputRef.current?.click()}
             >
-              {photoPreview ? (
+              {isCompressing ? (
+                <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-r from-[#224D62]/10 to-[#CBB171]/10">
+                  <div className="flex flex-col items-center space-y-2">
+                    <Loader2 className="w-8 h-8 text-[#224D62] animate-spin" />
+                    <span className="text-xs text-[#224D62] font-medium">Compression...</span>
+                  </div>
+                </div>
+              ) : photoPreview ? (
                 <div className="w-full h-full rounded-full overflow-hidden">
                   <Avatar className="w-full h-full">
                     <AvatarImage src={photoPreview} alt="Photo de profil" />
-                                      <AvatarFallback className="bg-[#224D62]/10">
-                    <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-[#224D62]" />
-                  </AvatarFallback>
+                    <AvatarFallback className="bg-[#224D62]/10">
+                      <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-[#224D62]" />
+                    </AvatarFallback>
                   </Avatar>
-                  {/* Badge de succès */}
+                  {/* Badge de succès avec info compression */}
                   <div className="absolute -top-2 -right-2">
                     <Badge className="bg-gradient-to-r from-[#CBB171] to-[#224D62] text-white text-xs shadow-sm">
                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -242,8 +275,14 @@ export default function Step1({ form }: Step1Props) {
                 Cliquez pour ajouter une photo
               </p>
               <p className="text-xs text-gray-500">
-                PNG, JPG, WebP (max 5MB)
+                PNG, JPG, WebP (max 5MB) → Compressé en WebP
               </p>
+              {compressionInfo && (
+                <div className="flex items-center justify-center space-x-1 text-[#CBB171] text-xs animate-in fade-in-0 duration-300">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>{compressionInfo}</span>
+                </div>
+              )}
             </div>
             
             {errors?.identity?.photo && (
@@ -611,20 +650,25 @@ export default function Step1({ form }: Step1Props) {
               />
             </div>
 
-            {/* Pièce d'identité */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-1000 w-full min-w-0">
+
+          </div>
+
+          {/* Situation matrimoniale et Question voiture */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
+            {/* Situation matrimoniale */}
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-1100 w-full min-w-0">
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Pièce d'identité <span className="text-red-500">*</span>
+                Situation matrimoniale <span className="text-red-500">*</span>
               </Label>
               <Select 
-                onValueChange={(value) => setValue('identity.identityDocument', value)}
-                defaultValue={watch('identity.identityDocument')}
+                onValueChange={(value) => setValue('identity.maritalStatus', value)}
+                defaultValue={watch('identity.maritalStatus')}
               >
                 <SelectTrigger className="border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full">
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
-                  {IDENTITY_DOCUMENT_OPTIONS.map((option) => (
+                  {MARITAL_STATUS_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -633,56 +677,46 @@ export default function Step1({ form }: Step1Props) {
               </Select>
             </div>
 
-            {/* Numéro de pièce d'identité */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-1050 w-full min-w-0">
-              <Label htmlFor="identityDocumentNumber" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Numéro de pièce d'identité <span className="text-red-500">*</span>
+            {/* Question voiture */}
+            <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-1150 w-full min-w-0">
+              <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Possédez-vous une voiture ? <span className="text-red-500">*</span>
               </Label>
-              <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                <Input
-                  id="identityDocumentNumber"
-                  {...register('identity.identityDocumentNumber')}
-                  placeholder="Numéro de votre pièce d'identité"
-                  className={cn(
-                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                    errors?.identity?.identityDocumentNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[9] && !errors?.identity?.identityDocumentNumber && "border-[#CBB171] bg-[#CBB171]/5"
-                  )}
-                />
-                {watchedFields[9] && !errors?.identity?.identityDocumentNumber && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
-                )}
+              <div className="flex space-x-4">
+                <label className="flex items-center space-x-2 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="identity.hasCar"
+                    checked={watch('identity.hasCar') === true}
+                    onChange={() => setValue('identity.hasCar', true)}
+                    className="w-4 h-4 border-[#224D62]/30 transition-all duration-200"
+                    style={{ accentColor: '#224D62' }}
+                  />
+                  <span className="text-sm font-medium text-[#224D62] group-hover:text-[#CBB171] transition-colors duration-200">
+                    Oui
+                  </span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="identity.hasCar"
+                    checked={watch('identity.hasCar') === false}
+                    onChange={() => setValue('identity.hasCar', false)}
+                    className="w-4 h-4 border-[#224D62]/30 transition-all duration-200"
+                    style={{ accentColor: '#224D62' }}
+                  />
+                  <span className="text-sm font-medium text-[#224D62] group-hover:text-[#CBB171] transition-colors duration-200">
+                    Non
+                  </span>
+                </label>
               </div>
-              {errors?.identity?.identityDocumentNumber && (
-                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
-                  <AlertCircle className="w-3 h-3" />
-                  <span>{errors.identity.identityDocumentNumber.message}</span>
+              {(watch('identity.hasCar') === true || watch('identity.hasCar') === false) && (
+                <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-right-2 duration-300">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>Réponse enregistrée: {watch('identity.hasCar') ? 'Oui' : 'Non'}</span>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Situation matrimoniale (seule) */}
-          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-1100 w-full max-w-md">
-            <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
-              Situation matrimoniale <span className="text-red-500">*</span>
-            </Label>
-            <Select 
-              onValueChange={(value) => setValue('identity.maritalStatus', value)}
-              defaultValue={watch('identity.maritalStatus')}
-            >
-              <SelectTrigger className="border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full">
-                <SelectValue placeholder="Sélectionner" />
-              </SelectTrigger>
-              <SelectContent>
-                {MARITAL_STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Informations du conjoint (conditionnelles) */}
@@ -711,10 +745,10 @@ export default function Step1({ form }: Step1Props) {
                       className={cn(
                         "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                         errors?.identity?.spouseLastName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                        watchedFields[12] && !errors?.identity?.spouseLastName && "border-[#CBB171] bg-[#CBB171]/5"
+                        watchedFields[11] && !errors?.identity?.spouseLastName && "border-[#CBB171] bg-[#CBB171]/5"
                       )}
                     />
-                    {watchedFields[12] && !errors?.identity?.spouseLastName && (
+                    {watchedFields[11] && !errors?.identity?.spouseLastName && (
                       <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                     )}
                   </div>
@@ -739,10 +773,10 @@ export default function Step1({ form }: Step1Props) {
                       className={cn(
                         "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                         errors?.identity?.spouseFirstName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                        watchedFields[13] && !errors?.identity?.spouseFirstName && "border-[#CBB171] bg-[#CBB171]/5"
+                        watchedFields[12] && !errors?.identity?.spouseFirstName && "border-[#CBB171] bg-[#CBB171]/5"
                       )}
                     />
-                    {watchedFields[13] && !errors?.identity?.spouseFirstName && (
+                    {watchedFields[12] && !errors?.identity?.spouseFirstName && (
                       <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                     )}
                   </div>
@@ -770,10 +804,10 @@ export default function Step1({ form }: Step1Props) {
                       className={cn(
                         "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                         errors?.identity?.spousePhone && "border-red-300 focus:border-red-500 bg-red-50/50",
-                        watchedFields[14] && !errors?.identity?.spousePhone && "border-[#CBB171] bg-[#CBB171]/5"
+                        watchedFields[13] && !errors?.identity?.spousePhone && "border-[#CBB171] bg-[#CBB171]/5"
                       )}
                     />
-                    {watchedFields[14] && !errors?.identity?.spousePhone && (
+                    {watchedFields[13] && !errors?.identity?.spousePhone && (
                       <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                     )}
                   </div>

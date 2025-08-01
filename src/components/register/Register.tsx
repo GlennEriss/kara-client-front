@@ -33,7 +33,7 @@ const STEPS_CONFIG = [
   { id: 1, title: 'Identité', description: 'Informations personnelles' },
   { id: 2, title: 'Adresse', description: 'Lieu de résidence' },
   { id: 3, title: 'Entreprise', description: 'Informations professionnelles' },
-  { id: 4, title: 'Véhicule', description: 'Assurance automobile' },
+  { id: 4, title: 'Documents', description: 'Pièces d\'identité' },
 ] as const
 
 function Register() {
@@ -141,9 +141,19 @@ function Register() {
 
   // Affichage de l'étape de succès
   if (isSubmitted) {
+    // Récupérer l'ID du membership depuis le cache s'il est disponible
+    const submissionData = (() => {
+      try {
+        const membershipId = localStorage.getItem('register-membership-id')
+        return membershipId || undefined
+      } catch {
+        return undefined
+      }
+    })()
+
     return (
       <Suspense fallback={<StepSkeleton />}>
-        <Step5 userData={userData} />
+        <Step5 userData={userData} membershipId={submissionData} />
       </Suspense>
     )
   }

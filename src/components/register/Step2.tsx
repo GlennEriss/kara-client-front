@@ -39,6 +39,7 @@ interface PhotonResult {
     neighbourhood?: string
     osm_key: string
     osm_value: string
+    type?: string
   }
   geometry: {
     coordinates: [number, number]
@@ -79,6 +80,14 @@ export default function Step2({ form }: Step2Props) {
   const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<PhotonResult | null>(null)
+  
+  // États pour la correction de ville
+  const [needsCityCorrection, setNeedsCityCorrection] = useState(false)
+  const [cityQuery, setCityQuery] = useState('')
+  const [citySearchResults, setCitySearchResults] = useState<PhotonResult[]>([])
+  const [isSearchingCity, setIsSearchingCity] = useState(false)
+  const [showCityResults, setShowCityResults] = useState(false)
+  const [detectedCityName, setDetectedCityName] = useState('')
 
   const { register, watch, setValue, formState: { errors } } = form
 
@@ -93,6 +102,7 @@ export default function Step2({ form }: Step2Props) {
 
   // Debounce la recherche
   const debouncedQuery = useDebounce(districtQuery, 500)
+  const debouncedCityQuery = useDebounce(cityQuery, 500)
 
   // Fonction pour rechercher avec Photon API
   const searchWithPhoton = useCallback(async (query: string) => {
@@ -126,6 +136,40 @@ export default function Step2({ form }: Step2Props) {
     }
   }, [])
 
+  // Fonction pour rechercher uniquement les villes
+  const searchCitiesWithPhoton = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setCitySearchResults([])
+      return
+    }
+
+    setIsSearchingCity(true)
+    try {
+      // Bounding box du Gabon: [ouest, sud, est, nord]
+      const gabonBbox = '8.5,-4.0,14.8,2.3'
+      
+      const response = await fetch(
+        `https://photon.komoot.io/api?q=${encodeURIComponent(query)}&bbox=${gabonBbox}&limit=8&lang=fr`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Filtrer pour ne garder que les vraies villes du Gabon
+        const cityResults = data.features.filter((result: PhotonResult) => 
+          (result.properties.country === 'Gabon' || result.properties.country === 'GA') &&
+          (result.properties.osm_key === 'place' && 
+           ['city', 'town', 'municipality'].includes(result.properties.osm_value))
+        )
+        setCitySearchResults(cityResults)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la recherche de villes:', error)
+      setCitySearchResults([])
+    } finally {
+      setIsSearchingCity(false)
+    }
+  }, [])
+
   // Effet pour déclencher la recherche
   useEffect(() => {
     if (debouncedQuery) {
@@ -137,6 +181,17 @@ export default function Step2({ form }: Step2Props) {
     }
   }, [debouncedQuery, searchWithPhoton])
 
+  // Effet pour déclencher la recherche de villes
+  useEffect(() => {
+    if (debouncedCityQuery) {
+      searchCitiesWithPhoton(debouncedCityQuery)
+      setShowCityResults(true)
+    } else {
+      setCitySearchResults([])
+      setShowCityResults(false)
+    }
+  }, [debouncedCityQuery, searchCitiesWithPhoton])
+
   // Fonction pour sélectionner un résultat
   const handleLocationSelect = (result: PhotonResult) => {
     const { properties } = result
@@ -147,10 +202,48 @@ export default function Step2({ form }: Step2Props) {
 
     // Remplir automatiquement les champs disponibles
     setValue('address.district', properties.name)
-    setValue('address.city', properties.city || properties.suburb || '')
+    
+    // Gérer les cas spéciaux pour la ville
+    let cityValue = ''
+    if (properties.type === 'city') {
+      // Si le type est "city", utiliser le nom comme ville (cas des quartiers comme Nkoltang)
+      cityValue = properties.name
+      setDetectedCityName(properties.name)
+      setNeedsCityCorrection(true) // Activer le mode correction
+    } else {
+      // Sinon, utiliser la logique habituelle
+      cityValue = properties.city || properties.suburb || ''
+      setNeedsCityCorrection(false) // Pas besoin de correction
+    }
+    setValue('address.city', cityValue)
+    
     setValue('address.province', properties.state || '')
     
     // L'arrondissement reste à saisir manuellement par l'utilisateur
+  }
+
+  // Fonction pour confirmer la ville détectée
+  const handleConfirmCity = () => {
+    setNeedsCityCorrection(false)
+  }
+
+  // Fonction pour sélectionner une nouvelle ville
+  const handleCitySelect = (result: PhotonResult) => {
+    const { properties } = result
+    
+    // Remplacer uniquement la ville
+    setValue('address.city', properties.name)
+    setCityQuery('')
+    setShowCityResults(false)
+    setNeedsCityCorrection(false)
+  }
+
+  // Fonction pour annuler la correction et revenir à la ville détectée
+  const handleCancelCityCorrection = () => {
+    setValue('address.city', detectedCityName)
+    setCityQuery('')
+    setShowCityResults(false)
+    setNeedsCityCorrection(false)
   }
 
   // Fonction pour formater l'affichage des résultats
@@ -191,6 +284,32 @@ export default function Step2({ form }: Step2Props) {
           <div className="flex items-center space-x-3 text-[#CBB171] text-sm sm:text-base">
             <Navigation className="w-5 h-5 sm:w-6 sm:h-6" />
             <span className="font-bold">Gabon</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages d'aide - déplacés avant le formulaire */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+        <div className="p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full break-words shadow-lg">
+          <div className="flex items-start space-x-3">
+            <Search className="w-6 h-6 text-[#CBB171] flex-shrink-0" />
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base font-bold text-[#224D62]">Recherche intelligente</p>
+              <p className="text-sm text-[#224D62]/80">
+                Tapez le nom de votre quartier et sélectionnez dans les suggestions
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 sm:p-6 bg-gradient-to-r from-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-300 w-full break-words shadow-lg">
+          <div className="flex items-start space-x-3">
+            <MapPin className="w-6 h-6 text-[#CBB171] flex-shrink-0" />
+            <div className="space-y-2">
+              <p className="text-sm sm:text-base font-bold text-[#224D62]">Géolocalisation</p>
+              <p className="text-sm text-[#224D62]/80">
+                Ville et province remplies automatiquement. Saisissez l'arrondissement manuellement.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -290,6 +409,129 @@ export default function Step2({ form }: Step2Props) {
                 </div>
                 <div className="text-xs text-[#224D62]/80">
                   {formatResultDisplay(selectedLocation)}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Section de correction de ville */}
+          {needsCityCorrection && (
+            <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 w-full min-w-0">
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-3 flex-1">
+                    <div>
+                      <h4 className="text-sm font-medium text-orange-800">
+                        Vérification de la ville
+                      </h4>
+                      <p className="text-xs text-orange-700 mt-1">
+                        Nous avons détecté <strong>"{detectedCityName}"</strong> comme ville. 
+                        Est-ce correct ou souhaitez-vous la corriger ?
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleConfirmCity}
+                        className="bg-[#CBB171] hover:bg-[#CBB171]/90 text-white flex-1 sm:flex-none"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        C'est correct
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Activer la recherche de ville
+                          setCityQuery('')
+                          document.getElementById('citySearch')?.focus()
+                        }}
+                        className="border-orange-300 text-orange-700 hover:bg-orange-50 flex-1 sm:flex-none"
+                      >
+                        <Search className="w-4 h-4 mr-1" />
+                        Corriger la ville
+                      </Button>
+                    </div>
+
+                    {/* Champ de recherche de ville conditionnel */}
+                    <div className="space-y-2">
+                      <Label htmlFor="citySearch" className="text-xs font-medium text-orange-800">
+                        Rechercher la vraie ville
+                      </Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500 z-10" />
+                        <Input
+                          id="citySearch"
+                          value={cityQuery}
+                          onChange={(e) => setCityQuery(e.target.value)}
+                          placeholder="Ex: Libreville, Port-Gentil..."
+                          className="pl-10 pr-12 border-orange-300 focus:border-orange-500 focus:ring-orange-200 w-full"
+                        />
+                        
+                        {isSearchingCity && (
+                          <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500 animate-spin z-10" />
+                        )}
+
+                        {/* Résultats de recherche de villes */}
+                        {showCityResults && citySearchResults.length > 0 && (
+                          <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-orange-300 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full max-h-48 overflow-y-auto">
+                            <CardContent className="p-2">
+                              <div className="space-y-1">
+                                {citySearchResults.map((result, index) => (
+                                  <Button
+                                    key={index}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full justify-start text-left hover:bg-orange-50 transition-colors text-xs p-3"
+                                    onClick={() => handleCitySelect(result)}
+                                  >
+                                    <div className="flex items-start space-x-2 w-full">
+                                      <Building2 className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                                      <div className="text-left">
+                                        <div className="font-medium text-orange-800">
+                                          {result.properties.name}
+                                        </div>
+                                        <div className="text-xs text-orange-600">
+                                          {result.properties.state ? `${result.properties.state}, Gabon` : 'Gabon'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Button>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Aucun résultat pour les villes */}
+                        {showCityResults && citySearchResults.length === 0 && !isSearchingCity && cityQuery.length > 2 && (
+                          <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-orange-300 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full">
+                            <CardContent className="p-4 text-center">
+                              <div className="text-xs text-orange-600">
+                                Aucune ville trouvée pour "{cityQuery}"
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelCityCorrection}
+                          className="border-gray-300 text-gray-600 hover:bg-gray-50 text-xs"
+                        >
+                          Annuler
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -424,32 +666,6 @@ export default function Step2({ form }: Step2Props) {
               {watchedFields[4] && (
                 <CheckCircle className="w-3 h-3 text-[#CBB171] animate-in zoom-in-50 duration-200" />
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Messages d'aide */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
-        <div className="p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full break-words shadow-lg">
-          <div className="flex items-start space-x-3">
-            <Search className="w-6 h-6 text-[#CBB171] flex-shrink-0" />
-            <div className="space-y-2">
-              <p className="text-sm sm:text-base font-bold text-[#224D62]">Recherche intelligente</p>
-              <p className="text-sm text-[#224D62]/80">
-                Tapez le nom de votre quartier et sélectionnez dans les suggestions
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="p-4 sm:p-6 bg-gradient-to-r from-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full break-words shadow-lg">
-          <div className="flex items-start space-x-3">
-            <MapPin className="w-6 h-6 text-[#CBB171] flex-shrink-0" />
-            <div className="space-y-2">
-              <p className="text-sm sm:text-base font-bold text-[#224D62]">Géolocalisation</p>
-              <p className="text-sm text-[#224D62]/80">
-                Ville et province remplies automatiquement. Saisissez l'arrondissement manuellement.
-              </p>
             </div>
           </div>
         </div>

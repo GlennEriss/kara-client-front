@@ -3,6 +3,9 @@ const routes = {
         homepage: '/',
         register: '/register',
         login: '/login',
+    },
+    admin: {
+        dashboard: '/dashboard',
     }
 }
 
