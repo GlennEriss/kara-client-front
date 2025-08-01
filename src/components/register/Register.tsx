@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Lazy loading des composants step pour optimiser les performances
@@ -46,6 +46,7 @@ function Register() {
     isSubmitting,
     isCacheLoaded,
     isSubmitted,
+    submissionError,
     userData,
     nextStep,
     prevStep,
@@ -76,11 +77,12 @@ function Register() {
   const handleSubmit = async () => {
     try {
       await submitForm()
-      // Redirection ou message de succès
-      // router.push('/success') ou setState pour afficher un message
+      // La redirection vers le step 5 sera gérée automatiquement par le provider
+      // via l'état isSubmitted
     } catch (error) {
+      // L'erreur est maintenant gérée par le provider et stockée dans submissionError
+      // Elle sera affichée dans l'interface utilisateur ci-dessous
       console.error('Erreur lors de la soumission:', error)
-      // Afficher un toast d'erreur
     }
   }
 
@@ -291,6 +293,19 @@ function Register() {
             {renderCurrentStep()}
           </CardContent>
         </Card>
+
+        {/* Affichage des erreurs de soumission */}
+        {submissionError && (
+          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg animate-in fade-in-0 slide-in-from-top-2 duration-300">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-red-800">Erreur lors de la soumission</h3>
+                <p className="text-sm text-red-600 mt-1">{submissionError}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Boutons de navigation */}
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 w-full">
