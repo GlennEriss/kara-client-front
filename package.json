@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack & npm run emulator",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "emulator": "firebase emulators:start",
+    "dev:emulator": "npm run copy:env:dev && next dev --turbopack & npm run emulator",
+    "build:emulator": "npm run copy:env:prod && next build",
+    "copy:env:dev": "cp .env.dev .env.local",
+    "copy:env:prod": "cp .env.prod .env.local",
     "lint": "next lint"
   },
   "dependencies": {
