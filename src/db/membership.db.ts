@@ -5,7 +5,7 @@
 
 import { RegisterFormData } from "@/types/schemas";
 import { createModel } from "./generic.db";
-import { uploadProfilePhoto } from "./upload-image.db";
+import { uploadProfilePhoto, uploadDocumentPhoto } from "./upload-image.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 
 const getFirestore = () => import("@/firebase/firestore");
@@ -41,6 +41,7 @@ export interface MembershipRequest {
     id?: string;
     // Informations d'identité
     identity: {
+        civility: string;
         lastName: string;
         firstName: string;
         birthDate: string;
@@ -51,8 +52,11 @@ export interface MembershipRequest {
         email?: string;
         gender: string;
         nationality: string;
-        identityDocument: string;
         maritalStatus: string;
+        hasCar: boolean;
+        spouseLastName?: string;
+        spouseFirstName?: string;
+        spousePhone?: string;
         intermediaryCode?: string;
         photoURL?: string | null; // URL de la photo uploadée
         photoPath?: string | null; // Chemin Firebase Storage
@@ -77,17 +81,17 @@ export interface MembershipRequest {
         profession?: string;
         seniority?: string;
     };
-    // Assurance (optionnel)
-    insurance: {
-        hasInsurance: boolean;
-        insuranceName?: string;
-        insuranceType?: string;
-        policyNumber?: string;
-        startDate?: string;
+    // Documents d'identité
+    documents: {
+        identityDocument: string;
+        identityDocumentNumber: string;
+        documentPhotoFrontURL?: string | null; // URL de la photo recto uploadée
+        documentPhotoFrontPath?: string | null; // Chemin Firebase Storage recto
+        documentPhotoBackURL?: string | null; // URL de la photo verso uploadée
+        documentPhotoBackPath?: string | null; // Chemin Firebase Storage verso
         expirationDate?: string;
-        coverageAmount?: string;
-        beneficiaries?: string[];
-        additionalNotes?: string;
+        issuingPlace?: string;
+        issuingDate?: string;
     };
     // Métadonnées (adapté à la convention du projet)
     state: 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW' | 'PENDING';
@@ -117,27 +121,30 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
         // Préparer l'identité sans les propriétés photo initialement
         const { photo, ...identityWithoutPhoto } = formData.identity;
         
+        // Préparer les documents sans les photos initialement
+        const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents;
+        
         let membershipData: Omit<MembershipRequest, 'id' | 'createdAt' | 'updatedAt'> = {
             identity: {
                 ...identityWithoutPhoto
             },
             address: formData.address,
             company: formData.company,
-            insurance: {
-                ...formData.insurance,
-                hasInsurance: formData.insurance.hasCar // hasInsurance = hasCar pour la compatibilité
+            documents: {
+                ...documentsWithoutPhotos
             },
             state: 'IN_PROGRESS', // Convention du projet (sera ajouté par createModel)
             status: 'pending', // Statut métier spécifique aux adhésions
         };
         console.log('photo', typeof formData.identity.photo)
+        
         // Upload de la photo de profil si fournie (data URL string)
         if (formData.identity.photo && typeof formData.identity.photo === 'string' && formData.identity.photo.startsWith('data:image/')) {
             try {
                 // Convertir la data URL en File pour l'upload
                 const response = await fetch(formData.identity.photo);
                 const blob = await response.blob();
-                const file = new File([blob], 'profile-photo.jpg', { type: blob.type });
+                const file = new File([blob], 'profile-photo.webp', { type: 'image/webp' });
                 
                 const { url: fileURL, path: filePATH } = await uploadProfilePhoto(
                     file,
@@ -146,12 +153,59 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
                 
                 membershipData.identity.photoURL = fileURL;
                 membershipData.identity.photoPath = filePATH;
-                console.log('fileURL', fileURL)
-                console.log('filePATH', filePATH)
+                console.log('Profile photo uploaded:', fileURL)
 
             } catch (photoError) {
-                console.warn("Erreur lors de l'upload de la photo, continuons sans photo:", photoError);
+                console.warn("Erreur lors de l'upload de la photo de profil, continuons sans photo:", photoError);
                 // On continue même si l'upload de photo échoue
+            }
+        }
+
+        // Upload de la photo recto du document si fournie
+        if (formData.documents.documentPhotoFront && typeof formData.documents.documentPhotoFront === 'string' && formData.documents.documentPhotoFront.startsWith('data:image/')) {
+            try {
+                // Convertir la data URL en File pour l'upload
+                const response = await fetch(formData.documents.documentPhotoFront);
+                const blob = await response.blob();
+                const file = new File([blob], 'document-recto.webp', { type: 'image/webp' });
+                
+                const { url: frontURL, path: frontPATH } = await uploadDocumentPhoto(
+                    file,
+                    userIdentifier,
+                    'recto'
+                );
+                
+                membershipData.documents.documentPhotoFrontURL = frontURL;
+                membershipData.documents.documentPhotoFrontPath = frontPATH;
+                console.log('Document recto uploaded:', frontURL)
+
+            } catch (frontPhotoError) {
+                console.warn("Erreur lors de l'upload de la photo recto du document:", frontPhotoError);
+                // On continue même si l'upload échoue
+            }
+        }
+
+        // Upload de la photo verso du document si fournie
+        if (formData.documents.documentPhotoBack && typeof formData.documents.documentPhotoBack === 'string' && formData.documents.documentPhotoBack.startsWith('data:image/')) {
+            try {
+                // Convertir la data URL en File pour l'upload
+                const response = await fetch(formData.documents.documentPhotoBack);
+                const blob = await response.blob();
+                const file = new File([blob], 'document-verso.webp', { type: 'image/webp' });
+                
+                const { url: backURL, path: backPATH } = await uploadDocumentPhoto(
+                    file,
+                    userIdentifier,
+                    'verso'
+                );
+                
+                membershipData.documents.documentPhotoBackURL = backURL;
+                membershipData.documents.documentPhotoBackPath = backPATH;
+                console.log('Document verso uploaded:', backURL)
+
+            } catch (backPhotoError) {
+                console.warn("Erreur lors de l'upload de la photo verso du document:", backPhotoError);
+                // On continue même si l'upload échoue
             }
         }
 

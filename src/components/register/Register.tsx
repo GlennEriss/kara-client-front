@@ -33,7 +33,7 @@ const STEPS_CONFIG = [
   { id: 1, title: 'Identité', description: 'Informations personnelles' },
   { id: 2, title: 'Adresse', description: 'Lieu de résidence' },
   { id: 3, title: 'Entreprise', description: 'Informations professionnelles' },
-  { id: 4, title: 'Véhicule', description: 'Assurance automobile' },
+  { id: 4, title: 'Documents', description: 'Pièces d\'identité' },
 ] as const
 
 function Register() {

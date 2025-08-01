@@ -10,7 +10,6 @@ export const IdentityDocumentEnum = z.enum([
   'Carte de séjour',
   'Carte scolaire',
   'Carte consulaire',
-  'Carte d\'identité',
   'NIP',
   'CNI',
   'Autre'
@@ -99,13 +98,6 @@ export const identitySchema = z.object({
     .max(50, 'La nationalité ne peut pas dépasser 50 caractères')
     .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'La nationalité ne peut contenir que des lettres, espaces, apostrophes et tirets'),
   
-  identityDocument: IdentityDocumentEnum,
-  
-  identityDocumentNumber: z.string()
-    .min(3, 'Le numéro de la pièce d\'identité doit contenir au moins 3 caractères')
-    .max(50, 'Le numéro de la pièce d\'identité ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-Z0-9\s\-\/]+$/, 'Le numéro ne peut contenir que des lettres, chiffres, espaces, tirets et slashs'),
-  
   maritalStatus: MaritalStatusEnum,
   
   // Champs pour le conjoint (requis si marié, en couple, en concubinage ou pacsé)
@@ -139,6 +131,9 @@ export const identitySchema = z.object({
   intermediaryCode: z.string()
     .max(50, 'Le code entremetteur ne peut pas dépasser 50 caractères')
     .optional(),
+  
+  // Nouvelle question simple pour la voiture
+  hasCar: z.boolean().default(false),
   
   photo: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
@@ -305,101 +300,86 @@ export const companySchema = z.object({
   path: ['seniority']
 })
 
-// ================== STEP 4: VÉHICULE ET ASSURANCE AUTO (Optionnel) ==================
-export const insuranceSchema = z.object({
-  // Champ pour indiquer si l'utilisateur possède une voiture
-  hasCar: z.boolean().default(false),
+// ================== STEP 4: PIÈCES D'IDENTITÉ ==================
+export const documentsSchema = z.object({
+  identityDocument: IdentityDocumentEnum,
   
-  // Les champs suivants ne sont requis que si hasCar = true
-  insuranceName: z.string().optional(),
+  identityDocumentNumber: z.string()
+    .min(3, 'Le numéro de la pièce d\'identité doit contenir au moins 3 caractères')
+    .max(50, 'Le numéro de la pièce d\'identité ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-Z0-9\s\-\/]+$/, 'Le numéro ne peut contenir que des lettres, chiffres, espaces, tirets et slashs'),
   
-  policyNumber: z.string().optional(),
-  
-  startDate: z.string().optional(),
-  
-  expirationDate: z.string().optional(),
-  
-  coverageAmount: z.string().optional(),
-  
-  beneficiaries: z.array(z.string()).max(5, 'Maximum 5 bénéficiaires').optional(),
-  
-  additionalNotes: z.string().optional()
-}).refine((data) => {
-  // Si la personne a une voiture, certains champs deviennent obligatoires
-  if (data.hasCar) {
-    const hasInsuranceName = data.insuranceName && data.insuranceName.length >= 2 && data.insuranceName.length <= 100
-    const hasPolicyNumber = data.policyNumber && data.policyNumber.length >= 3 && data.policyNumber.length <= 50
-    const hasStartDate = data.startDate && data.startDate.length > 0
-    const hasExpirationDate = data.expirationDate && data.expirationDate.length > 0
-    
-    return hasInsuranceName && hasPolicyNumber && hasStartDate && hasExpirationDate
-  }
-  return true
-}, {
-  message: 'Les informations principales d\'assurance auto sont requises si vous possédez une voiture',
-  path: ['insuranceName']
-}).refine((data) => {
-  // Vérifier que la date d'expiration est après la date de début
-  if (data.hasCar && data.startDate && data.expirationDate) {
-    const debut = new Date(data.startDate)
-    const expiration = new Date(data.expirationDate)
-    return expiration > debut
-  }
-  return true
-}, {
-  message: 'La date d\'expiration doit être postérieure à la date de début',
-  path: ['expirationDate']
-}).refine((data) => {
-  // Validation des formats si les champs sont remplis
-  if (data.insuranceName && data.insuranceName.length > 0) {
-    if (data.insuranceName.length < 2 || data.insuranceName.length > 100) {
-      return false
-    }
-  }
-  return true
-}, {
-  message: 'Le nom de l\'assurance doit contenir entre 2 et 100 caractères',
-  path: ['insuranceName']
-}).refine((data) => {
-  if (data.policyNumber && data.policyNumber.length > 0) {
-    if (data.policyNumber.length < 3 || data.policyNumber.length > 50) {
-      return false
-    }
-  }
-  return true
-}, {
-  message: 'Le numéro de police doit contenir entre 3 et 50 caractères',
-  path: ['policyNumber']
-}).refine((data) => {
-  if (data.coverageAmount && data.coverageAmount.length > 0) {
-    if (!data.coverageAmount.match(/^\d+(\.\d{2})?$/)) {
-      return false
-    }
-  }
-  return true
-}, {
-  message: 'Le montant de couverture doit être au format "1000.00"',
-  path: ['coverageAmount']
-}).refine((data) => {
-  if (data.beneficiaries && data.beneficiaries.length > 0) {
-    for (const beneficiary of data.beneficiaries) {
-      if (beneficiary.length < 2 || beneficiary.length > 50) {
+  // Photo de la pièce d'identité recto
+  documentPhotoFront: z.union([
+    z.string().startsWith('data:image/', 'Format de photo invalide'),
+    z.instanceof(File)
+  ])
+    .refine(
+      (value) => {
+        if (!value) return false // Photo obligatoire
+        if (typeof value === 'string') {
+          return value.startsWith('data:image/jpeg') || 
+                 value.startsWith('data:image/png') || 
+                 value.startsWith('data:image/webp')
+        }
+        if (value instanceof File) {
+          return value.size <= 5 * 1024 * 1024 && // 5MB
+                 ['image/jpeg', 'image/png', 'image/webp'].includes(value.type)
+        }
         return false
-      }
-    }
-  }
-  return true
-}, {
-  message: 'Chaque bénéficiaire doit contenir entre 2 et 50 caractères',
-  path: ['beneficiaries']
-}).refine((data) => {
-  if (data.additionalNotes && data.additionalNotes.length > 300) {
-    return false
-  }
-  return true
-}, {
-  message: 'Les notes ne peuvent pas dépasser 300 caractères',
-  path: ['additionalNotes']
+      },
+      'La photo recto de la pièce d\'identité est requise (JPEG, PNG ou WebP, max 5MB)'
+    ),
+  
+  // Photo de la pièce d'identité verso (optionnelle pour certains documents)
+  documentPhotoBack: z.union([
+    z.string().startsWith('data:image/', 'Format de photo invalide'),
+    z.instanceof(File),
+    z.undefined()
+  ])
+    .optional()
+    .refine(
+      (value) => {
+        if (!value) return true // Optionnel
+        if (typeof value === 'string') {
+          return value.startsWith('data:image/jpeg') || 
+                 value.startsWith('data:image/png') || 
+                 value.startsWith('data:image/webp')
+        }
+        if (value instanceof File) {
+          return value.size <= 5 * 1024 * 1024 && // 5MB
+                 ['image/jpeg', 'image/png', 'image/webp'].includes(value.type)
+        }
+        return false
+      },
+      'La photo verso doit être au format JPEG, PNG ou WebP et ne pas dépasser 5MB'
+    ),
+  
+  // Date d'expiration (optionnelle selon le type de document)
+  expirationDate: z.string()
+    .optional()
+    .refine((date) => {
+      if (!date) return true // Optionnel
+      const expirationDate = new Date(date)
+      const today = new Date()
+      return expirationDate > today
+    }, 'La date d\'expiration doit être dans le futur'),
+  
+  // Lieu de délivrance
+  issuingPlace: z.string()
+    .min(2, 'Le lieu de délivrance doit contenir au moins 2 caractères')
+    .max(100, 'Le lieu de délivrance ne peut pas dépasser 100 caractères')
+    .optional(),
+  
+  // Date de délivrance
+  issuingDate: z.string()
+    .optional()
+    .refine((date) => {
+      if (!date) return true // Optionnel
+      const issuingDate = new Date(date)
+      const today = new Date()
+      return issuingDate <= today
+    }, 'La date de délivrance ne peut pas être dans le futur')
 })
 
 // ================== SCHÉMA COMPLET ==================
@@ -407,7 +387,7 @@ export const registerSchema = z.object({
   identity: identitySchema,
   address: addressSchema,
   company: companySchema,
-  insurance: insuranceSchema
+  documents: documentsSchema
 })
 
 // ================== TYPES INFÉRÉS ==================
@@ -423,7 +403,7 @@ export type InsuranceType = z.infer<typeof InsuranceTypeEnum>
 export type IdentityFormData = z.infer<typeof identitySchema>
 export type AddressFormData = z.infer<typeof addressSchema>
 export type CompanyFormData = z.infer<typeof companySchema>
-export type InsuranceFormData = z.infer<typeof insuranceSchema>
+export type DocumentsFormData = z.infer<typeof documentsSchema>
 
 // Type pour le schéma complet
 export type RegisterFormData = z.infer<typeof registerSchema>
@@ -437,7 +417,7 @@ export const stepSchemas = {
   1: identitySchema,
   2: addressSchema, 
   3: companySchema,
-  4: insuranceSchema
+  4: documentsSchema
 } as const
 
 // ================== ADMIN LOGIN SCHEMA ==================
@@ -474,13 +454,12 @@ export const defaultValues: RegisterFormData = {
     email: '',
     gender: 'Homme',
     nationality: '',
-    identityDocument: 'Carte d\'identité',
-    identityDocumentNumber: '',
     maritalStatus: 'Célibataire',
     spouseLastName: '',
     spouseFirstName: '',
     spousePhone: '',
     intermediaryCode: '',
+    hasCar: false,
     photo: undefined
   },
   address: {
@@ -501,14 +480,13 @@ export const defaultValues: RegisterFormData = {
     profession: '',
     seniority: ''
   },
-  insurance: {
-    hasCar: false,
-    insuranceName: '',
-    policyNumber: '',
-    startDate: '',
+  documents: {
+    identityDocument: 'NIP',
+    identityDocumentNumber: '',
+    documentPhotoFront: '' as any, // Sera géré par le composant
+    documentPhotoBack: undefined,
     expirationDate: '',
-    coverageAmount: '',
-    beneficiaries: [],
-    additionalNotes: ''
+    issuingPlace: '',
+    issuingDate: ''
   }
 } 

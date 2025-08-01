@@ -32,7 +32,7 @@ export interface FormErrors {
   identity: StepErrors
   address: StepErrors
   company: StepErrors
-  insurance: StepErrors
+  documents: StepErrors
 }
 
 export interface RegisterContextType {
@@ -251,7 +251,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       1: 'identity',
       2: 'address',
       3: 'company',
-      4: 'insurance'
+      4: 'documents'
     } as const
 
     const sectionKey = stepToSectionMap[step as keyof typeof stepToSectionMap] as keyof RegisterFormData
@@ -274,7 +274,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       1: 'identity',
       2: 'address',
       3: 'company',
-      4: 'insurance'
+      4: 'documents'
     } as const
 
     const sectionKey = stepToSectionMap[currentStep as keyof typeof stepToSectionMap]
