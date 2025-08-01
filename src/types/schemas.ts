@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 // Énumérations pour les options fixes (valeurs en français)
+export const CivilityEnum = z.enum(['Monsieur', 'Madame', 'Mademoiselle'])
+
 export const GenderEnum = z.enum(['Homme', 'Femme'])
 
 export const IdentityDocumentEnum = z.enum([
@@ -39,6 +41,8 @@ export const InsuranceTypeEnum = z.enum([
 
 // ================== STEP 1: IDENTITÉ ==================
 export const identitySchema = z.object({
+  civility: CivilityEnum,
+  
   lastName: z.string()
     .min(2, 'Le nom doit contenir au moins 2 caractères')
     .max(50, 'Le nom ne peut pas dépasser 50 caractères')
@@ -409,6 +413,7 @@ export const registerSchema = z.object({
 // ================== TYPES INFÉRÉS ==================
 
 // Types pour les énumérations
+export type Civility = z.infer<typeof CivilityEnum>
 export type Gender = z.infer<typeof GenderEnum>
 export type IdentityDocument = z.infer<typeof IdentityDocumentEnum>
 export type MaritalStatus = z.infer<typeof MaritalStatusEnum>
@@ -458,6 +463,7 @@ export const adminLoginDefaultValues: AdminLoginFormData = {
 // ================== VALEURS PAR DÉFAUT ==================
 export const defaultValues: RegisterFormData = {
   identity: {
+    civility: 'Monsieur',
     lastName: '',
     firstName: '',
     birthDate: '',
