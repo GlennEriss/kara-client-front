@@ -10,6 +10,7 @@ import {
   defaultValues
 } from '@/types/schemas'
 import { createMembershipRequest } from '@/db/membership.db'
+import { toast } from "sonner"
 
 // ================== CONSTANTES DE CACHE ==================
 const CACHE_KEYS = {
@@ -48,6 +49,7 @@ export interface RegisterContextType {
   isSubmitting: boolean
   isCacheLoaded: boolean
   isSubmitted: boolean
+  submissionError: string | null
   userData?: {
     firstName?: string
     lastName?: string
@@ -161,6 +163,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCacheLoaded, setIsCacheLoaded] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submissionError, setSubmissionError] = useState<string | null>(null)
   const [userData, setUserData] = useState<{ firstName?: string; lastName?: string } | undefined>(undefined)
 
   const totalSteps = 4
@@ -357,6 +360,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const submitForm = useCallback(async () => {
     setIsSubmitting(true)
     setIsLoading(true)
+    setSubmissionError(null) // Nettoyer les erreurs précédentes
 
     try {
       // Valider le formulaire complet
@@ -369,17 +373,47 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
       const membershipRequestId = await createMembershipRequest(formData)
 
-      if (membershipRequestId) {
-        // Succès - nettoyer le cache
-        clearCache()
-        setIsSubmitted(true)
-        setUserData({
-          firstName: getValues('identity.firstName'),
-          lastName: getValues('identity.lastName')
-        })
+      if (!membershipRequestId) {
+        throw new Error('Échec de l\'enregistrement de la demande d\'adhésion')
       }
+
+      // Succès - afficher toast de succès et nettoyer le cache
+      toast.success("Inscription réussie !", {
+        description: "Votre demande d'adhésion a été enregistrée avec succès.",
+        style: {
+          background: '#10B981',
+          color: 'white',
+          border: 'none'
+        },
+        duration: 4000
+      })
+
+      clearCache()
+      setIsSubmitted(true)
+      setUserData({
+        firstName: getValues('identity.firstName'),
+        lastName: getValues('identity.lastName')
+      })
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error)
+      
+      // Stocker l'erreur pour l'affichage
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Une erreur inattendue s\'est produite lors de l\'enregistrement'
+      setSubmissionError(errorMessage)
+
+      // Afficher toast d'erreur
+      toast.error("Échec de l'inscription", {
+        description: errorMessage,
+        style: {
+          background: '#EF4444',
+          color: 'white',
+          border: 'none'
+        },
+        duration: 5000
+      })
+      
       throw error
     } finally {
       setIsSubmitting(false)
@@ -393,6 +427,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     setCurrentStep(1)
     setCompletedSteps(new Set())
     setIsSubmitted(false)
+    setSubmissionError(null)
     setUserData(undefined)
     clearCache()
   }, [reset, clearCache])
@@ -420,6 +455,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     isSubmitting,
     isCacheLoaded,
     isSubmitted,
+    submissionError,
     userData,
     nextStep,
     prevStep,

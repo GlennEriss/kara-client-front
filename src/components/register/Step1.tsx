@@ -75,7 +75,7 @@ export default function Step1({ form }: Step1Props) {
     name: "identity.contacts"
   })
 
-  // Watch pour les animations
+  // Watch pour les animations et la situation matrimoniale
   const watchedFields = watch([
     'identity.lastName',
     'identity.firstName', 
@@ -86,8 +86,27 @@ export default function Step1({ form }: Step1Props) {
     'identity.prayerPlace',
     'identity.nationality',
     'identity.identityDocumentNumber',
-    'identity.photo'
+    'identity.photo',
+    'identity.maritalStatus',
+    'identity.spouseLastName',
+    'identity.spouseFirstName',
+    'identity.spousePhone'
   ])
+
+  // Vérifier si la situation matrimoniale nécessite des infos conjoint
+  const maritalStatus = watch('identity.maritalStatus')
+  const requiresSpouseInfo = ['En couple', 'Marié(e)', 'Concubinage', 'Pacsé(e)'].includes(maritalStatus)
+
+  // Nettoyer les champs du conjoint si la situation matrimoniale ne le nécessite pas
+  React.useEffect(() => {
+    if (!requiresSpouseInfo) {
+      setValue('identity.spouseLastName', '')
+      setValue('identity.spouseFirstName', '')
+      setValue('identity.spousePhone', '')
+      // Nettoyer aussi les erreurs éventuelles
+      clearErrors(['identity.spouseLastName', 'identity.spouseFirstName', 'identity.spousePhone'])
+    }
+  }, [requiresSpouseInfo, setValue, clearErrors])
 
   // Définir la nationalité par défaut au chargement (Gabon)
   React.useEffect(() => {
@@ -624,6 +643,109 @@ export default function Step1({ form }: Step1Props) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Informations du conjoint (conditionnelles) */}
+          {requiresSpouseInfo && (
+            <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 w-full">
+              {/* Header pour les infos conjoint */}
+              <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-[#CBB171]/10 to-[#224D62]/10 rounded-lg border border-[#CBB171]/30">
+                <User className="w-5 h-5 text-[#224D62]" />
+                <Label className="text-sm font-bold text-[#224D62]">
+                  Informations du conjoint <span className="text-red-500">*</span>
+                </Label>
+              </div>
+
+              {/* Nom et Prénom du conjoint */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
+                <div className="space-y-2 w-full min-w-0">
+                  <Label htmlFor="spouseLastName" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                    Nom du conjoint <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                    <Input
+                      id="spouseLastName"
+                      {...register('identity.spouseLastName')}
+                      placeholder="Nom du conjoint"
+                      className={cn(
+                        "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                        errors?.identity?.spouseLastName && "border-red-300 focus:border-red-500 bg-red-50/50",
+                        watchedFields[11] && !errors?.identity?.spouseLastName && "border-[#CBB171] bg-[#CBB171]/5"
+                      )}
+                    />
+                    {watchedFields[11] && !errors?.identity?.spouseLastName && (
+                      <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+                    )}
+                  </div>
+                  {errors?.identity?.spouseLastName && (
+                    <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.identity.spouseLastName.message}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 w-full min-w-0">
+                  <Label htmlFor="spouseFirstName" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                    Prénom du conjoint <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                    <Input
+                      id="spouseFirstName"
+                      {...register('identity.spouseFirstName')}
+                      placeholder="Prénom du conjoint"
+                      className={cn(
+                        "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                        errors?.identity?.spouseFirstName && "border-red-300 focus:border-red-500 bg-red-50/50",
+                        watchedFields[12] && !errors?.identity?.spouseFirstName && "border-[#CBB171] bg-[#CBB171]/5"
+                      )}
+                    />
+                    {watchedFields[12] && !errors?.identity?.spouseFirstName && (
+                      <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+                    )}
+                  </div>
+                  {errors?.identity?.spouseFirstName && (
+                    <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.identity.spouseFirstName.message}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Téléphone du conjoint */}
+              <div className="w-full max-w-md">
+                <div className="space-y-2 w-full min-w-0">
+                  <Label htmlFor="spousePhone" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                    Téléphone du conjoint <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                    <Input
+                      id="spousePhone"
+                      {...register('identity.spousePhone')}
+                      placeholder="Numéro du conjoint"
+                      className={cn(
+                        "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                        errors?.identity?.spousePhone && "border-red-300 focus:border-red-500 bg-red-50/50",
+                        watchedFields[13] && !errors?.identity?.spousePhone && "border-[#CBB171] bg-[#CBB171]/5"
+                      )}
+                    />
+                    {watchedFields[13] && !errors?.identity?.spousePhone && (
+                      <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+                    )}
+                  </div>
+                  {errors?.identity?.spousePhone && (
+                    <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.identity.spousePhone.message}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
 
         </div>
