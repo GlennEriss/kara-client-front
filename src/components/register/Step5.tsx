@@ -55,7 +55,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
 
   const handleWhatsAppClick = () => {
     const message = encodeURIComponent(
-      `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 5000 FCFA pour finaliser mon inscription.`
+      `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA pour finaliser mon inscription.`
     )
     const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\s/g, '')}?text=${message}`
     window.open(whatsappUrl, '_blank')
@@ -74,7 +74,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
     {
       number: 1,
       title: "Transfert d'argent",
-      description: "Envoyez 5000 FCFA via Airtel Money",
+      description: "Envoyez 10300 FCFA via Airtel Money",
       icon: CreditCard,
       action: "Faire le transfert"
     },
@@ -295,7 +295,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-xs text-green-700 italic">
                     "Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara.
-                    Je vous envoie la capture d'écran de mon transfert de 5000 FCFA pour finaliser mon inscription."
+                    Je vous envoie la capture d'écran de mon transfert de 10300 FCFA pour finaliser mon inscription."
                   </p>
                 </div>
 
