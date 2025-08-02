@@ -7,6 +7,7 @@ import { RegisterFormData } from "@/types/schemas";
 import { createModel } from "./generic.db";
 import { uploadProfilePhoto, uploadDocumentPhoto } from "./upload-image.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
+import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipRequests } from "@/types/types";
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -36,71 +37,52 @@ function cleanUndefinedValues(obj: any): any {
     return obj;
 }
 
-// Interface pour les demandes d'adhésion
-export interface MembershipRequest {
+// Interface étendue pour la base de données avec champs supplémentaires
+export interface MembershipRequestDB extends Omit<MembershipRequest, 'id' | 'createdAt' | 'updatedAt'> {
     id?: string;
-    // Informations d'identité
-    identity: {
-        civility: string;
-        lastName: string;
-        firstName: string;
-        birthDate: string;
-        birthPlace: string;
-        birthCertificateNumber: string;
-        prayerPlace: string;
-        contacts: string[];
-        email?: string;
-        gender: string;
-        nationality: string;
-        maritalStatus: string;
-        hasCar: boolean;
-        spouseLastName?: string;
-        spouseFirstName?: string;
-        spousePhone?: string;
-        intermediaryCode?: string;
+    // Champs spécifiques à la base de données pour les photos
+    identity: MembershipRequest['identity'] & {
         photoURL?: string | null; // URL de la photo uploadée
         photoPath?: string | null; // Chemin Firebase Storage
     };
-    // Adresse
-    address: {
-        province: string;
-        city: string;
-        district: string;
-        arrondissement: string;
-        additionalInfo?: string;
-    };
-    // Entreprise (optionnel)
-    company: {
-        isEmployed: boolean;
-        companyName?: string;
-        companyAddress?: {
-            province?: string;
-            city?: string;
-            district?: string;
-        };
-        profession?: string;
-        seniority?: string;
-    };
-    // Documents d'identité
-    documents: {
-        identityDocument: string;
-        identityDocumentNumber: string;
+    // Champs spécifiques pour les documents avec URLs
+    documents: MembershipRequest['documents'] & {
         documentPhotoFrontURL?: string | null; // URL de la photo recto uploadée
         documentPhotoFrontPath?: string | null; // Chemin Firebase Storage recto
         documentPhotoBackURL?: string | null; // URL de la photo verso uploadée
         documentPhotoBackPath?: string | null; // Chemin Firebase Storage verso
-        expirationDate?: string;
-        issuingPlace?: string;
-        issuingDate?: string;
     };
     // Métadonnées (adapté à la convention du projet)
-    state: 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW' | 'PENDING';
-    status: 'pending' | 'approved' | 'rejected' | 'under_review'; // Statut métier
+    state?: 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'UNDER_REVIEW' | 'PENDING';
     createdAt?: any; // Timestamp Firestore (ajouté automatiquement par createModel)
     updatedAt?: any; // Timestamp Firestore (ajouté automatiquement par createModel)
     reviewedBy?: string; // ID de l'admin qui a reviewé
     reviewNotes?: string;
     membershipId?: string; // ID généré pour le membre une fois approuvé
+}
+
+/**
+ * Fonction utilitaire pour transformer MembershipRequestDB en MembershipRequest
+ * Supprime les champs spécifiques à la base de données
+ */
+function transformDBToMembershipRequest(dbData: any): MembershipRequest {
+    const { state, reviewedBy, reviewNotes, membershipId, ...baseData } = dbData;
+    
+    // Nettoyer l'identity des champs spécifiques DB
+    const { photoURL, photoPath, ...cleanIdentity } = dbData.identity || {};
+    
+    // Nettoyer les documents des champs spécifiques DB
+    const { documentPhotoFrontURL, documentPhotoFrontPath, documentPhotoBackURL, documentPhotoBackPath, ...cleanDocuments } = dbData.documents || {};
+    
+    return {
+        ...baseData,
+        identity: cleanIdentity,
+        documents: cleanDocuments,
+        // Mapper les champs si nécessaire
+        processedBy: reviewedBy,
+        adminComments: reviewNotes,
+        memberNumber: membershipId,
+    } as MembershipRequest;
 }
 
 /**
@@ -124,7 +106,7 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
         // Préparer les documents sans les photos initialement
         const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents;
         
-        let membershipData: Omit<MembershipRequest, 'id' | 'createdAt' | 'updatedAt'> = {
+        let membershipData: Omit<MembershipRequestDB, 'id' | 'createdAt' | 'updatedAt'> = {
             identity: {
                 ...identityWithoutPhoto
             },
@@ -246,7 +228,8 @@ export async function getMembershipRequestById(requestId: string): Promise<Membe
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as MembershipRequest;
+            const dbData = { id: docSnap.id, ...docSnap.data() };
+            return transformDBToMembershipRequest(dbData);
         } else {
             return null;
         }
@@ -256,20 +239,7 @@ export async function getMembershipRequestById(requestId: string): Promise<Membe
     }
 }
 
-// Interface pour la pagination
-export interface PaginatedMembershipRequests {
-    data: MembershipRequest[];
-    pagination: {
-        currentPage: number;
-        totalPages: number;
-        totalItems: number;
-        itemsPerPage: number;
-        hasNextPage: boolean;
-        hasPrevPage: boolean;
-        nextCursor: any;
-        prevCursor: any;
-    };
-}
+// Interface importée de types.ts
 
 /**
  * Récupère toutes les demandes d'adhésion avec pagination
@@ -305,7 +275,8 @@ export async function getAllMembershipRequests(
         const requests: MembershipRequest[] = [];
 
         querySnapshot.forEach((doc) => {
-            requests.push({ id: doc.id, ...doc.data() } as MembershipRequest);
+            const dbData = { id: doc.id, ...doc.data() };
+            requests.push(transformDBToMembershipRequest(dbData));
         });
 
         return requests;
@@ -325,7 +296,7 @@ export async function getAllMembershipRequests(
 export async function getMembershipRequestsPaginated(options: {
     page?: number;
     limit?: number;
-    status?: MembershipRequest['status'] | 'all';
+    status?: MembershipRequestStatus | 'all';
     searchQuery?: string;
     startAfterDoc?: any;
     orderByField?: string;
@@ -380,7 +351,8 @@ export async function getMembershipRequestsPaginated(options: {
         const requests: MembershipRequest[] = [];
 
         querySnapshot.forEach((doc) => {
-            requests.push({ id: doc.id, ...doc.data() } as MembershipRequest);
+            const dbData = { id: doc.id, ...doc.data() };
+            requests.push(transformDBToMembershipRequest(dbData));
         });
 
         // Récupération du nombre total d'éléments pour la pagination
@@ -457,7 +429,7 @@ export async function getMembershipRequestsPaginated(options: {
  */
 export async function updateMembershipRequestStatus(
     requestId: string,
-    newStatus: MembershipRequest['status'],
+    newStatus: MembershipRequestStatus,
     reviewedBy?: string,
     reviewNotes?: string
 ): Promise<boolean> {
@@ -499,7 +471,8 @@ export async function findMembershipRequestsByEmail(email: string): Promise<Memb
         const requests: MembershipRequest[] = [];
 
         querySnapshot.forEach((doc) => {
-            requests.push({ id: doc.id, ...doc.data() } as MembershipRequest);
+            const dbData = { id: doc.id, ...doc.data() };
+            requests.push(transformDBToMembershipRequest(dbData));
         });
 
         return requests;
@@ -527,7 +500,8 @@ export async function findMembershipRequestsByPhone(phoneNumber: string): Promis
         const requests: MembershipRequest[] = [];
 
         querySnapshot.forEach((doc) => {
-            requests.push({ id: doc.id, ...doc.data() } as MembershipRequest);
+            const dbData = { id: doc.id, ...doc.data() };
+            requests.push(transformDBToMembershipRequest(dbData));
         });
 
         return requests;

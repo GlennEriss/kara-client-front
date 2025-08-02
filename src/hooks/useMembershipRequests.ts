@@ -4,10 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
     getMembershipRequestsPaginated, 
     updateMembershipRequestStatus,
-    getMembershipRequestById,
-    type PaginatedMembershipRequests,
-    type MembershipRequest 
+    getMembershipRequestById
 } from '@/db/membership.db'
+import { toast } from 'sonner'
+import type { 
+    MembershipRequestStatus, 
+    PaginatedMembershipRequests,
+    MembershipRequest 
+} from '@/types/types'
 
 /**
  * Hook pour récupérer les demandes d'adhésion avec pagination
@@ -15,7 +19,7 @@ import {
 export function useMembershipRequests(options: {
     page?: number;
     limit?: number;
-    status?: MembershipRequest['status'] | 'all';
+    status?: MembershipRequestStatus | 'all';
     searchQuery?: string;
     enabled?: boolean;
 } = {}) {
@@ -135,15 +139,15 @@ export function useMembershipRequestsStats() {
             ];
 
             const todayCount = allRequests.filter(req => 
-                req.createdAt && new Date(req.createdAt.toDate()) >= startOfDay
+                req.createdAt && new Date(req.createdAt) >= startOfDay
             ).length;
 
             const weekCount = allRequests.filter(req => 
-                req.createdAt && new Date(req.createdAt.toDate()) >= startOfWeek
+                req.createdAt && new Date(req.createdAt) >= startOfWeek
             ).length;
 
             const monthCount = allRequests.filter(req => 
-                req.createdAt && new Date(req.createdAt.toDate()) >= startOfMonth
+                req.createdAt && new Date(req.createdAt) >= startOfMonth
             ).length;
 
             return {

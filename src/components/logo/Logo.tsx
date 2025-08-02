@@ -43,6 +43,11 @@ export interface LogoProps {
    * Priorité de chargement de l'image
    */
   priority?: boolean
+  
+  /**
+   * Styles CSS inline
+   */
+  style?: React.CSSProperties
 }
 
 /**
@@ -59,7 +64,8 @@ const Logo: React.FC<LogoProps> = ({
   isScrolled = false,
   onClick,
   clickable = false,
-  priority = false
+  priority = false,
+  style
 }) => {
   
   // Styles de base selon la variante
@@ -95,17 +101,17 @@ const Logo: React.FC<LogoProps> = ({
   const getSizeStyles = () => {
     switch (size) {
       case 'xs':
-        return 'h-8 w-auto'
+        return 'h-8! w-auto'
       case 'sm':
-        return 'h-12 w-auto'
+        return 'h-12! w-auto'
       case 'md':
-        return 'h-16 w-auto'
+        return 'h-16! w-auto'
       case 'lg':
-        return 'h-20 w-auto'
+        return 'h-20! w-auto'
       case 'xl':
-        return 'h-24 w-auto'
+        return 'h-24! w-auto'
       default:
-        return 'h-16 w-auto'
+        return 'h-16! w-auto'
     }
   }
 
@@ -135,6 +141,7 @@ const Logo: React.FC<LogoProps> = ({
         style={{
           width: 'auto',
           height: 'auto',
+          ...style
         }}
       />
     </div>

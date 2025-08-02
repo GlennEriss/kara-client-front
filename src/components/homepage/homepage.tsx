@@ -91,7 +91,7 @@ const Homepage = () => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center">
             <NavbarLogo 
-              size="xs"
+              size="lg"
               isScrolled={isScrolled}
               clickable
               onClick={() => scrollToSection('accueil')}
@@ -435,7 +435,7 @@ const Homepage = () => {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <FooterLogo 
-                size="xs"
+                size="lg"
                 className="mb-4"
                 clickable
                 onClick={() => scrollToSection('accueil')}
