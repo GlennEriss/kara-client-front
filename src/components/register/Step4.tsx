@@ -74,9 +74,14 @@ export default function Step4({ form }: Step4Props) {
     }
   }, [watchedFields[2], watchedFields[3], frontPhotoPreview, backPhotoPreview, watch])
 
-  // Validation photo recto obligatoire
+  // Validation en temps réel des champs obligatoires
   React.useEffect(() => {
     const frontPhoto = watch('documents.documentPhotoFront')
+    const expirationDate = watch('documents.expirationDate')
+    const issuingPlace = watch('documents.issuingPlace')
+    const issuingDate = watch('documents.issuingDate')
+    
+    // Validation photo recto
     if (!frontPhoto) {
       setError('documents.documentPhotoFront', {
         type: 'required',
@@ -85,7 +90,50 @@ export default function Step4({ form }: Step4Props) {
     } else {
       clearErrors('documents.documentPhotoFront')
     }
-  }, [watchedFields[2], setError, clearErrors, watch])
+    
+    // Validation date d'expiration
+    if (!expirationDate || expirationDate.trim() === '') {
+      setError('documents.expirationDate', {
+        type: 'required',
+        message: 'La date d\'expiration est requise'
+      })
+    } else {
+      clearErrors('documents.expirationDate')
+    }
+    
+    // Validation lieu de délivrance
+    if (!issuingPlace || issuingPlace.trim() === '') {
+      setError('documents.issuingPlace', {
+        type: 'required',
+        message: 'Le lieu de délivrance est requis'
+      })
+    } else if (issuingPlace.length < 2) {
+      setError('documents.issuingPlace', {
+        type: 'minLength',
+        message: 'Le lieu de délivrance doit contenir au moins 2 caractères'
+      })
+    } else {
+      clearErrors('documents.issuingPlace')
+    }
+    
+    // Validation date de délivrance
+    if (!issuingDate || issuingDate.trim() === '') {
+      setError('documents.issuingDate', {
+        type: 'required',
+        message: 'La date de délivrance est requise'
+      })
+    } else {
+      clearErrors('documents.issuingDate')
+    }
+  }, [
+    watchedFields[2], 
+    watchedFields[4], 
+    watchedFields[5], 
+    watchedFields[6], 
+    setError, 
+    clearErrors, 
+    watch
+  ])
 
   // Gestion de l'upload des photos avec compression
   const handlePhotoUpload = async (file: File, isBack: boolean = false) => {
@@ -513,45 +561,103 @@ export default function Step4({ form }: Step4Props) {
         </div>
       </div>
 
-      {/* Résumé du document */}
-      {(watchedFields[0] || frontPhotoPreview) && (
-        <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
-          <CardContent className="p-4 sm:p-6 w-full">
-            <div className="flex items-start space-x-4 w-full min-w-0">
-              <FileText className="w-6 h-6 text-[#224D62] mt-1 flex-shrink-0" />
-              <div className="space-y-2 min-w-0 flex-1">
-                <p className="text-sm sm:text-base font-medium text-[#224D62]">Pièce d'identité détectée</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-gray-600">
-                  {watchedFields[0] && (
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium">Type:</span>
-                      <span>{watchedFields[0]}</span>
-                    </div>
+            {/* Résumé du document et validation */}
+      <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
+        <CardContent className="p-4 sm:p-6 w-full">
+          <div className="flex items-start space-x-4 w-full min-w-0">
+            <FileText className="w-6 h-6 text-[#224D62] mt-1 flex-shrink-0" />
+            <div className="space-y-3 min-w-0 flex-1">
+              <p className="text-sm sm:text-base font-medium text-[#224D62]">État de validation du document</p>
+              
+              {/* Grille des validations */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                {/* Photo recto */}
+                <div className="flex items-center space-x-2">
+                  {frontPhotoPreview ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
                   )}
-                  {watchedFields[1] && (
-                    <div className="flex items-center space-x-1 truncate">
-                      <span className="font-medium">Numéro:</span>
-                      <span className="truncate">{watchedFields[1]}</span>
-                    </div>
-                  )}
-                  {frontPhotoPreview && (
-                    <div className="flex items-center space-x-1 text-[#CBB171]">
-                      <CheckCircle className="w-3 h-3" />
-                      <span>Photo recto ajoutée</span>
+                  <span className={frontPhotoPreview ? "text-green-600" : "text-red-600"}>
+                    Photo recto {frontPhotoPreview ? "✓" : "(requis)"}
+                  </span>
                 </div>
-              )}
-                  {backPhotoPreview && (
-                    <div className="flex items-center space-x-1 text-[#CBB171]">
-                      <CheckCircle className="w-3 h-3" />
-                      <span>Photo verso ajoutée</span>
+                
+                {/* Date d'expiration */}
+                <div className="flex items-center space-x-2">
+                  {watchedFields[4] && !errors?.documents?.expirationDate ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  )}
+                  <span className={watchedFields[4] && !errors?.documents?.expirationDate ? "text-green-600" : "text-red-600"}>
+                    Date d'expiration {watchedFields[4] && !errors?.documents?.expirationDate ? "✓" : "(requis)"}
+                  </span>
+                </div>
+                
+                {/* Lieu de délivrance */}
+                <div className="flex items-center space-x-2">
+                  {watchedFields[5] && !errors?.documents?.issuingPlace ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  )}
+                  <span className={watchedFields[5] && !errors?.documents?.issuingPlace ? "text-green-600" : "text-red-600"}>
+                    Lieu de délivrance {watchedFields[5] && !errors?.documents?.issuingPlace ? "✓" : "(requis)"}
+                  </span>
+                </div>
+                
+                {/* Date de délivrance */}
+                <div className="flex items-center space-x-2">
+                  {watchedFields[6] && !errors?.documents?.issuingDate ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  )}
+                  <span className={watchedFields[6] && !errors?.documents?.issuingDate ? "text-green-600" : "text-red-600"}>
+                    Date de délivrance {watchedFields[6] && !errors?.documents?.issuingDate ? "✓" : "(requis)"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Informations du document si disponibles */}
+              {(watchedFields[0] || watchedFields[1]) && (
+                <div className="pt-3 border-t border-[#224D62]/10">
+                  <p className="text-xs text-gray-500 mb-2">Informations du document:</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600">
+                    {watchedFields[0] && (
+                      <div>
+                        <span className="font-medium">Type:</span> {watchedFields[0]}
+                      </div>
+                    )}
+                    {watchedFields[1] && (
+                      <div className="truncate">
+                        <span className="font-medium">Numéro:</span> {watchedFields[1]}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Message d'erreur si des champs sont manquants */}
+      {(!frontPhotoPreview || !watchedFields[4] || !watchedFields[5] || !watchedFields[6] || 
+        errors?.documents?.expirationDate || errors?.documents?.issuingPlace || errors?.documents?.issuingDate) && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg animate-in fade-in-0 slide-in-from-top-2 duration-300 w-full">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800 mb-1">Champs obligatoires manquants</h3>
+              <p className="text-sm text-red-600">
+                Veuillez remplir tous les champs obligatoires avant de finaliser votre demande d'adhésion.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Message final */}
       <div className="text-center p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words shadow-lg">

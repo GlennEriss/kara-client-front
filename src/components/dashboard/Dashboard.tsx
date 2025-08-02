@@ -4,7 +4,7 @@ import { Car, Users, UserPlus, FileText, TrendingUp, Clock, CheckCircle, XCircle
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { MembershipRequest, InsurancePolicy, DashboardStats } from '@/types/types.d'
+import type { MembershipRequest, InsurancePolicy, DashboardStats } from '@/types/types'
 
 // Fausses données typées pour le dashboard
 const statsData = [
@@ -61,7 +61,7 @@ const recentMembershipRequests: Partial<MembershipRequest>[] = [
       hasCar: true,
       intermediaryCode: ""
     },
-    status: "En attente",
+    status: "pending",
     createdAt: new Date("2024-01-15"),
     updatedAt: new Date("2024-01-15")
   },
@@ -83,7 +83,7 @@ const recentMembershipRequests: Partial<MembershipRequest>[] = [
       hasCar: false,
       intermediaryCode: ""
     },
-    status: "Approuvée",
+    status: "approved",
     createdAt: new Date("2024-01-14"),
     updatedAt: new Date("2024-01-14"),
     processedAt: new Date("2024-01-14"),
@@ -107,7 +107,7 @@ const recentMembershipRequests: Partial<MembershipRequest>[] = [
       hasCar: true,
       intermediaryCode: ""
     },
-    status: "En attente",
+    status: "pending",
     createdAt: new Date("2024-01-13"),
     updatedAt: new Date("2024-01-13")
   },
@@ -129,7 +129,7 @@ const recentMembershipRequests: Partial<MembershipRequest>[] = [
       hasCar: false,
       intermediaryCode: ""
     },
-    status: "Rejetée",
+    status: "rejected",
     createdAt: new Date("2024-01-12"),
     updatedAt: new Date("2024-01-12"),
     processedAt: new Date("2024-01-12"),
@@ -248,7 +248,7 @@ const insurancePolicies: InsurancePolicy[] = [
       phone: "+243987654321"
     },
     policyNumber: "POL-2024-001237",
-    status: "En attente",
+    status: "Active",
     vehicle: {
       make: "Volkswagen",
       model: "Golf",
@@ -286,7 +286,7 @@ const getStatusBadge = (status: string) => {
         <CheckCircle className="w-3 h-3 mr-1" />
         {status}
       </Badge>
-    case "Rejetée":
+    case "rejected":
       return <Badge variant="destructive">
         <XCircle className="w-3 h-3 mr-1" />
         {status}

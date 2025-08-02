@@ -55,7 +55,8 @@ function Register() {
     getStepProgress,
     hasCachedData,
     clearCache,
-    saveToCache
+    saveToCache,
+    validateCurrentStep
   } = useRegister()
 
   // Gestionnaire pour passer à l'étape suivante
@@ -76,6 +77,15 @@ function Register() {
   // Gestionnaire pour la soumission finale
   const handleSubmit = async () => {
     try {
+      // D'abord valider l'étape actuelle (étape 4) avant de soumettre
+      const isCurrentStepValid = await validateCurrentStep()
+      
+      if (!isCurrentStepValid) {
+        // Si la validation échoue, ne pas soumettre
+        console.log('Validation de l\'étape 4 échouée - soumission annulée')
+        return
+      }
+      
       await submitForm()
       // La redirection vers le step 5 sera gérée automatiquement par le provider
       // via l'état isSubmitted

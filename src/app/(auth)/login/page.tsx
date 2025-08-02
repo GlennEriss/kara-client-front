@@ -1,7 +1,8 @@
+import LoginMembership from '@/components/login/LoginMembership'
 import React from 'react'
 
 export default function page() {
   return (
-    <div>page</div>
+    <LoginMembership/>
   )
 }

@@ -8,37 +8,38 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMembershipRequests, useUpdateMembershipRequestStatus, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
-import type { MembershipRequest } from '@/db/membership.db'
+import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
+import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 
 // Fonction utilitaire pour obtenir le badge de statut
-const getStatusBadge = (status: MembershipRequest['status']) => {
+const getStatusBadge = (status: MembershipRequestStatus) => {
   switch (status) {
     case 'pending':
       return (
         <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
           <Clock className="w-3 h-3 mr-1" />
-          En attente
+          {MEMBERSHIP_STATUS_LABELS.pending}
         </Badge>
       )
     case 'approved':
       return (
         <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Approuvée
+          {MEMBERSHIP_STATUS_LABELS.approved}
         </Badge>
       )
     case 'rejected':
       return (
         <Badge variant="destructive">
           <XCircle className="w-3 h-3 mr-1" />
-          Rejetée
+          {MEMBERSHIP_STATUS_LABELS.rejected}
         </Badge>
       )
     case 'under_review':
       return (
         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
           <Eye className="w-3 h-3 mr-1" />
-          En cours
+          {MEMBERSHIP_STATUS_LABELS.under_review}
         </Badge>
       )
     default:
@@ -240,7 +241,7 @@ export default function MembershipRequestsList() {
 
   const updateStatusMutation = useUpdateMembershipRequestStatus()
 
-  const handleStatusUpdate = (requestId: string, newStatus: MembershipRequest['status']) => {
+  const handleStatusUpdate = (requestId: string, newStatus: MembershipRequestStatus) => {
     updateStatusMutation.mutate({
       requestId,
       newStatus,
@@ -337,7 +338,7 @@ export default function MembershipRequestsList() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-yellow-600">
-                {membershipData.data.filter(r => r.status === 'pending').length}
+                {membershipData.data.filter((r: MembershipRequest) => r.status === 'pending').length}
               </div>
               <div className="text-sm text-muted-foreground">En attente</div>
             </CardContent>
@@ -345,7 +346,7 @@ export default function MembershipRequestsList() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-green-600">
-                {membershipData.data.filter(r => r.status === 'approved').length}
+                {membershipData.data.filter((r: MembershipRequest) => r.status === 'approved').length}
               </div>
               <div className="text-sm text-muted-foreground">Approuvées</div>
             </CardContent>
@@ -353,7 +354,7 @@ export default function MembershipRequestsList() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {membershipData.data.filter(r => r.status === 'under_review').length}
+                {membershipData.data.filter((r: MembershipRequest) => r.status === 'under_review').length}
               </div>
               <div className="text-sm text-muted-foreground">En cours</div>
             </CardContent>
@@ -381,7 +382,7 @@ export default function MembershipRequestsList() {
           </Card>
         ) : (
           // Liste des demandes
-          membershipData?.data.map((request) => (
+          membershipData?.data.map((request: MembershipRequest) => (
             <MembershipRequestCard
               key={request.id}
               request={request}
