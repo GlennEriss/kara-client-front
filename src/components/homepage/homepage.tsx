@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Menu, X, Heart, Users, Lightbulb, Gift, CalendarCheck, PiggyBank, Cross, HandHeart, MousePointer, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Star, Home, HeartHandshake, ChevronDown, ChevronUp } from 'lucide-react'
+import { NavbarLogo, FooterLogo } from '@/components/logo'
 import './homepage.css'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
@@ -89,13 +90,13 @@ const Homepage = () => {
         }`}>
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center">
-            <div className="cursor-pointer">
-              <img
-                src="/Logo-Kara.webp"
-                alt="KARA Logo"
-                className="logo-kara"
-              />
-            </div>
+            <NavbarLogo 
+              size="xs"
+              isScrolled={isScrolled}
+              clickable
+              onClick={() => scrollToSection('accueil')}
+              priority
+            />
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex space-x-8">
@@ -433,10 +434,11 @@ const Homepage = () => {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
-              <img
-                src="/Logo-Kara.webp"
-                alt="KARA Logo"
-                className="footer-logo mb-4"
+              <FooterLogo 
+                size="xs"
+                className="mb-4"
+                clickable
+                onClick={() => scrollToSection('accueil')}
               />
               <p className="text-gray-300 leading-relaxed">
                 Une mutuelle gabonaise à but non lucratif dédiée à la solidarité active et à l'entraide communautaire.
