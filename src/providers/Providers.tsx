@@ -1,11 +1,15 @@
 import React from 'react'
 import { Toaster } from "@/components/ui/sonner"
+import AuthFirebaseProvider from './AuthFirebaseProvider'
+import ReactQueryProvider from './ReactQueryProvider'
 
 export default function Providers({ children }: React.PropsWithChildren) {
   return (
-    <div>
+    <AuthFirebaseProvider>
+      <ReactQueryProvider>
         {children}
-        <Toaster />
-    </div>
+      </ReactQueryProvider>
+      <Toaster />
+    </AuthFirebaseProvider>
   )
 }
