@@ -256,6 +256,21 @@ export async function getMembershipRequestById(requestId: string): Promise<Membe
     }
 }
 
+// Interface pour la pagination
+export interface PaginatedMembershipRequests {
+    data: MembershipRequest[];
+    pagination: {
+        currentPage: number;
+        totalPages: number;
+        totalItems: number;
+        itemsPerPage: number;
+        hasNextPage: boolean;
+        hasPrevPage: boolean;
+        nextCursor: any;
+        prevCursor: any;
+    };
+}
+
 /**
  * Récupère toutes les demandes d'adhésion avec pagination
  * 
@@ -273,7 +288,7 @@ export async function getAllMembershipRequests(
         
         let q = query(
             collectionRef,
-            orderBy("submittedAt", "desc"),
+            orderBy("createdAt", "desc"),
             limitToLast(limit)
         );
 
@@ -281,7 +296,7 @@ export async function getAllMembershipRequests(
             q = query(
                 collectionRef,
                 where("status", "==", status),
-                orderBy("submittedAt", "desc"),
+                orderBy("createdAt", "desc"),
                 limitToLast(limit)
             );
         }
@@ -297,6 +312,137 @@ export async function getAllMembershipRequests(
     } catch (error) {
         console.error("Erreur lors de la récupération des demandes:", error);
         return [];
+    }
+}
+
+/**
+ * Récupère les demandes d'adhésion avec pagination avancée
+ * Utilise les curseurs Firebase pour une pagination efficace
+ * 
+ * @param {object} options - Options de pagination
+ * @returns {Promise<PaginatedMembershipRequests>} - Résultats paginés
+ */
+export async function getMembershipRequestsPaginated(options: {
+    page?: number;
+    limit?: number;
+    status?: MembershipRequest['status'] | 'all';
+    searchQuery?: string;
+    startAfterDoc?: any;
+    orderByField?: string;
+    orderByDirection?: 'asc' | 'desc';
+} = {}): Promise<PaginatedMembershipRequests> {
+    try {
+        const {
+            page = 1,
+            limit = 10,
+            status,
+            searchQuery,
+            startAfterDoc,
+            orderByField = 'createdAt',
+            orderByDirection = 'desc'
+        } = options;
+
+        const { 
+            collection, 
+            db, 
+            getDocs, 
+            query, 
+            orderBy, 
+            limit: fbLimit, 
+            where,
+            startAfter,
+            getCountFromServer
+        } = await getFirestore();
+        
+        const collectionRef = collection(db, firebaseCollectionNames.membershipRequests || "membership-requests");
+        
+        // Construction de la requête de base
+        let constraints: any[] = [
+            orderBy(orderByField, orderByDirection),
+            fbLimit(limit)
+        ];
+
+        // Filtrage par statut
+        if (status && status !== 'all') {
+            constraints.unshift(where("status", "==", status));
+        }
+
+        // Cursor pour la pagination
+        if (startAfterDoc) {
+            constraints.push(startAfter(startAfterDoc));
+        }
+
+        // Construction de la requête finale
+        const q = query(collectionRef, ...constraints);
+
+        // Exécution de la requête
+        const querySnapshot = await getDocs(q);
+        const requests: MembershipRequest[] = [];
+
+        querySnapshot.forEach((doc) => {
+            requests.push({ id: doc.id, ...doc.data() } as MembershipRequest);
+        });
+
+        // Récupération du nombre total d'éléments pour la pagination
+        let totalItemsQuery = query(collectionRef);
+        if (status && status !== 'all') {
+            totalItemsQuery = query(collectionRef, where("status", "==", status));
+        }
+        
+        const totalCountSnapshot = await getCountFromServer(totalItemsQuery);
+        const totalItems = totalCountSnapshot.data().count;
+
+        // Calcul des informations de pagination
+        const totalPages = Math.ceil(totalItems / limit);
+        const hasNextPage = requests.length === limit;
+        const hasPrevPage = page > 1;
+        
+        // Curseurs pour navigation
+        const nextCursor = requests.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
+        const prevCursor = requests.length > 0 ? querySnapshot.docs[0] : null;
+
+        // Filtrage côté client pour la recherche (si nécessaire)
+        let filteredRequests = requests;
+        if (searchQuery && searchQuery.trim()) {
+            const searchTerm = searchQuery.toLowerCase().trim();
+            filteredRequests = requests.filter(request => 
+                request.identity.firstName.toLowerCase().includes(searchTerm) ||
+                request.identity.lastName.toLowerCase().includes(searchTerm) ||
+                request.identity.email?.toLowerCase().includes(searchTerm) ||
+                request.identity.nationality.toLowerCase().includes(searchTerm) ||
+                request.identity.contacts.some(contact => contact.includes(searchTerm))
+            );
+        }
+
+        return {
+            data: filteredRequests,
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalItems,
+                itemsPerPage: limit,
+                hasNextPage,
+                hasPrevPage,
+                nextCursor,
+                prevCursor
+            }
+        };
+
+    } catch (error) {
+        console.error("Erreur lors de la récupération paginée des demandes:", error);
+        return {
+            data: [],
+            pagination: {
+                currentPage: 1,
+                totalPages: 0,
+                totalItems: 0,
+                itemsPerPage: options.limit || 10,
+                hasNextPage: false,
+                hasPrevPage: false,
+                nextCursor: null,
+                prevCursor: null
+            }
+        };
     }
 }
 

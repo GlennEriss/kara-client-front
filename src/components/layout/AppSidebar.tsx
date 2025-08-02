@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, Home, Settings, Users, BarChart3, FileText, Shield, LogOut, UserPlus } from "lucide-react"
+import { Car, Home, Settings, Users, BarChart3, FileText, Shield, LogOut, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -32,15 +32,15 @@ const adminMenuItems = [
         url: routes.admin.membershipRequests,
         icon: UserPlus,
     },
-    {
-        title: "Utilisateurs",
+    /*{
+        title: "Membres",
         url: "/dashboard/users",
         icon: Users,
     },
     {
-        title: "Événements",
-        url: "/dashboard/events",
-        icon: Calendar,
+        title: "Assurance",
+        url: "/dashboard/insurance",
+        icon: Car,
     },
     {
         title: "Statistiques",
@@ -51,7 +51,7 @@ const adminMenuItems = [
         title: "Contenu",
         url: "/dashboard/content",
         icon: FileText,
-    },
+    }, */
 ]
 
 const systemMenuItems = [
