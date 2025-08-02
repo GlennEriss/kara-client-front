@@ -30,6 +30,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# firebase debug logs
+firebase-debug.log*
+firestore-debug.log*
+
+# firebase emulator data (optional - keep if you want to commit test data)
+firebase-data/
+
+# firebase automatic exports (generated when emulator stops unexpectedly)
+firebase-export-*/
+
 # env files (can opt-in for committing if needed)
 .env*
 

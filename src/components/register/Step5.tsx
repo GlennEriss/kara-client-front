@@ -246,7 +246,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
                 <div className="flex justify-between items-center p-3 bg-[#CBB171]/10 rounded-lg">
                   <span className="text-sm font-medium text-[#224D62]">Montant :</span>
                   <Badge className="bg-[#224D62] text-white text-base px-3 py-1">
-                    5,000 FCFA
+                    10,300 FCFA
                   </Badge>
                 </div>
 

@@ -12,6 +12,9 @@ import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { adminLoginSchema, AdminLoginFormData, adminLoginDefaultValues } from '@/types/schemas'
 import routes from '@/constantes/routes'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/firebase/auth'
+import { toast } from "sonner"
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
@@ -22,21 +25,66 @@ export default function AdminLogin() {
     resolver: zodResolver(adminLoginSchema),
     defaultValues: adminLoginDefaultValues
   })
-
   const onSubmit = async (data: AdminLoginFormData) => {
     setIsLoading(true)
     try {
-      // TODO: Implémenter la logique d'authentification admin
-      console.log('Admin login data:', data)
-      
-      // Simuler une requête de connexion
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // Redirection vers le dashboard admin (à créer)
-      // router.push('/admin/dashboard')
-      
-    } catch (error) {
+      const userCred = await signInWithEmailAndPassword(auth, data.email, data.password)
+      if (userCred.user) {
+        // Obtenir le token ID pour l'authentification côté serveur
+        const idToken = await userCred.user.getIdToken()
+        
+        // Sauvegarder le token dans un cookie
+        document.cookie = `auth-token=${idToken}; path=/; max-age=3600; secure; samesite=strict`
+        
+        // Toast de succès avec fond vert
+        toast.success("Connexion réussie !", {
+          description: "Redirection vers le tableau de bord...",
+          style: {
+            background: "#10b981", // Vert success
+            color: "white",
+            border: "none"
+          },
+          duration: 2000
+        })
+
+        // Redirection vers le dashboard admin
+        router.push(routes.admin.dashboard)
+      } else {
+        // Toast d'erreur pour utilisateur non trouvé
+        toast.error("Erreur de connexion", {
+          description: "Impossible de vous connecter",
+          style: {
+            background: "#ef4444", // Rouge error
+            color: "white",
+            border: "none"
+          },
+          duration: 4000
+        })
+      }
+    } catch (error: any) {
       console.error('Erreur de connexion:', error)
+
+      // Toast d'erreur avec fond rouge
+      let errorMessage = "Une erreur est survenue"
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "Utilisateur non trouvé"
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Mot de passe incorrect"
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Email invalide"
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Trop de tentatives. Réessayez plus tard"
+      }
+
+      toast.error("Connexion échouée", {
+        description: errorMessage,
+        style: {
+          background: "#ef4444", // Rouge error
+          color: "white",
+          border: "none"
+        },
+        duration: 4000
+      })
     } finally {
       setIsLoading(false)
     }
@@ -62,8 +110,7 @@ export default function AdminLogin() {
         className="absolute top-4 left-4 md:top-6 md:left-6 text-[#224D62] hover:text-[#CBB171] hover:bg-[#224D62]/5 z-10 text-sm md:text-base"
       >
         <ArrowLeft className="w-4 h-4 mr-1 md:mr-2" />
-        <span className="hidden sm:inline">Retour à l'accueil</span>
-        <span className="sm:hidden">Retour</span>
+        Retour
       </Button>
 
       {/* Container principal */}
@@ -91,7 +138,7 @@ export default function AdminLogin() {
               <span>Espace Sécurisé</span>
             </CardTitle>
           </CardHeader>
-          
+
           <CardContent className="p-6 space-y-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
