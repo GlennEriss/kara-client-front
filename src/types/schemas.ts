@@ -415,8 +415,8 @@ export type AddressFormData = z.infer<typeof addressSchema>
 export type CompanyFormData = z.infer<typeof companySchema>
 export type DocumentsFormData = z.infer<typeof documentsSchema>
 
-// Type pour le schéma complet
-export type RegisterFormData = z.infer<typeof registerSchema>
+// Type pour le schéma complet (importé depuis types.ts pour éviter les conflits de modules)
+export type { RegisterFormData } from './types'
 
 // Types pour les sous-objets complexes
 export type CompanyAddressData = z.infer<typeof companySchema>['companyAddress']
@@ -429,6 +429,24 @@ export const stepSchemas = {
   3: companySchema,
   4: documentsSchema
 } as const
+
+// ================== MEMBER LOGIN SCHEMA ==================
+export const memberLoginSchema = z.object({
+  phoneNumber: z
+    .string()
+    .min(8, 'Le numéro de téléphone doit contenir au moins 8 chiffres')
+    .max(15, 'Le numéro de téléphone ne peut pas dépasser 15 chiffres')
+    .regex(/^[+]?[\d\s\-()]+$/, 'Format de numéro de téléphone invalide')
+    .transform(val => val.replace(/\s/g, '')) // Supprime les espaces
+})
+
+// Type pour les données de connexion membre
+export type MemberLoginFormData = z.infer<typeof memberLoginSchema>
+
+// Valeurs par défaut pour le formulaire membre
+export const memberLoginDefaultValues: MemberLoginFormData = {
+  phoneNumber: ''
+}
 
 // ================== ADMIN LOGIN SCHEMA ==================
 export const adminLoginSchema = z.object({
@@ -451,7 +469,7 @@ export const adminLoginDefaultValues: AdminLoginFormData = {
 }
 
 // ================== VALEURS PAR DÉFAUT ==================
-export const defaultValues: RegisterFormData = {
+export const defaultValues = {
   identity: {
     civility: 'Monsieur',
     lastName: '',

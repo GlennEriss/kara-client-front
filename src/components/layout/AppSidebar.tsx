@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { DefaultLogo } from "@/components/logo"
 import routes from "@/constantes/routes"
 import { auth, signOut } from "@/firebase/auth"
 
@@ -80,10 +81,11 @@ export function AppSidebar() {
             <SidebarHeader className="h-20 border-b border-sidebar-border">
                 <div className="flex items-center gap-3">
                     <div className="flex h-14 w-14 items-center justify-center">
-                        <img
-                            src="/Logo-Kara.webp"
-                            alt="KARA Logo"
+                        <DefaultLogo 
+                            size="sm"
                             className="h-14 w-14 object-contain"
+                            clickable
+                            onClick={() => router.push(routes.admin.dashboard)}
                         />
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">

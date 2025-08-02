@@ -11,7 +11,7 @@
     "kill-firebase": "./scripts/kill-firebase.sh",
     "clean-exports": "rm -rf firebase-export-*",
     "dev:emulator": "npm run copy:env:dev && next dev --turbopack & npm run emulator",
-    "build:preview": "npm run copy:env:prod && next build",
+    "build:preview": "npm run copy:env:preview && next build",
     "copy:env:dev": "cp .env.dev .env.local",
     "copy:env:preview": "cp .env.preview .env.local",
     "lint": "next lint"

@@ -1,6 +1,65 @@
-import { RegisterFormData } from './schemas'
-
 // ================== TYPES CENTRALISÉS ==================
+
+// Type pour les données du formulaire d'inscription
+export interface RegisterFormData {
+  identity: {
+    civility: string;
+    lastName: string;
+    firstName: string;
+    birthDate: string;
+    birthPlace: string;
+    birthCertificateNumber: string;
+    prayerPlace: string;
+    contacts: string[];
+    email?: string;
+    gender: string;
+    nationality: string;
+    maritalStatus: string;
+    spouseLastName?: string;
+    spouseFirstName?: string;
+    spousePhone?: string;
+    intermediaryCode?: string;
+    hasCar: boolean;
+    photo?: string | File;
+  };
+  address: {
+    province: string;
+    city: string;
+    district: string;
+    arrondissement: string;
+    additionalInfo?: string;
+  };
+  company: {
+    isEmployed: boolean;
+    companyName?: string;
+    companyAddress?: {
+      province?: string;
+      city?: string;
+      district?: string;
+    };
+    profession?: string;
+    seniority?: string;
+  };
+  documents: {
+    identityDocument: string;
+    identityDocumentNumber: string;
+    documentPhotoFront?: string | File;
+    documentPhotoBack?: string | File;
+    expirationDate: string;
+    issuingPlace: string;
+    issuingDate: string;
+  };
+}
+
+/**
+ * Statuts possibles pour une demande d'adhésion
+ */
+export type MembershipRequestStatus = 'pending' | 'approved' | 'rejected' | 'under_review'
+
+/**
+ * Statuts étendus incluant les demandes supprimées
+ */
+export type ExtendedMembershipRequestStatus = MembershipRequestStatus | 'deleted'
 
 /**
  * Type principal pour une demande d'adhésion
@@ -11,7 +70,7 @@ export interface MembershipRequest extends RegisterFormData {
   id: string
   
   // Statut de la demande
-  status: 'En attente' | 'Approuvée' | 'Rejetée' | 'En cours de traitement'
+  status: MembershipRequestStatus
   
   // Dates de gestion
   createdAt: Date
@@ -46,15 +105,36 @@ export interface MembershipRequestsList {
 }
 
 /**
+ * Interface pour les résultats paginés avec curseurs Firestore
+ */
+export interface PaginatedMembershipRequests {
+  data: MembershipRequest[]
+  pagination: {
+    currentPage: number
+    totalPages: number
+    totalItems: number
+    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+    nextCursor: any // Firestore DocumentSnapshot
+    prevCursor: any // Firestore DocumentSnapshot
+  }
+}
+
+/**
  * Type pour les filtres de recherche des demandes
  */
 export interface MembershipRequestFilters {
-  status?: MembershipRequest['status'][]
+  status?: MembershipRequestStatus | 'all'
   dateFrom?: Date
   dateTo?: Date
   nationality?: string
   hasCar?: boolean
   searchQuery?: string // Recherche dans nom, prénom, email
+  page?: number
+  limit?: number
+  orderByField?: string
+  orderByDirection?: 'asc' | 'desc'
 }
 
 /**
@@ -65,7 +145,8 @@ export interface MembershipRequestStats {
   pending: number
   approved: number
   rejected: number
-  inProgress: number
+  under_review: number
+  deleted: number
   todayCount: number
   weekCount: number
   monthCount: number
@@ -76,7 +157,7 @@ export interface MembershipRequestStats {
  */
 export interface MembershipRequestAction {
   requestId: string
-  action: 'approve' | 'reject' | 'request_more_info'
+  action: 'approve' | 'reject' | 'under_review' | 'delete'
   adminId: string
   comments?: string
   memberNumber?: string // Pour l'approbation
@@ -236,16 +317,18 @@ export interface DashboardActivity {
 }
 
 // ================== EXPORTS ==================
-export type {
-  // Schémas existants réexportés pour centralisation
-  RegisterFormData,
-  IdentityFormData,
-  AddressFormData,
-  CompanyFormData,
-  DocumentsFormData,
-  Civility,
-  Gender,
-  IdentityDocument,
-  MaritalStatus,
-  InsuranceType
-} from './schemas'
+// Pas besoin d'exporter depuis schemas.ts car tout est défini ici
+
+// Labels français pour l'affichage des statuts
+export const MEMBERSHIP_STATUS_LABELS: Record<MembershipRequestStatus, string> = {
+  pending: 'En attente',
+  approved: 'Approuvée', 
+  rejected: 'Rejetée',
+  under_review: 'En cours de traitement'
+}
+
+// Labels étendus incluant les demandes supprimées
+export const EXTENDED_MEMBERSHIP_STATUS_LABELS: Record<ExtendedMembershipRequestStatus, string> = {
+  ...MEMBERSHIP_STATUS_LABELS,
+  deleted: 'Supprimée'
+}

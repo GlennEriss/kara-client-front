@@ -4,7 +4,7 @@ import { app } from './app';
 export const db = getFirestore(app);
 
 if (process.env.NODE_ENV === 'development') {
-  connectFirestoreEmulator(db, '127.0.0.1', 9096, { mockUserToken: { user_id: 'test-user' } });
+  connectFirestoreEmulator(db, '127.0.0.1', 8080, { mockUserToken: { user_id: 'test-user' } });
 }
 
 export {

@@ -478,12 +478,12 @@
     animation-fill-mode: forwards;
   }
   
-  /* Logo KARA styles */
+  /* Logo KARA styles - Optimisés pour le composant React */
   .logo-kara {
-    height: 80px;
-    width: auto;
+    height: 80px !important;
+    width: auto !important;
     transition: all 0.3s ease;
-    filter: brightness(0) invert(1); /* Logo blanc par défaut */
+    filter: brightness(0) invert(1); 
   }
   
   .logo-kara:hover {
@@ -492,20 +492,69 @@
   }
   
   /* Logo dans navbar scrollée */
-  .navbar-scrolled .logo-kara {
+  .navbar-scrolled .logo-kara,
+  .filter-none {
     filter: none; /* Logo coloré quand navbar scrollée */
   }
   
-  .navbar-scrolled .logo-kara:hover {
+  .navbar-scrolled .logo-kara:hover,
+  .hover\:sepia:hover {
     filter: sepia(1) saturate(1.2) hue-rotate(35deg);
     transform: scale(1.05);
   }
   
   /* Logo dans footer */
   .footer-logo {
-    height: 80px;
-    width: auto;
+    height: 80px !important;
+    width: auto !important;
     filter: brightness(0) invert(1);
+  }
+  
+  /* Classes utilitaires pour les filtres */
+  .brightness-0 {
+    filter: brightness(0);
+  }
+  
+  .invert {
+    filter: invert(1);
+  }
+  
+  .sepia {
+    filter: sepia(1);
+  }
+  
+  .saturate-120 {
+    filter: saturate(1.2);
+  }
+  
+  .hue-rotate-35 {
+    filter: hue-rotate(35deg);
+  }
+  
+  /* Combinaisons de filtres pour les états hover */
+  .hover\:brightness-0:hover {
+    filter: brightness(0);
+  }
+  
+  .hover\:invert:hover {
+    filter: invert(1);
+  }
+  
+  .hover\:sepia:hover {
+    filter: sepia(1);
+  }
+  
+  .hover\:saturate-1000:hover {
+    filter: saturate(10);
+  }
+  
+  .hover\:hue-rotate-35:hover {
+    filter: hue-rotate(35deg);
+  }
+  
+  /* Support pour les combinaisons complexes de filtres */
+  .hover\:brightness-0.hover\:invert.hover\:sepia.hover\:saturate-1000.hover\:hue-rotate-35:hover {
+    filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(35deg);
   }
 
   /* Couleurs de surbrillance pour la sélection de texte */
