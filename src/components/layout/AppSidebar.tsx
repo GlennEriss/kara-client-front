@@ -55,8 +55,8 @@ const adminMenuItems = [
     }, */
 ]
 
-const systemMenuItems = [
-    {
+const systemMenuItems: any[] = [
+    /* {
         title: "Administration",
         url: "/dashboard/admin",
         icon: Shield,
@@ -65,7 +65,7 @@ const systemMenuItems = [
         title: "Paramètres",
         url: "/dashboard/settings",
         icon: Settings,
-    },
+    }, */
 ]
 
 export function AppSidebar() {

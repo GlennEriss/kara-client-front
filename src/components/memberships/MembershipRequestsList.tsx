@@ -1,15 +1,24 @@
 'use client'
 import React, { useState } from 'react'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Image from 'next/image'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useMembershipRequests, useUpdateMembershipRequestStatus, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
 import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
+import MemberDetailsModal from './MemberDetailsModal'
+import MemberIdentityModal from './MemberIdentityModal'
 
 // Fonction utilitaire pour obtenir le badge de statut
 const getStatusBadge = (status: MembershipRequestStatus) => {
@@ -114,25 +123,70 @@ const MembershipRequestCard = ({
 }: { 
   request: MembershipRequest
   onStatusUpdate: (requestId: string, newStatus: MembershipRequest['status']) => void
-}) => (
+}) => {
+  const [showDetailsModal, setShowDetailsModal] = React.useState(false)
+  const [showIdentityModal, setShowIdentityModal] = React.useState(false)
+
+  return (
   <Card className="hover:shadow-md transition-shadow">
     <CardContent className="p-6">
       <div className="space-y-4">
-        {/* En-tête avec nom et statut */}
+        {/* En-tête avec photo, nom et statut */}
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <h3 className="font-semibold text-lg">
-              {request.identity.firstName} {request.identity.lastName}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {request.identity.nationality} • {request.identity.civility}
-            </p>
+          <div className="flex items-start space-x-3">
+            {/* Photo du demandeur */}
+            <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+              {request.identity.photoURL ? (
+                <Image
+                  src={request.identity.photoURL}
+                  alt={`Photo de ${request.identity.firstName} ${request.identity.lastName}`}
+                  width={64}
+                  height={64}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                  <User className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+            </div>
+            
+            {/* Informations du demandeur */}
+            <div className="space-y-1">
+              <h3 className="font-semibold text-lg">
+                {request.identity.firstName} {request.identity.lastName}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {request.identity.nationality} • {request.identity.civility}
+              </p>
+            </div>
           </div>
+          
           <div className="flex items-center space-x-2">
             {getStatusBadge(request.status)}
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => setShowDetailsModal(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Voir les détails</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setShowIdentityModal(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <IdCard className="w-4 h-4" />
+                  <span>Voir la pièce d'identité</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -215,8 +269,22 @@ const MembershipRequestCard = ({
         )}
       </div>
     </CardContent>
+
+    {/* Modals */}
+    <MemberDetailsModal
+      isOpen={showDetailsModal}
+      onClose={() => setShowDetailsModal(false)}
+      request={request}
+    />
+    
+    <MemberIdentityModal
+      isOpen={showIdentityModal}
+      onClose={() => setShowIdentityModal(false)}
+      request={request}
+    />
   </Card>
-)
+  )
+}
 
 // Composant principal
 export default function MembershipRequestsList() {

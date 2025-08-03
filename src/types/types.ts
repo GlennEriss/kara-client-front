@@ -21,6 +21,9 @@ export interface RegisterFormData {
     intermediaryCode?: string;
     hasCar: boolean;
     photo?: string | File;
+    // Champs ajoutés après upload (pour MembershipRequest)
+    photoURL?: string | null;
+    photoPath?: string | null;
   };
   address: {
     province: string;
@@ -48,6 +51,11 @@ export interface RegisterFormData {
     expirationDate: string;
     issuingPlace: string;
     issuingDate: string;
+    // Champs ajoutés après upload (pour MembershipRequest)
+    documentPhotoFrontURL?: string | null;
+    documentPhotoFrontPath?: string | null;
+    documentPhotoBackURL?: string | null;
+    documentPhotoBackPath?: string | null;
   };
 }
 

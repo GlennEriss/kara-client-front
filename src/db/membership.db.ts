@@ -63,21 +63,20 @@ export interface MembershipRequestDB extends Omit<MembershipRequest, 'id' | 'cre
 
 /**
  * Fonction utilitaire pour transformer MembershipRequestDB en MembershipRequest
- * Supprime les champs spécifiques à la base de données
+ * Mappe correctement tous les champs nécessaires
  */
 function transformDBToMembershipRequest(dbData: any): MembershipRequest {
     const { state, reviewedBy, reviewNotes, membershipId, ...baseData } = dbData;
     
-    // Nettoyer l'identity des champs spécifiques DB
-    const { photoURL, photoPath, ...cleanIdentity } = dbData.identity || {};
-    
-    // Nettoyer les documents des champs spécifiques DB
-    const { documentPhotoFrontURL, documentPhotoFrontPath, documentPhotoBackURL, documentPhotoBackPath, ...cleanDocuments } = dbData.documents || {};
-    
     return {
         ...baseData,
-        identity: cleanIdentity,
-        documents: cleanDocuments,
+        // Garder les champs photo dans identity et documents car ils sont maintenant dans RegisterFormData
+        identity: {
+            ...dbData.identity
+        },
+        documents: {
+            ...dbData.documents
+        },
         // Mapper les champs si nécessaire
         processedBy: reviewedBy,
         adminComments: reviewNotes,
