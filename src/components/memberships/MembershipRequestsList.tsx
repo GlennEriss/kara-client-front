@@ -1,6 +1,7 @@
 'use client'
 import React, { useState } from 'react'
 import Image from 'next/image'
+import { useQueryClient } from '@tanstack/react-query'
 import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,9 +15,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useMembershipRequests, useUpdateMembershipRequestStatus, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
 import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
+import { toast } from 'sonner'
 import MemberDetailsModal from './MemberDetailsModal'
 import MemberIdentityModal from './MemberIdentityModal'
 
@@ -126,6 +136,76 @@ const MembershipRequestCard = ({
 }) => {
   const [showDetailsModal, setShowDetailsModal] = React.useState(false)
   const [showIdentityModal, setShowIdentityModal] = React.useState(false)
+  const [isApproving, setIsApproving] = React.useState(false)
+  const [confirmationAction, setConfirmationAction] = React.useState<{
+    type: 'approve' | 'reject' | 'under_review' | null
+    isOpen: boolean
+  }>({ type: null, isOpen: false })
+  const queryClient = useQueryClient()
+
+  // Fonction pour ouvrir la confirmation
+  const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
+    setConfirmationAction({ type, isOpen: true })
+  }
+
+  // Fonction pour fermer la confirmation
+  const closeConfirmation = () => {
+    setConfirmationAction({ type: null, isOpen: false })
+  }
+
+  // Fonction pour confirmer l'action
+  const confirmAction = async () => {
+    if (!confirmationAction.type) return
+
+    if (confirmationAction.type === 'approve') {
+      await handleApprove()
+    } else {
+      const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
+      onStatusUpdate(request.id!, status)
+    }
+    
+    closeConfirmation()
+  }
+
+  const handleApprove = async () => {
+    setIsApproving(true)
+    try {
+      const phoneNumber = request.identity.contacts[0] // Premier numéro de téléphone
+      
+      if (!phoneNumber) {
+        toast.error('Aucun numéro de téléphone trouvé pour ce demandeur')
+        return
+      }
+
+      const response = await fetch('/api/create-firebase-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber,
+          requestId: request.id,
+          adminId: 'current-admin-id' // TODO: Récupérer l'ID admin depuis le contexte
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast.success('Demande approuvée et utilisateur Firebase créé avec succès')
+        // Invalider toutes les queries de membership requests pour forcer le rechargement
+        await queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })
+        await queryClient.invalidateQueries({ queryKey: ['membershipRequestsStats'] })
+      } else {
+        toast.error(data.error || 'Erreur lors de l\'approbation')
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'approbation:', error)
+      toast.error('Erreur lors de l\'approbation de la demande')
+    } finally {
+      setIsApproving(false)
+    }
+  }
 
   return (
   <Card className="hover:shadow-md transition-shadow">
@@ -243,16 +323,17 @@ const MembershipRequestCard = ({
               size="sm" 
               variant="outline"
               className="text-green-600 border-green-200 hover:bg-green-50"
-              onClick={() => onStatusUpdate(request.id!, 'approved')}
+              onClick={() => openConfirmation('approve')}
+              disabled={isApproving}
             >
               <CheckCircle className="w-4 h-4 mr-1" />
-              Approuver
+              {isApproving ? 'Approbation...' : 'Approuver'}
             </Button>
             <Button 
               size="sm" 
               variant="outline"
               className="text-red-600 border-red-200 hover:bg-red-50"
-              onClick={() => onStatusUpdate(request.id!, 'rejected')}
+              onClick={() => openConfirmation('reject')}
             >
               <XCircle className="w-4 h-4 mr-1" />
               Rejeter
@@ -260,7 +341,7 @@ const MembershipRequestCard = ({
             <Button 
               size="sm" 
               variant="outline"
-              onClick={() => onStatusUpdate(request.id!, 'under_review')}
+              onClick={() => openConfirmation('under_review')}
             >
               <Eye className="w-4 h-4 mr-1" />
               Examiner
@@ -282,6 +363,48 @@ const MembershipRequestCard = ({
       onClose={() => setShowIdentityModal(false)}
       request={request}
     />
+
+    {/* Modal de confirmation */}
+    <Dialog open={confirmationAction.isOpen} onOpenChange={closeConfirmation}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {confirmationAction.type === 'approve' && 'Confirmer l\'approbation'}
+            {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
+            {confirmationAction.type === 'under_review' && 'Mettre en examen'}
+          </DialogTitle>
+          <DialogDescription>
+            {confirmationAction.type === 'approve' && 
+              `Êtes-vous sûr de vouloir approuver la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action créera un compte utilisateur Firebase et ne pourra pas être annulée.`
+            }
+            {confirmationAction.type === 'reject' && 
+              `Êtes-vous sûr de vouloir rejeter la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action ne pourra pas être annulée.`
+            }
+            {confirmationAction.type === 'under_review' && 
+              `Êtes-vous sûr de vouloir mettre la demande de ${request.identity.firstName} ${request.identity.lastName} en cours d'examen ?`
+            }
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+          <Button variant="outline" onClick={closeConfirmation}>
+            Annuler
+          </Button>
+          <Button 
+            onClick={confirmAction}
+            disabled={isApproving}
+            className={
+              confirmationAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
+              confirmationAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' :
+              'bg-blue-600 hover:bg-blue-700'
+            }
+          >
+            {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
+            {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
+            {confirmationAction.type === 'under_review' && 'Mettre en examen'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </Card>
   )
 }
