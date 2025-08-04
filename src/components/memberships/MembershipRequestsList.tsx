@@ -145,6 +145,7 @@ const MembershipRequestCard = ({
   }>({ type: null, isOpen: false })
   const [membershipType, setMembershipType] = React.useState<string>('')
   const queryClient = useQueryClient()
+  const updateStatusMutation = useUpdateMembershipRequestStatus()
 
   // Fonction pour ouvrir la confirmation
   const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
@@ -163,7 +164,10 @@ const MembershipRequestCard = ({
 
     // Validation pour l'approbation : vérifier qu'un type de membre est sélectionné
     if (confirmationAction.type === 'approve' && !membershipType) {
-      toast.error('Veuillez sélectionner un type de membre avant d\'approuver')
+      toast.error('⚠️ Type de membre requis', {
+        description: 'Veuillez sélectionner un type de membre (Adhérant, Bienfaiteur ou Sympathisant) avant d\'approuver.',
+        duration: 4000,
+      })
       return
     }
 
@@ -171,7 +175,26 @@ const MembershipRequestCard = ({
       await handleApprove()
     } else {
       const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
-      onStatusUpdate(request.id!, status)
+      
+      // Utiliser la mutation directement avec reviewedBy
+      updateStatusMutation.mutate({
+        requestId: request.id!,
+        newStatus: status,
+        reviewedBy: user?.uid || 'unknown-admin'
+      })
+
+      // Toast personnalisé selon l'action
+      if (confirmationAction.type === 'reject') {
+        toast.error('🚫 Demande rejetée avec succès', {
+          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} a été rejetée.`,
+          duration: 4000,
+        })
+      } else if (confirmationAction.type === 'under_review') {
+        toast.warning('⏳ Demande mise en examen', {
+          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} est maintenant en cours d'examen.`,
+          duration: 4000,
+        })
+      }
     }
     
     closeConfirmation()
@@ -183,7 +206,10 @@ const MembershipRequestCard = ({
       const phoneNumber = request.identity.contacts[0] // Premier numéro de téléphone
       
       if (!phoneNumber) {
-        toast.error('Aucun numéro de téléphone trouvé pour ce demandeur')
+        toast.error('📞 Numéro de téléphone manquant', {
+          description: 'Impossible de créer le compte utilisateur : aucun numéro de téléphone trouvé pour ce demandeur.',
+          duration: 4000,
+        })
         return
       }
 
@@ -203,16 +229,25 @@ const MembershipRequestCard = ({
       const data = await response.json()
 
       if (response.ok && data.success) {
-        toast.success('Demande approuvée et utilisateur Firebase créé avec succès')
+        toast.success('✅ Demande approuvée avec succès', {
+          description: `${request.identity.firstName} ${request.identity.lastName} est maintenant membre ${membershipType}. Matricule: ${data.matricule}`,
+          duration: 5000,
+        })
         // Invalider toutes les queries de membership requests pour forcer le rechargement
         await queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })
         await queryClient.invalidateQueries({ queryKey: ['membershipRequestsStats'] })
       } else {
-        toast.error(data.error || 'Erreur lors de l\'approbation')
+        toast.error('❌ Erreur lors de l\'approbation', {
+          description: data.error || 'Une erreur est survenue pendant le processus d\'approbation.',
+          duration: 5000,
+        })
       }
     } catch (error) {
       console.error('Erreur lors de l\'approbation:', error)
-      toast.error('Erreur lors de l\'approbation de la demande')
+      toast.error('❌ Erreur technique', {
+        description: 'Une erreur technique est survenue lors de l\'approbation de la demande.',
+        duration: 5000,
+      })
     } finally {
       setIsApproving(false)
     }
