@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield, AlertCircle, Home } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import routes from '@/constantes/routes'
 
 // Lazy loading des composants step pour optimiser les performances
 const Step1 = lazy(() => import('./Step1'))
@@ -189,9 +190,20 @@ function Register() {
               <p className="text-[#224D62]/80 mt-2 text-sm sm:text-base break-words">
                 Complétez votre profil en {totalSteps} étapes simples
               </p>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = routes.public.homepage}
+                className="border-[#CBB171]/30 text-[#CBB171] hover:bg-[#CBB171]/5 hover:border-[#CBB171]/50 transition-all duration-200 whitespace-nowrap"
+              >
+                <Home className="w-4 h-4" />
+                <span>Retourner à l'accueil</span>
+              </Button>
             </div>
             
             {/* Indicateurs de cache et actions */}
+
             <div className="flex items-center space-x-3 w-full sm:w-auto">
               {hasCachedData() && (
                 <Badge className="bg-gradient-to-r from-[#224D62] to-[#CBB171] text-white whitespace-nowrap shadow-sm">

@@ -38,7 +38,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
   const [isCheckingStatus, setIsCheckingStatus] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<'airtel' | 'mobicash'>('airtel')
   
-  const { checkMembershipStatus } = useRegister()
+  const { checkMembershipStatus, resetForm } = useRegister()
 
   // Numéros depuis les variables d'environnement
   const airtelNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_AIRTEL || "XX XX XX XX XX"
@@ -73,6 +73,18 @@ export default function Step5({ userData, membershipId }: Step5Props) {
       await checkMembershipStatus()
     } finally {
       setIsCheckingStatus(false)
+    }
+  }
+
+  const handleNewRequest = () => {
+    // Confirmation avant de réinitialiser
+    const confirmReset = window.confirm(
+      "Êtes-vous sûr de vouloir faire une nouvelle demande ? Cela va effacer toutes les données temporaires et vous ramener au début du formulaire."
+    )
+    
+    if (confirmReset) {
+      resetForm() // Réinitialise le formulaire et nettoie le localStorage
+      window.location.href = routes.public.register // Rediriger vers le début du formulaire
     }
   }
 
@@ -162,6 +174,28 @@ export default function Step5({ userData, membershipId }: Step5Props) {
             Se connecter
           </Button>
         </div>
+
+        {/* Action secondaire - Nouvelle demande */}
+        <Card className="border-2 border-[#CBB171]/40 bg-gradient-to-r from-[#CBB171]/10 to-[#224D62]/10 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800">
+          <CardContent className="p-6 text-center">
+            <div className="space-y-4">
+              <div className="flex items-center justify-center space-x-2 text-[#224D62] text-base font-medium">
+                <span className="text-2xl">👥</span>
+                <span>Vous souhaitez faire une demande pour une autre personne ?</span>
+              </div>
+              <Button
+                onClick={handleNewRequest}
+                variant="outline"
+                className="border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 px-8 py-3 text-base font-medium shadow-md hover:shadow-lg"
+              >
+                ✨ Nouvelle demande d'inscription
+              </Button>
+              <p className="text-xs text-[#224D62]/60">
+                Cette action effacera les données temporaires du formulaire actuel
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Instructions principales */}
