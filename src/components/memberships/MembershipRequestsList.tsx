@@ -29,6 +29,7 @@ import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
 import MemberDetailsModal from './MemberDetailsModal'
 import MemberIdentityModal from './MemberIdentityModal'
+import { useAuth } from '@/hooks/useAuth'
 
 // Fonction utilitaire pour obtenir le badge de statut
 const getStatusBadge = (status: MembershipRequestStatus) => {
@@ -134,6 +135,7 @@ const MembershipRequestCard = ({
   request: MembershipRequest
   onStatusUpdate: (requestId: string, newStatus: MembershipRequest['status']) => void
 }) => {
+  const {user} = useAuth()
   const [showDetailsModal, setShowDetailsModal] = React.useState(false)
   const [showIdentityModal, setShowIdentityModal] = React.useState(false)
   const [isApproving, setIsApproving] = React.useState(false)
@@ -141,6 +143,7 @@ const MembershipRequestCard = ({
     type: 'approve' | 'reject' | 'under_review' | null
     isOpen: boolean
   }>({ type: null, isOpen: false })
+  const [membershipType, setMembershipType] = React.useState<string>('')
   const queryClient = useQueryClient()
 
   // Fonction pour ouvrir la confirmation
@@ -151,11 +154,18 @@ const MembershipRequestCard = ({
   // Fonction pour fermer la confirmation
   const closeConfirmation = () => {
     setConfirmationAction({ type: null, isOpen: false })
+    setMembershipType('') // Réinitialiser le type de membre
   }
 
   // Fonction pour confirmer l'action
   const confirmAction = async () => {
     if (!confirmationAction.type) return
+
+    // Validation pour l'approbation : vérifier qu'un type de membre est sélectionné
+    if (confirmationAction.type === 'approve' && !membershipType) {
+      toast.error('Veuillez sélectionner un type de membre avant d\'approuver')
+      return
+    }
 
     if (confirmationAction.type === 'approve') {
       await handleApprove()
@@ -185,7 +195,8 @@ const MembershipRequestCard = ({
         body: JSON.stringify({
           phoneNumber: phoneNumber,
           requestId: request.id,
-          adminId: 'current-admin-id' // TODO: Récupérer l'ID admin depuis le contexte
+          adminId: user?.uid,
+          membershipType: membershipType
         }),
       })
 
@@ -385,13 +396,37 @@ const MembershipRequestCard = ({
             }
           </DialogDescription>
         </DialogHeader>
+
+        {/* Sélecteur de type de membre pour l'approbation */}
+        {confirmationAction.type === 'approve' && (
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              Type de membre <span className="text-red-500">*</span>
+            </label>
+            <Select value={membershipType} onValueChange={setMembershipType}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sélectionnez un type de membre..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="adherant">Adhérant</SelectItem>
+                <SelectItem value="bienfaiteur">Bienfaiteur</SelectItem>
+                <SelectItem value="sympathisant">Sympathisant</SelectItem>
+              </SelectContent>
+            </Select>
+            {!membershipType && (
+              <p className="text-sm text-red-500 mt-1">
+                Le type de membre est obligatoire pour l'approbation
+              </p>
+            )}
+          </div>
+        )}
         <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
           <Button variant="outline" onClick={closeConfirmation}>
             Annuler
           </Button>
           <Button 
             onClick={confirmAction}
-            disabled={isApproving}
+            disabled={isApproving || (confirmationAction.type === 'approve' && !membershipType)}
             className={
               confirmationAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
               confirmationAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' :
@@ -411,6 +446,7 @@ const MembershipRequestCard = ({
 
 // Composant principal
 export default function MembershipRequestsList() {
+  const { user } = useAuth()
   const [filters, setFilters] = useState<MembershipRequestFilters>({
     status: 'all',
     searchQuery: '',
@@ -436,7 +472,7 @@ export default function MembershipRequestsList() {
     updateStatusMutation.mutate({
       requestId,
       newStatus,
-      reviewedBy: 'current-admin-id', // TODO: Récupérer l'ID de l'admin connecté
+      reviewedBy: user?.uid || 'unknown-admin',
     })
   }
 

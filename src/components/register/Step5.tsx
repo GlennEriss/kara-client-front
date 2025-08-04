@@ -36,16 +36,22 @@ export default function Step5({ userData, membershipId }: Step5Props) {
   const [copiedNumber, setCopiedNumber] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [isCheckingStatus, setIsCheckingStatus] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState<'airtel' | 'mobicash'>('airtel')
   
   const { checkMembershipStatus } = useRegister()
 
-  // Numéro depuis les variables d'environnement
-  const agentNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_AIRTEL || "XX XX XX XX XX"
+  // Numéros depuis les variables d'environnement
+  const airtelNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_AIRTEL || "XX XX XX XX XX"
+  const mobicashNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_MOBICASH || "XX XX XX XX XX"
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_AGENT || "XX XX XX XX XX"
+  
+  // Numéro actuel selon le provider sélectionné
+  const currentNumber = selectedProvider === 'airtel' ? airtelNumber : mobicashNumber
+  const currentProvider = selectedProvider === 'airtel' ? 'Airtel Money' : 'Mobicash'
 
   const handleCopyNumber = async () => {
     try {
-      await navigator.clipboard.writeText(agentNumber.replace(/\s/g, ''))
+      await navigator.clipboard.writeText(currentNumber.replace(/\s/g, ''))
       setCopiedNumber(true)
       setTimeout(() => setCopiedNumber(false), 2000)
     } catch (err) {
@@ -55,7 +61,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
 
   const handleWhatsAppClick = () => {
     const message = encodeURIComponent(
-      `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA pour finaliser mon inscription.`
+      `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via ${currentProvider} pour finaliser mon inscription.`
     )
     const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\s/g, '')}?text=${message}`
     window.open(whatsappUrl, '_blank')
@@ -74,7 +80,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
     {
       number: 1,
       title: "Transfert d'argent",
-      description: "Envoyez 10300 FCFA via Airtel Money",
+      description: `Envoyez 10300 FCFA via ${currentProvider}`,
       icon: CreditCard,
       action: "Faire le transfert"
     },
@@ -137,6 +143,25 @@ export default function Step5({ userData, membershipId }: Step5Props) {
             </div>
           </CardContent>
         </Card>
+
+        {/* Boutons d'actions principales */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700">
+          <Button
+            onClick={() => window.location.href = routes.public.homepage}
+            variant="outline"
+            className="border-2 border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white transition-all duration-300 px-8 py-3 text-base font-medium shadow-md hover:shadow-lg"
+          >
+            🏠 Retour à l'accueil
+          </Button>
+          
+          <Button
+            onClick={() => window.location.href = routes.public.login}
+            className="bg-gradient-to-r from-[#224D62] to-[#CBB171] hover:from-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3 text-base"
+          >
+            <LogIn className="w-5 h-5 mr-2" />
+            Se connecter
+          </Button>
+        </div>
       </div>
 
       {/* Instructions principales */}
@@ -150,6 +175,44 @@ export default function Step5({ userData, membershipId }: Step5Props) {
             <p className="text-[#224D62] text-lg sm:text-xl font-bold">
               Pour activer votre mutuelle, veuillez suivre ces 3 étapes simples :
             </p>
+            
+            {/* Sélecteur de provider */}
+            <div className="max-w-md mx-auto space-y-3">
+              <p className="text-[#224D62] font-medium">Choisissez votre moyen de paiement :</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setSelectedProvider('airtel')}
+                  className={cn(
+                    "p-4 rounded-lg border-2 transition-all duration-300 flex flex-col items-center space-y-2",
+                    selectedProvider === 'airtel'
+                      ? "border-orange-400 bg-orange-50 shadow-md"
+                      : "border-gray-200 bg-white hover:border-orange-200"
+                  )}
+                >
+                  <Phone className="w-6 h-6 text-orange-500" />
+                  <span className="font-medium text-sm">Airtel Money</span>
+                  {selectedProvider === 'airtel' && (
+                    <CheckCircle2 className="w-4 h-4 text-orange-500" />
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setSelectedProvider('mobicash')}
+                  className={cn(
+                    "p-4 rounded-lg border-2 transition-all duration-300 flex flex-col items-center space-y-2",
+                    selectedProvider === 'mobicash'
+                      ? "border-blue-400 bg-blue-50 shadow-md"
+                      : "border-gray-200 bg-white hover:border-blue-200"
+                  )}
+                >
+                  <CreditCard className="w-6 h-6 text-blue-500" />
+                  <span className="font-medium text-sm">Mobicash</span>
+                  {selectedProvider === 'mobicash' && (
+                    <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Étapes */}
@@ -239,7 +302,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Smartphone className="w-5 h-5 text-[#CBB171]" />
-                <h3 className="font-bold text-[#224D62]">Transfert Airtel Money</h3>
+                <h3 className="font-bold text-[#224D62]">Transfert {currentProvider}</h3>
               </div>
 
               <div className="space-y-3">
@@ -253,7 +316,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
                 <div className="flex justify-between items-center p-3 bg-[#CBB171]/10 rounded-lg">
                   <span className="text-sm font-medium text-[#224D62]">Numéro :</span>
                   <div className="flex items-center space-x-2">
-                    <span className="font-mono text-[#224D62] font-bold">{agentNumber}</span>
+                    <span className="font-mono text-[#224D62] font-bold">{currentNumber}</span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -267,9 +330,20 @@ export default function Step5({ userData, membershipId }: Step5Props) {
 
                 <div className="flex justify-between items-center p-3 bg-[#CBB171]/10 rounded-lg">
                   <span className="text-sm font-medium text-[#224D62]">Opérateur :</span>
-                  <Badge variant="outline" className="border-orange-400 text-orange-600">
-                    <Phone className="w-4 h-4 mr-1" />
-                    Airtel Money
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      selectedProvider === 'airtel' 
+                        ? "border-orange-400 text-orange-600" 
+                        : "border-blue-400 text-blue-600"
+                    )}
+                  >
+                    {selectedProvider === 'airtel' ? (
+                      <Phone className="w-4 h-4 mr-1" />
+                    ) : (
+                      <CreditCard className="w-4 h-4 mr-1" />
+                    )}
+                    {currentProvider}
                   </Badge>
                 </div>
               </div>
@@ -295,7 +369,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-xs text-green-700 italic">
                     "Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara.
-                    Je vous envoie la capture d'écran de mon transfert de 10300 FCFA pour finaliser mon inscription."
+                    Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via {currentProvider} pour finaliser mon inscription."
                   </p>
                 </div>
 
@@ -342,30 +416,20 @@ export default function Step5({ userData, membershipId }: Step5Props) {
           Bienvenue dans la famille <strong>Mutuelle Kara</strong>.
           Nous sommes ravis de vous accompagner dans votre protection santé.
         </p>
-        <div className="text-center my-8 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              onClick={handleCheckStatus}
-              disabled={isCheckingStatus}
-              variant="outline"
-              className="border-[#224D62] text-[#224D62] hover:bg-[#224D62]/5 transition-all duration-200 px-6 py-3"
-            >
-              {isCheckingStatus ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#224D62] border-t-transparent mr-2" />
-              ) : (
-                <Shield className="w-4 h-4 mr-2" />
-              )}
-              {isCheckingStatus ? 'Vérification...' : 'Vérifier le statut'}
-            </Button>
-            
-            <Button
-              onClick={() => window.location.href = routes.public.login}
-              className="bg-gradient-to-r from-[#224D62] to-[#CBB171] hover:from-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3 text-base"
-            >
-              <LogIn className="w-5 h-5 mr-2" />
-              Se connecter à mon espace
-            </Button>
-          </div>
+        <div className="text-center my-8">
+          <Button
+            onClick={handleCheckStatus}
+            disabled={isCheckingStatus}
+            variant="outline"
+            className="border-[#224D62] text-[#224D62] hover:bg-[#224D62]/5 transition-all duration-200 px-6 py-3"
+          >
+            {isCheckingStatus ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#224D62] border-t-transparent mr-2" />
+            ) : (
+              <Shield className="w-4 h-4 mr-2" />
+            )}
+            {isCheckingStatus ? 'Vérification...' : 'Vérifier le statut de ma demande'}
+          </Button>
         </div>
       </div>
     </div>
