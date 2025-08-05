@@ -33,12 +33,12 @@ const adminMenuItems = [
         url: routes.admin.membershipRequests,
         icon: UserPlus,
     },
-    /*{
+    {
         title: "Membres",
-        url: "/dashboard/users",
+        url: routes.admin.memberships,
         icon: Users,
     },
-    {
+    /*{
         title: "Assurance",
         url: "/dashboard/insurance",
         icon: Car,
