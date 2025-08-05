@@ -17,13 +17,9 @@ export const IdentityDocumentEnum = z.enum([
 
 export const MaritalStatusEnum = z.enum([
   'Célibataire',
-  'En couple',
-  'Marié(e)',
   'Veuf/Veuve',
-  'Divorcé(e)',
-  'Concubinage',
-  'Pacsé(e)',
-  'Séparé(e)'
+  'Marié(e)',
+  'Concubinage'
 ])
 
 export const InsuranceTypeEnum = z.enum([
@@ -161,7 +157,7 @@ export const identitySchema = z.object({
     )
 }).refine((data) => {
   // Si la situation matrimoniale indique un conjoint, les champs du conjoint deviennent obligatoires
-  const marriedStatuses = ['En couple', 'Marié(e)', 'Concubinage', 'Pacsé(e)']
+  const marriedStatuses = ['Marié(e)', 'Concubinage']
   
   if (marriedStatuses.includes(data.maritalStatus)) {
     // Pour les situations avec conjoint, vérifier que les champs sont remplis

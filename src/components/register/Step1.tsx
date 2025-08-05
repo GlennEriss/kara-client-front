@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useFieldArray } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +24,8 @@ import {
   Church,
   Hash,
   Lightbulb,
-  Loader2
+  Loader2,
+  XCircle
 } from 'lucide-react'
 import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/lib/utils'
 interface Step1Props {
@@ -59,13 +60,9 @@ const IDENTITY_DOCUMENT_OPTIONS = [
 
 const MARITAL_STATUS_OPTIONS = [
   { value: 'Célibataire', label: 'Célibataire' },
-  { value: 'En couple', label: 'En couple' },
-  { value: 'Marié(e)', label: 'Marié(e)' },
   { value: 'Veuf/Veuve', label: 'Veuf/Veuve' },
-  { value: 'Divorcé(e)', label: 'Divorcé(e)' },
-  { value: 'Concubinage', label: 'Concubinage' },
-  { value: 'Pacsé(e)', label: 'Pacsé(e)' },
-  { value: 'Séparé(e)', label: 'Séparé(e)' }
+  { value: 'Marié(e)', label: 'Marié(e)' },
+  { value: 'Concubinage', label: 'Concubinage' }
 ]
 
 export default function Step1({ form }: Step1Props) {
@@ -74,6 +71,16 @@ export default function Step1({ form }: Step1Props) {
   const [isCompressing, setIsCompressing] = useState(false)
   const [compressionInfo, setCompressionInfo] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // États pour la vérification des numéros de téléphone
+  const [phoneCheckStates, setPhoneCheckStates] = useState<{
+    [index: number]: {
+      isChecking: boolean
+      exists: boolean | null
+      message: string
+      details?: any
+    }
+  }>({})
 
   const { register, watch, setValue, setError, clearErrors, formState: { errors }, control } = form
 
@@ -89,6 +96,22 @@ export default function Step1({ form }: Step1Props) {
       append('')
     }
   }, [fields.length, append])
+
+  // Nettoyer les contacts vides au blur/changement
+  const cleanEmptyContacts = React.useCallback(() => {
+    const contacts = watch('identity.contacts') || []
+    const cleanedContacts = contacts.filter((contact: string) => contact && contact.trim() !== '')
+    
+    // S'assurer qu'il y a au moins un champ, même vide
+    if (cleanedContacts.length === 0) {
+      cleanedContacts.push('')
+    }
+    
+    // Mettre à jour seulement si nécessaire
+    if (cleanedContacts.length !== contacts.length) {
+      setValue('identity.contacts', cleanedContacts)
+    }
+  }, [watch, setValue])
 
   // Watch pour les animations et la situation matrimoniale
   const watchedFields = watch([
@@ -111,7 +134,7 @@ export default function Step1({ form }: Step1Props) {
 
   // Vérifier si la situation matrimoniale nécessite des infos conjoint
   const maritalStatus = watch('identity.maritalStatus')
-  const requiresSpouseInfo = ['En couple', 'Marié(e)', 'Concubinage', 'Pacsé(e)'].includes(maritalStatus)
+  const requiresSpouseInfo = ['Marié(e)', 'Concubinage'].includes(maritalStatus)
 
   // Nettoyer les champs du conjoint si la situation matrimoniale ne le nécessite pas
   React.useEffect(() => {
@@ -193,9 +216,109 @@ export default function Step1({ form }: Step1Props) {
 
   const addContact = () => {
     if (fields.length < 2) {
-      append('')
+      // Vérifier qu'il n'y a pas déjà un champ vide
+      const contacts = watch('identity.contacts') || []
+      const hasEmptyField = contacts.some((contact: string) => !contact || contact.trim() === '')
+      
+      if (!hasEmptyField) {
+        append('')
+      }
     }
   }
+
+  // Fonction de vérification des numéros de téléphone
+  const checkPhoneNumber = useCallback(async (phoneNumber: string, index: number) => {
+    if (!phoneNumber || phoneNumber.length < 8) {
+      setPhoneCheckStates(prev => ({
+        ...prev,
+        [index]: { isChecking: false, exists: null, message: '' }
+      }))
+      return
+    }
+
+    setPhoneCheckStates(prev => ({
+      ...prev,
+      [index]: { ...prev[index], isChecking: true }
+    }))
+
+    try {
+      const response = await fetch('/api/check-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setPhoneCheckStates(prev => ({
+          ...prev,
+          [index]: {
+            isChecking: false,
+            exists: data.exists,
+            message: data.message,
+            details: data.details
+          }
+        }))
+      } else {
+        setPhoneCheckStates(prev => ({
+          ...prev,
+          [index]: {
+            isChecking: false,
+            exists: null,
+            message: 'Erreur lors de la vérification'
+          }
+        }))
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du téléphone:', error)
+      setPhoneCheckStates(prev => ({
+        ...prev,
+        [index]: {
+          isChecking: false,
+          exists: null,
+          message: 'Erreur de connexion'
+        }
+      }))
+    }
+  }, [])
+
+  // Surveiller les changements des numéros de téléphone avec debouncing
+  useEffect(() => {
+    let timeouts: NodeJS.Timeout[] = []
+    
+    const subscription = watch((value: any) => {
+      // Nettoyer les anciens timeouts
+      timeouts.forEach(timeout => clearTimeout(timeout))
+      timeouts = []
+      
+      const contactValues = value.identity?.contacts || []
+      // Filtrer les contacts vides pour éviter les erreurs de validation
+      const validContacts = contactValues.filter((contact: string) => contact && contact.trim() !== '')
+      
+      validContacts.forEach((phoneNumber: string, index: number) => {
+        const timeoutId = setTimeout(() => {
+          checkPhoneNumber(phoneNumber.trim(), index)
+        }, 1000) // Debounce de 1 seconde
+        timeouts.push(timeoutId)
+      })
+
+      // Nettoyer les états de vérification pour les champs vides
+      contactValues.forEach((phoneNumber: string, index: number) => {
+        if (!phoneNumber || phoneNumber.trim() === '') {
+          setPhoneCheckStates(prev => ({
+            ...prev,
+            [index]: { isChecking: false, exists: null, message: '' }
+          }))
+        }
+      })
+    })
+
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout))
+      subscription.unsubscribe()
+    }
+  }, [watch, checkPhoneNumber])
 
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
@@ -564,44 +687,113 @@ export default function Step1({ form }: Step1Props) {
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Numéros de téléphone <span className="text-red-500">*</span>
               </Label>
-              {fields.length < 2 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addContact}
-                  className="border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10 transition-all duration-300 hover:scale-105 w-full sm:w-auto"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Ajouter
-                </Button>
-              )}
+              {fields.length < 2 && (() => {
+                const contacts = watch('identity.contacts') || []
+                const hasEmptyField = contacts.some((contact: string) => !contact || contact.trim() === '')
+                return !hasEmptyField && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addContact}
+                    className="border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10 transition-all duration-300 hover:scale-105 w-full sm:w-auto"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Ajouter
+                  </Button>
+                )
+              })()}
             </div>
             
             <div className="space-y-2 sm:space-y-3 w-full">
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex space-x-2 animate-in slide-in-from-left-4 duration-300 w-full min-w-0" style={{ animationDelay: `${index * 100}ms` }}>
-                  <div className="flex-1 relative min-w-0">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                    <Input
-                      {...register(`identity.contacts.${index}`)}
-                      placeholder={`Téléphone ${index + 1}`}
-                      className="pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full"
-                    />
+              {fields.map((field, index) => {
+                const phoneCheckState = phoneCheckStates[index] || { isChecking: false, exists: null, message: '' }
+                
+                return (
+                  <div key={field.id} className="space-y-2 animate-in slide-in-from-left-4 duration-300 w-full min-w-0" style={{ animationDelay: `${index * 100}ms` }}>
+                    <div className="flex space-x-2 w-full min-w-0">
+                      <div className="flex-1 relative min-w-0">
+                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                        <Input
+                          {...register(`identity.contacts.${index}`)}
+                          placeholder={`Téléphone ${index + 1}`}
+                          onBlur={cleanEmptyContacts}
+                          className={cn(
+                            "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                            phoneCheckState.exists === true && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
+                            phoneCheckState.exists === false && "border-green-300 focus:border-green-400 focus:ring-green-100 bg-green-50"
+                          )}
+                        />
+                      </div>
+                      {fields.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            remove(index)
+                            // Nettoyer l'état de vérification pour cet index
+                            setPhoneCheckStates(prev => {
+                              const newState = { ...prev }
+                              delete newState[index]
+                              return newState
+                            })
+                            // Nettoyer les contacts vides après suppression
+                            setTimeout(cleanEmptyContacts, 0)
+                          }}
+                          className="border-red-300 text-red-500 hover:bg-red-50 transition-all duration-300 hover:scale-105"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Messages de vérification */}
+                    {phoneCheckState.isChecking && (
+                      <div className="flex items-center space-x-2 text-blue-600 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Vérification du numéro...</span>
+                      </div>
+                    )}
+                    
+                    {phoneCheckState.exists === true && (
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2 text-red-600 text-sm">
+                          <XCircle className="w-4 h-4" />
+                          <span>Ce numéro est déjà utilisé !</span>
+                        </div>
+                        {phoneCheckState.details && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                            <p className="font-medium text-red-800">
+                              Demande existante: {phoneCheckState.details.firstName} {phoneCheckState.details.lastName}
+                            </p>
+                            <p className="text-red-600">
+                              Statut: {phoneCheckState.details.status === 'pending' ? 'En attente' : 
+                                      phoneCheckState.details.status === 'approved' ? 'Approuvée' : 
+                                      phoneCheckState.details.status === 'rejected' ? 'Rejetée' : 
+                                      phoneCheckState.details.status}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {phoneCheckState.exists === false && (
+                      <div className="flex items-center space-x-2 text-green-600 text-sm">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Numéro disponible</span>
+                      </div>
+                    )}
+                    
+                    {phoneCheckState.message && phoneCheckState.exists === null && !phoneCheckState.isChecking && (
+                      <div className="flex items-center space-x-2 text-red-600 text-sm">
+                        <XCircle className="w-4 h-4" />
+                        <span>{phoneCheckState.message}</span>
+                      </div>
+                    )}
                   </div>
-                  {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => remove(index)}
-                      className="border-red-300 text-red-500 hover:bg-red-50 transition-all duration-300 hover:scale-105"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
             {errors?.identity?.contacts && (
               <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-bottom-2 duration-300 break-words">

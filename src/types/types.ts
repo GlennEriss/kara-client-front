@@ -21,6 +21,9 @@ export interface RegisterFormData {
     intermediaryCode?: string;
     hasCar: boolean;
     photo?: string | File;
+    // Champs ajoutés après upload (pour MembershipRequest)
+    photoURL?: string | null;
+    photoPath?: string | null;
   };
   address: {
     province: string;
@@ -48,6 +51,11 @@ export interface RegisterFormData {
     expirationDate: string;
     issuingPlace: string;
     issuingDate: string;
+    // Champs ajoutés après upload (pour MembershipRequest)
+    documentPhotoFrontURL?: string | null;
+    documentPhotoFrontPath?: string | null;
+    documentPhotoBackURL?: string | null;
+    documentPhotoBackPath?: string | null;
   };
 }
 
@@ -316,6 +324,122 @@ export interface DashboardActivity {
   relatedId?: string // ID de la demande, police, etc.
 }
 
+// ================== TYPES POUR LES UTILISATEURS ==================
+
+/**
+ * Types de membres possibles
+ */
+export type MembershipType = 'adherant' | 'bienfaiteur' | 'sympathisant'
+
+/**
+ * Types de rôles possibles pour un utilisateur
+ */
+export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin'
+
+/**
+ * Type pour un utilisateur dans la collection users
+ */
+export interface User {
+  // Identifiant unique (même que l'UID Firebase et matricule)
+  id: string
+  
+  // Matricule au format nombreUser.MK.dateCréation (ex: 0004.MK.040825)
+  matricule: string
+  
+  // Informations personnelles (tirées de RegisterFormData.identity)
+  lastName: string
+  firstName: string
+  birthDate: string
+  contacts: string[]
+  gender: string
+  email?: string
+  nationality: string
+  hasCar: boolean
+  
+  // Photos
+  photoURL?: string | null
+  photoPath?: string | null
+  
+  // Références
+  subscriptions: string[] // Liste d'IDs de subscriptions
+  dossier: string // Référence vers la demande membership-request
+  
+  // Type de membre (maintenu pour compatibilité)
+  membershipType: MembershipType
+  
+  // Rôles de l'utilisateur (peut avoir plusieurs rôles)
+  roles: UserRole[]
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  isActive: boolean
+}
+
+/**
+ * Type pour une souscription dans la collection subscriptions
+ */
+export interface Subscription {
+  // Identifiant unique
+  id: string
+  
+  // Référence vers l'utilisateur
+  userId: string
+  
+  // Dates de validité
+  dateStart: Date
+  dateEnd: Date
+  
+  // Montant
+  montant: number
+  currency: string // 'EUR', 'XOF', etc.
+  
+  // Type de souscription
+  type: MembershipType
+  
+  // Statut (peut être calculé ou stocké)
+  isValid?: boolean
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'administrateur qui a créé
+}
+
+/**
+ * Type pour les statistiques des utilisateurs
+ */
+export interface UserStats {
+  total: number
+  active: number
+  inactive: number
+  byMembershipType: {
+    adherant: number
+    bienfaiteur: number
+    sympathisant: number
+  }
+  withCar: number
+  withoutCar: number
+  newThisMonth: number
+  newThisYear: number
+}
+
+/**
+ * Type pour les filtres des utilisateurs
+ */
+export interface UserFilters {
+  membershipType?: MembershipType[]
+  roles?: UserRole[]
+  nationality?: string[]
+  hasCar?: boolean
+  isActive?: boolean
+  searchQuery?: string // Recherche dans nom, prénom, email, matricule
+  page?: number
+  limit?: number
+  orderByField?: string
+  orderByDirection?: 'asc' | 'desc'
+}
+
 // ================== EXPORTS ==================
 // Pas besoin d'exporter depuis schemas.ts car tout est défini ici
 
@@ -331,4 +455,19 @@ export const MEMBERSHIP_STATUS_LABELS: Record<MembershipRequestStatus, string> =
 export const EXTENDED_MEMBERSHIP_STATUS_LABELS: Record<ExtendedMembershipRequestStatus, string> = {
   ...MEMBERSHIP_STATUS_LABELS,
   deleted: 'Supprimée'
+}
+
+// Labels pour les types de membres
+export const MEMBERSHIP_TYPE_LABELS: Record<MembershipType, string> = {
+  adherant: 'Adhérant',
+  bienfaiteur: 'Bienfaiteur',
+  sympathisant: 'Sympathisant'
+}
+
+// Labels pour les rôles utilisateur
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  Adherant: 'Adhérant',
+  Bienfaiteur: 'Bienfaiteur',
+  Sympathisant: 'Sympathisant',
+  Admin: 'Administrateur'
 }

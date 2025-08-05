@@ -33,6 +33,7 @@ namespace NodeJS {
         //SUPPORT
         NEXT_PUBLIC_EMAIL_SUPPORT: string
         NEXT_PUBLIC_NUMBER_AGENT_AIRTEL: string
+        NEXT_PUBLIC_NUMBER_AGENT_MOBICASH: string
         NEXT_PUBLIC_WHATSAPP_AGENT: string
         //REDIS / UPSTASH
         UPSTASH_REDIS_REST_URL: string;

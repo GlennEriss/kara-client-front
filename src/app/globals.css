@@ -200,6 +200,153 @@ html {
   }
 }
 
+/* Styles personnalisés pour les toasts */
+@layer base {
+  :root {
+    --kara-blue: #224D62;
+    --kara-gold: #CBB171;
+  }
+
+  /* Animations pour les toasts */
+  .toaster [data-sonner-toast] {
+    backdrop-filter: blur(4px);
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    animation: toast-slide-in 0.3s ease-out forwards;
+  }
+
+  /* Toast Success - Vert */
+  .toaster [data-sonner-toast][data-type="success"] {
+    background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%) !important;
+    border: 1px solid #86efac !important;
+    color: #166534 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="success"] [data-icon] {
+    color: #22c55e !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="success"] [data-content] {
+    color: #166534 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="success"] [data-description] {
+    color: #15803d !important;
+  }
+
+  /* Toast Error - Rouge */
+  .toaster [data-sonner-toast][data-type="error"] {
+    background: linear-gradient(135deg, #fecaca 0%, #fef2f2 100%) !important;
+    border: 1px solid #fca5a5 !important;
+    color: #991b1b !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="error"] [data-icon] {
+    color: #ef4444 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="error"] [data-content] {
+    color: #991b1b !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="error"] [data-description] {
+    color: #dc2626 !important;
+  }
+
+  /* Toast Warning - Orange */
+  .toaster [data-sonner-toast][data-type="warning"] {
+    background: linear-gradient(135deg, #fed7aa 0%, #fffbeb 100%) !important;
+    border: 1px solid #fdba74 !important;
+    color: #9a3412 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="warning"] [data-icon] {
+    color: #f97316 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="warning"] [data-content] {
+    color: #9a3412 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="warning"] [data-description] {
+    color: #ea580c !important;
+  }
+
+  /* Toast Info - Bleu */
+  .toaster [data-sonner-toast][data-type="info"] {
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%) !important;
+    border: 1px solid #93c5fd !important;
+    color: #1e40af !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="info"] [data-icon] {
+    color: #3b82f6 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="info"] [data-content] {
+    color: #1e40af !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="info"] [data-description] {
+    color: #2563eb !important;
+  }
+
+  /* Toast Loading - Gris */
+  .toaster [data-sonner-toast][data-type="loading"] {
+    background: linear-gradient(135deg, #f3f4f6 0%, #f9fafb 100%) !important;
+    border: 1px solid #d1d5db !important;
+    color: #374151 !important;
+  }
+
+  .toaster [data-sonner-toast][data-type="loading"] [data-icon] {
+    color: #6b7280 !important;
+  }
+
+  /* Bouton de fermeture personnalisé */
+  .toaster [data-sonner-toast] [data-close-button] {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .toaster [data-sonner-toast] [data-close-button]:hover {
+    background: rgba(255, 255, 255, 1) !important;
+    transform: scale(1.1) !important;
+  }
+
+  /* Animation d'entrée */
+  @keyframes toast-slide-in {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Style pour les icônes des toasts */
+  .toaster [data-sonner-toast] [data-icon] svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  /* Responsive pour mobile */
+  @media (max-width: 640px) {
+    .toaster [data-sonner-toast] {
+      margin: 0 16px !important;
+      width: calc(100% - 32px) !important;
+    }
+  }
+}
+
 /* Responsive typography */
 @media (max-width: 640px) {
   h1 {

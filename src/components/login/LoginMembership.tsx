@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Phone, Users, Shield } from 'lucide-react'
+import { Phone, Users, Shield, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
@@ -16,12 +16,82 @@ import AuthLayout from '@/components/auth/AuthLayout'
 
 export default function LoginMembership() {
   const [isLoading, setIsLoading] = useState(false)
+  const [phoneCheckState, setPhoneCheckState] = useState<{
+    isChecking: boolean
+    exists: boolean | null
+    message: string
+    details?: any
+  }>({
+    isChecking: false,
+    exists: null,
+    message: ''
+  })
   const router = useRouter()
 
   const form = useForm<MemberLoginFormData>({
     resolver: zodResolver(memberLoginSchema),
     defaultValues: memberLoginDefaultValues
   })
+
+  // Fonction pour vérifier le numéro de téléphone
+  const checkPhoneNumber = useCallback(async (phoneNumber: string) => {
+    if (!phoneNumber || phoneNumber.length < 8) {
+      setPhoneCheckState({
+        isChecking: false,
+        exists: null,
+        message: ''
+      })
+      return
+    }
+
+    setPhoneCheckState(prev => ({ ...prev, isChecking: true }))
+
+    try {
+      const response = await fetch('/api/check-phone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phoneNumber }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setPhoneCheckState({
+          isChecking: false,
+          exists: data.exists,
+          message: data.message,
+          details: data.details
+        })
+      } else {
+        setPhoneCheckState({
+          isChecking: false,
+          exists: null,
+          message: 'Erreur lors de la vérification'
+        })
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du téléphone:', error)
+      setPhoneCheckState({
+        isChecking: false,
+        exists: null,
+        message: 'Erreur de connexion'
+      })
+    }
+  }, [])
+
+  // Debounced phone check
+  useEffect(() => {
+    const phoneNumber = form.watch('phoneNumber')
+    const timeoutId = setTimeout(() => {
+      if (phoneNumber) {
+        checkPhoneNumber(phoneNumber)
+      }
+    }, 1000) // Attendre 1 seconde après que l'utilisateur ait fini de taper
+
+    return () => clearTimeout(timeoutId)
+  }, [form.watch('phoneNumber'), checkPhoneNumber])
 
   const onSubmit = async (data: MemberLoginFormData) => {
     setIsLoading(true)
@@ -134,6 +204,50 @@ export default function LoginMembership() {
                         </div>
                       </FormControl>
                       <FormMessage />
+                      
+                      {/* Indicateur de vérification du numéro */}
+                      {phoneCheckState.isChecking && (
+                        <div className="flex items-center space-x-2 text-blue-600 text-sm">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Vérification du numéro...</span>
+                        </div>
+                      )}
+                      
+                      {phoneCheckState.exists === true && (
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2 text-green-600 text-sm">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Numéro trouvé !</span>
+                          </div>
+                          {phoneCheckState.details && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                              <p className="font-medium text-green-800">
+                                Demande existante: {phoneCheckState.details.firstName} {phoneCheckState.details.lastName}
+                              </p>
+                              <p className="text-green-600">
+                                Statut: {phoneCheckState.details.status === 'pending' ? 'En attente' : 
+                                        phoneCheckState.details.status === 'approved' ? 'Approuvée' : 
+                                        phoneCheckState.details.status === 'rejected' ? 'Rejetée' : 
+                                        phoneCheckState.details.status}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {phoneCheckState.exists === false && (
+                        <div className="flex items-center space-x-2 text-orange-600 text-sm">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>Aucune demande trouvée avec ce numéro</span>
+                        </div>
+                      )}
+                      
+                      {phoneCheckState.message && phoneCheckState.exists === null && !phoneCheckState.isChecking && (
+                        <div className="flex items-center space-x-2 text-red-600 text-sm">
+                          <XCircle className="w-4 h-4" />
+                          <span>{phoneCheckState.message}</span>
+                        </div>
+                      )}
                     </FormItem>
                   )}
                 />
