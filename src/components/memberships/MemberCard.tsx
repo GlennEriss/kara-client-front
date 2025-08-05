@@ -88,10 +88,11 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
 
   return (
     <Card className="hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-[#CBB171]/50">
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-12 w-12 border-2 border-[#224D62]/20">
+      <CardHeader className="pb-3">
+        <div className="space-y-3">
+          {/* Première ligne : Avatar + Menu (espace réservé et protégé) */}
+          <div className="flex items-center justify-between">
+            <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-[#224D62]/20 flex-shrink-0">
               {member.photoURL && !imageError ? (
                 <AvatarImage 
                   src={member.photoURL} 
@@ -99,70 +100,78 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <AvatarFallback className="bg-[#224D62] text-white font-semibold">
+                <AvatarFallback className="bg-[#224D62] text-white font-semibold text-sm">
                   {getInitials(member.firstName, member.lastName)}
                 </AvatarFallback>
               )}
             </Avatar>
-            
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 truncate">
+
+            {/* Menu actions - toujours à droite, jamais poussé */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 flex-shrink-0"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44 sm:w-48">
+                <DropdownMenuItem onClick={() => onViewDetails(member.id)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Voir détails
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewSubscriptions(member.id)}>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Voir abonnements
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Fiche d'adhésion
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Deuxième ligne : Nom complet sur toute la largeur */}
+          <div className="space-y-2">
+            <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
+              <span className="block truncate" title={`${member.firstName} ${member.lastName}`}>
                 {member.firstName} {member.lastName}
-              </h3>
-              <p className="text-sm text-gray-600 truncate">
-                {member.matricule}
-              </p>
+              </span>
+            </h3>
+            
+            {/* Matricule */}
+            <p className="text-xs sm:text-sm text-gray-600 truncate">
+              {member.matricule}
+            </p>
+            
+            {/* Badges - layout horizontal */}
+            <div className="flex flex-wrap gap-2 items-center">
               <Badge 
                 variant="secondary" 
-                className={`mt-1 text-xs ${getMembershipTypeColor(member.membershipType)}`}
+                className={`text-xs ${getMembershipTypeColor(member.membershipType)}`}
               >
                 {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
               </Badge>
+              
+              {/* Badge abonnement - toujours visible */}
+              <Badge className={`text-xs ${subscriptionStatus.color}`}>
+                {subscriptionStatus.label}
+              </Badge>
             </div>
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => onViewDetails(member.id)}>
-                <Eye className="h-4 w-4 mr-2" />
-                Voir détails
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onViewSubscriptions(member.id)}>
-                <Calendar className="h-4 w-4 mr-2" />
-                Voir abonnements
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <FileText className="h-4 w-4 mr-2" />
-                Fiche d'adhésion
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Statut d'abonnement */}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-          <div className="flex items-center space-x-2">
-            <subscriptionStatus.icon className="h-4 w-4" />
-            <span className="text-sm font-medium">Abonnement</span>
-          </div>
-          <Badge className={subscriptionStatus.color}>
-            {subscriptionStatus.label}
-          </Badge>
-        </div>
-
-        {/* Informations d'abonnement */}
+      <CardContent className="pt-0 space-y-3">
+        {/* Informations d'abonnement - conditionnelles et compactes */}
         {member.lastSubscription && (
-          <div className="space-y-2 text-sm">
+          <div className="space-y-1 text-xs sm:text-sm bg-blue-50 p-2 rounded-lg">
             <div className="flex justify-between">
-              <span className="text-gray-600">Date de fin:</span>
+              <span className="text-gray-600">Expire le:</span>
               <span className="font-medium">
                 {formatDate(member.lastSubscription.dateEnd)}
               </span>
@@ -176,31 +185,31 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
           </div>
         )}
 
-        {/* Informations de contact */}
-        <div className="space-y-2">
+        {/* Informations de contact - layout responsive */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2">
           {member.contacts && member.contacts.length > 0 && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Phone className="h-4 w-4" />
+            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
+              <Phone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="truncate">{member.contacts[0]}</span>
             </div>
           )}
           
           {member.email && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Mail className="h-4 w-4" />
+            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
+              <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="truncate">{member.email}</span>
             </div>
           )}
 
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <MapPin className="h-4 w-4" />
+          <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
+            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
             <span className="truncate">{member.nationality}</span>
           </div>
 
           {member.hasCar && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Car className="h-4 w-4" />
-              <span>Possède un véhicule</span>
+            <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
+              <Car className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">Véhicule</span>
             </div>
           )}
         </div>
@@ -213,26 +222,53 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
           </div>
         </div>
 
-        {/* Actions rapides */}
-        <div className="flex space-x-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onViewDetails(member.id)}
-            className="flex-1 text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white"
-          >
-            <User className="h-4 w-4 mr-1" />
-            Détails
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onViewSubscriptions(member.id)}
-            className="flex-1 text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white"
-          >
-            <Calendar className="h-4 w-4 mr-1" />
-            Abonnements
-          </Button>
+        {/* Actions rapides - layout adaptatif */}
+        <div className="pt-2 space-y-2 sm:space-y-0">
+          {/* Mobile : stack vertical */}
+          <div className="flex flex-col space-y-2 sm:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewDetails(member.id)}
+              className="w-full text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Voir détails
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewSubscriptions(member.id)}
+              className="w-full text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Voir abonnements
+            </Button>
+          </div>
+
+          {/* Desktop/Tablette : horizontal avec tailles adaptatives */}
+          <div className="hidden sm:flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewDetails(member.id)}
+              className="flex-1 text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white text-xs lg:text-sm"
+            >
+              <User className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
+              <span className="hidden md:inline">Détails</span>
+              <span className="md:hidden">Info</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewSubscriptions(member.id)}
+              className="flex-1 text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white text-xs lg:text-sm"
+            >
+              <Calendar className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
+              <span className="hidden md:inline">Abonnements</span>
+              <span className="md:hidden">Abos</span>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
