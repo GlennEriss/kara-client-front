@@ -57,30 +57,27 @@ export interface MembershipRequestDB extends Omit<MembershipRequest, 'id' | 'cre
     createdAt?: any; // Timestamp Firestore (ajouté automatiquement par createModel)
     updatedAt?: any; // Timestamp Firestore (ajouté automatiquement par createModel)
     reviewedBy?: string; // ID de l'admin qui a reviewé
-    reviewNotes?: string;
     membershipId?: string; // ID généré pour le membre une fois approuvé
 }
 
 /**
  * Fonction utilitaire pour transformer MembershipRequestDB en MembershipRequest
- * Supprime les champs spécifiques à la base de données
+ * Mappe correctement tous les champs nécessaires
  */
 function transformDBToMembershipRequest(dbData: any): MembershipRequest {
-    const { state, reviewedBy, reviewNotes, membershipId, ...baseData } = dbData;
-    
-    // Nettoyer l'identity des champs spécifiques DB
-    const { photoURL, photoPath, ...cleanIdentity } = dbData.identity || {};
-    
-    // Nettoyer les documents des champs spécifiques DB
-    const { documentPhotoFrontURL, documentPhotoFrontPath, documentPhotoBackURL, documentPhotoBackPath, ...cleanDocuments } = dbData.documents || {};
+    const { state, reviewedBy, membershipId, ...baseData } = dbData;
     
     return {
         ...baseData,
-        identity: cleanIdentity,
-        documents: cleanDocuments,
+        // Garder les champs photo dans identity et documents car ils sont maintenant dans RegisterFormData
+        identity: {
+            ...dbData.identity
+        },
+        documents: {
+            ...dbData.documents
+        },
         // Mapper les champs si nécessaire
         processedBy: reviewedBy,
-        adminComments: reviewNotes,
         memberNumber: membershipId,
     } as MembershipRequest;
 }
@@ -424,14 +421,12 @@ export async function getMembershipRequestsPaginated(options: {
  * @param {string} requestId - L'ID de la demande
  * @param {string} newStatus - Le nouveau statut
  * @param {string} reviewedBy - ID de l'admin qui fait la review (optionnel)
- * @param {string} reviewNotes - Notes de review (optionnel)
  * @returns {Promise<boolean>} - True si la mise à jour a réussi
  */
 export async function updateMembershipRequestStatus(
     requestId: string,
     newStatus: MembershipRequestStatus,
-    reviewedBy?: string,
-    reviewNotes?: string
+    reviewedBy?: string
 ): Promise<boolean> {
     try {
         const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
@@ -443,7 +438,6 @@ export async function updateMembershipRequestStatus(
         };
 
         if (reviewedBy) updates.reviewedBy = reviewedBy;
-        if (reviewNotes) updates.reviewNotes = reviewNotes;
 
         await updateDoc(docRef, updates);
         return true;
@@ -508,6 +502,63 @@ export async function findMembershipRequestsByPhone(phoneNumber: string): Promis
     } catch (error) {
         console.error("Erreur lors de la recherche par téléphone:", error);
         return [];
+    }
+}
+
+/**
+ * Vérifie si un numéro de téléphone est déjà utilisé dans une autre demande d'adhésion
+ * 
+ * @param {string} phoneNumber - Le numéro de téléphone à vérifier
+ * @param {string} excludeRequestId - ID de la demande à exclure de la vérification (optionnel)
+ * @returns {Promise<{isUsed: boolean, existingRequest?: MembershipRequest}>} - Résultat de la vérification
+ */
+export async function checkPhoneNumberExists(
+    phoneNumber: string, 
+    excludeRequestId?: string
+): Promise<{isUsed: boolean, existingRequest?: MembershipRequest}> {
+    try {
+        // Normaliser le numéro de téléphone (même logique que dans l'API)
+        let normalizedPhone = phoneNumber.trim();
+        
+        // Vérifier s'il y a déjà un indicatif +221 ou +241
+        if (!normalizedPhone.startsWith('+221') && !normalizedPhone.startsWith('+241')) {
+            // Nettoyer le numéro
+            normalizedPhone = normalizedPhone.replace(/[\s\-\(\)]/g, '');
+            // Supprimer le + s'il y en a un au début
+            if (normalizedPhone.startsWith('+')) {
+                normalizedPhone = normalizedPhone.substring(1);
+            }
+            // Supprimer le 0 en début s'il y en a un
+            if (normalizedPhone.startsWith('0')) {
+                normalizedPhone = normalizedPhone.substring(1);
+            }
+            // Ajouter l'indicatif +241 par défaut
+            normalizedPhone = '+241' + normalizedPhone;
+        }
+
+        console.log('Vérification du numéro normalisé:', normalizedPhone);
+
+        // Chercher toutes les demandes avec ce numéro de téléphone
+        const existingRequests = await findMembershipRequestsByPhone(normalizedPhone);
+        
+        // Filtrer pour exclure la demande actuelle si spécifiée
+        const filteredRequests = existingRequests.filter(request => 
+            excludeRequestId ? request.id !== excludeRequestId : true
+        );
+
+        if (filteredRequests.length > 0) {
+            return {
+                isUsed: true,
+                existingRequest: filteredRequests[0] // Retourner la première demande trouvée
+            };
+        }
+
+        return { isUsed: false };
+
+    } catch (error) {
+        console.error("Erreur lors de la vérification du numéro de téléphone:", error);
+        // En cas d'erreur, considérer comme non utilisé pour ne pas bloquer l'utilisateur
+        return { isUsed: false };
     }
 }
 

@@ -33,12 +33,12 @@ const adminMenuItems = [
         url: routes.admin.membershipRequests,
         icon: UserPlus,
     },
-    /*{
+    {
         title: "Membres",
-        url: "/dashboard/users",
+        url: routes.admin.memberships,
         icon: Users,
     },
-    {
+    /*{
         title: "Assurance",
         url: "/dashboard/insurance",
         icon: Car,
@@ -55,8 +55,8 @@ const adminMenuItems = [
     }, */
 ]
 
-const systemMenuItems = [
-    {
+const systemMenuItems: any[] = [
+    /* {
         title: "Administration",
         url: "/dashboard/admin",
         icon: Shield,
@@ -65,7 +65,7 @@ const systemMenuItems = [
         title: "Paramètres",
         url: "/dashboard/settings",
         icon: Settings,
-    },
+    }, */
 ]
 
 export function AppSidebar() {

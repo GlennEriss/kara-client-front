@@ -8,6 +8,7 @@ const routes = {
     admin: {
         dashboard: '/dashboard',
         membershipRequests: '/membership-requests',
+        memberships: '/memberships',
     }
 }
 

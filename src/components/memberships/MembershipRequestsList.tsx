@@ -1,15 +1,35 @@
 'use client'
 import React, { useState } from 'react'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import Image from 'next/image'
+import { useQueryClient } from '@tanstack/react-query'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useMembershipRequests, useUpdateMembershipRequestStatus, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
 import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
+import { toast } from 'sonner'
+import MemberDetailsModal from './MemberDetailsModal'
+import MemberIdentityModal from './MemberIdentityModal'
+import { useAuth } from '@/hooks/useAuth'
 
 // Fonction utilitaire pour obtenir le badge de statut
 const getStatusBadge = (status: MembershipRequestStatus) => {
@@ -114,25 +134,185 @@ const MembershipRequestCard = ({
 }: { 
   request: MembershipRequest
   onStatusUpdate: (requestId: string, newStatus: MembershipRequest['status']) => void
-}) => (
+}) => {
+  const {user} = useAuth()
+  const [showDetailsModal, setShowDetailsModal] = React.useState(false)
+  const [showIdentityModal, setShowIdentityModal] = React.useState(false)
+  const [isApproving, setIsApproving] = React.useState(false)
+  const [confirmationAction, setConfirmationAction] = React.useState<{
+    type: 'approve' | 'reject' | 'under_review' | null
+    isOpen: boolean
+  }>({ type: null, isOpen: false })
+  const [membershipType, setMembershipType] = React.useState<string>('')
+  const queryClient = useQueryClient()
+  const updateStatusMutation = useUpdateMembershipRequestStatus()
+
+  // Fonction pour ouvrir la confirmation
+  const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
+    setConfirmationAction({ type, isOpen: true })
+  }
+
+  // Fonction pour fermer la confirmation
+  const closeConfirmation = () => {
+    setConfirmationAction({ type: null, isOpen: false })
+    setMembershipType('') // Réinitialiser le type de membre
+  }
+
+  // Fonction pour confirmer l'action
+  const confirmAction = async () => {
+    if (!confirmationAction.type) return
+
+    // Validation pour l'approbation : vérifier qu'un type de membre est sélectionné
+    if (confirmationAction.type === 'approve' && !membershipType) {
+      toast.error('⚠️ Type de membre requis', {
+        description: 'Veuillez sélectionner un type de membre (Adhérant, Bienfaiteur ou Sympathisant) avant d\'approuver.',
+        duration: 4000,
+      })
+      return
+    }
+
+    if (confirmationAction.type === 'approve') {
+      await handleApprove()
+    } else {
+      const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
+      
+      // Utiliser la mutation directement avec reviewedBy
+      updateStatusMutation.mutate({
+        requestId: request.id!,
+        newStatus: status,
+        reviewedBy: user?.uid || 'unknown-admin'
+      })
+
+      // Toast personnalisé selon l'action
+      if (confirmationAction.type === 'reject') {
+        toast.error('🚫 Demande rejetée avec succès', {
+          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} a été rejetée.`,
+          duration: 4000,
+        })
+      } else if (confirmationAction.type === 'under_review') {
+        toast.warning('⏳ Demande mise en examen', {
+          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} est maintenant en cours d'examen.`,
+          duration: 4000,
+        })
+      }
+    }
+    
+    closeConfirmation()
+  }
+
+  const handleApprove = async () => {
+    setIsApproving(true)
+    try {
+      const phoneNumber = request.identity.contacts[0] // Premier numéro de téléphone
+      
+      if (!phoneNumber) {
+        toast.error('📞 Numéro de téléphone manquant', {
+          description: 'Impossible de créer le compte utilisateur : aucun numéro de téléphone trouvé pour ce demandeur.',
+          duration: 4000,
+        })
+        return
+      }
+
+      const response = await fetch('/api/create-firebase-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber,
+          requestId: request.id,
+          adminId: user?.uid,
+          membershipType: membershipType
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast.success('✅ Demande approuvée avec succès', {
+          description: `${request.identity.firstName} ${request.identity.lastName} est maintenant membre ${membershipType}. Matricule: ${data.matricule}`,
+          duration: 5000,
+        })
+        // Invalider toutes les queries de membership requests pour forcer le rechargement
+        await queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })
+        await queryClient.invalidateQueries({ queryKey: ['membershipRequestsStats'] })
+      } else {
+        toast.error('❌ Erreur lors de l\'approbation', {
+          description: data.error || 'Une erreur est survenue pendant le processus d\'approbation.',
+          duration: 5000,
+        })
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'approbation:', error)
+      toast.error('❌ Erreur technique', {
+        description: 'Une erreur technique est survenue lors de l\'approbation de la demande.',
+        duration: 5000,
+      })
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  return (
   <Card className="hover:shadow-md transition-shadow">
     <CardContent className="p-6">
       <div className="space-y-4">
-        {/* En-tête avec nom et statut */}
+        {/* En-tête avec photo, nom et statut */}
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <h3 className="font-semibold text-lg">
-              {request.identity.firstName} {request.identity.lastName}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {request.identity.nationality} • {request.identity.civility}
-            </p>
+          <div className="flex items-start space-x-3">
+            {/* Photo du demandeur */}
+            <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+              {request.identity.photoURL ? (
+                <Image
+                  src={request.identity.photoURL}
+                  alt={`Photo de ${request.identity.firstName} ${request.identity.lastName}`}
+                  width={64}
+                  height={64}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                  <User className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+            </div>
+            
+            {/* Informations du demandeur */}
+            <div className="space-y-1">
+              <h3 className="font-semibold text-lg">
+                {request.identity.firstName} {request.identity.lastName}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {request.identity.nationality} • {request.identity.civility}
+              </p>
+            </div>
           </div>
+          
           <div className="flex items-center space-x-2">
             {getStatusBadge(request.status)}
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem 
+                  onClick={() => setShowDetailsModal(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Voir les détails</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => setShowIdentityModal(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <IdCard className="w-4 h-4" />
+                  <span>Voir la pièce d'identité</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -189,16 +369,17 @@ const MembershipRequestCard = ({
               size="sm" 
               variant="outline"
               className="text-green-600 border-green-200 hover:bg-green-50"
-              onClick={() => onStatusUpdate(request.id!, 'approved')}
+              onClick={() => openConfirmation('approve')}
+              disabled={isApproving}
             >
               <CheckCircle className="w-4 h-4 mr-1" />
-              Approuver
+              {isApproving ? 'Approbation...' : 'Approuver'}
             </Button>
             <Button 
               size="sm" 
               variant="outline"
               className="text-red-600 border-red-200 hover:bg-red-50"
-              onClick={() => onStatusUpdate(request.id!, 'rejected')}
+              onClick={() => openConfirmation('reject')}
             >
               <XCircle className="w-4 h-4 mr-1" />
               Rejeter
@@ -206,7 +387,7 @@ const MembershipRequestCard = ({
             <Button 
               size="sm" 
               variant="outline"
-              onClick={() => onStatusUpdate(request.id!, 'under_review')}
+              onClick={() => openConfirmation('under_review')}
             >
               <Eye className="w-4 h-4 mr-1" />
               Examiner
@@ -215,11 +396,92 @@ const MembershipRequestCard = ({
         )}
       </div>
     </CardContent>
+
+    {/* Modals */}
+    <MemberDetailsModal
+      isOpen={showDetailsModal}
+      onClose={() => setShowDetailsModal(false)}
+      request={request}
+    />
+    
+    <MemberIdentityModal
+      isOpen={showIdentityModal}
+      onClose={() => setShowIdentityModal(false)}
+      request={request}
+    />
+
+    {/* Modal de confirmation */}
+    <Dialog open={confirmationAction.isOpen} onOpenChange={closeConfirmation}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {confirmationAction.type === 'approve' && 'Confirmer l\'approbation'}
+            {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
+            {confirmationAction.type === 'under_review' && 'Mettre en examen'}
+          </DialogTitle>
+          <DialogDescription>
+            {confirmationAction.type === 'approve' && 
+              `Êtes-vous sûr de vouloir approuver la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action créera un compte utilisateur Firebase et ne pourra pas être annulée.`
+            }
+            {confirmationAction.type === 'reject' && 
+              `Êtes-vous sûr de vouloir rejeter la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action ne pourra pas être annulée.`
+            }
+            {confirmationAction.type === 'under_review' && 
+              `Êtes-vous sûr de vouloir mettre la demande de ${request.identity.firstName} ${request.identity.lastName} en cours d'examen ?`
+            }
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Sélecteur de type de membre pour l'approbation */}
+        {confirmationAction.type === 'approve' && (
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              Type de membre <span className="text-red-500">*</span>
+            </label>
+            <Select value={membershipType} onValueChange={setMembershipType}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sélectionnez un type de membre..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="adherant">Adhérant</SelectItem>
+                <SelectItem value="bienfaiteur">Bienfaiteur</SelectItem>
+                <SelectItem value="sympathisant">Sympathisant</SelectItem>
+              </SelectContent>
+            </Select>
+            {!membershipType && (
+              <p className="text-sm text-red-500 mt-1">
+                Le type de membre est obligatoire pour l'approbation
+              </p>
+            )}
+          </div>
+        )}
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+          <Button variant="outline" onClick={closeConfirmation}>
+            Annuler
+          </Button>
+          <Button 
+            onClick={confirmAction}
+            disabled={isApproving || (confirmationAction.type === 'approve' && !membershipType)}
+            className={
+              confirmationAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
+              confirmationAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' :
+              'bg-blue-600 hover:bg-blue-700'
+            }
+          >
+            {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
+            {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
+            {confirmationAction.type === 'under_review' && 'Mettre en examen'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </Card>
-)
+  )
+}
 
 // Composant principal
 export default function MembershipRequestsList() {
+  const { user } = useAuth()
   const [filters, setFilters] = useState<MembershipRequestFilters>({
     status: 'all',
     searchQuery: '',
@@ -245,7 +507,7 @@ export default function MembershipRequestsList() {
     updateStatusMutation.mutate({
       requestId,
       newStatus,
-      reviewedBy: 'current-admin-id', // TODO: Récupérer l'ID de l'admin connecté
+      reviewedBy: user?.uid || 'unknown-admin',
     })
   }
 
