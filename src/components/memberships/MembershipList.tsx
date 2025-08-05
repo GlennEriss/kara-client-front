@@ -24,6 +24,8 @@ import MemberSubscriptionModal from './MemberSubscriptionModal'
 import MemberDetailsWrapper from './MemberDetailsWrapper'
 import MembershipPagination from './MembershipPagination'
 import { toast } from 'sonner'
+import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription } from '@/utils/test-data'
+import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 
 type ViewMode = 'grid' | 'list'
 
@@ -100,6 +102,65 @@ const MembershipList = () => {
     toast.info('Fonctionnalité d\'export en cours de développement')
   }
 
+  // Fonctions de test (en développement uniquement)
+  const handleCreateTestUser = async () => {
+    try {
+      toast.info('Création d\'un utilisateur de test...')
+      await createTestUserWithSubscription()
+      toast.success('Utilisateur de test créé avec abonnement valide')
+      refetch()
+    } catch (error) {
+      toast.error('Erreur lors de la création de l\'utilisateur de test')
+    }
+  }
+
+  const handleCreateExpiredUser = async () => {
+    try {
+      toast.info('Création d\'un utilisateur avec abonnement expiré...')
+      await createTestUserWithExpiredSubscription()
+      toast.success('Utilisateur de test créé avec abonnement expiré')
+      refetch()
+    } catch (error) {
+      toast.error('Erreur lors de la création de l\'utilisateur de test')
+    }
+  }
+
+  const handleCreateUserNoSub = async () => {
+    try {
+      toast.info('Création d\'un utilisateur sans abonnement...')
+      await createTestUserWithoutSubscription()
+      toast.success('Utilisateur de test créé sans abonnement')
+      refetch()
+    } catch (error) {
+      toast.error('Erreur lors de la création de l\'utilisateur de test')
+    }
+  }
+
+  const handleDebugData = async () => {
+    try {
+      toast.info('🔍 Analyse des données Firebase...')
+      await debugFirebaseData()
+      toast.success('🔍 Analyse terminée - vérifiez la console')
+    } catch (error) {
+      toast.error('Erreur lors de l\'analyse des données')
+    }
+  }
+
+  const handleDebugFirstUser = async () => {
+    try {
+      if (membersWithSubscriptions.length > 0) {
+        const firstUser = membersWithSubscriptions[0]
+        toast.info(`🔍 Analyse de ${firstUser.firstName} ${firstUser.lastName}...`)
+        await debugUserSubscriptions(firstUser.id)
+        toast.success('🔍 Analyse utilisateur terminée - vérifiez la console')
+      } else {
+        toast.warning('Aucun utilisateur à analyser')
+      }
+    } catch (error) {
+      toast.error('Erreur lors de l\'analyse utilisateur')
+    }
+  }
+
   // Transformation des données pour inclure les subscriptions
   const membersWithSubscriptions: MemberWithSubscription[] = membersData?.data || []
 
@@ -129,6 +190,60 @@ const MembershipList = () => {
     <div className="space-y-6">
       {/* Statistiques */}
       <MemberStats />
+
+      {/* Boutons de test - uniquement en développement */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium text-yellow-700">🧪 Tests:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestUser}
+                className="text-green-600 border-green-300 hover:bg-green-50"
+              >
+                Créer utilisateur + abo valide
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateExpiredUser}
+                className="text-red-600 border-red-300 hover:bg-red-50"
+              >
+                Créer utilisateur + abo expiré
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateUserNoSub}
+                className="text-gray-600 border-gray-300 hover:bg-gray-50"
+              >
+                Créer utilisateur sans abo
+              </Button>
+              <div className="border-l border-yellow-300 pl-2 ml-2">
+                <span className="text-xs text-yellow-600 mr-2">Debug:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDebugData}
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50 mr-1"
+                >
+                  🔍 Firebase
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDebugFirstUser}
+                  className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                >
+                  🔍 1er User
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filtres */}
       <MemberFilters
@@ -206,14 +321,14 @@ const MembershipList = () => {
                 <span className="sm:hidden">Export</span>
               </Button>
 
-              <Button
+              {/* <Button
                 size="sm"
                 className="bg-[#224D62] hover:bg-[#224D62]/90"
               >
                 <Plus className="h-4 w-4 mr-1" />
-                <span className="hidden xs:inline">Nouveau membre</span>
-                <span className="xs:hidden">Nouveau</span>
-              </Button>
+                <span className="hidden sm:inline">Nouveau membre</span>
+                <span className="sm:hidden">Nouveau</span>
+              </Button> */}
             </div>
           </div>
         </CardContent>

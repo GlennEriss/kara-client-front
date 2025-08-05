@@ -94,7 +94,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
   return (
     <Card className="mb-6">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="md:flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-[#224D62] flex items-center">
             <Filter className="h-5 w-5 mr-2" />
             Filtres et Recherche
@@ -120,7 +120,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
               onClick={() => setIsExpanded(!isExpanded)}
               className="text-[#224D62]"
             >
-              <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              Filtres <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </Button>
           </div>
         </div>

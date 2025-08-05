@@ -119,22 +119,25 @@ export async function getMembers(
     const q = query(membersRef, ...constraints)
     const querySnapshot = await getDocs(q)
     
-    const members: User[] = []
+    const members: MemberWithSubscription[] = []
     let hasNextPage = false
     
-    querySnapshot.docs.forEach((doc, index) => {
+    // Traitement séquentiel pour éviter de surcharger Firebase
+    for (let index = 0; index < querySnapshot.docs.length; index++) {
       if (index < itemsPerPage) {
-        const data = doc.data()
-        members.push({
-          id: doc.id,
-          ...data,
-          createdAt: convertFirestoreDate(data.createdAt) || new Date(),
-          updatedAt: convertFirestoreDate(data.updatedAt) || new Date()
-        } as User)
+        const doc = querySnapshot.docs[index]
+        
+        // Récupérer chaque membre avec ses subscriptions
+        const memberWithSubscription = await getMemberWithSubscription(doc.id)
+        
+        if (memberWithSubscription) {
+          members.push(memberWithSubscription)
+        }
       } else {
         hasNextPage = true
+        break
       }
-    })
+    }
     
     // Appliquer les filtres de recherche côté client si nécessaire
     let filteredMembers = members
@@ -146,6 +149,11 @@ export async function getMembers(
         member.matricule.toLowerCase().includes(searchLower) ||
         member.email?.toLowerCase().includes(searchLower)
       )
+    }
+    
+    // Log du résultat final en mode debug
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🎯 [getMembers] Processed ${filteredMembers.length} members`)
     }
     
     const nextCursor = members.length > 0 ? querySnapshot.docs[Math.min(itemsPerPage - 1, querySnapshot.docs.length - 1)] : null
@@ -170,7 +178,7 @@ export async function getMembers(
 }
 
 /**
- * Récupère un membre avec sa dernière subscription
+ * Récupère un membre avec sa dernière subscription via requête directe
  */
 export async function getMemberWithSubscription(userId: string): Promise<MemberWithSubscription | null> {
   try {
@@ -188,37 +196,70 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
       updatedAt: convertFirestoreDate(userData.updatedAt) || new Date()
     }
     
-    // Récupérer la dernière subscription
+    // Récupérer les subscriptions directement via requête sur la collection
     let lastSubscription: Subscription | null = null
     let isSubscriptionValid = false
     
-    if (member.subscriptions && member.subscriptions.length > 0) {
-      // Récupérer toutes les subscriptions et trouver la plus récente
-      const subscriptionPromises = member.subscriptions.map(async (subId) => {
-        const subDoc = await getDoc(doc(db, 'subscriptions', subId))
-        if (subDoc.exists()) {
-          const subData = subDoc.data()
-          return {
-            id: subDoc.id,
+    try {
+      // Requête pour récupérer toutes les subscriptions de cet utilisateur
+      const subscriptionsQuery = query(
+        collection(db, 'subscriptions'),
+        where('userId', '==', userId)
+      )
+      
+      const subscriptionsSnapshot = await getDocs(subscriptionsQuery)
+      
+      if (!subscriptionsSnapshot.empty) {
+        // Récupérer toutes les subscriptions et les trier côté client
+        const subscriptions: Subscription[] = []
+        
+        subscriptionsSnapshot.docs.forEach(doc => {
+          const subData = doc.data()
+          subscriptions.push({
+            id: doc.id,
             ...subData,
             dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
             dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
             createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
             updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
-          } as Subscription
-        }
-        return null
-      })
-      
-      const subscriptions = (await Promise.all(subscriptionPromises)).filter(Boolean) as Subscription[]
-      
-      if (subscriptions.length > 0) {
-        // Trier par date de fin décroissante pour avoir la plus récente
+          } as Subscription)
+        })
+        
+        // Trier par date de fin décroissante et prendre la plus récente
         subscriptions.sort((a, b) => b.dateEnd.getTime() - a.dateEnd.getTime())
         lastSubscription = subscriptions[0]
         
         // Vérifier si la subscription est valide (date de fin > maintenant)
         isSubscriptionValid = lastSubscription.dateEnd > new Date()
+      }
+    } catch (queryError) {
+      console.error(`Error querying subscriptions for user ${userId}:`, queryError)
+      
+      // Fallback: essayer avec l'ancienne méthode si la requête échoue
+      if (member.subscriptions && member.subscriptions.length > 0) {
+        const subscriptionPromises = member.subscriptions.map(async (subId) => {
+          const subDoc = await getDoc(doc(db, 'subscriptions', subId))
+          if (subDoc.exists()) {
+            const subData = subDoc.data()
+            return {
+              id: subDoc.id,
+              ...subData,
+              dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
+              dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
+              createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
+              updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
+            } as Subscription
+          }
+          return null
+        })
+        
+        const subscriptions = (await Promise.all(subscriptionPromises)).filter(Boolean) as Subscription[]
+        
+        if (subscriptions.length > 0) {
+          subscriptions.sort((a, b) => b.dateEnd.getTime() - a.dateEnd.getTime())
+          lastSubscription = subscriptions[0]
+          isSubscriptionValid = lastSubscription.dateEnd > new Date()
+        }
       }
     }
     
@@ -234,41 +275,34 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
 }
 
 /**
- * Récupère toutes les subscriptions d'un membre
+ * Récupère toutes les subscriptions d'un membre via requête directe
  */
 export async function getMemberSubscriptions(userId: string): Promise<Subscription[]> {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId))
-    if (!userDoc.exists()) {
-      return []
-    }
+    // Requête pour récupérer toutes les subscriptions de cet utilisateur
+    const subscriptionsQuery = query(
+      collection(db, 'subscriptions'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    )
     
-    const userData = userDoc.data() as User
+    const subscriptionsSnapshot = await getDocs(subscriptionsQuery)
     
-    if (!userData.subscriptions || userData.subscriptions.length === 0) {
-      return []
-    }
+    const subscriptions: Subscription[] = []
     
-    const subscriptionPromises = userData.subscriptions.map(async (subId) => {
-      const subDoc = await getDoc(doc(db, 'subscriptions', subId))
-      if (subDoc.exists()) {
-        const subData = subDoc.data()
-        return {
-          id: subDoc.id,
-          ...subData,
-          dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
-          dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
-          createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
-          updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
-        } as Subscription
-      }
-      return null
+    subscriptionsSnapshot.docs.forEach(doc => {
+      const subData = doc.data()
+      subscriptions.push({
+        id: doc.id,
+        ...subData,
+        dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
+        dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
+        createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
+        updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
+      } as Subscription)
     })
     
-    const subscriptions = (await Promise.all(subscriptionPromises)).filter(Boolean) as Subscription[]
-    
-    // Trier par date de création décroissante
-    return subscriptions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    return subscriptions
   } catch (error) {
     console.error('Erreur lors de la récupération des subscriptions:', error)
     throw new Error('Impossible de récupérer les subscriptions')
