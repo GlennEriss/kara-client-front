@@ -9,7 +9,7 @@ import {
   stepSchemas,
   defaultValues
 } from '@/types/schemas'
-import { createMembershipRequest, getMembershipRequestById } from '@/db/membership.db'
+import { createMembershipRequest, getMembershipRequestById, updateMembershipRequest } from '@/db/membership.db'
 import { toast } from "sonner"
 
 // ================== CONSTANTES DE CACHE ==================
@@ -60,6 +60,15 @@ export interface RegisterContextType {
     lastName?: string
   }
 
+  // États de correction
+  correctionRequest: {
+    requestId: string;
+    reviewNote: string;
+    securityCode: string;
+    isVerified: boolean;
+  } | null
+  securityCodeInput: string
+
   // Fonctions de navigation
   nextStep: () => Promise<boolean>
   prevStep: () => void
@@ -78,6 +87,10 @@ export interface RegisterContextType {
   // Fonctions de soumission
   submitForm: () => Promise<void>
   resetForm: () => void
+
+  // Fonctions de correction
+  verifySecurityCode: () => Promise<boolean>
+  setSecurityCodeInput: (code: string) => void
 
   // Utilitaires
   isStepCompleted: (step: number) => boolean
@@ -257,6 +270,13 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
   const [userData, setUserData] = useState<{ firstName?: string; lastName?: string } | undefined>(undefined)
+  const [correctionRequest, setCorrectionRequest] = useState<{
+    requestId: string;
+    reviewNote: string;
+    securityCode: string;
+    isVerified: boolean;
+  } | null>(null)
+  const [securityCodeInput, setSecurityCodeInput] = useState<string>('')
 
   const totalSteps = 4
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -276,7 +296,74 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       setIsLoading(true)
 
       try {
-        // Vérifier d'abord s'il y a une soumission valide (priorité)
+        // Vérifier d'abord s'il y a un requestId dans l'URL pour les corrections (PRIORITÉ MAXIMALE)
+        const urlParams = new URLSearchParams(window.location.search)
+        const requestId = urlParams.get('requestId')
+        
+        if (requestId) {
+          console.log('🔍 Demande de correction détectée:', requestId)
+          try {
+            const request = await getMembershipRequestById(requestId)
+            if (request && request.reviewNote && request.securityCode) {
+              // Vérifier si le code a déjà été utilisé
+              if (request.securityCodeUsed) {
+                console.warn('⚠️ Code de sécurité déjà utilisé')
+                toast.error('Code déjà utilisé', {
+                  description: 'Ce code de sécurité a déjà été utilisé. Veuillez demander un nouveau code à l\'administrateur.',
+                  duration: 5000,
+                })
+                setIsCacheLoaded(true)
+                setIsLoading(false)
+                return
+              }
+              
+              // Vérifier l'expiration du code de sécurité
+              const expiry = request.securityCodeExpiry ? ((request.securityCodeExpiry as any)?.toDate ? (request.securityCodeExpiry as any).toDate() : new Date(request.securityCodeExpiry)) : null;
+              const isExpired = expiry ? expiry < new Date() : true;
+              
+              if (isExpired) {
+                console.warn('⚠️ Code de sécurité expiré')
+                toast.error('Code expiré', {
+                  description: 'Le code de sécurité a expiré. Veuillez demander un nouveau code à l\'administrateur.',
+                  duration: 5000,
+                })
+                setIsCacheLoaded(true)
+                setIsLoading(false)
+                return
+              }
+              
+              // Demande avec corrections trouvée et code valide - NETTOYER LE CACHE DE SOUMISSION
+              console.log('🧹 Nettoyage du cache de soumission pour prioriser la correction')
+              CacheManager.clearSubmissionData()
+              
+              setCorrectionRequest({
+                requestId: request.id,
+                reviewNote: request.reviewNote,
+                securityCode: request.securityCode,
+                isVerified: false
+              })
+              console.log('✅ Demande de correction chargée, en attente du code de sécurité')
+              setIsCacheLoaded(true)
+              setIsLoading(false)
+              return
+            } else {
+              // Demande trouvée mais sans corrections ou code de sécurité
+              console.warn('⚠️ Demande trouvée mais sans corrections ou code de sécurité')
+              toast.error('Demande invalide', {
+                description: 'Cette demande ne nécessite pas de corrections ou le code de sécurité est manquant.',
+                duration: 5000,
+              })
+            }
+          } catch (error) {
+            console.error('Erreur lors de la récupération de la demande:', error)
+            toast.error('Erreur de chargement', {
+              description: 'Impossible de charger la demande de correction.',
+              duration: 5000,
+            })
+          }
+        }
+
+        // Vérifier ensuite s'il y a une soumission valide (priorité secondaire)
         const submissionData = CacheManager.loadSubmissionData()
         if (submissionData) {
           // Vérifier si le document existe encore dans Firestore
@@ -504,37 +591,76 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
       const formData = getValues()
 
-      const membershipRequestId = await createMembershipRequest(formData)
-      console.log('membershipRequestId', membershipRequestId)
-      if (!membershipRequestId) {
-        throw new Error('Échec de l\'enregistrement de la demande d\'adhésion')
+      // Vérifier si c'est une correction ou une nouvelle demande
+      if (correctionRequest?.isVerified) {
+        // Mise à jour d'une demande existante (correction)
+        console.log('🔄 Mise à jour de la demande de correction:', correctionRequest.requestId)
+        
+        const success = await updateMembershipRequest(correctionRequest.requestId, formData)
+        if (!success) {
+          throw new Error('Échec de la mise à jour de la demande d\'adhésion')
+        }
+
+        // Succès - nettoyer le cache et afficher le message de succès
+        const userData = {
+          firstName: getValues('identity.firstName'),
+          lastName: getValues('identity.lastName')
+        }
+
+        // Vider le cache des données du formulaire
+        CacheManager.clearFormDataOnly()
+        
+        // Sauvegarder l'ID du membership et les données utilisateur pour 48h
+        CacheManager.saveSubmissionData(correctionRequest.requestId, userData)
+
+        // Afficher toast de succès pour correction
+        toast.success("Corrections soumises !", {
+          description: "Vos corrections ont été enregistrées avec succès. Votre demande est maintenant en attente de validation.",
+          style: {
+            background: '#10B981',
+            color: 'white',
+            border: 'none'
+          },
+          duration: 4000
+        })
+
+        setIsSubmitted(true)
+        setUserData(userData)
+        setCorrectionRequest(null) // Nettoyer les données de correction
+      } else {
+        // Nouvelle demande
+        const membershipRequestId = await createMembershipRequest(formData)
+        console.log('membershipRequestId', membershipRequestId)
+        if (!membershipRequestId) {
+          throw new Error('Échec de l\'enregistrement de la demande d\'adhésion')
+        }
+
+        // Succès - sauvegarder les données de soumission et nettoyer le cache du formulaire
+        const userData = {
+          firstName: getValues('identity.firstName'),
+          lastName: getValues('identity.lastName')
+        }
+
+        // Vider le cache des données du formulaire
+        CacheManager.clearFormDataOnly()
+        
+        // Sauvegarder l'ID du membership et les données utilisateur pour 48h
+        CacheManager.saveSubmissionData(membershipRequestId, userData)
+
+        // Afficher toast de succès
+        toast.success("Inscription réussie !", {
+          description: "Votre demande d'adhésion a été enregistrée avec succès.",
+          style: {
+            background: '#10B981',
+            color: 'white',
+            border: 'none'
+          },
+          duration: 4000
+        })
+
+        setIsSubmitted(true)
+        setUserData(userData)
       }
-
-      // Succès - sauvegarder les données de soumission et nettoyer le cache du formulaire
-      const userData = {
-        firstName: getValues('identity.firstName'),
-        lastName: getValues('identity.lastName')
-      }
-
-      // Vider le cache des données du formulaire
-      CacheManager.clearFormDataOnly()
-      
-      // Sauvegarder l'ID du membership et les données utilisateur pour 48h
-      CacheManager.saveSubmissionData(membershipRequestId, userData)
-
-      // Afficher toast de succès
-      toast.success("Inscription réussie !", {
-        description: "Votre demande d'adhésion a été enregistrée avec succès.",
-        style: {
-          background: '#10B981',
-          color: 'white',
-          border: 'none'
-        },
-        duration: 4000
-      })
-
-      setIsSubmitted(true)
-      setUserData(userData)
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error)
       
@@ -560,7 +686,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       setIsSubmitting(false)
       setIsLoading(false)
     }
-  }, [trigger, getValues, reset])
+  }, [trigger, getValues, reset, correctionRequest])
 
   // ================== RESET ==================
   const resetForm = useCallback(() => {
@@ -585,6 +711,130 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const getStepData = useCallback(function <T>(step: keyof RegisterFormData): T {
     return getValues(step) as T
   }, [getValues])
+
+  // ================== GESTION DES CORRECTIONS ==================
+  
+  // Fonction pour nettoyer le cache de soumission quand on accède aux corrections
+  const clearSubmissionCacheForCorrections = useCallback(() => {
+    console.log('🧹 Nettoyage du cache de soumission pour permettre les corrections')
+    CacheManager.clearSubmissionData()
+    setIsSubmitted(false)
+    setUserData(undefined)
+  }, [])
+  
+  const verifySecurityCode = useCallback(async (): Promise<boolean> => {
+    if (!correctionRequest || !securityCodeInput.trim()) {
+      return false
+    }
+
+    if (securityCodeInput.trim() === correctionRequest.securityCode) {
+      try {
+        // Code correct, vérifier l'expiration avant de charger les données
+        const request = await getMembershipRequestById(correctionRequest.requestId)
+        if (!request) {
+          toast.error('Demande introuvable', {
+            description: 'La demande de correction n\'a pas été trouvée.',
+            duration: 5000,
+          })
+          return false
+        }
+        
+        // Vérifier si le code a déjà été utilisé
+        if (request.securityCodeUsed) {
+          toast.error('Code déjà utilisé', {
+            description: 'Ce code de sécurité a déjà été utilisé. Veuillez demander un nouveau code à l\'administrateur.',
+            duration: 5000,
+          })
+          return false
+        }
+        
+        // Vérifier l'expiration du code
+        const expiry = request.securityCodeExpiry ? ((request.securityCodeExpiry as any)?.toDate ? (request.securityCodeExpiry as any).toDate() : new Date(request.securityCodeExpiry)) : null;
+        const isExpired = expiry ? expiry < new Date() : true;
+        
+        if (isExpired) {
+          toast.error('Code expiré', {
+            description: 'Le code de sécurité a expiré. Veuillez demander un nouveau code à l\'administrateur.',
+            duration: 5000,
+          })
+          return false
+        }
+        
+        // Code valide, charger les données de la demande
+        if (request) {
+          // Convertir les données de la demande en format RegisterFormData
+          const formData: RegisterFormData = {
+            identity: {
+              civility: request.identity.civility,
+              lastName: request.identity.lastName,
+              firstName: request.identity.firstName,
+              birthDate: request.identity.birthDate,
+              birthPlace: request.identity.birthPlace,
+              birthCertificateNumber: request.identity.birthCertificateNumber,
+              prayerPlace: request.identity.prayerPlace,
+              contacts: request.identity.contacts,
+              email: request.identity.email,
+              gender: request.identity.gender,
+              nationality: request.identity.nationality,
+              maritalStatus: request.identity.maritalStatus,
+              spouseLastName: request.identity.spouseLastName,
+              spouseFirstName: request.identity.spouseFirstName,
+              spousePhone: request.identity.spousePhone,
+              intermediaryCode: request.identity.intermediaryCode,
+              hasCar: request.identity.hasCar,
+              photo: request.identity.photo,
+              photoURL: request.identity.photoURL,
+              photoPath: request.identity.photoPath,
+            },
+            address: request.address,
+            company: request.company,
+            documents: {
+              identityDocument: request.documents.identityDocument,
+              identityDocumentNumber: request.documents.identityDocumentNumber,
+              documentPhotoFront: request.documents.documentPhotoFront,
+              documentPhotoBack: request.documents.documentPhotoBack,
+              expirationDate: request.documents.expirationDate,
+              issuingPlace: request.documents.issuingPlace,
+              issuingDate: request.documents.issuingDate,
+              documentPhotoFrontURL: request.documents.documentPhotoFrontURL,
+              documentPhotoFrontPath: request.documents.documentPhotoFrontPath,
+              documentPhotoBackURL: request.documents.documentPhotoBackURL,
+              documentPhotoBackPath: request.documents.documentPhotoBackPath,
+            }
+          }
+
+          // Réinitialiser le formulaire avec les données de la demande
+          reset(formData)
+          setCurrentStep(1)
+          setCompletedSteps(new Set())
+          
+          // Marquer comme vérifié
+          setCorrectionRequest(prev => prev ? { ...prev, isVerified: true } : null)
+          setSecurityCodeInput('')
+          
+          toast.success('Code vérifié !', {
+            description: 'Vos données ont été chargées. Vous pouvez maintenant apporter les corrections demandées.',
+            duration: 4000,
+          })
+          
+          return true
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des données de correction:', error)
+        toast.error('Erreur de chargement', {
+          description: 'Impossible de charger vos données de correction.',
+          duration: 5000,
+        })
+      }
+    } else {
+      toast.error('Code incorrect', {
+        description: 'Le code de sécurité saisi ne correspond pas.',
+        duration: 3000,
+      })
+    }
+    
+    return false
+  }, [correctionRequest, securityCodeInput, reset])
 
   // ================== VÉRIFICATION DU STATUT ==================
   const checkMembershipStatus = useCallback(async (): Promise<boolean> => {
@@ -646,6 +896,8 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     isSubmitted,
     submissionError,
     userData,
+    correctionRequest,
+    securityCodeInput,
     nextStep,
     prevStep,
     goToStep,
@@ -657,6 +909,8 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     hasCachedData,
     submitForm,
     resetForm,
+    verifySecurityCode,
+    setSecurityCodeInput,
     isStepCompleted,
     getStepProgress,
     getStepData,

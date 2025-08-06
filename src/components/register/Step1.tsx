@@ -125,6 +125,7 @@ export default function Step1({ form }: Step1Props) {
     'identity.prayerPlace',
     'identity.nationality',
     'identity.photo',
+    'identity.gender',
     'identity.maritalStatus',
     'identity.spouseLastName',
     'identity.spouseFirstName',
@@ -146,6 +147,18 @@ export default function Step1({ form }: Step1Props) {
       clearErrors(['identity.spouseLastName', 'identity.spouseFirstName', 'identity.spousePhone'])
     }
   }, [requiresSpouseInfo, setValue, clearErrors])
+
+  // Lier la civilité au sexe automatiquement
+  React.useEffect(() => {
+    const civility = watch('identity.civility')
+    if (civility) {
+      // Définir le sexe selon la civilité
+      const gender = civility === 'Monsieur' ? 'Homme' : 'Femme'
+      setValue('identity.gender', gender)
+      // Nettoyer les erreurs éventuelles du sexe
+      clearErrors('identity.gender')
+    }
+  }, [watch('identity.civility'), setValue, clearErrors])
 
   // Définir la nationalité par défaut au chargement (Gabon)
   React.useEffect(() => {
@@ -170,6 +183,81 @@ export default function Step1({ form }: Step1Props) {
       }
     }
   }, [watchedFields[9], setError, clearErrors, photoPreview])
+
+  // Nettoyer automatiquement les erreurs quand les champs sont corrigés
+  React.useEffect(() => {
+    const subscription = watch((value: any) => {
+      // Nettoyer les erreurs de civilité
+      if (value.identity?.civility && errors.identity?.civility) {
+        clearErrors('identity.civility')
+      }
+      
+      // Nettoyer les erreurs de nom
+      if (value.identity?.lastName && value.identity.lastName.length >= 2 && errors.identity?.lastName) {
+        clearErrors('identity.lastName')
+      }
+      
+      // Nettoyer les erreurs de prénom
+      if (value.identity?.firstName && value.identity.firstName.length >= 2 && errors.identity?.firstName) {
+        clearErrors('identity.firstName')
+      }
+      
+      // Nettoyer les erreurs de date de naissance
+      if (value.identity?.birthDate && errors.identity?.birthDate) {
+        clearErrors('identity.birthDate')
+      }
+      
+      // Nettoyer les erreurs de lieu de naissance
+      if (value.identity?.birthPlace && value.identity.birthPlace.length >= 2 && errors.identity?.birthPlace) {
+        clearErrors('identity.birthPlace')
+      }
+      
+      // Nettoyer les erreurs de numéro d'acte de naissance
+      if (value.identity?.birthCertificateNumber && value.identity.birthCertificateNumber.length >= 2 && errors.identity?.birthCertificateNumber) {
+        clearErrors('identity.birthCertificateNumber')
+      }
+      
+      // Nettoyer les erreurs de lieu de prière
+      if (value.identity?.prayerPlace && value.identity.prayerPlace.length >= 2 && errors.identity?.prayerPlace) {
+        clearErrors('identity.prayerPlace')
+      }
+      
+      // Nettoyer les erreurs de nationalité
+      if (value.identity?.nationality && errors.identity?.nationality) {
+        clearErrors('identity.nationality')
+      }
+      
+      // Nettoyer les erreurs de situation matrimoniale
+      if (value.identity?.maritalStatus && errors.identity?.maritalStatus) {
+        clearErrors('identity.maritalStatus')
+      }
+      
+      // Nettoyer les erreurs de hasCar
+      if (value.identity?.hasCar !== undefined && errors.identity?.hasCar) {
+        clearErrors('identity.hasCar')
+      }
+      
+      // Nettoyer les erreurs de contacts
+      if (value.identity?.contacts && Array.isArray(value.identity.contacts) && value.identity.contacts.some((contact: string) => contact && contact.trim().length >= 8) && errors.identity?.contacts) {
+        clearErrors('identity.contacts')
+      }
+      
+      // Nettoyer les erreurs du conjoint si nécessaire
+      if (requiresSpouseInfo) {
+        if (value.identity?.spouseLastName && value.identity.spouseLastName.length >= 2 && errors.identity?.spouseLastName) {
+          clearErrors('identity.spouseLastName')
+        }
+        if (value.identity?.spouseFirstName && value.identity.spouseFirstName.length >= 2 && errors.identity?.spouseFirstName) {
+          clearErrors('identity.spouseFirstName')
+        }
+        if (value.identity?.spousePhone && value.identity.spousePhone.length >= 8 && errors.identity?.spousePhone) {
+          clearErrors('identity.spousePhone')
+        }
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [watch, clearErrors, errors.identity, requiresSpouseInfo])
 
   // Gestion de l'upload de photo avec compression
   const handlePhotoUpload = async (file: File) => {
@@ -805,27 +893,43 @@ export default function Step1({ form }: Step1Props) {
 
           {/* Selects et Checkbox */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
-            {/* Sexe */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-900 w-full min-w-0">
+            {/* Sexe - Désactivé et automatique selon la civilité */}
+            {/* <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-900 w-full min-w-0">
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Sexe <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">(Automatique selon la civilité)</span>
               </Label>
-              <Select 
-                onValueChange={(value) => setValue('identity.gender', value)}
-                defaultValue={watch('identity.gender')}
-              >
-                <SelectTrigger className="border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GENDER_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="relative">
+                <Select 
+                  onValueChange={(value) => setValue('identity.gender', value)}
+                  defaultValue={watch('identity.gender')}
+                  disabled={true}
+                >
+                  <SelectTrigger className="border-[#CBB171]/30 bg-gray-50 cursor-not-allowed transition-all duration-300 w-full">
+                    <SelectValue placeholder="Sélectionné automatiquement" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GENDER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <CheckCircle className="w-4 h-4 text-[#CBB171]" />
+                </div>
+              </div>
+              <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+                <span>✓ {watch('identity.gender') || 'Sera défini selon votre civilité'}</span>
+              </div>
+              {errors?.identity?.gender && (
+                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.identity.gender.message}</span>
+                </div>
+              )}
+            </div> */}
 
             {/* Nationalité */}
             <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-950 w-full min-w-0">

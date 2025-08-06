@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,31 +18,41 @@ import {
   Coffee,
   GraduationCap,
   UserX,
-  Info
+  Info,
+  Search,
+  Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { findCompanyByName } from '@/db/company.db'
+import { findProfessionByName } from '@/db/profession.db'
 
 interface Step3Props {
   form: any // Type du form de react-hook-form
 }
-
-// Suggestions de professions
-const PROFESSION_SUGGESTIONS = [
-  'Ingénieur', 'Médecin', 'Enseignant', 'Comptable', 'Avocat',
-  'Informaticien', 'Commercial', 'Infirmier', 'Architecte', 'Entrepreneur',
-  'Banquier', 'Journaliste', 'Pharmacien', 'Électricien', 'Mécanicien'
-]
 
 // Suggestions d'ancienneté
 const SENIORITY_SUGGESTIONS = [
   '6 mois', '1 an', '2 ans', '3 ans', '5 ans', '10 ans', '15 ans', '20 ans'
 ]
 
+// Interface pour les suggestions
+interface Suggestion {
+  name: string
+  isNew?: boolean
+}
+
 export default function Step3({ form }: Step3Props) {
   const [showProfessionSuggestions, setShowProfessionSuggestions] = useState(false)
+  const [showCompanySuggestions, setShowCompanySuggestions] = useState(false)
   const [showSenioritySuggestions, setShowSenioritySuggestions] = useState(false)
+  
+  // États pour les suggestions dynamiques
+  const [companySuggestions, setCompanySuggestions] = useState<Suggestion[]>([])
+  const [professionSuggestions, setProfessionSuggestions] = useState<Suggestion[]>([])
+  const [isLoadingCompanySuggestions, setIsLoadingCompanySuggestions] = useState(false)
+  const [isLoadingProfessionSuggestions, setIsLoadingProfessionSuggestions] = useState(false)
 
-  const { register, watch, setValue, formState: { errors } } = form
+  const { register, watch, setValue, formState: { errors }, clearErrors } = form
 
   // Watch pour la logique conditionnelle et animations
   const isEmployed = watch('company.isEmployed')
@@ -54,6 +64,132 @@ export default function Step3({ form }: Step3Props) {
     'company.profession',
     'company.seniority'
   ])
+
+  // Nettoyer automatiquement les erreurs quand les champs sont corrigés
+  React.useEffect(() => {
+    const subscription = watch((value: any) => {
+      // Nettoyer les erreurs de nom d'entreprise
+      if (value.company?.companyName && value.company.companyName.length >= 2 && value.company.companyName.length <= 100 && errors.company?.companyName) {
+        clearErrors('company.companyName')
+      }
+      
+      // Nettoyer les erreurs d'adresse entreprise
+      if (value.company?.companyAddress?.province && value.company.companyAddress.province.length >= 2 && value.company.companyAddress.province.length <= 50 && errors.company?.companyAddress?.province) {
+        clearErrors('company.companyAddress.province')
+      }
+      
+      if (value.company?.companyAddress?.city && value.company.companyAddress.city.length >= 2 && value.company.companyAddress.city.length <= 50 && errors.company?.companyAddress?.city) {
+        clearErrors('company.companyAddress.city')
+      }
+      
+      if (value.company?.companyAddress?.district && value.company.companyAddress.district.length >= 2 && value.company.companyAddress.district.length <= 100 && errors.company?.companyAddress?.district) {
+        clearErrors('company.companyAddress.district')
+      }
+      
+      // Nettoyer les erreurs de profession
+      if (value.company?.profession && value.company.profession.length >= 2 && value.company.profession.length <= 100 && errors.company?.profession) {
+        clearErrors('company.profession')
+      }
+      
+      // Nettoyer les erreurs d'ancienneté
+      if (value.company?.seniority && value.company.seniority.match(/^\d+\s*(mois|années?|ans?)$/) && errors.company?.seniority) {
+        clearErrors('company.seniority')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [watch, clearErrors, errors.company])
+
+  // Fonction pour récupérer les suggestions d'entreprises
+  const fetchCompanySuggestions = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setCompanySuggestions([])
+      return
+    }
+
+    setIsLoadingCompanySuggestions(true)
+    try {
+      const result = await findCompanyByName(query)
+      const suggestions: Suggestion[] = []
+      
+      if (result.found && result.company) {
+        suggestions.push({ name: result.company.name })
+      }
+      
+      if (result.suggestions) {
+        result.suggestions.forEach(suggestion => {
+          suggestions.push({ name: suggestion })
+        })
+      }
+      
+      // Ajouter l'option de créer une nouvelle entreprise
+      if (query.length >= 2) {
+        suggestions.push({ name: `Créer "${query}"`, isNew: true })
+      }
+      
+      setCompanySuggestions(suggestions)
+    } catch (error) {
+      console.error('Erreur lors de la récupération des suggestions d\'entreprises:', error)
+      setCompanySuggestions([])
+    } finally {
+      setIsLoadingCompanySuggestions(false)
+    }
+  }, [])
+
+  // Fonction pour récupérer les suggestions de professions
+  const fetchProfessionSuggestions = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setProfessionSuggestions([])
+      return
+    }
+
+    setIsLoadingProfessionSuggestions(true)
+    try {
+      const result = await findProfessionByName(query)
+      const suggestions: Suggestion[] = []
+      
+      if (result.found && result.profession) {
+        suggestions.push({ name: result.profession.name })
+      }
+      
+      if (result.suggestions) {
+        result.suggestions.forEach(suggestion => {
+          suggestions.push({ name: suggestion })
+        })
+      }
+      
+      // Ajouter l'option de créer une nouvelle profession
+      if (query.length >= 2) {
+        suggestions.push({ name: `Créer "${query}"`, isNew: true })
+      }
+      
+      setProfessionSuggestions(suggestions)
+    } catch (error) {
+      console.error('Erreur lors de la récupération des suggestions de professions:', error)
+      setProfessionSuggestions([])
+    } finally {
+      setIsLoadingProfessionSuggestions(false)
+    }
+  }, [])
+
+  // Effet pour surveiller les changements des champs et récupérer les suggestions
+  useEffect(() => {
+    const companyName = watch('company.companyName')
+    if (companyName && companyName.length >= 2) {
+      fetchCompanySuggestions(companyName)
+    } else {
+      setCompanySuggestions([])
+    }
+  }, [watch('company.companyName'), fetchCompanySuggestions])
+
+  useEffect(() => {
+    const profession = watch('company.profession')
+    if (profession && profession.length >= 2) {
+      fetchProfessionSuggestions(profession)
+    } else {
+      setProfessionSuggestions([])
+    }
+  }, [watch('company.profession'), fetchProfessionSuggestions])
 
   const handleToggleEmployment = (checked: boolean) => {
     setValue('company.isEmployed', checked)
@@ -69,8 +205,12 @@ export default function Step3({ form }: Step3Props) {
     }
   }
 
-  const handleSuggestionClick = (field: string, value: string) => {
-    setValue(field, value)
+  const handleSuggestionClick = (field: string, value: string, isNew: boolean = false) => {
+    // Si c'est une nouvelle entrée, extraire le nom sans "Créer"
+    const finalValue = isNew ? value.replace(/^Créer "/, '').replace(/"$/, '') : value
+    setValue(field, finalValue)
+    
+    if (field === 'company.companyName') setShowCompanySuggestions(false)
     if (field === 'company.profession') setShowProfessionSuggestions(false)
     if (field === 'company.seniority') setShowSenioritySuggestions(false)
   }
@@ -161,14 +301,44 @@ export default function Step3({ form }: Step3Props) {
                   id="companyName"
                   {...register('company.companyName')}
                   placeholder="Ex: Total Gabon, Ministère de la Santé..."
+                  onFocus={() => setShowCompanySuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowCompanySuggestions(false), 200)}
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.company?.companyName && "border-red-300 focus:border-red-500 bg-red-50/50",
                     watchedFields[0] && !errors?.company?.companyName && "border-[#CBB171] bg-[#CBB171]/5"
                   )}
                 />
-                {watchedFields[0] && !errors?.company?.companyName && (
+                {isLoadingCompanySuggestions && (
+                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin" />
+                )}
+                {watchedFields[0] && !errors?.company?.companyName && !isLoadingCompanySuggestions && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+                )}
+                
+                {/* Suggestions entreprises */}
+                {showCompanySuggestions && companySuggestions.length > 0 && (
+                  <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 max-h-32 sm:max-h-48 overflow-y-auto w-full">
+                    <CardContent className="p-2">
+                      <div className="space-y-1">
+                        {companySuggestions.map((suggestion, index) => (
+                          <Button
+                            key={index}
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm",
+                              suggestion.isNew && "text-[#CBB171] font-medium"
+                            )}
+                            onMouseDown={() => handleSuggestionClick('company.companyName', suggestion.name, suggestion.isNew)}
+                          >
+                            {suggestion.isNew && <Search className="w-3 h-3 mr-2" />}
+                            {suggestion.name}
+                          </Button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
               {errors?.company?.companyName && (
@@ -258,23 +428,30 @@ export default function Step3({ form }: Step3Props) {
                       watchedFields[4] && !errors?.company?.profession && "border-[#CBB171] bg-[#CBB171]/5"
                     )}
                   />
-                                  {watchedFields[4] && !errors?.company?.profession && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
-                )}
+                                  {isLoadingProfessionSuggestions && (
+                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin z-10" />
+                  )}
+                  {watchedFields[4] && !errors?.company?.profession && !isLoadingProfessionSuggestions && (
+                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                  )}
                   {/* Suggestions professions */}
-                  {showProfessionSuggestions && (
+                  {showProfessionSuggestions && professionSuggestions.length > 0 && (
                     <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 max-h-32 sm:max-h-48 overflow-y-auto w-full">
                       <CardContent className="p-2">
                         <div className="space-y-1">
-                          {PROFESSION_SUGGESTIONS.map((profession) => (
+                          {professionSuggestions.map((suggestion, index) => (
                             <Button
-                              key={profession}
+                              key={index}
                               variant="ghost"
                               size="sm"
-                              className="w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm"
-                              onMouseDown={() => handleSuggestionClick('company.profession', profession)}
+                              className={cn(
+                                "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm",
+                                suggestion.isNew && "text-[#CBB171] font-medium"
+                              )}
+                              onMouseDown={() => handleSuggestionClick('company.profession', suggestion.name, suggestion.isNew)}
                             >
-                              {profession}
+                              {suggestion.isNew && <Search className="w-3 h-3 mr-2" />}
+                              {suggestion.name}
                             </Button>
                           ))}
                         </div>
