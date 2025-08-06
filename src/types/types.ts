@@ -95,7 +95,13 @@ export interface MembershipRequest extends RegisterFormData {
   
   // Numéro de membre attribué (si approuvé)
   memberNumber?: string
-  
+  reviewNote?: string;  
+  // Code de sécurité pour accéder aux corrections
+  securityCode?: string;
+  // Date d'expiration du code de sécurité
+  securityCodeExpiry?: Date;
+  // Indique si le code de sécurité a été utilisé (pour éviter la réutilisation)
+  securityCodeUsed?: boolean;
   // Score de priorité (pour le tri)
   priorityScore?: number
 }
@@ -438,6 +444,59 @@ export interface UserFilters {
   limit?: number
   orderByField?: string
   orderByDirection?: 'asc' | 'desc'
+}
+
+// ================== TYPES POUR LES ENTREPRISES ET PROFESSIONS ==================
+
+/**
+ * Type pour une entreprise dans la collection companies
+ */
+export interface Company {
+  id: string
+  name: string
+  normalizedName: string // Nom normalisé pour la recherche
+  address?: {
+    province?: string
+    city?: string
+    district?: string
+  }
+  industry?: string
+  employeeCount?: number
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'administrateur qui a créé
+}
+
+/**
+ * Type pour une profession dans la collection professions
+ */
+export interface Profession {
+  id: string
+  name: string
+  normalizedName: string // Nom normalisé pour la recherche
+  category?: string
+  description?: string
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'administrateur qui a créé
+}
+
+/**
+ * Type pour la recherche d'entreprise
+ */
+export interface CompanySearchResult {
+  found: boolean
+  company?: Company
+  suggestions?: string[] // Suggestions si pas trouvé
+}
+
+/**
+ * Type pour la recherche de profession
+ */
+export interface ProfessionSearchResult {
+  found: boolean
+  profession?: Profession
+  suggestions?: string[] // Suggestions si pas trouvé
 }
 
 // ================== EXPORTS ==================

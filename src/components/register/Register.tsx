@@ -4,9 +4,11 @@ import React, { Suspense, lazy } from 'react'
 import { useRegister } from '@/providers/RegisterProvider'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield, AlertCircle, Home } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send, Save, RotateCcw, CheckCircle, Shield, AlertCircle, Home, Lock, Key } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
 
@@ -49,6 +51,8 @@ function Register() {
     isSubmitted,
     submissionError,
     userData,
+    correctionRequest,
+    securityCodeInput,
     nextStep,
     prevStep,
     submitForm,
@@ -57,7 +61,9 @@ function Register() {
     hasCachedData,
     clearCache,
     saveToCache,
-    validateCurrentStep
+    validateCurrentStep,
+    verifySecurityCode,
+    setSecurityCodeInput
   } = useRegister()
 
   // Gestionnaire pour passer à l'étape suivante
@@ -150,8 +156,138 @@ function Register() {
     )
   }
 
-  // Affichage de l'étape de succès
-  if (isSubmitted) {
+  // Affichage du formulaire de code de sécurité pour les corrections
+  if (correctionRequest && !correctionRequest.isVerified) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 py-4 sm:py-8 w-full max-w-full overflow-x-hidden relative">
+        {/* Background decorations */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#224D62]/10 to-transparent rounded-full opacity-30 transform translate-x-48 -translate-y-48"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[#CBB171]/10 to-transparent rounded-full opacity-30 transform -translate-x-48 translate-y-48"></div>
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-[#224D62]/10 to-[#CBB171]/10 rounded-full opacity-20 transform -translate-x-32 -translate-y-32"></div>
+        </div>
+
+        <div className="container mx-auto max-w-2xl px-2 sm:px-4 w-full relative z-10">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-0 w-full">
+              <div className="w-full min-w-0">
+                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[#224D62] via-[#224D62] to-[#CBB171] bg-clip-text text-transparent break-words">
+                  Corrections demandées
+                </h1>
+                <p className="text-[#224D62]/80 mt-2 text-sm sm:text-base break-words">
+                  Accédez à votre formulaire pour apporter les corrections demandées
+                </p>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = routes.public.homepage}
+                  className="border-[#CBB171]/30 text-[#CBB171] hover:bg-[#CBB171]/5 hover:border-[#CBB171]/50 transition-all duration-200 whitespace-nowrap"
+                >
+                  <Home className="w-4 h-4" />
+                  <span>Retourner à l'accueil</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Card className="shadow-2xl border-0 w-full max-w-full overflow-x-auto bg-white/80 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-orange-500/5 via-orange-600/5 to-orange-700/10 border-b border-orange-200/20">
+              <CardTitle className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-orange-600 to-orange-700 bg-clip-text text-transparent flex items-center space-x-2">
+                <Lock className="w-6 h-6" />
+                <span>Vérification de sécurité</span>
+              </CardTitle>
+            </CardHeader>
+            
+            <CardContent className="p-4 sm:p-8 w-full max-w-full overflow-x-auto">
+              <div className="space-y-6">
+                {/* Message de correction */}
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-orange-800">
+                        Corrections demandées
+                      </h3>
+                      <p className="text-sm text-orange-700 whitespace-pre-line">
+                        {correctionRequest.reviewNote}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Formulaire de code de sécurité */}
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-[#224D62] mb-2">
+                      Code de sécurité requis
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Veuillez saisir le code de sécurité qui vous a été envoyé pour accéder à votre formulaire de correction.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="securityCode" className="text-sm font-medium text-[#224D62]">
+                      Code de sécurité <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                      <Input
+                        id="securityCode"
+                        type="text"
+                        placeholder="Ex: 123456"
+                        value={securityCodeInput}
+                        onChange={(e) => setSecurityCodeInput(e.target.value)}
+                        className="pl-10 text-center font-mono text-lg tracking-widest"
+                        maxLength={6}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Le code de sécurité est composé de 6 chiffres
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={verifySecurityCode}
+                    disabled={!securityCodeInput.trim() || securityCodeInput.length !== 6}
+                    className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                  >
+                    <Lock className="w-4 h-4 mr-2" />
+                    Vérifier le code et charger mes données
+                  </Button>
+                </div>
+
+                <div className="text-center space-y-3">
+                  <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-orange-500/5 to-orange-600/5 px-4 py-2 rounded-full border border-orange-200/20">
+                    <Shield className="w-4 h-4 text-orange-600" />
+                    <span className="text-sm text-[#224D62] font-medium">
+                      Votre code de sécurité protège l'accès à vos données personnelles
+                    </span>
+                  </div>
+                  
+                  {/* Message informatif sur le cache */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-start space-x-2">
+                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-blue-700">
+                        <p className="font-medium mb-1">Mode correction activé</p>
+                        <p>Vos données précédentes ont été temporairement masquées pour permettre les corrections. Elles seront restaurées après vérification du code de sécurité.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Affichage de l'étape de succès (seulement si pas de correction en cours)
+  if (isSubmitted && !correctionRequest) {
     // Récupérer l'ID du membership depuis le cache s'il est disponible
     const submissionData = (() => {
       try {
@@ -182,13 +318,38 @@ function Register() {
         
         {/* Header avec indicateur de cache */}
         <div className="mb-6 sm:mb-8">
+          {/* Message de correction si en mode correction */}
+          {correctionRequest?.isVerified && (
+            <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-orange-800">
+                    Mode correction activé
+                  </h3>
+                  <p className="text-sm text-orange-700">
+                    Vous êtes en train de corriger votre demande. Veuillez apporter les modifications demandées ci-dessous :
+                  </p>
+                  <div className="bg-white border border-orange-300 rounded p-3">
+                    <p className="text-sm text-orange-800 whitespace-pre-line">
+                      {correctionRequest.reviewNote}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-0 w-full">
             <div className="w-full min-w-0">
               <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[#224D62] via-[#224D62] to-[#CBB171] bg-clip-text text-transparent break-words">
-                Inscription
+                {correctionRequest?.isVerified ? 'Correction de la demande' : 'Inscription'}
               </h1>
               <p className="text-[#224D62]/80 mt-2 text-sm sm:text-base break-words">
-                Complétez votre profil en {totalSteps} étapes simples
+                {correctionRequest?.isVerified 
+                  ? 'Apportez les corrections demandées à votre demande d\'adhésion'
+                  : `Complétez votre profil en ${totalSteps} étapes simples`
+                }
               </p>
 
               <Button
@@ -379,7 +540,7 @@ function Register() {
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    <span>Finaliser</span>
+                    <span>{correctionRequest?.isVerified ? 'Soumettre les corrections' : 'Finaliser'}</span>
                   </>
                 )}
               </Button>

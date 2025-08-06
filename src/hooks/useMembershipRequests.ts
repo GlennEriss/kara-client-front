@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
     getMembershipRequestsPaginated, 
     updateMembershipRequestStatus,
-    getMembershipRequestById
+    getMembershipRequestById,
+    renewSecurityCode
 } from '@/db/membership.db'
 import { toast } from 'sonner'
 import type { 
@@ -78,12 +79,14 @@ export function useUpdateMembershipRequestStatus() {
             requestId: string;
             newStatus: MembershipRequest['status'];
             reviewedBy?: string;
+            reviewNote?: string;
         }) => {
-            const { requestId, newStatus, reviewedBy } = params;
+            const { requestId, newStatus, reviewedBy, reviewNote } = params;
             const success = await updateMembershipRequestStatus(
                 requestId,
                 newStatus,
-                reviewedBy
+                reviewedBy,
+                reviewNote
             );
             
             if (!success) {
@@ -103,6 +106,42 @@ export function useUpdateMembershipRequestStatus() {
         },
         onError: (error) => {
             console.error('Erreur lors de la mise à jour:', error);
+        }
+    });
+}
+
+/**
+ * Hook pour renouveler le code de sécurité d'une demande d'adhésion
+ */
+export function useRenewSecurityCode() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (requestId: string) => {
+            const result = await renewSecurityCode(requestId);
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Erreur lors du renouvellement du code');
+            }
+            
+            return result;
+        },
+        onSuccess: (result, requestId) => {
+            // Invalider et refetch les queries liées
+            queryClient.invalidateQueries({ 
+                queryKey: ['membershipRequests'] 
+            });
+            
+            toast.success('Code renouvelé !', {
+                description: `Nouveau code: ${result.newCode}`,
+                duration: 5000,
+            });
+        },
+        onError: (error) => {
+            toast.error('Erreur lors du renouvellement', {
+                description: error.message,
+                duration: 4000,
+            });
         }
     });
 }

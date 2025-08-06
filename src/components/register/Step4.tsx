@@ -131,9 +131,31 @@ export default function Step4({ form }: Step4Props) {
     watchedFields[5], 
     watchedFields[6], 
     setError, 
-    clearErrors, 
+    clearErrors,
     watch
   ])
+
+  // Nettoyer automatiquement les erreurs quand les champs sont corrigés
+  React.useEffect(() => {
+    const subscription = watch((value: any) => {
+      // Nettoyer les erreurs de type de document
+      if (value.documents?.identityDocument && errors.documents?.identityDocument) {
+        clearErrors('documents.identityDocument')
+      }
+      
+      // Nettoyer les erreurs de numéro de document
+      if (value.documents?.identityDocumentNumber && value.documents.identityDocumentNumber.length >= 2 && errors.documents?.identityDocumentNumber) {
+        clearErrors('documents.identityDocumentNumber')
+      }
+      
+      // Nettoyer les erreurs de photo verso
+      if (value.documents?.documentPhotoBack && errors.documents?.documentPhotoBack) {
+        clearErrors('documents.documentPhotoBack')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [watch, clearErrors, errors.documents])
 
   // Gestion de l'upload des photos avec compression
   const handlePhotoUpload = async (file: File, isBack: boolean = false) => {
