@@ -78,12 +78,14 @@ export function useUpdateMembershipRequestStatus() {
             requestId: string;
             newStatus: MembershipRequest['status'];
             reviewedBy?: string;
+            reviewNote?: string;
         }) => {
-            const { requestId, newStatus, reviewedBy } = params;
+            const { requestId, newStatus, reviewedBy, reviewNote } = params;
             const success = await updateMembershipRequestStatus(
                 requestId,
                 newStatus,
-                reviewedBy
+                reviewedBy,
+                reviewNote
             );
             
             if (!success) {

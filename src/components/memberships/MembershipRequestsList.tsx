@@ -2,14 +2,14 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -70,7 +70,7 @@ const getStatusBadge = (status: MembershipRequestStatus) => {
 // Fonction utilitaire pour formater la date
 const formatDate = (timestamp: any) => {
   if (!timestamp) return 'Non définie'
-  
+
   try {
     // Si c'est un Timestamp Firebase
     if (timestamp.toDate) {
@@ -128,14 +128,14 @@ const MembershipRequestSkeleton = () => (
 )
 
 // Composant pour une demande individuelle
-const MembershipRequestCard = ({ 
-  request, 
-  onStatusUpdate 
-}: { 
+const MembershipRequestCard = ({
+  request,
+  onStatusUpdate
+}: {
   request: MembershipRequest
   onStatusUpdate: (requestId: string, newStatus: MembershipRequest['status']) => void
 }) => {
-  const {user} = useAuth()
+  const { user } = useAuth()
   const [showDetailsModal, setShowDetailsModal] = React.useState(false)
   const [showIdentityModal, setShowIdentityModal] = React.useState(false)
   const [isApproving, setIsApproving] = React.useState(false)
@@ -144,8 +144,19 @@ const MembershipRequestCard = ({
     isOpen: boolean
   }>({ type: null, isOpen: false })
   const [membershipType, setMembershipType] = React.useState<string>('')
+  const [companyName, setCompanyName] = React.useState<string>('')
+  const [professionName, setProfessionName] = React.useState<string>('')
+  const [correctionsList, setCorrectionsList] = React.useState<string>('')
   const queryClient = useQueryClient()
   const updateStatusMutation = useUpdateMembershipRequestStatus()
+
+  // Initialiser les valeurs par défaut quand le dialog s'ouvre
+  React.useEffect(() => {
+    if (confirmationAction.isOpen && confirmationAction.type === 'approve') {
+      setCompanyName(request.company?.companyName || '')
+      setProfessionName(request.company?.profession || '')
+    }
+  }, [confirmationAction.isOpen, confirmationAction.type, request.company?.companyName, request.company?.profession])
 
   // Fonction pour ouvrir la confirmation
   const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
@@ -156,6 +167,9 @@ const MembershipRequestCard = ({
   const closeConfirmation = () => {
     setConfirmationAction({ type: null, isOpen: false })
     setMembershipType('') // Réinitialiser le type de membre
+    setCompanyName('') // Réinitialiser le nom d'entreprise
+    setProfessionName('') // Réinitialiser la profession
+    setCorrectionsList('') // Réinitialiser la liste des corrections
   }
 
   // Fonction pour confirmer l'action
@@ -173,15 +187,45 @@ const MembershipRequestCard = ({
 
     if (confirmationAction.type === 'approve') {
       await handleApprove()
+    } else if (confirmationAction.type === 'under_review') {
+      // Gérer les corrections demandées
+      if (correctionsList.trim()) {
+        // Si des corrections sont saisies, c'est une demande de corrections
+        updateStatusMutation.mutate({
+          requestId: request.id!,
+          newStatus: 'under_review',
+          reviewedBy: user?.uid || 'unknown-admin',
+          reviewNote: correctionsList.trim()
+        })
+
+        toast.warning('Corrections demandées', {
+          description: `Des corrections ont été demandées pour la demande de ${request.identity.firstName} ${request.identity.lastName}.`,
+          duration: 4000,
+        })
+      } else {
+        // Si pas de corrections, c'est une simple mise en examen
+        updateStatusMutation.mutate({
+          requestId: request.id!,
+          newStatus: 'under_review',
+          reviewedBy: user?.uid || 'unknown-admin',
+          reviewNote: undefined
+        })
+
+        toast.warning('⏳ Demande mise en examen', {
+          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} est maintenant en cours d'examen.`,
+          duration: 4000,
+        })
+      }
     } else {
       const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
-      
-      // Utiliser la mutation directement avec reviewedBy
-      updateStatusMutation.mutate({
-        requestId: request.id!,
-        newStatus: status,
-        reviewedBy: user?.uid || 'unknown-admin'
-      })
+
+              // Utiliser la mutation directement avec reviewedBy
+        updateStatusMutation.mutate({
+          requestId: request.id!,
+          newStatus: status,
+          reviewedBy: user?.uid || 'unknown-admin',
+          reviewNote: correctionsList.trim() || undefined
+        })
 
       // Toast personnalisé selon l'action
       if (confirmationAction.type === 'reject') {
@@ -189,14 +233,9 @@ const MembershipRequestCard = ({
           description: `La demande de ${request.identity.firstName} ${request.identity.lastName} a été rejetée.`,
           duration: 4000,
         })
-      } else if (confirmationAction.type === 'under_review') {
-        toast.warning('⏳ Demande mise en examen', {
-          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} est maintenant en cours d'examen.`,
-          duration: 4000,
-        })
       }
     }
-    
+
     closeConfirmation()
   }
 
@@ -204,7 +243,7 @@ const MembershipRequestCard = ({
     setIsApproving(true)
     try {
       const phoneNumber = request.identity.contacts[0] // Premier numéro de téléphone
-      
+
       if (!phoneNumber) {
         toast.error('📞 Numéro de téléphone manquant', {
           description: 'Impossible de créer le compte utilisateur : aucun numéro de téléphone trouvé pour ce demandeur.',
@@ -254,228 +293,386 @@ const MembershipRequestCard = ({
   }
 
   return (
-  <Card className="hover:shadow-md transition-shadow">
-    <CardContent className="p-6">
-      <div className="space-y-4">
-        {/* En-tête avec photo, nom et statut */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-3">
-            {/* Photo du demandeur */}
-            <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-              {request.identity.photoURL ? (
-                <Image
-                  src={request.identity.photoURL}
-                  alt={`Photo de ${request.identity.firstName} ${request.identity.lastName}`}
-                  width={64}
-                  height={64}
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                  <User className="w-8 h-8 text-gray-400" />
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          {/* En-tête avec photo, nom et statut */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-3">
+              {/* Photo du demandeur */}
+              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                {request.identity.photoURL ? (
+                  <Image
+                    src={request.identity.photoURL}
+                    alt={`Photo de ${request.identity.firstName} ${request.identity.lastName}`}
+                    width={64}
+                    height={64}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                    <User className="w-8 h-8 text-gray-400" />
+                  </div>
+                )}
+              </div>
+
+              {/* Informations du demandeur */}
+              <div className="space-y-1">
+                <h3 className="font-semibold text-lg">
+                  {request.identity.firstName} {request.identity.lastName}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {request.identity.nationality} • {request.identity.civility}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {getStatusBadge(request.status)}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() => setShowDetailsModal(true)}
+                    className="flex items-center space-x-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Voir les détails</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowIdentityModal(true)}
+                    className="flex items-center space-x-2"
+                  >
+                    <IdCard className="w-4 h-4" />
+                    <span>Voir la pièce d'identité</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Informations principales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            {/* Contact */}
+            <div className="flex items-center space-x-2">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              <span className="truncate">{request.identity.email || 'Pas d\'email'}</span>
+            </div>
+
+            {/* Téléphone */}
+            <div className="flex items-center space-x-2">
+              <Phone className="w-4 h-4 text-muted-foreground" />
+              <span>{request.identity.contacts[0] || 'Pas de téléphone'}</span>
+            </div>
+
+            {/* Adresse */}
+            <div className="flex items-center space-x-2">
+              <MapPin className="w-4 h-4 text-muted-foreground" />
+              <span className="truncate">
+                {request.address.city}, {request.address.province}
+              </span>
+            </div>
+
+            {/* Date de création */}
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span>{formatDate(request.createdAt)}</span>
+            </div>
+
+            {/* Âge approximatif */}
+            <div className="flex items-center space-x-2">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <span>
+                {request.identity.birthDate
+                  ? `${new Date().getFullYear() - new Date(request.identity.birthDate).getFullYear()} ans`
+                  : 'Âge non défini'
+                }
+              </span>
+            </div>
+
+            {/* Véhicule */}
+            <div className="flex items-center space-x-2">
+              <span className="text-muted-foreground">🚗</span>
+              <span>{request.identity.hasCar ? 'Possède une voiture' : 'Pas de voiture'}</span>
+            </div>
+          </div>
+
+          {/* Actions rapides */}
+          {request.status === 'pending' && (
+            <div className="flex flex-wrap gap-2 pt-2 border-t">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-600 border-green-200 hover:bg-green-50"
+                onClick={() => openConfirmation('approve')}
+                disabled={isApproving}
+              >
+                <CheckCircle className="w-4 h-4 mr-1" />
+                {isApproving ? 'Approbation...' : 'Approuver'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => openConfirmation('reject')}
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                Rejeter
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openConfirmation('under_review')}
+              >
+                <AlertCircle className="w-4 h-4 mr-1" />
+                Demander des corrections
+              </Button>
+            </div>
+          )}
+
+          {/* Message de correction pour les demandes under_review */}
+          {request.status === 'under_review' && (
+            <div className="pt-4 border-t border-orange-200 bg-orange-50 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-orange-800">
+                    {request.reviewNote ? 'Corrections demandées' : 'Demande en cours d\'examen'}
+                  </p>
+                  <p className="text-sm text-orange-700">
+                    {request.reviewNote 
+                      ? 'Des corrections ont été demandées pour cette demande. Veuillez copier le lien ci-dessous et l\'envoyer au demandeur pour qu\'il puisse apporter les modifications nécessaires.'
+                      : 'Cette demande est actuellement en cours d\'examen. Vous pouvez copier le lien ci-dessous pour permettre au demandeur de consulter son dossier.'
+                    }
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      value={`${window.location.origin}/register?requestId=${request.id}`}
+                      readOnly
+                      className="text-xs font-mono bg-white border-orange-300"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-orange-600 border-orange-300 hover:bg-orange-100"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/register?requestId=${request.id}`)
+                        toast.success('Lien copié !', {
+                          description: 'Le lien de correction a été copié dans le presse-papiers.',
+                          duration: 3000,
+                        })
+                      }}
+                    >
+                      Copier
+                    </Button>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
-            
-            {/* Informations du demandeur */}
-            <div className="space-y-1">
-              <h3 className="font-semibold text-lg">
-                {request.identity.firstName} {request.identity.lastName}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {request.identity.nationality} • {request.identity.civility}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            {getStatusBadge(request.status)}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem 
-                  onClick={() => setShowDetailsModal(true)}
-                  className="flex items-center space-x-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Voir les détails</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => setShowIdentityModal(true)}
-                  className="flex items-center space-x-2"
-                >
-                  <IdCard className="w-4 h-4" />
-                  <span>Voir la pièce d'identité</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          )}
         </div>
+      </CardContent>
 
-        {/* Informations principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-          {/* Contact */}
-          <div className="flex items-center space-x-2">
-            <Mail className="w-4 h-4 text-muted-foreground" />
-            <span className="truncate">{request.identity.email || 'Pas d\'email'}</span>
-          </div>
-          
-          {/* Téléphone */}
-          <div className="flex items-center space-x-2">
-            <Phone className="w-4 h-4 text-muted-foreground" />
-            <span>{request.identity.contacts[0] || 'Pas de téléphone'}</span>
-          </div>
-          
-          {/* Adresse */}
-          <div className="flex items-center space-x-2">
-            <MapPin className="w-4 h-4 text-muted-foreground" />
-            <span className="truncate">
-              {request.address.city}, {request.address.province}
-            </span>
-          </div>
-          
-          {/* Date de création */}
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span>{formatDate(request.createdAt)}</span>
-          </div>
-          
-          {/* Âge approximatif */}
-          <div className="flex items-center space-x-2">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <span>
-              {request.identity.birthDate 
-                ? `${new Date().getFullYear() - new Date(request.identity.birthDate).getFullYear()} ans`
-                : 'Âge non défini'
+      {/* Modals */}
+      <MemberDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        request={request}
+      />
+
+      <MemberIdentityModal
+        isOpen={showIdentityModal}
+        onClose={() => setShowIdentityModal(false)}
+        request={request}
+      />
+
+      {/* Modal de confirmation */}
+      <Dialog open={confirmationAction.isOpen} onOpenChange={closeConfirmation}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmationAction.type === 'approve' && 'Confirmer l\'approbation'}
+              {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
+              {confirmationAction.type === 'under_review' && 'Demander des corrections'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmationAction.type === 'approve' &&
+                `Êtes-vous sûr de vouloir approuver la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action créera un compte utilisateur Firebase et ne pourra pas être annulée.`
               }
-            </span>
-          </div>
-          
-          {/* Véhicule */}
-          <div className="flex items-center space-x-2">
-            <span className="text-muted-foreground">🚗</span>
-            <span>{request.identity.hasCar ? 'Possède une voiture' : 'Pas de voiture'}</span>
-          </div>
-        </div>
+              {confirmationAction.type === 'reject' &&
+                `Êtes-vous sûr de vouloir rejeter la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action ne pourra pas être annulée.`
+              }
+              {confirmationAction.type === 'under_review' &&
+                `Veuillez préciser les corrections à apporter pour la demande de ${request.identity.firstName} ${request.identity.lastName}.`
+              }
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* Actions rapides */}
-        {request.status === 'pending' && (
-          <div className="flex flex-wrap gap-2 pt-2 border-t">
-            <Button 
-              size="sm" 
-              variant="outline"
-              className="text-green-600 border-green-200 hover:bg-green-50"
-              onClick={() => openConfirmation('approve')}
-              disabled={isApproving}
-            >
-              <CheckCircle className="w-4 h-4 mr-1" />
-              {isApproving ? 'Approbation...' : 'Approuver'}
+          {/* Sélecteur de type de membre pour l'approbation */}
+          {confirmationAction.type === 'approve' && (
+            <div className="py-4 space-y-6">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Type de membre <span className="text-red-500">*</span>
+                </label>
+                <Select value={membershipType} onValueChange={setMembershipType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionnez un type de membre..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="adherant">Adhérant</SelectItem>
+                    <SelectItem value="bienfaiteur">Bienfaiteur</SelectItem>
+                    <SelectItem value="sympathisant">Sympathisant</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!membershipType && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Le type de membre est obligatoire pour l'approbation
+                  </p>
+                )}
+              </div>
+
+              {
+                request.company.isEmployed && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-[#224D62] border-b border-[#CBB171]/30 pb-2">
+                      Informations professionnelles
+                    </h4>
+                    {/* Champ Entreprise */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium text-[#224D62]">
+                        Nom de l'entreprise
+                        {request.company?.companyName && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            (Valeur par défaut: {request.company.companyName})
+                          </span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                        <Input
+                          value={companyName}
+                          onChange={(e) => setCompanyName(e.target.value)}
+                          placeholder={request.company?.companyName || "Nom de l'entreprise"}
+                          className="pl-10"
+                        />
+                      </div>
+                      {request.company?.companyName && !companyName && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-blue-600">
+                            💡 Utilisez la valeur par défaut ou saisissez une nouvelle entreprise
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setCompanyName(request.company.companyName || '')}
+                            className="text-xs h-6 px-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
+                          >
+                            Utiliser par défaut
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Champ Profession */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-medium text-[#224D62]">
+                        Profession
+                        {request.company?.profession && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            (Valeur par défaut: {request.company.profession})
+                          </span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                        <Input
+                          value={professionName}
+                          onChange={(e) => setProfessionName(e.target.value)}
+                          placeholder={request.company?.profession || "Profession"}
+                          className="pl-10"
+                        />
+                      </div>
+                      {request.company?.profession && !professionName && (
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-blue-600">
+                            💡 Utilisez la valeur par défaut ou saisissez une nouvelle profession
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setProfessionName(request.company.profession || '')}
+                            className="text-xs h-6 px-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
+                          >
+                            Utiliser par défaut
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              }
+              {/* Champs Entreprise et Profession */}
+
+            </div>
+          )}
+
+          {/* Formulaire de corrections */}
+          {confirmationAction.type === 'under_review' && (
+            <div className="py-4 space-y-4">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-[#224D62]">
+                  Corrections à apporter <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={correctionsList}
+                  onChange={(e) => setCorrectionsList(e.target.value)}
+                  placeholder="Exemples :
+• Photo trop floue, veuillez fournir une photo plus nette
+• Document d'identité manquant
+• Adresse incomplète
+• Numéro de téléphone incorrect"
+                  className="w-full min-h-[120px] p-3 border border-[#CBB171]/30 rounded-lg focus:border-[#224D62] focus:ring-[#224D62]/20 resize-none"
+                  required
+                />
+                                 {confirmationAction.type === 'under_review' && !correctionsList.trim() && (
+                   <p className="text-sm text-red-500">
+                     Veuillez préciser les corrections demandées
+                   </p>
+                 )}
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+            <Button variant="outline" onClick={closeConfirmation}>
+              Annuler
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              className="text-red-600 border-red-200 hover:bg-red-50"
-              onClick={() => openConfirmation('reject')}
+            <Button
+              onClick={confirmAction}
+                             disabled={
+                 isApproving ||
+                 (confirmationAction.type === 'approve' && !membershipType) ||
+                 (confirmationAction.type === 'under_review' && !correctionsList.trim())
+               }
+              className={
+                confirmationAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
+                  confirmationAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' :
+                    confirmationAction.type === 'under_review' ? 'bg-orange-600 hover:bg-orange-700' :
+                      'bg-blue-600 hover:bg-blue-700'
+              }
             >
-              <XCircle className="w-4 h-4 mr-1" />
-              Rejeter
+              {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
+              {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
+              {confirmationAction.type === 'under_review' && 'Envoyer les corrections'}
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => openConfirmation('under_review')}
-            >
-              <Eye className="w-4 h-4 mr-1" />
-              Examiner
-            </Button>
-          </div>
-        )}
-      </div>
-    </CardContent>
-
-    {/* Modals */}
-    <MemberDetailsModal
-      isOpen={showDetailsModal}
-      onClose={() => setShowDetailsModal(false)}
-      request={request}
-    />
-    
-    <MemberIdentityModal
-      isOpen={showIdentityModal}
-      onClose={() => setShowIdentityModal(false)}
-      request={request}
-    />
-
-    {/* Modal de confirmation */}
-    <Dialog open={confirmationAction.isOpen} onOpenChange={closeConfirmation}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {confirmationAction.type === 'approve' && 'Confirmer l\'approbation'}
-            {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
-            {confirmationAction.type === 'under_review' && 'Mettre en examen'}
-          </DialogTitle>
-          <DialogDescription>
-            {confirmationAction.type === 'approve' && 
-              `Êtes-vous sûr de vouloir approuver la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action créera un compte utilisateur Firebase et ne pourra pas être annulée.`
-            }
-            {confirmationAction.type === 'reject' && 
-              `Êtes-vous sûr de vouloir rejeter la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action ne pourra pas être annulée.`
-            }
-            {confirmationAction.type === 'under_review' && 
-              `Êtes-vous sûr de vouloir mettre la demande de ${request.identity.firstName} ${request.identity.lastName} en cours d'examen ?`
-            }
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Sélecteur de type de membre pour l'approbation */}
-        {confirmationAction.type === 'approve' && (
-          <div className="py-4">
-            <label className="text-sm font-medium mb-2 block">
-              Type de membre <span className="text-red-500">*</span>
-            </label>
-            <Select value={membershipType} onValueChange={setMembershipType}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Sélectionnez un type de membre..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="adherant">Adhérant</SelectItem>
-                <SelectItem value="bienfaiteur">Bienfaiteur</SelectItem>
-                <SelectItem value="sympathisant">Sympathisant</SelectItem>
-              </SelectContent>
-            </Select>
-            {!membershipType && (
-              <p className="text-sm text-red-500 mt-1">
-                Le type de membre est obligatoire pour l'approbation
-              </p>
-            )}
-          </div>
-        )}
-        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-          <Button variant="outline" onClick={closeConfirmation}>
-            Annuler
-          </Button>
-          <Button 
-            onClick={confirmAction}
-            disabled={isApproving || (confirmationAction.type === 'approve' && !membershipType)}
-            className={
-              confirmationAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
-              confirmationAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' :
-              'bg-blue-600 hover:bg-blue-700'
-            }
-          >
-            {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
-            {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
-            {confirmationAction.type === 'under_review' && 'Mettre en examen'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   )
 }
 
@@ -489,11 +686,11 @@ export default function MembershipRequestsList() {
     limit: 10
   })
 
-  const { 
-    data: membershipData, 
-    isLoading, 
-    isError, 
-    error 
+  const {
+    data: membershipData,
+    isLoading,
+    isError,
+    error
   } = useMembershipRequests({
     page: filters.page,
     limit: filters.limit,
@@ -564,11 +761,11 @@ export default function MembershipRequestsList() {
                 />
               </div>
             </div>
-            
+
             {/* Filtre par statut */}
             <div className="w-full md:w-48">
-              <Select 
-                value={filters.status} 
+              <Select
+                value={filters.status}
                 onValueChange={(value) => handleFilterChange('status', value)}
               >
                 <SelectTrigger>

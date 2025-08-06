@@ -426,7 +426,8 @@ export async function getMembershipRequestsPaginated(options: {
 export async function updateMembershipRequestStatus(
     requestId: string,
     newStatus: MembershipRequestStatus,
-    reviewedBy?: string
+    reviewedBy?: string,
+    reviewNote?: string
 ): Promise<boolean> {
     try {
         const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
@@ -438,6 +439,11 @@ export async function updateMembershipRequestStatus(
         };
 
         if (reviewedBy) updates.reviewedBy = reviewedBy;
+        
+        // Sauvegarder la note de correction si fournie
+        if (reviewNote && reviewNote.trim()) {
+            updates['reviewNote'] = reviewNote.trim();
+        }
 
         await updateDoc(docRef, updates);
         return true;

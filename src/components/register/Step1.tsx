@@ -125,6 +125,7 @@ export default function Step1({ form }: Step1Props) {
     'identity.prayerPlace',
     'identity.nationality',
     'identity.photo',
+    'identity.gender',
     'identity.maritalStatus',
     'identity.spouseLastName',
     'identity.spouseFirstName',
@@ -146,6 +147,18 @@ export default function Step1({ form }: Step1Props) {
       clearErrors(['identity.spouseLastName', 'identity.spouseFirstName', 'identity.spousePhone'])
     }
   }, [requiresSpouseInfo, setValue, clearErrors])
+
+  // Lier la civilité au sexe automatiquement
+  React.useEffect(() => {
+    const civility = watch('identity.civility')
+    if (civility) {
+      // Définir le sexe selon la civilité
+      const gender = civility === 'Monsieur' ? 'Homme' : 'Femme'
+      setValue('identity.gender', gender)
+      // Nettoyer les erreurs éventuelles du sexe
+      clearErrors('identity.gender')
+    }
+  }, [watch('identity.civility'), setValue, clearErrors])
 
   // Définir la nationalité par défaut au chargement (Gabon)
   React.useEffect(() => {
@@ -805,27 +818,43 @@ export default function Step1({ form }: Step1Props) {
 
           {/* Selects et Checkbox */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
-            {/* Sexe */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-900 w-full min-w-0">
+            {/* Sexe - Désactivé et automatique selon la civilité */}
+            {/* <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-900 w-full min-w-0">
               <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Sexe <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">(Automatique selon la civilité)</span>
               </Label>
-              <Select 
-                onValueChange={(value) => setValue('identity.gender', value)}
-                defaultValue={watch('identity.gender')}
-              >
-                <SelectTrigger className="border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GENDER_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="relative">
+                <Select 
+                  onValueChange={(value) => setValue('identity.gender', value)}
+                  defaultValue={watch('identity.gender')}
+                  disabled={true}
+                >
+                  <SelectTrigger className="border-[#CBB171]/30 bg-gray-50 cursor-not-allowed transition-all duration-300 w-full">
+                    <SelectValue placeholder="Sélectionné automatiquement" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GENDER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <CheckCircle className="w-4 h-4 text-[#CBB171]" />
+                </div>
+              </div>
+              <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+                <span>✓ {watch('identity.gender') || 'Sera défini selon votre civilité'}</span>
+              </div>
+              {errors?.identity?.gender && (
+                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{errors.identity.gender.message}</span>
+                </div>
+              )}
+            </div> */}
 
             {/* Nationalité */}
             <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-950 w-full min-w-0">
