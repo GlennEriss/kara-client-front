@@ -1,6 +1,5 @@
 'use client'
-import React, { useRef, useState } from 'react'
-import Image from 'next/image'
+import React, { useState } from 'react'
 import { Download, FileText, Calendar, MapPin, Loader2 } from 'lucide-react'
 import {
   Dialog,
@@ -9,31 +8,184 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DefaultLogo } from '@/components/logo/Logo'
 import type { MembershipRequest } from '@/types/types'
-import jsPDF from 'jspdf'
+import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image as PDFImage } from '@react-pdf/renderer'
 import { toast } from 'sonner'
 
-interface MemberIdentityModalProps {
-  isOpen: boolean
-  onClose: () => void
-  request: MembershipRequest
-}
+// Styles pour le document PDF d'identité
+const styles = StyleSheet.create({
+  page: {
+    fontFamily: 'Times-Roman',
+    fontSize: 12,
+    paddingTop: 30,
+    paddingBottom: 65,
+    paddingHorizontal: 35,
+    lineHeight: 1.5,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 30,
+    borderBottom: '2px solid #224d62',
+    paddingBottom: 15,
+  },
+  logo: {
+    width: 60,
+    height: 60,
+  },
+  headerText: {
+    flex: 1,
+    marginLeft: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#224d62',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  headerInfo: {
+    textAlign: 'right',
+  },
+  section: {
+    marginBottom: 25,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#224d62',
+    marginBottom: 15,
+    borderBottom: '1px solid #224d62',
+    paddingBottom: 5,
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
+  infoItem: {
+    width: '50%',
+    marginBottom: 10,
+  },
+  infoLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 3,
+  },
+  infoValue: {
+    fontSize: 12,
+    color: '#000',
+  },
+  documentCard: {
+    border: '1px solid #ddd',
+    borderRadius: 5,
+    padding: 15,
+    marginBottom: 15,
+    backgroundColor: '#f9f9f9',
+  },
+  documentTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#224d62',
+    marginBottom: 10,
+  },
+  documentInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  documentLabel: {
+    fontSize: 11,
+    color: '#666',
+    width: '40%',
+  },
+  documentValue: {
+    fontSize: 11,
+    color: '#000',
+    width: '60%',
+  },
+  photoSection: {
+    marginTop: 20,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  photoCard: {
+    width: '48%',
+    border: '1px solid #ddd',
+    borderRadius: 5,
+    padding: 10,
+  },
+  photoTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#224d62',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  photoPlaceholder: {
+    width: '100%',
+    height: 120,
+    border: '2px dashed #ccc',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  statusSection: {
+    backgroundColor: '#e8f4f8',
+    border: '1px solid #b3d9e6',
+    borderRadius: 5,
+    padding: 15,
+    marginTop: 20,
+  },
+  statusTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#224d62',
+    marginBottom: 10,
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  statusCheck: {
+    fontSize: 12,
+    color: '#28a745',
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 11,
+    color: '#666',
+  },
+  footer: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: '#fff3cd',
+    border: '1px solid #ffeaa7',
+    borderRadius: 5,
+  },
+  footerText: {
+    fontSize: 9,
+    color: '#856404',
+    textAlign: 'center',
+    lineHeight: 1.3,
+  },
+})
 
-const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  request 
-}) => {
-  const [isExporting, setIsExporting] = useState(false)
-  const contentRef = useRef<HTMLDivElement>(null)
-
+// Composant principal du document PDF d'identité
+const IdentityDocumentPDF = ({ request }: { request: MembershipRequest }) => {
   const formatDate = (date: Date | string | any) => {
     if (!date) return 'Non défini'
     
     try {
-      // Gestion des différents types de dates
       let dateObj: Date
       
       if (date instanceof Date) {
@@ -41,7 +193,6 @@ const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({
       } else if (typeof date === 'string') {
         dateObj = new Date(date)
       } else if (date.toDate && typeof date.toDate === 'function') {
-        // Firestore Timestamp
         dateObj = date.toDate()
       } else {
         dateObj = new Date(date)
@@ -57,9 +208,152 @@ const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({
     }
   }
 
-  const handleExportPDF = async () => {
-    if (!contentRef.current) return
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* En-tête */}
+        <View style={styles.header}>
+          <View style={styles.logo}>
+            <PDFImage 
+              src="/Logo-Kara.webp" 
+              style={{ width: 60, height: 60 }}
+              cache={false}
+            />
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>PIÈCE D'IDENTITÉ</Text>
+            <Text style={styles.subtitle}>Vérification des Documents d'Identité</Text>
+          </View>
+          <View style={styles.headerInfo}>
+            <Text style={styles.subtitle}>Date: {formatDate(new Date())}</Text>
+            <Text style={styles.subtitle}>Dossier: {request.id}</Text>
+          </View>
+        </View>
 
+        {/* Informations du demandeur */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Informations du Demandeur</Text>
+          <View style={styles.infoGrid}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Nom complet</Text>
+              <Text style={styles.infoValue}>
+                {request.identity.firstName} {request.identity.lastName}
+              </Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Date de naissance</Text>
+              <Text style={styles.infoValue}>{formatDate(request.identity.birthDate)}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Lieu de naissance</Text>
+              <Text style={styles.infoValue}>{request.identity.birthPlace}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Nationalité</Text>
+              <Text style={styles.infoValue}>{request.identity.nationality}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Informations du document */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Informations du Document d'Identité</Text>
+          <View style={styles.documentCard}>
+            <Text style={styles.documentTitle}>{request.documents.identityDocument}</Text>
+            <View style={styles.documentInfo}>
+              <Text style={styles.documentLabel}>Numéro:</Text>
+              <Text style={styles.documentValue}>{request.documents.identityDocumentNumber}</Text>
+            </View>
+            <View style={styles.documentInfo}>
+              <Text style={styles.documentLabel}>Date d'émission:</Text>
+              <Text style={styles.documentValue}>{formatDate(request.documents.issuingDate)}</Text>
+            </View>
+            <View style={styles.documentInfo}>
+              <Text style={styles.documentLabel}>Date d'expiration:</Text>
+              <Text style={styles.documentValue}>{formatDate(request.documents.expirationDate)}</Text>
+            </View>
+            <View style={styles.documentInfo}>
+              <Text style={styles.documentLabel}>Lieu d'émission:</Text>
+              <Text style={styles.documentValue}>{request.documents.issuingPlace}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Photos du document */}
+        <View style={styles.photoSection}>
+          <Text style={styles.sectionTitle}>Photos du Document</Text>
+          <View style={styles.photoGrid}>
+            <View style={styles.photoCard}>
+              <Text style={styles.photoTitle}>Recto du Document</Text>
+              <View style={styles.photoPlaceholder}>
+                <Text style={{ fontSize: 10, color: '#999', textAlign: 'center' }}>
+                  {request.documents.documentPhotoFrontURL ? 'Photo disponible' : 'Aucune photo'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.photoCard}>
+              <Text style={styles.photoTitle}>Verso du Document</Text>
+              <View style={styles.photoPlaceholder}>
+                <Text style={{ fontSize: 10, color: '#999', textAlign: 'center' }}>
+                  {request.documents.documentPhotoBackURL ? 'Photo disponible' : 'Aucune photo'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Statut de vérification */}
+        <View style={styles.statusSection}>
+          <Text style={styles.statusTitle}>Statut de Vérification</Text>
+          <View style={styles.statusItem}>
+            <Text style={styles.statusCheck}>✓</Text>
+            <Text style={styles.statusText}>Document d'identité requis</Text>
+          </View>
+          <View style={styles.statusItem}>
+            <Text style={styles.statusCheck}>
+              {request.documents.documentPhotoFrontURL ? '✓' : '⚠'}
+            </Text>
+            <Text style={styles.statusText}>Photos lisibles</Text>
+          </View>
+          <View style={styles.statusItem}>
+            <Text style={styles.statusCheck}>✓</Text>
+            <Text style={styles.statusText}>Informations cohérentes</Text>
+          </View>
+          <View style={styles.statusItem}>
+            <Text style={styles.statusCheck}>⏳</Text>
+            <Text style={styles.statusText}>En attente de validation</Text>
+          </View>
+        </View>
+
+        {/* Note de confidentialité */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            <Text style={{ fontWeight: 'bold' }}>Note de confidentialité :</Text> 
+            Ces informations sont strictement confidentielles et ne doivent être consultées 
+            que par le personnel autorisé de KARA dans le cadre du processus d'adhésion. 
+            Toute divulgation non autorisée est strictement interdite.
+          </Text>
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
+interface MemberIdentityModalProps {
+  isOpen: boolean
+  onClose: () => void
+  request: MembershipRequest
+}
+
+const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  request 
+}) => {
+  const [isExporting, setIsExporting] = useState(false)
+
+  // Fonction pour télécharger le PDF
+  const handleDownloadPDF = async () => {
     setIsExporting(true)
     
     try {
@@ -68,123 +362,28 @@ const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({
         duration: 10000,
       })
 
-      // Création manuelle du PDF avec jsPDF (évite les erreurs html2canvas)
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      })
-
-      let yPosition = 20
-      const primaryColor: [number, number, number] = [34, 77, 98]
-      const accentColor: [number, number, number] = [203, 177, 113]
-
-      // En-tête
-      pdf.setFontSize(20)
-      pdf.setTextColor(...primaryColor)
-      pdf.text('PIÈCE D\'IDENTITÉ', 105, yPosition, { align: 'center' })
+      const blob = await pdf(<IdentityDocumentPDF request={request} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Documents_Identite_${request.identity.lastName}_${request.identity.firstName}_${new Date().toISOString().split('T')[0]}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
       
-      yPosition += 15
-      pdf.setFontSize(14)
-      pdf.text('Informations du Demandeur', 20, yPosition)
-      
-      yPosition += 10
-      pdf.setDrawColor(...primaryColor)
-      pdf.line(20, yPosition, 190, yPosition)
-      
-      yPosition += 15
-      pdf.setFontSize(11)
-      pdf.setTextColor(0, 0, 0)
-      
-      // Informations personnelles
-      pdf.text(`Nom: ${request.identity?.lastName || 'Non renseigné'}`, 25, yPosition)
-      pdf.text(`Prénom: ${request.identity?.firstName || 'Non renseigné'}`, 110, yPosition)
-      
-      yPosition += 8
-      pdf.text(`Date de naissance: ${formatDate(request.identity?.birthDate)}`, 25, yPosition)
-      pdf.text(`Lieu: ${request.identity?.birthPlace || 'Non renseigné'}`, 110, yPosition)
-      
-      yPosition += 8
-      pdf.text(`Nationalité: ${request.identity?.nationality || 'Non renseigné'}`, 25, yPosition)
-      
-      yPosition += 15
-      
-      // Section Documents
-      pdf.setFontSize(14)
-      pdf.setTextColor(...primaryColor)
-      pdf.text('Informations du Document d\'Identité', 20, yPosition)
-      
-      yPosition += 10
-      pdf.line(20, yPosition, 190, yPosition)
-      
-      yPosition += 15
-      pdf.setFontSize(11)
-      pdf.setTextColor(0, 0, 0)
-      
-      pdf.text(`Type: ${request.documents?.identityDocument || 'Non précisé'}`, 25, yPosition)
-      yPosition += 8
-      pdf.text(`Numéro: ${request.documents?.identityDocumentNumber || 'Non renseigné'}`, 25, yPosition)
-      yPosition += 8
-      pdf.text(`Date d'émission: ${formatDate(request.documents?.issuingDate)}`, 25, yPosition)
-      yPosition += 8
-      pdf.text(`Date d'expiration: ${formatDate(request.documents?.expirationDate)}`, 25, yPosition)
-      yPosition += 8
-      pdf.text(`Lieu d'émission: ${request.documents?.issuingPlace || 'Non renseigné'}`, 25, yPosition)
-
-      yPosition += 20
-
-      // Note sur les photos
-      pdf.setFontSize(10)
-      pdf.setTextColor(100, 100, 100)
-      pdf.text('Note: Les photos du document sont disponibles dans le système mais ne peuvent', 25, yPosition)
-      yPosition += 5
-      pdf.text('être incluses dans ce PDF pour des raisons de sécurité.', 25, yPosition)
-
-      yPosition += 20
-
-      // Statut
-      pdf.setFontSize(12)
-      pdf.setTextColor(...accentColor)
-      pdf.text('Statut de Vérification', 25, yPosition)
-      yPosition += 10
-      pdf.setFontSize(10)
-      pdf.setTextColor(0, 0, 0)
-      pdf.text('• Informations vérifiées ✓', 30, yPosition)
-      yPosition += 6
-      pdf.text('• Documents joints ✓', 30, yPosition)
-      yPosition += 6
-      pdf.text('• En attente de validation ⏳', 30, yPosition)
-
-      yPosition += 20
-
-      // Note de confidentialité
-      pdf.setFontSize(8)
-      pdf.setTextColor(150, 150, 150)
-      const confidentialityText = 'CONFIDENTIEL: Ce document contient des informations personnelles protégées. Toute divulgation non autorisée est interdite par la loi.'
-      const lines = pdf.splitTextToSize(confidentialityText, 170)
-      pdf.text(lines, 20, yPosition)
-
-      // Génération du nom de fichier et téléchargement
-      const fileName = `Documents_Identite_${request.identity.lastName}_${request.identity.firstName}_${new Date().toISOString().split('T')[0]}.pdf`
-      pdf.save(fileName)
-
       toast.success(' PDF généré avec succès !', {
         id: 'pdf-export-identity',
-        description: `Fichier téléchargé : ${fileName}`,
+        description: `Fichier téléchargé : Documents_Identite_${request.identity.lastName}_${request.identity.firstName}_${new Date().toISOString().split('T')[0]}.pdf`,
         duration: 4000,
       })
 
     } catch (error: any) {
-      console.error('Erreur lors de l\'export PDF:', error)
-      
-      // Gestion spécifique de l'erreur de couleur lab
-      const errorMessage = error?.message?.includes('unsupported color function "lab"') 
-        ? 'Problème de compatibilité des couleurs. Le PDF a été généré en mode simplifié.'
-        : 'Une erreur technique est survenue. Veuillez réessayer.'
+      console.error('Erreur lors du téléchargement du PDF:', error)
       
       toast.error('❌ Erreur lors de la génération du PDF', {
         id: 'pdf-export-identity',
-        description: errorMessage,
+        description: 'Une erreur technique est survenue. Veuillez réessayer.',
         duration: 5000,
       })
     } finally {
@@ -194,210 +393,37 @@ const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[50vw] !max-w-[95vw] max-h-[90vh] overflow-auto">
+      <DialogContent className="!w-[95vw] !max-w-[1400px] max-h-[95vh] overflow-hidden">
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <DialogTitle className="text-xl font-semibold">
-            Pièce d'Identité
+          <DialogTitle className="text-xl font-semibold text-[#224D62]">
+            Prévisualisation - Pièce d'Identité
           </DialogTitle>
           <Button 
             variant="outline" 
             size="sm"
-            onClick={handleExportPDF}
+            onClick={handleDownloadPDF}
             disabled={isExporting}
-            className="flex items-center space-x-1 mr-4 disabled:opacity-50"
+            className="mr-10 flex items-center space-x-1 border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white disabled:opacity-50"
           >
             {isExporting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Génération...</span>
+              </>
             ) : (
-              <Download className="w-4 h-4" />
+              <>
+                <Download className="w-4 h-4" />
+                <span>Télécharger PDF</span>
+              </>
             )}
-            <span>{isExporting ? 'Génération...' : 'Export PDF'}</span>
           </Button>
         </DialogHeader>
 
-        {/* Contenu du document d'identité */}
-        <div ref={contentRef} className="bg-white p-12 rounded-lg border shadow-sm space-y-10">
-          {/* En-tête avec logo */}
-          <div className="flex justify-between items-start border-b pb-6">
-            <div className="flex items-center space-x-4">
-              <DefaultLogo size="md" />
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">KARA</h2>
-                <p className="text-sm text-gray-600">Vérification des Documents d'Identité</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600">Date: {formatDate(new Date())}</p>
-              <p className="text-sm text-gray-600">Dossier: {request.id}</p>
-            </div>
-          </div>
-
-          {/* Informations du demandeur */}
-          <div className="bg-gray-50 p-6 rounded-lg">
-            <h3 className="text-xl font-semibold text-gray-800 mb-6">
-              Informations du Demandeur
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6 text-sm">
-              <div>
-                <label className="font-medium text-gray-600">Nom complet</label>
-                <p className="text-gray-800">{request.identity.firstName} {request.identity.lastName}</p>
-              </div>
-              <div>
-                <label className="font-medium text-gray-600">Date de naissance</label>
-                <p className="text-gray-800">{formatDate(request.identity.birthDate)}</p>
-              </div>
-              <div>
-                <label className="font-medium text-gray-600">Lieu de naissance</label>
-                <p className="text-gray-800">{request.identity.birthPlace}</p>
-              </div>
-              <div>
-                <label className="font-medium text-gray-600">Nationalité</label>
-                <p className="text-gray-800">{request.identity.nationality}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Informations sur le document */}
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">
-              Informations du Document d'Identité
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center space-x-2">
-                    <FileText className="w-4 h-4" />
-                    <span>Type de Document</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-medium">{request.documents.identityDocument}</p>
-                  <p className="text-sm text-gray-600">N° {request.documents.identityDocumentNumber}</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center space-x-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>Dates</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <p className="text-xs text-gray-600">Délivré le</p>
-                    <p className="text-sm font-medium">{formatDate(request.documents.issuingDate)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Expire le</p>
-                    <p className="text-sm font-medium">{formatDate(request.documents.expirationDate)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center space-x-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>Lieu de Délivrance</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="font-medium">{request.documents.issuingPlace}</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Photos du document */}
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">
-              Photos du Document
-            </h3>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Photo recto */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Recto du Document</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative w-full h-80 lg:h-96 bg-gray-100 rounded-lg overflow-hidden border-2 border-dashed border-gray-300">
-                    {request.documents.documentPhotoFrontURL ? (
-                      <Image
-                        src={request.documents.documentPhotoFrontURL}
-                        alt="Recto du document d'identité"
-                        fill
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">Aucune photo recto</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Photo verso */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Verso du Document</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative w-full h-80 lg:h-96 bg-gray-100 rounded-lg overflow-hidden border-2 border-dashed border-gray-300">
-                    {request.documents.documentPhotoBackURL ? (
-                      <Image
-                        src={request.documents.documentPhotoBackURL}
-                        alt="Verso du document d'identité"
-                        fill
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">Aucune photo verso</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Statut de vérification */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-medium text-blue-800">Statut de Vérification</h4>
-                <p className="text-sm text-blue-600 mt-1">
-                  Ce document a été soumis dans le cadre de la demande d'adhésion et est en cours de vérification 
-                  par l'équipe administrative KARA.
-                </p>
-                <div className="mt-3 flex items-center space-x-4 text-xs text-blue-600">
-                  <span>• Document d'identité requis ✓</span>
-                  <span>• Photos lisibles {request.documents.documentPhotoFrontURL ? '✓' : '⚠'}</span>
-                  <span>• Informations cohérentes ✓</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Note de sécurité */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-xs text-amber-800">
-              <strong>Note de confidentialité :</strong> Ces informations sont strictement confidentielles 
-              et ne doivent être consultées que par le personnel autorisé de KARA dans le cadre du processus 
-              d'adhésion. Toute divulgation non autorisée est strictement interdite.
-            </p>
-          </div>
+        {/* Prévisualisation PDF */}
+        <div className="flex-1 h-[calc(95vh-120px)]">
+          <PDFViewer style={{ width: '100%', height: '100%' }}>
+            <IdentityDocumentPDF request={request} />
+          </PDFViewer>
         </div>
       </DialogContent>
     </Dialog>
