@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,9 @@ import MemberIdentityModal from './MemberIdentityModal'
 import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
 import { useRouter } from 'next/navigation'
+import { findCompanyByName } from '@/db/company.db'
+import { findProfessionByName } from '@/db/profession.db'
+import { cn } from '@/lib/utils'
 
 // Fonction utilitaire pour obtenir le badge de statut
 const getStatusBadge = (status: MembershipRequestStatus) => {
@@ -150,17 +153,60 @@ const MembershipRequestCard = ({
   const [companyName, setCompanyName] = React.useState<string>('')
   const [professionName, setProfessionName] = React.useState<string>('')
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
+  
+  // États pour vérifier l'existence dans Firestore
+  const [companyExists, setCompanyExists] = React.useState<boolean>(false)
+  const [professionExists, setProfessionExists] = React.useState<boolean>(false)
+  const [isCheckingExistence, setIsCheckingExistence] = React.useState<boolean>(false)
+  
   const queryClient = useQueryClient()
   const updateStatusMutation = useUpdateMembershipRequestStatus()
   const renewSecurityCodeMutation = useRenewSecurityCode()
+
+  // Vérifier si l'entreprise et la profession existent déjà dans Firestore
+  const checkExistenceInFirestore = React.useCallback(async () => {
+    if (!request.company?.companyName && !request.company?.profession) {
+      setCompanyExists(false)
+      setProfessionExists(false)
+      return
+    }
+
+    setIsCheckingExistence(true)
+    
+    try {
+      // Vérifier l'entreprise
+      if (request.company?.companyName) {
+        const companyResult = await findCompanyByName(request.company.companyName)
+        setCompanyExists(companyResult.found)
+      } else {
+        setCompanyExists(false)
+      }
+      
+      // Vérifier la profession
+      if (request.company?.profession) {
+        const professionResult = await findProfessionByName(request.company.profession)
+        setProfessionExists(professionResult.found)
+      } else {
+        setProfessionExists(false)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification d\'existence:', error)
+      setCompanyExists(false)
+      setProfessionExists(false)
+    } finally {
+      setIsCheckingExistence(false)
+    }
+  }, [request.company?.companyName, request.company?.profession])
 
   // Initialiser les valeurs par défaut quand le dialog s'ouvre
   React.useEffect(() => {
     if (confirmationAction.isOpen && confirmationAction.type === 'approve') {
       setCompanyName(request.company?.companyName || '')
       setProfessionName(request.company?.profession || '')
+      // Vérifier l'existence dans Firestore
+      checkExistenceInFirestore()
     }
-  }, [confirmationAction.isOpen, confirmationAction.type, request.company?.companyName, request.company?.profession])
+  }, [confirmationAction.isOpen, confirmationAction.type, request.company?.companyName, request.company?.profession, checkExistenceInFirestore])
 
   // Fonction pour ouvrir la confirmation
   const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
@@ -648,9 +694,17 @@ const MembershipRequestCard = ({
                     </h4>
                     {/* Champ Entreprise */}
                     <div className="space-y-3">
-                      <label className="text-sm font-medium text-[#224D62]">
+                      <label className="text-sm font-medium text-[#224D62] flex items-center gap-2">
                         Nom de l'entreprise
-                        {request.company?.companyName && (
+                        {isCheckingExistence && (
+                          <Loader2 className="w-3 h-3 animate-spin text-[#CBB171]" />
+                        )}
+                        {companyExists && (
+                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                            ✓ Existe déjà
+                          </span>
+                        )}
+                        {request.company?.companyName && !companyExists && !isCheckingExistence && (
                           <span className="text-xs text-gray-500 ml-2">
                             (Valeur par défaut: {request.company.companyName})
                           </span>
@@ -662,10 +716,19 @@ const MembershipRequestCard = ({
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
                           placeholder={request.company?.companyName || "Nom de l'entreprise"}
-                          className="pl-10"
+                          className={cn(
+                            "pl-10",
+                            companyExists && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                          )}
+                          disabled={companyExists}
                         />
+                        {companyExists && (
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          </div>
+                        )}
                       </div>
-                      {request.company?.companyName && !companyName && (
+                      {request.company?.companyName && !companyName && !companyExists && !isCheckingExistence && (
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-blue-600">
                             💡 Utilisez la valeur par défaut ou saisissez une nouvelle entreprise
@@ -680,13 +743,27 @@ const MembershipRequestCard = ({
                           </Button>
                         </div>
                       )}
+                      {companyExists && (
+                        <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 p-2 rounded-lg">
+                          <CheckCircle className="w-3 h-3" />
+                          <span>Cette entreprise existe déjà dans la base de données. Le champ est désactivé.</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Champ Profession */}
                     <div className="space-y-3">
-                      <label className="text-sm font-medium text-[#224D62]">
+                      <label className="text-sm font-medium text-[#224D62] flex items-center gap-2">
                         Profession
-                        {request.company?.profession && (
+                        {isCheckingExistence && (
+                          <Loader2 className="w-3 h-3 animate-spin text-[#CBB171]" />
+                        )}
+                        {professionExists && (
+                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                            ✓ Existe déjà
+                          </span>
+                        )}
+                        {request.company?.profession && !professionExists && !isCheckingExistence && (
                           <span className="text-xs text-gray-500 ml-2">
                             (Valeur par défaut: {request.company.profession})
                           </span>
@@ -698,10 +775,19 @@ const MembershipRequestCard = ({
                           value={professionName}
                           onChange={(e) => setProfessionName(e.target.value)}
                           placeholder={request.company?.profession || "Profession"}
-                          className="pl-10"
+                          className={cn(
+                            "pl-10",
+                            professionExists && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                          )}
+                          disabled={professionExists}
                         />
+                        {professionExists && (
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          </div>
+                        )}
                       </div>
-                      {request.company?.profession && !professionName && (
+                      {request.company?.profession && !professionName && !professionExists && !isCheckingExistence && (
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-blue-600">
                             💡 Utilisez la valeur par défaut ou saisissez une nouvelle profession
@@ -714,6 +800,12 @@ const MembershipRequestCard = ({
                           >
                             Utiliser par défaut
                           </Button>
+                        </div>
+                      )}
+                      {professionExists && (
+                        <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 p-2 rounded-lg">
+                          <CheckCircle className="w-3 h-3" />
+                          <span>Cette profession existe déjà dans la base de données. Le champ est désactivé.</span>
                         </div>
                       )}
                     </div>

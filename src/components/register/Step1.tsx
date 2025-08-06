@@ -184,6 +184,81 @@ export default function Step1({ form }: Step1Props) {
     }
   }, [watchedFields[9], setError, clearErrors, photoPreview])
 
+  // Nettoyer automatiquement les erreurs quand les champs sont corrigés
+  React.useEffect(() => {
+    const subscription = watch((value: any) => {
+      // Nettoyer les erreurs de civilité
+      if (value.identity?.civility && errors.identity?.civility) {
+        clearErrors('identity.civility')
+      }
+      
+      // Nettoyer les erreurs de nom
+      if (value.identity?.lastName && value.identity.lastName.length >= 2 && errors.identity?.lastName) {
+        clearErrors('identity.lastName')
+      }
+      
+      // Nettoyer les erreurs de prénom
+      if (value.identity?.firstName && value.identity.firstName.length >= 2 && errors.identity?.firstName) {
+        clearErrors('identity.firstName')
+      }
+      
+      // Nettoyer les erreurs de date de naissance
+      if (value.identity?.birthDate && errors.identity?.birthDate) {
+        clearErrors('identity.birthDate')
+      }
+      
+      // Nettoyer les erreurs de lieu de naissance
+      if (value.identity?.birthPlace && value.identity.birthPlace.length >= 2 && errors.identity?.birthPlace) {
+        clearErrors('identity.birthPlace')
+      }
+      
+      // Nettoyer les erreurs de numéro d'acte de naissance
+      if (value.identity?.birthCertificateNumber && value.identity.birthCertificateNumber.length >= 2 && errors.identity?.birthCertificateNumber) {
+        clearErrors('identity.birthCertificateNumber')
+      }
+      
+      // Nettoyer les erreurs de lieu de prière
+      if (value.identity?.prayerPlace && value.identity.prayerPlace.length >= 2 && errors.identity?.prayerPlace) {
+        clearErrors('identity.prayerPlace')
+      }
+      
+      // Nettoyer les erreurs de nationalité
+      if (value.identity?.nationality && errors.identity?.nationality) {
+        clearErrors('identity.nationality')
+      }
+      
+      // Nettoyer les erreurs de situation matrimoniale
+      if (value.identity?.maritalStatus && errors.identity?.maritalStatus) {
+        clearErrors('identity.maritalStatus')
+      }
+      
+      // Nettoyer les erreurs de hasCar
+      if (value.identity?.hasCar !== undefined && errors.identity?.hasCar) {
+        clearErrors('identity.hasCar')
+      }
+      
+      // Nettoyer les erreurs de contacts
+      if (value.identity?.contacts && Array.isArray(value.identity.contacts) && value.identity.contacts.some((contact: string) => contact && contact.trim().length >= 8) && errors.identity?.contacts) {
+        clearErrors('identity.contacts')
+      }
+      
+      // Nettoyer les erreurs du conjoint si nécessaire
+      if (requiresSpouseInfo) {
+        if (value.identity?.spouseLastName && value.identity.spouseLastName.length >= 2 && errors.identity?.spouseLastName) {
+          clearErrors('identity.spouseLastName')
+        }
+        if (value.identity?.spouseFirstName && value.identity.spouseFirstName.length >= 2 && errors.identity?.spouseFirstName) {
+          clearErrors('identity.spouseFirstName')
+        }
+        if (value.identity?.spousePhone && value.identity.spousePhone.length >= 8 && errors.identity?.spousePhone) {
+          clearErrors('identity.spousePhone')
+        }
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [watch, clearErrors, errors.identity, requiresSpouseInfo])
+
   // Gestion de l'upload de photo avec compression
   const handlePhotoUpload = async (file: File) => {
     if (file && file.type.startsWith('image/')) {

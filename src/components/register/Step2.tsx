@@ -89,7 +89,7 @@ export default function Step2({ form }: Step2Props) {
   const [showCityResults, setShowCityResults] = useState(false)
   const [detectedCityName, setDetectedCityName] = useState('')
 
-  const { register, watch, setValue, formState: { errors } } = form
+  const { register, watch, setValue, formState: { errors }, clearErrors } = form
 
   // Watch pour les animations
   const watchedFields = watch([
@@ -99,6 +99,33 @@ export default function Step2({ form }: Step2Props) {
     'address.arrondissement',
     'address.additionalInfo'
   ])
+
+  // Nettoyer automatiquement les erreurs quand les champs sont corrigés
+  useEffect(() => {
+    const subscription = watch((value: any) => {
+      // Nettoyer les erreurs de district
+      if (value.address?.district && value.address.district.length >= 2 && errors.address?.district) {
+        clearErrors('address.district')
+      }
+      
+      // Nettoyer les erreurs de city
+      if (value.address?.city && value.address.city.length >= 2 && errors.address?.city) {
+        clearErrors('address.city')
+      }
+      
+      // Nettoyer les erreurs de province
+      if (value.address?.province && value.address.province.length >= 2 && errors.address?.province) {
+        clearErrors('address.province')
+      }
+      
+      // Nettoyer les erreurs d'arrondissement
+      if (value.address?.arrondissement && value.address.arrondissement.length >= 2 && errors.address?.arrondissement) {
+        clearErrors('address.arrondissement')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [watch, clearErrors, errors.address])
 
   // Debounce la recherche
   const debouncedQuery = useDebounce(districtQuery, 500)
