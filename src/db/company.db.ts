@@ -247,4 +247,41 @@ export async function updateMembershipRequestProfession(
     console.error("Erreur lors de la mise à jour de la profession:", error);
     return false;
   }
+}
+
+/**
+ * Trouve ou crée une entreprise
+ */
+export async function findOrCreateCompany(
+  companyName: string,
+  adminId: string,
+  additionalData: {
+    address?: { province?: string; city?: string; district?: string };
+    industry?: string;
+    employeeCount?: number;
+  } = {}
+): Promise<{ id: string; isNew: boolean }> {
+  try {
+    // D'abord, chercher si l'entreprise existe déjà
+    const searchResult = await findCompanyByName(companyName);
+    
+    if (searchResult.found && searchResult.company) {
+      return { 
+        id: searchResult.company.id!, 
+        isNew: false 
+      };
+    }
+    
+    // Si elle n'existe pas, la créer
+    const newCompanyId = await createCompany(companyName, adminId, additionalData);
+    
+    return { 
+      id: newCompanyId, 
+      isNew: true 
+    };
+    
+  } catch (error) {
+    console.error("Erreur lors de la recherche ou création d'entreprise:", error);
+    throw new Error("Impossible de traiter l'entreprise");
+  }
 } 

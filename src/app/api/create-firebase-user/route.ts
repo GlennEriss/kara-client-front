@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateMembershipRequestStatus, getMembershipRequestById, checkPhoneNumberExists } from "@/db/membership.db";
 import { createUserWithMatricule, addSubscriptionToUser, generateMatricule } from "@/db/user.db";
 import { createDefaultSubscription } from "@/db/subscription.db";
+import { findOrCreateCompany } from "@/db/company.db";
+import { findOrCreateProfession } from "@/db/profession.db";
 import type { User, UserRole, MembershipType } from "@/types/types";
 
 /**
@@ -23,7 +25,7 @@ function membershipTypeToRole(membershipType: string): UserRole {
 
 export async function POST(req: NextRequest) {
     try {
-        const { phoneNumber, requestId, adminId, membershipType } = await req.json();
+        const { phoneNumber, requestId, adminId, membershipType, companyName, professionName } = await req.json();
 
         if (!phoneNumber || !requestId) {
             return NextResponse.json({ error: "Numéro de téléphone et ID de demande requis" }, { status: 400 });
@@ -136,6 +138,44 @@ export async function POST(req: NextRequest) {
         await addSubscriptionToUser(createdUser.id, subscription.id);
         console.log('Souscription ajoutée à l\'utilisateur');
 
+        // Persister l'entreprise et la profession si elles sont fournies
+        let companyId = null;
+        let professionId = null;
+
+        if (membershipRequest.company?.isEmployed) {
+            // Persister l'entreprise si un nom est fourni (soit par défaut, soit modifié)
+            if (companyName || membershipRequest.company?.companyName) {
+                try {
+                    const finalCompanyName = companyName || membershipRequest.company.companyName;
+                    const companyResult = await findOrCreateCompany(
+                        finalCompanyName,
+                        adminId || 'system'
+                    );
+                    companyId = companyResult.id;
+                    console.log(companyResult.isNew ? 'Nouvelle entreprise créée:' : 'Entreprise existante trouvée:', companyId);
+                } catch (error) {
+                    console.error('Erreur lors de la persistance de l\'entreprise:', error);
+                    // Ne pas bloquer le processus d'approbation pour cette erreur
+                }
+            }
+
+            // Persister la profession si un nom est fourni (soit par défaut, soit modifié)
+            if (professionName || membershipRequest.company?.profession) {
+                try {
+                    const finalProfessionName = professionName || membershipRequest.company.profession;
+                    const professionResult = await findOrCreateProfession(
+                        finalProfessionName,
+                        adminId || 'system'
+                    );
+                    professionId = professionResult.id;
+                    console.log(professionResult.isNew ? 'Nouvelle profession créée:' : 'Profession existante trouvée:', professionId);
+                } catch (error) {
+                    console.error('Erreur lors de la persistance de la profession:', error);
+                    // Ne pas bloquer le processus d'approbation pour cette erreur
+                }
+            }
+        }
+
         // Mettre à jour le statut de la demande d'adhésion
         const updateSuccess = await updateMembershipRequestStatus(
             requestId,
@@ -151,6 +191,8 @@ export async function POST(req: NextRequest) {
             uid: userRecord.uid,
             matricule: createdUser.matricule,
             subscriptionId: subscription.id,
+            companyId,
+            professionId,
             success: true,
             message: `Utilisateur créé avec succès. Matricule: ${createdUser.matricule}`
         });

@@ -30,6 +30,8 @@ import { toast } from 'sonner'
 import MemberDetailsModal from './MemberDetailsModal'
 import MemberIdentityModal from './MemberIdentityModal'
 import { useAuth } from '@/hooks/useAuth'
+import routes from '@/constantes/routes'
+import { useRouter } from 'next/navigation'
 
 // Fonction utilitaire pour obtenir le badge de statut
 const getStatusBadge = (status: MembershipRequestStatus) => {
@@ -136,6 +138,7 @@ const MembershipRequestCard = ({
   onStatusUpdate: (requestId: string, newStatus: MembershipRequest['status']) => void
 }) => {
   const { user } = useAuth()
+  const router = useRouter()
   const [showDetailsModal, setShowDetailsModal] = React.useState(false)
   const [showIdentityModal, setShowIdentityModal] = React.useState(false)
   const [isApproving, setIsApproving] = React.useState(false)
@@ -262,7 +265,9 @@ const MembershipRequestCard = ({
           phoneNumber: phoneNumber,
           requestId: request.id,
           adminId: user?.uid,
-          membershipType: membershipType
+          membershipType: membershipType,
+          companyName: companyName.trim() || undefined,
+          professionName: professionName.trim() || undefined
         }),
       })
 
@@ -338,11 +343,18 @@ const MembershipRequestCard = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem
+                    onClick={() => router.push(routes.admin.membershipRequestDetails(request.id!))}
+                    className="flex items-center space-x-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Voir les détails</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => setShowDetailsModal(true)}
                     className="flex items-center space-x-2"
                   >
                     <FileText className="w-4 h-4" />
-                    <span>Voir les détails</span>
+                    <span>Fiche d'adhésion</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setShowIdentityModal(true)}
