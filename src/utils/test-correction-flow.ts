@@ -74,7 +74,7 @@ export const testCorrectionFlow = {
       console.error('Erreur lors de la simulation:', error)
       return {
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
       }
     }
   }
