@@ -12,6 +12,33 @@ import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipReq
 const getFirestore = () => import("@/firebase/firestore");
 
 /**
+ * Fonction utilitaire pour générer un code de sécurité
+ * Format: 6 chiffres aléatoires
+ */
+function generateSecurityCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+/**
+ * Fonction utilitaire pour vérifier si un code de sécurité est expiré
+ * 
+ * @param {Date | any} expiryDate - Date d'expiration
+ * @returns {boolean} - True si le code est expiré
+ */
+function isSecurityCodeExpired(expiryDate: Date | any): boolean {
+    if (!expiryDate) return true;
+    
+    try {
+        // Convertir en Date si c'est un Timestamp Firebase
+        const expiry = expiryDate.toDate ? expiryDate.toDate() : new Date(expiryDate);
+        return expiry < new Date();
+    } catch (error) {
+        console.warn('Erreur lors de la vérification de l\'expiration:', error);
+        return true; // En cas d'erreur, considérer comme expiré
+    }
+}
+
+/**
  * Fonction utilitaire pour nettoyer les valeurs undefined d'un objet
  * Firestore n'accepte pas les valeurs undefined
  */
@@ -443,6 +470,9 @@ export async function updateMembershipRequestStatus(
         // Sauvegarder la note de correction si fournie
         if (reviewNote && reviewNote.trim()) {
             updates['reviewNote'] = reviewNote.trim();
+            // Générer et sauvegarder un code de sécurité avec expiration (48h)
+            updates['securityCode'] = generateSecurityCode();
+            updates['securityCodeExpiry'] = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
         }
 
         await updateDoc(docRef, updates);
@@ -565,6 +595,149 @@ export async function checkPhoneNumberExists(
         console.error("Erreur lors de la vérification du numéro de téléphone:", error);
         // En cas d'erreur, considérer comme non utilisé pour ne pas bloquer l'utilisateur
         return { isUsed: false };
+    }
+}
+
+/**
+ * Renouvelle le code de sécurité d'une demande d'adhésion
+ * 
+ * @param {string} requestId - L'ID de la demande
+ * @returns {Promise<{success: boolean, newCode?: string, error?: string}>} - Résultat de l'opération
+ */
+export async function renewSecurityCode(requestId: string): Promise<{success: boolean, newCode?: string, error?: string}> {
+    try {
+        const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
+        const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+
+        // Générer un nouveau code avec expiration (48h)
+        const newSecurityCode = generateSecurityCode();
+        const newExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
+
+        await updateDoc(docRef, {
+            securityCode: newSecurityCode,
+            securityCodeExpiry: newExpiry,
+            updatedAt: serverTimestamp(),
+        });
+
+        return {
+            success: true,
+            newCode: newSecurityCode
+        };
+    } catch (error) {
+        console.error("Erreur lors du renouvellement du code de sécurité:", error);
+        return {
+            success: false,
+            error: "Impossible de renouveler le code de sécurité"
+        };
+    }
+}
+
+/**
+ * Met à jour une demande d'adhésion existante avec de nouvelles données
+ * Utilisé pour les corrections de demandes
+ * 
+ * @param {string} requestId - L'ID de la demande
+ * @param {RegisterFormData} formData - Les nouvelles données du formulaire
+ * @returns {Promise<boolean>} - True si la mise à jour a réussi
+ */
+export async function updateMembershipRequest(
+    requestId: string, 
+    formData: RegisterFormData
+): Promise<boolean> {
+    try {
+        const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
+        const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+
+        // Préparer les données de mise à jour
+        const { photo, ...identityWithoutPhoto } = formData.identity;
+        const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents;
+
+        const updateData: any = {
+            identity: {
+                ...identityWithoutPhoto
+            },
+            address: formData.address,
+            company: formData.company,
+            documents: {
+                ...documentsWithoutPhotos
+            },
+            status: 'pending', // Remettre en attente après correction
+            updatedAt: serverTimestamp(),
+            // Nettoyer les champs de correction et invalider le code de sécurité
+            reviewNote: null,
+            securityCode: null,
+            securityCodeExpiry: null,
+            // Marquer que le code a été utilisé pour éviter la réutilisation
+            securityCodeUsed: true
+        };
+
+        // Upload de la nouvelle photo de profil si fournie
+        if (formData.identity.photo && typeof formData.identity.photo === 'string' && formData.identity.photo.startsWith('data:image/')) {
+            try {
+                const userIdentifier = formData.identity.email || 
+                                      formData.identity.contacts[0] || 
+                                      `${formData.identity.firstName}_${formData.identity.lastName}_${Date.now()}`;
+                
+                const response = await fetch(formData.identity.photo);
+                const blob = await response.blob();
+                const file = new File([blob], 'profile-photo.webp', { type: 'image/webp' });
+                
+                const { url: fileURL, path: filePATH } = await uploadProfilePhoto(file, userIdentifier);
+                
+                updateData.identity.photoURL = fileURL;
+                updateData.identity.photoPath = filePATH;
+            } catch (photoError) {
+                console.warn("Erreur lors de l'upload de la nouvelle photo de profil:", photoError);
+            }
+        }
+
+        // Upload des nouvelles photos de documents si fournies
+        if (formData.documents.documentPhotoFront && typeof formData.documents.documentPhotoFront === 'string' && formData.documents.documentPhotoFront.startsWith('data:image/')) {
+            try {
+                const userIdentifier = formData.identity.email || 
+                                      formData.identity.contacts[0] || 
+                                      `${formData.identity.firstName}_${formData.identity.lastName}_${Date.now()}`;
+                
+                const response = await fetch(formData.documents.documentPhotoFront);
+                const blob = await response.blob();
+                const file = new File([blob], 'document-recto.webp', { type: 'image/webp' });
+                
+                const { url: frontURL, path: frontPATH } = await uploadDocumentPhoto(file, userIdentifier, 'recto');
+                
+                updateData.documents.documentPhotoFrontURL = frontURL;
+                updateData.documents.documentPhotoFrontPath = frontPATH;
+            } catch (frontPhotoError) {
+                console.warn("Erreur lors de l'upload de la nouvelle photo recto du document:", frontPhotoError);
+            }
+        }
+
+        if (formData.documents.documentPhotoBack && typeof formData.documents.documentPhotoBack === 'string' && formData.documents.documentPhotoBack.startsWith('data:image/')) {
+            try {
+                const userIdentifier = formData.identity.email || 
+                                      formData.identity.contacts[0] || 
+                                      `${formData.identity.firstName}_${formData.identity.lastName}_${Date.now()}`;
+                
+                const response = await fetch(formData.documents.documentPhotoBack);
+                const blob = await response.blob();
+                const file = new File([blob], 'document-verso.webp', { type: 'image/webp' });
+                
+                const { url: backURL, path: backPATH } = await uploadDocumentPhoto(file, userIdentifier, 'verso');
+                
+                updateData.documents.documentPhotoBackURL = backURL;
+                updateData.documents.documentPhotoBackPath = backPATH;
+            } catch (backPhotoError) {
+                console.warn("Erreur lors de l'upload de la nouvelle photo verso du document:", backPhotoError);
+            }
+        }
+
+        // Nettoyer les valeurs undefined
+        const cleanedUpdateData = cleanUndefinedValues(updateData);
+
+        await updateDoc(docRef, cleanedUpdateData);
+        return true;
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour de la demande:", error);
+        return false;
     }
 }
 

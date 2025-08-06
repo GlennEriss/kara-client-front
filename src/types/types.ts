@@ -96,6 +96,12 @@ export interface MembershipRequest extends RegisterFormData {
   // Numéro de membre attribué (si approuvé)
   memberNumber?: string
   reviewNote?: string;  
+  // Code de sécurité pour accéder aux corrections
+  securityCode?: string;
+  // Date d'expiration du code de sécurité
+  securityCodeExpiry?: Date;
+  // Indique si le code de sécurité a été utilisé (pour éviter la réutilisation)
+  securityCodeUsed?: boolean;
   // Score de priorité (pour le tri)
   priorityScore?: number
 }

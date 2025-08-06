@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useMembershipRequests, useUpdateMembershipRequestStatus, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
+import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
 import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
@@ -149,6 +149,7 @@ const MembershipRequestCard = ({
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
   const queryClient = useQueryClient()
   const updateStatusMutation = useUpdateMembershipRequestStatus()
+  const renewSecurityCodeMutation = useRenewSecurityCode()
 
   // Initialiser les valeurs par défaut quand le dialog s'ouvre
   React.useEffect(() => {
@@ -470,6 +471,97 @@ const MembershipRequestCard = ({
                       Copier
                     </Button>
                   </div>
+                  
+                  {/* Code de sécurité */}
+                  {request.reviewNote && request.securityCode && (
+                    <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                      <p className="text-xs font-medium text-orange-800 mb-2">
+                        🔐 Code de sécurité à envoyer au demandeur :
+                        {request.securityCodeUsed && (
+                          <span className="ml-2 text-red-600 font-bold">
+                            ⚠️ CODE DÉJÀ UTILISÉ
+                          </span>
+                        )}
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          value={request.securityCode}
+                          readOnly
+                          className={`text-sm font-mono font-bold text-center ${
+                            request.securityCodeUsed 
+                              ? 'bg-gray-100 border-gray-400 text-gray-500' 
+                              : 'bg-white border-orange-400'
+                          }`}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`${
+                            request.securityCodeUsed
+                              ? 'text-gray-500 border-gray-400 cursor-not-allowed'
+                              : 'text-orange-700 border-orange-400 hover:bg-orange-200'
+                          }`}
+                          onClick={() => {
+                            if (!request.securityCodeUsed) {
+                              navigator.clipboard.writeText(request.securityCode!)
+                              toast.success('Code copié !', {
+                                description: 'Le code de sécurité a été copié dans le presse-papiers.',
+                                duration: 3000,
+                              })
+                            }
+                          }}
+                          disabled={request.securityCodeUsed}
+                        >
+                          {request.securityCodeUsed ? 'Utilisé' : 'Copier'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-700 border-blue-400 hover:bg-blue-200"
+                          onClick={() => renewSecurityCodeMutation.mutate(request.id!)}
+                          disabled={renewSecurityCodeMutation.isPending}
+                        >
+                          <RefreshCw className={`w-3 h-3 mr-1 ${renewSecurityCodeMutation.isPending ? 'animate-spin' : ''}`} />
+                          Renouveler
+                        </Button>
+                      </div>
+                      
+                      {/* Affichage de l'expiration */}
+                      {request.securityCodeExpiry && (
+                        <div className="mt-2 text-xs">
+                          {(() => {
+                            const expiry = (request.securityCodeExpiry as any).toDate ? (request.securityCodeExpiry as any).toDate() : new Date(request.securityCodeExpiry);
+                            const now = new Date();
+                            const isExpired = expiry < now;
+                            const timeLeft = expiry.getTime() - now.getTime();
+                            const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                            const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                            
+                            return (
+                              <div className={`flex items-center space-x-1 ${isExpired ? 'text-red-600' : 'text-orange-700'}`}>
+                                <Clock className="w-3 h-3" />
+                                <span>
+                                  {isExpired 
+                                    ? 'Code expiré' 
+                                    : `Expire dans ${hoursLeft}h ${minutesLeft}m`
+                                  }
+                                </span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                      
+                      <p className="text-xs text-orange-700 mt-2">
+                        ⚠️ Le demandeur devra saisir ce code pour accéder à ses corrections
+                        {request.securityCodeUsed && (
+                          <span className="block mt-1 text-red-600 font-medium">
+                            🔒 Ce code a été utilisé et ne peut plus être utilisé pour accéder aux corrections
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
