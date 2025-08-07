@@ -2,7 +2,7 @@
 
 import { Car, Home, Settings, Users, BarChart3, FileText, Shield, LogOut, UserPlus } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import {
     Sidebar,
     SidebarContent,
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { DefaultLogo, Logo } from "@/components/logo"
 import routes from "@/constantes/routes"
 import { auth, signOut } from "@/firebase/auth"
+import { cn } from "@/lib/utils"
 
 // Menu items pour l'administration
 const adminMenuItems = [
@@ -70,15 +71,24 @@ const systemMenuItems: any[] = [
 
 export function AppSidebar() {
     const router = useRouter()
+    const pathname = usePathname()
 
     const handleLogout = async () => {
         await signOut(auth)
         router.push(routes.public.adminLogin)
     }
 
+    // Fonction pour détecter si une route est active
+    const isActiveRoute = (url: string) => {
+        if (url === '/dashboard') {
+            return pathname === '/dashboard'
+        }
+        return pathname.startsWith(url)
+    }
+
     return (
         <Sidebar className="bg-[#234D65] border-r border-[#2c5a73] shadow-xl">
-            <SidebarHeader className="h-20 border-b border-[#2c5a73]/50 bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
+            <SidebarHeader className="flex justify-center h-20 border-b border-[#2c5a73]/50 bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
                 <div className="flex items-center gap-3 p-4 transition-all duration-300 hover:scale-105">
                     <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:rotate-3">
                         <Logo 
@@ -103,25 +113,35 @@ export function AppSidebar() {
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu className="space-y-2">
-                            {adminMenuItems.map((item, index) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild>
-                                        <Link 
-                                            href={item.url} 
-                                            className="flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm"
-                                            style={{
-                                                animationDelay: `${index * 0.1}s`
-                                            }}
-                                        >
-                                            <item.icon className="h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-cyan-300" />
-                                            <span className="font-medium transition-all duration-300 group-hover:font-semibold">{item.title}</span>
-                                            <div className="ml-auto opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 translate-x-2">
-                                                <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                                            </div>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
+                            {adminMenuItems.map((item, index) => {
+                                const isActive = isActiveRoute(item.url)
+                                return (
+                                    <SidebarMenuItem key={item.title}>
+                                        <SidebarMenuButton asChild>
+                                            <Link 
+                                                href={item.url} 
+                                                className={cn(
+                                                    "flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm",
+                                                    isActive && "text-white bg-white/15 shadow-lg translate-x-1"
+                                                )}
+                                                style={{
+                                                    animationDelay: `${index * 0.1}s`
+                                                }}
+                                            >
+                                                <item.icon className={cn(
+                                                    "h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-cyan-300",
+                                                    isActive && "text-cyan-300 scale-110"
+                                                )} />
+                                                <span className={cn(
+                                                    "font-medium transition-all duration-300 group-hover:font-semibold",
+                                                    isActive && "font-semibold"
+                                                )}>{item.title}</span>
+                                                
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                )
+                            })}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
@@ -133,25 +153,40 @@ export function AppSidebar() {
                         </SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu className="space-y-2">
-                                {systemMenuItems.map((item, index) => (
-                                    <SidebarMenuItem key={item.title}>
-                                        <SidebarMenuButton asChild>
-                                            <Link 
-                                                href={item.url} 
-                                                className="flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm"
-                                                style={{
-                                                    animationDelay: `${(adminMenuItems.length + index) * 0.1}s`
-                                                }}
-                                            >
-                                                <item.icon className="h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-cyan-300" />
-                                                <span className="font-medium transition-all duration-300 group-hover:font-semibold">{item.title}</span>
-                                                <div className="ml-auto opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 translate-x-2">
-                                                    <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                                                </div>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ))}
+                                {systemMenuItems.map((item, index) => {
+                                    const isActive = isActiveRoute(item.url)
+                                    return (
+                                        <SidebarMenuItem key={item.title}>
+                                            <SidebarMenuButton asChild>
+                                                <Link 
+                                                    href={item.url} 
+                                                    className={cn(
+                                                        "flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm",
+                                                        isActive && "text-white bg-white/15 shadow-lg translate-x-1"
+                                                    )}
+                                                    style={{
+                                                        animationDelay: `${(adminMenuItems.length + index) * 0.1}s`
+                                                    }}
+                                                >
+                                                    <item.icon className={cn(
+                                                        "h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-cyan-300",
+                                                        isActive && "text-cyan-300 scale-110"
+                                                    )} />
+                                                    <span className={cn(
+                                                        "font-medium transition-all duration-300 group-hover:font-semibold",
+                                                        isActive && "font-semibold"
+                                                    )}>{item.title}</span>
+                                                    <div className={cn(
+                                                        "ml-auto opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 translate-x-2",
+                                                        isActive && "opacity-100 translate-x-0"
+                                                    )}>
+                                                        <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                                                    </div>
+                                                </Link>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    )
+                                })}
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>
