@@ -288,7 +288,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     mode: 'onChange'
   })
 
-  const { watch, formState, trigger, getValues, setValue, reset } = form
+  const { watch, formState, trigger, getValues, setValue, reset, setError } = form
 
   // ================== CHARGEMENT INITIAL DU CACHE ==================
   useEffect(() => {
@@ -494,26 +494,47 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     const sectionKey = stepToSectionMap[currentStep as keyof typeof stepToSectionMap]
 
     try {
-      // Valider uniquement la section actuelle avec react-hook-form
+      // Forcer une validation complète avec react-hook-form
       const isFormValid = await trigger(sectionKey)
 
-      // Valider avec le schéma Zod
-      const isSchemaValid = await validateStep(currentStep)
+      // Valider avec le schéma Zod de manière plus stricte
+      const stepData = getValues(sectionKey)
+      const schema = stepSchemas[currentStep as keyof typeof stepSchemas]
+      
+      try {
+        await schema.parseAsync(stepData)
+        const isSchemaValid = true
+      } catch (schemaError) {
+        console.warn(`Erreur de validation Zod step ${currentStep}:`, schemaError)
+        // Si le schéma Zod échoue, forcer les erreurs dans react-hook-form
+        if (schemaError instanceof Error) {
+          // Extraire les erreurs du schéma Zod et les appliquer
+          const zodErrors = (schemaError as any).errors || []
+          zodErrors.forEach((error: any) => {
+            const fieldPath = error.path.join('.')
+            setError(`${sectionKey}.${fieldPath}` as any, {
+              type: 'manual',
+              message: error.message
+            })
+          })
+        }
+        const isSchemaValid = false
+      }
 
       console.log(`Validation step ${currentStep}:`, {
         sectionKey,
         isFormValid,
-        isSchemaValid,
-        formErrors: formState.errors[sectionKey],
-        data: getValues(sectionKey)
+        stepData,
+        formErrors: formState.errors[sectionKey]
       })
 
-      return isFormValid && isSchemaValid
+      // Retourner true seulement si les deux validations passent
+      return isFormValid && Object.keys(formState.errors[sectionKey] || {}).length === 0
     } catch (error) {
       console.error('Erreur validation step actuel:', error)
       return false
     }
-  }, [trigger, validateStep, currentStep, formState.errors, getValues])
+  }, [trigger, currentStep, formState.errors, getValues, setError])
 
   // ================== NAVIGATION ==================
   const nextStep = useCallback(async (): Promise<boolean> => {
