@@ -22,11 +22,11 @@ import routes from '@/constantes/routes'
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 12,
-    paddingTop: 30,
-    paddingBottom: 65,
-    paddingHorizontal: 35,
-    lineHeight: 1.5,
+    fontSize: 10,
+    paddingTop: 15,
+    paddingBottom: 30,
+    paddingHorizontal: 25,
+    lineHeight: 1.3,
   },
   header: {
     flexDirection: 'row',

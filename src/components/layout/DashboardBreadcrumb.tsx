@@ -27,6 +27,11 @@ const getRouteLabel = (path: string): string => {
     return routeLabels[path]
   }
 
+  // Gestion spéciale pour les routes avec ID
+  if (path.match(/^\/membership-requests\/[^\/]+$/)) {
+    return 'Détails'
+  }
+
   // Vérifier les routes qui commencent par un pattern
   for (const [route, label] of Object.entries(routeLabels)) {
     if (path.startsWith(route + '/')) {
