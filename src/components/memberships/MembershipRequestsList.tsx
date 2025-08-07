@@ -2,7 +2,8 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2 } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,39 +37,49 @@ import { findCompanyByName } from '@/db/company.db'
 import { findProfessionByName } from '@/db/profession.db'
 import { cn } from '@/lib/utils'
 
-// Fonction utilitaire pour obtenir le badge de statut
+// Couleurs pour les graphiques
+const COLORS = {
+  pending: '#f59e0b',
+  approved: '#10b981',
+  rejected: '#ef4444',
+  under_review: '#3b82f6'
+}
+
+// Fonction utilitaire pour obtenir le badge de statut avec animations
 const getStatusBadge = (status: MembershipRequestStatus) => {
+  const baseClasses = "transition-all duration-300 hover:scale-105 flex items-center gap-1.5 font-medium"
+  
   switch (status) {
     case 'pending':
       return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-          <Clock className="w-3 h-3 mr-1" />
+        <Badge variant="outline" className={`${baseClasses} bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200 hover:shadow-md`}>
+          <Clock className="w-3 h-3 animate-pulse" />
           {MEMBERSHIP_STATUS_LABELS.pending}
         </Badge>
       )
     case 'approved':
       return (
-        <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
-          <CheckCircle className="w-3 h-3 mr-1" />
+        <Badge variant="secondary" className={`${baseClasses} bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-200 hover:shadow-md`}>
+          <CheckCircle className="w-3 h-3" />
           {MEMBERSHIP_STATUS_LABELS.approved}
         </Badge>
       )
     case 'rejected':
       return (
-        <Badge variant="destructive">
-          <XCircle className="w-3 h-3 mr-1" />
+        <Badge variant="destructive" className={`${baseClasses} bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-200 hover:shadow-md`}>
+          <XCircle className="w-3 h-3" />
           {MEMBERSHIP_STATUS_LABELS.rejected}
         </Badge>
       )
     case 'under_review':
       return (
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-          <Eye className="w-3 h-3 mr-1" />
+        <Badge variant="outline" className={`${baseClasses} bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-blue-200 hover:shadow-md`}>
+          <Eye className="w-3 h-3 animate-bounce" />
           {MEMBERSHIP_STATUS_LABELS.under_review}
         </Badge>
       )
     default:
-      return <Badge variant="outline">{status}</Badge>
+      return <Badge variant="outline" className={baseClasses}>{status}</Badge>
   }
 }
 
@@ -77,7 +88,6 @@ const formatDate = (timestamp: any) => {
   if (!timestamp) return 'Non définie'
 
   try {
-    // Si c'est un Timestamp Firebase
     if (timestamp.toDate) {
       return timestamp.toDate().toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -87,7 +97,6 @@ const formatDate = (timestamp: any) => {
         minute: '2-digit'
       })
     }
-    // Si c'est une Date normale
     if (timestamp instanceof Date) {
       return timestamp.toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -97,7 +106,6 @@ const formatDate = (timestamp: any) => {
         minute: '2-digit'
       })
     }
-    // Si c'est une string
     return new Date(timestamp).toLocaleDateString('fr-FR', {
       day: '2-digit',
       month: '2-digit',
@@ -110,29 +118,111 @@ const formatDate = (timestamp: any) => {
   }
 }
 
-// Composant pour le squelette de chargement
+// Composant pour les statistiques avec graphiques
+const StatsCard = ({ 
+  title, 
+  value, 
+  percentage, 
+  color, 
+  icon: Icon,
+  trend 
+}: { 
+  title: string
+  value: number
+  percentage: number
+  color: string
+  icon: React.ComponentType<any>
+  trend?: 'up' | 'down' | 'neutral'
+}) => {
+  const data = [
+    { name: 'value', value: percentage, fill: color },
+    { name: 'remaining', value: 100 - percentage, fill: '#f3f4f6' }
+  ]
+
+  return (
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110`} style={{ backgroundColor: `${color}15`, color: color }}>
+              <Icon className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-600 uppercase tracking-wider">{title}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-2xl font-bold text-gray-900">{value}</p>
+                {trend && (
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    trend === 'up' ? 'bg-green-100 text-green-700' :
+                    trend === 'down' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    <TrendingUp className={`w-3 h-3 ${trend === 'down' ? 'rotate-180' : ''}`} />
+                    {percentage.toFixed(0)}%
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="w-12 h-12">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={16}
+                  outerRadius={22}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Composant pour le squelette de chargement avec animations
 const MembershipRequestSkeleton = () => (
-  <Card>
+  <Card className="animate-pulse">
     <CardContent className="p-6">
       <div className="space-y-4">
         <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-48" />
+          <div className="flex items-start space-x-3">
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
           </div>
-          <Skeleton className="h-6 w-20" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-6 w-20 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-3 w-24" />
         </div>
+        <div className="flex gap-2 pt-2 border-t">
+          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-8 w-32" />
+        </div>
       </div>
     </CardContent>
   </Card>
 )
 
-// Composant pour une demande individuelle
+// Composant pour une demande individuelle avec animations améliorées
 const MembershipRequestCard = ({
   request,
   onStatusUpdate
@@ -154,7 +244,6 @@ const MembershipRequestCard = ({
   const [professionName, setProfessionName] = React.useState<string>('')
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
   
-  // États pour vérifier l'existence dans Firestore
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
   const [professionExists, setProfessionExists] = React.useState<boolean>(false)
   const [isCheckingExistence, setIsCheckingExistence] = React.useState<boolean>(false)
@@ -163,7 +252,6 @@ const MembershipRequestCard = ({
   const updateStatusMutation = useUpdateMembershipRequestStatus()
   const renewSecurityCodeMutation = useRenewSecurityCode()
 
-  // Vérifier si l'entreprise et la profession existent déjà dans Firestore
   const checkExistenceInFirestore = React.useCallback(async () => {
     if (!request.company?.companyName && !request.company?.profession) {
       setCompanyExists(false)
@@ -174,7 +262,6 @@ const MembershipRequestCard = ({
     setIsCheckingExistence(true)
     
     try {
-      // Vérifier l'entreprise
       if (request.company?.companyName) {
         const companyResult = await findCompanyByName(request.company.companyName)
         setCompanyExists(companyResult.found)
@@ -182,7 +269,6 @@ const MembershipRequestCard = ({
         setCompanyExists(false)
       }
       
-      // Vérifier la profession
       if (request.company?.profession) {
         const professionResult = await findProfessionByName(request.company.profession)
         setProfessionExists(professionResult.found)
@@ -198,35 +284,29 @@ const MembershipRequestCard = ({
     }
   }, [request.company?.companyName, request.company?.profession])
 
-  // Initialiser les valeurs par défaut quand le dialog s'ouvre
   React.useEffect(() => {
     if (confirmationAction.isOpen && confirmationAction.type === 'approve') {
       setCompanyName(request.company?.companyName || '')
       setProfessionName(request.company?.profession || '')
-      // Vérifier l'existence dans Firestore
       checkExistenceInFirestore()
     }
   }, [confirmationAction.isOpen, confirmationAction.type, request.company?.companyName, request.company?.profession, checkExistenceInFirestore])
 
-  // Fonction pour ouvrir la confirmation
   const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
     setConfirmationAction({ type, isOpen: true })
   }
 
-  // Fonction pour fermer la confirmation
   const closeConfirmation = () => {
     setConfirmationAction({ type: null, isOpen: false })
-    setMembershipType('') // Réinitialiser le type de membre
-    setCompanyName('') // Réinitialiser le nom d'entreprise
-    setProfessionName('') // Réinitialiser la profession
-    setCorrectionsList('') // Réinitialiser la liste des corrections
+    setMembershipType('')
+    setCompanyName('')
+    setProfessionName('')
+    setCorrectionsList('')
   }
 
-  // Fonction pour confirmer l'action
   const confirmAction = async () => {
     if (!confirmationAction.type) return
 
-    // Validation pour l'approbation : vérifier qu'un type de membre est sélectionné
     if (confirmationAction.type === 'approve' && !membershipType) {
       toast.error('⚠️ Type de membre requis', {
         description: 'Veuillez sélectionner un type de membre (Adhérant, Bienfaiteur ou Sympathisant) avant d\'approuver.',
@@ -238,9 +318,7 @@ const MembershipRequestCard = ({
     if (confirmationAction.type === 'approve') {
       await handleApprove()
     } else if (confirmationAction.type === 'under_review') {
-      // Gérer les corrections demandées
       if (correctionsList.trim()) {
-        // Si des corrections sont saisies, c'est une demande de corrections
         updateStatusMutation.mutate({
           requestId: request.id!,
           newStatus: 'under_review',
@@ -253,7 +331,6 @@ const MembershipRequestCard = ({
           duration: 4000,
         })
       } else {
-        // Si pas de corrections, c'est une simple mise en examen
         updateStatusMutation.mutate({
           requestId: request.id!,
           newStatus: 'under_review',
@@ -269,15 +346,13 @@ const MembershipRequestCard = ({
     } else {
       const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
 
-              // Utiliser la mutation directement avec reviewedBy
-        updateStatusMutation.mutate({
-          requestId: request.id!,
-          newStatus: status,
-          reviewedBy: user?.uid || 'unknown-admin',
-          reviewNote: correctionsList.trim() || undefined
-        })
+      updateStatusMutation.mutate({
+        requestId: request.id!,
+        newStatus: status,
+        reviewedBy: user?.uid || 'unknown-admin',
+        reviewNote: correctionsList.trim() || undefined
+      })
 
-      // Toast personnalisé selon l'action
       if (confirmationAction.type === 'reject') {
         toast.error('🚫 Demande rejetée avec succès', {
           description: `La demande de ${request.identity.firstName} ${request.identity.lastName} a été rejetée.`,
@@ -292,7 +367,7 @@ const MembershipRequestCard = ({
   const handleApprove = async () => {
     setIsApproving(true)
     try {
-      const phoneNumber = request.identity.contacts[0] // Premier numéro de téléphone
+      const phoneNumber = request.identity.contacts[0]
 
       if (!phoneNumber) {
         toast.error('📞 Numéro de téléphone manquant', {
@@ -324,7 +399,6 @@ const MembershipRequestCard = ({
           description: `${request.identity.firstName} ${request.identity.lastName} est maintenant membre ${membershipType}. Matricule: ${data.matricule}`,
           duration: 5000,
         })
-        // Invalider toutes les queries de membership requests pour forcer le rechargement
         await queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })
         await queryClient.invalidateQueries({ queryKey: ['membershipRequestsStats'] })
       } else {
@@ -345,68 +419,69 @@ const MembershipRequestCard = ({
   }
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-md">
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* En-tête avec photo, nom et statut */}
           <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-3">
-              {/* Photo du demandeur */}
-              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+            <div className="flex items-start space-x-4">
+              {/* Photo du demandeur avec effet hover */}
+              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-[#234D65] to-[#2c5a73] flex-shrink-0 ring-4 ring-white shadow-lg group-hover:ring-[#CBB171]/30 transition-all duration-300">
                 {request.identity.photoURL ? (
                   <Image
                     src={request.identity.photoURL}
                     alt={`Photo de ${request.identity.firstName} ${request.identity.lastName}`}
                     width={64}
                     height={64}
-                    className="object-cover w-full h-full"
+                    className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-110"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                    <User className="w-8 h-8 text-gray-400" />
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#234D65] to-[#2c5a73]">
+                    <User className="w-8 h-8 text-white" />
                   </div>
                 )}
               </div>
 
               {/* Informations du demandeur */}
-              <div className="space-y-1">
-                <h3 className="font-semibold text-lg">
+              <div className="space-y-1 hidden md:block">
+                <h3 className="font-bold text-xl text-gray-900 transition-colors duration-300 group-hover:text-[#234D65]">
                   {request.identity.firstName} {request.identity.lastName}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-600 font-medium">
                   {request.identity.nationality} • {request.identity.civility}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            {/* Actions */}
+            <div className="flex items-center space-x-3">
               {getStatusBadge(request.status)}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110">
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-56 shadow-xl border-0 bg-white">
                   <DropdownMenuItem
                     onClick={() => router.push(routes.admin.membershipRequestDetails(request.id!))}
-                    className="flex items-center space-x-2"
+                    className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-4 h-4 text-blue-600" />
                     <span>Voir les détails</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setShowDetailsModal(true)}
-                    className="flex items-center space-x-2"
+                    className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
                   >
-                    <FileText className="w-4 h-4" />
+                    <FileText className="w-4 h-4 text-green-600" />
                     <span>Fiche d'adhésion</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setShowIdentityModal(true)}
-                    className="flex items-center space-x-2"
+                    className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
                   >
-                    <IdCard className="w-4 h-4" />
+                    <IdCard className="w-4 h-4 text-purple-600" />
                     <span>Voir la pièce d'identité</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -414,38 +489,48 @@ const MembershipRequestCard = ({
             </div>
           </div>
 
-          {/* Informations principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+          {/* Nom et informations du demandeur - mobile */}
+          <div className="space-y-2 md:hidden">
+            <h3 className="font-bold text-lg text-gray-900 break-words">
+              {request.identity.firstName} {request.identity.lastName}
+            </h3>
+            <p className="text-sm text-gray-600 font-medium">
+              {request.identity.nationality} • {request.identity.civility}
+            </p>
+          </div>
+
+          {/* Informations principales avec icônes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Contact */}
-            <div className="flex items-center space-x-2">
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              <span className="truncate">{request.identity.email || 'Pas d\'email'}</span>
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-all duration-300 group/info">
+              <Mail className="w-5 h-5 text-blue-600 group-hover/info:scale-110 transition-transform duration-300" />
+              <span className="text-sm font-medium truncate">{request.identity.email || 'Pas d\'email'}</span>
             </div>
 
             {/* Téléphone */}
-            <div className="flex items-center space-x-2">
-              <Phone className="w-4 h-4 text-muted-foreground" />
-              <span>{request.identity.contacts[0] || 'Pas de téléphone'}</span>
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-all duration-300 group/info">
+              <Phone className="w-5 h-5 text-green-600 group-hover/info:scale-110 transition-transform duration-300" />
+              <span className="text-sm font-medium">{request.identity.contacts[0] || 'Pas de téléphone'}</span>
             </div>
 
             {/* Adresse */}
-            <div className="flex items-center space-x-2">
-              <MapPin className="w-4 h-4 text-muted-foreground" />
-              <span className="truncate">
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-all duration-300 group/info">
+              <MapPin className="w-5 h-5 text-red-600 group-hover/info:scale-110 transition-transform duration-300" />
+              <span className="text-sm font-medium truncate">
                 {request.address.city}, {request.address.province}
               </span>
             </div>
 
             {/* Date de création */}
-            <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <span>{formatDate(request.createdAt)}</span>
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-all duration-300 group/info">
+              <Calendar className="w-5 h-5 text-purple-600 group-hover/info:scale-110 transition-transform duration-300" />
+              <span className="text-sm font-medium">{formatDate(request.createdAt)}</span>
             </div>
 
-            {/* Âge approximatif */}
-            <div className="flex items-center space-x-2">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <span>
+            {/* Âge */}
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-all duration-300 group/info">
+              <User className="w-5 h-5 text-indigo-600 group-hover/info:scale-110 transition-transform duration-300" />
+              <span className="text-sm font-medium">
                 {request.identity.birthDate
                   ? `${new Date().getFullYear() - new Date(request.identity.birthDate).getFullYear()} ans`
                   : 'Âge non défini'
@@ -453,173 +538,174 @@ const MembershipRequestCard = ({
               </span>
             </div>
 
-            {/* Véhicule */}
-            <div className="flex items-center space-x-2">
-              <span className="text-muted-foreground">🚗</span>
-              <span>{request.identity.hasCar ? 'Possède une voiture' : 'Pas de voiture'}</span>
+            {/* Véhicule avec icône Lucide */}
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-all duration-300 group/info">
+              <CarFront className={`w-5 h-5 ${request.identity.hasCar ? 'text-teal-600' : 'text-gray-400'} group-hover/info:scale-110 transition-transform duration-300`} />
+              <span className={`text-sm font-medium ${request.identity.hasCar ? 'text-gray-900' : 'text-gray-500'}`}>
+                {request.identity.hasCar ? 'Possède une voiture' : 'Pas de voiture'}
+              </span>
             </div>
           </div>
 
-          {/* Actions rapides */}
+          {/* Actions rapides avec animations */}
           {request.status === 'pending' && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t">
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
               <Button
                 size="sm"
-                variant="outline"
-                className="text-green-600 border-green-200 hover:bg-green-50"
+                className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
                 onClick={() => openConfirmation('approve')}
                 disabled={isApproving}
               >
-                <CheckCircle className="w-4 h-4 mr-1" />
+                <CheckCircle className="w-4 h-4 mr-2" />
                 {isApproving ? 'Approbation...' : 'Approuver'}
               </Button>
               <Button
                 size="sm"
-                variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
                 onClick={() => openConfirmation('reject')}
               >
-                <XCircle className="w-4 h-4 mr-1" />
+                <XCircle className="w-4 h-4 mr-2" />
                 Rejeter
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
                 onClick={() => openConfirmation('under_review')}
               >
-                <AlertCircle className="w-4 h-4 mr-1" />
-                Demander des corrections
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Demander corrections
               </Button>
             </div>
           )}
 
           {/* Message de correction pour les demandes under_review */}
           {request.status === 'under_review' && (
-            <div className="pt-4 border-t border-orange-200 bg-orange-50 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-orange-800">
-                    {request.reviewNote ? 'Corrections demandées' : 'Demande en cours d\'examen'}
-                  </p>
-                  <p className="text-sm text-orange-700">
-                    {request.reviewNote 
-                      ? 'Des corrections ont été demandées pour cette demande. Veuillez copier le lien ci-dessous et l\'envoyer au demandeur pour qu\'il puisse apporter les modifications nécessaires.'
-                      : 'Cette demande est actuellement en cours d\'examen. Vous pouvez copier le lien ci-dessous pour permettre au demandeur de consulter son dossier.'
-                    }
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      value={`${window.location.origin}/register?requestId=${request.id}`}
-                      readOnly
-                      className="text-xs font-mono bg-white border-orange-300"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-orange-600 border-orange-300 hover:bg-orange-100"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/register?requestId=${request.id}`)
-                        toast.success('Lien copié !', {
-                          description: 'Le lien de correction a été copié dans le presse-papiers.',
-                          duration: 3000,
-                        })
-                      }}
-                    >
-                      Copier
-                    </Button>
-                  </div>
-                  
-                  {/* Code de sécurité */}
-                  {request.reviewNote && request.securityCode && (
-                    <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
-                      <p className="text-xs font-medium text-orange-800 mb-2">
-                        🔐 Code de sécurité à envoyer au demandeur :
-                        {request.securityCodeUsed && (
-                          <span className="ml-2 text-red-600 font-bold">
-                            ⚠️ CODE DÉJÀ UTILISÉ
-                          </span>
-                        )}
-                      </p>
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          value={request.securityCode}
-                          readOnly
-                          className={`text-sm font-mono font-bold text-center ${
-                            request.securityCodeUsed 
-                              ? 'bg-gray-100 border-gray-400 text-gray-500' 
-                              : 'bg-white border-orange-400'
-                          }`}
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`${
-                            request.securityCodeUsed
-                              ? 'text-gray-500 border-gray-400 cursor-not-allowed'
-                              : 'text-orange-700 border-orange-400 hover:bg-orange-200'
-                          }`}
-                          onClick={() => {
-                            if (!request.securityCodeUsed) {
-                              navigator.clipboard.writeText(request.securityCode!)
-                              toast.success('Code copié !', {
-                                description: 'Le code de sécurité a été copié dans le presse-papiers.',
-                                duration: 3000,
-                              })
-                            }
-                          }}
-                          disabled={request.securityCodeUsed}
-                        >
-                          {request.securityCodeUsed ? 'Utilisé' : 'Copier'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-blue-700 border-blue-400 hover:bg-blue-200"
-                          onClick={() => renewSecurityCodeMutation.mutate(request.id!)}
-                          disabled={renewSecurityCodeMutation.isPending}
-                        >
-                          <RefreshCw className={`w-3 h-3 mr-1 ${renewSecurityCodeMutation.isPending ? 'animate-spin' : ''}`} />
-                          Renouveler
-                        </Button>
-                      </div>
-                      
-                      {/* Affichage de l'expiration */}
-                      {request.securityCodeExpiry && (
-                        <div className="mt-2 text-xs">
-                          {(() => {
-                            const expiry = (request.securityCodeExpiry as any).toDate ? (request.securityCodeExpiry as any).toDate() : new Date(request.securityCodeExpiry);
-                            const now = new Date();
-                            const isExpired = expiry < now;
-                            const timeLeft = expiry.getTime() - now.getTime();
-                            const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-                            const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                            
-                            return (
-                              <div className={`flex items-center space-x-1 ${isExpired ? 'text-red-600' : 'text-orange-700'}`}>
-                                <Clock className="w-3 h-3" />
-                                <span>
-                                  {isExpired 
-                                    ? 'Code expiré' 
-                                    : `Expire dans ${hoursLeft}h ${minutesLeft}m`
-                                  }
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                      
-                      <p className="text-xs text-orange-700 mt-2">
-                        ⚠️ Le demandeur devra saisir ce code pour accéder à ses corrections
-                        {request.securityCodeUsed && (
-                          <span className="block mt-1 text-red-600 font-medium">
-                            🔒 Ce code a été utilisé et ne peut plus être utilisé pour accéder aux corrections
-                          </span>
-                        )}
-                      </p>
+            <div className="pt-4 border-t border-orange-200">
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 shadow-sm">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-3 flex-1">
+                    <p className="text-sm font-bold text-orange-800">
+                      {request.reviewNote ? 'Corrections demandées' : 'Demande en cours d\'examen'}
+                    </p>
+                    <p className="text-sm text-orange-700">
+                      {request.reviewNote 
+                        ? 'Des corrections ont été demandées. Envoyez le lien ci-dessous au demandeur pour les modifications.'
+                        : 'Cette demande est en cours d\'examen. Vous pouvez partager le lien pour suivi.'
+                      }
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        value={`${window.location.origin}/register?requestId=${request.id}`}
+                        readOnly
+                        className="text-xs font-mono bg-white border-orange-300 focus:border-orange-500"
+                      />
+                      <Button
+                        size="sm"
+                        className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/register?requestId=${request.id}`)
+                          toast.success('Lien copié !', {
+                            description: 'Le lien de correction a été copié dans le presse-papiers.',
+                            duration: 3000,
+                          })
+                        }}
+                      >
+                        Copier
+                      </Button>
                     </div>
-                  )}
+                    
+                    {/* Code de sécurité */}
+                    {request.reviewNote && request.securityCode && (
+                      <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                        <p className="text-xs font-medium text-orange-800 mb-2">
+                          🔐 Code de sécurité à envoyer au demandeur :
+                          {request.securityCodeUsed && (
+                            <span className="ml-2 text-red-600 font-bold">
+                              ⚠️ CODE DÉJÀ UTILISÉ
+                            </span>
+                          )}
+                        </p>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            value={request.securityCode}
+                            readOnly
+                            className={`text-sm font-mono font-bold text-center ${
+                              request.securityCodeUsed 
+                                ? 'bg-gray-100 border-gray-400 text-gray-500' 
+                                : 'bg-white border-orange-400'
+                            }`}
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`${
+                              request.securityCodeUsed
+                                ? 'text-gray-500 border-gray-400 cursor-not-allowed'
+                                : 'text-orange-700 border-orange-400 hover:bg-orange-200'
+                            }`}
+                            onClick={() => {
+                              if (!request.securityCodeUsed) {
+                                navigator.clipboard.writeText(request.securityCode!)
+                                toast.success('Code copié !', {
+                                  description: 'Le code de sécurité a été copié dans le presse-papiers.',
+                                  duration: 3000,
+                                })
+                              }
+                            }}
+                            disabled={request.securityCodeUsed}
+                          >
+                            {request.securityCodeUsed ? 'Utilisé' : 'Copier'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-blue-700 border-blue-400 hover:bg-blue-200"
+                            onClick={() => renewSecurityCodeMutation.mutate(request.id!)}
+                            disabled={renewSecurityCodeMutation.isPending}
+                          >
+                            <RefreshCw className={`w-3 h-3 mr-1 ${renewSecurityCodeMutation.isPending ? 'animate-spin' : ''}`} />
+                            Renouveler
+                          </Button>
+                        </div>
+                        
+                        {/* Expiration */}
+                        {request.securityCodeExpiry && (
+                          <div className="mt-2 text-xs">
+                            {(() => {
+                              const expiry = (request.securityCodeExpiry as any).toDate ? (request.securityCodeExpiry as any).toDate() : new Date(request.securityCodeExpiry);
+                              const now = new Date();
+                              const isExpired = expiry < now;
+                              const timeLeft = expiry.getTime() - now.getTime();
+                              const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                              const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                              
+                              return (
+                                <div className={`flex items-center space-x-1 ${isExpired ? 'text-red-600' : 'text-orange-700'}`}>
+                                  <Clock className="w-3 h-3" />
+                                  <span>
+                                    {isExpired 
+                                      ? 'Code expiré' 
+                                      : `Expire dans ${hoursLeft}h ${minutesLeft}m`
+                                    }
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                        
+                        <p className="text-xs text-orange-700 mt-2">
+                          ⚠️ Le demandeur devra saisir ce code pour accéder à ses corrections
+                          {request.securityCodeUsed && (
+                            <span className="block mt-1 text-red-600 font-medium">
+                              🔒 Ce code a été utilisé et ne peut plus être utilisé pour accéder aux corrections
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -640,37 +726,37 @@ const MembershipRequestCard = ({
         request={request}
       />
 
-      {/* Modal de confirmation */}
+      {/* Modal de confirmation avec design amélioré */}
       <Dialog open={confirmationAction.isOpen} onOpenChange={closeConfirmation}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md shadow-2xl border-0">
           <DialogHeader>
-            <DialogTitle>
-              {confirmationAction.type === 'approve' && 'Confirmer l\'approbation'}
-              {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
-              {confirmationAction.type === 'under_review' && 'Demander des corrections'}
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              {confirmationAction.type === 'approve' && '✅ Confirmer l\'approbation'}
+              {confirmationAction.type === 'reject' && '❌ Confirmer le rejet'}
+              {confirmationAction.type === 'under_review' && '⚠️ Demander des corrections'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-600">
               {confirmationAction.type === 'approve' &&
-                `Êtes-vous sûr de vouloir approuver la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action créera un compte utilisateur Firebase et ne pourra pas être annulée.`
+                `Approuver la demande de ${request.identity.firstName} ${request.identity.lastName} ? Un compte utilisateur sera créé.`
               }
               {confirmationAction.type === 'reject' &&
-                `Êtes-vous sûr de vouloir rejeter la demande de ${request.identity.firstName} ${request.identity.lastName} ? Cette action ne pourra pas être annulée.`
+                `Rejeter définitivement la demande de ${request.identity.firstName} ${request.identity.lastName} ?`
               }
               {confirmationAction.type === 'under_review' &&
-                `Veuillez préciser les corrections à apporter pour la demande de ${request.identity.firstName} ${request.identity.lastName}.`
+                `Précisez les corrections nécessaires pour ${request.identity.firstName} ${request.identity.lastName}.`
               }
             </DialogDescription>
           </DialogHeader>
 
-          {/* Sélecteur de type de membre pour l'approbation */}
+          {/* Contenu spécifique selon le type */}
           {confirmationAction.type === 'approve' && (
             <div className="py-4 space-y-6">
               <div>
-                <label className="text-sm font-medium mb-2 block">
+                <label className="text-sm font-bold mb-3 block text-[#234D65]">
                   Type de membre <span className="text-red-500">*</span>
                 </label>
                 <Select value={membershipType} onValueChange={setMembershipType}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full h-12 border-2 focus:border-[#234D65]">
                     <SelectValue placeholder="Sélectionnez un type de membre..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -680,186 +766,140 @@ const MembershipRequestCard = ({
                   </SelectContent>
                 </Select>
                 {!membershipType && (
-                  <p className="text-sm text-red-500 mt-1">
+                  <p className="text-sm text-red-500 mt-2 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
                     Le type de membre est obligatoire pour l'approbation
                   </p>
                 )}
               </div>
 
-              {
-                request.company.isEmployed && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium text-[#224D62] border-b border-[#CBB171]/30 pb-2">
-                      Informations professionnelles
-                    </h4>
-                    {/* Champ Entreprise */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-[#224D62] flex items-center gap-2">
-                        Nom de l'entreprise
-                        {isCheckingExistence && (
-                          <Loader2 className="w-3 h-3 animate-spin text-[#CBB171]" />
-                        )}
-                        {companyExists && (
-                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                            ✓ Existe déjà
-                          </span>
-                        )}
-                        {request.company?.companyName && !companyExists && !isCheckingExistence && (
-                          <span className="text-xs text-gray-500 ml-2">
-                            (Valeur par défaut: {request.company.companyName})
-                          </span>
-                        )}
-                      </label>
-                      <div className="relative">
-                        <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                        <Input
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          placeholder={request.company?.companyName || "Nom de l'entreprise"}
-                          className={cn(
-                            "pl-10",
-                            companyExists && "bg-gray-100 text-gray-500 cursor-not-allowed"
-                          )}
-                          disabled={companyExists}
-                        />
-                        {companyExists && (
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          </div>
-                        )}
-                      </div>
-                      {request.company?.companyName && !companyName && !companyExists && !isCheckingExistence && (
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-blue-600">
-                            💡 Utilisez la valeur par défaut ou saisissez une nouvelle entreprise
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setCompanyName(request.company.companyName || '')}
-                            className="text-xs h-6 px-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
-                          >
-                            Utiliser par défaut
-                          </Button>
-                        </div>
+              {request.company.isEmployed && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-[#234D65] border-b border-[#CBB171]/30 pb-2">
+                    Informations professionnelles
+                  </h4>
+                  
+                  {/* Entreprise */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-[#234D65] flex items-center gap-2">
+                      Nom de l'entreprise
+                      {isCheckingExistence && (
+                        <Loader2 className="w-3 h-3 animate-spin text-[#CBB171]" />
                       )}
                       {companyExists && (
-                        <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 p-2 rounded-lg">
-                          <CheckCircle className="w-3 h-3" />
-                          <span>Cette entreprise existe déjà dans la base de données. Le champ est désactivé.</span>
-                        </div>
+                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                          ✓ Existe déjà
+                        </span>
                       )}
+                    </label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                      <Input
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder={request.company?.companyName || "Nom de l'entreprise"}
+                        className={cn(
+                          "pl-10 h-12 border-2 focus:border-[#234D65]",
+                          companyExists && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                        )}
+                        disabled={companyExists}
+                      />
                     </div>
-
-                    {/* Champ Profession */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-[#224D62] flex items-center gap-2">
-                        Profession
-                        {isCheckingExistence && (
-                          <Loader2 className="w-3 h-3 animate-spin text-[#CBB171]" />
-                        )}
-                        {professionExists && (
-                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                            ✓ Existe déjà
-                          </span>
-                        )}
-                        {request.company?.profession && !professionExists && !isCheckingExistence && (
-                          <span className="text-xs text-gray-500 ml-2">
-                            (Valeur par défaut: {request.company.profession})
-                          </span>
-                        )}
-                      </label>
-                      <div className="relative">
-                        <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                        <Input
-                          value={professionName}
-                          onChange={(e) => setProfessionName(e.target.value)}
-                          placeholder={request.company?.profession || "Profession"}
-                          className={cn(
-                            "pl-10",
-                            professionExists && "bg-gray-100 text-gray-500 cursor-not-allowed"
-                          )}
-                          disabled={professionExists}
-                        />
-                        {professionExists && (
-                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          </div>
-                        )}
-                      </div>
-                      {request.company?.profession && !professionName && !professionExists && !isCheckingExistence && (
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-blue-600">
-                            💡 Utilisez la valeur par défaut ou saisissez une nouvelle profession
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setProfessionName(request.company.profession || '')}
-                            className="text-xs h-6 px-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
-                          >
-                            Utiliser par défaut
-                          </Button>
-                        </div>
-                      )}
-                      {professionExists && (
-                        <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 p-2 rounded-lg">
-                          <CheckCircle className="w-3 h-3" />
-                          <span>Cette profession existe déjà dans la base de données. Le champ est désactivé.</span>
-                        </div>
-                      )}
-                    </div>
+                    {request.company?.companyName && !companyName && !companyExists && !isCheckingExistence && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setCompanyName(request.company.companyName || '')}
+                        className="text-xs border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
+                      >
+                        Utiliser: {request.company.companyName}
+                      </Button>
+                    )}
                   </div>
-                )
-              }
-              {/* Champs Entreprise et Profession */}
 
+                  {/* Profession */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-[#234D65] flex items-center gap-2">
+                      Profession
+                      {professionExists && (
+                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                          ✓ Existe déjà
+                        </span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+                      <Input
+                        value={professionName}
+                        onChange={(e) => setProfessionName(e.target.value)}
+                        placeholder={request.company?.profession || "Profession"}
+                        className={cn(
+                          "pl-10 h-12 border-2 focus:border-[#234D65]",
+                          professionExists && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                        )}
+                        disabled={professionExists}
+                      />
+                    </div>
+                    {request.company?.profession && !professionName && !professionExists && !isCheckingExistence && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setProfessionName(request.company.profession || '')}
+                        className="text-xs border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
+                      >
+                        Utiliser: {request.company.profession}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Formulaire de corrections */}
           {confirmationAction.type === 'under_review' && (
             <div className="py-4 space-y-4">
               <div className="space-y-3">
-                <label className="text-sm font-medium text-[#224D62]">
+                <label className="text-sm font-bold text-[#234D65]">
                   Corrections à apporter <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={correctionsList}
                   onChange={(e) => setCorrectionsList(e.target.value)}
-                  placeholder="Exemples :
-• Photo trop floue, veuillez fournir une photo plus nette
-• Document d'identité manquant
-• Adresse incomplète
-• Numéro de téléphone incorrect"
-                  className="w-full min-h-[120px] p-3 border border-[#CBB171]/30 rounded-lg focus:border-[#224D62] focus:ring-[#224D62]/20 resize-none"
+                  placeholder="Détaillez les corrections nécessaires...&#10;&#10;Exemples :&#10;• Photo trop floue, veuillez fournir une photo plus nette&#10;• Document d'identité manquant&#10;• Adresse incomplète&#10;• Numéro de téléphone incorrect"
+                  className="w-full min-h-[120px] p-4 border-2 border-gray-200 focus:border-[#234D65] rounded-xl resize-none"
                   required
                 />
-                                 {confirmationAction.type === 'under_review' && !correctionsList.trim() && (
-                   <p className="text-sm text-red-500">
-                     Veuillez préciser les corrections demandées
-                   </p>
-                 )}
+                {!correctionsList.trim() && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Veuillez préciser les corrections demandées
+                  </p>
+                )}
               </div>
             </div>
           )}
-          <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-            <Button variant="outline" onClick={closeConfirmation}>
+
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-3">
+            <Button 
+              variant="outline" 
+              onClick={closeConfirmation}
+              className="h-12 px-6 border-2"
+            >
               Annuler
             </Button>
             <Button
               onClick={confirmAction}
-                             disabled={
-                 isApproving ||
-                 (confirmationAction.type === 'approve' && !membershipType) ||
-                 (confirmationAction.type === 'under_review' && !correctionsList.trim())
-               }
-              className={
-                confirmationAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' :
-                  confirmationAction.type === 'reject' ? 'bg-red-600 hover:bg-red-700' :
-                    confirmationAction.type === 'under_review' ? 'bg-orange-600 hover:bg-orange-700' :
-                      'bg-blue-600 hover:bg-blue-700'
+              disabled={
+                isApproving ||
+                (confirmationAction.type === 'approve' && !membershipType) ||
+                (confirmationAction.type === 'under_review' && !correctionsList.trim())
               }
+              className={cn(
+                "h-12 px-6 text-white border-0 font-medium shadow-lg hover:shadow-xl transition-all duration-300",
+                confirmationAction.type === 'approve' && 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700',
+                confirmationAction.type === 'reject' && 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700',
+                confirmationAction.type === 'under_review' && 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700'
+              )}
             >
               {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
               {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
@@ -908,7 +948,7 @@ export default function MembershipRequestsList() {
     setFilters(prev => ({
       ...prev,
       [key]: value,
-      page: key !== 'page' ? 1 : value // Reset page si on change autre chose que la page
+      page: key !== 'page' ? 1 : value
     }))
   }
 
@@ -916,13 +956,37 @@ export default function MembershipRequestsList() {
     handleFilterChange('searchQuery', searchQuery)
   }
 
+  // Calcul des statistiques
+  const stats = React.useMemo(() => {
+    if (!membershipData) return null
+    
+    const total = membershipData.pagination.totalItems
+    const pending = membershipData.data.filter(r => r.status === 'pending').length
+    const approved = membershipData.data.filter(r => r.status === 'approved').length
+    const rejected = membershipData.data.filter(r => r.status === 'rejected').length
+    const underReview = membershipData.data.filter(r => r.status === 'under_review').length
+    
+    return {
+      total,
+      pending,
+      approved,
+      rejected,
+      underReview,
+      pendingPercentage: total > 0 ? (pending / total) * 100 : 0,
+      approvedPercentage: total > 0 ? (approved / total) * 100 : 0,
+      rejectedPercentage: total > 0 ? (rejected / total) * 100 : 0,
+      underReviewPercentage: total > 0 ? (underReview / total) * 100 : 0,
+    }
+  }, [membershipData])
+
   if (isError) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center text-red-600">
-            <p>Erreur lors du chargement des demandes d'adhésion</p>
-            <p className="text-sm text-muted-foreground mt-1">
+      <Card className="shadow-xl border-0">
+        <CardContent className="p-12 text-center">
+          <div className="text-red-600">
+            <FileX className="w-16 h-16 mx-auto mb-4 opacity-50" />
+            <h3 className="text-xl font-bold mb-2">Erreur de chargement</h3>
+            <p className="text-gray-600">
               {error instanceof Error ? error.message : 'Erreur inconnue'}
             </p>
           </div>
@@ -932,43 +996,81 @@ export default function MembershipRequestsList() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
+    <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {/* En-tête avec gradient */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Demandes d'Adhésion</h1>
-        <p className="text-muted-foreground">
-          Gérez les demandes d'adhésion à votre organisation
+        <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+          Demandes d'Adhésion
+        </h1>
+        <p className="text-gray-600 text-lg">
+          Gérez efficacement les demandes d'adhésion de votre organisation
         </p>
       </div>
 
-      {/* Filtres et recherche */}
-      <Card>
+      {/* Statistiques compactes avec graphiques */}
+      {stats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard
+            title="Total"
+            value={stats.total}
+            percentage={100}
+            color="#6b7280"
+            icon={Users}
+          />
+          <StatsCard
+            title="En attente"
+            value={stats.pending}
+            percentage={stats.pendingPercentage}
+            color="#f59e0b"
+            icon={Clock}
+            trend="up"
+          />
+          <StatsCard
+            title="Approuvées"
+            value={stats.approved}
+            percentage={stats.approvedPercentage}
+            color="#10b981"
+            icon={UserCheck}
+            trend="up"
+          />
+          <StatsCard
+            title="En cours"
+            value={stats.underReview}
+            percentage={stats.underReviewPercentage}
+            color="#3b82f6"
+            icon={Eye}
+          />
+        </div>
+      )}
+
+      {/* Filtres et recherche avec design moderne */}
+      <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Barre de recherche */}
             <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-[#234D65] transition-colors duration-300" />
                 <Input
                   placeholder="Rechercher par nom, email, téléphone..."
                   value={filters.searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10"
+                  className="pl-12 h-12 border-2 border-gray-200 focus:border-[#234D65] bg-white shadow-sm"
                 />
               </div>
             </div>
 
             {/* Filtre par statut */}
-            <div className="w-full md:w-48">
+            <div className="w-full md:w-64">
               <Select
                 value={filters.status}
                 onValueChange={(value) => handleFilterChange('status', value)}
               >
-                <SelectTrigger>
-                  <Filter className="w-4 h-4 mr-2" />
+                <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-[#234D65] bg-white shadow-sm">
+                  <Filter className="w-5 h-5 mr-2 text-gray-400" />
                   <SelectValue placeholder="Filtrer par statut" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="shadow-xl border-0">
                   <SelectItem value="all">Tous les statuts</SelectItem>
                   <SelectItem value="pending">En attente</SelectItem>
                   <SelectItem value="under_review">En cours d'examen</SelectItem>
@@ -981,62 +1083,23 @@ export default function MembershipRequestsList() {
         </CardContent>
       </Card>
 
-      {/* Statistiques rapides */}
-      {membershipData && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold">{membershipData.pagination.totalItems}</div>
-              <div className="text-sm text-muted-foreground">Total</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-600">
-                {membershipData.data.filter((r: MembershipRequest) => r.status === 'pending').length}
-              </div>
-              <div className="text-sm text-muted-foreground">En attente</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {membershipData.data.filter((r: MembershipRequest) => r.status === 'approved').length}
-              </div>
-              <div className="text-sm text-muted-foreground">Approuvées</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">
-                {membershipData.data.filter((r: MembershipRequest) => r.status === 'under_review').length}
-              </div>
-              <div className="text-sm text-muted-foreground">En cours</div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       {/* Liste des demandes */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {isLoading ? (
-          // Skeletons de chargement
           Array.from({ length: 5 }).map((_, index) => (
             <MembershipRequestSkeleton key={index} />
           ))
         ) : membershipData?.data.length === 0 ? (
-          // État vide
-          <Card>
-            <CardContent className="p-12 text-center">
-              <div className="text-muted-foreground">
-                <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Aucune demande trouvée</h3>
-                <p>Aucune demande d'adhésion ne correspond à vos critères de recherche.</p>
+          <Card className="shadow-xl border-0 bg-gradient-to-br from-white to-gray-50">
+            <CardContent className="p-16 text-center">
+              <div className="text-gray-500">
+                <Users className="w-20 h-20 mx-auto mb-6 opacity-50" />
+                <h3 className="text-2xl font-bold mb-3 text-gray-700">Aucune demande trouvée</h3>
+                <p className="text-lg">Aucune demande d'adhésion ne correspond à vos critères de recherche.</p>
               </div>
             </CardContent>
           </Card>
         ) : (
-          // Liste des demandes
           membershipData?.data.map((request: MembershipRequest) => (
             <MembershipRequestCard
               key={request.id}
@@ -1047,14 +1110,15 @@ export default function MembershipRequestsList() {
         )}
       </div>
 
-      {/* Pagination */}
+      {/* Pagination moderne */}
       {membershipData && membershipData.pagination.totalPages > 1 && (
-        <Card>
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm font-medium text-gray-600">
                 Page {membershipData.pagination.currentPage} sur {membershipData.pagination.totalPages}
-                {' '}({membershipData.pagination.totalItems} résultats)
+                <span className="mx-2">•</span>
+                {membershipData.pagination.totalItems} résultats
               </div>
               <div className="flex space-x-2">
                 <Button
@@ -1062,6 +1126,7 @@ export default function MembershipRequestsList() {
                   size="sm"
                   disabled={!membershipData.pagination.hasPrevPage}
                   onClick={() => handleFilterChange('page', membershipData.pagination.currentPage - 1)}
+                  className="h-10 px-4 border-2 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
                 >
                   Précédent
                 </Button>
@@ -1070,6 +1135,7 @@ export default function MembershipRequestsList() {
                   size="sm"
                   disabled={!membershipData.pagination.hasNextPage}
                   onClick={() => handleFilterChange('page', membershipData.pagination.currentPage + 1)}
+                  className="h-10 px-4 border-2 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
                 >
                   Suivant
                 </Button>

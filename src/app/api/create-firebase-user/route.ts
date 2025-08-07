@@ -5,6 +5,7 @@ import { createUserWithMatricule, addSubscriptionToUser, generateMatricule } fro
 import { createDefaultSubscription } from "@/db/subscription.db";
 import { findOrCreateCompany } from "@/db/company.db";
 import { findOrCreateProfession } from "@/db/profession.db";
+import { registerAddress } from "@/db/address.db";
 import type { User, UserRole, MembershipType } from "@/types/types";
 
 /**
@@ -113,6 +114,9 @@ export async function POST(req: NextRequest) {
             email: membershipRequest.identity.email,
             nationality: membershipRequest.identity.nationality,
             hasCar: membershipRequest.identity.hasCar,
+            address: membershipRequest.address,
+            companyName: companyName || membershipRequest.company?.companyName,
+            profession: professionName || membershipRequest.company?.profession,
             photoURL: membershipRequest.identity.photoURL,
             photoPath: membershipRequest.identity.photoPath,
             subscriptions: [], // Sera mis à jour après création de la souscription
@@ -137,6 +141,17 @@ export async function POST(req: NextRequest) {
         // Ajouter la souscription à l'utilisateur
         await addSubscriptionToUser(createdUser.id, subscription.id);
         console.log('Souscription ajoutée à l\'utilisateur');
+
+        // Enregistrer l'adresse dans la structure hiérarchique
+        if (membershipRequest.address) {
+            try {
+                await registerAddress(membershipRequest.address);
+                console.log('Adresse enregistrée dans la structure hiérarchique');
+            } catch (error) {
+                console.error('Erreur lors de l\'enregistrement de l\'adresse:', error);
+                // Ne pas bloquer le processus d'approbation pour cette erreur
+            }
+        }
 
         // Persister l'entreprise et la profession si elles sont fournies
         let companyId = null;

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, CheckCircle, Clock, Eye, FileText, IdCard, Mail, MapPin, Phone, User, XCircle, Building2, Briefcase, Car, Heart, AlertCircle, Download } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle, Clock, Eye, FileText, IdCard, Mail, MapPin, Phone, User, XCircle, Building2, Briefcase, CarFront, Heart, AlertCircle, Download, Copy, ExternalLink, UserCheck, Zap } from 'lucide-react'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,40 +12,43 @@ import { Separator } from '@/components/ui/separator'
 import { useMembershipRequest } from '@/hooks/useMembershipRequests'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import type { MembershipRequestStatus } from '@/types/types'
+import { toast } from 'sonner'
 
-// Fonction utilitaire pour obtenir le badge de statut
+// Fonction utilitaire pour obtenir le badge de statut avec animations
 const getStatusBadge = (status: MembershipRequestStatus) => {
+  const baseClasses = "transition-all duration-300 hover:scale-105 flex items-center gap-2 font-semibold px-4 py-2 text-sm"
+  
   switch (status) {
     case 'pending':
       return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-          <Clock className="w-4 h-4 mr-2" />
+        <Badge variant="outline" className={`${baseClasses} bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-300 hover:shadow-lg`}>
+          <Clock className="w-4 h-4 animate-pulse" />
           {MEMBERSHIP_STATUS_LABELS.pending}
         </Badge>
       )
     case 'approved':
       return (
-        <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
-          <CheckCircle className="w-4 h-4 mr-2" />
+        <Badge variant="secondary" className={`${baseClasses} bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border-emerald-300 hover:shadow-lg`}>
+          <CheckCircle className="w-4 h-4" />
           {MEMBERSHIP_STATUS_LABELS.approved}
         </Badge>
       )
     case 'rejected':
       return (
-        <Badge variant="destructive">
-          <XCircle className="w-4 h-4 mr-2" />
+        <Badge variant="destructive" className={`${baseClasses} bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border-red-300 hover:shadow-lg`}>
+          <XCircle className="w-4 h-4" />
           {MEMBERSHIP_STATUS_LABELS.rejected}
         </Badge>
       )
     case 'under_review':
       return (
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-          <Eye className="w-4 h-4 mr-2" />
+        <Badge variant="outline" className={`${baseClasses} bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-blue-300 hover:shadow-lg`}>
+          <Eye className="w-4 h-4 animate-bounce" />
           {MEMBERSHIP_STATUS_LABELS.under_review}
         </Badge>
       )
     default:
-      return <Badge variant="outline">{status}</Badge>
+      return <Badge variant="outline" className={baseClasses}>{status}</Badge>
   }
 }
 
@@ -54,7 +57,6 @@ const formatDate = (timestamp: any) => {
   if (!timestamp) return 'Non définie'
 
   try {
-    // Si c'est un Timestamp Firebase
     if (timestamp.toDate) {
       return timestamp.toDate().toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -64,7 +66,6 @@ const formatDate = (timestamp: any) => {
         minute: '2-digit'
       })
     }
-    // Si c'est une Date normale
     if (timestamp instanceof Date) {
       return timestamp.toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -74,7 +75,6 @@ const formatDate = (timestamp: any) => {
         minute: '2-digit'
       })
     }
-    // Si c'est une string
     return new Date(timestamp).toLocaleDateString('fr-FR', {
       day: '2-digit',
       month: 'long',
@@ -87,40 +87,135 @@ const formatDate = (timestamp: any) => {
   }
 }
 
-// Composant de squelette de chargement
-const DetailsSkeleton = () => (
-  <div className="space-y-6">
+// Composant InfoField pour affichage uniforme
+const InfoField = ({ 
+  label, 
+  value, 
+  icon: Icon, 
+  color = "text-gray-600",
+  copyable = false
+}: { 
+  label: string
+  value: string | React.ReactNode
+  icon?: React.ComponentType<any>
+  color?: string
+  copyable?: boolean
+}) => (
+  <div className="group p-4 rounded-xl bg-gradient-to-br from-gray-50/50 to-white hover:from-gray-100/50 hover:to-gray-50/50 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-sm">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+      {label}
+    </label>
     <div className="flex items-center justify-between">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-6 w-32" />
+      <div className="flex items-center gap-3">
+        {Icon && <Icon className={`w-4 h-4 ${color} group-hover:scale-110 transition-transform duration-300`} />}
+        <span className="font-medium text-gray-900">{value}</span>
+      </div>
+      {copyable && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="opacity-0 group-hover:opacity-100 transition-all duration-300 h-8 w-8 p-0"
+          onClick={() => {
+            navigator.clipboard.writeText(String(value))
+            toast.success('Copié !', { duration: 2000 })
+          }}
+        >
+          <Copy className="w-3 h-3" />
+        </Button>
+      )}
     </div>
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
+  </div>
+)
+
+// Composant de squelette de chargement amélioré
+const DetailsSkeleton = () => (
+  <div className="space-y-8 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-4">
+        <Skeleton className="h-10 w-20" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-96" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
+      <Skeleton className="h-8 w-32 rounded-full" />
+    </div>
+    
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="lg:col-span-2 space-y-8">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Card key={i} className="animate-pulse">
             <CardHeader>
-              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-6 w-48" />
             </CardHeader>
             <CardContent className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
+              <div className="grid grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <div key={j} className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-6 w-32" />
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
-      <div className="space-y-6">
-        <Card>
+      
+      <div className="space-y-8">
+        <Card className="animate-pulse">
           <CardHeader>
             <Skeleton className="h-6 w-32" />
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-64 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+        <Card className="animate-pulse">
+          <CardHeader>
+            <Skeleton className="h-6 w-40" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-5 w-full" />
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
     </div>
   </div>
+)
+
+// Composant ModernCard pour les sections
+const ModernCard = ({ 
+  title, 
+  icon: Icon, 
+  children, 
+  className = "",
+  iconColor = "text-[#234D65]"
+}: { 
+  title: string
+  icon: React.ComponentType<any>
+  children: React.ReactNode
+  className?: string
+  iconColor?: string
+}) => (
+  <Card className={`group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg ${className}`}>
+    <CardHeader className="pb-4">
+      <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900">
+        <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110`} style={{ backgroundColor: `${iconColor}15` }}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
+        </div>
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="pt-0">
+      {children}
+    </CardContent>
+  </Card>
 )
 
 export default function MembershipRequestDetails() {
@@ -132,7 +227,7 @@ export default function MembershipRequestDetails() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-8">
         <DetailsSkeleton />
       </div>
     )
@@ -140,15 +235,20 @@ export default function MembershipRequestDetails() {
 
   if (isError || !request) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="p-12 text-center">
-            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-            <h2 className="text-xl font-semibold mb-2">Demande introuvable</h2>
-            <p className="text-muted-foreground mb-4">
+      <div className="container mx-auto p-8">
+        <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-red-50/30">
+          <CardContent className="p-16 text-center">
+            <div className="p-4 rounded-full bg-red-100 w-fit mx-auto mb-6">
+              <AlertCircle className="w-12 h-12 text-red-600" />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">Demande introuvable</h2>
+            <p className="text-gray-600 mb-8 text-lg max-w-md mx-auto leading-relaxed">
               {error instanceof Error ? error.message : 'La demande d\'adhésion demandée n\'existe pas ou n\'est plus accessible.'}
             </p>
-            <Button onClick={() => router.back()}>
+            <Button 
+              onClick={() => router.back()}
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-12 px-8"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
             </Button>
@@ -159,423 +259,466 @@ export default function MembershipRequestDetails() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => router.back()}>
+    <div className="container mx-auto p-8 space-y-8 animate-in fade-in-0 duration-500">
+      {/* En-tête moderne */}
+      <div className="flex items-start justify-between bg-gradient-to-r from-white to-gray-50/50 p-8 rounded-2xl shadow-lg border-0">
+        <div className="flex items-start space-x-6">
+          <Button 
+            variant="ghost" 
+            onClick={() => router.back()}
+            className="h-12 px-4 bg-white hover:bg-gray-100 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl border"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Retour
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">
-              Demande d'adhésion de {request.identity.firstName} {request.identity.lastName}
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+              Demande de {request.identity.firstName} {request.identity.lastName}
             </h1>
-            <p className="text-muted-foreground">
-              Demande créée le {formatDate(request.createdAt)}
-            </p>
+            <div className="flex items-center gap-2 text-gray-600">
+              <Calendar className="w-4 h-4" />
+              <span className="font-medium">Créée le {formatDate(request.createdAt)}</span>
+            </div>
           </div>
         </div>
-        {getStatusBadge(request.status)}
+        <div className="flex items-center gap-4">
+          {getStatusBadge(request.status)}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Colonne principale */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-8">
           
           {/* Informations personnelles */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <User className="w-5 h-5 mr-2" />
-                Informations personnelles
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Civilité</label>
-                  <p className="font-medium">{request.identity.civility}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Genre</label>
-                  <p className="font-medium">{request.identity.gender}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Prénom</label>
-                  <p className="font-medium">{request.identity.firstName}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Nom</label>
-                  <p className="font-medium">{request.identity.lastName}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Date de naissance</label>
-                  <p className="font-medium">{formatDate(request.identity.birthDate)}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Lieu de naissance</label>
-                  <p className="font-medium">{request.identity.birthPlace}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Nationalité</label>
-                  <p className="font-medium">{request.identity.nationality}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Statut matrimonial</label>
-                  <p className="font-medium">{request.identity.maritalStatus}</p>
-                </div>
-                {request.identity.spouseFirstName && (
-                  <>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Époux/Épouse</label>
-                      <p className="font-medium">{request.identity.spouseFirstName} {request.identity.spouseLastName}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Téléphone époux/épouse</label>
-                      <p className="font-medium">{request.identity.spousePhone || 'Non renseigné'}</p>
-                    </div>
-                  </>
-                )}
-              </div>
+          <ModernCard title="Informations personnelles" icon={User} iconColor="text-blue-600">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoField label="Civilité" value={request.identity.civility} icon={User} color="text-blue-600" />
+              <InfoField label="Genre" value={request.identity.gender} icon={User} color="text-blue-600" />
+              <InfoField label="Prénom" value={request.identity.firstName} icon={User} color="text-blue-600" />
+              <InfoField label="Nom" value={request.identity.lastName} icon={User} color="text-blue-600" />
+              <InfoField label="Date de naissance" value={formatDate(request.identity.birthDate)} icon={Calendar} color="text-purple-600" />
+              <InfoField label="Lieu de naissance" value={request.identity.birthPlace} icon={MapPin} color="text-red-600" />
+              <InfoField label="Nationalité" value={request.identity.nationality} icon={User} color="text-green-600" />
+              <InfoField label="Statut matrimonial" value={request.identity.maritalStatus} icon={Heart} color="text-pink-600" />
               
-              <Separator />
-              
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Lieu de prière</label>
-                <p className="font-medium">{request.identity.prayerPlace}</p>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <Car className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">
+              {request.identity.spouseFirstName && (
+                <>
+                  <InfoField 
+                    label="Époux/Épouse" 
+                    value={`${request.identity.spouseFirstName} ${request.identity.spouseLastName}`} 
+                    icon={Heart} 
+                    color="text-pink-600" 
+                  />
+                  <InfoField 
+                    label="Téléphone époux/épouse" 
+                    value={request.identity.spousePhone || 'Non renseigné'} 
+                    icon={Phone} 
+                    color="text-green-600" 
+                  />
+                </>
+              )}
+            </div>
+            
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <InfoField label="Lieu de prière" value={request.identity.prayerPlace} icon={Building2} color="text-indigo-600" />
+            </div>
+            
+            <div className="mt-4">
+              <div className={`inline-flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                request.identity.hasCar 
+                  ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
+                  : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200'
+              }`}>
+                <CarFront className={`w-5 h-5 ${request.identity.hasCar ? 'text-emerald-600' : 'text-gray-400'}`} />
+                <span className="font-semibold">
                   {request.identity.hasCar ? 'Possède un véhicule' : 'Ne possède pas de véhicule'}
                 </span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </ModernCard>
 
           {/* Informations de contact */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Phone className="w-5 h-5 mr-2" />
-                Informations de contact
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <p className="font-medium flex items-center">
-                  <Mail className="w-4 h-4 mr-2 text-muted-foreground" />
-                  {request.identity.email || 'Non renseigné'}
-                </p>
-              </div>
+          <ModernCard title="Informations de contact" icon={Phone} iconColor="text-green-600">
+            <div className="space-y-4">
+              <InfoField 
+                label="Adresse email" 
+                value={request.identity.email || 'Non renseigné'} 
+                icon={Mail} 
+                color="text-blue-600" 
+                copyable={!!request.identity.email}
+              />
               
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Numéros de téléphone</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 block">
+                  Numéros de téléphone
+                </label>
                 <div className="space-y-2">
                   {request.identity.contacts.map((contact, index) => (
-                    <p key={index} className="font-medium flex items-center">
-                      <Phone className="w-4 h-4 mr-2 text-muted-foreground" />
-                      {contact}
-                    </p>
+                    <div key={index} className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 group hover:shadow-md transition-all duration-300">
+                      <div className="flex items-center gap-3">
+                        <Phone className="w-4 h-4 text-green-600" />
+                        <span className="font-medium text-gray-900">{contact}</span>
+                        <Badge variant="outline" className="text-xs bg-white">
+                          {index === 0 ? 'Principal' : `Secondaire ${index}`}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-all duration-300 h-8 w-8 p-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(contact)
+                          toast.success('Numéro copié !', { duration: 2000 })
+                        }}
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </ModernCard>
 
           {/* Adresse */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MapPin className="w-5 h-5 mr-2" />
-                Adresse
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Province</label>
-                  <p className="font-medium">{request.address.province}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Ville</label>
-                  <p className="font-medium">{request.address.city}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Quartier</label>
-                  <p className="font-medium">{request.address.district}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Arrondissement</label>
-                  <p className="font-medium">{request.address.arrondissement}</p>
-                </div>
+          <ModernCard title="Adresse de résidence" icon={MapPin} iconColor="text-red-600">
+            <div className="grid grid-cols-2 gap-4">
+              <InfoField label="Province" value={request.address.province} icon={MapPin} color="text-red-600" />
+              <InfoField label="Ville" value={request.address.city} icon={MapPin} color="text-red-600" />
+              <InfoField label="Quartier" value={request.address.district} icon={MapPin} color="text-red-600" />
+              <InfoField label="Arrondissement" value={request.address.arrondissement} icon={MapPin} color="text-red-600" />
+            </div>
+            
+            {request.address.additionalInfo && (
+              <div className="mt-4">
+                <InfoField 
+                  label="Informations complémentaires" 
+                  value={request.address.additionalInfo} 
+                  icon={FileText} 
+                  color="text-gray-600" 
+                />
               </div>
-              
-              {request.address.additionalInfo && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Informations complémentaires</label>
-                  <p className="font-medium">{request.address.additionalInfo}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </ModernCard>
 
           {/* Informations professionnelles */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Briefcase className="w-5 h-5 mr-2" />
-                Informations professionnelles
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <Heart className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">
+          <ModernCard title="Informations professionnelles" icon={Briefcase} iconColor="text-purple-600">
+            <div className="space-y-4">
+              <div className={`inline-flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                request.company.isEmployed 
+                  ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
+                  : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200'
+              }`}>
+                <Briefcase className={`w-5 h-5 ${request.company.isEmployed ? 'text-emerald-600' : 'text-gray-400'}`} />
+                <span className="font-semibold">
                   {request.company.isEmployed ? 'Employé(e)' : 'Non employé(e)'}
                 </span>
               </div>
 
               {request.company.isEmployed && (
-                <>
-                  <Separator />
+                <div className="mt-6 space-y-4">
+                  <Separator className="bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Entreprise</label>
-                      <p className="font-medium flex items-center">
-                        <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
-                        {request.company.companyName || 'Non renseigné'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Profession</label>
-                      <p className="font-medium flex items-center">
-                        <Briefcase className="w-4 h-4 mr-2 text-muted-foreground" />
-                        {request.company.profession || 'Non renseigné'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Ancienneté</label>
-                      <p className="font-medium">{request.company.seniority || 'Non renseigné'}</p>
-                    </div>
+                    <InfoField 
+                      label="Entreprise" 
+                      value={request.company.companyName || 'Non renseigné'} 
+                      icon={Building2} 
+                      color="text-indigo-600" 
+                    />
+                    <InfoField 
+                      label="Profession" 
+                      value={request.company.profession || 'Non renseigné'} 
+                      icon={Briefcase} 
+                      color="text-purple-600" 
+                    />
+                    <InfoField 
+                      label="Ancienneté" 
+                      value={request.company.seniority || 'Non renseigné'} 
+                      icon={Calendar} 
+                      color="text-amber-600" 
+                    />
                   </div>
 
                   {request.company.companyAddress && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Adresse de l'entreprise</label>
-                      <p className="font-medium">
-                        {request.company.companyAddress.district}, {request.company.companyAddress.city}, {request.company.companyAddress.province}
-                      </p>
+                    <div className="mt-4">
+                      <InfoField 
+                        label="Adresse de l'entreprise" 
+                        value={`${request.company.companyAddress.district}, ${request.company.companyAddress.city}, ${request.company.companyAddress.province}`} 
+                        icon={MapPin} 
+                        color="text-red-600" 
+                      />
                     </div>
                   )}
-                </>
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </ModernCard>
 
           {/* Documents d'identité */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <IdCard className="w-5 h-5 mr-2" />
-                Documents d'identité
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <ModernCard title="Documents d'identité" icon={IdCard} iconColor="text-indigo-600">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Type de document</label>
-                  <p className="font-medium">{request.documents.identityDocument}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Numéro</label>
-                  <p className="font-medium">{request.documents.identityDocumentNumber}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Date d'émission</label>
-                  <p className="font-medium">{formatDate(request.documents.issuingDate)}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Date d'expiration</label>
-                  <p className="font-medium">{formatDate(request.documents.expirationDate)}</p>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">Lieu d'émission</label>
-                  <p className="font-medium">{request.documents.issuingPlace}</p>
-                </div>
+                <InfoField label="Type de document" value={request.documents.identityDocument} icon={IdCard} color="text-indigo-600" />
+                <InfoField label="Numéro" value={request.documents.identityDocumentNumber} icon={IdCard} color="text-indigo-600" copyable />
+                <InfoField label="Date d'émission" value={formatDate(request.documents.issuingDate)} icon={Calendar} color="text-green-600" />
+                <InfoField label="Date d'expiration" value={formatDate(request.documents.expirationDate)} icon={Calendar} color="text-red-600" />
               </div>
+              <InfoField label="Lieu d'émission" value={request.documents.issuingPlace} icon={MapPin} color="text-purple-600" />
 
               {/* Images des documents */}
               <div className="space-y-4">
-                <h4 className="font-medium">Documents numérisés</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h4 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                  Documents numérisés
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {request.documents.documentPhotoFrontURL && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground">Recto</label>
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <IdCard className="w-4 h-4 text-emerald-600" />
+                        Recto du document
+                      </label>
                       <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl z-10"></div>
                         <Image
                           src={request.documents.documentPhotoFrontURL}
                           alt="Document recto"
                           width={400}
                           height={250}
-                          className="w-full h-48 object-cover rounded-lg border"
+                          className="w-full h-48 object-cover rounded-xl border-2 border-gray-200 shadow-md group-hover:shadow-xl transition-all duration-300"
                         />
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => window.open(request.documents.documentPhotoFrontURL!, '_blank')}
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-9 px-3"
+                            onClick={() => window.open(request.documents.documentPhotoFrontURL!, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Voir
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-9 px-3"
+                            onClick={() => {
+                              const link = document.createElement('a')
+                              link.href = request.documents.documentPhotoFrontURL!
+                              link.download = 'document-recto.jpg'
+                              link.click()
+                            }}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
                   
                   {request.documents.documentPhotoBackURL && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground">Verso</label>
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <IdCard className="w-4 h-4 text-amber-600" />
+                        Verso du document
+                      </label>
                       <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl z-10"></div>
                         <Image
                           src={request.documents.documentPhotoBackURL}
                           alt="Document verso"
                           width={400}
                           height={250}
-                          className="w-full h-48 object-cover rounded-lg border"
+                          className="w-full h-48 object-cover rounded-xl border-2 border-gray-200 shadow-md group-hover:shadow-xl transition-all duration-300"
                         />
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => window.open(request.documents.documentPhotoBackURL!, '_blank')}
-                        >
-                          <Download className="w-4 h-4" />
-                        </Button>
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-9 px-3"
+                            onClick={() => window.open(request.documents.documentPhotoBackURL!, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Voir
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-lg h-9 px-3"
+                            onClick={() => {
+                              const link = document.createElement('a')
+                              link.href = request.documents.documentPhotoBackURL!
+                              link.download = 'document-verso.jpg'
+                              link.click()
+                            }}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </ModernCard>
         </div>
 
         {/* Colonne latérale */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           
           {/* Photo du demandeur */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Photo du demandeur</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {request.identity.photoURL ? (
-                  <div className="relative group">
-                    <Image
-                      src={request.identity.photoURL}
-                      alt={`Photo de ${request.identity.firstName} ${request.identity.lastName}`}
-                      width={300}
-                      height={300}
-                      className="w-full h-64 object-cover rounded-lg border"
-                    />
+          <ModernCard title="Photo du demandeur" icon={User} iconColor="text-cyan-600">
+            <div className="space-y-4">
+              {request.identity.photoURL ? (
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl z-10"></div>
+                  <Image
+                    src={request.identity.photoURL}
+                    alt={`Photo de ${request.identity.firstName} ${request.identity.lastName}`}
+                    width={300}
+                    height={300}
+                    className="w-full h-72 object-cover rounded-xl border-2 border-gray-200 shadow-lg group-hover:shadow-2xl transition-all duration-300"
+                  />
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 flex gap-2">
                     <Button
                       size="sm"
-                      variant="secondary"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-xl h-10 px-4"
                       onClick={() => window.open(request.identity.photoURL!, '_blank')}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-1" />
+                      Voir
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow-xl h-10 px-4"
+                      onClick={() => {
+                        const link = document.createElement('a')
+                        link.href = request.identity.photoURL!
+                        link.download = `photo-${request.identity.firstName}-${request.identity.lastName}.jpg`
+                        link.click()
+                      }}
                     >
                       <Download className="w-4 h-4" />
                     </Button>
                   </div>
-                ) : (
-                  <div className="w-full h-64 bg-gray-100 rounded-lg border flex items-center justify-center">
-                    <User className="w-16 h-16 text-gray-400" />
+                </div>
+              ) : (
+                <div className="w-full h-72 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-2 border-gray-200 flex items-center justify-center">
+                  <div className="text-center">
+                    <User className="w-16 h-16 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 font-medium">Aucune photo fournie</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </ModernCard>
+
+          {/* Métadonnées */}
+          <ModernCard title="Informations sur la demande" icon={FileText} iconColor="text-orange-600">
+            <div className="space-y-6">
+              <div className="p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+                  ID de la demande
+                </label>
+                <div className="flex items-center justify-between">
+                  <code className="font-mono text-sm font-bold text-gray-900 bg-white px-3 py-2 rounded-lg border">{request.id}</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(request.id!)
+                      toast.success('ID copié !', { duration: 2000 })
+                    }}
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+                    Statut actuel
+                  </label>
+                  <div className="w-fit">{getStatusBadge(request.status)}</div>
+                </div>
+                
+                <InfoField 
+                  label="Date de création" 
+                  value={formatDate(request.createdAt)} 
+                  icon={Calendar} 
+                  color="text-blue-600" 
+                />
+                
+                <InfoField 
+                  label="Dernière modification" 
+                  value={formatDate(request.updatedAt)} 
+                  icon={Calendar} 
+                  color="text-purple-600" 
+                />
+
+                {request.processedAt && (
+                  <InfoField 
+                    label="Date de traitement" 
+                    value={formatDate(request.processedAt)} 
+                    icon={CheckCircle} 
+                    color="text-green-600" 
+                  />
+                )}
+
+                {request.processedBy && (
+                  <InfoField 
+                    label="Traité par" 
+                    value={request.processedBy} 
+                    icon={UserCheck} 
+                    color="text-indigo-600" 
+                  />
+                )}
+
+                {request.memberNumber && (
+                  <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border-2 border-emerald-200">
+                    <label className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                      <Zap className="w-3 h-3" />
+                      Numéro de membre
+                    </label>
+                    <div className="flex items-center justify-between">
+                      <code className="font-mono text-lg font-black text-emerald-700 bg-white px-4 py-2 rounded-lg border border-emerald-300">
+                        {request.memberNumber}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-emerald-600"
+                        onClick={() => {
+                          navigator.clipboard.writeText(request.memberNumber!)
+                          toast.success('Numéro copié !', { duration: 2000 })
+                        }}
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {request.adminComments && (
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                    <label className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2 block">
+                      Commentaires administrateur
+                    </label>
+                    <p className="text-sm text-blue-800 leading-relaxed">{request.adminComments}</p>
+                  </div>
+                )}
+
+                {request.reviewNote && (
+                  <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                    <label className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Note de révision
+                    </label>
+                    <p className="text-sm text-amber-800 leading-relaxed">{request.reviewNote}</p>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Métadonnées */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <FileText className="w-5 h-5 mr-2" />
-                Informations sur la demande
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">ID de la demande</label>
-                <p className="font-mono text-sm bg-gray-100 p-2 rounded border">{request.id}</p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Statut</label>
-                <div className="mt-1">{getStatusBadge(request.status)}</div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Date de création</label>
-                <p className="font-medium flex items-center">
-                  <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                  {formatDate(request.createdAt)}
-                </p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Dernière modification</label>
-                <p className="font-medium flex items-center">
-                  <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                  {formatDate(request.updatedAt)}
-                </p>
-              </div>
-
-              {request.processedAt && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Date de traitement</label>
-                  <p className="font-medium flex items-center">
-                    <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                    {formatDate(request.processedAt)}
-                  </p>
-                </div>
-              )}
-
-              {request.processedBy && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Traité par</label>
-                  <p className="font-medium">{request.processedBy}</p>
-                </div>
-              )}
-
-              {request.memberNumber && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Numéro de membre</label>
-                  <p className="font-medium font-mono bg-green-50 p-2 rounded border border-green-200">
-                    {request.memberNumber}
-                  </p>
-                </div>
-              )}
-
-              {request.adminComments && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Commentaires admin</label>
-                  <p className="text-sm bg-gray-50 p-3 rounded border">{request.adminComments}</p>
-                </div>
-              )}
-
-              {request.reviewNote && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Note de révision</label>
-                  <p className="text-sm bg-orange-50 p-3 rounded border border-orange-200">{request.reviewNote}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          </ModernCard>
         </div>
       </div>
     </div>

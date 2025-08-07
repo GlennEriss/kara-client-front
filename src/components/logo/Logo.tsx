@@ -7,7 +7,7 @@ export interface LogoProps {
   /**
    * Variante du logo qui détermine le style par défaut
    */
-  variant?: 'navbar' | 'footer' | 'default'
+  variant?: 'navbar' | 'footer' | 'default' | 'with-bg'
   
   /**
    * Taille du logo
@@ -89,6 +89,13 @@ const Logo: React.FC<LogoProps> = ({
           'hover:scale-105'
         )
       
+      case 'with-bg':
+        return cn(
+          'transition-all duration-300 ease-in-out',
+          'hover:scale-105',
+          'rounded-lg shadow-lg' // Ajoute un effet de carte pour le logo avec fond
+        )
+      
       default:
         return cn(
           'transition-all duration-300 ease-in-out',
@@ -123,9 +130,19 @@ const Logo: React.FC<LogoProps> = ({
     className
   )
 
+  // Source de l'image selon la variante
+  const getImageSrc = () => {
+    switch (variant) {
+      case 'with-bg':
+        return '/Logo-Kara-bg.jpg'
+      default:
+        return '/Logo-Kara.webp'
+    }
+  }
+
   // Props pour l'image
   const imageProps = {
-    src: '/Logo-Kara.webp',
+    src: getImageSrc(),
     alt,
     width: 300, // Taille native approximative
     height: 300, // Taille native approximative
@@ -161,4 +178,8 @@ export const FooterLogo: React.FC<Omit<LogoProps, 'variant'>> = (props) => (
 
 export const DefaultLogo: React.FC<Omit<LogoProps, 'variant'>> = (props) => (
   <Logo variant="default" {...props} />
+)
+
+export const LogoWithBg: React.FC<Omit<LogoProps, 'variant'>> = (props) => (
+  <Logo variant="with-bg" {...props} />
 )

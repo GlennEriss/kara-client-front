@@ -133,13 +133,11 @@ export const identitySchema = z.object({
   
   photo: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
-    z.instanceof(File),
-    z.undefined()
+    z.instanceof(File)
   ])
-    .optional()
     .refine(
-      (value) => {
-        if (!value) return true
+      (value: any) => {
+        if (!value) return false // Photo obligatoire
         if (typeof value === 'string') {
           // Pour les data URLs, on ne peut pas vérifier la taille facilement
           // mais on peut vérifier le format
@@ -153,7 +151,7 @@ export const identitySchema = z.object({
         }
         return false
       },
-      'La photo doit être au format JPEG, PNG ou WebP et ne pas dépasser 5MB'
+      'Une photo de profil est requise au format JPEG, PNG ou WebP (max 5MB)'
     )
 }).refine((data) => {
   // Si la situation matrimoniale indique un conjoint, les champs du conjoint deviennent obligatoires
