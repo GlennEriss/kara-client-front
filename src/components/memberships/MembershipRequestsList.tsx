@@ -368,8 +368,8 @@ const MembershipRequestCard = ({
                 )}
               </div>
 
-              {/* Informations du demandeur */}
-              <div className="space-y-1">
+              {/* Informations du demandeur - visible en desktop */}
+              <div className="space-y-1 hidden md:block">
                 <h3 className="font-semibold text-lg">
                   {request.identity.firstName} {request.identity.lastName}
                 </h3>
@@ -379,6 +379,7 @@ const MembershipRequestCard = ({
               </div>
             </div>
 
+            {/* Actions (statut et menu) */}
             <div className="flex items-center space-x-2">
               {getStatusBadge(request.status)}
               <DropdownMenu>
@@ -412,6 +413,16 @@ const MembershipRequestCard = ({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          </div>
+
+          {/* Nom et informations du demandeur - visible en mobile */}
+          <div className="space-y-1 md:hidden">
+            <h3 className="font-semibold text-lg break-words">
+              {request.identity.firstName} {request.identity.lastName}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {request.identity.nationality} • {request.identity.civility}
+            </p>
           </div>
 
           {/* Informations principales */}
