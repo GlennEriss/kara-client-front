@@ -9,7 +9,7 @@ import {
   stepSchemas,
   defaultValues
 } from '@/types/schemas'
-import { createMembershipRequest, getMembershipRequestById, updateMembershipRequest } from '@/db/membership.db'
+import { createMembershipRequest, getMembershipRequestById, updateMembershipRequest, markSecurityCodeAsUsed } from '@/db/membership.db'
 import { toast } from "sonner"
 
 // ================== CONSTANTES DE CACHE ==================
@@ -828,6 +828,9 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
           reset(formData)
           setCurrentStep(1)
           setCompletedSteps(new Set())
+          
+          // Marquer le code comme utilisé dans la base de données
+          await markSecurityCodeAsUsed(correctionRequest.requestId)
           
           // Marquer comme vérifié
           setCorrectionRequest(prev => prev ? { ...prev, isVerified: true } : null)
