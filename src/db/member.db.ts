@@ -139,11 +139,13 @@ export async function getMembers(
       }
     }
     
-    // Appliquer les filtres de recherche côté client si nécessaire
+    // Appliquer les filtres côté client
     let filteredMembers = members
+    
+    // Filtre de recherche textuelle
     if (filters.searchQuery) {
       const searchLower = filters.searchQuery.toLowerCase()
-      filteredMembers = members.filter(member => 
+      filteredMembers = filteredMembers.filter(member => 
         member.firstName.toLowerCase().includes(searchLower) ||
         member.lastName.toLowerCase().includes(searchLower) ||
         member.matricule.toLowerCase().includes(searchLower) ||
@@ -151,9 +153,56 @@ export async function getMembers(
       )
     }
     
+    // Filtres d'adresse
+    if (filters.province) {
+      filteredMembers = filteredMembers.filter(member => 
+        member.address?.province === filters.province
+      )
+    }
+    
+    if (filters.city) {
+      filteredMembers = filteredMembers.filter(member => 
+        member.address?.city === filters.city
+      )
+    }
+    
+    if (filters.arrondissement) {
+      filteredMembers = filteredMembers.filter(member => 
+        member.address?.arrondissement === filters.arrondissement
+      )
+    }
+    
+    if (filters.district) {
+      filteredMembers = filteredMembers.filter(member => 
+        member.address?.district === filters.district
+      )
+    }
+    
+    // Filtres professionnels
+    if (filters.companyName) {
+      filteredMembers = filteredMembers.filter(member => 
+        member.companyName === filters.companyName
+      )
+    }
+    
+    if (filters.profession) {
+      filteredMembers = filteredMembers.filter(member => 
+        member.profession === filters.profession
+      )
+    }
+    
     // Log du résultat final en mode debug
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🎯 [getMembers] Processed ${filteredMembers.length} members`)
+      const activeFilters = Object.entries(filters)
+        .filter(([key, value]) => {
+          if (key === 'page' || key === 'limit' || key === 'orderByField' || key === 'orderByDirection') return false
+          if (Array.isArray(value)) return value.length > 0
+          return value !== undefined && value !== null
+        })
+        .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+        .join(', ')
+      
+      console.log(`🎯 [getMembers] Processed ${filteredMembers.length} members${activeFilters ? ` with filters: ${activeFilters}` : ''}`)
     }
     
     const nextCursor = members.length > 0 ? querySnapshot.docs[Math.min(itemsPerPage - 1, querySnapshot.docs.length - 1)] : null

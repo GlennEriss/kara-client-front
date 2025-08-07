@@ -26,6 +26,15 @@ export async function createTestUserWithSubscription() {
       email: 'test@kara.com',
       nationality: 'Française',
       hasCar: true,
+      address: {
+        province: 'Estuaire',
+        city: 'Libreville',
+        district: 'Centre-ville',
+        arrondissement: '1er Arrondissement',
+        additionalInfo: 'Rue de la Paix'
+      },
+      companyName: 'TechCorp',
+      profession: 'Développeur',
       photoURL: null,
       photoPath: null,
       subscriptions: [], // Sera mis à jour après création de la subscription
@@ -168,6 +177,15 @@ export async function createTestUserWithoutSubscription() {
       email: 'test.nosub@kara.com',
       nationality: 'Française',
       hasCar: true,
+      address: {
+        province: 'Haut-Ogooué',
+        city: 'Franceville',
+        district: 'Banlieue',
+        arrondissement: '2ème Arrondissement',
+        additionalInfo: 'Avenue de l\'Indépendance'
+      },
+      companyName: 'MiningCorp',
+      profession: 'Ingénieur',
       photoURL: null,
       photoPath: null,
       subscriptions: [], // Pas de subscriptions
@@ -192,6 +210,62 @@ export async function createTestUserWithoutSubscription() {
     }
   } catch (error) {
     console.error('❌ Error creating test user without subscription:', error)
+    throw error
+  }
+}
+
+/**
+ * Crée un utilisateur de test avec des données d'adresse et professionnelles pour tester les filtres
+ */
+export async function createTestUserWithAddressAndProfession() {
+  try {
+    const userId = `test_user_filters_${Date.now()}`
+    
+    const userData: Omit<User, 'id'> = {
+      matricule: `${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}.MK.${new Date().toISOString().slice(2, 10).replace(/-/g, '')}`,
+      lastName: 'TestFiltres',
+      firstName: 'Utilisateur',
+      birthDate: '1988-08-15',
+      contacts: ['+33612345681'],
+      gender: 'Femme',
+      email: 'test.filtres@kara.com',
+      nationality: 'Gabonaise',
+      hasCar: false,
+      address: {
+        province: 'Moyen-Ogooué',
+        city: 'Lambaréné',
+        district: 'Quartier Médical',
+        arrondissement: '3ème Arrondissement',
+        additionalInfo: 'Boulevard Albert Schweitzer'
+      },
+      companyName: 'HospitalCorp',
+      profession: 'Médecin',
+      photoURL: null,
+      photoPath: null,
+      subscriptions: [],
+      dossier: 'test_dossier_filtres_id',
+      membershipType: 'bienfaiteur' as MembershipType,
+      roles: ['Bienfaiteur'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isActive: true
+    }
+    
+    await setDoc(doc(db, 'users', userId), userData)
+    console.log(`✅ Created test user with address and profession: ${userId}`)
+    
+    console.log(`🎉 Test user with filters data created successfully:`)
+    console.log(`   User ID: ${userId}`)
+    console.log(`   Address: ${userData.address?.province} > ${userData.address?.city} > ${userData.address?.arrondissement} > ${userData.address?.district}`)
+    console.log(`   Company: ${userData.companyName}`)
+    console.log(`   Profession: ${userData.profession}`)
+    
+    return {
+      userId,
+      userData
+    }
+  } catch (error) {
+    console.error('❌ Error creating test user with filters data:', error)
     throw error
   }
 }

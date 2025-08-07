@@ -9,6 +9,9 @@ export const firebaseCollectionNames = {
     settings: "settings",
     categories: "categories",
     subscriptions: "subscriptions",
+    addresses: "addresses",
+    companies: "companies",
+    professions: "professions",
 }
 
 // Export également en majuscules pour compatibilité
@@ -23,4 +26,7 @@ export const FIREBASE_COLLECTION_NAMES = {
     SETTINGS: "settings",
     CATEGORIES: "categories",
     SUBSCRIPTIONS: "subscriptions",
+    ADDRESSES: "addresses",
+    COMPANIES: "companies",
+    PROFESSIONS: "professions",
 }

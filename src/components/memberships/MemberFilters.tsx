@@ -21,10 +21,16 @@ import {
   Users,
   Car,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  MapPin,
+  Building,
+  Briefcase
 } from 'lucide-react'
 import { UserFilters, MembershipType, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useAddresses } from '@/hooks/useAddresses'
+import { useCompanies } from '@/hooks/useCompanies'
+import { useProfessions } from '@/hooks/useProfessions'
 
 interface MemberFiltersProps {
   filters: UserFilters
@@ -35,6 +41,11 @@ interface MemberFiltersProps {
 const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps) => {
   const [searchTerm, setSearchTerm] = useState(filters.searchQuery || '')
   const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Hooks pour les données
+  const { addressData, loadCities, loadArrondissements, loadDistricts } = useAddresses()
+  const { companies } = useCompanies()
+  const { professions } = useProfessions()
   
   // Debounce search term
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
@@ -82,12 +93,77 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
     }
   }
 
+  // Gestionnaires pour les filtres d'adresse
+  const handleProvinceChange = (province: string) => {
+    onFiltersChange({
+      ...filters,
+      province: province === 'all' ? undefined : province,
+      city: undefined,
+      arrondissement: undefined,
+      district: undefined
+    })
+    if (province && province !== 'all') {
+      loadCities(province)
+    }
+  }
+
+  const handleCityChange = (city: string) => {
+    onFiltersChange({
+      ...filters,
+      city: city === 'all' ? undefined : city,
+      arrondissement: undefined,
+      district: undefined
+    })
+    if (city && city !== 'all' && filters.province) {
+      loadArrondissements(filters.province, city)
+    }
+  }
+
+  const handleArrondissementChange = (arrondissement: string) => {
+    onFiltersChange({
+      ...filters,
+      arrondissement: arrondissement === 'all' ? undefined : arrondissement,
+      district: undefined
+    })
+    if (arrondissement && arrondissement !== 'all' && filters.province && filters.city) {
+      loadDistricts(filters.province, filters.city, arrondissement)
+    }
+  }
+
+  const handleDistrictChange = (district: string) => {
+    onFiltersChange({
+      ...filters,
+      district: district === 'all' ? undefined : district
+    })
+  }
+
+  // Gestionnaires pour les filtres professionnels
+  const handleCompanyChange = (companyName: string) => {
+    onFiltersChange({
+      ...filters,
+      companyName: companyName === 'all' ? undefined : companyName
+    })
+  }
+
+  const handleProfessionChange = (profession: string) => {
+    onFiltersChange({
+      ...filters,
+      profession: profession === 'all' ? undefined : profession
+    })
+  }
+
   const getActiveFiltersCount = () => {
     let count = 0
     if (filters.membershipType?.length) count++
     if (filters.isActive !== undefined) count++
     if (filters.hasCar !== undefined) count++
     if (filters.searchQuery) count++
+    if (filters.province) count++
+    if (filters.city) count++
+    if (filters.arrondissement) count++
+    if (filters.district) count++
+    if (filters.companyName) count++
+    if (filters.profession) count++
     return count
   }
 
@@ -225,6 +301,153 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Province */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                <MapPin className="h-4 w-4 mr-1" />
+                Province
+              </label>
+              <Select
+                value={filters.province || 'all'}
+                onValueChange={handleProvinceChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une province" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les provinces</SelectItem>
+                  {addressData.provinces.map((province) => (
+                    <SelectItem key={province} value={province}>
+                      {province}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Ville */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                <MapPin className="h-4 w-4 mr-1" />
+                Ville
+              </label>
+              <Select
+                value={filters.city || 'all'}
+                onValueChange={handleCityChange}
+                disabled={!filters.province}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une ville" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les villes</SelectItem>
+                  {addressData.cities.map((city) => (
+                    <SelectItem key={city} value={city}>
+                      {city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Arrondissement */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                <MapPin className="h-4 w-4 mr-1" />
+                Arrondissement
+              </label>
+              <Select
+                value={filters.arrondissement || 'all'}
+                onValueChange={handleArrondissementChange}
+                disabled={!filters.city}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un arrondissement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les arrondissements</SelectItem>
+                  {addressData.arrondissements.map((arrondissement) => (
+                    <SelectItem key={arrondissement} value={arrondissement}>
+                      {arrondissement}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* District */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                <MapPin className="h-4 w-4 mr-1" />
+                District
+              </label>
+              <Select
+                value={filters.district || 'all'}
+                onValueChange={handleDistrictChange}
+                disabled={!filters.arrondissement}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un district" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les districts</SelectItem>
+                  {addressData.districts.map((district) => (
+                    <SelectItem key={district} value={district}>
+                      {district}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Entreprise */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                <Building className="h-4 w-4 mr-1" />
+                Entreprise
+              </label>
+              <Select
+                value={filters.companyName || 'all'}
+                onValueChange={handleCompanyChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une entreprise" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les entreprises</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.name}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Profession */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                <Briefcase className="h-4 w-4 mr-1" />
+                Profession
+              </label>
+              <Select
+                value={filters.profession || 'all'}
+                onValueChange={handleProfessionChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une profession" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les professions</SelectItem>
+                  {professions.map((profession) => (
+                    <SelectItem key={profession.id} value={profession.name}>
+                      {profession.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
 
@@ -280,6 +503,90 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
                   variant="ghost"
                   size="sm"
                   onClick={() => handleCarOwnershipChange('all')}
+                  className="ml-1 h-4 w-4 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            
+            {filters.province && (
+              <Badge variant="secondary" className="flex items-center">
+                Province: {filters.province}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleProvinceChange('all')}
+                  className="ml-1 h-4 w-4 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            
+            {filters.city && (
+              <Badge variant="secondary" className="flex items-center">
+                Ville: {filters.city}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCityChange('all')}
+                  className="ml-1 h-4 w-4 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            
+            {filters.arrondissement && (
+              <Badge variant="secondary" className="flex items-center">
+                Arrondissement: {filters.arrondissement}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleArrondissementChange('all')}
+                  className="ml-1 h-4 w-4 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            
+            {filters.district && (
+              <Badge variant="secondary" className="flex items-center">
+                District: {filters.district}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDistrictChange('all')}
+                  className="ml-1 h-4 w-4 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            
+            {filters.companyName && (
+              <Badge variant="secondary" className="flex items-center">
+                Entreprise: {filters.companyName}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCompanyChange('all')}
+                  className="ml-1 h-4 w-4 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </Badge>
+            )}
+            
+            {filters.profession && (
+              <Badge variant="secondary" className="flex items-center">
+                Profession: {filters.profession}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleProfessionChange('all')}
                   className="ml-1 h-4 w-4 p-0"
                 >
                   <X className="h-3 w-3" />

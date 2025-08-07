@@ -616,6 +616,7 @@ export async function renewSecurityCode(requestId: string): Promise<{success: bo
         await updateDoc(docRef, {
             securityCode: newSecurityCode,
             securityCodeExpiry: newExpiry,
+            securityCodeUsed: false, // Réinitialiser le flag d'utilisation
             updatedAt: serverTimestamp(),
         });
 
@@ -629,6 +630,29 @@ export async function renewSecurityCode(requestId: string): Promise<{success: bo
             success: false,
             error: "Impossible de renouveler le code de sécurité"
         };
+    }
+}
+
+/**
+ * Marque un code de sécurité comme utilisé
+ * 
+ * @param {string} requestId - L'ID de la demande
+ * @returns {Promise<boolean>} - True si la mise à jour a réussi
+ */
+export async function markSecurityCodeAsUsed(requestId: string): Promise<boolean> {
+    try {
+        const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
+        const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+
+        await updateDoc(docRef, {
+            securityCodeUsed: true,
+            updatedAt: serverTimestamp(),
+        });
+
+        return true;
+    } catch (error) {
+        console.error("Erreur lors du marquage du code comme utilisé:", error);
+        return false;
     }
 }
 
