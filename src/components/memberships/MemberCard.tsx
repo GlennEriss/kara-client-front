@@ -87,7 +87,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
   const subscriptionStatus = getSubscriptionStatus()
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-[#CBB171]/50">
+    <Card className="hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-[#CBB171]/50 h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="space-y-3">
           {/* Première ligne : Avatar + Menu (espace réservé et protégé) */}
@@ -166,7 +166,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-3">
+      <CardContent className="pt-0 space-y-3 flex-1 flex flex-col">
         {/* Informations d'abonnement - conditionnelles et compactes */}
         {member.lastSubscription && (
           <div className="space-y-1 text-xs sm:text-sm bg-blue-50 p-2 rounded-lg">
@@ -223,7 +223,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
         </div>
 
         {/* Actions rapides - layout adaptatif */}
-        <div className="pt-2 space-y-2 sm:space-y-0">
+        <div className="pt-2 space-y-2 sm:space-y-0 mt-auto">
           {/* Mobile : stack vertical */}
           <div className="flex flex-col space-y-2 sm:hidden">
             <Button
@@ -246,13 +246,13 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
             </Button>
           </div>
 
-          {/* Desktop/Tablette : horizontal avec tailles adaptatives */}
-          <div className="hidden sm:flex space-x-2">
+          {/* Desktop/Tablette : horizontal centré */}
+          <div className="hidden sm:flex justify-center space-x-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onViewDetails(member.id)}
-              className="flex-1 text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white text-xs lg:text-sm"
+              className="text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white text-xs lg:text-sm px-3"
             >
               <User className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
               <span className="hidden md:inline">Détails</span>
@@ -262,7 +262,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
               variant="outline"
               size="sm"
               onClick={() => onViewSubscriptions(member.id)}
-              className="flex-1 text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white text-xs lg:text-sm"
+              className="text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white text-xs lg:text-sm px-3"
             >
               <Calendar className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
               <span className="hidden md:inline">Abonnements</span>

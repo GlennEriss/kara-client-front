@@ -335,9 +335,9 @@ const MembershipList = () => {
     if (!membersData) return null
     
     const total = membersData.pagination.totalItems
-    const activeMembers = membersWithSubscriptions.filter(m => m.subscriptions?.some(s => s.status === 'active')).length
-    const expiredMembers = membersWithSubscriptions.filter(m => m.subscriptions?.some(s => s.status === 'expired')).length
-    const noSubscription = membersWithSubscriptions.filter(m => !m.subscriptions || m.subscriptions.length === 0).length
+    const activeMembers = membersWithSubscriptions.filter(m => m.isSubscriptionValid).length
+    const expiredMembers = membersWithSubscriptions.filter(m => m.lastSubscription && !m.isSubscriptionValid).length
+    const noSubscription = membersWithSubscriptions.filter(m => !m.lastSubscription).length
     
     return {
       total,
@@ -610,7 +610,7 @@ const MembershipList = () => {
         <>
           <div className={
             viewMode === 'grid' 
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6'
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 items-stretch'
               : 'space-y-6'
           }>
             {membersWithSubscriptions.map((member, index) => (
