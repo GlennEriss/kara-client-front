@@ -15,6 +15,8 @@ import {
 import { Button } from '@/components/ui/button'
 import type { MembershipRequest } from '@/types/types'
 import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer'
+import { LogoPDF } from '@/components/logo'
+import routes from '@/constantes/routes'
 
 // Styles pour le document PDF
 const styles = StyleSheet.create({
@@ -34,8 +36,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -226,7 +228,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
     if (typeof request.identity?.photo === 'string' && request.identity.photo.startsWith('http')) {
       return request.identity.photo
     }
-    
+
     // Vérifier aussi dans les documents
     if (request.documents?.documentPhotoFrontURL) {
       return request.documents.documentPhotoFrontURL
@@ -234,15 +236,15 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
     if (request.documents?.documentPhotoFrontPath) {
       return request.documents.documentPhotoFrontPath
     }
-    
+
     return null
   }
   const formatDate = (date: Date | string | any) => {
     if (!date) return 'Non défini'
-    
+
     try {
       let dateObj: Date
-      
+
       if (date instanceof Date) {
         dateObj = date
       } else if (typeof date === 'string') {
@@ -252,7 +254,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
       } else {
         dateObj = new Date(date)
       }
-      
+
       return new Intl.DateTimeFormat('fr-FR', {
         year: 'numeric',
         month: '2-digit',
@@ -281,16 +283,16 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         {/* En-tête avec logo et photo */}
         <View style={styles.header}>
           <View style={styles.logo}>
-            <Image 
-              src="/Logo-Kara.webp" 
-              style={{ width: 80, height: 80 }}
+            <Image
+              src={window.location.origin + '/Logo-Kara.jpg'}
+              style={{ width: 100, height: 100, objectFit: 'cover' }}
               cache={false}
             />
           </View>
           <View style={styles.photoId}>
             {getPhotoURL() ? (
               <Image 
-                src={getPhotoURL() || ''} 
+                src={getPhotoURL()!} 
                 style={{ width: 80, height: 80, objectFit: 'cover' }}
                 cache={false}
               />
@@ -436,8 +438,8 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
         {/* Texte d'engagement */}
         <Text style={styles.italic}>
-          J'adhère contractuellement à la Mutuelle KARA conformément aux dispositions y afférentes, 
-          je m'engage à respecter l'intégralité des dispositions Règlementaires qui la structurent 
+          J'adhère contractuellement à la Mutuelle KARA conformément aux dispositions y afférentes,
+          je m'engage à respecter l'intégralité des dispositions Règlementaires qui la structurent
           et pour lesquelles je confirme avoir pris connaissance avant d'apposer ma signature.
         </Text>
 
@@ -469,7 +471,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
             <Text>Prénom : {request.identity?.firstName?.toUpperCase() || 'Non renseigné'}</Text>
           </View>
           <View style={styles.stripedRow}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text>Qualité : </Text>
               <Checkbox checked={true} label="Membre Adhérent" />
               <Checkbox checked={false} label="Membre Sympathisant" />
@@ -483,39 +485,39 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
         <Text style={styles.articleHeader}>Article 1</Text>
         <Text style={styles.articleText}>
-          Il est préalablement établi l'obligation de réserve d'un membre de la Mutuelle 
-          exerçant ou pas une fonction au sein du bureau et le respect des différents codes 
+          Il est préalablement établi l'obligation de réserve d'un membre de la Mutuelle
+          exerçant ou pas une fonction au sein du bureau et le respect des différents codes
           qui s'imposent à son statut.
         </Text>
 
         <Text style={styles.articleHeader}>Article 2</Text>
         <Text style={styles.articleText}>
-          Le bénéficiaire des informations reconnaît que tous les droits relatifs à l'information 
+          Le bénéficiaire des informations reconnaît que tous les droits relatifs à l'information
           obtenue existent et ne peuvent être divulgué et communiquer que par le donneur.
         </Text>
 
         <Text style={styles.articleHeader}>Article 3</Text>
         <Text style={styles.articleText}>
-          Le bénéficiaire accepte les conditions de confidentialité des informations reçues 
+          Le bénéficiaire accepte les conditions de confidentialité des informations reçues
           et s'engage à les respecter.
         </Text>
 
         <Text style={styles.articleHeader}>Article 4</Text>
         <Text style={styles.articleText}>
-          Cet engagement dans l'hypothèse d'une vulgarisation d'informations avérées ou à des fins 
-          diffamatoires faites par le receveur est passible d'une sanction pénale et vaut radiation 
+          Cet engagement dans l'hypothèse d'une vulgarisation d'informations avérées ou à des fins
+          diffamatoires faites par le receveur est passible d'une sanction pénale et vaut radiation
           de la Mutuelle.
         </Text>
 
         <Text style={styles.articleHeader}>Article 6</Text>
         <Text style={[styles.articleText, styles.redText]}>
-          Il est interdit à tout bénéficiaire des services de la Mutuelle Kara de contracter un service 
-          supplémentaire qui ne lui est pas accessible par un prête-nom ou toute autre personne qui 
-          accepterait une telle manœuvre. Le coupable perdra son Épargne en cours, s'exposera à la 
+          Il est interdit à tout bénéficiaire des services de la Mutuelle Kara de contracter un service
+          supplémentaire qui ne lui est pas accessible par un prête-nom ou toute autre personne qui
+          accepterait une telle manœuvre. Le coupable perdra son Épargne en cours, s'exposera à la
           radiation au sein de la Mutuelle et s'exposera aux poursuites judiciaires.
         </Text>
 
-        <Text style={{marginTop: 30, marginBottom: 20}}>
+        <Text style={{ marginTop: 30, marginBottom: 20 }}>
           Fait à …………………................... le ……......./……...... …./..……......…
         </Text>
 
@@ -541,17 +543,17 @@ interface MemberDetailsModalProps {
   request: MembershipRequest
 }
 
-const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  request 
+const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  request
 }) => {
   const [isExporting, setIsExporting] = useState(false)
 
   // Fonction pour télécharger le PDF
   const handleDownloadPDF = async () => {
     setIsExporting(true)
-    
+
     try {
       const blob = await pdf(<MutuelleKaraPDF request={request} />).toBlob()
       const url = URL.createObjectURL(blob)
@@ -562,9 +564,9 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
-      
+
       console.log('PDF téléchargé avec succès')
-      
+
     } catch (error) {
       console.error('Erreur lors du téléchargement du PDF:', error)
       alert('Erreur lors du téléchargement du PDF. Veuillez réessayer.')
@@ -580,8 +582,8 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
           <DialogTitle className="text-xl font-semibold text-[#224D62]">
             Prévisualisation - Fiche d'Adhésion Contractuelle
           </DialogTitle>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={handleDownloadPDF}
             disabled={isExporting}
