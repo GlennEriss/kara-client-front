@@ -362,6 +362,19 @@ export interface User {
   nationality: string
   hasCar: boolean
   
+  // Adresse (tirée de RegisterFormData.address)
+  address?: {
+    province: string
+    city: string
+    district: string
+    arrondissement: string
+    additionalInfo?: string
+  }
+  
+  // Informations professionnelles (tirées de RegisterFormData.company)
+  companyName?: string
+  profession?: string
+  
   // Photos
   photoURL?: string | null
   photoPath?: string | null
@@ -440,6 +453,17 @@ export interface UserFilters {
   hasCar?: boolean
   isActive?: boolean
   searchQuery?: string // Recherche dans nom, prénom, email, matricule
+  
+  // Filtres par adresse
+  province?: string
+  city?: string
+  arrondissement?: string
+  district?: string
+  
+  // Filtres professionnels
+  companyName?: string
+  profession?: string
+  
   page?: number
   limit?: number
   orderByField?: string

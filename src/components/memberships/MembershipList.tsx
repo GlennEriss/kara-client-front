@@ -24,7 +24,7 @@ import MemberSubscriptionModal from './MemberSubscriptionModal'
 import MemberDetailsWrapper from './MemberDetailsWrapper'
 import MembershipPagination from './MembershipPagination'
 import { toast } from 'sonner'
-import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription } from '@/utils/test-data'
+import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription, createTestUserWithAddressAndProfession } from '@/utils/test-data'
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 
 type ViewMode = 'grid' | 'list'
@@ -136,6 +136,17 @@ const MembershipList = () => {
     }
   }
 
+  const handleCreateUserWithFilters = async () => {
+    try {
+      toast.info('Création d\'un utilisateur avec données de filtres...')
+      await createTestUserWithAddressAndProfession()
+      toast.success('Utilisateur de test créé avec données de filtres')
+      refetch()
+    } catch (error) {
+      toast.error('Erreur lors de la création de l\'utilisateur de test')
+    }
+  }
+
   const handleDebugData = async () => {
     try {
       toast.info('🔍 Analyse des données Firebase...')
@@ -220,6 +231,14 @@ const MembershipList = () => {
                 className="text-gray-600 border-gray-300 hover:bg-gray-50"
               >
                 Créer utilisateur sans abo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateUserWithFilters}
+                className="text-purple-600 border-purple-300 hover:bg-purple-50"
+              >
+                Créer utilisateur + filtres
               </Button>
               <div className="border-l border-yellow-300 pl-2 ml-2">
                 <span className="text-xs text-yellow-600 mr-2">Debug:</span>
