@@ -1,8 +1,4 @@
 'use client'
-// Dépendance requise pour l'export PDF:
-// npm install @react-pdf/renderer
-// ou
-// yarn add @react-pdf/renderer
 
 import React, { useState } from 'react'
 import { Download, Loader2, Eye } from 'lucide-react'
@@ -17,188 +13,204 @@ import type { MembershipRequest } from '@/types/types'
 import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer'
 import { LogoPDF } from '@/components/logo'
 import routes from '@/constantes/routes'
+import { toast } from 'sonner'
 
-// Styles pour le document PDF
+// Styles optimisés pour tenir sur une page
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 10,
-    paddingTop: 15,
-    paddingBottom: 30,
-    paddingHorizontal: 25,
-    lineHeight: 1.3,
+    fontSize: 10, // Réduit de 12 à 10
+    paddingTop: 15, // Réduit de 10 à 15
+    paddingBottom: 20, // Réduit de 65 à 20
+    paddingHorizontal: 25, // Réduit de 35 à 25
+    lineHeight: 1.2, // Réduit de 1.5 à 1.2
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12, // Réduit de 20 à 12
     width: '100%',
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: 70, // Réduit de 100 à 70
+    height: 70, // Réduit de 100 à 70
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoId: {
-    width: 80,
-    height: 80,
+    width: 60, // Réduit de 80 à 60
+    height: 60, // Réduit de 80 à 60
     border: '1px solid #000',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   titleListe: {
-    fontSize: 24,
+    fontSize: 18, // Réduit de 24 à 18
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#1f3a4e',
     textDecoration: 'underline',
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 12, // Réduit de 20 à 12
+    marginTop: 5, // Réduit de 10 à 5
   },
   infoType: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
-    marginBottom: 20,
-    fontSize: 14,
+    justifyContent: 'center',
+    marginBottom: 12, // Réduit de 20 à 12
+    fontSize: 11, // Réduit de 14 à 11
   },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
+    marginRight: 15, // Réduit de 20 à 15
   },
   checkbox: {
-    width: 12,
-    height: 12,
+    width: 10, // Réduit de 12 à 10
+    height: 10, // Réduit de 12 à 10
     border: '2px solid #ba0c2f',
-    marginRight: 5,
+    marginRight: 4, // Réduit de 5 à 4
     backgroundColor: 'white',
   },
   checkboxChecked: {
-    width: 12,
-    height: 12,
+    width: 10,
+    height: 10,
     border: '2px solid #ba0c2f',
-    marginRight: 5,
-    backgroundColor: 'white',
+    marginRight: 4,
+    backgroundColor: '#ba0c2f', // Changé pour être plus visible
     position: 'relative',
   },
   checkmark: {
     position: 'absolute',
-    left: 2,
-    top: 0,
-    width: 3,
-    height: 7,
-    border: '2px solid #ba0c2f',
-    borderWidth: '0 2px 2px 0',
+    left: 1,
+    top: -1,
+    width: 2,
+    height: 5,
+    border: '1px solid white',
+    borderWidth: '0 1px 1px 0',
     transform: 'rotate(45deg)',
   },
   section: {
     border: '1px solid black',
-    marginBottom: 15,
+    marginBottom: 8, // Réduit de 15 à 8
   },
   sectionHeader: {
     backgroundColor: '#224d62',
     color: 'white',
     textAlign: 'center',
-    padding: 8,
-    fontSize: 16,
+    padding: 5, // Réduit de 8 à 5
+    fontSize: 13, // Réduit de 16 à 13
     fontWeight: 'bold',
   },
   stripedTable: {
     width: '100%',
-    marginBottom: 15,
   },
   stripedRow: {
     flexDirection: 'row',
-    padding: 8,
+    padding: 5, // Réduit de 8 à 5
     backgroundColor: '#f2f2f2',
+    minHeight: 20, // Ajouté pour contrôler la hauteur
   },
   stripedRowEven: {
     flexDirection: 'row',
-    padding: 8,
+    padding: 5, // Réduit de 8 à 5
     backgroundColor: 'white',
+    minHeight: 20, // Ajouté pour contrôler la hauteur
   },
   stripedCell: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 9, // Réduit de 12 à 9
+    paddingRight: 5,
   },
   modeReglementTable: {
     width: '100%',
-    border: '1px solid black',
-    marginBottom: 15,
   },
   modeReglementRow: {
     flexDirection: 'row',
-    height: 80,
+    height: 50, // Réduit de 80 à 50
+    border: '1px solid black',
   },
   modeReglementCell: {
     flex: 1,
-    border: '1px solid black',
-    padding: 10,
-    justifyContent: 'space-between',
+    borderRight: '1px solid black',
+    padding: 8, // Augmenté de 5 à 8 pour plus d'espace
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
+  },
+  modeReglementCellLast: {
+    flex: 1,
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   rectangle: {
-    width: 20,
-    height: 20,
+    width: 15, // Réduit de 20 à 15
+    height: 15, // Réduit de 20 à 15
     border: '1px solid black',
     marginRight: 5,
   },
   rectangleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 5, // Réduit de 15 à 5
   },
   signatureTable: {
     width: '100%',
     border: '1px solid black',
-    marginBottom: 15,
+    marginBottom: 8, // Réduit de 15 à 8
   },
   signatureRow: {
     flexDirection: 'row',
-    height: 120,
+    height: 80, // Réduit de 120 à 80
   },
   signatureCell: {
     flex: 1,
     border: '1px solid black',
-    padding: 10,
+    padding: 8,
     justifyContent: 'space-between',
   },
   italic: {
     fontStyle: 'italic',
-    marginBottom: 15,
-    fontSize: 11,
+    marginBottom: 8, // Réduit de 15 à 8
+    fontSize: 9, // Réduit de 11 à 9
+    lineHeight: 1.3,
   },
   footer: {
-    marginTop: 20,
-    fontSize: 10,
-    lineHeight: 1.3,
+    marginTop: 10, // Réduit de 20 à 10
+    fontSize: 8, // Réduit de 10 à 8
+    lineHeight: 1.2,
   },
   boldText: {
     fontWeight: 'bold',
   },
+  // Styles pour le contrat de confidentialité
   confidentialityTitle: {
-    fontSize: 20,
+    fontSize: 16, // Réduit de 20 à 16
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
-    marginTop: 40,
+    marginBottom: 15, // Réduit de 20 à 15
+    marginTop: 10, // Réduit de 40 à 10
   },
   articleHeader: {
-    fontSize: 16,
+    fontSize: 12, // Réduit de 16 à 12
     fontWeight: 'bold',
-    marginBottom: 10,
-    marginTop: 15,
+    marginBottom: 5, // Réduit de 10 à 5
+    marginTop: 8, // Réduit de 15 à 8
   },
   articleText: {
-    marginBottom: 15,
-    fontSize: 12,
-    lineHeight: 1.4,
+    marginBottom: 8, // Réduit de 15 à 8
+    fontSize: 9, // Réduit de 12 à 9
+    lineHeight: 1.3, // Réduit de 1.4 à 1.3
   },
   redText: {
     color: '#ba0c2f',
+  },
+  contractSignatureDate: {
+    marginTop: 15, // Réduit de 30 à 15
+    marginBottom: 10, // Réduit de 20 à 10
+    fontSize: 10,
   },
 })
 
@@ -214,31 +226,25 @@ const Checkbox = ({ checked, label }: { checked: boolean; label: string }) => (
 
 // Composant principal du document PDF
 const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
-  // Fonction pour obtenir l'URL de la photo avec fallback
   const getPhotoURL = () => {
-    // Priorité : photoURL, puis photoPath, puis photo (si c'est une URL)
     if (request.identity?.photoURL) {
       return request.identity.photoURL
     }
     if (request.identity?.photoPath) {
-      // Si c'est un chemin Firebase Storage, on peut essayer de le convertir
-      // ou utiliser directement si c'est déjà une URL
       return request.identity.photoPath
     }
     if (typeof request.identity?.photo === 'string' && request.identity.photo.startsWith('http')) {
       return request.identity.photo
     }
-
-    // Vérifier aussi dans les documents
     if (request.documents?.documentPhotoFrontURL) {
       return request.documents.documentPhotoFrontURL
     }
     if (request.documents?.documentPhotoFrontPath) {
       return request.documents.documentPhotoFrontPath
     }
-
     return null
   }
+
   const formatDate = (date: Date | string | any) => {
     if (!date) return 'Non défini'
 
@@ -265,7 +271,6 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
     }
   }
 
-  // Fonction pour formater l'adresse complète
   const formatFullAddress = () => {
     const { address } = request
     const parts = [
@@ -279,13 +284,14 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
   return (
     <Document>
+      {/* Page 1 - Fiche d'Adhésion */}
       <Page size="A4" style={styles.page}>
         {/* En-tête avec logo et photo */}
         <View style={styles.header}>
           <View style={styles.logo}>
             <Image
               src={window.location.origin + '/Logo-Kara.jpg'}
-              style={{ width: 100, height: 100, objectFit: 'cover' }}
+              style={{ width: 70, height: 70, objectFit: 'cover' }}
               cache={false}
             />
           </View>
@@ -293,13 +299,13 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
             {getPhotoURL() ? (
               <Image 
                 src={getPhotoURL()!} 
-                style={{ width: 80, height: 80, objectFit: 'cover' }}
+                style={{ width: 60, height: 60, objectFit: 'cover' }}
                 cache={false}
               />
             ) : (
               <View style={{ 
-                width: 80, 
-                height: 80, 
+                width: 60, 
+                height: 60, 
                 border: '2px solid #000',
                 display: 'flex',
                 alignItems: 'center',
@@ -307,7 +313,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
                 backgroundColor: '#f8f9fa'
               }}>
                 <Text style={{ 
-                  fontSize: 8, 
+                  fontSize: 7, 
                   textAlign: 'center',
                   color: '#666'
                 }}>
@@ -320,12 +326,12 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
         {/* Titre principal */}
         <Text style={styles.titleListe}>
-          FICHE D'ADHÉSION{'\n\n'}CONTRACTUELLE INDIVIDUELLE
+          FICHE D'ADHÉSION CONTRACTUELLE INDIVIDUELLE
         </Text>
 
         {/* Type de membre */}
         <View style={styles.infoType}>
-          <Checkbox checked={true} label="Membre Adhérent" />
+          <Checkbox checked={false} label="Membre Adhérent" />
           <Checkbox checked={false} label="Membre Sympathisant" />
           <Checkbox checked={false} label="Membre Bienfaiteur" />
         </View>
@@ -388,35 +394,33 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         {/* Section Mode de Règlement */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>Mode de Règlement</Text>
-        </View>
-
-        {/* Table Mode de Règlement */}
-        <View style={styles.modeReglementTable}>
-          <View style={styles.modeReglementRow}>
-            <View style={styles.modeReglementCell}>
-              <View style={styles.rectangleRow}>
-                <View style={styles.rectangle}></View>
-                <Text>A</Text>
+          <View style={styles.modeReglementTable}>
+            <View style={styles.modeReglementRow}>
+              <View style={styles.modeReglementCell}>
+                <View style={styles.rectangleRow}>
+                  <View style={styles.rectangle}></View>
+                  <Text>A</Text>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View style={styles.rectangle}></View>
+                  <Text>B</Text>
+                </View>
               </View>
-              <View style={styles.rectangleRow}>
-                <View style={styles.rectangle}></View>
-                <Text>B</Text>
+              <View style={styles.modeReglementCell}>
+                <View style={styles.rectangleRow}>
+                  <View style={styles.rectangle}></View>
+                  <Text>C</Text>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View style={styles.rectangle}></View>
+                  <Text>D</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.modeReglementCell}>
-              <View style={styles.rectangleRow}>
-                <View style={styles.rectangle}></View>
-                <Text>C</Text>
-              </View>
-              <View style={styles.rectangleRow}>
-                <View style={styles.rectangle}></View>
-                <Text>D</Text>
-              </View>
-            </View>
-            <View style={styles.modeReglementCell}>
-              <View style={styles.rectangleRow}>
-                <View style={styles.rectangle}></View>
-                <Text>E</Text>
+              <View style={styles.modeReglementCellLast}>
+                <View style={styles.rectangleRow}>
+                  <View style={styles.rectangle}></View>
+                  <Text>E</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -426,12 +430,12 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         <View style={styles.signatureTable}>
           <View style={styles.signatureRow}>
             <View style={styles.signatureCell}>
-              <Text>Signature de l'adhérent suivi de la mention "lu et approuvé"</Text>
-              <Text>Date : ................../...................../..................</Text>
+              <Text style={{ fontSize: 9 }}>Signature de l'adhérent suivi de la mention "lu et approuvé"</Text>
+              <Text style={{ fontSize: 9 }}>Date : ................../...................../..................</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text>Signature et cachet du Secrétariat Exécutif</Text>
-              <Text>Date : ................../...................../..................</Text>
+              <Text style={{ fontSize: 9 }}>Signature et cachet du Secrétariat Exécutif</Text>
+              <Text style={{ fontSize: 9 }}>Date : ................../...................../..................</Text>
             </View>
           </View>
         </View>
@@ -473,7 +477,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           <View style={styles.stripedRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text>Qualité : </Text>
-              <Checkbox checked={true} label="Membre Adhérent" />
+              <Checkbox checked={false} label="Membre Adhérent" />
               <Checkbox checked={false} label="Membre Sympathisant" />
               <Checkbox checked={false} label="Membre Bienfaiteur" />
             </View>
@@ -517,7 +521,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           radiation au sein de la Mutuelle et s'exposera aux poursuites judiciaires.
         </Text>
 
-        <Text style={{ marginTop: 30, marginBottom: 20 }}>
+        <Text style={styles.contractSignatureDate}>
           Fait à …………………................... le ……......./……...... …./..……......…
         </Text>
 
@@ -525,10 +529,10 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         <View style={styles.signatureTable}>
           <View style={styles.signatureRow}>
             <View style={styles.signatureCell}>
-              <Text>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
+              <Text style={{ fontSize: 9 }}>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text>Signature du SECRÉTAIRE EXÉCUTIF</Text>
+              <Text style={{ fontSize: 9 }}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
             </View>
           </View>
         </View>
@@ -550,7 +554,6 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
 }) => {
   const [isExporting, setIsExporting] = useState(false)
 
-  // Fonction pour télécharger le PDF
   const handleDownloadPDF = async () => {
     setIsExporting(true)
 
@@ -565,11 +568,17 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      console.log('PDF téléchargé avec succès')
+      toast.success('✅ PDF téléchargé avec succès', {
+        description: 'Le document a été généré et téléchargé dans votre dossier de téléchargements.',
+        duration: 3000,
+      })
 
     } catch (error) {
       console.error('Erreur lors du téléchargement du PDF:', error)
-      alert('Erreur lors du téléchargement du PDF. Veuillez réessayer.')
+      toast.error('❌ Erreur de téléchargement', {
+        description: 'Une erreur est survenue lors de la génération du PDF. Veuillez réessayer.',
+        duration: 4000,
+      })
     } finally {
       setIsExporting(false)
     }
@@ -577,35 +586,43 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[95vw] !max-w-[1400px] max-h-[95vh] overflow-hidden">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <DialogTitle className="text-xl font-semibold text-[#224D62]">
-            Prévisualisation - Fiche d'Adhésion Contractuelle
-          </DialogTitle>
+      <DialogContent className="!w-[95vw] !max-w-[1400px] max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-6 border-b border-gray-200">
+          <div className="space-y-1">
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+              📋 Fiche d'Adhésion Contractuelle
+            </DialogTitle>
+            <p className="text-gray-600">
+              Prévisualisation pour {request.identity.firstName} {request.identity.lastName}
+            </p>
+          </div>
           <Button
-            variant="outline"
-            size="sm"
             onClick={handleDownloadPDF}
             disabled={isExporting}
-            className="mr-10 flex items-center space-x-1 border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white disabled:opacity-50"
+            className="mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-12 px-6"
           >
             {isExporting ? (
-              <>
+              <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Génération...</span>
-              </>
+              </div>
             ) : (
-              <>
+              <div className="flex items-center gap-2">
                 <Download className="w-4 h-4" />
                 <span>Télécharger PDF</span>
-              </>
+              </div>
             )}
           </Button>
         </DialogHeader>
 
-        {/* Prévisualisation PDF */}
-        <div className="flex-1 h-[calc(95vh-120px)]">
-          <PDFViewer style={{ width: '100%', height: '100%' }}>
+        {/* Prévisualisation PDF avec design amélioré */}
+        <div className="flex-1 h-[calc(95vh-150px)] rounded-xl overflow-hidden shadow-inner bg-white border">
+          <PDFViewer style={{ 
+            width: '100%', 
+            height: '100%',
+            border: 'none',
+            borderRadius: '0.75rem'
+          }}>
             <MutuelleKaraPDF request={request} />
           </PDFViewer>
         </div>
