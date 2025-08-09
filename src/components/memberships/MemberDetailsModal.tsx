@@ -10,9 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import type { MembershipRequest } from '@/types/types'
-import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer'
-import { LogoPDF } from '@/components/logo'
-import routes from '@/constantes/routes'
+import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image, BlobProvider } from '@react-pdf/renderer'
 import { toast } from 'sonner'
 
 // Styles optimisés pour tenir sur une page
@@ -225,7 +223,7 @@ const Checkbox = ({ checked, label }: { checked: boolean; label: string }) => (
 )
 
 // Composant principal du document PDF
-const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
+const MutuelleKaraPDF = ({ request, logoUrl }: { request: MembershipRequest; logoUrl?: string }) => {
   const getPhotoURL = () => {
     if (request.identity?.photoURL) {
       return request.identity.photoURL
@@ -289,11 +287,15 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         {/* En-tête avec logo et photo */}
         <View style={styles.header}>
           <View style={styles.logo}>
-            <Image
-              src={window.location.origin + '/Logo-Kara.jpg'}
-              style={{ width: 70, height: 70, objectFit: 'cover' }}
-              cache={false}
-            />
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                style={{ width: 70, height: 70, objectFit: 'cover' }}
+                cache={false}
+              />
+            ) : (
+              <View style={{ width: 70, height: 70 }} />
+            )}
           </View>
           <View style={styles.photoId}>
             {getPhotoURL() ? (
@@ -558,7 +560,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<MutuelleKaraPDF request={request} />).toBlob()
+      const blob = await pdf(<MutuelleKaraPDF request={request} logoUrl="/Logo-Kara.jpg" />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -615,16 +617,50 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
           </Button>
         </DialogHeader>
 
-        {/* Prévisualisation PDF avec design amélioré */}
-        <div className="flex-1 h-[calc(95vh-150px)] rounded-xl overflow-hidden shadow-inner bg-white border">
+        {/* Prévisualisation PDF - Desktop (md+) */}
+        <div className="hidden md:block flex-1 h-[calc(95vh-150px)] rounded-xl overflow-hidden shadow-inner bg-white border">
           <PDFViewer style={{ 
             width: '100%', 
             height: '100%',
             border: 'none',
             borderRadius: '0.75rem'
           }}>
-            <MutuelleKaraPDF request={request} />
+            <MutuelleKaraPDF request={request} logoUrl="/Logo-Kara.jpg" />
           </PDFViewer>
+        </div>
+
+        {/* Fallback Mobile (<md): Boutons pour ouvrir/télécharger */}
+        <div className="md:hidden space-y-4 p-4 bg-white border rounded-xl">
+          <p className="text-sm text-gray-600">
+            La prévisualisation n'est pas disponible sur mobile. Vous pouvez ouvrir le PDF dans un nouvel onglet ou le télécharger.
+          </p>
+          <BlobProvider document={<MutuelleKaraPDF request={request} logoUrl="/Logo-Kara.jpg" />}>
+            {({ url, loading }) => (
+              <div className="flex items-center gap-3">
+                <Button
+                  asChild
+                  disabled={loading || !url}
+                  className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-11 px-5"
+                >
+                  <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
+                    <Eye className="w-4 h-4" />
+                    Ouvrir dans un onglet
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  disabled={loading || !url}
+                  className="h-11 px-5"
+                >
+                  <a href={url ?? '#'} download={`Fiche_Adhesion_${request.identity.lastName}_${request.identity.firstName}_${new Date().toISOString().split('T')[0]}.pdf`}>
+                    <Download className="w-4 h-4" />
+                    Télécharger PDF
+                  </a>
+                </Button>
+              </div>
+            )}
+          </BlobProvider>
         </div>
       </DialogContent>
     </Dialog>
