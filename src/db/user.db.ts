@@ -16,6 +16,22 @@ import { db as firestore } from '@/firebase/firestore'
 import type { User, UserFilters, UserStats, UserRole } from '@/types/types'
 import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-names'
 
+// Supprime récursivement les clés avec valeur undefined (Firestore ne les accepte pas)
+function sanitizeForFirestore<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => sanitizeForFirestore(v)) as unknown as T
+  }
+  if (value && typeof value === 'object') {
+    const result: any = {}
+    for (const [k, v] of Object.entries(value as any)) {
+      if (v === undefined) continue
+      result[k] = sanitizeForFirestore(v as any)
+    }
+    return result
+  }
+  return value
+}
+
 /**
  * Génère un matricule au format nombreUser.MK.dateCréation
  * Ex: 0004.MK.040825
@@ -64,11 +80,12 @@ export async function createUser(userData: Omit<User, 'id' | 'matricule' | 'crea
     }
     
     const userRef = doc(firestore, FIREBASE_COLLECTION_NAMES.USERS, userId)
-    await setDoc(userRef, {
+    const payload = sanitizeForFirestore({
       ...userDocData,
       createdAt: Timestamp.fromDate(userDocData.createdAt),
       updatedAt: Timestamp.fromDate(userDocData.updatedAt),
     })
+    await setDoc(userRef, payload)
     
     console.log('Utilisateur créé avec succès:', userId)
     return userDocData
@@ -98,17 +115,42 @@ export async function createUserWithMatricule(
     }
     
     const userRef = doc(firestore, FIREBASE_COLLECTION_NAMES.USERS, userId)
-    await setDoc(userRef, {
+    const payload = sanitizeForFirestore({
       ...userDocData,
       createdAt: Timestamp.fromDate(userDocData.createdAt),
       updatedAt: Timestamp.fromDate(userDocData.updatedAt),
     })
+    await setDoc(userRef, payload)
     
     console.log('Utilisateur créé avec matricule existant:', userId)
     return userDocData
   } catch (error) {
     console.error('Erreur lors de la création de l\'utilisateur avec matricule:', error)
     throw new Error('Impossible de créer l\'utilisateur avec le matricule fourni')
+  }
+}
+
+/**
+ * Crée un document utilisateur minimal sans stocker le champ `id`.
+ * Ajoute automatiquement `matricule`, `createdAt`, `updatedAt`.
+ */
+export async function createUserRawWithMatricule(
+  data: Record<string, any>,
+  matricule: string
+): Promise<void> {
+  try {
+    const userRef = doc(firestore, FIREBASE_COLLECTION_NAMES.USERS, matricule)
+    const now = new Date()
+    const payload = sanitizeForFirestore({
+      ...data,
+      matricule,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    })
+    await setDoc(userRef, payload)
+  } catch (error) {
+    console.error('Erreur lors de la création du document utilisateur (minimal):', error)
+    throw new Error("Impossible de créer l'utilisateur")
   }
 }
 
@@ -170,10 +212,10 @@ export async function updateUser(userId: string, updates: Partial<Omit<User, 'id
   try {
     const userRef = doc(firestore, FIREBASE_COLLECTION_NAMES.USERS, userId)
     
-    const updateData = {
+    const updateData = sanitizeForFirestore({
       ...updates,
       updatedAt: Timestamp.fromDate(new Date()),
-    }
+    })
     
     await updateDoc(userRef, updateData)
     console.log('Utilisateur mis à jour avec succès:', userId)
