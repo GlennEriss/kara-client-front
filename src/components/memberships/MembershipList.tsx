@@ -355,7 +355,7 @@ const MembershipList = () => {
     return (
       <div className="space-y-8 animate-in fade-in-0 duration-500">
         {/* Stats même en cas d'erreur */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ModernStatsCard
             title="Total Membres"
             value={0}
@@ -387,7 +387,7 @@ const MembershipList = () => {
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Statistiques modernes */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ModernStatsCard
             title="Total Membres"
             value={stats.total}

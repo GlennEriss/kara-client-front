@@ -36,5 +36,6 @@ export {
   runTransaction,
   arrayUnion,
   writeBatch,
-  Timestamp
+  Timestamp,
+  DocumentSnapshot
 } from 'firebase/firestore';

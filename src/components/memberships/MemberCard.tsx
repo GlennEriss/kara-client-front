@@ -118,7 +118,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44 sm:w-48">
-                <DropdownMenuItem onClick={() => onViewDetails(member.id)}>
+                <DropdownMenuItem>
                   <Eye className="h-4 w-4 mr-2" />
                   Voir détails
                 </DropdownMenuItem>
@@ -127,7 +127,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
                   Voir abonnements
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewDetails(member.id)}>
                   <FileText className="h-4 w-4 mr-2" />
                   Fiche d'adhésion
                 </DropdownMenuItem>

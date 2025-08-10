@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { DefaultLogo, Logo } from "@/components/logo"
+import { Logo } from "@/components/logo"
 import routes from "@/constantes/routes"
 import { auth, signOut } from "@/firebase/auth"
 import { cn } from "@/lib/utils"
@@ -57,14 +57,14 @@ const adminMenuItems = [
 ]
 
 const systemMenuItems: any[] = [
-    /* {
+    {
         title: "Administration",
-        url: "/dashboard/admin",
+        url: routes.admin.admin,
         icon: Shield,
     },
-    {
+    /* {
         title: "Paramètres",
-        url: "/dashboard/settings",
+        url: routes.admin.settings,
         icon: Settings,
     }, */
 ]
@@ -176,12 +176,6 @@ export function AppSidebar() {
                                                         "font-medium transition-all duration-300 group-hover:font-semibold",
                                                         isActive && "font-semibold"
                                                     )}>{item.title}</span>
-                                                    <div className={cn(
-                                                        "ml-auto opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 translate-x-2",
-                                                        isActive && "opacity-100 translate-x-0"
-                                                    )}>
-                                                        <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                                                    </div>
                                                 </Link>
                                             </SidebarMenuButton>
                                         </SidebarMenuItem>

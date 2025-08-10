@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Download, Loader2, Eye } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Download, Loader2, Eye, FileText, Smartphone, Monitor } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -9,69 +9,86 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import type { MembershipRequest } from '@/types/types'
-import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer'
-import { LogoPDF } from '@/components/logo'
-import routes from '@/constantes/routes'
+import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image, BlobProvider } from '@react-pdf/renderer'
 import { toast } from 'sonner'
+
+// Hook pour détecter le mobile uniquement
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth < 1024) // lg breakpoint
+    }
+    
+    checkDevice()
+    window.addEventListener('resize', checkDevice)
+    
+    return () => window.removeEventListener('resize', checkDevice)
+  }, [])
+
+  return isMobile
+}
 
 // Styles optimisés pour tenir sur une page
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 10, // Réduit de 12 à 10
-    paddingTop: 15, // Réduit de 10 à 15
-    paddingBottom: 20, // Réduit de 65 à 20
-    paddingHorizontal: 25, // Réduit de 35 à 25
-    lineHeight: 1.2, // Réduit de 1.5 à 1.2
+    fontSize: 10,
+    paddingTop: 15,
+    paddingBottom: 20,
+    paddingHorizontal: 25,
+    lineHeight: 1.2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12, // Réduit de 20 à 12
+    marginBottom: 12,
     width: '100%',
   },
   logo: {
-    width: 70, // Réduit de 100 à 70
-    height: 70, // Réduit de 100 à 70
+    width: 70,
+    height: 70,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   photoId: {
-    width: 60, // Réduit de 80 à 60
-    height: 60, // Réduit de 80 à 60
+    width: 60,
+    height: 60,
     border: '1px solid #000',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   titleListe: {
-    fontSize: 18, // Réduit de 24 à 18
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#1f3a4e',
     textDecoration: 'underline',
-    marginBottom: 12, // Réduit de 20 à 12
-    marginTop: 5, // Réduit de 10 à 5
+    marginBottom: 12,
+    marginTop: 5,
   },
   infoType: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 12, // Réduit de 20 à 12
-    fontSize: 11, // Réduit de 14 à 11
+    marginBottom: 12,
+    fontSize: 11,
   },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 15, // Réduit de 20 à 15
+    marginRight: 15,
   },
   checkbox: {
-    width: 10, // Réduit de 12 à 10
-    height: 10, // Réduit de 12 à 10
+    width: 10,
+    height: 10,
     border: '2px solid #ba0c2f',
-    marginRight: 4, // Réduit de 5 à 4
+    marginRight: 4,
     backgroundColor: 'white',
   },
   checkboxChecked: {
@@ -79,7 +96,7 @@ const styles = StyleSheet.create({
     height: 10,
     border: '2px solid #ba0c2f',
     marginRight: 4,
-    backgroundColor: '#ba0c2f', // Changé pour être plus visible
+    backgroundColor: '#ba0c2f',
     position: 'relative',
   },
   checkmark: {
@@ -94,14 +111,14 @@ const styles = StyleSheet.create({
   },
   section: {
     border: '1px solid black',
-    marginBottom: 8, // Réduit de 15 à 8
+    marginBottom: 8,
   },
   sectionHeader: {
     backgroundColor: '#224d62',
     color: 'white',
     textAlign: 'center',
-    padding: 5, // Réduit de 8 à 5
-    fontSize: 13, // Réduit de 16 à 13
+    padding: 5,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   stripedTable: {
@@ -109,19 +126,19 @@ const styles = StyleSheet.create({
   },
   stripedRow: {
     flexDirection: 'row',
-    padding: 5, // Réduit de 8 à 5
+    padding: 5,
     backgroundColor: '#f2f2f2',
-    minHeight: 20, // Ajouté pour contrôler la hauteur
+    minHeight: 20,
   },
   stripedRowEven: {
     flexDirection: 'row',
-    padding: 5, // Réduit de 8 à 5
+    padding: 5,
     backgroundColor: 'white',
-    minHeight: 20, // Ajouté pour contrôler la hauteur
+    minHeight: 20,
   },
   stripedCell: {
     flex: 1,
-    fontSize: 9, // Réduit de 12 à 9
+    fontSize: 9,
     paddingRight: 5,
   },
   modeReglementTable: {
@@ -129,13 +146,13 @@ const styles = StyleSheet.create({
   },
   modeReglementRow: {
     flexDirection: 'row',
-    height: 50, // Réduit de 80 à 50
+    height: 50,
     border: '1px solid black',
   },
   modeReglementCell: {
     flex: 1,
     borderRight: '1px solid black',
-    padding: 8, // Augmenté de 5 à 8 pour plus d'espace
+    padding: 8,
     justifyContent: 'space-around',
     alignItems: 'flex-start',
   },
@@ -146,24 +163,24 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   rectangle: {
-    width: 15, // Réduit de 20 à 15
-    height: 15, // Réduit de 20 à 15
+    width: 15,
+    height: 15,
     border: '1px solid black',
     marginRight: 5,
   },
   rectangleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5, // Réduit de 15 à 5
+    marginBottom: 5,
   },
   signatureTable: {
     width: '100%',
     border: '1px solid black',
-    marginBottom: 8, // Réduit de 15 à 8
+    marginBottom: 8,
   },
   signatureRow: {
     flexDirection: 'row',
-    height: 80, // Réduit de 120 à 80
+    height: 80,
   },
   signatureCell: {
     flex: 1,
@@ -173,43 +190,42 @@ const styles = StyleSheet.create({
   },
   italic: {
     fontStyle: 'italic',
-    marginBottom: 8, // Réduit de 15 à 8
-    fontSize: 9, // Réduit de 11 à 9
+    marginBottom: 8,
+    fontSize: 9,
     lineHeight: 1.3,
   },
   footer: {
-    marginTop: 10, // Réduit de 20 à 10
-    fontSize: 8, // Réduit de 10 à 8
+    marginTop: 10,
+    fontSize: 8,
     lineHeight: 1.2,
   },
   boldText: {
     fontWeight: 'bold',
   },
-  // Styles pour le contrat de confidentialité
   confidentialityTitle: {
-    fontSize: 16, // Réduit de 20 à 16
+    fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15, // Réduit de 20 à 15
-    marginTop: 10, // Réduit de 40 à 10
+    marginBottom: 15,
+    marginTop: 10,
   },
   articleHeader: {
-    fontSize: 12, // Réduit de 16 à 12
+    fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 5, // Réduit de 10 à 5
-    marginTop: 8, // Réduit de 15 à 8
+    marginBottom: 5,
+    marginTop: 8,
   },
   articleText: {
-    marginBottom: 8, // Réduit de 15 à 8
-    fontSize: 9, // Réduit de 12 à 9
-    lineHeight: 1.3, // Réduit de 1.4 à 1.3
+    marginBottom: 8,
+    fontSize: 9,
+    lineHeight: 1.3,
   },
   redText: {
     color: '#ba0c2f',
   },
   contractSignatureDate: {
-    marginTop: 15, // Réduit de 30 à 15
-    marginBottom: 10, // Réduit de 20 à 10
+    marginTop: 15,
+    marginBottom: 10,
     fontSize: 10,
   },
 })
@@ -227,21 +243,13 @@ const Checkbox = ({ checked, label }: { checked: boolean; label: string }) => (
 // Composant principal du document PDF
 const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
   const getPhotoURL = () => {
-    if (request.identity?.photoURL) {
-      return request.identity.photoURL
-    }
-    if (request.identity?.photoPath) {
-      return request.identity.photoPath
-    }
+    if (request.identity?.photoURL) return request.identity.photoURL
+    if (request.identity?.photoPath) return request.identity.photoPath
     if (typeof request.identity?.photo === 'string' && request.identity.photo.startsWith('http')) {
       return request.identity.photo
     }
-    if (request.documents?.documentPhotoFrontURL) {
-      return request.documents.documentPhotoFrontURL
-    }
-    if (request.documents?.documentPhotoFrontPath) {
-      return request.documents.documentPhotoFrontPath
-    }
+    if (request.documents?.documentPhotoFrontURL) return request.documents.documentPhotoFrontURL
+    if (request.documents?.documentPhotoFrontPath) return request.documents.documentPhotoFrontPath
     return null
   }
 
@@ -553,6 +561,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
   request
 }) => {
   const [isExporting, setIsExporting] = useState(false)
+  const isMobile = useIsMobile()
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
@@ -586,45 +595,144 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[95vw] !max-w-[1400px] max-h-[95vh] overflow-hidden bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-6 border-b border-gray-200">
-          <div className="space-y-1">
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-              📋 Fiche d'Adhésion Contractuelle
-            </DialogTitle>
-            <p className="text-gray-600">
-              Prévisualisation pour {request.identity.firstName} {request.identity.lastName}
-            </p>
+      <DialogContent className="!w-[95vw] !max-w-[1400px] max-h-[95vh] lg:max-h-[95vh] overflow-y-auto lg:overflow-hidden bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
+        {/* Header - responsive uniquement pour mobile */}
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 lg:pb-6 border-b border-gray-200">
+          <div className="space-y-1 flex-1 min-w-0">
+            <div className="flex items-center gap-2 lg:gap-3">
+              <div className="p-2 lg:p-3 rounded-xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg flex-shrink-0">
+                <FileText className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                  📋 Fiche d'Adhésion Contractuelle
+                </DialogTitle>
+                <p className="text-sm lg:text-base text-gray-600 truncate">
+                  {request.identity.firstName} {request.identity.lastName}
+                </p>
+              </div>
+            </div>
           </div>
           <Button
             onClick={handleDownloadPDF}
             disabled={isExporting}
-            className="mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-12 px-6"
+            className="mr-2 lg:mr-10 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0"
           >
             {isExporting ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Génération...</span>
+                <span className="hidden lg:inline">Génération...</span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Download className="w-4 h-4" />
-                <span>Télécharger PDF</span>
+                <span className="hidden lg:inline">Télécharger PDF</span>
               </div>
             )}
           </Button>
         </DialogHeader>
 
-        {/* Prévisualisation PDF avec design amélioré */}
-        <div className="flex-1 h-[calc(95vh-150px)] rounded-xl overflow-hidden shadow-inner bg-white border">
-          <PDFViewer style={{ 
-            width: '100%', 
-            height: '100%',
-            border: 'none',
-            borderRadius: '0.75rem'
-          }}>
-            <MutuelleKaraPDF request={request} />
-          </PDFViewer>
+        {/* Contenu principal - desktop inchangé, mobile optimisé */}
+        <div className="flex-1 h-[calc(95vh-120px)] lg:h-[calc(95vh-150px)] overflow-hidden">
+          {/* Version mobile uniquement */}
+          <div className="lg:hidden h-full">
+            <Card className="h-full bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg">
+              <CardContent className="p-4 h-full flex flex-col items-center justify-center text-center space-y-4">
+                {/* Icône et titre mobile */}
+                <div className="space-y-3">
+                  <div className="mx-auto w-14 h-14 bg-gradient-to-br from-[#234D65] to-[#2c5a73] rounded-full flex items-center justify-center shadow-lg">
+                    <Smartphone className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Prévisualisation mobile
+                    </h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      Le PDF est prêt ! Ouvrez-le dans votre navigateur ou téléchargez-le.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Informations du document mobile */}
+                <div className="bg-gray-50 rounded-lg p-3 w-full space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Document:</span>
+                    <span className="font-medium text-gray-900">Fiche d'adhésion</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Membre:</span>
+                    <span className="font-medium text-gray-900 truncate max-w-[140px]">
+                      {request.identity.firstName} {request.identity.lastName}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Pages:</span>
+                    <span className="font-medium text-gray-900">2 pages</span>
+                  </div>
+                </div>
+
+                {/* Boutons d'action mobile */}
+                <BlobProvider document={<MutuelleKaraPDF request={request} />}>
+                  {({ url, loading }) => (
+                    <div className="w-full space-y-2">
+                      <Button
+                        asChild
+                        disabled={loading || !url}
+                        className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
+                          <Eye className="w-4 h-4 mr-2" />
+                          Ouvrir dans le navigateur
+                        </a>
+                      </Button>
+                      
+                      <Button
+                        onClick={handleDownloadPDF}
+                        disabled={isExporting || loading}
+                        variant="outline"
+                        className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
+                      >
+                        {isExporting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Téléchargement...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Télécharger PDF
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </BlobProvider>
+
+                {/* Aide mobile */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
+                  <div className="flex items-start gap-2">
+                    <Monitor className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      <strong>Astuce:</strong> Pour une meilleure expérience de visualisation, 
+                      utilisez un ordinateur ou une tablette.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Version desktop - INCHANGÉE */}
+          <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
+            <PDFViewer style={{ 
+              width: '100%', 
+              height: '100%',
+              border: 'none',
+              borderRadius: '0.75rem'
+            }}>
+              <MutuelleKaraPDF request={request} />
+            </PDFViewer>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
