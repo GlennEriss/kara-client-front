@@ -15,6 +15,7 @@ import {
   DocumentSnapshot,
 } from '@/firebase/firestore'
 import { db } from '@/firebase/firestore'
+import { setDoc } from '@/firebase/firestore'
 
 // ================== TYPES POUR LES ADMINS ==================
 
@@ -64,6 +65,22 @@ export interface PaginatedAdmins {
     nextCursor: any
     prevCursor: any
   }
+}
+
+// =============== SANITIZE HELPERS ===============
+function sanitizeForFirestore<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => sanitizeForFirestore(v)) as unknown as T
+  }
+  if (value && typeof value === 'object') {
+    const result: any = {}
+    for (const [k, v] of Object.entries(value as any)) {
+      if (v === undefined) continue
+      result[k] = sanitizeForFirestore(v as any)
+    }
+    return result
+  }
+  return value
 }
 
 // ================== HELPERS ==================
@@ -207,13 +224,27 @@ export interface CreateAdminInput {
 
 export async function createAdmin(input: CreateAdminInput): Promise<string> {
   const adminsRef = collection(db, 'admins')
-  const docRef = await addDoc(adminsRef, {
+  const payload = sanitizeForFirestore({
     ...input,
     isActive: input.isActive ?? true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+  const docRef = await addDoc(adminsRef, payload)
   return docRef.id
+}
+
+// Crée un admin avec un ID spécifique (ex: matricule)
+export async function createAdminWithId(id: string, input: CreateAdminInput): Promise<string> {
+  const ref = doc(db, 'admins', id)
+  const payload = sanitizeForFirestore({
+    ...input,
+    isActive: input.isActive ?? true,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  await setDoc(ref, payload)
+  return id
 }
 
 export async function updateAdmin(id: string, updates: Partial<Omit<AdminUser, 'id'>>): Promise<boolean> {
@@ -222,6 +253,31 @@ export async function updateAdmin(id: string, updates: Partial<Omit<AdminUser, '
     ...updates,
     updatedAt: serverTimestamp(),
   })
+  return true
+}
+
+// Met à jour l'admin côté Firestore ET (optionnel) côté Firebase Auth (displayName/phone/photo)
+export async function updateAdminDeep(
+  id: string,
+  updates: Partial<Omit<AdminUser, 'id'>> & { updateAuth?: { phoneNumber?: string; displayName?: string; photoURL?: string } }
+): Promise<boolean> {
+  // Mise à jour Firestore
+  await updateAdmin(id, updates)
+
+  // Mise à jour Auth si demandé
+  if (updates.updateAuth) {
+    const body: any = { uid: id }
+    if (updates.updateAuth.phoneNumber) body.phoneNumber = updates.updateAuth.phoneNumber
+    if (updates.updateAuth.displayName) body.displayName = updates.updateAuth.displayName
+    if (updates.updateAuth.photoURL) body.photoURL = updates.updateAuth.photoURL
+
+    await fetch('/api/firebase/auth/update-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  }
+
   return true
 }
 

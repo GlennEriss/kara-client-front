@@ -62,11 +62,11 @@ const systemMenuItems: any[] = [
         url: routes.admin.admin,
         icon: Shield,
     },
-    {
+    /* {
         title: "Paramètres",
         url: routes.admin.settings,
         icon: Settings,
-    },
+    }, */
 ]
 
 export function AppSidebar() {

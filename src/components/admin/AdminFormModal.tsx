@@ -1,5 +1,5 @@
 "use client"
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -15,15 +15,19 @@ import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/li
 import { Camera, CheckCircle, Loader2 } from 'lucide-react'
 import { createFile } from '@/db/upload-image.db'
 import { generateMatricule, createUserRawWithMatricule } from '@/db/user.db'
+import { createAdminWithId } from '@/db/admin.db'
 import type { UserRole } from '@/types/types'
+import type { AdminUser } from '@/db/admin.db'
 
 interface AdminFormModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: AdminCreateFormData) => Promise<void> | void
+  mode?: 'create' | 'edit'
+  initialValues?: Partial<AdminUser>
 }
 
-export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormModalProps) {
+export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'create', initialValues }: AdminFormModalProps) {
   // Schéma dynamique pour le téléphone selon l'environnement
   const phoneSchema = process.env.NODE_ENV === 'production'
     ? z.string().regex(/^\d{9}$/, 'Le numéro gabonais doit contenir exactement 9 chiffres')
@@ -37,26 +41,48 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
 
   type AdminFormValues = z.infer<typeof schema>
 
+  const emptyDefaults: AdminFormValues = {
+    civility: 'Monsieur',
+    lastName: '',
+    firstName: '',
+    birthDate: '',
+    gender: 'Homme',
+    email: '',
+    contacts: [''],
+    roles: ['Admin'],
+    photoURL: null,
+    photoPath: null,
+  }
+
   const form = useForm<AdminFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      civility: 'Monsieur',
-      lastName: '',
-      firstName: '',
-      birthDate: '',
-      gender: 'Homme',
-      email: '',
-      contacts: [''],
-      roles: ['Admin'],
-      photoURL: null,
-      photoPath: null,
-    },
+    defaultValues: emptyDefaults,
   })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [compressionInfo, setCompressionInfo] = useState<string | null>(null)
+
+  // Pré-remplissage en mode édition
+  useEffect(() => {
+    if (mode === 'edit' && initialValues && isOpen) {
+      form.reset({
+        civility: (initialValues.civility as any) ?? 'Monsieur',
+        lastName: initialValues.lastName ?? '',
+        firstName: initialValues.firstName ?? '',
+        birthDate: initialValues.birthDate ?? '',
+        gender: (initialValues.gender as any) ?? 'Homme',
+        email: initialValues.email ?? '',
+        contacts: initialValues.contacts && initialValues.contacts.length > 0 ? [initialValues.contacts[0]] : [''],
+        roles: (initialValues.roles as any) ?? ['Admin'],
+        photoURL: initialValues.photoURL ?? null,
+        photoPath: initialValues.photoPath ?? null,
+      })
+      setPhotoPreview(initialValues.photoURL ?? null)
+      setCompressionInfo(null)
+    }
+  }, [mode, initialValues, isOpen])
 
   function dataURLtoFile(dataUrl: string, filename: string): File {
     const arr = dataUrl.split(',')
@@ -102,18 +128,26 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
   }
 
   const handleSubmit = async (values: AdminFormValues) => {
-    // 1) Générer le matricule (UID)
+    if (mode === 'edit') {
+      // Mode édition: pas de création Auth/Firestore ici. On délègue au parent.
+      await onSubmit(values as AdminCreateFormData)
+      // Nettoyage des champs après update
+      form.reset(emptyDefaults)
+      setPhotoPreview(null)
+      setCompressionInfo(null)
+      onClose()
+      return
+    }
+
+    // Mode création: logique existante
     const matricule = await generateMatricule()
 
-    // 2) Normaliser le téléphone
     let phone = (values.contacts?.[0] || '').trim()
     if (!phone) throw new Error('Numéro de téléphone requis')
     if (!phone.startsWith('+')) {
-      // Ajout par défaut de l'indicatif GA
       phone = `+241${phone.replace(/[^\d]/g, '').replace(/^0+/, '')}`
     }
 
-    // 3) Créer l'utilisateur Auth par téléphone (UID = matricule)
     const displayName = `${values.firstName} ${values.lastName}`.trim()
     await fetch('/api/firebase/auth/create-user/by-phone-number', {
       method: 'POST',
@@ -121,7 +155,6 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
       body: JSON.stringify({ uid: matricule, phoneNumber: phone, displayName, requestId: 'admin' }),
     })
 
-    // 4) Uploader la photo au chemin admins-photo/uid/photo.webp s'il y a un aperçu
     let uploadedPhotoURL: string | null = values.photoURL ?? null
     let uploadedPhotoPath: string | null = values.photoPath ?? null
     if (photoPreview) {
@@ -133,7 +166,6 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
       form.setValue('photoPath', path)
     }
 
-    // 5) Définir les custom claims (photo + rôle principal)
     const primaryRole = (values.roles?.[0] || 'Admin') as UserRole
     await fetch('/api/firebase/auth/set-custom-claims', {
       method: 'POST',
@@ -141,7 +173,6 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
       body: JSON.stringify({ uuid: matricule, claims: { role: primaryRole, photoURL: uploadedPhotoURL } }),
     })
 
-    // 6) Créer le document Firestore "users" avec ce matricule
     const userData = {
       lastName: values.lastName,
       firstName: values.firstName,
@@ -156,8 +187,26 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
     }
     await createUserRawWithMatricule(userData as any, matricule)
 
-    // 7) Callback parent puis fermer
+    // Créer l'admin dans la collection admins avec l'ID = matricule
+    await createAdminWithId(matricule, {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      birthDate: values.birthDate,
+      civility: values.civility as any,
+      gender: values.gender as any,
+      email: values.email?.trim() ? values.email.trim() : undefined,
+      contacts: [phone],
+      roles: values.roles as any,
+      photoURL: uploadedPhotoURL,
+      photoPath: uploadedPhotoPath,
+      isActive: true,
+    })
+
     await onSubmit({ ...values, contacts: [phone], photoURL: uploadedPhotoURL, photoPath: uploadedPhotoPath } as AdminCreateFormData)
+    // Nettoyage des champs après création
+    form.reset(emptyDefaults)
+    setPhotoPreview(null)
+    setCompressionInfo(null)
     onClose()
   }
 
@@ -165,7 +214,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Ajouter un administrateur</DialogTitle>
+          <DialogTitle>{mode === 'edit' ? 'Modifier un administrateur' : 'Ajouter un administrateur'}</DialogTitle>
         </DialogHeader>
 
         {/* Upload Photo - Cercle cliquable */}
@@ -372,7 +421,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit }: AdminFormM
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" type="button" onClick={onClose}>Annuler</Button>
-              <Button type="submit" disabled={isUploading}>Enregistrer</Button>
+              <Button type="submit" disabled={isUploading}>{mode === 'edit' ? 'Mettre à jour' : 'Enregistrer'}</Button>
             </div>
           </form>
         </Form>
