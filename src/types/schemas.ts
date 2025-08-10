@@ -445,6 +445,26 @@ export const memberLoginDefaultValues: MemberLoginFormData = {
   phoneNumber: ''
 }
 
+// ================== MEMBER TWO-STEP LOGIN (Matricule + Téléphone) ==================
+export const memberTwoStepLoginSchema = z.object({
+  matricule: z
+    .string()
+    .min(3, 'Le matricule doit contenir au moins 3 caractères'),
+  phoneNumber: z
+    .string()
+    .min(8, 'Le numéro de téléphone doit contenir au moins 8 chiffres')
+    .max(15, 'Le numéro de téléphone ne peut pas dépasser 15 chiffres')
+    .regex(/^[+]?[\d\s\-()]+$/, 'Format de numéro de téléphone invalide')
+    .transform(val => val.replace(/\s/g, '')),
+})
+
+export type MemberTwoStepLoginFormData = z.infer<typeof memberTwoStepLoginSchema>
+
+export const memberTwoStepLoginDefaultValues: MemberTwoStepLoginFormData = {
+  matricule: '',
+  phoneNumber: '+241'
+}
+
 // ================== ADMIN LOGIN SCHEMA ==================
 export const adminLoginSchema = z.object({
   email: z.string()

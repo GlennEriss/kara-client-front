@@ -556,3 +556,6 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   SuperAdmin: 'Super Administrateur',
   Secretary: 'Secrétaire'
 }
+
+// Rôles considérés comme administrateurs
+export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary']

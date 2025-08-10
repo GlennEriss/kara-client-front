@@ -12,6 +12,9 @@ const routes = {
         memberships: '/memberships',
         admin: '/admin',
         settings: '/settings',
+    },
+    member: {
+        home: '/',
     }
 }
 
