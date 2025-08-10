@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       if (err.code === "auth/user-not-found") {
         userRecord = await adminAuth.createUser({
           uid,
-          phoneNumber,
+          phoneNumber: process.env.NODE_ENV === 'development' ? phoneNumber : '+241' + phoneNumber,
           displayName,
           disabled: false,
         });

@@ -212,7 +212,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Modifier un administrateur' : 'Ajouter un administrateur'}</DialogTitle>
         </DialogHeader>
