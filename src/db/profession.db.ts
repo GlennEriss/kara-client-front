@@ -74,6 +74,99 @@ export async function findProfessionByName(professionName: string): Promise<Prof
   }
 }
 
+export interface JobsFilters {
+  search?: string
+}
+
+export interface PaginatedJobs {
+  data: Profession[]
+  pagination: {
+    currentPage: number
+    totalPages: number
+    totalItems: number
+    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+  }
+}
+
+/**
+ * Récupère les professions (jobs) avec recherche et pagination (page-based, simple)
+ */
+export async function getJobsPaginated(
+  filters: JobsFilters = {},
+  page: number = 1,
+  limit: number = 12
+): Promise<PaginatedJobs> {
+  try {
+    const { collection, db, getDocs, query, orderBy, where, getCountFromServer } = await getFirestore();
+
+    const jobsRef = collection(db, "professions");
+    const constraints: any[] = [];
+
+    if (filters.search && filters.search.trim().length > 0) {
+      const normalized = normalizeName(filters.search);
+      // Utilisation d'une plage sur normalizedName pour la recherche préfixe
+      constraints.push(where("normalizedName", ">=", normalized));
+      constraints.push(where("normalizedName", "<=", normalized + "\uf8ff"));
+      constraints.push(orderBy("normalizedName", "asc"));
+    } else {
+      constraints.push(orderBy("createdAt", "desc"));
+    }
+
+    // Récupérer toutes les correspondances, puis paginer côté client (simple et suffisant pour des tailles modestes)
+    const q = query(jobsRef, ...constraints);
+    const [snap, countSnap] = await Promise.all([
+      getDocs(q),
+      getCountFromServer(jobsRef),
+    ]);
+
+    const all: Profession[] = [];
+    snap.forEach((doc) => {
+      const data = doc.data() as any;
+      all.push({
+        id: doc.id,
+        name: data.name,
+        normalizedName: data.normalizedName,
+        category: data.category,
+        description: data.description,
+        createdAt: data.createdAt?.toDate?.() ?? new Date(),
+        updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
+        createdBy: data.createdBy,
+      });
+    });
+
+    const totalItems = all.length; // correspond au filtrage appliqué; getCountFromServer(jobsRef) donne total collection
+    const startIndex = (page - 1) * limit;
+    const pageData = all.slice(startIndex, startIndex + limit);
+
+    return {
+      data: pageData,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.max(1, Math.ceil(totalItems / limit)),
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: startIndex + limit < totalItems,
+        hasPrevPage: page > 1,
+      },
+    };
+  } catch (error) {
+    console.error("Erreur lors de la récupération des jobs:", error);
+    return {
+      data: [],
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        itemsPerPage: limit,
+        hasNextPage: false,
+        hasPrevPage: false,
+      },
+    };
+  }
+}
+
 /**
  * Crée une nouvelle profession
  */
@@ -109,6 +202,34 @@ export async function createProfession(
   } catch (error) {
     console.error("Erreur lors de la création de la profession:", error);
     throw new Error("Impossible de créer la profession");
+  }
+}
+
+/** Met à jour une profession */
+export async function updateProfession(id: string, updates: Partial<Pick<Profession, 'name' | 'category' | 'description'>>): Promise<boolean> {
+  try {
+    const { doc, db, updateDoc, serverTimestamp } = await getFirestore() as any;
+    const ref = doc(db, 'professions', id);
+    const payload: any = { ...updates, updatedAt: serverTimestamp() };
+    if (updates.name) payload.normalizedName = normalizeName(updates.name);
+    await updateDoc(ref, payload);
+    return true;
+  } catch (error) {
+    console.error('Erreur updateProfession:', error);
+    return false;
+  }
+}
+
+/** Supprime une profession */
+export async function deleteProfession(id: string): Promise<boolean> {
+  try {
+    const { doc, db, deleteDoc } = await getFirestore() as any;
+    const ref = doc(db, 'professions', id);
+    await deleteDoc(ref);
+    return true;
+  } catch (error) {
+    console.error('Erreur deleteProfession:', error);
+    return false;
   }
 }
 

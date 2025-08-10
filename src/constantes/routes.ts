@@ -12,6 +12,8 @@ const routes = {
         memberships: '/memberships',
         admin: '/admin',
         settings: '/settings',
+        jobs: '/jobs',
+        companies: '/companies',
     },
     member: {
         home: '/',
