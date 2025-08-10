@@ -82,10 +82,13 @@ export const identitySchema = z.object({
       return uniqueContacts.size === contacts.length
     }, 'Les numéros de téléphone doivent être uniques'),
   
-  email: z.string()
-    .email('Format d\'email invalide')
-    .max(100, 'L\'email ne peut pas dépasser 100 caractères')
-    .optional(),
+  email: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z.string()
+      .email('Format d\'email invalide')
+      .max(100, 'L\'email ne peut pas dépasser 100 caractères')
+      .optional()
+  ),
   
   gender: GenderEnum,
   
@@ -461,6 +464,35 @@ export const adminLoginDefaultValues: AdminLoginFormData = {
   email: '',
   password: ''
 }
+
+// ================== ADMIN CREATE SCHEMA ==================
+export const AdminRoleEnum = z.enum(['SuperAdmin', 'Admin', 'Secretary'])
+
+export const adminCreateSchema = z.object({
+  civility: CivilityEnum,
+  lastName: z.string()
+    .min(2, 'Le nom doit contenir au moins 2 caractères')
+    .max(50, 'Le nom ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+  firstName: z.string()
+    .min(2, 'Le prénom doit contenir au moins 2 caractères')
+    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+  birthDate: z.string().min(1, 'La date de naissance est requise'),
+  gender: GenderEnum,
+  email: z.string().email('Format d\'email invalide').optional(),
+  contacts: z.array(
+    z.string()
+      .min(8, 'Le numéro de téléphone doit contenir au moins 8 chiffres')
+      .max(15, 'Le numéro de téléphone ne peut pas dépasser 15 chiffres')
+      .regex(/^[\+]?[0-9\s\-\(\)]+$/, 'Format de téléphone invalide')
+  ).length(1, 'Un seul numéro de téléphone est requis'),
+  roles: z.array(AdminRoleEnum).min(1, 'Sélectionnez au moins un rôle'),
+  photoURL: z.string().url('URL invalide').nullable().optional(),
+  photoPath: z.string().nullable().optional(),
+})
+
+export type AdminCreateFormData = z.infer<typeof adminCreateSchema>
 
 // ================== VALEURS PAR DÉFAUT ==================
 export const defaultValues = {

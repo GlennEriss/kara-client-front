@@ -12,7 +12,9 @@ import {
   CheckCircle,
   XCircle,
   FileText,
-  Download
+  Download,
+  Plus,
+  User
 } from 'lucide-react'
 import { useMemberSubscriptions, useMemberWithSubscription } from '@/hooks/useMembers'
 import { Subscription } from '@/types/types'
@@ -54,16 +56,16 @@ const MemberSubscriptionModal = ({ isOpen, onClose, memberId }: MemberSubscripti
     
     if (isValid) {
       return (
-        <Badge className="bg-green-100 text-green-700">
-          <CheckCircle className="h-3 w-3 mr-1" />
+        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+          <CheckCircle className="h-3 w-3 mr-1.5" />
           Actif
         </Badge>
       )
     }
     
     return (
-      <Badge className="bg-red-100 text-red-700">
-        <XCircle className="h-3 w-3 mr-1" />
+      <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
+        <XCircle className="h-3 w-3 mr-1.5" />
         Expiré
       </Badge>
     )
@@ -85,30 +87,56 @@ const MemberSubscriptionModal = ({ isOpen, onClose, memberId }: MemberSubscripti
     }
   }
 
+  const getDaysRemainingColor = (endDate: Date) => {
+    const today = new Date()
+    const diffTime = endDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays < 0) return 'text-rose-600'
+    if (diffDays <= 7) return 'text-orange-600'
+    if (diffDays <= 30) return 'text-yellow-600'
+    return 'text-emerald-600'
+  }
+
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+          <DialogHeader className="pb-6">
             <DialogTitle>Abonnements du membre</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-28" />
+          <div className="space-y-6">
+            {/* Stats skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="p-6">
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-4 w-24" />
+                </Card>
+              ))}
+            </div>
+            
+            {/* Subscriptions skeleton */}
+            <div className="space-y-4">
+              {[...Array(2)].map((_, i) => (
+                <Card key={i} className="p-6">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-start">
+                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-6 w-20" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[...Array(4)].map((_, j) => (
+                        <div key={j} className="space-y-2">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-4 w-24" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                </Card>
+              ))}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -117,170 +145,217 @@ const MemberSubscriptionModal = ({ isOpen, onClose, memberId }: MemberSubscripti
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-[#224D62]">
-            Abonnements de {member?.firstName} {member?.lastName}
-          </DialogTitle>
-          {member && (
-            <p className="text-sm text-gray-600">
-              Matricule: {member.matricule}
-            </p>
-          )}
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+        <DialogHeader className="pb-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
+              <User className="h-5 w-5 text-slate-600" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl font-semibold text-gray-900">
+                {member?.firstName} {member?.lastName}
+              </DialogTitle>
+              {member && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Matricule: {member.matricule}
+                </p>
+              )}
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Résumé */}
+        <div className="space-y-8">
+          {/* Statistiques */}
           {subscriptions && subscriptions.length > 0 && (
-            <Card className="bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5">
-              <CardContent className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-[#224D62]">
-                      {subscriptions.length}
-                    </div>
-                    <p className="text-sm text-gray-600">Total abonnements</p>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-green-600">
-                      {subscriptions.filter(isSubscriptionValid).length}
-                    </div>
-                    <p className="text-sm text-gray-600">Actifs</p>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-red-600">
-                      {subscriptions.filter(s => !isSubscriptionValid(s)).length}
-                    </div>
-                    <p className="text-sm text-gray-600">Expirés</p>
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="p-6 text-center border-0 bg-gradient-to-br from-slate-50 to-slate-100">
+                <div className="text-3xl font-bold text-slate-700 mb-2">
+                  {subscriptions.length}
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-sm text-slate-600 font-medium">Total abonnements</p>
+              </Card>
+              
+              <Card className="p-6 text-center border-0 bg-gradient-to-br from-emerald-50 to-emerald-100">
+                <div className="text-3xl font-bold text-emerald-700 mb-2">
+                  {subscriptions.filter(isSubscriptionValid).length}
+                </div>
+                <p className="text-sm text-emerald-700 font-medium">Actifs</p>
+              </Card>
+              
+              <Card className="p-6 text-center border-0 bg-gradient-to-br from-rose-50 to-rose-100">
+                <div className="text-3xl font-bold text-rose-700 mb-2">
+                  {subscriptions.filter(s => !isSubscriptionValid(s)).length}
+                </div>
+                <p className="text-sm text-rose-700 font-medium">Expirés</p>
+              </Card>
+            </div>
           )}
 
           {/* Liste des abonnements */}
           {subscriptions && subscriptions.length > 0 ? (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Historique des abonnements
-              </h3>
-              
-              {subscriptions.map((subscription, index) => (
-                <Card 
-                  key={subscription.id} 
-                  className={`transition-all duration-200 hover:shadow-md ${
-                    index === 0 && isSubscriptionValid(subscription) 
-                      ? 'border-green-200 bg-green-50/50' 
-                      : 'border-gray-200'
-                  }`}
-                >
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold text-gray-900">
-                        Abonnement {subscription.type}
-                        {index === 0 && (
-                          <Badge variant="secondary" className="ml-2">
-                            Le plus récent
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      {getSubscriptionStatusBadge(subscription)}
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-4">
-                    {/* Informations principales */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-[#224D62]" />
-                        <div>
-                          <p className="text-xs text-gray-500">Date de début</p>
-                          <p className="font-medium">{formatShortDate(subscription.dateStart)}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-[#CBB171]" />
-                        <div>
-                          <p className="text-xs text-gray-500">Date de fin</p>
-                          <p className="font-medium">{formatShortDate(subscription.dateEnd)}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <CreditCard className="h-4 w-4 text-green-600" />
-                        <div>
-                          <p className="text-xs text-gray-500">Montant</p>
-                          <p className="font-medium">
-                            {subscription.montant} {subscription.currency}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-xs text-gray-500">Statut</p>
-                          <p className="font-medium text-sm">
-                            {getDaysRemaining(subscription.dateEnd)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Période de validité */}
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm text-gray-700">
-                        <span className="font-medium">Période de validité:</span> Du{' '}
-                        {formatDate(subscription.dateStart)} au{' '}
-                        {formatDate(subscription.dateEnd)}
-                      </p>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex space-x-2 pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        Voir fiche d'adhésion
-                      </Button>
-                      
-                      {isSubscriptionValid(subscription) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white"
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Télécharger certificat
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="text-center p-8">
-              <div className="space-y-4">
-                <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Calendar className="h-8 w-8 text-gray-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Aucun abonnement trouvé
-                  </h3>
-                  <p className="text-gray-500 mt-1">
-                    Ce membre n'a pas encore d'abonnement enregistré.
-                  </p>
-                </div>
-                <Button className="bg-[#224D62] hover:bg-[#224D62]/90">
-                  Créer un abonnement
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Historique des abonnements
+                </h3>
+                <Button className="bg-slate-900 hover:bg-slate-800 text-white">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouvel abonnement
                 </Button>
               </div>
+              
+              <div className="space-y-4">
+                {subscriptions.map((subscription, index) => {
+                  const isActive = isSubscriptionValid(subscription)
+                  return (
+                    <Card 
+                      key={subscription.id} 
+                      className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-0 ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-emerald-50 to-emerald-50/50 ring-1 ring-emerald-200' 
+                          : 'bg-white shadow-sm border border-gray-100'
+                      }`}
+                    >
+                      {/* Indicateur visuel pour abonnement actif */}
+                      {isActive && (
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
+                      )}
+                      
+                      <CardContent className="p-6">
+                        {/* En-tête */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-3 w-3 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                            <div>
+                              <h4 className="text-lg font-semibold text-gray-900">
+                                Abonnement {subscription.type}
+                              </h4>
+                              {index === 0 && (
+                                <Badge variant="secondary" className="text-xs mt-1">
+                                  Le plus récent
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          {getSubscriptionStatusBadge(subscription)}
+                        </div>
+
+                        {/* Informations principales */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                              <Calendar className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                                Date de début
+                              </p>
+                              <p className="font-semibold text-gray-900 truncate">
+                                {formatShortDate(subscription.dateStart)}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                              <Calendar className="h-4 w-4 text-amber-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                                Date de fin
+                              </p>
+                              <p className="font-semibold text-gray-900 truncate">
+                                {formatShortDate(subscription.dateEnd)}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                              <CreditCard className="h-4 w-4 text-emerald-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                                Montant
+                              </p>
+                              <p className="font-semibold text-gray-900 truncate">
+                                {subscription.montant} {subscription.currency}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                              <Clock className="h-4 w-4 text-purple-600" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                                Statut
+                              </p>
+                              <p className={`font-semibold text-sm truncate ${getDaysRemainingColor(subscription.dateEnd)}`}>
+                                {getDaysRemaining(subscription.dateEnd)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Période de validité */}
+                        <div className="bg-gray-50 p-4 rounded-xl mb-6">
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium">Période de validité:</span> Du{' '}
+                            <span className="font-semibold">{formatDate(subscription.dateStart)}</span> au{' '}
+                            <span className="font-semibold">{formatDate(subscription.dateEnd)}</span>
+                          </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Button
+                            variant="outline"
+                            className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Voir fiche d'adhésion
+                          </Button>
+                          
+                          {isActive && (
+                            <Button
+                              variant="outline"
+                              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Télécharger certificat
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            // État vide
+            <Card className="border-0 bg-gradient-to-br from-gray-50 to-gray-100 ">
+              <CardContent className="text-center py-16 px-6">
+                <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
+                  <Calendar className="h-10 w-10 text-gray-400" />
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      Aucun abonnement trouvé
+                    </h3>
+                    <p className="text-gray-600 max-w-md mx-auto">
+                      Ce membre n'a pas encore d'abonnement enregistré. Créez-en un pour commencer.
+                    </p>
+                  </div>
+                  <Button className="bg-slate-900 hover:bg-slate-800 text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer un abonnement
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           )}
         </div>

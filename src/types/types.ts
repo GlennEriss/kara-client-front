@@ -340,7 +340,7 @@ export type MembershipType = 'adherant' | 'bienfaiteur' | 'sympathisant'
 /**
  * Types de rôles possibles pour un utilisateur
  */
-export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin'
+export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin' | 'SuperAdmin' | 'Secretary'
 
 /**
  * Type pour un utilisateur dans la collection users
@@ -552,5 +552,7 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   Adherant: 'Adhérant',
   Bienfaiteur: 'Bienfaiteur',
   Sympathisant: 'Sympathisant',
-  Admin: 'Administrateur'
+  Admin: 'Administrateur',
+  SuperAdmin: 'Super Administrateur',
+  Secretary: 'Secrétaire'
 }
