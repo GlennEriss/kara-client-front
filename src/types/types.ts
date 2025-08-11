@@ -96,6 +96,11 @@ export interface MembershipRequest extends RegisterFormData {
   // Numéro de membre attribué (si approuvé)
   memberNumber?: string
   reviewNote?: string;  
+  // Motif de rejet (raison fournie par l'admin)
+  motifReject?: string;
+  // Paiements
+  isPaid?: boolean
+  payments?: Payment[]
   // Code de sécurité pour accéder aux corrections
   securityCode?: string;
   // Date d'expiration du code de sécurité
@@ -105,6 +110,16 @@ export interface MembershipRequest extends RegisterFormData {
   // Score de priorité (pour le tri)
   priorityScore?: number
 }
+
+export interface Payment {
+  date: Date
+  mode: 'airtel_money' | 'mobicash'
+  amount: number
+  acceptedBy: string
+  paymentType: TypePayment
+}
+
+export type TypePayment = 'Membership' | 'Subscription' | 'Tontine' | 'Charity'
 
 /**
  * Type pour la liste des demandes avec pagination
@@ -556,3 +571,6 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   SuperAdmin: 'Super Administrateur',
   Secretary: 'Secrétaire'
 }
+
+// Rôles considérés comme administrateurs
+export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary']

@@ -1,8 +1,8 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,8 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
-import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
+import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, usePayMembershipRequest, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
+import type { MembershipRequest, MembershipRequestStatus, TypePayment } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
 import MemberDetailsModal from './MemberDetailsModal'
@@ -189,6 +189,153 @@ const StatsCard = ({
   )
 }
 
+// Hook personnalisé pour le carousel avec drag/swipe
+const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState(0)
+  const [translateX, setTranslateX] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const maxIndex = Math.max(0, itemCount - itemsPerView)
+
+  const goTo = (index: number) => {
+    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
+    setCurrentIndex(clampedIndex)
+    setTranslateX(-clampedIndex * (100 / itemsPerView))
+  }
+
+  const goNext = () => goTo(currentIndex + 1)
+  const goPrev = () => goTo(currentIndex - 1)
+
+  const handleStart = (clientX: number) => {
+    setIsDragging(true)
+    setStartPos(clientX)
+  }
+  const handleMove = (clientX: number) => {
+    if (!isDragging || !containerRef.current) return
+    const diff = clientX - startPos
+    const containerWidth = containerRef.current.offsetWidth
+    const percentage = (diff / containerWidth) * 100
+    const maxDrag = 30
+    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
+    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
+  }
+  const handleEnd = () => {
+    if (!isDragging || !containerRef.current) return
+    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
+    const threshold = 15
+    if (dragDistance > threshold && currentIndex > 0) {
+      goPrev()
+    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
+      goNext()
+    } else {
+      setTranslateX(-currentIndex * (100 / itemsPerView))
+    }
+    setIsDragging(false)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => { e.preventDefault(); handleStart(e.clientX) }
+  const handleMouseMove = (e: React.MouseEvent) => { handleMove(e.clientX) }
+  const handleMouseUp = () => { handleEnd() }
+  const handleTouchStart = (e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }
+  const handleTouchMove = (e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }
+  const handleTouchEnd = () => { handleEnd() }
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
+    const handleGlobalMouseUp = () => handleEnd()
+    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+
+  return {
+    currentIndex,
+    goTo,
+    goNext,
+    goPrev,
+    canGoPrev: currentIndex > 0,
+    canGoNext: currentIndex < maxIndex,
+    translateX,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    isDragging,
+  }
+}
+
+const StatsCarousel = ({ stats }: { stats: any }) => {
+  const statsData = [
+    { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: Users },
+    { title: 'En attente', value: stats.pending, percentage: stats.pendingPercentage, color: '#f59e0b', icon: Clock, trend: 'up' as const },
+    { title: 'Approuvées', value: stats.approved, percentage: stats.approvedPercentage, color: '#10b981', icon: UserCheck, trend: 'up' as const },
+    { title: 'Rejetées', value: stats.rejected, percentage: stats.rejectedPercentage, color: '#ef4444', icon: UserX, trend: 'down' as const },
+    { title: 'En cours', value: stats.underReview, percentage: stats.underReviewPercentage, color: '#3b82f6', icon: Eye },
+  ]
+
+  const [itemsPerView, setItemsPerView] = useState(1)
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth
+      if (w >= 1280) setItemsPerView(4)
+      else if (w >= 1024) setItemsPerView(3)
+      else if (w >= 768) setItemsPerView(2)
+      else setItemsPerView(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+
+  return (
+    <div className="relative">
+      <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goPrev} disabled={!canGoPrev}>
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
+      </div>
+      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goNext} disabled={!canGoNext}>
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      </div>
+
+      <div ref={containerRef} className="overflow-hidden px-12 py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
+          {statsData.map((stat, index) => (
+            <div key={index} className="flex-shrink-0" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
+              <StatsCard {...stat} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-center mt-4 space-x-2">
+        {Array.from({ length: Math.ceil(statsData.length / itemsPerView) }).map((_, index) => (
+          <button key={index} className={cn('w-2 h-2 rounded-full transition-all duration-300', Math.floor(currentIndex / itemsPerView) === index ? 'bg-[#234D65] w-8' : 'bg-gray-300 hover:bg-gray-400')} onClick={() => {
+            const targetIndex = index * itemsPerView
+            const clampedIndex = Math.min(targetIndex, statsData.length - itemsPerView)
+            const maxIndex = Math.max(0, statsData.length - itemsPerView)
+            const finalIndex = Math.max(0, Math.min(clampedIndex, maxIndex))
+            goTo(finalIndex)
+          }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Composant pour le squelette de chargement avec animations
 const MembershipRequestSkeleton = () => (
   <Card className="animate-pulse">
@@ -243,6 +390,13 @@ const MembershipRequestCard = ({
   const [companyName, setCompanyName] = React.useState<string>('')
   const [professionName, setProfessionName] = React.useState<string>('')
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
+  const [rejectReason, setRejectReason] = React.useState<string>('')
+  const [paymentOpen, setPaymentOpen] = React.useState(false)
+  const [paymentDate, setPaymentDate] = React.useState<string>('')
+  const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
+  const [paymentAmount, setPaymentAmount] = React.useState<string>('')
+  const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
+  const payMutation = usePayMembershipRequest()
   
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
   const [professionExists, setProfessionExists] = React.useState<boolean>(false)
@@ -350,7 +504,8 @@ const MembershipRequestCard = ({
         requestId: request.id!,
         newStatus: status,
         reviewedBy: user?.uid || 'unknown-admin',
-        reviewNote: correctionsList.trim() || undefined
+        reviewNote: correctionsList.trim() || undefined,
+        motifReject: confirmationAction.type === 'reject' ? rejectReason.trim() : undefined,
       })
 
       if (confirmationAction.type === 'reject') {
@@ -456,6 +611,11 @@ const MembershipRequestCard = ({
             {/* Actions */}
             <div className="flex items-center space-x-3">
               {getStatusBadge(request.status)}
+              {request.isPaid ? (
+                <Badge className="bg-green-100 text-green-700 border-green-200">Payé</Badge>
+              ) : (
+                <Badge className="bg-red-100 text-red-700 border-red-200">Non payé</Badge>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110">
@@ -484,6 +644,15 @@ const MembershipRequestCard = ({
                     <IdCard className="w-4 h-4 text-purple-600" />
                     <span>Voir la pièce d'identité</span>
                   </DropdownMenuItem>
+                  {!request.isPaid && (
+                    <DropdownMenuItem
+                      onClick={() => setPaymentOpen(true)}
+                      className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      <span>Payer</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -554,7 +723,7 @@ const MembershipRequestCard = ({
                 size="sm"
                 className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
                 onClick={() => openConfirmation('approve')}
-                disabled={isApproving}
+                disabled={isApproving || !request.isPaid}
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
                 {isApproving ? 'Approbation...' : 'Approuver'}
@@ -726,6 +895,81 @@ const MembershipRequestCard = ({
         request={request}
       />
 
+      {/* Modal Paiement */}
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="sm:max-w-md shadow-2xl border-0">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">Renseigner le paiement</DialogTitle>
+            <DialogDescription className="text-gray-600">Veuillez saisir les informations de paiement</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Type de paiement</label>
+              <Select value={paymentType} onValueChange={(val) => setPaymentType(val as any)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Type de paiement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Membership">Adhésion</SelectItem>
+                  <SelectItem value="Subscription">Abonnement</SelectItem>
+                  <SelectItem value="Tontine">Tontine</SelectItem>
+                  <SelectItem value="Charity">Charité</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Date de paiement</label>
+              <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
+              <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choisir un mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                  <SelectItem value="mobicash">Mobicash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Montant</label>
+              <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" className="h-10" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentOpen(false)}>Annuler</Button>
+            <Button
+              onClick={async () => {
+                if (!paymentDate || !paymentMode || !paymentAmount || !paymentType) {
+                  toast.error('Champs requis', { description: 'Veuillez remplir tous les champs de paiement.' })
+                  return
+                }
+                try {
+                  await payMutation.mutateAsync({
+                    requestId: request.id!,
+                    payment: {
+                      date: new Date(paymentDate),
+                      mode: paymentMode,
+                      amount: Number(paymentAmount),
+                      acceptedBy: user?.uid || 'unknown-admin',
+                      paymentType,
+                    },
+                  })
+                  toast.success('Paiement enregistré')
+                  setPaymentOpen(false)
+                } catch (e: any) {
+                  toast.error('Erreur de paiement')
+                }
+              }}
+            >
+              Valider
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de confirmation avec design amélioré */}
       <Dialog open={confirmationAction.isOpen} onOpenChange={closeConfirmation}>
         <DialogContent className="sm:max-w-md shadow-2xl border-0">
@@ -879,6 +1123,29 @@ const MembershipRequestCard = ({
             </div>
           )}
 
+          {confirmationAction.type === 'reject' && (
+            <div className="py-4 space-y-4">
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-red-700">
+                  Motif du rejet <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Expliquez précisément la cause du rejet..."
+                  className="w-full min-h-[120px] p-4 border-2 border-red-200 focus:border-red-400 rounded-xl resize-none"
+                  required
+                />
+                {!rejectReason.trim() && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Le motif du rejet est obligatoire
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <DialogFooter className="flex-col-reverse sm:flex-row gap-3">
             <Button 
               variant="outline" 
@@ -892,7 +1159,8 @@ const MembershipRequestCard = ({
               disabled={
                 isApproving ||
                 (confirmationAction.type === 'approve' && !membershipType) ||
-                (confirmationAction.type === 'under_review' && !correctionsList.trim())
+                (confirmationAction.type === 'under_review' && !correctionsList.trim()) ||
+                (confirmationAction.type === 'reject' && !rejectReason.trim())
               }
               className={cn(
                 "h-12 px-6 text-white border-0 font-medium shadow-lg hover:shadow-xl transition-all duration-300",
@@ -1007,41 +1275,8 @@ export default function MembershipRequestsList() {
         </p>
       </div>
 
-      {/* Statistiques compactes avec graphiques */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard
-            title="Total"
-            value={stats.total}
-            percentage={100}
-            color="#6b7280"
-            icon={Users}
-          />
-          <StatsCard
-            title="En attente"
-            value={stats.pending}
-            percentage={stats.pendingPercentage}
-            color="#f59e0b"
-            icon={Clock}
-            trend="up"
-          />
-          <StatsCard
-            title="Approuvées"
-            value={stats.approved}
-            percentage={stats.approvedPercentage}
-            color="#10b981"
-            icon={UserCheck}
-            trend="up"
-          />
-          <StatsCard
-            title="En cours"
-            value={stats.underReview}
-            percentage={stats.underReviewPercentage}
-            color="#3b82f6"
-            icon={Eye}
-          />
-        </div>
-      )}
+      {/* Statistiques avec nouveau carousel */}
+      {stats && <StatsCarousel stats={stats} />}
 
       {/* Filtres et recherche avec design moderne */}
       <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">

@@ -9,7 +9,8 @@ import {
   PaginatedMembers,
   MemberWithSubscription
 } from '@/db/member.db'
-import { UserFilters, Subscription, UserStats, MembershipRequest } from '@/types/types'
+import { getUserById } from '@/db/user.db'
+import { User, UserFilters, Subscription, UserStats, MembershipRequest } from '@/types/types'
 
 /**
  * Hook pour récupérer la liste des membres avec pagination et filtres
@@ -48,6 +49,18 @@ export function useMemberSubscriptions(userId: string) {
     queryFn: () => getMemberSubscriptions(userId),
     enabled: !!userId,
     staleTime: 3 * 60 * 1000, // 3 minutes
+  })
+}
+
+/**
+ * Hook pour récupérer un utilisateur par son ID/matricule
+ */
+export function useUser(userId: string) {
+  return useQuery<User | null>({
+    queryKey: ['user', userId],
+    queryFn: () => getUserById(userId),
+    enabled: !!userId,
+    staleTime: 3 * 60 * 1000,
   })
 }
 

@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { 
   Users, 
   RefreshCw, 
@@ -14,20 +13,17 @@ import {
   AlertCircle,
   FileDown,
   Plus,
-  Search,
   TrendingUp,
   UserCheck,
   UserX,
   Clock,
   Zap,
   Target,
-  Activity
 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { useMembers } from '@/hooks/useMembers'
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'
-import MemberStats from './MemberStats'
 import MemberFilters from './MemberFilters'
 import MemberCard from './MemberCard'
 import MemberSubscriptionModal from './MemberSubscriptionModal'
@@ -38,14 +34,6 @@ import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, 
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 
 type ViewMode = 'grid' | 'list'
-
-// Couleurs pour les graphiques
-const CHART_COLORS = {
-  active: '#10b981',
-  inactive: '#ef4444', 
-  pending: '#f59e0b',
-  expired: '#8b5cf6'
-}
 
 // Composant pour les statistiques modernes
 const ModernStatsCard = ({ 
@@ -530,7 +518,7 @@ const MembershipList = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="md:flex flex-wrap items-center gap-3 hidden">
               {/* Boutons de vue modernes */}
               <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
                 <Button

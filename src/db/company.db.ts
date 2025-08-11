@@ -113,6 +113,125 @@ export async function createCompany(
   }
 }
 
+export interface CompaniesFilters {
+  search?: string
+}
+
+export interface PaginatedCompanies {
+  data: Company[]
+  pagination: {
+    currentPage: number
+    totalPages: number
+    totalItems: number
+    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+  }
+}
+
+/**
+ * Récupère les entreprises avec recherche et pagination (page-based)
+ */
+export async function getCompaniesPaginated(
+  filters: CompaniesFilters = {},
+  page: number = 1,
+  limit: number = 12
+): Promise<PaginatedCompanies> {
+  try {
+    const { collection, db, getDocs, query, orderBy, where, getCountFromServer } = await getFirestore() as any;
+    const colRef = collection(db, 'companies');
+    const constraints: any[] = [];
+
+    if (filters.search && filters.search.trim().length > 0) {
+      const normalized = normalizeName(filters.search);
+      constraints.push(where('normalizedName', '>=', normalized));
+      constraints.push(where('normalizedName', '<=', normalized + '\uf8ff'));
+      constraints.push(orderBy('normalizedName', 'asc'));
+    } else {
+      constraints.push(orderBy('createdAt', 'desc'));
+    }
+
+    const q = query(colRef, ...constraints);
+    const [snap] = await Promise.all([
+      getDocs(q),
+      // getCountFromServer could be used for total collection, but we want filtered total
+    ]);
+
+    const all: Company[] = [];
+    snap.forEach((doc: any) => {
+      const data = doc.data();
+      all.push({
+        id: doc.id,
+        name: data.name,
+        normalizedName: data.normalizedName,
+        address: data.address,
+        industry: data.industry,
+        employeeCount: data.employeeCount,
+        createdAt: data.createdAt?.toDate?.() ?? new Date(),
+        updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
+        createdBy: data.createdBy,
+      });
+    });
+
+    const totalItems = all.length;
+    const startIndex = (page - 1) * limit;
+    const pageData = all.slice(startIndex, startIndex + limit);
+
+    return {
+      data: pageData,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.max(1, Math.ceil(totalItems / limit)),
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: startIndex + limit < totalItems,
+        hasPrevPage: page > 1,
+      },
+    };
+  } catch (error) {
+    console.error('Erreur lors de la récupération des entreprises:', error);
+    return {
+      data: [],
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        itemsPerPage: limit,
+        hasNextPage: false,
+        hasPrevPage: false,
+      },
+    };
+  }
+}
+
+/** Met à jour une entreprise */
+export async function updateCompany(id: string, updates: Partial<Pick<Company, 'name' | 'address' | 'industry'>>): Promise<boolean> {
+  try {
+    const { doc, db, updateDoc, serverTimestamp } = await getFirestore() as any;
+    const ref = doc(db, 'companies', id);
+    const payload: any = { ...updates, updatedAt: serverTimestamp() };
+    if (updates.name) payload.normalizedName = normalizeName(updates.name);
+    await updateDoc(ref, payload);
+    return true;
+  } catch (error) {
+    console.error('Erreur updateCompany:', error);
+    return false;
+  }
+}
+
+/** Supprime une entreprise */
+export async function deleteCompany(id: string): Promise<boolean> {
+  try {
+    const { doc, db, deleteDoc } = await getFirestore() as any;
+    const ref = doc(db, 'companies', id);
+    await deleteDoc(ref);
+    return true;
+  } catch (error) {
+    console.error('Erreur deleteCompany:', error);
+    return false;
+  }
+}
+
 /**
  * Recherche une profession par nom
  */
