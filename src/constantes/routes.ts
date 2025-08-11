@@ -10,8 +10,16 @@ const routes = {
         membershipRequests: '/membership-requests',
         membershipRequestDetails: (id: string) => `/membership-requests/${id}`,
         memberships: '/memberships',
+        membershipDetails: (id: string) => `/memberships/${id}`,
         admin: '/admin',
         settings: '/settings',
+        jobs: '/jobs',
+        companies: '/companies',
+        paymentsHistory: '/payments-history',
+        paymentsHistoryDetails: (id: string) => `/payments-history/${id}`,
+    },
+    member: {
+        home: '/',
     }
 }
 

@@ -8,7 +8,9 @@ import { NavbarLogo, FooterLogo } from '@/components/logo'
 import './homepage.css'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
+import { useAuth } from '@/hooks/useAuth'
 const Homepage = () => {
+  const { user } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [expandedTexts, setExpandedTexts] = useState<Record<string, boolean>>({})
@@ -27,7 +29,7 @@ const Homepage = () => {
       // Calculer la position avec offset pour la navbar fixe
       const navbarHeight = 100 // Hauteur approximative de la navbar + padding
       const elementPosition = element.offsetTop - navbarHeight
-      
+
       window.scrollTo({
         top: elementPosition,
         behavior: 'smooth'
@@ -59,7 +61,6 @@ const Homepage = () => {
     className?: string
   }) => {
     const isExpanded = expandedTexts[id]
-
     return (
       <div>
         <p className={className}>
@@ -90,7 +91,7 @@ const Homepage = () => {
         }`}>
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center">
-            <NavbarLogo 
+            <NavbarLogo
               size="lg"
               isScrolled={isScrolled}
               clickable
@@ -118,7 +119,7 @@ const Homepage = () => {
                 }
                 onClick={() => router.push(routes.public.login)}
               >
-                Se connecter
+                {user ? 'Mon espace' : 'Se connecter'}
               </Button>
             </div>
 
@@ -434,7 +435,7 @@ const Homepage = () => {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
-              <FooterLogo 
+              <FooterLogo
                 size="lg"
                 className="mb-4"
                 clickable

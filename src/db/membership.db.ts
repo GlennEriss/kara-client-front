@@ -7,7 +7,7 @@ import { RegisterFormData } from "@/types/schemas";
 import { createModel } from "./generic.db";
 import { uploadProfilePhoto, uploadDocumentPhoto } from "./upload-image.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
-import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipRequests } from "@/types/types";
+import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipRequests, Payment } from "@/types/types";
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -454,7 +454,8 @@ export async function updateMembershipRequestStatus(
     requestId: string,
     newStatus: MembershipRequestStatus,
     reviewedBy?: string,
-    reviewNote?: string
+    reviewNote?: string,
+    motifReject?: string
 ): Promise<boolean> {
     try {
         const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
@@ -475,10 +476,44 @@ export async function updateMembershipRequestStatus(
             updates['securityCodeExpiry'] = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
         }
 
+        // Enregistrer le motif du rejet si statut rejeté
+        if (newStatus === 'rejected') {
+            updates['motifReject'] = (motifReject || '').trim();
+        }
+
         await updateDoc(docRef, updates);
         return true;
     } catch (error) {
         console.error("Erreur lors de la mise à jour du statut:", error);
+        return false;
+    }
+}
+
+/**
+ * Met à jour les informations de paiement d'une demande
+ */
+export async function updateMembershipPayment(
+    requestId: string,
+    payment: Payment
+): Promise<boolean> {
+    try {
+        const { db, doc, updateDoc, serverTimestamp, arrayUnion } = await getFirestore() as any;
+        const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+        // Append atomiquement via arrayUnion (sans setter payments à undefined)
+        await updateDoc(docRef, {
+          isPaid: true,
+          payments: arrayUnion({
+            date: payment.date,
+            mode: payment.mode,
+            amount: payment.amount,
+            acceptedBy: payment.acceptedBy,
+            paymentType: payment.paymentType,
+          }),
+          updatedAt: serverTimestamp(),
+        })
+        return true;
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour du paiement:', error);
         return false;
     }
 }

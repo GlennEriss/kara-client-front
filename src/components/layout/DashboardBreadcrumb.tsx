@@ -11,13 +11,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import routes from '@/constantes/routes'
 
 // Mapping des routes vers leurs labels pour le breadcrumb
 const routeLabels: Record<string, string> = {
   '/dashboard': 'Tableau de bord',
   '/membership-requests': 'Demandes d\'adhésion',
   '/memberships': 'Membres',
+  '/admin': 'Administrateurs',
+  '/settings': 'Paramètres',
+  '/jobs': 'Métiers',
+  '/companies': 'Entreprises',
+  '/payments-history': 'Historique des paiements',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -29,6 +33,12 @@ const getRouteLabel = (path: string): string => {
 
   // Gestion spéciale pour les routes avec ID
   if (path.match(/^\/membership-requests\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/memberships\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/payments-history\/[^\/]+$/)) {
     return 'Détails'
   }
 

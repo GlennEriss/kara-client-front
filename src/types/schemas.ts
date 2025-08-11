@@ -445,6 +445,26 @@ export const memberLoginDefaultValues: MemberLoginFormData = {
   phoneNumber: ''
 }
 
+// ================== MEMBER TWO-STEP LOGIN (Matricule + Téléphone) ==================
+export const memberTwoStepLoginSchema = z.object({
+  matricule: z
+    .string()
+    .min(3, 'Le matricule doit contenir au moins 3 caractères'),
+  phoneNumber: z
+    .string()
+    .min(8, 'Le numéro de téléphone doit contenir au moins 8 chiffres')
+    .max(15, 'Le numéro de téléphone ne peut pas dépasser 15 chiffres')
+    .regex(/^[+]?[\d\s\-()]+$/, 'Format de numéro de téléphone invalide')
+    .transform(val => val.replace(/\s/g, '')),
+})
+
+export type MemberTwoStepLoginFormData = z.infer<typeof memberTwoStepLoginSchema>
+
+export const memberTwoStepLoginDefaultValues: MemberTwoStepLoginFormData = {
+  matricule: '',
+  phoneNumber: '+241'
+}
+
 // ================== ADMIN LOGIN SCHEMA ==================
 export const adminLoginSchema = z.object({
   email: z.string()
@@ -467,6 +487,25 @@ export const adminLoginDefaultValues: AdminLoginFormData = {
 
 // ================== ADMIN CREATE SCHEMA ==================
 export const AdminRoleEnum = z.enum(['SuperAdmin', 'Admin', 'Secretary'])
+// ================== JOB (PROFESSION) SCHEMA ==================
+export const jobSchema = z.object({
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(100),
+  description: z.string().optional(),
+})
+export type JobFormData = z.infer<typeof jobSchema>
+
+// ================== COMPANY CRUD SCHEMA (admin -> companies) ==================
+export const companyCrudSchema = z.object({
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(120),
+  industry: z.string().optional(),
+  address: z.object({
+    province: z.string().optional(),
+    city: z.string().optional(),
+    district: z.string().optional(),
+  }).optional(),
+})
+export type CompanyCrudFormData = z.infer<typeof companyCrudSchema>
+
 
 export const adminCreateSchema = z.object({
   civility: CivilityEnum,
