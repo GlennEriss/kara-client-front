@@ -1060,6 +1060,14 @@ export default function MembershipRequestsList() {
             trend="up"
           />
           <StatsCard
+            title="Rejetées"
+            value={stats.rejected}
+            percentage={stats.rejectedPercentage}
+            color="#ef4444"
+            icon={UserX}
+            trend="down"
+          />
+          <StatsCard
             title="En cours"
             value={stats.underReview}
             percentage={stats.underReviewPercentage}
