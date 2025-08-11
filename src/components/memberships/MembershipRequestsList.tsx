@@ -243,6 +243,7 @@ const MembershipRequestCard = ({
   const [companyName, setCompanyName] = React.useState<string>('')
   const [professionName, setProfessionName] = React.useState<string>('')
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
+  const [rejectReason, setRejectReason] = React.useState<string>('')
   
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
   const [professionExists, setProfessionExists] = React.useState<boolean>(false)
@@ -350,7 +351,8 @@ const MembershipRequestCard = ({
         requestId: request.id!,
         newStatus: status,
         reviewedBy: user?.uid || 'unknown-admin',
-        reviewNote: correctionsList.trim() || undefined
+        reviewNote: correctionsList.trim() || undefined,
+        motifReject: confirmationAction.type === 'reject' ? rejectReason.trim() : undefined,
       })
 
       if (confirmationAction.type === 'reject') {
@@ -879,6 +881,29 @@ const MembershipRequestCard = ({
             </div>
           )}
 
+          {confirmationAction.type === 'reject' && (
+            <div className="py-4 space-y-4">
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-red-700">
+                  Motif du rejet <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Expliquez précisément la cause du rejet..."
+                  className="w-full min-h-[120px] p-4 border-2 border-red-200 focus:border-red-400 rounded-xl resize-none"
+                  required
+                />
+                {!rejectReason.trim() && (
+                  <p className="text-sm text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Le motif du rejet est obligatoire
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <DialogFooter className="flex-col-reverse sm:flex-row gap-3">
             <Button 
               variant="outline" 
@@ -892,7 +917,8 @@ const MembershipRequestCard = ({
               disabled={
                 isApproving ||
                 (confirmationAction.type === 'approve' && !membershipType) ||
-                (confirmationAction.type === 'under_review' && !correctionsList.trim())
+                (confirmationAction.type === 'under_review' && !correctionsList.trim()) ||
+                (confirmationAction.type === 'reject' && !rejectReason.trim())
               }
               className={cn(
                 "h-12 px-6 text-white border-0 font-medium shadow-lg hover:shadow-xl transition-all duration-300",

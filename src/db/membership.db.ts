@@ -454,7 +454,8 @@ export async function updateMembershipRequestStatus(
     requestId: string,
     newStatus: MembershipRequestStatus,
     reviewedBy?: string,
-    reviewNote?: string
+    reviewNote?: string,
+    motifReject?: string
 ): Promise<boolean> {
     try {
         const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
@@ -473,6 +474,11 @@ export async function updateMembershipRequestStatus(
             // Générer et sauvegarder un code de sécurité avec expiration (48h)
             updates['securityCode'] = generateSecurityCode();
             updates['securityCodeExpiry'] = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
+        }
+
+        // Enregistrer le motif du rejet si statut rejeté
+        if (newStatus === 'rejected') {
+            updates['motifReject'] = (motifReject || '').trim();
         }
 
         await updateDoc(docRef, updates);
