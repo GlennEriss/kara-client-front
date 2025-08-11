@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
+import {
   User,
   Phone,
   Mail,
@@ -29,6 +29,8 @@ import { MemberWithSubscription } from '@/db/member.db'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import routes from '@/constantes/routes'
+import { useRouter } from 'next/navigation'
 
 interface MemberCardProps {
   member: MemberWithSubscription
@@ -37,6 +39,7 @@ interface MemberCardProps {
 }
 
 const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardProps) => {
+  const router = useRouter()
   const [imageError, setImageError] = useState(false)
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -94,8 +97,8 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
           <div className="flex items-center justify-between">
             <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-[#224D62]/20 flex-shrink-0">
               {member.photoURL && !imageError ? (
-                <AvatarImage 
-                  src={member.photoURL} 
+                <AvatarImage
+                  src={member.photoURL}
                   alt={`${member.firstName} ${member.lastName}`}
                   onError={() => setImageError(true)}
                 />
@@ -109,16 +112,16 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
             {/* Menu actions - toujours à droite, jamais poussé */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-8 w-8 p-0 flex-shrink-0"
                 >
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44 sm:w-48">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.membershipDetails(member.id!))}>
                   <Eye className="h-4 w-4 mr-2" />
                   Voir détails
                 </DropdownMenuItem>
@@ -131,6 +134,10 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
                   <FileText className="h-4 w-4 mr-2" />
                   Fiche d'adhésion
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.paymentsHistoryDetails(member.dossier))}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Historique des paiements
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -142,21 +149,21 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
                 {member.firstName} {member.lastName}
               </span>
             </h3>
-            
+
             {/* Matricule */}
             <p className="text-xs sm:text-sm text-gray-600 truncate">
               {member.matricule}
             </p>
-            
+
             {/* Badges - layout horizontal */}
             <div className="flex flex-wrap gap-2 items-center">
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className={`text-xs ${getMembershipTypeColor(member.membershipType)}`}
               >
                 {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
               </Badge>
-              
+
               {/* Badge abonnement - toujours visible */}
               <Badge className={`text-xs ${subscriptionStatus.color}`}>
                 {subscriptionStatus.label}
@@ -193,7 +200,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
               <span className="truncate">{member.contacts[0]}</span>
             </div>
           )}
-          
+
           {member.email && (
             <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
               <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
@@ -229,7 +236,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onViewDetails(member.id)}
+              onClick={() => router.push(routes.admin.membershipDetails(member.id!))}
               className="w-full text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white"
             >
               <User className="h-4 w-4 mr-2" />
@@ -251,7 +258,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onViewDetails(member.id)}
+              onClick={() => router.push(routes.admin.membershipDetails(member.id!))}
               className="text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white text-xs lg:text-sm px-3"
             >
               <User className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
