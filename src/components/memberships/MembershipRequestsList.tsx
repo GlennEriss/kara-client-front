@@ -1,8 +1,8 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -186,6 +186,153 @@ const StatsCard = ({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// Hook personnalisé pour le carousel avec drag/swipe
+const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState(0)
+  const [translateX, setTranslateX] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const maxIndex = Math.max(0, itemCount - itemsPerView)
+
+  const goTo = (index: number) => {
+    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
+    setCurrentIndex(clampedIndex)
+    setTranslateX(-clampedIndex * (100 / itemsPerView))
+  }
+
+  const goNext = () => goTo(currentIndex + 1)
+  const goPrev = () => goTo(currentIndex - 1)
+
+  const handleStart = (clientX: number) => {
+    setIsDragging(true)
+    setStartPos(clientX)
+  }
+  const handleMove = (clientX: number) => {
+    if (!isDragging || !containerRef.current) return
+    const diff = clientX - startPos
+    const containerWidth = containerRef.current.offsetWidth
+    const percentage = (diff / containerWidth) * 100
+    const maxDrag = 30
+    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
+    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
+  }
+  const handleEnd = () => {
+    if (!isDragging || !containerRef.current) return
+    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
+    const threshold = 15
+    if (dragDistance > threshold && currentIndex > 0) {
+      goPrev()
+    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
+      goNext()
+    } else {
+      setTranslateX(-currentIndex * (100 / itemsPerView))
+    }
+    setIsDragging(false)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => { e.preventDefault(); handleStart(e.clientX) }
+  const handleMouseMove = (e: React.MouseEvent) => { handleMove(e.clientX) }
+  const handleMouseUp = () => { handleEnd() }
+  const handleTouchStart = (e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }
+  const handleTouchMove = (e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }
+  const handleTouchEnd = () => { handleEnd() }
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
+    const handleGlobalMouseUp = () => handleEnd()
+    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+
+  return {
+    currentIndex,
+    goTo,
+    goNext,
+    goPrev,
+    canGoPrev: currentIndex > 0,
+    canGoNext: currentIndex < maxIndex,
+    translateX,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    isDragging,
+  }
+}
+
+const StatsCarousel = ({ stats }: { stats: any }) => {
+  const statsData = [
+    { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: Users },
+    { title: 'En attente', value: stats.pending, percentage: stats.pendingPercentage, color: '#f59e0b', icon: Clock, trend: 'up' as const },
+    { title: 'Approuvées', value: stats.approved, percentage: stats.approvedPercentage, color: '#10b981', icon: UserCheck, trend: 'up' as const },
+    { title: 'Rejetées', value: stats.rejected, percentage: stats.rejectedPercentage, color: '#ef4444', icon: UserX, trend: 'down' as const },
+    { title: 'En cours', value: stats.underReview, percentage: stats.underReviewPercentage, color: '#3b82f6', icon: Eye },
+  ]
+
+  const [itemsPerView, setItemsPerView] = useState(1)
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth
+      if (w >= 1280) setItemsPerView(4)
+      else if (w >= 1024) setItemsPerView(3)
+      else if (w >= 768) setItemsPerView(2)
+      else setItemsPerView(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+
+  return (
+    <div className="relative">
+      <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goPrev} disabled={!canGoPrev}>
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
+      </div>
+      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goNext} disabled={!canGoNext}>
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      </div>
+
+      <div ref={containerRef} className="overflow-hidden px-12 py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
+          {statsData.map((stat, index) => (
+            <div key={index} className="flex-shrink-0" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
+              <StatsCard {...stat} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-center mt-4 space-x-2">
+        {Array.from({ length: Math.ceil(statsData.length / itemsPerView) }).map((_, index) => (
+          <button key={index} className={cn('w-2 h-2 rounded-full transition-all duration-300', Math.floor(currentIndex / itemsPerView) === index ? 'bg-[#234D65] w-8' : 'bg-gray-300 hover:bg-gray-400')} onClick={() => {
+            const targetIndex = index * itemsPerView
+            const clampedIndex = Math.min(targetIndex, statsData.length - itemsPerView)
+            const maxIndex = Math.max(0, statsData.length - itemsPerView)
+            const finalIndex = Math.max(0, Math.min(clampedIndex, maxIndex))
+            goTo(finalIndex)
+          }} />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1033,49 +1180,8 @@ export default function MembershipRequestsList() {
         </p>
       </div>
 
-      {/* Statistiques compactes avec graphiques */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard
-            title="Total"
-            value={stats.total}
-            percentage={100}
-            color="#6b7280"
-            icon={Users}
-          />
-          <StatsCard
-            title="En attente"
-            value={stats.pending}
-            percentage={stats.pendingPercentage}
-            color="#f59e0b"
-            icon={Clock}
-            trend="up"
-          />
-          <StatsCard
-            title="Approuvées"
-            value={stats.approved}
-            percentage={stats.approvedPercentage}
-            color="#10b981"
-            icon={UserCheck}
-            trend="up"
-          />
-          <StatsCard
-            title="Rejetées"
-            value={stats.rejected}
-            percentage={stats.rejectedPercentage}
-            color="#ef4444"
-            icon={UserX}
-            trend="down"
-          />
-          <StatsCard
-            title="En cours"
-            value={stats.underReview}
-            percentage={stats.underReviewPercentage}
-            color="#3b82f6"
-            icon={Eye}
-          />
-        </div>
-      )}
+      {/* Statistiques avec nouveau carousel */}
+      {stats && <StatsCarousel stats={stats} />}
 
       {/* Filtres et recherche avec design moderne */}
       <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
