@@ -490,6 +490,32 @@ export async function updateMembershipRequestStatus(
 }
 
 /**
+ * Met à jour les informations de paiement d'une demande
+ */
+export async function updateMembershipPayment(
+    requestId: string,
+    payment: { date: Date; mode: 'airtel_money' | 'mobicash'; amount: number }
+): Promise<boolean> {
+    try {
+        const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
+        const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+        await updateDoc(docRef, {
+            isPaid: true,
+            payment: {
+                date: payment.date,
+                mode: payment.mode,
+                amount: payment.amount,
+            },
+            updatedAt: serverTimestamp(),
+        });
+        return true;
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour du paiement:', error);
+        return false;
+    }
+}
+
+/**
  * Recherche des demandes d'adhésion par email
  * 
  * @param {string} email - L'email à rechercher

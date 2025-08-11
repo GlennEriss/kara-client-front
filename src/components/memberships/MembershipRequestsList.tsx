@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
+import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, usePayMembershipRequest, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
 import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
@@ -391,6 +391,11 @@ const MembershipRequestCard = ({
   const [professionName, setProfessionName] = React.useState<string>('')
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
   const [rejectReason, setRejectReason] = React.useState<string>('')
+  const [paymentOpen, setPaymentOpen] = React.useState(false)
+  const [paymentDate, setPaymentDate] = React.useState<string>('')
+  const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
+  const [paymentAmount, setPaymentAmount] = React.useState<string>('')
+  const payMutation = usePayMembershipRequest()
   
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
   const [professionExists, setProfessionExists] = React.useState<boolean>(false)
@@ -605,6 +610,11 @@ const MembershipRequestCard = ({
             {/* Actions */}
             <div className="flex items-center space-x-3">
               {getStatusBadge(request.status)}
+              {request.isPaid ? (
+                <Badge className="bg-green-100 text-green-700 border-green-200">Payé</Badge>
+              ) : (
+                <Badge className="bg-red-100 text-red-700 border-red-200">Non payé</Badge>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110">
@@ -633,6 +643,15 @@ const MembershipRequestCard = ({
                     <IdCard className="w-4 h-4 text-purple-600" />
                     <span>Voir la pièce d'identité</span>
                   </DropdownMenuItem>
+                  {!request.isPaid && (
+                    <DropdownMenuItem
+                      onClick={() => setPaymentOpen(true)}
+                      className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      <span>Payer</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -874,6 +893,65 @@ const MembershipRequestCard = ({
         onClose={() => setShowIdentityModal(false)}
         request={request}
       />
+
+      {/* Modal Paiement */}
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="sm:max-w-md shadow-2xl border-0">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">Renseigner le paiement</DialogTitle>
+            <DialogDescription className="text-gray-600">Veuillez saisir les informations de paiement</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Date de paiement</label>
+              <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
+              <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choisir un mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                  <SelectItem value="mobicash">Mobicash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Montant</label>
+              <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" className="h-10" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentOpen(false)}>Annuler</Button>
+            <Button
+              onClick={async () => {
+                if (!paymentDate || !paymentMode || !paymentAmount) {
+                  toast.error('Champs requis', { description: 'Veuillez remplir tous les champs de paiement.' })
+                  return
+                }
+                try {
+                  await payMutation.mutateAsync({
+                    requestId: request.id!,
+                    payment: {
+                      date: new Date(paymentDate),
+                      mode: paymentMode,
+                      amount: Number(paymentAmount),
+                    },
+                  })
+                  toast.success('Paiement enregistré')
+                  setPaymentOpen(false)
+                } catch (e: any) {
+                  toast.error('Erreur de paiement')
+                }
+              }}
+            >
+              Valider
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de confirmation avec design amélioré */}
       <Dialog open={confirmationAction.isOpen} onOpenChange={closeConfirmation}>

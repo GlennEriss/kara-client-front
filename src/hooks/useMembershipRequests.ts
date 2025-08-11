@@ -5,7 +5,8 @@ import {
     getMembershipRequestsPaginated, 
     updateMembershipRequestStatus,
     getMembershipRequestById,
-    renewSecurityCode
+    renewSecurityCode,
+    updateMembershipPayment
 } from '@/db/membership.db'
 import { toast } from 'sonner'
 import type { 
@@ -146,6 +147,24 @@ export function useRenewSecurityCode() {
             });
         }
     });
+}
+
+/**
+ * Hook pour payer une demande
+ */
+export function usePayMembershipRequest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: { requestId: string; payment: { date: Date; mode: 'airtel_money' | 'mobicash'; amount: number } }) => {
+      const ok = await updateMembershipPayment(params.requestId, params.payment)
+      if (!ok) throw new Error('Erreur paiement')
+      return ok
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })
+      queryClient.invalidateQueries({ queryKey: ['membershipRequest', variables.requestId] })
+    },
+  })
 }
 
 /**

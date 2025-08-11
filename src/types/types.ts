@@ -98,6 +98,13 @@ export interface MembershipRequest extends RegisterFormData {
   reviewNote?: string;  
   // Motif de rejet (raison fournie par l'admin)
   motifReject?: string;
+  // Paiement
+  isPaid?: boolean
+  payment?: {
+    date: Date
+    mode: 'airtel_money' | 'mobicash'
+    amount: number
+  }
   // Code de sécurité pour accéder aux corrections
   securityCode?: string;
   // Date d'expiration du code de sécurité
