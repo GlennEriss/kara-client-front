@@ -1,9 +1,8 @@
 "use client"
 import React, { useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
@@ -149,7 +148,6 @@ export default function JobsList() {
                                             <div className="font-medium text-gray-900">{job.name}</div>
                                         </div>
                                     </div>
-                                    <Badge className="bg-gray-100 text-gray-700">{job.normalizedName}</Badge>
                                 </div>
                                 {job.description && (<p className="text-sm text-gray-600 line-clamp-2">{job.description}</p>)}
                                 <div className="mt-4 flex items-center justify-end gap-2">

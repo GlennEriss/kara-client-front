@@ -494,6 +494,18 @@ export const jobSchema = z.object({
 })
 export type JobFormData = z.infer<typeof jobSchema>
 
+// ================== COMPANY CRUD SCHEMA (admin -> companies) ==================
+export const companyCrudSchema = z.object({
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(120),
+  industry: z.string().optional(),
+  address: z.object({
+    province: z.string().optional(),
+    city: z.string().optional(),
+    district: z.string().optional(),
+  }).optional(),
+})
+export type CompanyCrudFormData = z.infer<typeof companyCrudSchema>
+
 
 export const adminCreateSchema = z.object({
   civility: CivilityEnum,
