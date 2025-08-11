@@ -530,7 +530,7 @@ const MembershipList = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="md:flex flex-wrap items-center gap-3 hidden">
               {/* Boutons de vue modernes */}
               <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
                 <Button
