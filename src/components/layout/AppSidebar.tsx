@@ -85,7 +85,7 @@ export function AppSidebar() {
 
     const handleLogout = async () => {
         await signOut(auth)
-        router.push(routes.public.adminLogin)
+        router.push(routes.public.login)
     }
 
     // Fonction pour détecter si une route est active
