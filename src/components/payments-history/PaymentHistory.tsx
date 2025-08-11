@@ -2,12 +2,12 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, CreditCard, Filter, ExternalLink, TrendingUp, DollarSign, Receipt, Zap, Sparkles, BarChart3, PieChart, Target, Clock } from 'lucide-react'
+import { ArrowLeft, Calendar, Filter, ExternalLink, Receipt, Zap, Sparkles, PieChart, Target } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts'
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { useMembershipRequest } from '@/hooks/useMembershipRequests'
 import type { Payment, TypePayment } from '@/types/types'
 import routes from '@/constantes/routes'
@@ -77,8 +77,8 @@ const StatCard = ({
   
   return (
     <Card className={`group relative overflow-hidden transition-all duration-500 hover:-translate-y-1 sm:hover:-translate-y-2 hover:shadow-xl sm:hover:shadow-2xl border-0 ${
-      isHighlighted ? 'ring-2 ring-opacity-60 scale-105' : ''
-    }`} style={{ ringColor: isHighlighted ? color : undefined }}>
+      isHighlighted ? 'scale-105' : ''
+    }`} style={isHighlighted ? { boxShadow: `0 0 0 2px ${color}` } : undefined}>
       {/* Effet de fond animé */}
       <div 
         className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500"
