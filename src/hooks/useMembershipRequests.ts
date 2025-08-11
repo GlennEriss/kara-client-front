@@ -12,7 +12,8 @@ import { toast } from 'sonner'
 import type { 
     MembershipRequestStatus, 
     PaginatedMembershipRequests,
-    MembershipRequest 
+    MembershipRequest, 
+    TypePayment
 } from '@/types/types'
 
 /**
@@ -155,7 +156,7 @@ export function useRenewSecurityCode() {
 export function usePayMembershipRequest() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: { requestId: string; payment: { date: Date; mode: 'airtel_money' | 'mobicash'; amount: number } }) => {
+    mutationFn: async (params: { requestId: string; payment: { date: Date; mode: 'airtel_money' | 'mobicash'; amount: number; acceptedBy: string; paymentType: TypePayment } }) => {
       const ok = await updateMembershipPayment(params.requestId, params.payment)
       if (!ok) throw new Error('Erreur paiement')
       return ok

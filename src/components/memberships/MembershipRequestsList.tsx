@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, usePayMembershipRequest, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
-import type { MembershipRequest, MembershipRequestStatus } from '@/types/types'
+import type { MembershipRequest, MembershipRequestStatus, TypePayment } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
 import MemberDetailsModal from './MemberDetailsModal'
@@ -395,6 +395,7 @@ const MembershipRequestCard = ({
   const [paymentDate, setPaymentDate] = React.useState<string>('')
   const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
   const [paymentAmount, setPaymentAmount] = React.useState<string>('')
+  const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
   const payMutation = usePayMembershipRequest()
   
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
@@ -722,7 +723,7 @@ const MembershipRequestCard = ({
                 size="sm"
                 className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
                 onClick={() => openConfirmation('approve')}
-                disabled={isApproving}
+                disabled={isApproving || !request.isPaid}
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
                 {isApproving ? 'Approbation...' : 'Approuver'}
@@ -903,6 +904,20 @@ const MembershipRequestCard = ({
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Type de paiement</label>
+              <Select value={paymentType} onValueChange={(val) => setPaymentType(val as any)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Type de paiement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Membership">Adhésion</SelectItem>
+                  <SelectItem value="Subscription">Abonnement</SelectItem>
+                  <SelectItem value="Tontine">Tontine</SelectItem>
+                  <SelectItem value="Charity">Charité</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Date de paiement</label>
               <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" />
             </div>
@@ -927,7 +942,7 @@ const MembershipRequestCard = ({
             <Button variant="outline" onClick={() => setPaymentOpen(false)}>Annuler</Button>
             <Button
               onClick={async () => {
-                if (!paymentDate || !paymentMode || !paymentAmount) {
+                if (!paymentDate || !paymentMode || !paymentAmount || !paymentType) {
                   toast.error('Champs requis', { description: 'Veuillez remplir tous les champs de paiement.' })
                   return
                 }
@@ -938,6 +953,8 @@ const MembershipRequestCard = ({
                       date: new Date(paymentDate),
                       mode: paymentMode,
                       amount: Number(paymentAmount),
+                      acceptedBy: user?.uid || 'unknown-admin',
+                      paymentType,
                     },
                   })
                   toast.success('Paiement enregistré')

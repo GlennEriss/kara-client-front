@@ -7,7 +7,7 @@ import { RegisterFormData } from "@/types/schemas";
 import { createModel } from "./generic.db";
 import { uploadProfilePhoto, uploadDocumentPhoto } from "./upload-image.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
-import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipRequests } from "@/types/types";
+import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipRequests, Payment } from "@/types/types";
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -494,20 +494,23 @@ export async function updateMembershipRequestStatus(
  */
 export async function updateMembershipPayment(
     requestId: string,
-    payment: { date: Date; mode: 'airtel_money' | 'mobicash'; amount: number }
+    payment: Payment
 ): Promise<boolean> {
     try {
-        const { db, doc, updateDoc, serverTimestamp } = await getFirestore();
+        const { db, doc, updateDoc, serverTimestamp, arrayUnion } = await getFirestore() as any;
         const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+        // Append atomiquement via arrayUnion (sans setter payments à undefined)
         await updateDoc(docRef, {
-            isPaid: true,
-            payment: {
-                date: payment.date,
-                mode: payment.mode,
-                amount: payment.amount,
-            },
-            updatedAt: serverTimestamp(),
-        });
+          isPaid: true,
+          payments: arrayUnion({
+            date: payment.date,
+            mode: payment.mode,
+            amount: payment.amount,
+            acceptedBy: payment.acceptedBy,
+            paymentType: payment.paymentType,
+          }),
+          updatedAt: serverTimestamp(),
+        })
         return true;
     } catch (error) {
         console.error('Erreur lors de la mise à jour du paiement:', error);
