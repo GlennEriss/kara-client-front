@@ -41,6 +41,8 @@ export default function SubscriptionList() {
     const { user } = useAuth()
 
     const [renewOpen, setRenewOpen] = React.useState(false)
+  const [previewOpen, setPreviewOpen] = React.useState(false)
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
     const [pdfFile, setPdfFile] = React.useState<File | null>(null)
     const [paymentDate, setPaymentDate] = React.useState('')
     const [paymentTime, setPaymentTime] = React.useState('')
@@ -135,7 +137,18 @@ export default function SubscriptionList() {
                                         </div>
 
                                         <div className="flex flex-col sm:flex-row gap-3">
-                                            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300">
+                                            <Button
+                                              variant="outline"
+                                              className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                                              onClick={() => {
+                                                if (subscription.adhesionPdfURL) {
+                                                  setPreviewUrl(subscription.adhesionPdfURL)
+                                                  setPreviewOpen(true)
+                                                } else {
+                                                  toast.info("Aucune fiche d'adhésion disponible pour cet abonnement")
+                                                }
+                                              }}
+                                            >
                                                 <FileText className="h-4 w-4 mr-2" /> Voir fiche d'adhésion
                                             </Button>
                                         </div>
@@ -256,6 +269,38 @@ export default function SubscriptionList() {
                         >
                             {isSubmitting ? 'Renouvellement...' : 'Renouveler'}
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Prévisualisation fiche d'adhésion */}
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+                <DialogContent className="sm:max-w-3xl shadow-2xl border-0">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold text-gray-900">Fiche d'adhésion</DialogTitle>
+                        <DialogDescription className="text-gray-600">Prévisualisation du PDF</DialogDescription>
+                    </DialogHeader>
+                    <div className="hidden md:block">
+                        {previewUrl && (
+                          <iframe
+                            src={`${previewUrl}#toolbar=1`}
+                            className="w-full h-[70vh] rounded-lg border"
+                          />
+                        )}
+                    </div>
+                    <div className="md:hidden space-y-3">
+                        <p className="text-sm text-gray-600">La prévisualisation sur mobile peut être limitée.</p>
+                        <div className="flex gap-2">
+                            <Button onClick={() => { if (previewUrl) window.open(previewUrl, '_blank', 'noopener,noreferrer') }} className="bg-[#234D65] hover:bg-[#234D65] text-white">Ouvrir</Button>
+                            {previewUrl && (
+                              <Button variant="outline" asChild>
+                                <a href={previewUrl} download>Télécharger</a>
+                              </Button>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPreviewOpen(false)}>Fermer</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
