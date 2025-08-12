@@ -89,6 +89,8 @@ export interface MembershipRequest extends RegisterFormData {
   
   // Administrateur qui a traité la demande
   processedBy?: string
+  // Dernier admin ayant mis à jour le dossier (ex: réouverture)
+  updatedBy?: string
   
   // Commentaires administratifs
   adminComments?: string

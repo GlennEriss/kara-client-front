@@ -383,7 +383,7 @@ const MembershipRequestCard = ({
   const [showIdentityModal, setShowIdentityModal] = React.useState(false)
   const [isApproving, setIsApproving] = React.useState(false)
   const [confirmationAction, setConfirmationAction] = React.useState<{
-    type: 'approve' | 'reject' | 'under_review' | null
+    type: 'approve' | 'reject' | 'under_review' | 'pending' | null
     isOpen: boolean
   }>({ type: null, isOpen: false })
   const [membershipType, setMembershipType] = React.useState<string>('')
@@ -446,7 +446,7 @@ const MembershipRequestCard = ({
     }
   }, [confirmationAction.isOpen, confirmationAction.type, request.company?.companyName, request.company?.profession, checkExistenceInFirestore])
 
-  const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
+  const openConfirmation = (type: 'approve' | 'reject' | 'under_review' | 'pending') => {
     setConfirmationAction({ type, isOpen: true })
   }
 
@@ -497,6 +497,16 @@ const MembershipRequestCard = ({
           duration: 4000,
         })
       }
+    } else if (confirmationAction.type === 'pending') {
+      updateStatusMutation.mutate({
+        requestId: request.id!,
+        newStatus: 'pending',
+        reviewedBy: user?.uid || 'unknown-admin',
+      })
+      toast.success('Dossier réouvert', {
+        description: `Le dossier de ${request.identity.firstName} ${request.identity.lastName} est repassé en attente.`,
+        duration: 4000,
+      })
     } else {
       const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
 
@@ -651,6 +661,15 @@ const MembershipRequestCard = ({
                     >
                       <CheckCircle className="w-4 h-4 text-emerald-600" />
                       <span>Payer</span>
+                    </DropdownMenuItem>
+                  )}
+                  {request.status === 'rejected' && (
+                    <DropdownMenuItem
+                      onClick={() => openConfirmation('pending')}
+                      className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <RefreshCw className="w-4 h-4 text-amber-600" />
+                      <span>Réouvrir le dossier</span>
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -912,7 +931,7 @@ const MembershipRequestCard = ({
                 <SelectContent>
                   <SelectItem value="Membership">Adhésion</SelectItem>
                   <SelectItem value="Subscription">Abonnement</SelectItem>
-                  <SelectItem value="Tontine">Tontine</SelectItem>
+                  <SelectItem value="Tontine">Caisse Spéciale</SelectItem>
                   <SelectItem value="Charity">Charité</SelectItem>
                 </SelectContent>
               </Select>
@@ -978,6 +997,7 @@ const MembershipRequestCard = ({
               {confirmationAction.type === 'approve' && '✅ Confirmer l\'approbation'}
               {confirmationAction.type === 'reject' && '❌ Confirmer le rejet'}
               {confirmationAction.type === 'under_review' && '⚠️ Demander des corrections'}
+              {confirmationAction.type === 'pending' && '♻️ Réouvrir le dossier'}
             </DialogTitle>
             <DialogDescription className="text-gray-600">
               {confirmationAction.type === 'approve' &&
@@ -988,6 +1008,9 @@ const MembershipRequestCard = ({
               }
               {confirmationAction.type === 'under_review' &&
                 `Précisez les corrections nécessaires pour ${request.identity.firstName} ${request.identity.lastName}.`
+              }
+              {confirmationAction.type === 'pending' &&
+                `Voulez-vous réouvrir ce dossier et le remettre en attente ?`
               }
             </DialogDescription>
           </DialogHeader>

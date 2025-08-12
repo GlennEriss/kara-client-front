@@ -481,6 +481,11 @@ export async function updateMembershipRequestStatus(
             updates['motifReject'] = (motifReject || '').trim();
         }
 
+        // Si on réouvre un dossier (repasse à pending), nettoyer éventuellement le motif et définir updatedBy
+        if (newStatus === 'pending') {
+            updates['updatedBy'] = reviewedBy || null
+        }
+
         await updateDoc(docRef, updates);
         return true;
     } catch (error) {
