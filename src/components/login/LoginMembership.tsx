@@ -308,7 +308,8 @@ export default function LoginMembership() {
                                   type="tel"
                                   placeholder="+241 074 77 34 00"
                                   onChange={(e) => {
-                                    const formatted = process.env.NODE_ENV === 'development' ? e.target.value : formatPhoneNumber(e.target.value)
+                                    //const formatted = process.env.NODE_ENV === 'development' ? e.target.value : formatPhoneNumber(e.target.value)
+                                    const formatted = e.target.value
                                     field.onChange(formatted)
                                   }}
                                   className="h-14 pl-12 text-lg bg-white/70 border-slate-200 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/20 rounded-xl transition-all duration-300"
