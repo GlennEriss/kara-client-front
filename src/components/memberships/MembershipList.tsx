@@ -585,6 +585,7 @@ const MembershipList = () => {
 
               <Button
                 size="sm"
+                onClick={() => { window.location.href = routes.admin.membershipAdd }}
                 className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="h-4 w-4 mr-2" />
