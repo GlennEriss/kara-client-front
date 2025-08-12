@@ -36,9 +36,10 @@ interface MemberCardProps {
   member: MemberWithSubscription
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
+  onPreviewAdhesion: (url: string | null) => void
 }
 
-const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardProps) => {
+const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion }: MemberCardProps) => {
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
 
@@ -125,12 +126,12 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
                   <Eye className="h-4 w-4 mr-2" />
                   Voir détails
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onViewSubscriptions(member.id)}>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.membershipSubscription(member.id))}>
                   <Calendar className="h-4 w-4 mr-2" />
                   Voir abonnements
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onViewDetails(member.id)}>
+                <DropdownMenuItem onClick={() => onPreviewAdhesion(member.lastSubscription?.adhesionPdfURL || null)}>
                   <FileText className="h-4 w-4 mr-2" />
                   Fiche d'adhésion
                 </DropdownMenuItem>

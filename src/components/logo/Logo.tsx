@@ -85,7 +85,7 @@ const Logo: React.FC<LogoProps> = ({
       
       case 'footer':
         return cn(
-          'footer-logo brightness-0 invert transition-all duration-300 ease-in-out',
+          'footer-logo transition-all duration-300 ease-in-out',
           'hover:scale-105'
         )
       

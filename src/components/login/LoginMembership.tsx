@@ -295,30 +295,30 @@ export default function LoginMembership() {
 
                   <Form {...step2Form}>
                     <form onSubmit={step2Form.handleSubmit(onStep2Submit)} className="space-y-6">
-                      <FormField
+                <FormField
                         control={step2Form.control}
-                        name="phoneNumber"
-                        render={({ field }) => (
+                  name="phoneNumber"
+                  render={({ field }) => (
                           <FormItem>
-                            <FormControl>
+                      <FormControl>
                               <div className="relative">
                                 <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                                <Input
-                                  {...field}
-                                  type="tel"
-                                  placeholder="+241 074 77 34 00"
-                                  onChange={(e) => {
+                          <Input
+                            {...field}
+                            type="tel"
+                            placeholder="+241 074 77 34 00"
+                            onChange={(e) => {
                                     //const formatted = process.env.NODE_ENV === 'development' ? e.target.value : formatPhoneNumber(e.target.value)
                                     const formatted = e.target.value
-                                    field.onChange(formatted)
-                                  }}
+                              field.onChange(formatted)
+                            }}
                                   className="h-14 pl-12 text-lg bg-white/70 border-slate-200 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/20 rounded-xl transition-all duration-300"
-                                  disabled={isLoading}
+                            disabled={isLoading}
                                   autoFocus
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
                           </FormItem>
                         )}
                       />
@@ -344,7 +344,7 @@ export default function LoginMembership() {
                             <div className="flex items-center justify-center space-x-2">
                               <Loader2 className="w-5 h-5 animate-spin" />
                               <span>Envoi...</span>
-                            </div>
+                          </div>
                           ) : (
                             <div className="flex items-center justify-center space-x-2">
                               <Zap className="w-5 h-5" />
@@ -355,9 +355,9 @@ export default function LoginMembership() {
                       </div>
                     </form>
                   </Form>
-                </div>
-              )}
-
+                        </div>
+                      )}
+                      
               {/* Step 3 - OTP */}
               {step === 3 && (
                 <div className="space-y-6">
@@ -379,7 +379,7 @@ export default function LoginMembership() {
                         Matricule: {step1Data?.matricule}
                       </p>
                     </div>
-                  </div>
+                        </div>
 
                   <Form {...step3Form}>
                     <form
@@ -422,30 +422,30 @@ export default function LoginMembership() {
                                   ))}
                                 </InputOTPGroup>
                               </InputOTP>
-                            </div>
+                        </div>
                             <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    </FormItem>
+                  )}
+                />
 
                       <div className="space-y-3">
-                        <Button
-                          type="submit"
-                          disabled={isLoading}
+                <Button
+                  type="submit"
+                  disabled={isLoading}
                           className="w-full h-14 bg-gradient-to-r from-[#234E64] to-[#234E64] hover:from-[#234E64] hover:to-[#234E64] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                        >
-                          {isLoading ? (
+                >
+                  {isLoading ? (
                             <div className="flex items-center justify-center space-x-2">
                               <Loader2 className="w-5 h-5 animate-spin" />
                               <span>Vérification...</span>
-                            </div>
-                          ) : (
+                    </div>
+                  ) : (
                             <div className="flex items-center justify-center space-x-2">
                               <CheckCircle2 className="w-5 h-5" />
                               <span>Valider</span>
-                            </div>
-                          )}
-                        </Button>
+                    </div>
+                  )}
+                </Button>
 
                         <div className="flex space-x-3">
                           <Button
@@ -479,8 +479,8 @@ export default function LoginMembership() {
                           </Button>
                         </div>
                       </div>
-                    </form>
-                  </Form>
+              </form>
+            </Form>
                 </div>
               )}
             </div>
@@ -491,19 +491,19 @@ export default function LoginMembership() {
             <div className="flex items-center justify-center space-x-2 text-slate-600">
               <Shield className="w-4 h-4" />
               <span className="text-sm">Connexion sécurisée avec vérification SMS</span>
-            </div>
+        </div>
 
             <p className="text-sm text-slate-500">
-              Pas encore membre ?{' '}
-              <button
-                onClick={() => router.push(routes.public.register)}
+            Pas encore membre ?{' '}
+            <button 
+              onClick={() => router.push(routes.public.register)}
                 className="text-[#234E64] hover:text-[#234E64] font-semibold underline transition-colors duration-300"
-              >
-                Rejoignez KARA
-              </button>
-            </p>
-          </div>
+            >
+              Rejoignez KARA
+            </button>
+          </p>
         </div>
+      </div>
       </div>
 
       <style jsx>{`
