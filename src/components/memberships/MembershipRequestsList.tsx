@@ -391,11 +391,14 @@ const MembershipRequestCard = ({
   const [professionName, setProfessionName] = React.useState<string>('')
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
   const [rejectReason, setRejectReason] = React.useState<string>('')
+  const [approvalPdfFile, setApprovalPdfFile] = React.useState<File | null>(null)
   const [paymentOpen, setPaymentOpen] = React.useState(false)
   const [paymentDate, setPaymentDate] = React.useState<string>('')
   const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
   const [paymentAmount, setPaymentAmount] = React.useState<string>('')
   const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
+  const [paymentTime, setPaymentTime] = React.useState<string>('')
+  const [withFees, setWithFees] = React.useState<'yes' | 'no' | ''>('')
   const payMutation = usePayMembershipRequest()
   
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
@@ -954,6 +957,10 @@ const MembershipRequestCard = ({
               <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" />
             </div>
             <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Heure de paiement</label>
+              <Input type="time" value={paymentTime} onChange={(e) => setPaymentTime(e.target.value)} className="h-10" />
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
               <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)}>
                 <SelectTrigger className="h-10">
@@ -966,6 +973,18 @@ const MembershipRequestCard = ({
               </Select>
             </div>
             <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Frais</label>
+              <Select value={withFees || undefined} onValueChange={(val) => setWithFees(val as any)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Avec ou sans frais?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Avec frais</SelectItem>
+                  <SelectItem value="no">Sans frais</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Montant</label>
               <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" className="h-10" />
             </div>
@@ -974,7 +993,7 @@ const MembershipRequestCard = ({
             <Button variant="outline" onClick={() => setPaymentOpen(false)}>Annuler</Button>
             <Button
               onClick={async () => {
-                if (!paymentDate || !paymentMode || !paymentAmount || !paymentType) {
+                if (!paymentDate || !paymentTime || !paymentMode || !paymentAmount || !paymentType || !withFees) {
                   toast.error('Champs requis', { description: 'Veuillez remplir tous les champs de paiement.' })
                   return
                 }
@@ -982,11 +1001,13 @@ const MembershipRequestCard = ({
                   await payMutation.mutateAsync({
                     requestId: request.id!,
                     payment: {
-                      date: new Date(paymentDate),
+                      date: new Date(`${paymentDate}T${paymentTime}:00`),
                       mode: paymentMode,
                       amount: Number(paymentAmount),
                       acceptedBy: user?.uid || 'unknown-admin',
                       paymentType,
+                      time: paymentTime,
+                      withFees: withFees === 'yes',
                     },
                   })
                   toast.success('Paiement enregistré')
@@ -1031,6 +1052,16 @@ const MembershipRequestCard = ({
           {/* Contenu spécifique selon le type */}
           {confirmationAction.type === 'approve' && (
             <div className="py-4 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-[#234D65]">
+                  Téléverser la fiche d'adhésion (PDF)
+                </label>
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setApprovalPdfFile(e.target.files?.[0] || null)}
+                />
+              </div>
               <div>
                 <label className="text-sm font-bold mb-3 block text-[#234D65]">
                   Type de membre <span className="text-red-500">*</span>
@@ -1194,7 +1225,7 @@ const MembershipRequestCard = ({
               onClick={confirmAction}
               disabled={
                 isApproving ||
-                (confirmationAction.type === 'approve' && !membershipType) ||
+                (confirmationAction.type === 'approve' && (!membershipType || !approvalPdfFile)) ||
                 (confirmationAction.type === 'under_review' && !correctionsList.trim()) ||
                 (confirmationAction.type === 'reject' && !rejectReason.trim())
               }

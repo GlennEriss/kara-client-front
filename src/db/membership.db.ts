@@ -513,6 +513,8 @@ export async function updateMembershipPayment(
             amount: payment.amount,
             acceptedBy: payment.acceptedBy,
             paymentType: payment.paymentType,
+            time: (payment as any).time || null,
+            withFees: (payment as any).withFees ?? null,
           }),
           updatedAt: serverTimestamp(),
         })

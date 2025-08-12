@@ -6,9 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Calendar, CreditCard, Clock, Download, FileText, ArrowLeft, User } from 'lucide-react'
+import { Calendar, CreditCard, Clock, FileText, ArrowLeft, User, UploadCloud } from 'lucide-react'
 import { useMemberSubscriptions, useMemberWithSubscription } from '@/hooks/useMembers'
 import type { Subscription } from '@/types/types'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
+import { createSubscription } from '@/db/subscription.db'
+import { createFile } from '@/db/upload-image.db'
+import { updateMembershipPayment } from '@/db/membership.db'
+import { useAuth } from '@/hooks/useAuth'
 
 function formatDate(date: Date) {
     try { return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) } catch { return 'Date invalide' }
@@ -30,6 +38,16 @@ export default function SubscriptionList() {
     const memberId = params.id as string
     const { data: subscriptions, isLoading } = useMemberSubscriptions(memberId)
     const { data: member } = useMemberWithSubscription(memberId)
+    const { user } = useAuth()
+
+    const [renewOpen, setRenewOpen] = React.useState(false)
+    const [pdfFile, setPdfFile] = React.useState<File | null>(null)
+    const [paymentDate, setPaymentDate] = React.useState('')
+    const [paymentTime, setPaymentTime] = React.useState('')
+    const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
+    const [withFees, setWithFees] = React.useState<'yes' | 'no' | ''>('')
+    const [paymentAmount, setPaymentAmount] = React.useState('')
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
 
     if (isLoading) {
         return (
@@ -79,11 +97,18 @@ export default function SubscriptionList() {
                         <Card className="p-6 text-center border-0 bg-gradient-to-br from-rose-50 to-rose-100"><div className="text-3xl font-bold text-rose-700 mb-2">{subscriptions.filter(s => !isSubscriptionValid(s)).length}</div><p className="text-sm text-rose-700 font-medium">Expirés</p></Card>
                     </div>
 
+                    {/* Action renouvellement */}
+                    <div className="flex items-center justify-end">
+                        <Button onClick={() => setRenewOpen(true)} className="bg-[#234D65] hover:bg-[#234D65] text-white">
+                            <UploadCloud className="w-4 h-4 mr-2" /> Renouveler l'abonnement
+                        </Button>
+                    </div>
+
                     {/* Liste */}
                     <div className="space-y-4">
                         {subscriptions.map((subscription, index) => {
                             const active = isSubscriptionValid(subscription)
-                            return (
+  return (
                                 <Card key={subscription.id} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-0 ${active ? 'bg-gradient-to-r from-emerald-50 to-emerald-50/50 ring-1 ring-emerald-200' : 'bg-white shadow-sm border border-gray-100'}`}>
                                     {active && (<div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />)}
                                     <CardContent className="p-6">
@@ -123,6 +148,117 @@ export default function SubscriptionList() {
             ) : (
                 <Card className="border-0 bg-gradient-to-br from-gray-50 to-gray-100 "><CardContent className="text-center py-16 px-6"><div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6"><Calendar className="h-10 w-10 text-gray-400" /></div><div className="space-y-4"><div><h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun abonnement trouvé</h3><p className="text-gray-600 max-w-md mx-auto">Ce membre n'a pas encore d'abonnement enregistré.</p></div></div></CardContent></Card>
             )}
+
+            {/* Modal Renouvellement */}
+            <Dialog open={renewOpen} onOpenChange={setRenewOpen}>
+                <DialogContent className="sm:max-w-lg shadow-2xl border-0">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold text-gray-900">Renouveler l'abonnement</DialogTitle>
+                        <DialogDescription className="text-gray-600">Téléversez la fiche d'adhésion (PDF) et renseignez le paiement</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Fiche d'adhésion (PDF)</label>
+                            <Input type="file" accept="application/pdf" onChange={(e) => setPdfFile(e.target.files?.[0] || null)} />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Date de paiement</label>
+                                <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700">Heure de paiement</label>
+                                <Input type="time" value={paymentTime} onChange={(e) => setPaymentTime(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
+                            <Select value={paymentMode || undefined} onValueChange={(v) => setPaymentMode(v as any)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choisir un mode" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                                    <SelectItem value="mobicash">Mobicash</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Frais</label>
+                            <Select value={withFees || undefined} onValueChange={(v) => setWithFees(v as any)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Avec ou sans frais?" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="yes">Avec frais</SelectItem>
+                                    <SelectItem value="no">Sans frais</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Montant</label>
+                            <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRenewOpen(false)}>Annuler</Button>
+                        <Button
+                            disabled={!pdfFile || !paymentDate || !paymentTime || !paymentMode || !paymentAmount || !member?.id || isSubmitting}
+                            onClick={async () => {
+                                if (!member) return
+                                try {
+                                    setIsSubmitting(true)
+                                    // Upload PDF
+                                    // Créer la souscription (1 an par défaut)
+                                    const start = new Date()
+                                    const end = new Date()
+                                    end.setFullYear(end.getFullYear() + 1)
+                                    // Construire un nom de fichier: firstname_lastname_YYYY-YYYY.pdf
+                                    const safe = (s: string) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-\.]/g, '')
+                                    const first = safe((member as any).firstName)
+                                    const last = safe((member as any).lastName)
+                                    const fileName = `${first}_${last}_${start.getFullYear()}-${end.getFullYear()}.pdf`
+                                    const namedPdf = new File([pdfFile!], fileName, { type: pdfFile!.type })
+                                    const { url: pdfUrl } = await createFile(namedPdf, member.id, 'membership-adhesion-pdfs')
+                                    await createSubscription({
+                                        userId: member.id,
+                                        dateStart: start,
+                                        dateEnd: end,
+                                        montant: Number(paymentAmount),
+                                        currency: 'XOF',
+                                        type: member.membershipType,
+                                        createdBy: user?.uid || 'unknown-admin',
+                                        isValid: true,
+                                        adhesionPdfURL: pdfUrl,
+                                    } as any)
+                                    // Enregistrer le paiement côté dossier (paymentType Subscription)
+                                    if ((member as any)?.dossier) {
+                                        const dt = new Date(`${paymentDate}T${paymentTime}:00`)
+                                        await updateMembershipPayment((member as any).dossier, {
+                                            date: dt,
+                                            mode: paymentMode,
+                                            amount: Number(paymentAmount),
+                                            acceptedBy: user?.uid || 'unknown-admin',
+                                            paymentType: 'Subscription',
+                                            time: paymentTime,
+                                            withFees: withFees === 'yes',
+                                        } as any)
+                                    }
+                                    toast.success("Abonnement renouvelé")
+                                    setRenewOpen(false)
+                                } catch (e: any) {
+                                    toast.error('Erreur lors du renouvellement')
+                                } finally {
+                                    setIsSubmitting(false)
+                                }
+                            }}
+                            className="bg-[#234D65] hover:bg-[#234D65] text-white"
+                        >
+                            {isSubmitting ? 'Renouvellement...' : 'Renouveler'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
