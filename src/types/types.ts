@@ -89,6 +89,8 @@ export interface MembershipRequest extends RegisterFormData {
   
   // Administrateur qui a traité la demande
   processedBy?: string
+  // Dernier admin ayant mis à jour le dossier (ex: réouverture)
+  updatedBy?: string
   
   // Commentaires administratifs
   adminComments?: string
@@ -117,6 +119,9 @@ export interface Payment {
   amount: number
   acceptedBy: string
   paymentType: TypePayment
+  // Nouveaux champs
+  time?: string // HH:mm
+  withFees?: boolean
 }
 
 export type TypePayment = 'Membership' | 'Subscription' | 'Tontine' | 'Charity'
@@ -438,6 +443,8 @@ export interface Subscription {
   createdAt: Date
   updatedAt: Date
   createdBy: string // ID de l'administrateur qui a créé
+  // Lien vers la fiche d'adhésion PDF (renouvellement)
+  adhesionPdfURL?: string
 }
 
 /**

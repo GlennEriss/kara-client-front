@@ -383,7 +383,7 @@ const MembershipRequestCard = ({
   const [showIdentityModal, setShowIdentityModal] = React.useState(false)
   const [isApproving, setIsApproving] = React.useState(false)
   const [confirmationAction, setConfirmationAction] = React.useState<{
-    type: 'approve' | 'reject' | 'under_review' | null
+    type: 'approve' | 'reject' | 'under_review' | 'pending' | null
     isOpen: boolean
   }>({ type: null, isOpen: false })
   const [membershipType, setMembershipType] = React.useState<string>('')
@@ -391,11 +391,15 @@ const MembershipRequestCard = ({
   const [professionName, setProfessionName] = React.useState<string>('')
   const [correctionsList, setCorrectionsList] = React.useState<string>('')
   const [rejectReason, setRejectReason] = React.useState<string>('')
+  const [approvalPdfFile, setApprovalPdfFile] = React.useState<File | null>(null)
   const [paymentOpen, setPaymentOpen] = React.useState(false)
   const [paymentDate, setPaymentDate] = React.useState<string>('')
   const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
   const [paymentAmount, setPaymentAmount] = React.useState<string>('')
   const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
+  const [paymentTime, setPaymentTime] = React.useState<string>('')
+  const [withFees, setWithFees] = React.useState<'yes' | 'no' | ''>('')
+  const [isPaying, setIsPaying] = React.useState<boolean>(false)
   const payMutation = usePayMembershipRequest()
   
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
@@ -446,7 +450,7 @@ const MembershipRequestCard = ({
     }
   }, [confirmationAction.isOpen, confirmationAction.type, request.company?.companyName, request.company?.profession, checkExistenceInFirestore])
 
-  const openConfirmation = (type: 'approve' | 'reject' | 'under_review') => {
+  const openConfirmation = (type: 'approve' | 'reject' | 'under_review' | 'pending') => {
     setConfirmationAction({ type, isOpen: true })
   }
 
@@ -473,7 +477,7 @@ const MembershipRequestCard = ({
       await handleApprove()
     } else if (confirmationAction.type === 'under_review') {
       if (correctionsList.trim()) {
-        updateStatusMutation.mutate({
+        await updateStatusMutation.mutateAsync({
           requestId: request.id!,
           newStatus: 'under_review',
           reviewedBy: user?.uid || 'unknown-admin',
@@ -485,7 +489,7 @@ const MembershipRequestCard = ({
           duration: 4000,
         })
       } else {
-        updateStatusMutation.mutate({
+        await updateStatusMutation.mutateAsync({
           requestId: request.id!,
           newStatus: 'under_review',
           reviewedBy: user?.uid || 'unknown-admin',
@@ -497,10 +501,20 @@ const MembershipRequestCard = ({
           duration: 4000,
         })
       }
+    } else if (confirmationAction.type === 'pending') {
+      await updateStatusMutation.mutateAsync({
+        requestId: request.id!,
+        newStatus: 'pending',
+        reviewedBy: user?.uid || 'unknown-admin',
+      })
+      toast.success('Dossier réouvert', {
+        description: `Le dossier de ${request.identity.firstName} ${request.identity.lastName} est repassé en attente.`,
+        duration: 4000,
+      })
     } else {
       const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
 
-      updateStatusMutation.mutate({
+      await updateStatusMutation.mutateAsync({
         requestId: request.id!,
         newStatus: status,
         reviewedBy: user?.uid || 'unknown-admin',
@@ -532,6 +546,26 @@ const MembershipRequestCard = ({
         return
       }
 
+      // Upload PDF si fourni
+      let adhesionPdfURL: string | undefined = undefined
+      if (approvalPdfFile) {
+        try {
+          const start = new Date()
+          const end = new Date()
+          end.setFullYear(end.getFullYear() + 1)
+          const safe = (s: string) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-\.]/g, '')
+          const first = safe(request.identity.firstName)
+          const last = safe(request.identity.lastName)
+          const fileName = `${first}_${last}_${start.getFullYear()}-${end.getFullYear()}.pdf`
+          const namedPdf = new File([approvalPdfFile], fileName, { type: approvalPdfFile.type })
+          const { createFile } = await import('@/db/upload-image.db')
+          const res = await createFile(namedPdf, request.id!, 'membership-adhesion-pdfs')
+          adhesionPdfURL = res.url
+        } catch (e) {
+          console.warn('Erreur upload PDF adhésion:', e)
+        }
+      }
+
       const response = await fetch('/api/create-firebase-user', {
         method: 'POST',
         headers: {
@@ -543,7 +577,8 @@ const MembershipRequestCard = ({
           adminId: user?.uid,
           membershipType: membershipType,
           companyName: companyName.trim() || undefined,
-          professionName: professionName.trim() || undefined
+          professionName: professionName.trim() || undefined,
+          adhesionPdfURL,
         }),
       })
 
@@ -653,6 +688,15 @@ const MembershipRequestCard = ({
                       <span>Payer</span>
                     </DropdownMenuItem>
                   )}
+                  {request.status === 'rejected' && (
+                    <DropdownMenuItem
+                      onClick={() => openConfirmation('pending')}
+                      className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <RefreshCw className="w-4 h-4 text-amber-600" />
+                      <span>Réouvrir le dossier</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -743,6 +787,19 @@ const MembershipRequestCard = ({
               >
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Demander corrections
+              </Button>
+            </div>
+          )}
+
+          {request.status === 'under_review' && (
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                onClick={() => openConfirmation('reject')}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Rejeter
               </Button>
             </div>
           )}
@@ -905,25 +962,29 @@ const MembershipRequestCard = ({
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Type de paiement</label>
-              <Select value={paymentType} onValueChange={(val) => setPaymentType(val as any)}>
+              <Select value={paymentType} onValueChange={(val) => setPaymentType(val as any)} disabled={isPaying}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Type de paiement" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Membership">Adhésion</SelectItem>
                   <SelectItem value="Subscription">Abonnement</SelectItem>
-                  <SelectItem value="Tontine">Tontine</SelectItem>
+                  <SelectItem value="Tontine">Caisse Spéciale</SelectItem>
                   <SelectItem value="Charity">Charité</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Date de paiement</label>
-              <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" />
+              <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" disabled={isPaying} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Heure de paiement</label>
+              <Input type="time" value={paymentTime} onChange={(e) => setPaymentTime(e.target.value)} className="h-10" disabled={isPaying} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
-              <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)}>
+              <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)} disabled={isPaying}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choisir un mode" />
                 </SelectTrigger>
@@ -934,37 +995,59 @@ const MembershipRequestCard = ({
               </Select>
             </div>
             <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Frais</label>
+              <Select value={withFees || undefined} onValueChange={(val) => setWithFees(val as any)} disabled={isPaying}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Avec ou sans frais?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Avec frais</SelectItem>
+                  <SelectItem value="no">Sans frais</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Montant</label>
-              <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" className="h-10" />
+              <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" className="h-10" disabled={isPaying} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setPaymentOpen(false)} disabled={isPaying}>Annuler</Button>
             <Button
+              disabled={isPaying}
               onClick={async () => {
-                if (!paymentDate || !paymentMode || !paymentAmount || !paymentType) {
+                if (!paymentDate || !paymentTime || !paymentMode || !paymentAmount || !paymentType || !withFees) {
                   toast.error('Champs requis', { description: 'Veuillez remplir tous les champs de paiement.' })
                   return
                 }
                 try {
+                  setIsPaying(true)
                   await payMutation.mutateAsync({
                     requestId: request.id!,
                     payment: {
-                      date: new Date(paymentDate),
+                      date: new Date(`${paymentDate}T${paymentTime}:00`),
                       mode: paymentMode,
                       amount: Number(paymentAmount),
                       acceptedBy: user?.uid || 'unknown-admin',
                       paymentType,
+                      time: paymentTime,
+                      withFees: withFees === 'yes',
                     },
                   })
                   toast.success('Paiement enregistré')
                   setPaymentOpen(false)
                 } catch (e: any) {
                   toast.error('Erreur de paiement')
+                } finally {
+                  setIsPaying(false)
                 }
               }}
             >
-              Valider
+              {isPaying ? (
+                <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Paiement...</span>
+              ) : (
+                'Valider'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -978,6 +1061,7 @@ const MembershipRequestCard = ({
               {confirmationAction.type === 'approve' && '✅ Confirmer l\'approbation'}
               {confirmationAction.type === 'reject' && '❌ Confirmer le rejet'}
               {confirmationAction.type === 'under_review' && '⚠️ Demander des corrections'}
+              {confirmationAction.type === 'pending' && '♻️ Réouvrir le dossier'}
             </DialogTitle>
             <DialogDescription className="text-gray-600">
               {confirmationAction.type === 'approve' &&
@@ -989,12 +1073,25 @@ const MembershipRequestCard = ({
               {confirmationAction.type === 'under_review' &&
                 `Précisez les corrections nécessaires pour ${request.identity.firstName} ${request.identity.lastName}.`
               }
+              {confirmationAction.type === 'pending' &&
+                `Voulez-vous réouvrir ce dossier et le remettre en attente ?`
+              }
             </DialogDescription>
           </DialogHeader>
 
           {/* Contenu spécifique selon le type */}
           {confirmationAction.type === 'approve' && (
             <div className="py-4 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-[#234D65]">
+                  Téléverser la fiche d'adhésion (PDF)
+                </label>
+                <Input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setApprovalPdfFile(e.target.files?.[0] || null)}
+                />
+              </div>
               <div>
                 <label className="text-sm font-bold mb-3 block text-[#234D65]">
                   Type de membre <span className="text-red-500">*</span>
@@ -1151,6 +1248,7 @@ const MembershipRequestCard = ({
               variant="outline" 
               onClick={closeConfirmation}
               className="h-12 px-6 border-2"
+              disabled={isApproving || updateStatusMutation.isPending}
             >
               Annuler
             </Button>
@@ -1158,7 +1256,8 @@ const MembershipRequestCard = ({
               onClick={confirmAction}
               disabled={
                 isApproving ||
-                (confirmationAction.type === 'approve' && !membershipType) ||
+                updateStatusMutation.isPending ||
+                (confirmationAction.type === 'approve' && (!membershipType || !approvalPdfFile)) ||
                 (confirmationAction.type === 'under_review' && !correctionsList.trim()) ||
                 (confirmationAction.type === 'reject' && !rejectReason.trim())
               }
@@ -1166,12 +1265,14 @@ const MembershipRequestCard = ({
                 "h-12 px-6 text-white border-0 font-medium shadow-lg hover:shadow-xl transition-all duration-300",
                 confirmationAction.type === 'approve' && 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700',
                 confirmationAction.type === 'reject' && 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700',
-                confirmationAction.type === 'under_review' && 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700'
+                confirmationAction.type === 'under_review' && 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700',
+                confirmationAction.type === 'pending' && 'bg-[#234D65] hover:bg-[#234D65]'
               )}
             >
               {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
-              {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
-              {confirmationAction.type === 'under_review' && 'Envoyer les corrections'}
+              {confirmationAction.type === 'reject' && (updateStatusMutation.isPending ? 'Traitement...' : 'Confirmer le rejet')}
+              {confirmationAction.type === 'under_review' && (updateStatusMutation.isPending ? 'Traitement...' : 'Envoyer les corrections')}
+              {confirmationAction.type === 'pending' && (updateStatusMutation.isPending ? 'Réouverture...' : 'Réouvrir le dossier')}
             </Button>
           </DialogFooter>
         </DialogContent>

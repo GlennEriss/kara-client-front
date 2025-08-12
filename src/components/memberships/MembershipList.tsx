@@ -25,13 +25,14 @@ import { useMembers } from '@/hooks/useMembers'
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'
 import MemberFilters from './MemberFilters'
+import routes from '@/constantes/routes'
 import MemberCard from './MemberCard'
-import MemberSubscriptionModal from './MemberSubscriptionModal'
 import MemberDetailsWrapper from './MemberDetailsWrapper'
 import MembershipPagination from './MembershipPagination'
 import { toast } from 'sonner'
 import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription, createTestUserWithAddressAndProfession } from '@/utils/test-data'
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 type ViewMode = 'grid' | 'list'
 
@@ -171,6 +172,8 @@ const MembershipList = () => {
   const [selectedMember, setSelectedMember] = useState<MemberWithSubscription | null>(null)
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   // React Query
   const { 
@@ -211,8 +214,8 @@ const MembershipList = () => {
   }
 
   const handleViewSubscriptions = (memberId: string) => {
-    setSelectedMemberId(memberId)
-    setIsSubscriptionModalOpen(true)
+    // Rediriger vers la page dédiée des abonnements
+    window.location.href = routes.admin.membershipSubscription(memberId)
   }
 
   const handleViewDetails = (memberId: string) => {
@@ -220,6 +223,15 @@ const MembershipList = () => {
     if (member) {
       setSelectedMember(member)
       setIsDetailsModalOpen(true)
+    }
+  }
+
+  const handlePreviewAdhesion = (url: string | null) => {
+    if (url) {
+      setPreviewUrl(url)
+      setIsPreviewOpen(true)
+    } else {
+      toast.info("Aucune fiche d'adhésion disponible pour ce membre")
     }
   }
 
@@ -573,6 +585,7 @@ const MembershipList = () => {
 
               <Button
                 size="sm"
+                onClick={() => { window.location.href = routes.admin.membershipAdd }}
                 className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -611,6 +624,7 @@ const MembershipList = () => {
                   member={member}
                   onViewSubscriptions={handleViewSubscriptions}
                   onViewDetails={handleViewDetails}
+                  onPreviewAdhesion={handlePreviewAdhesion}
                 />
               </div>
             ))}
@@ -670,16 +684,7 @@ const MembershipList = () => {
       )}
 
       {/* Modals */}
-      {selectedMemberId && (
-        <MemberSubscriptionModal
-          isOpen={isSubscriptionModalOpen}
-          onClose={() => {
-            setIsSubscriptionModalOpen(false)
-            setSelectedMemberId(null)
-          }}
-          memberId={selectedMemberId}
-        />
-      )}
+      {/* Modal des abonnements supprimé: désormais sur page dédiée */}
 
       {selectedMember && (
         <MemberDetailsWrapper
@@ -692,6 +697,35 @@ const MembershipList = () => {
           memberName={`${selectedMember.firstName} ${selectedMember.lastName}`}
         />
       )}
+
+      {/* Prévisualisation fiche d'adhésion */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="sm:max-w-3xl shadow-2xl border-0">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">Fiche d'adhésion</DialogTitle>
+            <DialogDescription className="text-gray-600">Prévisualisation du PDF</DialogDescription>
+          </DialogHeader>
+          <div className="hidden md:block">
+            {previewUrl && (
+              <iframe src={`${previewUrl}#toolbar=1`} className="w-full h-[70vh] rounded-lg border" />
+            )}
+          </div>
+          <div className="md:hidden space-y-3">
+            <p className="text-sm text-gray-600">La prévisualisation sur mobile peut être limitée.</p>
+            <div className="flex gap-2">
+              <Button onClick={() => { if (previewUrl) window.open(previewUrl, '_blank', 'noopener,noreferrer') }} className="bg-[#234D65] hover:bg-[#234D65] text-white">Ouvrir</Button>
+              {previewUrl && (
+                <Button variant="outline" asChild>
+                  <a href={previewUrl} download>Télécharger</a>
+                </Button>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

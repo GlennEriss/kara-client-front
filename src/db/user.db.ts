@@ -32,6 +32,20 @@ function sanitizeForFirestore<T>(value: T): T {
   return value
 }
 
+// Convertit de manière sûre un champ Firestore (Timestamp | Date | string | number) en Date
+function toDateSafe(value: any): Date {
+  try {
+    if (!value) return new Date(0)
+    if (value instanceof Date) return value
+    if (typeof value?.toDate === 'function') return value.toDate()
+    const parsed = new Date(value)
+    if (!isNaN(parsed.getTime())) return parsed
+  } catch {
+    // ignore
+  }
+  return new Date(0)
+}
+
 /**
  * Génère un matricule au format nombreUser.MK.dateCréation
  * Ex: 0004.MK.040825
@@ -168,9 +182,10 @@ export async function getUserById(userId: string): Promise<User | null> {
     
     const data = docSnap.data()
     return {
-      ...data,
-      createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt.toDate(),
+      id: docSnap.id,
+      ...(data as any),
+      createdAt: toDateSafe(data.createdAt),
+      updatedAt: toDateSafe(data.updatedAt),
     } as User
   } catch (error) {
     console.error('Erreur lors de la récupération de l\'utilisateur:', error)
@@ -195,9 +210,10 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     const data = doc.data()
     
     return {
-      ...data,
-      createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt.toDate(),
+      id: doc.id,
+      ...(data as any),
+      createdAt: toDateSafe(data.createdAt),
+      updatedAt: toDateSafe(data.updatedAt),
     } as User
   } catch (error) {
     console.error('Erreur lors de la recherche par email:', error)
@@ -286,9 +302,10 @@ export async function getAllUsers(filters: UserFilters = {}): Promise<{ users: U
     querySnapshot.forEach((doc) => {
       const data = doc.data()
       users.push({
-        ...data,
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate(),
+        id: doc.id,
+        ...(data as any),
+        createdAt: toDateSafe(data.createdAt),
+        updatedAt: toDateSafe(data.updatedAt),
       } as User)
     })
     
@@ -372,7 +389,7 @@ export async function getUserStats(): Promise<UserStats> {
     
     allUsersSnapshot.forEach((doc) => {
       const data = doc.data()
-      const createdAt = data.createdAt.toDate()
+      const createdAt = toDateSafe(data.createdAt)
       
       // Compter par type
       if (data.membershipType === 'adherant') adherant++

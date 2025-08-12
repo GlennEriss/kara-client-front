@@ -380,7 +380,7 @@ export default function PaymentHistory({ requestId }: Props) {
                   <option value="all">🎯 Tous les types</option>
                   <option value="Membership">🎯 Adhésion</option>
                   <option value="Subscription">⚡ Abonnement</option>
-                  <option value="Tontine">🥧 Tontine</option>
+                  <option value="Tontine">🥧 Caisse Spéciale</option>
                   <option value="Charity">✨ Charité</option>
                 </select>
               </div>
