@@ -545,6 +545,26 @@ const MembershipRequestCard = ({
         return
       }
 
+      // Upload PDF si fourni
+      let adhesionPdfURL: string | undefined = undefined
+      if (approvalPdfFile) {
+        try {
+          const start = new Date()
+          const end = new Date()
+          end.setFullYear(end.getFullYear() + 1)
+          const safe = (s: string) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-\.]/g, '')
+          const first = safe(request.identity.firstName)
+          const last = safe(request.identity.lastName)
+          const fileName = `${first}_${last}_${start.getFullYear()}-${end.getFullYear()}.pdf`
+          const namedPdf = new File([approvalPdfFile], fileName, { type: approvalPdfFile.type })
+          const { createFile } = await import('@/db/upload-image.db')
+          const res = await createFile(namedPdf, request.id!, 'membership-adhesion-pdfs')
+          adhesionPdfURL = res.url
+        } catch (e) {
+          console.warn('Erreur upload PDF adhésion:', e)
+        }
+      }
+
       const response = await fetch('/api/create-firebase-user', {
         method: 'POST',
         headers: {
@@ -556,7 +576,8 @@ const MembershipRequestCard = ({
           adminId: user?.uid,
           membershipType: membershipType,
           companyName: companyName.trim() || undefined,
-          professionName: professionName.trim() || undefined
+          professionName: professionName.trim() || undefined,
+          adhesionPdfURL,
         }),
       })
 

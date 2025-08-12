@@ -2,7 +2,7 @@ import { adminAuth } from "@/firebase/adminAuth";
 import { NextRequest, NextResponse } from "next/server";
 import { updateMembershipRequestStatus, getMembershipRequestById, checkPhoneNumberExists } from "@/db/membership.db";
 import { createUserWithMatricule, addSubscriptionToUser, generateMatricule } from "@/db/user.db";
-import { createDefaultSubscription } from "@/db/subscription.db";
+import { createDefaultSubscription, updateSubscription } from "@/db/subscription.db";
 import { findOrCreateCompany } from "@/db/company.db";
 import { findOrCreateProfession } from "@/db/profession.db";
 import { registerAddress } from "@/db/address.db";
@@ -26,7 +26,7 @@ function membershipTypeToRole(membershipType: string): UserRole {
 
 export async function POST(req: NextRequest) {
     try {
-        const { phoneNumber, requestId, adminId, membershipType, companyName, professionName } = await req.json();
+        const { phoneNumber, requestId, adminId, membershipType, companyName, professionName, adhesionPdfURL } = await req.json();
 
         if (!phoneNumber || !requestId) {
             return NextResponse.json({ error: "Numéro de téléphone et ID de demande requis" }, { status: 400 });
@@ -137,6 +137,16 @@ export async function POST(req: NextRequest) {
             adminId || 'system'
         );
         console.log('Souscription créée:', subscription.id);
+
+        // Mettre à jour la souscription avec l'URL du PDF si fournie
+        if (adhesionPdfURL) {
+            try {
+                await updateSubscription(subscription.id, { adhesionPdfURL });
+                console.log('URL PDF ajoutée à la souscription');
+            } catch (e) {
+                console.warn("Impossible d'ajouter l'URL PDF à la souscription:", e);
+            }
+        }
 
         // Ajouter la souscription à l'utilisateur
         await addSubscriptionToUser(createdUser.id, subscription.id);
