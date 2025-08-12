@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Users, Shield, UserPlus, Search, RefreshCw, Edit3, Trash2, CheckCircle2, Phone, Mail, CalendarClock, MoreVertical, Eye } from 'lucide-react'
+import { Users, Shield, UserPlus, Search, RefreshCw, Edit3, Trash2, CheckCircle2, Phone, Mail, CalendarClock, MoreVertical, Eye, Loader2 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import MembershipPagination from '@/components/memberships/MembershipPagination'
 import { useAdmins, useAdminMutations } from '@/hooks/useAdmins'
@@ -88,6 +88,7 @@ export default function AdminDashboard() {
   const [adminToEdit, setAdminToEdit] = useState<AdminUser | null>(null)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [adminToDelete, setAdminToDelete] = useState<AdminUser | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const { data, isLoading, error, refetch } = useAdmins(
     {
@@ -225,9 +226,14 @@ export default function AdminDashboard() {
 
   const confirmDelete = async () => {
     if (!adminToDelete) return
-    await handleDelete(adminToDelete)
-    setIsDeleteOpen(false)
-    setAdminToDelete(null)
+    try {
+      setIsDeleting(true)
+      await handleDelete(adminToDelete)
+      setIsDeleteOpen(false)
+      setAdminToDelete(null)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleApplySearch = () => {
@@ -251,8 +257,10 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestion des Administrateurs</h1>
-          <p className="text-gray-600 mt-1">
+        <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+            Gestion des Administrateurs
+          </h1>
+          <p className="text-gray-600 text-lg">
             {data?.pagination.totalItems.toLocaleString() || 0} administrateurs au total
           </p>
         </div>
@@ -465,11 +473,16 @@ export default function AdminDashboard() {
 
       {/* Liste des administrateurs */}
       {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>
-            Une erreur est survenue lors du chargement des administrateurs.
-          </AlertDescription>
-        </Alert>
+        (() => {
+          console.error('Erreur chargement administrateurs:', error); return (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Une erreur est survenue lors du chargement des administrateurs
+                {error instanceof Error ? `: ${error.message}` : ''}
+              </AlertDescription>
+            </Alert>
+          )
+        })()
       ) : isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[...Array(8)].map((_, i) => (
@@ -498,26 +511,26 @@ export default function AdminDashboard() {
                       <RoleBadge role={admin.roles[0]} />
                     )}
                   </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {admin.firstName} {admin.lastName}
-                      </h3>
-                      <p className="text-xs text-gray-500 truncate">
-                        #{admin.id}
-                      </p>
-                      {admin.email && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Mail className="w-3 h-3 text-gray-400" />
-                          <span className="text-xs text-gray-600 truncate">{admin.email}</span>
-                        </div>
-                      )}
-                      {admin.contacts?.[0] && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          <span className="text-xs text-gray-600">{admin.contacts[0]}</span>
-                        </div>
-                      )}
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium text-gray-900 truncate">
+                      {admin.firstName} {admin.lastName}
+                    </h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      #{admin.id}
+                    </p>
+                    {admin.email && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Mail className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-gray-600 truncate">{admin.email}</span>
+                      </div>
+                    )}
+                    {admin.contacts?.[0] && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-gray-600">{admin.contacts[0]}</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between">
                     <Badge
                       variant={admin.isActive ? 'default' : 'secondary'}
@@ -630,8 +643,14 @@ export default function AdminDashboard() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={confirmDelete}>Supprimer</Button>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)} disabled={isDeleting}>Annuler</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Suppression...</span>
+              ) : (
+                'Supprimer'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

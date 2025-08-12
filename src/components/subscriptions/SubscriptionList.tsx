@@ -214,7 +214,7 @@ export default function SubscriptionList() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setRenewOpen(false)}>Annuler</Button>
+                        <Button variant="outline" onClick={() => setRenewOpen(false)} disabled={isSubmitting}>Annuler</Button>
                         <Button
                             disabled={!pdfFile || !paymentDate || !paymentTime || !paymentMode || !paymentAmount || !member?.id || isSubmitting}
                             onClick={async () => {
@@ -267,7 +267,7 @@ export default function SubscriptionList() {
                             }}
                             className="bg-[#234D65] hover:bg-[#234D65] text-white"
                         >
-                            {isSubmitting ? 'Renouvellement...' : 'Renouveler'}
+                            {isSubmitting ? (<span className="inline-flex items-center"><span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></span>Renouvellement...</span>) : 'Renouveler'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

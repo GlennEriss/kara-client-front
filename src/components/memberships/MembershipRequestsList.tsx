@@ -399,6 +399,7 @@ const MembershipRequestCard = ({
   const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
   const [paymentTime, setPaymentTime] = React.useState<string>('')
   const [withFees, setWithFees] = React.useState<'yes' | 'no' | ''>('')
+  const [isPaying, setIsPaying] = React.useState<boolean>(false)
   const payMutation = usePayMembershipRequest()
   
   const [companyExists, setCompanyExists] = React.useState<boolean>(false)
@@ -476,7 +477,7 @@ const MembershipRequestCard = ({
       await handleApprove()
     } else if (confirmationAction.type === 'under_review') {
       if (correctionsList.trim()) {
-        updateStatusMutation.mutate({
+        await updateStatusMutation.mutateAsync({
           requestId: request.id!,
           newStatus: 'under_review',
           reviewedBy: user?.uid || 'unknown-admin',
@@ -488,7 +489,7 @@ const MembershipRequestCard = ({
           duration: 4000,
         })
       } else {
-        updateStatusMutation.mutate({
+        await updateStatusMutation.mutateAsync({
           requestId: request.id!,
           newStatus: 'under_review',
           reviewedBy: user?.uid || 'unknown-admin',
@@ -501,7 +502,7 @@ const MembershipRequestCard = ({
         })
       }
     } else if (confirmationAction.type === 'pending') {
-      updateStatusMutation.mutate({
+      await updateStatusMutation.mutateAsync({
         requestId: request.id!,
         newStatus: 'pending',
         reviewedBy: user?.uid || 'unknown-admin',
@@ -513,7 +514,7 @@ const MembershipRequestCard = ({
     } else {
       const status = confirmationAction.type === 'reject' ? 'rejected' : 'under_review'
 
-      updateStatusMutation.mutate({
+      await updateStatusMutation.mutateAsync({
         requestId: request.id!,
         newStatus: status,
         reviewedBy: user?.uid || 'unknown-admin',
@@ -961,7 +962,7 @@ const MembershipRequestCard = ({
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Type de paiement</label>
-              <Select value={paymentType} onValueChange={(val) => setPaymentType(val as any)}>
+              <Select value={paymentType} onValueChange={(val) => setPaymentType(val as any)} disabled={isPaying}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Type de paiement" />
                 </SelectTrigger>
@@ -975,15 +976,15 @@ const MembershipRequestCard = ({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Date de paiement</label>
-              <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" />
+              <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" disabled={isPaying} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Heure de paiement</label>
-              <Input type="time" value={paymentTime} onChange={(e) => setPaymentTime(e.target.value)} className="h-10" />
+              <Input type="time" value={paymentTime} onChange={(e) => setPaymentTime(e.target.value)} className="h-10" disabled={isPaying} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
-              <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)}>
+              <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)} disabled={isPaying}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choisir un mode" />
                 </SelectTrigger>
@@ -995,7 +996,7 @@ const MembershipRequestCard = ({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Frais</label>
-              <Select value={withFees || undefined} onValueChange={(val) => setWithFees(val as any)}>
+              <Select value={withFees || undefined} onValueChange={(val) => setWithFees(val as any)} disabled={isPaying}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Avec ou sans frais?" />
                 </SelectTrigger>
@@ -1007,18 +1008,20 @@ const MembershipRequestCard = ({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Montant</label>
-              <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" className="h-10" />
+              <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Ex: 10000" className="h-10" disabled={isPaying} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setPaymentOpen(false)} disabled={isPaying}>Annuler</Button>
             <Button
+              disabled={isPaying}
               onClick={async () => {
                 if (!paymentDate || !paymentTime || !paymentMode || !paymentAmount || !paymentType || !withFees) {
                   toast.error('Champs requis', { description: 'Veuillez remplir tous les champs de paiement.' })
                   return
                 }
                 try {
+                  setIsPaying(true)
                   await payMutation.mutateAsync({
                     requestId: request.id!,
                     payment: {
@@ -1035,10 +1038,16 @@ const MembershipRequestCard = ({
                   setPaymentOpen(false)
                 } catch (e: any) {
                   toast.error('Erreur de paiement')
+                } finally {
+                  setIsPaying(false)
                 }
               }}
             >
-              Valider
+              {isPaying ? (
+                <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Paiement...</span>
+              ) : (
+                'Valider'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1239,6 +1248,7 @@ const MembershipRequestCard = ({
               variant="outline" 
               onClick={closeConfirmation}
               className="h-12 px-6 border-2"
+              disabled={isApproving || updateStatusMutation.isPending}
             >
               Annuler
             </Button>
@@ -1246,6 +1256,7 @@ const MembershipRequestCard = ({
               onClick={confirmAction}
               disabled={
                 isApproving ||
+                updateStatusMutation.isPending ||
                 (confirmationAction.type === 'approve' && (!membershipType || !approvalPdfFile)) ||
                 (confirmationAction.type === 'under_review' && !correctionsList.trim()) ||
                 (confirmationAction.type === 'reject' && !rejectReason.trim())
@@ -1259,9 +1270,9 @@ const MembershipRequestCard = ({
               )}
             >
               {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
-              {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
-              {confirmationAction.type === 'under_review' && 'Envoyer les corrections'}
-              {confirmationAction.type === 'pending' && 'Réouvrir le dossier'}
+              {confirmationAction.type === 'reject' && (updateStatusMutation.isPending ? 'Traitement...' : 'Confirmer le rejet')}
+              {confirmationAction.type === 'under_review' && (updateStatusMutation.isPending ? 'Traitement...' : 'Envoyer les corrections')}
+              {confirmationAction.type === 'pending' && (updateStatusMutation.isPending ? 'Réouverture...' : 'Réouvrir le dossier')}
             </Button>
           </DialogFooter>
         </DialogContent>
