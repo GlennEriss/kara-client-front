@@ -766,6 +766,19 @@ const MembershipRequestCard = ({
             </div>
           )}
 
+          {request.status === 'under_review' && (
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                onClick={() => openConfirmation('reject')}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Rejeter
+              </Button>
+            </div>
+          )}
+
           {/* Message de correction pour les demandes under_review */}
           {request.status === 'under_review' && (
             <div className="pt-4 border-t border-orange-200">
@@ -1189,12 +1202,14 @@ const MembershipRequestCard = ({
                 "h-12 px-6 text-white border-0 font-medium shadow-lg hover:shadow-xl transition-all duration-300",
                 confirmationAction.type === 'approve' && 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700',
                 confirmationAction.type === 'reject' && 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700',
-                confirmationAction.type === 'under_review' && 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700'
+                confirmationAction.type === 'under_review' && 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700',
+                confirmationAction.type === 'pending' && 'bg-[#234D65] hover:bg-[#234D65]'
               )}
             >
               {confirmationAction.type === 'approve' && (isApproving ? 'Approbation...' : 'Confirmer l\'approbation')}
               {confirmationAction.type === 'reject' && 'Confirmer le rejet'}
               {confirmationAction.type === 'under_review' && 'Envoyer les corrections'}
+              {confirmationAction.type === 'pending' && 'Réouvrir le dossier'}
             </Button>
           </DialogFooter>
         </DialogContent>

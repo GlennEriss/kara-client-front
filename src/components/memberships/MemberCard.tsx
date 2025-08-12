@@ -125,7 +125,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails }: MemberCardPr
                   <Eye className="h-4 w-4 mr-2" />
                   Voir détails
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onViewSubscriptions(member.id)}>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.membershipSubscription(member.id))}>
                   <Calendar className="h-4 w-4 mr-2" />
                   Voir abonnements
                 </DropdownMenuItem>

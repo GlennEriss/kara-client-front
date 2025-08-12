@@ -11,6 +11,7 @@ const routes = {
         membershipRequestDetails: (id: string) => `/membership-requests/${id}`,
         memberships: '/memberships',
         membershipDetails: (id: string) => `/memberships/${id}`,
+        membershipSubscription: (id: string) => `/memberships/${id}/subscriptions`,
         admin: '/admin',
         settings: '/settings',
         jobs: '/jobs',

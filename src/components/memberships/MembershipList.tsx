@@ -25,8 +25,8 @@ import { useMembers } from '@/hooks/useMembers'
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'
 import MemberFilters from './MemberFilters'
+import routes from '@/constantes/routes'
 import MemberCard from './MemberCard'
-import MemberSubscriptionModal from './MemberSubscriptionModal'
 import MemberDetailsWrapper from './MemberDetailsWrapper'
 import MembershipPagination from './MembershipPagination'
 import { toast } from 'sonner'
@@ -211,8 +211,8 @@ const MembershipList = () => {
   }
 
   const handleViewSubscriptions = (memberId: string) => {
-    setSelectedMemberId(memberId)
-    setIsSubscriptionModalOpen(true)
+    // Rediriger vers la page dédiée des abonnements
+    window.location.href = routes.admin.membershipSubscription(memberId)
   }
 
   const handleViewDetails = (memberId: string) => {
@@ -670,16 +670,7 @@ const MembershipList = () => {
       )}
 
       {/* Modals */}
-      {selectedMemberId && (
-        <MemberSubscriptionModal
-          isOpen={isSubscriptionModalOpen}
-          onClose={() => {
-            setIsSubscriptionModalOpen(false)
-            setSelectedMemberId(null)
-          }}
-          memberId={selectedMemberId}
-        />
-      )}
+      {/* Modal des abonnements supprimé: désormais sur page dédiée */}
 
       {selectedMember && (
         <MemberDetailsWrapper
