@@ -22,6 +22,7 @@ const routeLabels: Record<string, string> = {
   '/jobs': 'Métiers',
   '/companies': 'Entreprises',
   '/payments-history': 'Historique des paiements',
+  '/groups': 'Groupes',
 }
 
 // Fonction pour obtenir le label d'une route

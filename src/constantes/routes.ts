@@ -13,6 +13,8 @@ const routes = {
         membershipDetails: (id: string) => `/memberships/${id}`,
         membershipSubscription: (id: string) => `/memberships/${id}/subscriptions`,
         membershipAdd: '/memberships/add',
+        groups: '/groups',
+        groupDetails: (id: string) => `/groups/${id}`,
         admin: '/admin',
         settings: '/settings',
         jobs: '/jobs',

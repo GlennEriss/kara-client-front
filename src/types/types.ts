@@ -413,6 +413,29 @@ export interface User {
   createdAt: Date
   updatedAt: Date
   isActive: boolean
+  // Groupe d'appartenance
+  groupId?: string
+}
+
+// ================== TYPES POUR LES GROUPES ==================
+
+export interface Group {
+  id: string
+  name: string
+  label?: string
+  description?: string
+  // Un groupe peut être contraint à un seul membre, mais on stocke côté user
+  // Audit
+  createdAt: Date
+  createdBy: string
+  updatedAt: Date
+  updatedBy?: string
+}
+
+export interface GroupFilters {
+  searchQuery?: string
+  createdBy?: string
+  label?: string
 }
 
 /**

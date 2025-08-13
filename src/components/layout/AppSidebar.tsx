@@ -1,6 +1,6 @@
 "use client"
 
-import { Car, Home, Settings, Users, BarChart3, FileText, Shield, LogOut, UserPlus, Briefcase, Building } from "lucide-react"
+import { Car, Home, Settings, Users, BarChart3, FileText, Shield, LogOut, UserPlus, Briefcase, Building, GroupIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -61,6 +61,11 @@ const systemMenuItems: any[] = [
         title: "Administration",
         url: routes.admin.admin,
         icon: Shield,
+    },
+    {
+        title: "Groupes",
+        url: routes.admin.groups,
+        icon: Users,
     },
     {
         title: "Métiers",

@@ -33,6 +33,7 @@ import { toast } from 'sonner'
 import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription, createTestUserWithAddressAndProfession } from '@/utils/test-data'
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import ExportMembershipModal from './ExportMembershipModal'
 
 type ViewMode = 'grid' | 'list'
 
@@ -174,6 +175,7 @@ const MembershipList = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isExportOpen, setIsExportOpen] = useState(false)
 
   // React Query
   const { 
@@ -250,12 +252,7 @@ const MembershipList = () => {
     }
   }
 
-  const handleExport = () => {
-    toast.info('📊 Export en cours de développement', {
-      description: 'Cette fonctionnalité sera bientôt disponible',
-      duration: 3000,
-    })
-  }
+  const handleExport = () => setIsExportOpen(true)
 
   // Fonctions de test (en développement uniquement)
   const handleCreateTestUser = async () => {
@@ -726,6 +723,7 @@ const MembershipList = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ExportMembershipModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} filters={filters} />
     </div>
   )
 }
