@@ -233,7 +233,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
         {/* Actions rapides - layout adaptatif */}
         <div className="pt-2 space-y-2 sm:space-y-0 mt-auto">
           {/* Mobile : stack vertical */}
-          <div className="flex flex-col space-y-2 sm:hidden">
+          <div className="flex flex-col space-y-2">
             <Button
               variant="outline"
               size="sm"
@@ -254,29 +254,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
             </Button>
           </div>
 
-          {/* Desktop/Tablette : horizontal centré */}
-          <div className="hidden sm:flex justify-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push(routes.admin.membershipDetails(member.id!))}
-              className="text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white text-xs lg:text-sm px-3"
-            >
-              <User className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
-              <span className="hidden md:inline">Détails</span>
-              <span className="md:hidden">Info</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewSubscriptions(member.id)}
-              className="text-[#CBB171] border-[#CBB171] hover:bg-[#CBB171] hover:text-white text-xs lg:text-sm px-3"
-            >
-              <Calendar className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
-              <span className="hidden md:inline">Abonnements</span>
-              <span className="md:hidden">Abos</span>
-            </Button>
-          </div>
+          
         </div>
       </CardContent>
     </Card>
