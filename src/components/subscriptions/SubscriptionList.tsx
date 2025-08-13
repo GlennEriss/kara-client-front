@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Calendar, CreditCard, Clock, FileText, ArrowLeft, User, UploadCloud } from 'lucide-react'
+import { Calendar, CreditCard, Clock, FileText, ArrowLeft, User, UploadCloud, Loader2 } from 'lucide-react'
 import { useMemberSubscriptions, useMemberWithSubscription } from '@/hooks/useMembers'
-import type { Subscription } from '@/types/types'
+import type { Subscription, MembershipRequest } from '@/types/types'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -17,6 +17,8 @@ import { createSubscription } from '@/db/subscription.db'
 import { createFile } from '@/db/upload-image.db'
 import { updateMembershipPayment } from '@/db/membership.db'
 import { useAuth } from '@/hooks/useAuth'
+import MemberDetailsModal from '@/components/memberships/MemberDetailsModal'
+import { getMembershipRequestById } from '@/db/membership.db'
 
 function formatDate(date: Date) {
     try { return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) } catch { return 'Date invalide' }
@@ -50,6 +52,9 @@ export default function SubscriptionList() {
     const [withFees, setWithFees] = React.useState<'yes' | 'no' | ''>('')
     const [paymentAmount, setPaymentAmount] = React.useState('')
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [detailsOpen, setDetailsOpen] = React.useState(false)
+    const [detailsRequest, setDetailsRequest] = React.useState<MembershipRequest | null>(null)
+    const [isLoadingDetails, setIsLoadingDetails] = React.useState(false)
 
     if (isLoading) {
         return (
@@ -70,6 +75,7 @@ export default function SubscriptionList() {
     }
 
     return (
+        <>
         <div className="container mx-auto p-4 lg:p-8 space-y-6">
             <div className="flex items-center justify-between bg-gradient-to-r from-white to-gray-50/50 p-4 lg:p-6 rounded-2xl shadow-lg border-0">
                 <div className="flex items-center gap-3">
@@ -99,8 +105,39 @@ export default function SubscriptionList() {
                         <Card className="p-6 text-center border-0 bg-gradient-to-br from-rose-50 to-rose-100"><div className="text-3xl font-bold text-rose-700 mb-2">{subscriptions.filter(s => !isSubscriptionValid(s)).length}</div><p className="text-sm text-rose-700 font-medium">Expirés</p></Card>
                     </div>
 
-                    {/* Action renouvellement */}
-                    <div className="flex items-center justify-end">
+                    {/* Actions: fiche d'adhésion + renouvellement */}
+                    <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            if (!member?.dossier) {
+                              toast.info('Dossier non disponible')
+                              return
+                            }
+                            try {
+                              setIsLoadingDetails(true)
+                              const req = await getMembershipRequestById(member.dossier)
+                              if (!req) {
+                                toast.error('Dossier introuvable')
+                                return
+                              }
+                              setDetailsRequest(req as any)
+                              setDetailsOpen(true)
+                            } catch (e) {
+                              toast.error('Erreur au chargement du dossier')
+                            } finally {
+                              setIsLoadingDetails(false)
+                            }
+                          }}
+                          disabled={isLoadingDetails}
+                          className="border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                        >
+                          {isLoadingDetails ? (
+                            <span className="inline-flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Ouverture...</span>
+                          ) : (
+                            <span className="inline-flex items-center"><FileText className="w-4 h-4 mr-2" /> Fiche d'adhésion</span>
+                          )}
+                        </Button>
                         <Button onClick={() => setRenewOpen(true)} className="bg-[#234D65] hover:bg-[#234D65] text-white">
                             <UploadCloud className="w-4 h-4 mr-2" /> Renouveler l'abonnement
                         </Button>
@@ -305,6 +342,15 @@ export default function SubscriptionList() {
                 </DialogContent>
             </Dialog>
         </div>
+        {/* Modal fiche d'adhésion */}
+        {detailsRequest && (
+          <MemberDetailsModal
+            isOpen={detailsOpen}
+            onClose={() => setDetailsOpen(false)}
+            request={detailsRequest}
+          />
+        )}
+        </>
     )
 }
 
