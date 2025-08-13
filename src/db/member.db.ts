@@ -10,7 +10,10 @@ import {
   doc,
   DocumentSnapshot,
   QueryConstraint,
-  Timestamp
+  Timestamp,
+  getCountFromServer,
+  serverTimestamp,
+  updateDoc
 } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { User, UserFilters, UserStats, Subscription } from '@/types/types'
@@ -55,6 +58,40 @@ export interface PaginatedMembers {
 export interface MemberWithSubscription extends User {
   lastSubscription?: Subscription | null
   isSubscriptionValid?: boolean
+}
+
+/**
+ * Compte le nombre de membres rattachés à un groupId
+ */
+export async function countMembersByGroup(groupId: string): Promise<number> {
+  try {
+    const membersRef = collection(db, 'users')
+    const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
+    const q = query(membersRef, where('roles', 'array-contains-any', memberRoles), where('groupId', '==', groupId))
+    const snap = await getCountFromServer(q as any)
+    return snap.data().count || 0
+  } catch (e) {
+    console.error('Erreur countMembersByGroup:', e)
+    return 0
+  }
+}
+
+/**
+ * Retire un membre d'un groupe en mettant à jour updatedBy et updatedAt
+ */
+export async function removeMemberFromGroup(userId: string, updatedBy: string): Promise<boolean> {
+  try {
+    const userRef = doc(db, 'users', userId)
+    await updateDoc(userRef, {
+      groupId: null,
+      updatedBy,
+      updatedAt: serverTimestamp(),
+    } as any)
+    return true
+  } catch (e) {
+    console.error('Erreur removeMemberFromGroup:', e)
+    return false
+  }
 }
 
 /**
