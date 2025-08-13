@@ -76,7 +76,7 @@ const Logo: React.FC<LogoProps> = ({
           'logo-kara transition-all duration-300 ease-in-out',
           isScrolled 
             ? 'filter-none' // Logo coloré quand navbar scrollée
-            : 'brightness-0 invert', // Logo blanc par défaut
+            : '', // Logo blanc par défaut
           'hover:scale-105',
           isScrolled 
             ? 'hover:sepia hover:saturate-120 hover:hue-rotate-35'
