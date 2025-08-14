@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
+import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
@@ -27,6 +28,16 @@ export default function FreeContract({ id }: Props) {
   if (!data) return <div className="p-4">Contrat introuvable</div>
 
   const isClosed = data.status === 'CLOSED'
+  const settings = useActiveCaisseSettingsByType((data as any).caisseType)
+
+  function paymentStatusLabel(s: string): string {
+    const map: Record<string, string> = {
+      DUE: 'À payer',
+      PAID: 'Payé',
+      REFUSED: 'Refusé',
+    }
+    return map[s] || s
+  }
 
   const onPay = async () => {
     if (isClosed) { toast.error('Contrat clos: paiement impossible.'); return }
@@ -47,13 +58,14 @@ export default function FreeContract({ id }: Props) {
   return (
     <div className="p-4 space-y-3">
       <h1 className="text-2xl font-bold">Contrat Libre #{id}</h1>
+      <div className="text-xs text-gray-500">Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}</div>
       <div className="text-sm text-gray-600">Montant minimum par mois: 100 000 FCFA</div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {(data.payments||[]).map((p:any)=> (
           <div key={p.id} className="border rounded p-3">
             <div className="flex items-center justify-between">
               <div className="font-medium">M{p.dueMonthIndex+1}</div>
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-100">{p.status}</span>
+              <span className="text-xs px-2 py-0.5 rounded bg-gray-100">{paymentStatusLabel(p.status)}</span>
             </div>
             <div className="text-xs text-gray-600">Accum.: {(p.accumulatedAmount||0).toLocaleString('fr-FR')} / 100 000</div>
             <div className="mt-2 flex items-center gap-2">

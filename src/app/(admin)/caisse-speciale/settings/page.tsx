@@ -3,17 +3,24 @@
 import React from 'react'
 import { useActiveCaisseSettings, useCaisseSettingsList, useCaisseSettingsMutations } from '@/hooks/useCaisseSettings'
 import { toast } from 'sonner'
+import { Plus, Edit3, Power, Trash2, Calendar, Settings, DollarSign, TrendingUp, AlertTriangle, Check, X, Loader2 } from 'lucide-react'
 
 export default function AdminCaisseSettingsPage() {
   const active = useActiveCaisseSettings()
   const list = useCaisseSettingsList()
   const { create, update, activate, remove } = useCaisseSettingsMutations()
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null)
+  const [editId, setEditId] = React.useState<string | null>(null)
+  const [isSavingEdit, setIsSavingEdit] = React.useState(false)
+  const [editBonusTable, setEditBonusTable] = React.useState<Record<string, number>>({})
+  const [editUseSteps, setEditUseSteps] = React.useState(false)
+  const [editSteps, setEditSteps] = React.useState<Array<{ from: number; to: number; rate: number }>>([])
+  const [editPerDay, setEditPerDay] = React.useState(0)
 
   const [bonusM4, setBonusM4] = React.useState(0)
   const [perDay, setPerDay] = React.useState(0)
   const [effectiveAt, setEffectiveAt] = React.useState<string>('')
-  const [caisseType, setCaisseType] = React.useState<'STANDARD'|'JOURNALIERE'|'LIBRE'>('STANDARD')
+  const [caisseType, setCaisseType] = React.useState<'STANDARD' | 'JOURNALIERE' | 'LIBRE'>('STANDARD')
 
   // Éditeur détaillé de la version active
   const [bonusTable, setBonusTable] = React.useState<Record<string, number>>({})
@@ -79,157 +86,457 @@ export default function AdminCaisseSettingsPage() {
     }
   }
 
+  const getCaisseTypeColor = (type: string) => {
+    switch (type) {
+      case 'STANDARD': return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'JOURNALIERE': return 'bg-green-100 text-green-800 border-green-200'
+      case 'LIBRE': return 'bg-purple-100 text-purple-800 border-purple-200'
+      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+
   return (
-    <div className="p-4 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Paramètres Caisse Spéciale</h1>
-        <div className="text-sm text-gray-600">Active: {active.data ? (active.data as any).id : '—'}</div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="border rounded p-4">
-          <div className="font-semibold mb-2">Créer une version</div>
-          <form className="space-y-3" onSubmit={onCreate}>
-            <div>
-              <label className="block text-sm">Type de caisse</label>
-              <select className="border rounded p-2 w-full" value={caisseType} onChange={(e)=> setCaisseType(e.target.value as any)}>
-                <option value="STANDARD">Standard</option>
-                <option value="JOURNALIERE">Journalière</option>
-                <option value="LIBRE">Libre</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm">Date d'effet</label>
-              <input type="date" className="border rounded p-2 w-full" value={effectiveAt} onChange={(e)=>setEffectiveAt(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-sm">Bonus M4 (%)</label>
-              <input type="number" className="border rounded p-2 w-full" value={bonusM4} onChange={(e)=>setBonusM4(Number(e.target.value))} />
-            </div>
-            <div>
-              <label className="block text-sm">Pénalité par jour (J+4..12)</label>
-              <input type="number" className="border rounded p-2 w-full" value={perDay} onChange={(e)=>setPerDay(Number(e.target.value))} />
-            </div>
-            <button className="px-4 py-2 rounded bg-[#234D65] text-white" disabled={create.isPending}>{create.isPending ? 'Création…' : 'Créer la version'}</button>
-          </form>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+              Paramètres Caisse Spéciale
+            </h1>
+            <p className="text-gray-600 text-lg">Configurez les bonus et pénalités par type de caisse</p>
+          </div>
         </div>
 
-        <div className="border rounded p-4">
-          <div className="font-semibold mb-2">Versions existantes</div>
-          {list.isLoading ? (
-            <div className="text-xs text-gray-500">Chargement…</div>
-          ) : (
-            <ul className="space-y-2">
-              {(list.data || []).map((s: any) => (
-                <li key={s.id} className="border rounded p-2 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium">{s.id} <span className="ml-2 text-[10px] px-2 py-0.5 rounded bg-gray-100">{(s as any).caisseType || '—'}</span></div>
-                    <div className="text-xs text-gray-600">Effet: {(() => {
-                      const v = (s as any).effectiveAt
-                      if (!v) return '—'
-                      const d = v && typeof v === 'object' && 'seconds' in v ? new Date(v.seconds * 1000) : new Date(v)
-                      return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
-                    })()} • Active: {s.isActive ? 'Oui' : 'Non'}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!s.isActive && (
-                      <button className="px-3 py-1 rounded border" onClick={async () => { await activate.mutateAsync(s.id); toast.success('Version activée') }}>Activer</button>
-                    )}
-                    {!s.isActive && (
-                      <button className="px-3 py-1 rounded border border-red-300 text-red-600" onClick={() => setConfirmDeleteId(s.id)}>Supprimer</button>
-                    )}
-                  </div>
-                </li>
-              ))}
-              {(list.data || []).length === 0 && (
-                <li className="text-xs text-gray-500">—</li>
-              )}
-            </ul>
-          )}
-        </div>
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Section Créer une version */}
+          <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 rounded-lg p-2">
+                  <Plus className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Créer une nouvelle version</h2>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <form className="space-y-6" onSubmit={onCreate}>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Settings className="h-4 w-4" />
+                    Type de caisse
+                  </label>
+                  <select 
+                    className="w-full border border-gray-200 rounded-xl p-3 bg-white focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                    value={caisseType} 
+                    onChange={(e) => setCaisseType(e.target.value as any)}
+                  >
+                    <option value="STANDARD">Standard</option>
+                    <option value="JOURNALIERE">Journalière</option>
+                    <option value="LIBRE">Libre</option>
+                  </select>
+                </div>
 
-      {/* Éditer la version active */}
-      <div className="border rounded p-4">
-        <div className="font-semibold mb-3">Éditer la version active</div>
-        {!active.data ? (
-          <div className="text-xs text-gray-500">Aucune version active</div>
-        ) : (
-          <form className="space-y-4" onSubmit={updateActive}>
-            <div>
-              <div className="text-sm font-medium mb-2">Bonus par mois (à partir de M4)</div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {Array.from({ length: 9 }).map((_, i) => {
-                  const m = i + 4
-                  const key = `M${m}`
-                  return (
-                    <div key={key}>
-                      <label className="block text-xs mb-1">{key} (%)</label>
-                      <input type="number" className="border rounded p-2 w-full" value={bonusTable[key] ?? 0} onChange={(e) => setBonusTable(prev => ({ ...prev, [key]: Number(e.target.value) }))} />
-                    </div>
-                  )
-                })}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Calendar className="h-4 w-4" />
+                    Date d'effet
+                  </label>
+                  <input 
+                    type="date" 
+                    className="w-full border border-gray-200 rounded-xl p-3 bg-white focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                    value={effectiveAt} 
+                    onChange={(e) => setEffectiveAt(e.target.value)} 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <TrendingUp className="h-4 w-4" />
+                    Bonus M4 (%)
+                  </label>
+                  <input 
+                    type="number" 
+                    className="w-full border border-gray-200 rounded-xl p-3 bg-white focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                    value={bonusM4} 
+                    onChange={(e) => setBonusM4(Number(e.target.value))} 
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <DollarSign className="h-4 w-4" />
+                    Pénalité par jour (J+4..12)
+                  </label>
+                  <input 
+                    type="number" 
+                    className="w-full border border-gray-200 rounded-xl p-3 bg-white focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                    value={perDay} 
+                    onChange={(e) => setPerDay(Number(e.target.value))} 
+                    placeholder="0"
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  disabled={create.isPending}
+                >
+                  {create.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Création en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Créer la version
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Section Versions existantes */}
+          <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 rounded-lg p-2">
+                  <Settings className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Versions existantes</h2>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input id="useSteps" type="checkbox" checked={useSteps} onChange={(e)=>setUseSteps(e.target.checked)} />
-                <label htmlFor="useSteps" className="text-sm">Utiliser des paliers de pénalité (J+4..J+12)</label>
-              </div>
-              {!useSteps ? (
-                <div>
-                  <label className="block text-sm">Pénalité par jour</label>
-                  <input type="number" className="border rounded p-2 w-full max-w-xs" value={perDay} onChange={(e)=>setPerDay(Number(e.target.value))} />
+            <div className="p-6">
+              {list.isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex items-center gap-3 text-gray-500">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Chargement des versions...</span>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Paliers</div>
-                  <div className="text-xs text-gray-500">Les jours vont de 1 à 9 (1 = J+4, …, 9 = J+12). Le montant est appliqué par jour en FCFA.</div>
-                  <div className="space-y-2">
-                    {steps.map((s, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input type="number" className="border rounded p-2 w-20" value={s.from} onChange={(e)=>{
-                          const v = Number(e.target.value); setSteps(prev=> prev.map((x,i)=> i===idx?{...x, from: v}:x))
-                        }} />
-                        <span className="text-sm">→</span>
-                        <input type="number" className="border rounded p-2 w-20" value={s.to} onChange={(e)=>{
-                          const v = Number(e.target.value); setSteps(prev=> prev.map((x,i)=> i===idx?{...x, to: v}:x))
-                        }} />
-                        <span className="text-sm">Montant/jour (FCFA)</span>
-                        <input type="number" className="border rounded p-2 w-24" value={s.rate} onChange={(e)=>{
-                          const v = Number(e.target.value); setSteps(prev=> prev.map((x,i)=> i===idx?{...x, rate: v}:x))
-                        }} />
-                        <button type="button" className="text-red-600 text-sm" onClick={()=> setSteps(prev=> prev.filter((_,i)=> i!==idx))}>Supprimer</button>
+                <div className="space-y-4">
+                  {(list.data || []).length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Settings className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>Aucune version configurée</p>
+                    </div>
+                  ) : (
+                    (list.data || []).map((s: any) => (
+                      <div key={s.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="font-mono text-sm font-medium text-gray-900">{s.id}</span>
+                              <span className={`text-xs px-3 py-1 rounded-full border font-medium ${getCaisseTypeColor((s as any).caisseType || 'STANDARD')}`}>
+                                {(s as any).caisseType || 'STANDARD'}
+                              </span>
+                              {s.isActive && (
+                                <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  Active
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Effet: {(() => {
+                                  const v = (s as any).effectiveAt
+                                  if (!v) return '—'
+                                  const d = v && typeof v === 'object' && 'seconds' in v ? new Date(v.seconds * 1000) : new Date(v)
+                                  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200"
+                              onClick={() => {
+                                setEditId(s.id)
+                                const bt = (s as any)?.bonusTable || {}
+                                const prefilled: Record<string, number> = {}
+                                for (let m = 4; m <= 12; m++) prefilled[`M${m}`] = Number(bt[`M${m}`] || 0)
+                                setEditBonusTable(prefilled)
+                                const pr = (s as any)?.penaltyRules || {}
+                                if (pr.day4To12?.steps) {
+                                  setEditUseSteps(true)
+                                  setEditSteps((pr.day4To12.steps || []).map((x: any) => ({ from: Number(x.from), to: Number(x.to), rate: Number(x.rate) })))
+                                  setEditPerDay(0)
+                                } else {
+                                  setEditUseSteps(false)
+                                  setEditSteps([])
+                                  setEditPerDay(Number(pr.day4To12?.perDay || 0))
+                                }
+                              }}
+                              title="Éditer"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                            {!s.isActive && (
+                              <button 
+                                className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200" 
+                                onClick={async () => { await activate.mutateAsync(s.id); toast.success('Version activée') }}
+                                title="Activer"
+                              >
+                                <Power className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button 
+                              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
+                              onClick={() => setConfirmDeleteId(s.id)}
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  <button type="button" className="px-3 py-1 rounded border" onClick={()=> setSteps(prev=> [...prev, { from: 1, to: 3, rate: 0 }])}>Ajouter un palier</button>
+                    ))
+                  )}
                 </div>
               )}
-            </div>
-
-            <div>
-              <button className="px-4 py-2 rounded bg-[#234D65] text-white" disabled={update.isPending}>{update.isPending ? 'Enregistrement…' : 'Enregistrer les modifications'}</button>
-            </div>
-          </form>
-        )}
-      </div>
-
-      {/* Confirmation suppression */}
-      {confirmDeleteId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Confirmer la suppression</div>
-            <p className="text-sm text-gray-600">Voulez-vous supprimer cette version ? Cette action est irréversible.</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmDeleteId(null)}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-red-600 text-white" onClick={async ()=> { await remove.mutateAsync(confirmDeleteId); setConfirmDeleteId(null); toast.success('Version supprimée') }}>Supprimer</button>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Modal de confirmation de suppression */}
+        {confirmDeleteId && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="bg-red-50 border-b border-red-100 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-red-100 rounded-full p-2">
+                    <AlertTriangle className="h-6 w-6 text-red-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-red-900">Confirmer la suppression</h3>
+                </div>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-600 mb-6">
+                  Êtes-vous sûr de vouloir supprimer cette version ? Cette action est irréversible et ne peut pas être annulée.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium"
+                    onClick={() => setConfirmDeleteId(null)}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+                    onClick={async () => { 
+                      await remove.mutateAsync(confirmDeleteId); 
+                      setConfirmDeleteId(null); 
+                      toast.success('Version supprimée') 
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal d'édition */}
+        {editId && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 rounded-lg p-2">
+                      <Edit3 className="h-5 w-5 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white">Éditer la version {editId}</h3>
+                  </div>
+                  <button 
+                    className="p-2 rounded-lg hover:bg-white/20 text-white transition-all duration-200"
+                    onClick={() => setEditId(null)}
+                    disabled={isSavingEdit}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4">
+                      <TrendingUp className="h-5 w-5" />
+                      Bonus par mois (à partir de M4)
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {Array.from({ length: 9 }).map((_, i) => {
+                        const m = i + 4
+                        const key = `M${m}`
+                        return (
+                          <div key={key} className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">{key} (%)</label>
+                            <input 
+                              type="number" 
+                              className="w-full border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                              value={editBonusTable[key] ?? 0} 
+                              onChange={(e) => setEditBonusTable(prev => ({ ...prev, [key]: Number(e.target.value) }))} 
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <input 
+                        id="editUseSteps" 
+                        type="checkbox" 
+                        checked={editUseSteps} 
+                        onChange={(e) => setEditUseSteps(e.target.checked)}
+                        className="w-4 h-4 text-[#234D65] border-gray-300 rounded focus:ring-[#234D65]/20"
+                      />
+                      <label htmlFor="editUseSteps" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <DollarSign className="h-4 w-4" />
+                        Utiliser des paliers de pénalité (J+4..J+12)
+                      </label>
+                    </div>
+
+                    {!editUseSteps ? (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">Pénalité par jour</label>
+                        <input 
+                          type="number" 
+                          className="w-full max-w-xs border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                          value={editPerDay} 
+                          onChange={(e) => setEditPerDay(Number(e.target.value))} 
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="text-sm font-medium text-gray-700">Paliers de pénalité</div>
+                        <div className="space-y-3">
+                          {editSteps.map((s, idx) => (
+                            <div key={idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-600">Jour</span>
+                                  <input 
+                                    type="number" 
+                                    className="w-20 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                                    value={s.from} 
+                                    onChange={(e) => { 
+                                      const v = Number(e.target.value); 
+                                      setEditSteps(prev => prev.map((x, i) => i === idx ? { ...x, from: v } : x)) 
+                                    }} 
+                                  />
+                                </div>
+                                <span className="text-gray-400">→</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-600">Jour</span>
+                                  <input 
+                                    type="number" 
+                                    className="w-20 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                                    value={s.to} 
+                                    onChange={(e) => { 
+                                      const v = Number(e.target.value); 
+                                      setEditSteps(prev => prev.map((x, i) => i === idx ? { ...x, to: v } : x)) 
+                                    }} 
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-600">Montant/jour (FCFA)</span>
+                                  <input 
+                                    type="number" 
+                                    className="w-32 border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                                    value={s.rate} 
+                                    onChange={(e) => { 
+                                      const v = Number(e.target.value); 
+                                      setEditSteps(prev => prev.map((x, i) => i === idx ? { ...x, rate: v } : x)) 
+                                    }} 
+                                  />
+                                </div>
+                                <button 
+                                  type="button" 
+                                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
+                                  onClick={() => setEditSteps(prev => prev.filter((_, i) => i !== idx))}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button 
+                          type="button" 
+                          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-gray-700"
+                          onClick={() => setEditSteps(prev => [...prev, { from: 1, to: 3, rate: 0 }])}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Ajouter un palier
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 p-6 bg-gray-50">
+                <div className="flex gap-3 justify-end">
+                  <button 
+                    className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-white transition-all duration-200 font-medium" 
+                    onClick={() => setEditId(null)} 
+                    disabled={isSavingEdit}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    className="px-6 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-xl hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    disabled={isSavingEdit} 
+                    onClick={async () => {
+                      try {
+                        setIsSavingEdit(true)
+                        const updates: any = { 
+                          bonusTable: editBonusTable, 
+                          penaltyRules: { 
+                            day4To12: editUseSteps ? { steps: editSteps } : { perDay: Number(editPerDay) } 
+                          } 
+                        }
+                        await update.mutateAsync({ id: editId as string, updates })
+                        toast.success('Version mise à jour')
+                        setEditId(null)
+                      } catch (e) {
+                        console.error(e)
+                        toast.error('Échec de la mise à jour')
+                      } finally { 
+                        setIsSavingEdit(false) 
+                      }
+                    }}
+                  >
+                    {isSavingEdit ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Enregistrement...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Enregistrer
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
-

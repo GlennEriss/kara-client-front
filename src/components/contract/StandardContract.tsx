@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
+import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
@@ -76,6 +77,7 @@ export default function StandardContract({ id }: Props) {
   if (!data) return <div className="p-4">Contrat introuvable</div>
 
   const isClosed = data.status === 'CLOSED'
+  const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   const onPay = async () => {
     if (isClosed) { toast.error('Contrat clos: paiement impossible.'); return }
@@ -105,6 +107,7 @@ export default function StandardContract({ id }: Props) {
           </button>
           <Link className="px-2 py-1 rounded border underline" href={routes.admin.membershipDetails(data.memberId)}>Voir membre</Link>
         </div>
+        <div className="text-xs text-gray-500 mt-1">Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}</div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
