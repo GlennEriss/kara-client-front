@@ -243,6 +243,38 @@ export async function updateUser(userId: string, updates: Partial<Omit<User, 'id
 }
 
 /**
+ * Récupère plusieurs utilisateurs par lot (chunk de 10 ids max par requête Firestore "in")
+ */
+export async function getUsersByIds(userIds: string[]): Promise<User[]> {
+  try {
+    const ids = Array.from(new Set(userIds.filter(Boolean)))
+    if (ids.length === 0) return []
+    const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
+    const chunkSize = 10
+    const chunks: string[][] = []
+    for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize))
+    const results: User[] = []
+    for (const chunk of chunks) {
+      const q = query(usersRef, where('id', 'in', chunk))
+      const snap = await getDocs(q)
+      snap.docs.forEach((d) => {
+        const data = d.data() as any
+        results.push({
+          id: d.id,
+          ...data,
+          createdAt: toDateSafe(data.createdAt),
+          updatedAt: toDateSafe(data.updatedAt),
+        } as User)
+      })
+    }
+    return results
+  } catch (error) {
+    console.error('Erreur getUsersByIds:', error)
+    return []
+  }
+}
+
+/**
  * Supprime un utilisateur (soft delete en désactivant)
  */
 export async function deactivateUser(userId: string): Promise<boolean> {

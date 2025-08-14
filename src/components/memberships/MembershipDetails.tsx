@@ -9,6 +9,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useUser } from '@/hooks/useMembers'
 import routes from '@/constantes/routes'
+import Link from 'next/link'
+import { Wallet } from 'lucide-react'
+import { listContractsByMember } from '@/db/caisse/contracts.db'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 
 export default function MembershipDetails() {
     const params = useParams()
@@ -16,6 +21,19 @@ export default function MembershipDetails() {
     const userId = params.id as string
 
     const { data: user, isLoading, isError, error } = useUser(userId)
+    const [caisseContracts, setCaisseContracts] = React.useState<any[]>([])
+
+    React.useEffect(() => {
+        ;(async () => {
+            if (!userId) return
+            try {
+                const cs = await listContractsByMember(userId)
+                setCaisseContracts(cs)
+            } catch {
+                // ignore
+            }
+        })()
+    }, [userId])
 
     if (isLoading) {
         return (
@@ -70,6 +88,23 @@ export default function MembershipDetails() {
                     >
                         <ExternalLink className="w-4 h-4 mr-2" /> Voir le dossier
                     </Button>
+                    {(() => {
+                        const activeStatuses = ['ACTIVE','LATE_NO_PENALTY','LATE_WITH_PENALTY','FINAL_REFUND_PENDING','EARLY_REFUND_PENDING']
+                        const hasActive = caisseContracts.some((c:any) => activeStatuses.includes(c.status))
+                        return hasActive ? (
+                            <Button className="bg-gray-300 text-gray-600 cursor-not-allowed" disabled>Contrat en cours</Button>
+                        ) : (
+                            <CreateCaisseContractButton
+                                memberId={user.id}
+                                onCreated={async () => {
+                                    try {
+                                        const cs = await listContractsByMember(user.id)
+                                        setCaisseContracts(cs)
+                                    } catch {}
+                                }}
+                            />
+                        )
+                    })()}
                 </div>
             </div>
 
@@ -160,6 +195,48 @@ export default function MembershipDetails() {
                         </CardContent>
                     </Card>
 
+                    <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
+                                <Wallet className="w-5 h-5 text-emerald-600" /> Caisse Spéciale
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-3">
+                            {/* Helpers inline pour badge et libellé statut */}
+                            {(() => {
+                                if (caisseContracts.length === 0) {
+                                    return <div className="text-sm text-gray-600">Aucun contrat</div>
+                                }
+                                const activeStatuses = ['ACTIVE','LATE_NO_PENALTY','LATE_WITH_PENALTY','FINAL_REFUND_PENDING','EARLY_REFUND_PENDING']
+                                const latest = caisseContracts[0]
+                                const hasActive = caisseContracts.some((c:any) => activeStatuses.includes(c.status))
+                                return (
+                                    <>
+                                      <div className="text-sm">Dernier contrat: <b>#{String(latest.id).slice(-6)}</b> — <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[latest.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'Brouillon', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[latest.status] || latest.status })()}</span></div>
+                                      <ul className="space-y-2">
+                                        {caisseContracts.map((c:any) => (
+                                          <li key={c.id} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-medium">Contrat #{String(c.id).slice(-6)}</span>
+                                              <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[c.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'Brouillon', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[c.status] || c.status })()}</span>
+                                            </div>
+                                            <Link href={routes.admin.caisseSpecialeContractDetails(c.id)} className="underline">Ouvrir</Link>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                      <div className="pt-2">
+                                        <Link href={routes.admin.caisseSpeciale} className="text-xs underline">Voir l’historique des contrats</Link>
+                                      </div>
+                                      {/* Désactiver la création si un contrat actif existe */}
+                                      {!hasActive ? null : (
+                                        <div className="text-xs text-red-600">Un contrat est en cours. La création d’un nouveau contrat est désactivée.</div>
+                                      )}
+                                    </>
+                                )
+                            })()}
+                        </CardContent>
+                    </Card>
+
                     {user.address && (
                         <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
                             <CardHeader className="pb-3">
@@ -192,5 +269,92 @@ export default function MembershipDetails() {
                 </div>
             </div>
         </div>
+    )
+}
+
+function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string; onCreated: () => Promise<void> | void }) {
+    const [open, setOpen] = React.useState(false)
+    const [amount, setAmount] = React.useState(10000)
+    const [months, setMonths] = React.useState(12)
+    const [caisseType, setCaisseType] = React.useState('STANDARD')
+    const [loading, setLoading] = React.useState(false)
+
+    const isDaily = caisseType === 'JOURNALIERE'
+    const isLibre = caisseType === 'LIBRE'
+
+    React.useEffect(() => {
+        if (isLibre && amount < 100000) {
+            setAmount(100000)
+        }
+    }, [caisseType])
+
+    const onCreate = async () => {
+        try {
+            setLoading(true)
+            if (isLibre && amount < 100000) {
+                toast.error('Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA.')
+                return
+            }
+            const { subscribe } = await import('@/services/caisse/mutations')
+            await subscribe({ memberId, monthlyAmount: amount, monthsPlanned: months, caisseType })
+            toast.success('Contrat créé')
+            setOpen(false)
+            await onCreated()
+        } catch (e: any) {
+            toast.error(e?.message || 'Création impossible')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <>
+            <Button className="bg-[#234D65] text-white" onClick={() => setOpen(true)}>Créer un contrat</Button>
+            <Dialog open={open} onOpenChange={(o) => !loading && setOpen(o)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Nouveau contrat Caisse Spéciale</DialogTitle>
+                        <DialogDescription>Définissez le montant, la durée et la caisse.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-sm mb-1">
+                                {caisseType === 'STANDARD' ? 'Montant mensuel' : caisseType === 'JOURNALIERE' ? 'Objectif mensuel' : 'Montant mensuel (minimum 100 000)'}
+                            </label>
+                            <input
+                                type="number"
+                                min={isLibre ? 100000 : 100}
+                                step={100}
+                                className="border rounded p-2 w-full"
+                                value={amount}
+                                onChange={(e) => setAmount(Number(e.target.value))}
+                            />
+                            {isDaily && (
+                                <div className="text-xs text-gray-500 mt-1">L’objectif est atteint par contributions quotidiennes sur le mois.</div>
+                            )}
+                            {isLibre && (
+                                <div className="text-xs text-gray-500 mt-1">Le total versé par mois doit être au moins 100 000 FCFA.</div>
+                            )}
+                        </div>
+                        <div>
+                            <label className="block text-sm mb-1">Durée (mois)</label>
+                            <input type="number" min={1} max={12} className="border rounded p-2 w-full" value={months} onChange={(e) => setMonths(Number(e.target.value))} />
+                        </div>
+                        <div>
+                            <label className="block text-sm mb-1">Caisse</label>
+                            <select className="border rounded p-2 w-full" value={caisseType} onChange={(e) => setCaisseType(e.target.value)}>
+                                <option value="STANDARD">Standard</option>
+                                <option value="JOURNALIERE">Journalière</option>
+                                <option value="LIBRE">Libre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Annuler</Button>
+                        <Button className="bg-[#234D65] text-white" onClick={onCreate} disabled={loading}>{loading ? 'Création…' : 'Créer'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }

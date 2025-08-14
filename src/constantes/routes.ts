@@ -21,6 +21,10 @@ const routes = {
         companies: '/companies',
         paymentsHistory: '/payments-history',
         paymentsHistoryDetails: (id: string) => `/payments-history/${id}`,
+        // Caisse Spéciale (Espace Admin)
+        caisseSpeciale: '/caisse-speciale',
+        caisseSpecialeContractDetails: (id: string) => `/caisse-speciale/contrats/${id}`,
+        caisseSpecialeSettings: '/caisse-speciale/settings',
     },
     member: {
         home: '/',

@@ -415,6 +415,8 @@ export interface User {
   isActive: boolean
   // Groupe d'appartenance
   groupId?: string
+  // Caisse Spéciale
+  caisseContractIds?: string[]
 }
 
 // ================== TYPES POUR LES GROUPES ==================

@@ -1,6 +1,6 @@
 "use client"
 
-import { Car, Home, Settings, Users, BarChart3, FileText, Shield, LogOut, UserPlus, Briefcase, Building, GroupIcon } from "lucide-react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -39,6 +39,11 @@ const adminMenuItems = [
         url: routes.admin.memberships,
         icon: Users,
     },
+    {
+        title: "Caisse Spéciale",
+        url: routes.admin.caisseSpeciale,
+        icon: Wallet,
+    },
     /*{
         title: "Assurance",
         url: "/dashboard/insurance",
@@ -76,7 +81,12 @@ const systemMenuItems: any[] = [
         title: "Entreprises",
         url: routes.admin.companies,
         icon: Building,
-    }
+    },
+    {
+        title: "Paramètres Caisse",
+        url: routes.admin.caisseSpecialeSettings,
+        icon: Settings,
+    },
     /* {
         title: "Paramètres",
         url: routes.admin.settings,
@@ -95,10 +105,21 @@ export function AppSidebar() {
 
     // Fonction pour détecter si une route est active
     const isActiveRoute = (url: string) => {
+        // Cas particulier: dashboard exact
         if (url === '/dashboard') {
             return pathname === '/dashboard'
         }
-        return pathname.startsWith(url)
+        // Cas particulier: Caisse Spéciale
+        // - La route de base n'est active que sur la page exacte
+        // - La route settings gère ses sous-routes
+        if (url === routes.admin.caisseSpeciale) {
+            return pathname === routes.admin.caisseSpeciale
+        }
+        if (url === routes.admin.caisseSpecialeSettings) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
+        // Comportement par défaut: actif si égalité ou sous-chemin
+        return pathname === url || pathname.startsWith(url + '/')
     }
 
     return (
