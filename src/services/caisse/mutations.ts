@@ -158,7 +158,17 @@ export async function requestFinalRefund(contractId: string) {
   }
   await updateContract(contractId, { status: 'FINAL_REFUND_PENDING' })
   const amountNominal = c.nominalPaid || 0
-  const amountBonus = c.bonusAccrued || 0
+  // Calcul du bonus final: (montant global versé) * (taux du mois final) / 100, à partir de M4
+  const settings = await getActiveSettings((c as any).caisseType)
+  // Mois final = nombre de mois planifiés si dispo, sinon max des échéances connues
+  const finalMonthNumber = (c as any).monthsPlanned
+    ? Number((c as any).monthsPlanned)
+    : (payments.length > 0 ? (Math.max(...payments.map((p: any) => Number(p.dueMonthIndex || 0))) + 1) : 0)
+  let amountBonus = 0
+  if (finalMonthNumber >= 4 && settings) {
+    const bonusRate = computeBonus(finalMonthNumber - 1, settings as any) || 0 // valeur interprétée comme pourcentage
+    amountBonus = (amountNominal || 0) * (Number(bonusRate) / 100)
+  }
   const deadlineAt = c.contractEndAt ? new Date(new Date(c.contractEndAt).getTime() + 30*86400000) : new Date()
   await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING' })
   return true
@@ -186,7 +196,32 @@ export async function requestEarlyRefund(contractId: string) {
   }
   await updateContract(contractId, { status: 'EARLY_REFUND_PENDING' })
   const amountNominal = c.nominalPaid || 0
-  const amountBonus = 0 // retrait anticipé = nominal seul
+  // Bonus du mois précédent (paidCount-1 => M(paidCount-1)) → index = paidCount-2, à partir de M4
+  const settings = await getActiveSettings((c as any).caisseType)
+  // Montant global versé (toutes contributions)
+  let totalPaid = 0
+  const type = (c as any).caisseType || 'STANDARD'
+  if (type === 'STANDARD') {
+    totalPaid = paidCount * (c.monthlyAmount || 0)
+  } else {
+    for (const p of payments) {
+      if (Array.isArray((p as any).contribs)) {
+        totalPaid += (p as any).contribs.reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0)
+      } else if (typeof (p as any).accumulatedAmount === 'number') {
+        totalPaid += Number((p as any).accumulatedAmount) || 0
+      } else if (p.status === 'PAID' && type === 'JOURNALIERE') {
+        totalPaid += c.monthlyAmount || 0
+      }
+    }
+  }
+  let amountBonus = 0
+  if (settings) {
+    const prevIndex = paidCount - 2 // mappe M(paidCount-1)
+    const bonusRate = prevIndex >= 0 ? (computeBonus(prevIndex, settings as any) || 0) : 0
+    if (prevIndex + 1 >= 4 && bonusRate > 0) {
+      amountBonus = (totalPaid || 0) * (Number(bonusRate) / 100)
+    }
+  }
   const deadlineAt = new Date(Date.now() + 45*86400000)
   await addRefund(contractId, { type: 'EARLY', amountNominal, amountBonus, deadlineAt, status: 'PENDING' })
   return true

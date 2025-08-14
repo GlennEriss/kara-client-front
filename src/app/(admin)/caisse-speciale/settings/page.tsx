@@ -17,7 +17,11 @@ export default function AdminCaisseSettingsPage() {
   const [editSteps, setEditSteps] = React.useState<Array<{ from: number; to: number; rate: number }>>([])
   const [editPerDay, setEditPerDay] = React.useState(0)
 
-  const [bonusM4, setBonusM4] = React.useState(0)
+  const [createBonusTable, setCreateBonusTable] = React.useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {}
+    for (let m = 4; m <= 12; m++) initial[`M${m}`] = 0
+    return initial
+  })
   const [perDay, setPerDay] = React.useState(0)
   const [effectiveAt, setEffectiveAt] = React.useState<string>('')
   const [caisseType, setCaisseType] = React.useState<'STANDARD' | 'JOURNALIERE' | 'LIBRE'>('STANDARD')
@@ -31,7 +35,7 @@ export default function AdminCaisseSettingsPage() {
     e.preventDefault()
     const payload: any = {
       isActive: false,
-      bonusTable: { M4: Number(bonusM4) },
+      bonusTable: createBonusTable,
       penaltyRules: { day4To12: { perDay: Number(perDay) } },
       businessTexts: {},
       caisseType,
@@ -39,11 +43,17 @@ export default function AdminCaisseSettingsPage() {
     if (effectiveAt) {
       const d = new Date(effectiveAt)
       if (!isNaN(d.getTime())) payload.effectiveAt = d
+    } else {
+      payload.effectiveAt = new Date()
     }
     try {
       await create.mutateAsync(payload)
       setEffectiveAt('')
-      setBonusM4(0)
+      setCreateBonusTable(() => {
+        const reset: Record<string, number> = {}
+        for (let m = 4; m <= 12; m++) reset[`M${m}`] = 0
+        return reset
+      })
       setPerDay(0)
       toast.success('Version créée')
     } catch (err) {
@@ -153,21 +163,33 @@ export default function AdminCaisseSettingsPage() {
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <TrendingUp className="h-4 w-4" />
-                    Bonus M4 (%)
+                    Bonus par mois (M4 à M12)
                   </label>
-                  <input 
-                    type="number" 
-                    className="w-full border border-gray-200 rounded-xl p-3 bg-white focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
-                    value={bonusM4} 
-                    onChange={(e) => setBonusM4(Number(e.target.value))} 
-                    placeholder="0"
-                  />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {Array.from({ length: 9 }).map((_, i) => {
+                      const m = i + 4
+                      const key = `M${m}` as const
+                      return (
+                        <div key={key} className="space-y-1">
+                          <label className="block text-xs font-medium text-gray-700">{key} (%)</label>
+                          <input
+                            type="number"
+                            className="w-full border border-gray-200 rounded-xl p-3 bg-white focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                            value={createBonusTable[key] ?? 0}
+                            onChange={(e) =>
+                              setCreateBonusTable(prev => ({ ...prev, [key]: Number(e.target.value) }))
+                            }
+                            placeholder="0"
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <DollarSign className="h-4 w-4" />
-                    Pénalité par jour (J+4..12)
+                    Pénalité par jour (%) (J+4..J+12)
                   </label>
                   <input 
                     type="number" 
@@ -201,7 +223,7 @@ export default function AdminCaisseSettingsPage() {
 
           {/* Section Versions existantes */}
           <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-6">
+            <div className="bg-[#234D65] p-6">
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 rounded-lg p-2">
                   <Settings className="h-5 w-5 text-white" />
@@ -228,9 +250,9 @@ export default function AdminCaisseSettingsPage() {
                   ) : (
                     (list.data || []).map((s: any) => (
                       <div key={s.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-all duration-200">
-                        <div className="flex items-start justify-between">
+                        <div className="flex flex-col lg:flex-row items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
+                            <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
                               <span className="font-mono text-sm font-medium text-gray-900">{s.id}</span>
                               <span className={`text-xs px-3 py-1 rounded-full border font-medium ${getCaisseTypeColor((s as any).caisseType || 'STANDARD')}`}>
                                 {(s as any).caisseType || 'STANDARD'}
@@ -410,7 +432,7 @@ export default function AdminCaisseSettingsPage() {
 
                     {!editUseSteps ? (
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Pénalité par jour</label>
+                        <label className="block text-sm font-medium text-gray-700">Pénalité par jour (%)</label>
                         <input 
                           type="number" 
                           className="w-full max-w-xs border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
@@ -451,7 +473,7 @@ export default function AdminCaisseSettingsPage() {
                                   />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-600">Montant/jour (FCFA)</span>
+                                  <span className="text-sm text-gray-600">Taux/jour (%)</span>
                                   <input 
                                     type="number" 
                                     className="w-32 border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
