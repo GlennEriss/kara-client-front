@@ -13,7 +13,8 @@ import {
   Timestamp,
   getCountFromServer,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  arrayUnion
 } from 'firebase/firestore'
 import { db } from '@/firebase/firestore'
 import { User, UserFilters, UserStats, Subscription } from '@/types/types'
@@ -90,6 +91,23 @@ export async function removeMemberFromGroup(userId: string, updatedBy: string): 
     return true
   } catch (e) {
     console.error('Erreur removeMemberFromGroup:', e)
+    return false
+  }
+}
+
+/**
+ * Associe un contrat de Caisse Spéciale à un membre (User)
+ */
+export async function addCaisseContractToUser(userId: string, contractId: string): Promise<boolean> {
+  try {
+    const userRef = doc(db, 'users', userId)
+    await updateDoc(userRef, {
+      caisseContractIds: arrayUnion(contractId),
+      updatedAt: serverTimestamp(),
+    } as any)
+    return true
+  } catch (e) {
+    console.error('Erreur addCaisseContractToUser:', e)
     return false
   }
 }

@@ -13,6 +13,10 @@ export const firebaseCollectionNames = {
     addresses: "addresses",
     companies: "companies",
     professions: "professions",
+    // Caisse Spéciale
+    caisseContracts: "caisseContracts",
+    caisseSettings: "caisseSettings",
+    caisseAdminNotes: "caisseAdminNotes",
 }
 
 // Export également en majuscules pour compatibilité
@@ -31,4 +35,8 @@ export const FIREBASE_COLLECTION_NAMES = {
     ADDRESSES: "addresses",
     COMPANIES: "companies",
     PROFESSIONS: "professions",
+    // Caisse Spéciale
+    CAISSE_CONTRACTS: "caisseContracts",
+    CAISSE_SETTINGS: "caisseSettings",
+    CAISSE_ADMIN_NOTES: "caisseAdminNotes",
 }
