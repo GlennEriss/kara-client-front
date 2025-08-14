@@ -7,9 +7,7 @@ import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
-import dynamic from 'next/dynamic'
-const PDFDownloadLink = dynamic(() => import('@react-pdf/renderer').then(m => m.PDFDownloadLink), { ssr: false })
-import { PaymentReceiptDoc, RefundAttestationDoc } from '@/services/caisse/pdf'
+// PDF generation désactivée pour build Next 15; à réactiver via import dynamique côté client si besoin
 import { recomputeNow } from '@/services/caisse/readers'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 
@@ -181,11 +179,7 @@ export default function StandardContract({ id }: Props) {
                 <div className="flex items-center gap-2 mt-1">
                 <input type="radio" name="pay" onChange={() => setSelectedIdx(p.dueMonthIndex)} checked={selectedIdx === p.dueMonthIndex} disabled={p.status !== 'DUE' || isClosed} />
                   <span className="text-sm">Sélectionner pour payer</span>
-                  {p.status === 'PAID' && (
-                    <PDFDownloadLink document={<PaymentReceiptDoc contract={data} payment={p} />} fileName={`recu_${id}_M${p.dueMonthIndex+1}.pdf`}>
-                      {({ loading }) => <span className="text-xs underline cursor-pointer">{loading ? 'PDF…' : 'Reçu PDF'}</span>}
-                    </PDFDownloadLink>
-                  )}
+                  {/* Lien PDF désactivé temporairement */}
                 </div>
               </div>
             )
@@ -286,11 +280,7 @@ export default function StandardContract({ id }: Props) {
                     <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={()=> setConfirmPaidId(r.id)}>Marquer payé</button>
                   </>
                 )}
-                {r.status === 'PAID' && (
-                  <PDFDownloadLink document={<RefundAttestationDoc contract={data} refund={r} />} fileName={`attestation_${id}_${r.id}.pdf`}>
-                    {({ loading }) => <span className="text-xs underline cursor-pointer">{loading ? 'PDF…' : 'Attestation PDF'}</span>}
-                  </PDFDownloadLink>
-                )}
+                {/* Attestation PDF désactivée temporairement */}
               </div>
             </div>
           ))}

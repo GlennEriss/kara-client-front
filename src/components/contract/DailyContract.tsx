@@ -5,9 +5,7 @@ import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
-import dynamic from 'next/dynamic'
-const PDFDownloadLink = dynamic(() => import('@react-pdf/renderer').then(m => m.PDFDownloadLink), { ssr: false })
-import { RefundAttestationDoc } from '@/services/caisse/pdf'
+// PDF generation désactivée pour build Next 15; à réactiver via import dynamique côté client si besoin
 
 type Props = { id: string }
 
@@ -154,11 +152,7 @@ export default function DailyContract({ id }: Props) {
                     <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={()=> setConfirmPaidId(r.id)}>Marquer payé</button>
                   </>
                 )}
-                {r.status === 'PAID' && (
-                  <PDFDownloadLink document={<RefundAttestationDoc contract={data} refund={r} />} fileName={`attestation_${id}_${r.id}.pdf`}>
-                    {({ loading }) => <span className="text-xs underline cursor-pointer">{loading ? 'PDF…' : 'Attestation PDF'}</span>}
-                  </PDFDownloadLink>
-                )}
+                {/* Attestation PDF désactivée temporairement */}
               </div>
             </div>
           ))}
