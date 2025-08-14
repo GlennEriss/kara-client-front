@@ -23,6 +23,10 @@ const routeLabels: Record<string, string> = {
   '/companies': 'Entreprises',
   '/payments-history': 'Historique des paiements',
   '/groups': 'Groupes',
+  '/memberships/add': 'Nouveau membre',
+  '/caisse-speciale': 'Caisse Spéciale',
+  '/caisse-speciale/contrats': 'Contrats',
+  '/caisse-speciale/settings': 'Paramètres Caisse',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -39,7 +43,16 @@ const getRouteLabel = (path: string): string => {
   if (path.match(/^\/memberships\/[^\/]+$/)) {
     return 'Détails'
   }
+  if (path.match(/^\/memberships\/[^\/]+\/subscriptions$/)) {
+    return 'Abonnements'
+  }
   if (path.match(/^\/payments-history\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/groups\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+$/)) {
     return 'Détails'
   }
 
@@ -61,7 +74,7 @@ const generateBreadcrumbSegments = (pathname: string) => {
 
   // Ajouter le segment racine (Dashboard)
   breadcrumbSegments.push({
-    label: 'Dashboard',
+    label: 'Tableau de bord',
     href: '/dashboard',
     isCurrent: pathname === '/dashboard'
   })
