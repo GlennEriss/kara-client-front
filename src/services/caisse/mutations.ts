@@ -190,7 +190,11 @@ export async function requestFinalRefund(contractId: string) {
   return true
 }
 
-export async function requestEarlyRefund(contractId: string) {
+export async function requestEarlyRefund(contractId: string, input?: {
+  reason?: string
+  withdrawalTime?: string
+  withdrawalDate?: string
+}) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
   // Verrou M4: compter les paiements effectués
@@ -239,7 +243,21 @@ export async function requestEarlyRefund(contractId: string) {
     }
   }
   const deadlineAt = new Date(Date.now() + 45*86400000)
-  await addRefund(contractId, { type: 'EARLY', amountNominal, amountBonus, deadlineAt, status: 'PENDING' })
+
+  // Ajouter les informations de retrait anticipé
+  const withdrawalDate = input?.withdrawalDate ? new Date(input.withdrawalDate) : new Date()
+  const withdrawalTime = input?.withdrawalTime || `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
+
+  await addRefund(contractId, { 
+    type: 'EARLY', 
+    amountNominal, 
+    amountBonus, 
+    deadlineAt, 
+    status: 'PENDING',
+    reason: input?.reason || '',
+    withdrawalDate,
+    withdrawalTime
+  })
   return true
 }
 

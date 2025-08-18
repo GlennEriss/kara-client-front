@@ -33,6 +33,9 @@ export default function DailyContract({ id }: Props) {
   const [isPaying, setIsPaying] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
+  const [refundReason, setRefundReason] = useState('')
+  const [refundDate, setRefundDate] = useState('')
+  const [refundTime, setRefundTime] = useState('')
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
@@ -563,29 +566,81 @@ export default function DailyContract({ id }: Props) {
                     
                     {r.status === 'APPROVED' && (
                       <>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e) => {
-                            const f = e.target.files?.[0]
-                            if (!f) {
-                              setRefundFile(undefined)
-                              return
-                            }
-                            if (!f.type.startsWith('image/')) {
-                              toast.error('La preuve doit être une image')
-                              setRefundFile(undefined)
-                              return
-                            }
-                            setRefundFile(f)
-                            toast.success('Preuve sélectionnée')
-                          }}
-                          className="w-full sm:max-w-xs"
-                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                          {/* Cause du retrait */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Cause du retrait *</Label>
+                            <textarea
+                              placeholder="Raison du retrait..."
+                              className="w-full text-xs p-2 border border-gray-300 rounded-md resize-none"
+                              rows={2}
+                              value={refundReason || r.reason || ''}
+                              onChange={(e) => setRefundReason(e.target.value)}
+                              required
+                            />
+                          </div>
+                          
+                          {/* Date du retrait */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Date du retrait *</Label>
+                            <Input
+                              type="date"
+                              value={refundDate || (r.withdrawalDate ? (() => {
+                                try {
+                                  const date = new Date(r.withdrawalDate)
+                                  return isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
+                                } catch {
+                                  return new Date().toISOString().split('T')[0]
+                                }
+                              })() : new Date().toISOString().split('T')[0])}
+                              onChange={(e) => setRefundDate(e.target.value)}
+                              className="w-full text-xs"
+                              required
+                            />
+                          </div>
+                          
+                          {/* Heure du retrait */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Heure du retrait *</Label>
+                            <Input
+                              type="text"
+                              value={refundTime || r.withdrawalTime || ''}
+                              onChange={(e) => setRefundTime(e.target.value)}
+                              className="w-full text-xs"
+                              required
+                            />
+                          </div>
+                          
+                          {/* Preuve du retrait */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Preuve du retrait *</Label>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const f = e.target.files?.[0]
+                                if (!f) {
+                                  setRefundFile(undefined)
+                                  return
+                                }
+                                if (!f.type.startsWith('image/')) {
+                                  toast.error('La preuve doit être une image')
+                                  setRefundFile(undefined)
+                                  return
+                                }
+                                setRefundFile(f)
+                                toast.success('Preuve sélectionnée')
+                              }}
+                              className="w-full text-xs"
+                              required
+                            />
+                          </div>
+                        </div>
+                        
                         <Button 
                           size="sm"
                           className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                          disabled={!refundFile}
+                          disabled={!refundFile || !(refundReason || r.reason)?.trim() || !(refundDate || r.withdrawalDate) || !(refundTime || r.withdrawalTime)?.trim()}
                           onClick={() => setConfirmPaidId(r.id)}
                         >
                           Marquer payé

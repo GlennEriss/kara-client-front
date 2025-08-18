@@ -22,6 +22,9 @@ export default function StandardContract({ id }: Props) {
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
+  const [refundReason, setRefundReason] = useState('')
+  const [refundDate, setRefundDate] = useState('')
+  const [refundTime, setRefundTime] = useState('')
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
@@ -256,28 +259,81 @@ export default function StandardContract({ id }: Props) {
                 )}
                 {r.status === 'APPROVED' && (
                   <>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={async (e)=> {
-                        const f = e.target.files?.[0]
-                        if (!f) { setRefundFile(undefined); return }
-                        if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setRefundFile(undefined); return }
-                        try {
-                          const dataUrl = await compressImage(f, IMAGE_COMPRESSION_PRESETS.document)
-                          const res = await fetch(dataUrl)
-                          const blob = await res.blob()
-                          const webpFile = new File([blob], 'refund-proof.webp', { type: 'image/webp' })
-                          setRefundFile(webpFile)
-                          toast.success('Preuve compressée (WebP) prête')
-                        } catch (err) {
-                          console.error(err)
-                          toast.error('Échec de la compression de l\'image')
-                          setRefundFile(undefined)
-                        }
-                      }}
-                    />
-                    <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={()=> setConfirmPaidId(r.id)}>Marquer payé</button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      {/* Cause du retrait */}
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Cause du retrait *</label>
+                        <textarea
+                          placeholder="Raison du retrait..."
+                          className="w-full p-2 text-xs border border-gray-300 rounded-md resize-none"
+                          rows={2}
+                          value={refundReason || r.reason || ''}
+                          onChange={(e) => setRefundReason(e.target.value)}
+                          required
+                        />
+                      </div>
+                      
+                      {/* Date du retrait */}
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Date du retrait *</label>
+                        <input
+                          type="date"
+                          value={refundDate || (r.withdrawalDate ? (() => {
+                            try {
+                              const date = new Date(r.withdrawalDate)
+                              return isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
+                            } catch {
+                              return new Date().toISOString().split('T')[0]
+                            }
+                          })() : new Date().toISOString().split('T')[0])}
+                          onChange={(e) => setRefundDate(e.target.value)}
+                          className="w-full p-2 text-xs border border-gray-300 rounded-md"
+                          required
+                        />
+                      </div>
+                      
+                      {/* Heure du retrait */}
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Heure du retrait *</label>
+                        <input
+                          type="text"
+                          value={refundTime || r.withdrawalTime || ''}
+                          onChange={(e) => setRefundTime(e.target.value)}
+                          className="w-full p-2 text-xs border border-gray-300 rounded-md"
+                          required
+                        />
+                      </div>
+                      
+                      {/* Preuve du retrait */}
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Preuve du retrait *</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e)=> {
+                            const f = e.target.files?.[0]
+                            if (!f) { setRefundFile(undefined); return }
+                            if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setRefundFile(undefined); return }
+                            try {
+                              const dataUrl = await compressImage(f, IMAGE_COMPRESSION_PRESETS.document)
+                              const res = await fetch(dataUrl)
+                              const blob = await res.blob()
+                              const webpFile = new File([blob], 'refund-proof.webp', { type: 'image/webp' })
+                              setRefundFile(webpFile)
+                              toast.success('Preuve compressée (WebP) prête')
+                            } catch (err) {
+                              console.error(err)
+                              toast.error('Échec de la compression de l\'image')
+                              setRefundFile(undefined)
+                            }
+                          }}
+                          className="w-full p-2 text-xs border border-gray-300 rounded-md"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile || !(refundReason || r.reason)?.trim() || !(refundDate || r.withdrawalDate) || !(refundTime || r.withdrawalTime)?.trim()} onClick={()=> setConfirmPaidId(r.id)}>Marquer payé</button>
                   </>
                 )}
                 {/* Attestation PDF désactivée temporairement */}

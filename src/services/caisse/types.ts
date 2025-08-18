@@ -73,5 +73,9 @@ export interface CaisseRefund {
   createdAt: Date
   processedAt?: Date
   proofUrl?: string
+  // Nouveaux champs pour le retrait anticipé
+  reason?: string
+  withdrawalDate?: Date
+  withdrawalTime?: string
 }
 
