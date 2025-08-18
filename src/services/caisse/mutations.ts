@@ -8,20 +8,26 @@ import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
 import { addCaisseContractToUser } from '@/db/member.db'
 
-export async function subscribe(input: { memberId: string; monthlyAmount: number; monthsPlanned: number; caisseType: any }) {
+export async function subscribe(input: { memberId: string; monthlyAmount: number; monthsPlanned: number; caisseType: any; firstPaymentDate: string }) {
   const settings = await getActiveSettings(input.caisseType)
   const id = await createContract({ ...input, ...(settings?.id ? { settingsVersion: settings.id } : {}) })
-  // Pré-générer les paiements DUE
+  
+  // Calculer la date de début basée sur firstPaymentDate ou maintenant
+  const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
+  
+  // Pré-générer les paiements DUE avec dueAt calculé
   for (let i = 0; i < input.monthsPlanned; i++) {
-    // dueAt se fixera précisément au start + i mois une fois le M1 payé; on peut mettre un placeholder
-    await addPayment(id, { dueMonthIndex: i, amount: input.monthlyAmount, status: 'DUE' })
+    const dueDate = new Date(startDate)
+    dueDate.setMonth(dueDate.getMonth() + i)
+    await addPayment(id, { dueMonthIndex: i, amount: input.monthlyAmount, status: 'DUE', dueAt: dueDate })
   }
+  
   // Associer au membre
   await addCaisseContractToUser(input.memberId, id)
   return id
 }
 
-export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date }) {
+export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: 'airtel_money' | 'mobicash' }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   const settings = await getActiveSettings((contract as any).caisseType)
@@ -85,7 +91,13 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   }
   if (typeof input.amount === 'number' && input.amount > 0) {
     paymentUpdates.accumulatedAmount = newAccumulated
-    const contrib = { amount: input.amount, paidAt: now, proofUrl: proofUrl || undefined }
+    const contrib = { 
+      amount: input.amount, 
+      paidAt: now, 
+      proofUrl: proofUrl || undefined,
+      time: input.time,
+      mode: input.mode
+    }
     const existing = Array.isArray(payment.contribs) ? payment.contribs : []
     paymentUpdates.contribs = [...existing, contrib]
   }

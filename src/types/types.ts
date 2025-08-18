@@ -113,9 +113,10 @@ export interface MembershipRequest extends RegisterFormData {
   priorityScore?: number
 }
 
+export type PaymentMode = 'airtel_money' | 'mobicash'
 export interface Payment {
   date: Date
-  mode: 'airtel_money' | 'mobicash'
+  mode: PaymentMode
   amount: number
   acceptedBy: string
   paymentType: TypePayment

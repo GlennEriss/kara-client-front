@@ -1,19 +1,32 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
+import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-// PDF generation désactivée pour build Next 15; à réactiver via import dynamique côté client si besoin
+import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 type Props = { id: string }
 
 export default function DailyContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
-  const [amount, setAmount] = useState<number>(0)
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const [file, setFile] = useState<File | undefined>()
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false)
+  const [paymentDetails, setPaymentDetails] = useState<any>(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentTime, setPaymentTime] = useState('')
+  const [paymentMode, setPaymentMode] = useState<'airtel_money' | 'mobicash'>('airtel_money')
+  const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [isPaying, setIsPaying] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
@@ -28,176 +41,833 @@ export default function DailyContract({ id }: Props) {
   const isClosed = data.status === 'CLOSED'
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
-  function paymentStatusLabel(s: string): string {
-    const map: Record<string, string> = {
-      DUE: 'À payer',
-      PAID: 'Payé',
-      REFUSED: 'Refusé',
+  // Fonctions utilitaires pour le calendrier
+  const getMonthDays = (date: Date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const startDate = new Date(firstDay)
+    startDate.setDate(startDate.getDate() - firstDay.getDay())
+    
+    const days = []
+    const currentDate = new Date(startDate)
+    
+    while (currentDate <= lastDay || days.length < 42) {
+      days.push(new Date(currentDate))
+      currentDate.setDate(currentDate.getDate() + 1)
     }
-    return map[s] || s
+    
+    return days
   }
 
-  const onPay = async () => {
-    if (isClosed) { toast.error('Contrat clos: paiement impossible.'); return }
-    if (selectedIdx === null) { toast.error('Choisissez un mois.'); return }
-    if (!file) { toast.error('Téléversez une preuve.'); return }
-    if (!amount || amount <= 0) { toast.error('Saisissez un montant.'); return }
+  const getPaymentForDate = (date: Date) => {
+    if (!data.payments) return null
+    
+    // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
+    for (const payment of data.payments) {
+      if (payment.contribs) {
+        const hasContributionOnDate = payment.contribs.some((c: any) => {
+          const contribDate = new Date(c.paidAt)
+          // Normaliser les dates pour la comparaison (ignorer l'heure)
+          const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
+          const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+          return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
+        })
+        if (hasContributionOnDate) return payment
+      }
+    }
+    return null
+  }
+
+  const getPaymentDetailsForDate = (date: Date) => {
+    if (!data.payments) return null
+    
+    // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
+    for (const payment of data.payments) {
+      if (payment.contribs) {
+        const contribution = payment.contribs.find((c: any) => {
+          const contribDate = new Date(c.paidAt)
+          // Normaliser les dates pour la comparaison (ignorer l'heure)
+          const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
+          const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+          return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
+        })
+        if (contribution) {
+          return { payment, contribution }
+        }
+      }
+    }
+    return null
+  }
+
+  const getTotalForMonth = (monthIndex: number) => {
+    const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
+    return payment?.accumulatedAmount || 0
+  }
+
+  const getMonthStatus = (monthIndex: number) => {
+    const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
+    if (!payment) return 'DUE'
+    return payment.status
+  }
+
+  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+
+  const onDateClick = async (date: Date) => {
+    if (isClosed) return
+    
+    // Vérifier si la date est antérieure au premier versement
+    const firstPaymentDate = data.contractStartAt ? new Date(data.contractStartAt) : new Date()
+    firstPaymentDate.setHours(0, 0, 0, 0)
+    const selectedDateStart = new Date(date)
+    selectedDateStart.setHours(0, 0, 0, 0)
+    
+    if (selectedDateStart < firstPaymentDate) {
+      toast.error('Impossible de verser sur une date antérieure au premier versement')
+      return
+    }
+    
+    // Vérifier si la date est dans le futur (bloqué en production uniquement)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (selectedDateStart > today && process.env.NODE_ENV === 'production') {
+      toast.error('Impossible de verser sur une date future')
+      return
+    }
+    
+    setSelectedDate(date)
+    
+    try {
+      // Récupérer le versement depuis Firestore
+      const existingPayment = await getPaymentByDate(id, date)
+      
+      if (existingPayment) {
+        // Stocker les détails du versement et afficher le modal
+        setPaymentDetails(existingPayment)
+        setShowPaymentDetailsModal(true)
+      } else {
+        // Créer un nouveau versement
+        setPaymentDetails(null)
+        // Initialiser l'heure actuelle par défaut
+        const now = new Date()
+        setPaymentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
+        setShowPaymentModal(true)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du versement:', error)
+      // En cas d'erreur, afficher le formulaire de création
+      setPaymentDetails(null)
+      const now = new Date()
+      setPaymentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
+      setShowPaymentModal(true)
+    }
+  }
+
+  const onPaymentSubmit = async () => {
+    if (!selectedDate || !paymentAmount || !paymentTime || !paymentFile) {
+      toast.error('Veuillez remplir tous les champs')
+      return
+    }
+
+    const amount = Number(paymentAmount)
+    if (amount <= 0) {
+      toast.error('Le montant doit être positif')
+      return
+    }
+
     try {
       setIsPaying(true)
-      await pay({ contractId: id, dueMonthIndex: selectedIdx, memberId: data.memberId, amount, file })
+      
+      // Trouver le mois correspondant à la date sélectionnée
+      const monthIndex = selectedDate.getMonth() - (data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth())
+      
+      await pay({ 
+        contractId: id, 
+        dueMonthIndex: monthIndex, 
+        memberId: data.memberId, 
+        amount, 
+        file: paymentFile,
+        paidAt: selectedDate,
+        time: paymentTime,
+        mode: paymentMode
+      })
+      
       await refetch()
-      toast.success('Contribution enregistrée')
-      setAmount(0)
-      setSelectedIdx(null)
-      setFile(undefined)
-    } finally { setIsPaying(false) }
+      toast.success('Versement enregistré')
+      setShowPaymentModal(false)
+      setSelectedDate(null)
+      setPaymentAmount('')
+      setPaymentTime('')
+      setPaymentMode('airtel_money')
+      setPaymentFile(undefined)
+    } catch (err: any) {
+      toast.error(err?.message || 'Erreur lors de l\'enregistrement')
+    } finally {
+      setIsPaying(false)
+    }
   }
 
+  const monthDays = getMonthDays(currentMonth)
+
   return (
-    <div className="p-4 space-y-3">
-      <h1 className="text-2xl font-bold">Contrat Journalière #{id}</h1>
-      <div className="text-xs text-gray-500">Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}</div>
-      <div className="text-sm text-gray-600">Objectif mensuel: {(data.monthlyAmount||0).toLocaleString('fr-FR')} FCFA</div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {(data.payments||[]).map((p:any)=> (
-          <div key={p.id} className="border rounded p-3">
-            <div className="flex items-center justify-between">
-              <div className="font-medium">M{p.dueMonthIndex+1}</div>
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-100">{paymentStatusLabel(p.status)}</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-6">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl md:text-3xl lg:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+                Contrat Journalier #{id}
+              </h1>
+              <p className="text-gray-600 mt-2">
+                Objectif mensuel: <span className="font-semibold">{(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</span>
+              </p>
+              <div className="text-sm text-gray-500 mt-1">
+                Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}
+              </div>
             </div>
-            <div className="text-xs text-gray-600">Accum.: {(p.accumulatedAmount||0).toLocaleString('fr-FR')} / {(data.monthlyAmount||0).toLocaleString('fr-FR')}</div>
-            <div className="mt-2 flex items-center gap-2">
-              <input type="radio" name="m" checked={selectedIdx===p.dueMonthIndex} onChange={()=> setSelectedIdx(p.dueMonthIndex)} disabled={p.status!=='DUE' || isClosed} />
-              <span className="text-sm">Sélectionner</span>
+            
+            <div className="flex items-center gap-3">
+              <Badge variant={data.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-sm">
+                {data.status === 'ACTIVE' ? 'Actif' : data.status === 'LATE_NO_PENALTY' ? 'Retard (J+0..3)' : 
+                 data.status === 'LATE_WITH_PENALTY' ? 'Retard (J+4..12)' : data.status}
+              </Badge>
             </div>
           </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-        <div>
-          <label className="block text-sm">Montant du versement</label>
-          <input type="number" className="border rounded p-2 w-full" value={amount} onChange={(e)=> setAmount(Number(e.target.value))} disabled={isClosed} />
         </div>
-        <div>
-          <label className="block text-sm">Preuve</label>
-          <input type="file" accept="image/*" onChange={(e)=> setFile(e.target.files?.[0])} disabled={isClosed} />
+
+        {/* Navigation du calendrier */}
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-4 lg:p-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const prevMonth = new Date(currentMonth)
+                prevMonth.setMonth(prevMonth.getMonth() - 1)
+                setCurrentMonth(prevMonth)
+              }}
+              className="w-full sm:w-auto"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Mois précédent</span>
+              <span className="sm:hidden">Précédent</span>
+            </Button>
+            
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900 text-center order-first sm:order-none">
+              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            </h2>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const nextMonth = new Date(currentMonth)
+                nextMonth.setMonth(nextMonth.getMonth() + 1)
+                setCurrentMonth(nextMonth)
+              }}
+              className="w-full sm:w-auto"
+            >
+              <span className="hidden sm:inline">Mois suivant</span>
+              <span className="sm:hidden">Suivant</span>
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+
+          {/* Grille du calendrier */}
+          <div className="grid grid-cols-7 gap-1">
+            {/* En-têtes des jours */}
+            {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
+              <div key={day} className="p-2 lg:p-3 text-center text-xs lg:text-sm font-medium text-gray-500 bg-gray-50 rounded-lg">
+                {day}
+              </div>
+            ))}
+            
+            {/* Jours du mois */}
+            {monthDays.map((date, index) => {
+              const isCurrentMonth = date.getMonth() === currentMonth.getMonth()
+              const isToday = date.toDateString() === new Date().toDateString()
+              const payment = getPaymentForDate(date)
+              const hasPayment = !!payment
+              
+              // Vérifier si la date est antérieure au premier versement
+              const firstPaymentDate = data.contractStartAt ? new Date(data.contractStartAt) : new Date()
+              firstPaymentDate.setHours(0, 0, 0, 0)
+              const dateToCheck = new Date(date)
+              dateToCheck.setHours(0, 0, 0, 0)
+              const isBeforeFirstPayment = dateToCheck < firstPaymentDate
+              
+              return (
+                <div
+                  key={index}
+                  className={`p-2 lg:p-3 min-h-[60px] lg:min-h-[80px] border rounded-lg transition-all duration-200 ${
+                    !isCurrentMonth 
+                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
+                      : isBeforeFirstPayment
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                        : isToday 
+                          ? 'bg-blue-50 border-blue-200 hover:bg-blue-100 cursor-pointer' 
+                          : hasPayment 
+                            ? 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer' 
+                            : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+                  }`}
+                  onClick={() => isCurrentMonth && !isBeforeFirstPayment && onDateClick(date)}
+                >
+                  <div className="text-xs lg:text-sm font-medium mb-1">
+                    {date.getDate()}
+                  </div>
+                  
+                  {isCurrentMonth && (
+                    <div className="space-y-1">
+                      {isBeforeFirstPayment && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <XCircle className="h-3 w-3" />
+                          <span className="hidden sm:inline">Non disponible</span>
+                          <span className="sm:hidden">N/A</span>
+                        </div>
+                      )}
+                      
+                      {!isBeforeFirstPayment && hasPayment && (
+                        <div className="flex items-center gap-1 text-xs text-green-600">
+                          <CheckCircle className="h-3 w-3" />
+                          <span className="hidden sm:inline">Versé</span>
+                          <span className="sm:hidden">✓</span>
+                        </div>
+                      )}
+                      
+                      {!isBeforeFirstPayment && isToday && (
+                        <div className="text-xs text-blue-600 font-medium">
+                          <span className="hidden sm:inline">Aujourd'hui</span>
+                          <span className="sm:hidden">Auj</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
-        <div>
-          <button className="px-4 py-2 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={isPaying || !file || selectedIdx===null || !amount || isClosed} onClick={onPay}>{isPaying? 'Paiement…':'Payer'}</button>
+
+        {/* Résumé mensuel */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+          {Array.from({ length: data.monthsPlanned || 0 }).map((_, monthIndex) => {
+            const total = getTotalForMonth(monthIndex)
+            const status = getMonthStatus(monthIndex)
+            const target = data.monthlyAmount || 0
+            const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
+            
+            return (
+              <Card key={monthIndex} className="shadow-lg border-gray-100">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base lg:text-lg flex items-center gap-2">
+                    <Calendar className="h-4 w-4 lg:h-5 lg:w-5 text-blue-600" />
+                    Mois {monthIndex + 1}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs lg:text-sm text-gray-600">Objectif</span>
+                    <span className="text-sm lg:text-base font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs lg:text-sm text-gray-600">Versé</span>
+                    <span className="text-sm lg:text-base font-semibold text-green-600">{total.toLocaleString('fr-FC')} FCFA</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs lg:text-sm">
+                      <span>Progression</span>
+                      <span>{percentage.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant={status === 'PAID' ? 'default' : status === 'DUE' ? 'secondary' : 'destructive'}
+                      className="text-xs"
+                    >
+                      {status === 'PAID' ? 'Complété' : status === 'DUE' ? 'En cours' : status}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Remboursements */}
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-4 lg:p-6">
+          <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5 text-emerald-600" />
+            Remboursements
+          </h2>
+          
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+            {(() => {
+              const payments = data.payments || []
+              const paidCount = payments.filter((x: any) => x.status === 'PAID').length
+              const allPaid = payments.length > 0 && paidCount === payments.length
+              const canEarly = paidCount >= 1 && !allPaid
+              const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
+              const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
+              
+              return (
+                <>
+                  <Button 
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto" 
+                    disabled={isRefunding || !allPaid || hasFinalRefund}
+                    onClick={() => setConfirmFinal(true)}
+                  >
+                    <span className="hidden sm:inline">Demander remboursement final</span>
+                    <span className="sm:hidden">Remboursement final</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline"
+                    disabled={isRefunding || !canEarly || hasEarlyRefund}
+                    className="w-full sm:w-auto"
+                    onClick={async () => {
+                      try {
+                        setIsRefunding(true)
+                        await requestEarlyRefund(id)
+                        await refetch()
+                        toast.success('Retrait anticipé demandé')
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Action impossible')
+                      } finally {
+                        setIsRefunding(false)
+                      }
+                    }}
+                  >
+                    <span className="hidden sm:inline">Demander retrait anticipé</span>
+                    <span className="sm:hidden">Retrait anticipé</span>
+                  </Button>
+                </>
+              )
+            })()}
+          </div>
+          
+          <div className="grid grid-cols-1 gap-4">
+            {(data.refunds || []).map((r: any) => (
+              <Card key={r.id} className="border-gray-200">
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div className="font-medium">
+                      {r.type === 'FINAL' ? 'Final' : r.type === 'EARLY' ? 'Anticipé' : 'Défaut'}
+                    </div>
+                    <Badge 
+                      variant={
+                        r.status === 'PENDING' ? 'secondary' : 
+                        r.status === 'APPROVED' ? 'default' : 
+                        r.status === 'PAID' ? 'default' : 'secondary'
+                      }
+                      className="text-xs self-start sm:self-auto"
+                    >
+                      {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs lg:text-sm text-gray-600">
+                    <div>Nominal: <span className="font-medium">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span></div>
+                    <div>Bonus: <span className="font-medium">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span></div>
+                    <div>Échéance: <span className="font-medium">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span></div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
+                    {r.status === 'PENDING' && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          onClick={() => setConfirmApproveId(r.id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                        >
+                          Approuver
+                        </Button>
+                        {r.type === 'EARLY' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto"
+                            onClick={async () => {
+                              try {
+                                await cancelEarlyRefund(id, r.id)
+                                await refetch()
+                                toast.success('Demande anticipée annulée')
+                              } catch (e: any) {
+                                toast.error(e?.message || 'Annulation impossible')
+                              }
+                            }}
+                          >
+                            Annuler
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    
+                    {r.status === 'APPROVED' && (
+                      <>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0]
+                            if (!f) {
+                              setRefundFile(undefined)
+                              return
+                            }
+                            if (!f.type.startsWith('image/')) {
+                              toast.error('La preuve doit être une image')
+                              setRefundFile(undefined)
+                              return
+                            }
+                            setRefundFile(f)
+                            toast.success('Preuve sélectionnée')
+                          }}
+                          className="w-full sm:max-w-xs"
+                        />
+                        <Button 
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+                          disabled={!refundFile}
+                          onClick={() => setConfirmPaidId(r.id)}
+                        >
+                          Marquer payé
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {(!data.refunds || data.refunds.length === 0) && (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>Aucun remboursement</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Remboursements (mêmes règles que Standard) */}
-      <div className="space-y-3">
-        <h2 className="font-semibold">Remboursements</h2>
-        <div className="flex items-center gap-2">
+      {/* Modal de versement */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="w-[95vw] max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle>Nouveau versement</DialogTitle>
+            <DialogDescription>
+              Enregistrer un versement pour le {selectedDate?.toLocaleDateString('fr-FR')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Date du versement (grisée) */}
+            <div>
+              <Label htmlFor="date">Date du versement</Label>
+              <Input
+                id="date"
+                type="text"
+                value={selectedDate?.toLocaleDateString('fr-FR') || ''}
+                disabled
+                className="w-full bg-gray-100 cursor-not-allowed"
+              />
+            </div>
+            
+            {/* Heure du versement */}
+            <div>
+              <Label htmlFor="time">Heure du versement</Label>
+              <Input
+                id="time"
+                type="time"
+                value={paymentTime}
+                onChange={(e) => setPaymentTime(e.target.value)}
+                required
+                className="w-full"
+              />
+            </div>
+            
+            {/* Montant */}
+            <div>
+              <Label htmlFor="amount">Montant (FCFA)</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="0"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                min="100"
+                step="100"
+                required
+                className="w-full"
+              />
+            </div>
+            
+            {/* Mode de paiement */}
+            <div>
+              <Label htmlFor="mode">Mode de paiement</Label>
+              <div className="flex gap-3 mt-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="airtel_money"
+                    checked={paymentMode === 'airtel_money'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                    className="text-blue-600"
+                  />
+                  <span className="text-sm">Airtel Money</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="mobicash"
+                    checked={paymentMode === 'mobicash'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                    className="text-blue-600"
+                  />
+                  <span className="text-sm">Mobicash</span>
+                </label>
+              </div>
+            </div>
+            
+            {/* Preuve de versement */}
+            <div>
+              <Label htmlFor="proof">Preuve de versement</Label>
+              <Input
+                id="proof"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPaymentFile(e.target.files?.[0])}
+                required
+                className="w-full"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPaymentModal(false)}
+              className="w-full sm:w-auto"
+            >
+              Annuler
+            </Button>
+            <Button 
+              onClick={onPaymentSubmit}
+              disabled={isPaying || !paymentAmount || !paymentTime || !paymentFile}
+              className="bg-[#234D65] hover:bg-[#2c5a73] text-white w-full sm:w-auto"
+            >
+              {isPaying ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal des détails du versement */}
+      <Dialog open={showPaymentDetailsModal} onOpenChange={setShowPaymentDetailsModal}>
+        <DialogContent className="w-[95vw] max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle>Détails du versement</DialogTitle>
+            <DialogDescription>
+              Versement du {selectedDate?.toLocaleDateString('fr-FR')}
+            </DialogDescription>
+          </DialogHeader>
+          
           {(() => {
-            const payments = data.payments || []
-            const paidCount = payments.filter((x: any) => x.status === 'PAID').length
-            const allPaid = payments.length > 0 && paidCount === payments.length
-            const canEarly = paidCount >= 1 && !allPaid
-            const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
-            const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
+            if (!selectedDate || !paymentDetails) {
+              return <div className="text-center text-gray-500">Chargement des détails...</div>
+            }
+            
+            const { payment, contribution } = paymentDetails
+            
             return (
-              <>
-                <button className="px-3 py-2 border rounded disabled:opacity-50" disabled={isRefunding || !allPaid || hasFinalRefund} onClick={()=> setConfirmFinal(true)}>Demander remboursement final</button>
-                <button className="px-3 py-2 border rounded disabled:opacity-50" disabled={isRefunding || !canEarly || hasEarlyRefund} onClick={async()=>{ try{ setIsRefunding(true); await requestEarlyRefund(id); await refetch(); toast.success('Retrait anticipé demandé'); } catch(e:any){ toast.error(e?.message||'Action impossible') } finally { setIsRefunding(false)} }}>Demander retrait anticipé</button>
-              </>
+              <div className="space-y-4">
+                {/* Date du versement */}
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="font-medium text-gray-700">Date:</span>
+                  <span className="text-gray-900">{selectedDate?.toLocaleDateString('fr-FR')}</span>
+                </div>
+                
+                {/* Heure du versement */}
+                {contribution?.time && (
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-700">Heure:</span>
+                    <span className="text-gray-900">{contribution.time}</span>
+                  </div>
+                )}
+                
+                {/* Montant */}
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <span className="font-medium text-gray-700">Montant:</span>
+                  <span className="text-gray-900 font-semibold">
+                    {contribution?.amount?.toLocaleString('fr-FR')} FCFA
+                  </span>
+                </div>
+                
+                {/* Mode de paiement */}
+                {contribution?.mode && (
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-700">Mode:</span>
+                    <span className="text-gray-900">
+                      {contribution.mode === 'airtel_money' ? 'Airtel Money' : 'Mobicash'}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Preuve */}
+                {contribution?.proofUrl && (
+                  <div className="space-y-2">
+                    <span className="font-medium text-gray-700">Preuve de versement:</span>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <img 
+                        src={contribution.proofUrl} 
+                        alt="Preuve de versement" 
+                        className="w-full h-32 object-cover rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Statut du mois */}
+                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                  <span className="font-medium text-blue-700">Statut du mois:</span>
+                  <Badge variant={payment.status === 'PAID' ? 'default' : 'secondary'}>
+                    {payment.status === 'PAID' ? 'Payé' : 'En cours'}
+                  </Badge>
+                </div>
+                
+                {/* Montant accumulé du mois */}
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                  <span className="font-medium text-green-700">Total du mois:</span>
+                  <span className="text-green-900 font-semibold">
+                    {payment.accumulatedAmount?.toLocaleString('fr-FR')} FCFA
+                  </span>
+                </div>
+              </div>
             )
           })()}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(data.refunds || []).map((r: any) => (
-            <div key={r.id} className="border rounded p-3">
-              <div className="flex items-center justify-between">
-                <div className="font-medium">{r.type === 'FINAL' ? 'Final' : r.type === 'EARLY' ? 'Anticipé' : 'Défaut'}</div>
-                <span className={`text-xs px-2 py-1 rounded ${r.status==='PENDING' ? 'bg-yellow-100 text-yellow-700' : r.status==='APPROVED' ? 'bg-blue-100 text-blue-700' : r.status==='PAID' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}</span>
-              </div>
-              <div className="text-xs text-gray-600">Nominal: {(r.amountNominal||0).toLocaleString('fr-FR')} FCFA</div>
-              <div className="text-xs text-gray-600">Bonus: {(r.amountBonus||0).toLocaleString('fr-FR')} FCFA</div>
-              <div className="text-xs text-gray-600">Échéance remboursement: {r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</div>
-              <div className="flex items-center gap-2 mt-2">
-                {r.status === 'PENDING' && (
-                  <>
-                    <button className="px-3 py-1 rounded border" onClick={()=> setConfirmApproveId(r.id)}>Approuver</button>
-                    {r.type === 'EARLY' && (
-                      <button className="px-3 py-1 rounded border text-red-600" onClick={async()=>{ try{ await cancelEarlyRefund(id, r.id); await refetch(); toast.success('Demande anticipée annulée') } catch(e:any){ toast.error(e?.message||'Annulation impossible') } }}>Annuler</button>
-                    )}
-                  </>
-                )}
-                {r.status === 'APPROVED' && (
-                  <>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={async (e)=> {
-                        const f = e.target.files?.[0]
-                        if (!f) { setRefundFile(undefined); return }
-                        if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setRefundFile(undefined); return }
-                        try {
-                          const mod = await import('@/lib/utils')
-                          const dataUrl = await mod.compressImage(f, mod.IMAGE_COMPRESSION_PRESETS.document)
-                          const res = await fetch(dataUrl)
-                          const blob = await res.blob()
-                          const webpFile = new File([blob], 'refund-proof.webp', { type: 'image/webp' })
-                          setRefundFile(webpFile)
-                          toast.success('Preuve compressée (WebP) prête')
-                        } catch (err) {
-                          console.error(err)
-                          toast.error('Échec de la compression de l\'image')
-                          setRefundFile(undefined)
-                        }
-                      }}
-                    />
-                    <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={()=> setConfirmPaidId(r.id)}>Marquer payé</button>
-                  </>
-                )}
-                {/* Attestation PDF désactivée temporairement */}
-              </div>
-            </div>
-          ))}
-          {(!data.refunds || data.refunds.length === 0) && (
-            <div className="text-xs text-gray-500">Aucun remboursement</div>
-          )}
-        </div>
-      </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPaymentDetailsModal(false)}
+              className="w-full"
+            >
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Confirmations */}
+      {/* Modals de confirmation */}
       {confirmApproveId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Confirmer l'approbation</div>
-            <p className="text-sm text-gray-600">Voulez-vous approuver ce remboursement ?</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmApproveId(null)}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white" onClick={async()=>{ await approveRefund(id, confirmApproveId); setConfirmApproveId(null); await refetch(); toast.success('Remboursement approuvé') }}>Confirmer</button>
-            </div>
-          </div>
-        </div>
+        <Dialog open={!!confirmApproveId} onOpenChange={() => setConfirmApproveId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmer l'approbation</DialogTitle>
+              <DialogDescription>
+                Voulez-vous approuver ce remboursement ?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmApproveId(null)}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={async () => {
+                  await approveRefund(id, confirmApproveId)
+                  setConfirmApproveId(null)
+                  await refetch()
+                  toast.success('Remboursement approuvé')
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Confirmer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
+
       {confirmFinal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Confirmer la demande</div>
-            <p className="text-sm text-gray-600">Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmFinal(false)} disabled={isRefunding}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white" onClick={async()=>{ try{ setIsRefunding(true); await requestFinalRefund(id); await refetch(); toast.success('Remboursement final demandé'); } catch(e:any){ toast.error(e?.message||'Action impossible') } finally { setIsRefunding(false); setConfirmFinal(false)} }}>Confirmer</button>
-            </div>
-          </div>
-        </div>
+        <Dialog open={confirmFinal} onOpenChange={setConfirmFinal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmer la demande</DialogTitle>
+              <DialogDescription>
+                Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmFinal(false)} disabled={isRefunding}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={async () => {
+                  try {
+                    setIsRefunding(true)
+                    await requestFinalRefund(id)
+                    await refetch()
+                    toast.success('Remboursement final demandé')
+                  } catch (e: any) {
+                    toast.error(e?.message || 'Action impossible')
+                  } finally {
+                    setIsRefunding(false)
+                    setConfirmFinal(false)
+                  }
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={isRefunding}
+              >
+                Confirmer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
+
       {confirmPaidId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Marquer comme payé</div>
-            <p className="text-sm text-gray-600">Confirmez le marquage en payé. Une preuve peut être ajoutée.</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmPaidId(null)}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={async()=>{ await markRefundPaid(id, confirmPaidId, refundFile); setRefundFile(undefined); setConfirmPaidId(null); await refetch(); toast.success('Remboursement marqué payé') }}>Confirmer</button>
-            </div>
-          </div>
-        </div>
+        <Dialog open={!!confirmPaidId} onOpenChange={() => setConfirmPaidId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Marquer comme payé</DialogTitle>
+              <DialogDescription>
+                Confirmez le marquage en payé. Une preuve peut être ajoutée.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmPaidId(null)}>
+                Annuler
+              </Button>
+              <Button 
+                onClick={async () => {
+                  await markRefundPaid(id, confirmPaidId, refundFile)
+                  setRefundFile(undefined)
+                  setConfirmPaidId(null)
+                  await refetch()
+                  toast.success('Remboursement marqué payé')
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={!refundFile}
+              >
+                Confirmer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

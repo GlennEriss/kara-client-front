@@ -81,7 +81,7 @@ export default function MembershipDetails() {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 self-start lg:self-auto">
+                <div className="flex flex-col md:flex-row items-center gap-4 self-start lg:self-auto">
                     <Button
                         onClick={() => router.push(routes.admin.membershipRequestDetails(user.dossier))}
                         className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-11 lg:h-12 px-6 lg:px-8"
@@ -277,6 +277,7 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
     const [amount, setAmount] = React.useState(10000)
     const [months, setMonths] = React.useState(12)
     const [caisseType, setCaisseType] = React.useState('STANDARD')
+    const [firstPaymentDate, setFirstPaymentDate] = React.useState('')
     const [loading, setLoading] = React.useState(false)
 
     const isDaily = caisseType === 'JOURNALIERE'
@@ -295,8 +296,12 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
                 toast.error('Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA.')
                 return
             }
+            if (!firstPaymentDate) {
+                toast.error('Veuillez sélectionner la date du premier versement.')
+                return
+            }
             const { subscribe } = await import('@/services/caisse/mutations')
-            await subscribe({ memberId, monthlyAmount: amount, monthsPlanned: months, caisseType })
+            await subscribe({ memberId, monthlyAmount: amount, monthsPlanned: months, caisseType, firstPaymentDate })
             toast.success('Contrat créé')
             setOpen(false)
             await onCreated()
@@ -309,7 +314,7 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
 
     return (
         <>
-            <Button className="bg-[#234D65] text-white" onClick={() => setOpen(true)}>Créer un contrat</Button>
+            <Button className="bg-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-11 lg:h-12 px-6 lg:px-8" onClick={() => setOpen(true)}>Créer un contrat</Button>
             <Dialog open={open} onOpenChange={(o) => !loading && setOpen(o)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -347,6 +352,17 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
                                 <option value="JOURNALIERE">Journalière</option>
                                 <option value="LIBRE">Libre</option>
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm mb-1">Date du premier versement *</label>
+                            <input 
+                                type="date" 
+                                className="border rounded p-2 w-full" 
+                                value={firstPaymentDate} 
+                                onChange={(e) => setFirstPaymentDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                required
+                            />
                         </div>
                     </div>
                     <DialogFooter>
