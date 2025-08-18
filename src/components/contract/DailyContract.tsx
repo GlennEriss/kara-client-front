@@ -678,50 +678,51 @@ export default function DailyContract({ id }: Props) {
 
       {/* Modal des détails du versement */}
       <Dialog open={showPaymentDetailsModal} onOpenChange={setShowPaymentDetailsModal}>
-        <DialogContent className="w-[95vw] max-w-md mx-auto">
-          <DialogHeader>
-            <DialogTitle>Détails du versement</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-lg lg:text-xl">Détails du versement</DialogTitle>
+            <DialogDescription className="text-sm lg:text-base">
               Versement du {selectedDate?.toLocaleDateString('fr-FR')}
             </DialogDescription>
           </DialogHeader>
           
-          {(() => {
-            if (!selectedDate || !paymentDetails) {
-              return <div className="text-center text-gray-500">Chargement des détails...</div>
-            }
-            
-            const { payment, contribution } = paymentDetails
-            
-            return (
-              <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {(() => {
+              if (!selectedDate || !paymentDetails) {
+                return <div className="text-center text-gray-500 py-8">Chargement des détails...</div>
+              }
+              
+              const { payment, contribution } = paymentDetails
+              
+              return (
+                <div className="space-y-2 lg:space-y-3 p-1">
                 {/* Date du versement */}
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="font-medium text-gray-700">Date:</span>
-                  <span className="text-gray-900">{selectedDate?.toLocaleDateString('fr-FR')}</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
+                  <span className="font-medium text-gray-700 text-xs lg:text-sm">Date:</span>
+                  <span className="text-gray-900 text-xs lg:text-sm font-medium">{selectedDate?.toLocaleDateString('fr-FR')}</span>
                 </div>
                 
                 {/* Heure du versement */}
                 {contribution?.time && (
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium text-gray-700">Heure:</span>
-                    <span className="text-gray-900">{contribution.time}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
+                    <span className="font-medium text-gray-700 text-xs lg:text-sm">Heure:</span>
+                    <span className="text-gray-900 text-xs lg:text-sm">{contribution.time}</span>
                   </div>
                 )}
                 
                 {/* Montant */}
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="font-medium text-gray-700">Montant:</span>
-                  <span className="text-gray-900 font-semibold">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
+                  <span className="font-medium text-gray-700 text-xs lg:text-sm">Montant:</span>
+                  <span className="text-gray-900 font-semibold text-xs lg:text-sm">
                     {contribution?.amount?.toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
                 
                 {/* Mode de paiement */}
                 {contribution?.mode && (
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium text-gray-700">Mode:</span>
-                    <span className="text-gray-900">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
+                    <span className="font-medium text-gray-700 text-xs lg:text-sm">Mode:</span>
+                    <span className="text-gray-900 text-xs lg:text-sm">
                       {contribution.mode === 'airtel_money' ? 'Airtel Money' : 'Mobicash'}
                     </span>
                   </div>
@@ -729,44 +730,56 @@ export default function DailyContract({ id }: Props) {
                 
                 {/* Preuve */}
                 {contribution?.proofUrl && (
-                  <div className="space-y-2">
-                    <span className="font-medium text-gray-700">Preuve de versement:</span>
-                    <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="space-y-1 lg:space-y-2">
+                    <span className="font-medium text-gray-700 text-xs lg:text-sm">Preuve de versement:</span>
+                    <div className="p-2 lg:p-3 bg-gray-50 rounded-lg">
                       <img 
                         src={contribution.proofUrl} 
                         alt="Preuve de versement" 
-                        className="w-full h-32 object-cover rounded-md"
+                        className="w-full h-20 lg:h-28 object-cover rounded-md"
                       />
                     </div>
                   </div>
                 )}
                 
                 {/* Statut du mois */}
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                  <span className="font-medium text-blue-700">Statut du mois:</span>
-                  <Badge variant={payment.status === 'PAID' ? 'default' : 'secondary'}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-blue-50 rounded-lg gap-1 lg:gap-2">
+                  <span className="font-medium text-blue-700 text-xs lg:text-sm">Statut du mois:</span>
+                  <Badge variant={payment.status === 'PAID' ? 'default' : 'secondary'} className="text-xs">
                     {payment.status === 'PAID' ? 'Payé' : 'En cours'}
                   </Badge>
                 </div>
                 
                 {/* Montant accumulé du mois */}
-                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                  <span className="font-medium text-green-700">Total du mois:</span>
-                  <span className="text-green-900 font-semibold">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-green-50 rounded-lg gap-1 lg:gap-2">
+                  <span className="font-medium text-green-700 text-xs lg:text-sm">Total du mois:</span>
+                  <span className="text-green-900 font-semibold text-xs lg:text-sm">
                     {payment.accumulatedAmount?.toLocaleString('fr-FR')} FCFA
                   </span>
                 </div>
               </div>
             )
           })()}
+          </div>
           
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 pt-3 lg:pt-4 border-t">
             <Button 
               variant="outline" 
               onClick={() => setShowPaymentDetailsModal(false)}
-              className="w-full"
+              className="w-full sm:w-auto order-2 sm:order-1"
             >
               Fermer
+            </Button>
+            <Button 
+              onClick={() => {
+                // TODO: Implémenter la modification
+                if (paymentDetails?.contribution) {
+                  console.log('Modifier le versement:', paymentDetails.contribution)
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
+            >
+              Modifier le versement
             </Button>
           </DialogFooter>
         </DialogContent>
