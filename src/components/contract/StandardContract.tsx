@@ -333,7 +333,44 @@ export default function StandardContract({ id }: Props) {
                       </div>
                     </div>
                     
-                    <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile || !(refundReason || r.reason)?.trim() || !(refundDate || r.withdrawalDate) || !(refundTime || r.withdrawalTime)?.trim()} onClick={()=> setConfirmPaidId(r.id)}>Marquer payé</button>
+                    <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile || !(refundReason || r.reason)?.trim() || !(refundDate || r.withdrawalDate) || !(refundTime || r.withdrawalTime)?.trim()}                     onClick={async ()=> { 
+                      try {
+                        // Fonction utilitaire pour convertir n'importe quel type de date
+                        const normalizeDate = (dateValue: any): string | null => {
+                          if (!dateValue) return null
+                          try {
+                            let date: Date
+                            if (dateValue && typeof dateValue.toDate === 'function') {
+                              date = dateValue.toDate()
+                            } else if (dateValue instanceof Date) {
+                              date = dateValue
+                            } else if (typeof dateValue === 'string') {
+                              date = new Date(dateValue)
+                            } else {
+                              date = new Date(dateValue)
+                            }
+                            return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]
+                          } catch {
+                            return null
+                          }
+                        }
+                        
+                        await markRefundPaid(id, r.id, refundFile, {
+                          reason: refundReason || r.reason,
+                          withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                          withdrawalTime: refundTime || r.withdrawalTime
+                        })
+                        setRefundReason('')
+                        setRefundDate('')
+                        setRefundTime('')
+                        setRefundFile(undefined)
+                        setConfirmPaidId(null)
+                        await refetch()
+                        toast.success('Remboursement marqué payé')
+                      } catch (error: any) {
+                        toast.error(error?.message || 'Erreur lors du marquage')
+                      }
+                    }}>Marquer payé</button>
                   </>
                 )}
                 {/* Attestation PDF désactivée temporairement */}
@@ -370,18 +407,7 @@ export default function StandardContract({ id }: Props) {
           </div>
         </div>
       )}
-      {confirmPaidId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Marquer comme payé</div>
-            <p className="text-sm text-gray-600">Confirmez le marquage en payé. Une preuve peut être ajoutée.</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmPaidId(null)}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={async()=>{ await markRefundPaid(id, confirmPaidId, refundFile); setRefundFile(undefined); setConfirmPaidId(null); await refetch(); toast.success('Remboursement marqué payé') }}>Confirmer</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }

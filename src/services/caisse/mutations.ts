@@ -10,6 +10,46 @@ import { addCaisseContractToUser } from '@/db/member.db'
 import { deleteObject, ref } from '@/firebase/storage'
 import { getStorageInstance } from '@/firebase/storage'
 
+// Fonction utilitaire pour convertir n'importe quel type de date en chaîne ISO
+function normalizeDateToISOString(dateValue: any): string | null {
+  if (!dateValue) return null
+  
+  try {
+    let date: Date
+    
+    // Si c'est un objet Firestore Timestamp
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      date = dateValue.toDate()
+    }
+    // Si c'est déjà un objet Date
+    else if (dateValue instanceof Date) {
+      date = dateValue
+    }
+    // Si c'est une chaîne de caractères
+    else if (typeof dateValue === 'string') {
+      date = new Date(dateValue)
+    }
+    // Si c'est un timestamp numérique
+    else if (typeof dateValue === 'number') {
+      date = new Date(dateValue)
+    }
+    // Sinon, essayer de créer une Date
+    else {
+      date = new Date(dateValue)
+    }
+    
+    // Vérifier que la date est valide
+    if (isNaN(date.getTime())) {
+      return null
+    }
+    
+    return date.toISOString().split('T')[0]
+  } catch (error) {
+    console.error('Erreur lors de la conversion de date:', error)
+    return null
+  }
+}
+
 export async function subscribe(input: { memberId: string; monthlyAmount: number; monthsPlanned: number; caisseType: any; firstPaymentDate: string }) {
   const settings = await getActiveSettings(input.caisseType)
   const id = await createContract({ ...input, ...(settings?.id ? { settingsVersion: settings.id } : {}) })
@@ -266,13 +306,44 @@ export async function approveRefund(contractId: string, refundId: string) {
   return true
 }
 
-export async function markRefundPaid(contractId: string, refundId: string, proof?: File) {
+export async function markRefundPaid(contractId: string, refundId: string, proof?: File, refundDetails?: {
+  reason?: string
+  withdrawalDate?: string
+  withdrawalTime?: string
+}) {
   let proofUrl: string | undefined
   if (proof) {
     const uploaded = await createFile(proof, contractId, `caisse/${contractId}/refunds/${refundId}`)
     proofUrl = uploaded.url
   }
-  await updateRefund(contractId, refundId, { status: 'PAID', proofUrl, processedAt: new Date() })
+  
+  // Construire les mises à jour
+  const updates: any = { 
+    status: 'PAID', 
+    processedAt: new Date() 
+  }
+  
+  // Ajouter la preuve si fournie
+  if (proofUrl) {
+    updates.proofUrl = proofUrl
+  }
+  
+  // Ajouter les détails du retrait si fournis
+  if (refundDetails?.reason !== undefined) {
+    updates.reason = refundDetails.reason
+  }
+  if (refundDetails?.withdrawalDate !== undefined) {
+    const normalizedDate = normalizeDateToISOString(refundDetails.withdrawalDate)
+    if (normalizedDate) {
+      updates.withdrawalDate = new Date(normalizedDate)
+    }
+  }
+  if (refundDetails?.withdrawalTime !== undefined) {
+    updates.withdrawalTime = refundDetails.withdrawalTime
+  }
+  
+  await updateRefund(contractId, refundId, updates)
+  
   // Si final → fermer le contrat
   const refunds = await listRefunds(contractId)
   const r = refunds.find((x: any) => x.id === refundId)

@@ -641,7 +641,44 @@ export default function DailyContract({ id }: Props) {
                           size="sm"
                           className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
                           disabled={!refundFile || !(refundReason || r.reason)?.trim() || !(refundDate || r.withdrawalDate) || !(refundTime || r.withdrawalTime)?.trim()}
-                          onClick={() => setConfirmPaidId(r.id)}
+                          onClick={async () => {
+                            try {
+                              // Fonction utilitaire pour convertir n'importe quel type de date
+                              const normalizeDate = (dateValue: any): string | null => {
+                                if (!dateValue) return null
+                                try {
+                                  let date: Date
+                                  if (dateValue && typeof dateValue.toDate === 'function') {
+                                    date = dateValue.toDate()
+                                  } else if (dateValue instanceof Date) {
+                                    date = dateValue
+                                  } else if (typeof dateValue === 'string') {
+                                    date = new Date(dateValue)
+                                  } else {
+                                    date = new Date(dateValue)
+                                  }
+                                  return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]
+                                } catch {
+                                  return null
+                                }
+                              }
+                              
+                              await markRefundPaid(id, r.id, refundFile, {
+                                reason: refundReason || r.reason,
+                                withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                                withdrawalTime: refundTime || r.withdrawalTime
+                              })
+                              setRefundReason('')
+                              setRefundDate('')
+                              setRefundTime('')
+                              setRefundFile(undefined)
+                              setConfirmPaidId(null)
+                              await refetch()
+                              toast.success('Remboursement marqué payé')
+                            } catch (error: any) {
+                              toast.error(error?.message || 'Erreur lors du marquage')
+                            }
+                          }}
                         >
                           Marquer payé
                         </Button>
@@ -1080,36 +1117,7 @@ export default function DailyContract({ id }: Props) {
         </Dialog>
       )}
 
-      {confirmPaidId && (
-        <Dialog open={!!confirmPaidId} onOpenChange={() => setConfirmPaidId(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Marquer comme payé</DialogTitle>
-              <DialogDescription>
-                Confirmez le marquage en payé. Une preuve peut être ajoutée.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmPaidId(null)}>
-                Annuler
-              </Button>
-              <Button 
-                onClick={async () => {
-                  await markRefundPaid(id, confirmPaidId, refundFile)
-                  setRefundFile(undefined)
-                  setConfirmPaidId(null)
-                  await refetch()
-                  toast.success('Remboursement marqué payé')
-                }}
-                className="bg-green-600 hover:bg-green-700 text-white"
-                disabled={!refundFile}
-              >
-                Confirmer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+
     </div>
   )
 }
