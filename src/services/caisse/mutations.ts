@@ -7,6 +7,8 @@ import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
 import { addCaisseContractToUser } from '@/db/member.db'
+import { deleteObject, ref } from '@/firebase/storage'
+import { getStorageInstance } from '@/firebase/storage'
 
 export async function subscribe(input: { memberId: string; monthlyAmount: number; monthsPlanned: number; caisseType: any; firstPaymentDate: string }) {
   const settings = await getActiveSettings(input.caisseType)
@@ -92,11 +94,13 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   if (typeof input.amount === 'number' && input.amount > 0) {
     paymentUpdates.accumulatedAmount = newAccumulated
     const contrib = { 
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID unique
       amount: input.amount, 
       paidAt: now, 
       proofUrl: proofUrl || undefined,
       time: input.time,
-      mode: input.mode
+      mode: input.mode,
+      createdAt: new Date()
     }
     const existing = Array.isArray(payment.contribs) ? payment.contribs : []
     paymentUpdates.contribs = [...existing, contrib]
@@ -270,6 +274,148 @@ export async function cancelEarlyRefund(contractId: string, refundId: string) {
   await deleteRefund(contractId, refundId)
   // Revenir à un statut actif cohérent si nécessaire
   await updateContract(contractId, { status: 'ACTIVE' })
+  return true
+}
+
+export async function updatePaymentContribution(input: {
+  contractId: string
+  paymentId: string
+  contributionId: string
+  updates: {
+    amount?: number
+    time?: string
+    mode?: 'airtel_money' | 'mobicash'
+    proofFile?: File
+  }
+}) {
+  const { contractId, paymentId, contributionId, updates } = input
+  
+  // Récupérer le paiement et la contribution
+  const payments = await listPayments(contractId)
+  const payment = payments.find((p: any) => p.id === paymentId)
+  if (!payment) throw new Error('Paiement introuvable')
+  
+  if (!payment.contribs || !Array.isArray(payment.contribs)) {
+    throw new Error('Aucune contribution trouvée dans ce paiement')
+  }
+  
+  const contributionIndex = payment.contribs.findIndex((c: any) => c.id === contributionId)
+  if (contributionIndex === -1) {
+    throw new Error('Contribution introuvable')
+  }
+  
+  const contribution = payment.contribs[contributionIndex]
+  
+  // Traitement de la nouvelle preuve si fournie
+  let newProofUrl: string | undefined
+  let oldProofUrl: string | undefined
+  
+  if (updates.proofFile) {
+    // Sauvegarder l'ancienne URL pour suppression ultérieure
+    oldProofUrl = contribution.proofUrl
+    
+    // Upload de la nouvelle image
+    const location = `caisse/${contractId}/payments/${paymentId}`
+    const dataUrl = await compressImage(updates.proofFile, IMAGE_COMPRESSION_PRESETS.document)
+    const res = await fetch(dataUrl)
+    const blob = await res.blob()
+    const webpFile = new File([blob], `proof.webp`, { type: 'image/webp' })
+    const uploaded = await createFile(webpFile as any, contractId, location)
+    newProofUrl = uploaded.url
+  }
+  
+  // Calculer la différence de montant pour ajuster le total accumulé
+  const oldAmount = contribution.amount || 0
+  const newAmount = updates.amount || oldAmount
+  const amountDifference = newAmount - oldAmount
+  
+  // Mettre à jour la contribution
+  const updatedContribution = {
+    ...contribution,
+    amount: newAmount,
+    time: updates.time || contribution.time,
+    mode: updates.mode || contribution.mode,
+    proofUrl: newProofUrl || contribution.proofUrl,
+    updatedAt: new Date()
+  }
+  
+  // Mettre à jour le tableau des contributions
+  const updatedContribs = [...payment.contribs]
+  updatedContribs[contributionIndex] = updatedContribution
+  
+  // Calculer le nouveau montant accumulé
+  const newAccumulatedAmount = updatedContribs.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
+  
+  // Mettre à jour le paiement
+  await updatePayment(contractId, paymentId, {
+    contribs: updatedContribs,
+    accumulatedAmount: newAccumulatedAmount,
+    updatedAt: new Date(),
+    updatedBy: auth?.currentUser?.uid || contractId
+  })
+  
+  // Mettre à jour le contrat si nécessaire (recalculer les totaux)
+  const contract = await getContract(contractId)
+  if (contract) {
+    const allPayments = await listPayments(contractId)
+    const totalNominalPaid = allPayments.reduce((sum: number, p: any) => {
+      if (p.status === 'PAID') {
+        return sum + (p.accumulatedAmount || 0)
+      }
+      return sum
+    }, 0)
+    
+    await updateContract(contractId, {
+      nominalPaid: totalNominalPaid,
+      updatedAt: new Date(),
+      updatedBy: auth?.currentUser?.uid || contractId
+    })
+  }
+  
+  // Supprimer l'ancienne image si elle existe et qu'une nouvelle a été uploadée
+  if (oldProofUrl && newProofUrl && oldProofUrl !== newProofUrl) {
+    try {
+      const storage = getStorageInstance()
+      
+      // Fonction pour extraire le chemin du fichier depuis l'URL Firebase
+      const extractFilePathFromUrl = (url: string): string | null => {
+        try {
+          // URL Firebase Storage: https://firebasestorage.googleapis.com/v0/b/PROJECT/o/PATH%2FTO%2FFILE?alt=media&token=...
+          const urlObj = new URL(url)
+          const pathParam = urlObj.searchParams.get('o')
+          if (pathParam) {
+            // Décoder l'URL et extraire le chemin
+            const decodedPath = decodeURIComponent(pathParam)
+            return decodedPath
+          }
+          
+          // Fallback: essayer d'extraire depuis le chemin de l'URL
+          const pathMatch = url.match(/\/o\/([^?]+)/)
+          if (pathMatch) {
+            return decodeURIComponent(pathMatch[1])
+          }
+          
+          return null
+        } catch (error) {
+          console.error('Erreur lors de l\'extraction du chemin:', error)
+          return null
+        }
+      }
+      
+      const filePath = extractFilePathFromUrl(oldProofUrl)
+      if (filePath) {
+        const fileRef = ref(storage, filePath)
+        await deleteObject(fileRef)
+        console.log(`🗑️ Ancienne image supprimée: ${filePath}`)
+      } else {
+        console.warn('⚠️ Impossible d\'extraire le chemin du fichier depuis l\'URL:', oldProofUrl)
+      }
+    } catch (error) {
+      console.error('⚠️ Erreur lors de la suppression de l\'ancienne image:', error)
+      // Ne pas faire échouer la modification si la suppression échoue
+    }
+  }
+  
   return true
 }
 

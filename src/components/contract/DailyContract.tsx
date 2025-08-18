@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
-import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
+import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
@@ -22,11 +22,14 @@ export default function DailyContract({ id }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false)
+  const [showEditPaymentModal, setShowEditPaymentModal] = useState(false)
   const [paymentDetails, setPaymentDetails] = useState<any>(null)
+  const [editingContribution, setEditingContribution] = useState<any>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentTime, setPaymentTime] = useState('')
   const [paymentMode, setPaymentMode] = useState<'airtel_money' | 'mobicash'>('airtel_money')
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
+  const [isEditing, setIsEditing] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
@@ -206,6 +209,48 @@ export default function DailyContract({ id }: Props) {
       toast.error(err?.message || 'Erreur lors de l\'enregistrement')
     } finally {
       setIsPaying(false)
+    }
+  }
+
+  const onEditPaymentSubmit = async () => {
+    if (!editingContribution || !paymentAmount || !paymentTime) {
+      toast.error('Veuillez remplir tous les champs obligatoires')
+      return
+    }
+
+    const amount = Number(paymentAmount)
+    if (amount <= 0) {
+      toast.error('Le montant doit être positif')
+      return
+    }
+
+    try {
+      setIsEditing(true)
+      
+      await updatePaymentContribution({
+        contractId: id,
+        paymentId: paymentDetails.payment.id,
+        contributionId: editingContribution.id,
+        updates: {
+          amount,
+          time: paymentTime,
+          mode: paymentMode,
+          proofFile: paymentFile // Optionnel
+        }
+      })
+      
+      await refetch()
+      toast.success('Versement modifié avec succès')
+      setShowEditPaymentModal(false)
+      setEditingContribution(null)
+      setPaymentAmount('')
+      setPaymentTime('')
+      setPaymentMode('airtel_money')
+      setPaymentFile(undefined)
+    } catch (err: any) {
+      toast.error(err?.message || 'Erreur lors de la modification')
+    } finally {
+      setIsEditing(false)
     }
   }
 
@@ -772,14 +817,142 @@ export default function DailyContract({ id }: Props) {
             </Button>
             <Button 
               onClick={() => {
-                // TODO: Implémenter la modification
                 if (paymentDetails?.contribution) {
-                  console.log('Modifier le versement:', paymentDetails.contribution)
+                  setEditingContribution(paymentDetails.contribution)
+                  setPaymentAmount(paymentDetails.contribution.amount?.toString() || '')
+                  setPaymentTime(paymentDetails.contribution.time || '')
+                  setPaymentMode(paymentDetails.contribution.mode || 'airtel_money')
+                  setPaymentFile(undefined) // Pas de fichier par défaut pour la modification
+                  setShowEditPaymentModal(true)
+                  setShowPaymentDetailsModal(false)
                 }
               }}
               className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
             >
               Modifier le versement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de modification du versement */}
+      <Dialog open={showEditPaymentModal} onOpenChange={setShowEditPaymentModal}>
+        <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-lg lg:text-xl">Modifier le versement</DialogTitle>
+            <DialogDescription className="text-sm lg:text-base">
+              Modifier le versement du {selectedDate?.toLocaleDateString('fr-FR')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="space-y-3 lg:space-y-4 p-1">
+              {/* Date du versement (non modifiable) */}
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-100 rounded-lg gap-1 lg:gap-2">
+                <span className="font-medium text-gray-700 text-xs lg:text-sm">Date:</span>
+                <span className="text-gray-900 text-xs lg:text-sm font-medium">{selectedDate?.toLocaleDateString('fr-FR')}</span>
+              </div>
+              
+              {/* Heure du versement */}
+              <div>
+                <Label htmlFor="edit-time" className="text-xs lg:text-sm">Heure du versement</Label>
+                <Input
+                  id="edit-time"
+                  type="time"
+                  value={paymentTime}
+                  onChange={(e) => setPaymentTime(e.target.value)}
+                  required
+                  className="w-full mt-1"
+                />
+              </div>
+              
+              {/* Montant */}
+              <div>
+                <Label htmlFor="edit-amount" className="text-xs lg:text-sm">Montant (FCFA)</Label>
+                <Input
+                  id="edit-amount"
+                  type="number"
+                  placeholder="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  min="100"
+                  step="100"
+                  required
+                  className="w-full mt-1"
+                />
+              </div>
+              
+              {/* Mode de paiement */}
+              <div>
+                <Label className="text-xs lg:text-sm">Mode de paiement</Label>
+                <div className="flex gap-3 mt-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editPaymentMode"
+                      value="airtel_money"
+                      checked={paymentMode === 'airtel_money'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-xs lg:text-sm">Airtel Money</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editPaymentMode"
+                      value="mobicash"
+                      checked={paymentMode === 'mobicash'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-xs lg:text-sm">Mobicash</span>
+                  </label>
+                </div>
+              </div>
+              
+              {/* Preuve de versement (optionnelle) */}
+              <div>
+                <Label htmlFor="edit-proof" className="text-xs lg:text-sm">
+                  Nouvelle preuve de versement (optionnel)
+                </Label>
+                <Input
+                  id="edit-proof"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPaymentFile(e.target.files?.[0])}
+                  className="w-full mt-1"
+                />
+                {editingContribution?.proofUrl && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Preuve actuelle conservée si aucune nouvelle n'est fournie
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 pt-3 lg:pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowEditPaymentModal(false)
+                setEditingContribution(null)
+                setPaymentAmount('')
+                setPaymentTime('')
+                setPaymentMode('airtel_money')
+                setPaymentFile(undefined)
+              }}
+              className="w-full sm:w-auto order-2 sm:order-1"
+            >
+              Annuler
+            </Button>
+            <Button 
+              onClick={onEditPaymentSubmit}
+              disabled={isEditing || !paymentAmount || !paymentTime}
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
+            >
+              {isEditing ? 'Modification...' : 'Modifier'}
             </Button>
           </DialogFooter>
         </DialogContent>
