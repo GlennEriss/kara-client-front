@@ -72,14 +72,34 @@ export default function DailyContract({ id }: Props) {
     
     // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
     for (const payment of data.payments) {
-      if (payment.contribs) {
+      if (payment.contribs && Array.isArray(payment.contribs)) {
         const hasContributionOnDate = payment.contribs.some((c: any) => {
-          const contribDate = new Date(c.paidAt)
+          if (!c.paidAt) return false
+          
+          let contribDate: Date
+          
+          // Gérer les différents types de date (Date, Timestamp, string)
+          if (c.paidAt instanceof Date) {
+            contribDate = c.paidAt
+          } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
+            // Firestore Timestamp
+            contribDate = c.paidAt.toDate()
+          } else if (typeof c.paidAt === 'string') {
+            contribDate = new Date(c.paidAt)
+          } else {
+            contribDate = new Date(c.paidAt)
+          }
+          
+          // Vérifier que la date est valide
+          if (isNaN(contribDate.getTime())) return false
+          
           // Normaliser les dates pour la comparaison (ignorer l'heure)
           const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
           const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+          
           return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
         })
+        
         if (hasContributionOnDate) return payment
       }
     }
@@ -91,14 +111,34 @@ export default function DailyContract({ id }: Props) {
     
     // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
     for (const payment of data.payments) {
-      if (payment.contribs) {
+      if (payment.contribs && Array.isArray(payment.contribs)) {
         const contribution = payment.contribs.find((c: any) => {
-          const contribDate = new Date(c.paidAt)
+          if (!c.paidAt) return false
+          
+          let contribDate: Date
+          
+          // Gérer les différents types de date (Date, Timestamp, string)
+          if (c.paidAt instanceof Date) {
+            contribDate = c.paidAt
+          } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
+            // Firestore Timestamp
+            contribDate = c.paidAt.toDate()
+          } else if (typeof c.paidAt === 'string') {
+            contribDate = new Date(c.paidAt)
+          } else {
+            contribDate = new Date(c.paidAt)
+          }
+          
+          // Vérifier que la date est valide
+          if (isNaN(contribDate.getTime())) return false
+          
           // Normaliser les dates pour la comparaison (ignorer l'heure)
           const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
           const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+          
           return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
         })
+        
         if (contribution) {
           return { payment, contribution }
         }
@@ -347,55 +387,125 @@ export default function DailyContract({ id }: Props) {
               dateToCheck.setHours(0, 0, 0, 0)
               const isBeforeFirstPayment = dateToCheck < firstPaymentDate
               
+              // Déterminer la couleur et le style selon le statut
+              let dayStyle = ''
+              let dayContent = null
+              
+              if (!isCurrentMonth) {
+                // Jours d'autres mois
+                dayStyle = 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                dayContent = null
+              } else if (isBeforeFirstPayment) {
+                // Jours avant la date de début
+                dayStyle = 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
+                dayContent = (
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <XCircle className="h-3 w-3" />
+                    <span className="hidden sm:inline">Non disponible</span>
+                    <span className="sm:hidden">N/A</span>
+                  </div>
+                )
+              } else if (hasPayment) {
+                // Jours avec versement effectué
+                dayStyle = 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer'
+                dayContent = (
+                  <div className="flex items-center gap-1 text-xs text-green-600">
+                    <CheckCircle className="h-3 w-3" />
+                    <span className="hidden sm:inline">Versé</span>
+                    <span className="sm:hidden">✓</span>
+                  </div>
+                )
+              } else {
+                // Vérifier si le jour est dans le passé (après la date de début)
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                const isPastDay = dateToCheck < today
+                
+                if (isPastDay) {
+                  // Jours passés sans versement (après la date de début)
+                  dayStyle = 'bg-red-50 border-red-200 hover:bg-red-100 cursor-pointer'
+                  dayContent = (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="h-3 w-3" />
+                      <span className="hidden sm:inline">À verser</span>
+                      <span className="sm:hidden">À verser</span>
+                    </div>
+                  )
+                } else {
+                  // Jours futurs (après la date de début mais pas encore arrivés)
+                  dayStyle = 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+                  dayContent = (
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Calendar className="h-3 w-3" />
+                      <span className="hidden sm:inline">À venir</span>
+                      <span className="sm:hidden">À venir</span>
+                    </div>
+                  )
+                }
+              }
+              
+              // Style spécial pour aujourd'hui
+              if (isToday && isCurrentMonth && !isBeforeFirstPayment) {
+                // Aujourd'hui hérite de la couleur de son statut mais avec une intensité plus forte
+                if (hasPayment) {
+                  dayStyle = 'bg-green-100 border-green-300 hover:bg-green-200 cursor-pointer'
+                } else {
+                  // Aujourd'hui sans versement = rouge (car c'est un jour passé)
+                  dayStyle = 'bg-red-100 border-red-300 hover:bg-red-200 cursor-pointer'
+                }
+                // Ajouter un indicateur "Aujourd'hui"
+                dayContent = (
+                  <div className="space-y-1">
+                    {dayContent}
+                    <div className="text-xs text-blue-600 font-medium">
+                      <span className="hidden sm:inline">Aujourd'hui</span>
+                      <span className="sm:hidden">Auj</span>
+                    </div>
+                  </div>
+                )
+              }
+              
               return (
                 <div
                   key={index}
-                  className={`p-2 lg:p-3 min-h-[60px] lg:min-h-[80px] border rounded-lg transition-all duration-200 ${
-                    !isCurrentMonth 
-                      ? 'bg-gray-50 text-gray-400 cursor-not-allowed' 
-                      : isBeforeFirstPayment
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-                        : isToday 
-                          ? 'bg-blue-50 border-blue-200 hover:bg-blue-100 cursor-pointer' 
-                          : hasPayment 
-                            ? 'bg-green-50 border-green-200 hover:bg-green-100 cursor-pointer' 
-                            : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
-                  }`}
+                  className={`p-2 lg:p-3 min-h-[60px] lg:min-h-[80px] border rounded-lg transition-all duration-200 ${dayStyle}`}
                   onClick={() => isCurrentMonth && !isBeforeFirstPayment && onDateClick(date)}
                 >
                   <div className="text-xs lg:text-sm font-medium mb-1">
                     {date.getDate()}
                   </div>
                   
-                  {isCurrentMonth && (
-                    <div className="space-y-1">
-                      {isBeforeFirstPayment && (
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                          <XCircle className="h-3 w-3" />
-                          <span className="hidden sm:inline">Non disponible</span>
-                          <span className="sm:hidden">N/A</span>
-                        </div>
-                      )}
-                      
-                      {!isBeforeFirstPayment && hasPayment && (
-                        <div className="flex items-center gap-1 text-xs text-green-600">
-                          <CheckCircle className="h-3 w-3" />
-                          <span className="hidden sm:inline">Versé</span>
-                          <span className="sm:hidden">✓</span>
-                        </div>
-                      )}
-                      
-                      {!isBeforeFirstPayment && isToday && (
-                        <div className="text-xs text-blue-600 font-medium">
-                          <span className="hidden sm:inline">Aujourd'hui</span>
-                          <span className="sm:hidden">Auj</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {isCurrentMonth && dayContent}
                 </div>
               )
             })}
+          </div>
+          
+          {/* Légende des couleurs */}
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <div className="text-xs font-medium text-gray-700 mb-2">Légende des couleurs :</div>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-50 border-2 border-green-200 rounded"></div>
+                <span className="text-green-700">Versé</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded"></div>
+                <span className="text-red-700">À verser (passé)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-white border-2 border-gray-200 rounded"></div>
+                <span className="text-gray-700">À venir</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-100 border-2 border-gray-200 rounded"></div>
+                <span className="text-gray-600">Non disponible</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-blue-100 border-2 border-blue-300 rounded"></div>
+                <span className="text-blue-700">Aujourd'hui</span>
+              </div>
+            </div>
           </div>
         </div>
 
