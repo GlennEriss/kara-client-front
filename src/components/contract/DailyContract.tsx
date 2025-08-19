@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
@@ -34,11 +34,47 @@ export default function DailyContract({ id }: Props) {
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundReason, setRefundReason] = useState('')
-  const [refundDate, setRefundDate] = useState('')
-  const [refundTime, setRefundTime] = useState('')
+  const [refundDate, setRefundDate] = useState(() => {
+    // Initialiser avec la date du jour par défaut
+    return new Date().toISOString().split('T')[0]
+  })
+  const [refundTime, setRefundTime] = useState(() => {
+    // Initialiser avec l'heure actuelle par défaut
+    const now = new Date()
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
+
+  // Synchroniser les valeurs existantes quand les données sont chargées
+  useEffect(() => {
+    if (data && data.refunds) {
+      // Trouver le remboursement en attente d'approbation
+      const pendingRefund = data.refunds.find((r: any) => r.status === 'APPROVED')
+      if (pendingRefund) {
+        // Synchroniser la raison si elle existe
+        if (pendingRefund.reason && !refundReason) {
+          setRefundReason(pendingRefund.reason)
+        }
+        // Synchroniser la date si elle existe et est valide
+        if (pendingRefund.withdrawalDate) {
+          try {
+            const date = new Date(pendingRefund.withdrawalDate)
+            if (!isNaN(date.getTime())) {
+              setRefundDate(date.toISOString().split('T')[0])
+            }
+          } catch (error) {
+            console.log('Erreur parsing date existante:', error)
+          }
+        }
+        // Synchroniser l'heure si elle existe et est valide
+        if (pendingRefund.withdrawalTime && pendingRefund.withdrawalTime !== '--:--' && pendingRefund.withdrawalTime !== 'undefined') {
+          setRefundTime(pendingRefund.withdrawalTime)
+        }
+      }
+    }
+  }, [data, refundReason, refundTime])
 
   if (isLoading) return <div className="p-4">Chargement…</div>
   if (isError) return <div className="p-4 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
@@ -695,14 +731,7 @@ export default function DailyContract({ id }: Props) {
                             <Label className="text-xs text-gray-600">Date du retrait *</Label>
                             <Input
                               type="date"
-                              value={refundDate || (r.withdrawalDate ? (() => {
-                                try {
-                                  const date = new Date(r.withdrawalDate)
-                                  return isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
-                                } catch {
-                                  return new Date().toISOString().split('T')[0]
-                                }
-                              })() : new Date().toISOString().split('T')[0])}
+                              value={refundDate}
                               onChange={(e) => setRefundDate(e.target.value)}
                               className="w-full text-xs"
                               required
@@ -713,8 +742,8 @@ export default function DailyContract({ id }: Props) {
                           <div>
                             <Label className="text-xs text-gray-600">Heure du retrait *</Label>
                             <Input
-                              type="text"
-                              value={refundTime || r.withdrawalTime || ''}
+                              type="time"
+                              value={refundTime}
                               onChange={(e) => setRefundTime(e.target.value)}
                               className="w-full text-xs"
                               required
@@ -750,7 +779,47 @@ export default function DailyContract({ id }: Props) {
                         <Button 
                           size="sm"
                           className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                          disabled={!refundFile || !(refundReason || r.reason)?.trim() || !(refundDate || r.withdrawalDate) || !(refundTime || r.withdrawalTime)?.trim()}
+                          disabled={(() => {
+                            // Fonction utilitaire pour vérifier si une valeur existe et n'est pas vide
+                            const hasValue = (value: any) => {
+                              if (value === null || value === undefined) return false
+                              if (typeof value === 'string') return value.trim().length > 0
+                              if (value instanceof Date) return !isNaN(value.getTime())
+                              return true
+                            }
+                            
+                            // Vérifier chaque champ individuellement
+                            const hasFile = !!refundFile
+                            const hasReason = hasValue(refundReason) || hasValue(r.reason)
+                            const hasDate = hasValue(refundDate) || hasValue(r.withdrawalDate)
+                            const hasTime = hasValue(refundTime) || (hasValue(r.withdrawalTime) && r.withdrawalTime !== '--:--')
+                            
+                            // Debug temporaire avec plus de détails
+                            console.log('Validation bouton DailyContract:', {
+                              hasFile,
+                              hasReason,
+                              hasDate,
+                              hasTime,
+                              // Nouvelles valeurs
+                              refundFile: !!refundFile,
+                              refundReason: refundReason || 'undefined',
+                              refundDate: refundDate || 'undefined',
+                              refundTime: refundTime || 'undefined',
+                              // Valeurs existantes
+                              rReason: r.reason || 'undefined',
+                              rWithdrawalDate: r.withdrawalDate || 'undefined',
+                              rWithdrawalTime: r.withdrawalTime || 'undefined',
+                              // Vérifications détaillées
+                              refundReasonValid: hasValue(refundReason),
+                              refundDateValid: hasValue(refundDate),
+                              refundTimeValid: hasValue(refundTime),
+                              rReasonValid: hasValue(r.reason),
+                              rWithdrawalDateValid: hasValue(r.withdrawalDate),
+                              rWithdrawalTimeValid: hasValue(r.withdrawalTime)
+                            })
+                            
+                            return !hasFile || !hasReason || !hasDate || !hasTime
+                          })()}
                           onClick={async () => {
                             try {
                               // Fonction utilitaire pour convertir n'importe quel type de date

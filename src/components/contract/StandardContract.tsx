@@ -23,8 +23,15 @@ export default function StandardContract({ id }: Props) {
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundReason, setRefundReason] = useState('')
-  const [refundDate, setRefundDate] = useState('')
-  const [refundTime, setRefundTime] = useState('')
+  const [refundDate, setRefundDate] = useState(() => {
+    // Initialiser avec la date du jour par défaut
+    return new Date().toISOString().split('T')[0]
+  })
+  const [refundTime, setRefundTime] = useState(() => {
+    // Initialiser avec l'heure actuelle par défaut
+    const now = new Date()
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
@@ -278,14 +285,7 @@ export default function StandardContract({ id }: Props) {
                         <label className="block text-xs text-gray-600 mb-1">Date du retrait *</label>
                         <input
                           type="date"
-                          value={refundDate || (r.withdrawalDate ? (() => {
-                            try {
-                              const date = new Date(r.withdrawalDate)
-                              return isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0]
-                            } catch {
-                              return new Date().toISOString().split('T')[0]
-                            }
-                          })() : new Date().toISOString().split('T')[0])}
+                          value={refundDate}
                           onChange={(e) => setRefundDate(e.target.value)}
                           className="w-full p-2 text-xs border border-gray-300 rounded-md"
                           required
@@ -296,8 +296,8 @@ export default function StandardContract({ id }: Props) {
                       <div>
                         <label className="block text-xs text-gray-600 mb-1">Heure du retrait *</label>
                         <input
-                          type="text"
-                          value={refundTime || r.withdrawalTime || ''}
+                          type="time"
+                          value={refundTime}
                           onChange={(e) => setRefundTime(e.target.value)}
                           className="w-full p-2 text-xs border border-gray-300 rounded-md"
                           required
@@ -333,7 +333,32 @@ export default function StandardContract({ id }: Props) {
                       </div>
                     </div>
                     
-                    <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile || !(refundReason || r.reason)?.trim() || !(refundDate || r.withdrawalDate) || !(refundTime || r.withdrawalTime)?.trim()}                     onClick={async ()=> { 
+                    <button 
+                      className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" 
+                      disabled={(() => {
+                        const hasFile = !!refundFile
+                        const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
+                        const hasDate = refundDate || r.withdrawalDate
+                        const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== '--:--')
+                        
+                        // Debug temporaire
+                        console.log('Validation bouton StandardContract:', {
+                          hasFile,
+                          hasReason,
+                          hasDate,
+                          hasTime,
+                          refundFile: !!refundFile,
+                          refundReason: refundReason || 'undefined',
+                          refundDate: refundDate || 'undefined',
+                          refundTime: refundTime || 'undefined',
+                          rReason: r.reason || 'undefined',
+                          rWithdrawalDate: r.withdrawalDate || 'undefined',
+                          rWithdrawalTime: r.withdrawalTime || 'undefined'
+                        })
+                        
+                        return !hasFile || !hasReason || !hasDate || !hasTime
+                      })()}
+                      onClick={async ()=> { 
                       try {
                         // Fonction utilitaire pour convertir n'importe quel type de date
                         const normalizeDate = (dateValue: any): string | null => {
