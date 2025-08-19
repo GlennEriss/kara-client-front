@@ -117,6 +117,24 @@ export default function AdminCaisseSettingsPage() {
           </div>
         </div>
 
+        {/* Information sur l'activation */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-100 rounded-full p-2 mt-0.5">
+              <Settings className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="text-sm text-blue-800">
+              <div className="font-medium mb-1">💡 Comment fonctionne l'activation ?</div>
+              <div className="space-y-1">
+                <div>• <strong>Une seule version active par type de caisse</strong> (STANDARD, JOURNALIERE, LIBRE)</div>
+                <div>• L'activation d'une version <strong>désactive automatiquement</strong> les autres versions du même type</div>
+                <div>• Les versions d'autres types de caisse <strong>ne sont pas affectées</strong></div>
+                <div>• Chaque type de caisse peut avoir ses propres paramètres actifs simultanément</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Section Créer une version */}
           <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
@@ -241,85 +259,114 @@ export default function AdminCaisseSettingsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {(list.data || []).length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <Settings className="h-12 w-12 mx-auto mb-3 opacity-50" />
                       <p>Aucune version configurée</p>
                     </div>
                   ) : (
-                    (list.data || []).map((s: any) => (
-                      <div key={s.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-all duration-200">
-                        <div className="flex flex-col lg:flex-row items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
-                              <span className="font-mono text-sm font-medium text-gray-900">{s.id}</span>
-                              <span className={`text-xs px-3 py-1 rounded-full border font-medium ${getCaisseTypeColor((s as any).caisseType || 'STANDARD')}`}>
-                                {(s as any).caisseType || 'STANDARD'}
-                              </span>
-                              {s.isActive && (
-                                <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  Active
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-gray-600">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                Effet: {(() => {
-                                  const v = (s as any).effectiveAt
-                                  if (!v) return '—'
-                                  const d = v && typeof v === 'object' && 'seconds' in v ? new Date(v.seconds * 1000) : new Date(v)
-                                  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
-                                })()}
-                              </span>
-                            </div>
-                          </div>
+                    (() => {
+                      // Grouper les versions par type de caisse
+                      const groupedVersions = (list.data || []).reduce((acc: any, s: any) => {
+                        const type = (s as any).caisseType || 'STANDARD'
+                        if (!acc[type]) acc[type] = []
+                        acc[type].push(s)
+                        return acc
+                      }, {})
+
+                      return Object.entries(groupedVersions).map(([type, versions]: [string, any]) => (
+                        <div key={type} className="space-y-3">
                           <div className="flex items-center gap-2">
-                            <button
-                              className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200"
-                              onClick={() => {
-                                setEditId(s.id)
-                                const bt = (s as any)?.bonusTable || {}
-                                const prefilled: Record<string, number> = {}
-                                for (let m = 4; m <= 12; m++) prefilled[`M${m}`] = Number(bt[`M${m}`] || 0)
-                                setEditBonusTable(prefilled)
-                                const pr = (s as any)?.penaltyRules || {}
-                                if (pr.day4To12?.steps) {
-                                  setEditUseSteps(true)
-                                  setEditSteps((pr.day4To12.steps || []).map((x: any) => ({ from: Number(x.from), to: Number(x.to), rate: Number(x.rate) })))
-                                  setEditPerDay(0)
-                                } else {
-                                  setEditUseSteps(false)
-                                  setEditSteps([])
-                                  setEditPerDay(Number(pr.day4To12?.perDay || 0))
-                                }
-                              }}
-                              title="Éditer"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </button>
-                            {!s.isActive && (
-                              <button 
-                                className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200" 
-                                onClick={async () => { await activate.mutateAsync(s.id); toast.success('Version activée') }}
-                                title="Activer"
-                              >
-                                <Power className="h-4 w-4" />
-                              </button>
-                            )}
-                            <button 
-                              className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
-                              onClick={() => setConfirmDeleteId(s.id)}
-                              title="Supprimer"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <div className={`w-3 h-3 rounded-full ${type === 'STANDARD' ? 'bg-blue-500' : type === 'JOURNALIERE' ? 'bg-green-500' : 'bg-purple-500'}`}></div>
+                            <h3 className="font-semibold text-gray-900 capitalize">{type.toLowerCase()}</h3>
+                            <span className="text-xs text-gray-500">({versions.length} version{versions.length > 1 ? 's' : ''})</span>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {versions.map((s: any) => (
+                              <div key={s.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-all duration-200">
+                                <div className="flex flex-col lg:flex-row items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
+                                      <span className="font-mono text-sm font-medium text-gray-900">{s.id}</span>
+                                      <span className={`text-xs px-3 py-1 rounded-full border font-medium ${getCaisseTypeColor((s as any).caisseType || 'STANDARD')}`}>
+                                        {(s as any).caisseType || 'STANDARD'}
+                                      </span>
+                                      {s.isActive && (
+                                        <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+                                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                          Active
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-4 text-xs text-gray-600">
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        Effet: {(() => {
+                                          const v = (s as any).effectiveAt
+                                          if (!v) return '—'
+                                          const d = v && typeof v === 'object' && 'seconds' in v ? new Date(v.seconds * 1000) : new Date(v)
+                                          return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
+                                        })()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200"
+                                      onClick={() => {
+                                        setEditId(s.id)
+                                        const bt = (s as any)?.bonusTable || {}
+                                        const prefilled: Record<string, number> = {}
+                                        for (let m = 4; m <= 12; m++) prefilled[`M${m}`] = Number(bt[`M${m}`] || 0)
+                                        setEditBonusTable(prefilled)
+                                        const pr = (s as any)?.penaltyRules || {}
+                                        if (pr.day4To12?.steps) {
+                                          setEditUseSteps(true)
+                                          setEditSteps((pr.day4To12.steps || []).map((x: any) => ({ from: Number(x.from), to: Number(x.to), rate: Number(x.rate) })))
+                                          setEditPerDay(0)
+                                        } else {
+                                          setEditUseSteps(false)
+                                          setEditSteps([])
+                                          setEditPerDay(Number(pr.day4To12?.perDay || 0))
+                                        }
+                                      }}
+                                      title="Éditer"
+                                    >
+                                      <Edit3 className="h-4 w-4" />
+                                    </button>
+                                    {!s.isActive && (
+                                      <button 
+                                        className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200" 
+                                        onClick={async () => { 
+                                          try {
+                                            await activate.mutateAsync(s.id)
+                                            toast.success(`Version ${s.id} activée pour le type ${(s as any).caisseType || 'STANDARD'}`)
+                                          } catch (error) {
+                                            toast.error('Erreur lors de l\'activation')
+                                          }
+                                        }}
+                                        title={`Activer cette version (désactivera les autres versions du type ${(s as any).caisseType || 'STANDARD'})`}
+                                      >
+                                        <Power className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                    <button 
+                                      className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
+                                      onClick={() => setConfirmDeleteId(s.id)}
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))
+                    })()
                   )}
                 </div>
               )}
