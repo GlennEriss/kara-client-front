@@ -10,6 +10,8 @@ import { toast } from 'sonner'
 // PDF generation désactivée pour build Next 15; à réactiver via import dynamique côté client si besoin
 import { recomputeNow } from '@/services/caisse/readers'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
+import FileInput from '@/components/ui/file-input'
+import type { PaymentMode } from '@/types/types'
 
 type Props = { id: string }
 
@@ -18,6 +20,15 @@ export default function StandardContract({ id }: Props) {
   const [file, setFile] = useState<File | undefined>()
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+  const [paymentDate, setPaymentDate] = useState(() => {
+    // Initialiser avec la date du jour par défaut
+    return new Date().toISOString().split('T')[0]
+  })
+  const [paymentTime, setPaymentTime] = useState(() => {
+    // Initialiser avec l'heure actuelle par défaut
+    const now = new Date()
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  })
   const [isPaying, setIsPaying] = useState(false)
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
@@ -35,6 +46,8 @@ export default function StandardContract({ id }: Props) {
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
+  const [fileInputResetKey, setFileInputResetKey] = useState(0) // Clé pour réinitialiser le FileInput
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('airtel_money') // Mode de paiement par défaut
 
   function paymentStatusLabel(s: string): string {
     const map: Record<string, string> = {
@@ -91,14 +104,37 @@ export default function StandardContract({ id }: Props) {
     if (isClosed) { toast.error('Contrat clos: paiement impossible.'); return }
     if (selectedIdx === null) { toast.error('Veuillez choisir un mois à payer.'); return }
     if (!file) { toast.error('Veuillez téléverser une preuve (capture) avant de payer.') ; return }
+    if (!paymentDate) { toast.error('Veuillez sélectionner la date de paiement.'); return }
+    if (!paymentTime) { toast.error('Veuillez sélectionner l\'heure de paiement.'); return }
+    if (!paymentMode) { toast.error('Veuillez sélectionner le mode de paiement.'); return }
+    
     try {
       setIsPaying(true)
-      await pay({ contractId: id, dueMonthIndex: selectedIdx, memberId: data.memberId, file })
+      await pay({ 
+        contractId: id, 
+        dueMonthIndex: selectedIdx, 
+        memberId: data.memberId, 
+        file,
+        paidAt: new Date(`${paymentDate}T${paymentTime}`),
+        time: paymentTime,
+        mode: paymentMode
+      })
       await refetch()
       toast.success('Paiement enregistré')
+      
+      // Réinitialisation complète de tous les états
       setSelectedIdx(null)
       setFile(undefined)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      setPaymentDate(new Date().toISOString().split('T')[0])
+      setPaymentTime(() => {
+        const now = new Date()
+        return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+      })
+      setPaymentMode('airtel_money') // Remettre le mode par défaut
+      
+      // Forcer la réinitialisation du FileInput
+      setFileInputResetKey(prev => prev + 1)
+      
     } finally {
       setIsPaying(false)
     }
@@ -199,32 +235,112 @@ export default function StandardContract({ id }: Props) {
 
       <div className="space-y-2">
         <h2 className="font-semibold">Payer l’échéance sélectionnée</h2>
-        <input
-          type="file"
-          accept="image/*"
-          ref={fileInputRef}
-          disabled={isClosed}
-          onChange={async (e) => {
-            const f = e.target.files?.[0]
-            if (!f) { setFile(undefined); return }
-            if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setFile(undefined); return }
-            try {
-              const dataUrl = await compressImage(f, IMAGE_COMPRESSION_PRESETS.document)
-              const res = await fetch(dataUrl)
-              const blob = await res.blob()
-              const webpFile = new File([blob], 'proof.webp', { type: 'image/webp' })
-              setFile(webpFile)
-              toast.success('Preuve compressée (WebP) prête')
-            } catch (err) {
-              console.error(err)
-              toast.error('Échec de la compression de l\'image')
-              setFile(undefined)
-            }
-          }}
-        />
-        <button onClick={onPay} disabled={isPaying || selectedIdx === null || !file || isClosed} className="px-4 py-2 rounded bg-[#234D65] text-white disabled:opacity-50">
-          {isPaying ? 'Paiement…' : 'Payer'}
-        </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Date de paiement */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date de paiement *</label>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+              required
+            />
+          </div>
+          
+          {/* Heure de paiement */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Heure de paiement *</label>
+            <input
+              type="time"
+              value={paymentTime}
+              onChange={(e) => setPaymentTime(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+              required
+            />
+          </div>
+          
+          {/* Mode de paiement */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mode de paiement *</label>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="airtel_money"
+                  checked={paymentMode === 'airtel_money'}
+                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  className="text-[#234D65] focus:ring-[#234D65]"
+                />
+                <span className="text-sm text-gray-700">Airtel Money</span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="mobicash"
+                  checked={paymentMode === 'mobicash'}
+                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  className="text-[#234D65] focus:ring-[#234D65]"
+                />
+                <span className="text-sm text-gray-700">Mobicash</span>
+              </label>
+            </div>
+          </div>
+          
+          {/* Preuve de paiement */}
+          <div>
+            <FileInput
+              accept="image/*"
+              maxSize={5}
+              onFileSelect={async (selectedFile) => {
+                if (!selectedFile) { 
+                  setFile(undefined); 
+                  return 
+                }
+                
+                try {
+                  const dataUrl = await compressImage(selectedFile, IMAGE_COMPRESSION_PRESETS.document)
+                  const res = await fetch(dataUrl)
+                  const blob = await res.blob()
+                  const webpFile = new File([blob], 'proof.webp', { type: 'image/webp' })
+                  setFile(webpFile)
+                  toast.success('Preuve compressée (WebP) prête')
+                } catch (err) {
+                  console.error(err)
+                  toast.error('Échec de la compression de l\'image')
+                  setFile(undefined)
+                }
+              }}
+              disabled={isClosed}
+              label="Preuve de paiement *"
+              placeholder="Glissez-déposez une image ou cliquez pour parcourir"
+              currentFile={file}
+              resetKey={fileInputResetKey}
+              className="w-full"
+            />
+          </div>
+        </div>
+        
+        <div className="text-center">
+          <button 
+            onClick={onPay} 
+            disabled={isPaying || !file || !paymentDate || !paymentTime || !paymentMode || isClosed} 
+            className="px-6 py-3 rounded-lg bg-[#234D65] text-white font-medium hover:bg-[#1a3a4f] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 mx-auto"
+          >
+            {isPaying ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Paiement en cours...
+              </>
+            ) : (
+              <>
+                <span>Payer l'échéance M{selectedIdx !== null ? selectedIdx + 1 : ''}</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
