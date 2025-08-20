@@ -8,7 +8,30 @@ import { toast } from 'sonner'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import FileInput from '@/components/ui/file-input'
 import type { PaymentMode } from '@/types/types'
-// PDF generation désactivée pour build Next 15; à réactiver via import dynamique côté client si besoin
+import { 
+  CreditCard, 
+  Calendar, 
+  Clock, 
+  DollarSign, 
+  CheckCircle, 
+  XCircle, 
+  AlertTriangle, 
+  Loader2, 
+  Settings, 
+  RefreshCw, 
+  Download, 
+  Upload, 
+  Eye, 
+  X,
+  Smartphone,
+  Banknote,
+  Receipt,
+  TrendingUp,
+  ArrowRight,
+  FileText,
+  User,
+  Shield
+} from 'lucide-react'
 
 type Props = { id: string }
 
@@ -19,25 +42,21 @@ export default function FreeContract({ id }: Props) {
   const [file, setFile] = useState<File | undefined>()
   const [isPaying, setIsPaying] = useState(false)
   const [paymentDate, setPaymentDate] = useState(() => {
-    // Initialiser avec la date du jour par défaut
     return new Date().toISOString().split('T')[0]
   })
   const [paymentTime, setPaymentTime] = useState(() => {
-    // Initialiser avec l'heure actuelle par défaut
     const now = new Date()
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
   })
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>('airtel_money') // Mode de paiement par défaut
-  const [fileInputResetKey, setFileInputResetKey] = useState(0) // Clé pour réinitialiser le FileInput
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('airtel_money')
+  const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundReason, setRefundReason] = useState('')
   const [refundDate, setRefundDate] = useState(() => {
-    // Initialiser avec la date du jour par défaut
     return new Date().toISOString().split('T')[0]
   })
   const [refundTime, setRefundTime] = useState(() => {
-    // Initialiser avec l'heure actuelle par défaut
     const now = new Date()
     return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
   })
@@ -45,9 +64,39 @@ export default function FreeContract({ id }: Props) {
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
 
-  if (isLoading) return <div className="p-4">Chargement…</div>
-  if (isError) return <div className="p-4 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
-  if (!data) return <div className="p-4">Contrat introuvable</div>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-[#234D65] mx-auto mb-4" />
+          <p className="text-gray-600 text-lg">Chargement du contrat...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-red-600">{(error as any)?.message}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Contrat introuvable</h2>
+        </div>
+      </div>
+    )
+  }
 
   const isClosed = data.status === 'CLOSED'
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
@@ -59,6 +108,50 @@ export default function FreeContract({ id }: Props) {
       REFUSED: 'Refusé',
     }
     return map[s] || s
+  }
+
+  function getPaymentStatusConfig(status: string) {
+    switch (status) {
+      case 'DUE':
+        return { 
+          bg: 'bg-orange-100', 
+          text: 'text-orange-700', 
+          border: 'border-orange-200',
+          icon: Clock 
+        }
+      case 'PAID':
+        return { 
+          bg: 'bg-green-100', 
+          text: 'text-green-700', 
+          border: 'border-green-200',
+          icon: CheckCircle 
+        }
+      case 'REFUSED':
+        return { 
+          bg: 'bg-red-100', 
+          text: 'text-red-700', 
+          border: 'border-red-200',
+          icon: XCircle 
+        }
+      default:
+        return { 
+          bg: 'bg-gray-100', 
+          text: 'text-gray-700', 
+          border: 'border-gray-200',
+          icon: AlertTriangle 
+        }
+    }
+  }
+
+  const getPaymentModeIcon = (mode: PaymentMode) => {
+    switch (mode) {
+      case 'airtel_money':
+        return <Smartphone className="h-4 w-4" />
+      case 'mobicash':
+        return <Banknote className="h-4 w-4" />
+      default:
+        return <CreditCard className="h-4 w-4" />
+    }
   }
 
   const onPay = async () => {
@@ -85,7 +178,6 @@ export default function FreeContract({ id }: Props) {
       await refetch()
       toast.success('Contribution enregistrée')
       
-      // Réinitialisation complète de tous les états
       setAmount(0)
       setSelectedIdx(null)
       setFile(undefined)
@@ -94,9 +186,7 @@ export default function FreeContract({ id }: Props) {
         const now = new Date()
         return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
       })
-      setPaymentMode('airtel_money') // Remettre le mode par défaut
-      
-      // Forcer la réinitialisation du FileInput
+      setPaymentMode('airtel_money')
       setFileInputResetKey(prev => prev + 1)
       
     } finally { 
@@ -104,378 +194,694 @@ export default function FreeContract({ id }: Props) {
     }
   }
 
+  const payments = data.payments || []
+  const paidCount = payments.filter((x: any) => x.status === 'PAID').length
+  const allPaid = payments.length > 0 && paidCount === payments.length
+  const canEarly = paidCount >= 1 && !allPaid
+  const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
+  const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
+
   return (
-    <div className="p-4 space-y-3">
-      <h1 className="text-2xl font-bold">Contrat Libre #{id}</h1>
-      <div className="text-xs text-gray-500">Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}</div>
-      <div className="text-sm text-gray-600">Montant minimum par mois: 100 000 FCFA</div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {(data.payments||[]).map((p:any)=> (
-          <div key={p.id} className="border rounded p-3">
-            <div className="flex items-center justify-between">
-              <div className="font-medium">M{p.dueMonthIndex+1}</div>
-              <span className="text-xs px-2 py-0.5 rounded bg-gray-100">{paymentStatusLabel(p.status)}</span>
-            </div>
-            <div className="text-xs text-gray-600">Accum.: {(p.accumulatedAmount||0).toLocaleString('fr-FR')} / 100 000</div>
-            <div className="mt-2 flex items-center gap-2">
-              <input type="radio" name="m" checked={selectedIdx===p.dueMonthIndex} onChange={()=> setSelectedIdx(p.dueMonthIndex)} disabled={p.status!=='DUE' || isClosed} />
-              <span className="text-sm">Sélectionner</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        
+        {/* En-tête du contrat */}
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="bg-white/20 rounded-lg p-3">
+                  <FileText className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-white">Contrat Libre</h1>
+                  <p className="text-blue-100">#{id}</p>
+                </div>
+              </div>
+              {isClosed && (
+                <div className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                  <XCircle className="h-5 w-5" />
+                  Contrat fermé
+                </div>
+              )}
             </div>
           </div>
-        ))}
-      </div>
-      <div className="space-y-4">
-        <h2 className="font-semibold">Effectuer un versement</h2>
-        
-        {selectedIdx !== null && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="text-sm text-blue-800 mb-4">
-              <strong>Mois sélectionné :</strong> M{selectedIdx + 1}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-              {/* Montant du versement */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Montant du versement *</label>
-                <input 
-                  type="number" 
-                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
-                  value={amount} 
-                  onChange={(e)=> setAmount(Number(e.target.value))} 
-                  disabled={isClosed}
-                  placeholder="100000"
-                  min="100000"
-                  required
-                />
-                <div className="text-xs text-gray-500 mt-1">Minimum: 100 000 FCFA</div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 rounded-lg p-2">
+                  <Settings className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Type de caisse</p>
+                  <p className="font-semibold text-gray-900">{String((data as any).caisseType)}</p>
+                </div>
               </div>
               
-              {/* Date de paiement */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date de paiement *</label>
-                <input
-                  type="date"
-                  value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
-                  required
-                />
+              <div className="flex items-center gap-3">
+                <div className="bg-green-100 rounded-lg p-2">
+                  <Shield className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Paramètres actifs</p>
+                  <p className="font-semibold text-gray-900">{settings.data ? (settings.data as any).id : '—'}</p>
+                </div>
               </div>
               
-              {/* Heure de paiement */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Heure de paiement *</label>
-                <input
-                  type="time"
-                  value={paymentTime}
-                  onChange={(e) => setPaymentTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
-                  required
-                />
-              </div>
-              
-              {/* Mode de paiement */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mode de paiement *</label>
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentMode"
-                      value="airtel_money"
-                      checked={paymentMode === 'airtel_money'}
-                      onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                      className="text-[#234D65] focus:ring-[#234D65]"
-                    />
-                    <span className="text-sm text-gray-700">Airtel Money</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentMode"
-                      value="mobicash"
-                      checked={paymentMode === 'mobicash'}
-                      onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                      className="text-[#234D65] focus:ring-[#234D65]"
-                    />
-                    <span className="text-sm text-gray-700">Mobicash</span>
-                  </label>
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <DollarSign className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Montant minimum</p>
+                  <p className="font-semibold text-gray-900">100 000 FCFA/mois</p>
                 </div>
               </div>
             </div>
-            
-            {/* Preuve de paiement */}
-            <div className="mb-4">
-              <FileInput
-                accept="image/*"
-                maxSize={5}
-                onFileSelect={async (selectedFile) => {
-                  if (!selectedFile) { 
-                    setFile(undefined); 
-                    return 
-                  }
-                  
-                  try {
-                    const dataUrl = await compressImage(selectedFile, IMAGE_COMPRESSION_PRESETS.document)
-                    const res = await fetch(dataUrl)
-                    const blob = await res.blob()
-                    const webpFile = new File([blob], 'proof.webp', { type: 'image/webp' })
-                    setFile(webpFile)
-                    toast.success('Preuve compressée (WebP) prête')
-                  } catch (err) {
-                    console.error(err)
-                    toast.error('Échec de la compression de l\'image')
-                    setFile(undefined)
-                  }
-                }}
-                disabled={isClosed}
-                label="Preuve de paiement *"
-                placeholder="Glissez-déposez une image ou cliquez pour parcourir"
-                currentFile={file}
-                resetKey={fileInputResetKey}
-                className="w-full"
-              />
-            </div>
-            
-            {/* Bouton de paiement */}
-            <div className="text-center">
-              <button 
-                className="px-6 py-3 rounded-lg bg-[#234D65] text-white font-medium hover:bg-[#1a3a4f] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 mx-auto"
-                disabled={isPaying || !file || selectedIdx === null || !amount || amount < 100000 || !paymentDate || !paymentTime || !paymentMode || isClosed}
-                onClick={onPay}
-              >
-                {isPaying ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Paiement en cours...
-                  </>
-                ) : (
-                  <>
-                    <span>Effectuer le versement M{selectedIdx !== null ? selectedIdx + 1 : ''}</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
-        )}
-        
-        {selectedIdx === null && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">
-            Veuillez sélectionner un mois dans la liste ci-dessus
-          </div>
-        )}
-      </div>
-
-      {/* Remboursements (mêmes règles que Standard) */}
-      <div className="space-y-3">
-        <h2 className="font-semibold">Remboursements</h2>
-        <div className="flex items-center gap-2">
-          {(() => {
-            const payments = data.payments || []
-            const paidCount = payments.filter((x: any) => x.status === 'PAID').length
-            const allPaid = payments.length > 0 && paidCount === payments.length
-            const canEarly = paidCount >= 1 && !allPaid
-            const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
-            const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
-            return (
-              <>
-                <button className="px-3 py-2 border rounded disabled:opacity-50" disabled={isRefunding || !allPaid || hasFinalRefund} onClick={()=> setConfirmFinal(true)}>Demander remboursement final</button>
-                <button className="px-3 py-2 border rounded disabled:opacity-50" disabled={isRefunding || !canEarly || hasEarlyRefund} onClick={async()=>{ try{ setIsRefunding(true); await requestEarlyRefund(id); await refetch(); toast.success('Retrait anticipé demandé'); } catch(e:any){ toast.error(e?.message||'Action impossible') } finally { setIsRefunding(false)} }}>Demander retrait anticipé</button>
-              </>
-            )
-          })()}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(data.refunds || []).map((r: any) => (
-            <div key={r.id} className="border rounded p-3">
-              <div className="flex items-center justify-between">
-                <div className="font-medium">{r.type === 'FINAL' ? 'Final' : r.type === 'EARLY' ? 'Anticipé' : 'Défaut'}</div>
-                <span className={`text-xs px-2 py-1 rounded ${r.status==='PENDING' ? 'bg-yellow-100 text-yellow-700' : r.status==='APPROVED' ? 'bg-blue-100 text-blue-700' : r.status==='PAID' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}</span>
-              </div>
-              <div className="text-xs text-gray-600">Nominal: {(r.amountNominal||0).toLocaleString('fr-FR')} FCFA</div>
-              <div className="text-xs text-gray-600">Bonus: {(r.amountBonus||0).toLocaleString('fr-FR')} FCFA</div>
-              <div className="text-xs text-gray-600">Échéance remboursement: {r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</div>
-              <div className="flex items-center gap-2 mt-2">
-                {r.status === 'PENDING' && (
-                  <>
-                    <button className="px-3 py-1 rounded border" onClick={()=> setConfirmApproveId(r.id)}>Approuver</button>
-                    {r.type === 'EARLY' && (
-                      <button className="px-3 py-1 rounded border text-red-600" onClick={async()=>{ try{ await cancelEarlyRefund(id, r.id); await refetch(); toast.success('Demande anticipée annulée') } catch(e:any){ toast.error(e?.message||'Annulation impossible') } }}>Annuler</button>
-                    )}
-                  </>
-                )}
-                {r.status === 'APPROVED' && (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                      {/* Cause du retrait */}
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Cause du retrait *</label>
-                        <textarea
-                          placeholder="Raison du retrait..."
-                          className="w-full p-2 text-xs border border-gray-300 rounded-md resize-none"
-                          rows={2}
-                          value={refundReason || r.reason || ''}
-                          onChange={(e) => setRefundReason(e.target.value)}
-                          required
-                        />
+
+        {/* Échéances de paiement */}
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
+          <div className="bg-gray-50 border-b border-gray-200 p-6">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-6 w-6 text-gray-700" />
+              <h2 className="text-xl font-bold text-gray-900">Échéances de paiement</h2>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {payments.map((p: any) => {
+                const statusConfig = getPaymentStatusConfig(p.status)
+                const StatusIcon = statusConfig.icon
+                const isSelected = selectedIdx === p.dueMonthIndex
+                
+                return (
+                  <div 
+                    key={p.id} 
+                    className={`border rounded-xl p-4 transition-all duration-200 cursor-pointer hover:shadow-md ${
+                      isSelected 
+                        ? 'border-[#234D65] bg-blue-50 ring-2 ring-[#234D65]/20' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => p.status === 'DUE' && !isClosed ? setSelectedIdx(p.dueMonthIndex) : null}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-[#234D65] text-white rounded-lg px-3 py-1 text-sm font-bold">
+                          M{p.dueMonthIndex + 1}
+                        </div>
+                        {isSelected && (
+                          <div className="bg-[#234D65] text-white rounded-full p-1">
+                            <CheckCircle className="h-4 w-4" />
+                          </div>
+                        )}
                       </div>
-                      
-                      {/* Date du retrait */}
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Date du retrait *</label>
-                        <input
-                          type="date"
-                          value={refundDate}
-                          onChange={(e) => setRefundDate(e.target.value)}
-                          className="w-full p-2 text-xs border border-gray-300 rounded-md"
-                          required
-                        />
+                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
+                        <StatusIcon className="h-3 w-3" />
+                        {paymentStatusLabel(p.status)}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Accumulé:</span>
+                        <span className="font-semibold">{(p.accumulatedAmount || 0).toLocaleString('fr-FR')} FCFA</span>
                       </div>
-                      
-                      {/* Heure du retrait */}
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Heure du retrait *</label>
-                        <input
-                          type="time"
-                          value={refundTime}
-                          onChange={(e) => setRefundTime(e.target.value)}
-                          className="w-full p-2 text-xs border border-gray-300 rounded-md"
-                          required
-                        />
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(((p.accumulatedAmount || 0) / 100000) * 100, 100)}%` }}
+                        ></div>
                       </div>
-                      
-                      {/* Preuve du retrait */}
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Preuve du retrait *</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e)=> {
-                            const f = e.target.files?.[0]
-                            if (!f) { setRefundFile(undefined); return }
-                            if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setRefundFile(undefined); return }
-                            try {
-                              const mod = await import('@/lib/utils')
-                              const dataUrl = await mod.compressImage(f, mod.IMAGE_COMPRESSION_PRESETS.document)
-                              const res = await fetch(dataUrl)
-                              const blob = await res.blob()
-                              const webpFile = new File([blob], 'refund-proof.webp', { type: 'image/webp' })
-                              setRefundFile(webpFile)
-                              toast.success('Preuve compressée (WebP) prête')
-                            } catch (err) {
-                              console.error(err)
-                              toast.error('Échec de la compression de l\'image')
-                              setRefundFile(undefined)
-                            }
-                          }}
-                          className="w-full p-2 text-xs border border-gray-300 rounded-md"
-                          required
-                        />
+                      <div className="text-xs text-gray-500 text-center">
+                        {((p.accumulatedAmount || 0) / 100000 * 100).toFixed(1)}% de l'objectif
                       </div>
                     </div>
                     
-                    <button 
-                      className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" 
-                      disabled={(() => {
-                        const hasFile = !!refundFile
-                        const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
-                        const hasDate = refundDate || r.withdrawalDate
-                        const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== '--:--')
-                        
-                        // Debug temporaire
-                        console.log('Validation bouton FreeContract:', {
-                          hasFile,
-                          hasReason,
-                          hasDate,
-                          hasTime,
-                          refundFile: !!refundFile,
-                          refundReason: refundReason || 'undefined',
-                          refundDate: refundDate || 'undefined',
-                          refundTime: refundTime || 'undefined',
-                          rReason: r.reason || 'undefined',
-                          rWithdrawalDate: r.withdrawalDate || 'undefined',
-                          rWithdrawalTime: r.withdrawalTime || 'undefined'
-                        })
-                        
-                        return !hasFile || !hasReason || !hasDate || !hasTime
-                      })()}
-                      onClick={async ()=> { 
-                      try {
-                        // Fonction utilitaire pour convertir n'importe quel type de date
-                        const normalizeDate = (dateValue: any): string | null => {
-                          if (!dateValue) return null
-                          try {
-                            let date: Date
-                            if (dateValue && typeof dateValue.toDate === 'function') {
-                              date = dateValue.toDate()
-                            } else if (dateValue instanceof Date) {
-                              date = dateValue
-                            } else if (typeof dateValue === 'string') {
-                              date = new Date(dateValue)
-                            } else {
-                              date = new Date(dateValue)
-                            }
-                            return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]
-                          } catch {
-                            return null
-                          }
-                        }
-                        
-                        await markRefundPaid(id, r.id, refundFile, {
-                          reason: refundReason || r.reason,
-                          withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
-                          withdrawalTime: refundTime || r.withdrawalTime
-                        })
-                        setRefundReason('')
-                        setRefundDate('')
-                        setRefundTime('')
-                        setRefundFile(undefined)
-                        setConfirmPaidId(null)
-                        await refetch()
-                        toast.success('Remboursement marqué payé')
-                      } catch (error: any) {
-                        toast.error(error?.message || 'Erreur lors du marquage')
+                    {p.status === 'DUE' && !isClosed && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
+                          <input 
+                            type="radio" 
+                            name="m" 
+                            checked={isSelected}
+                            onChange={() => setSelectedIdx(p.dueMonthIndex)}
+                            className="text-[#234D65] focus:ring-[#234D65]"
+                          />
+                          <span>Sélectionner pour paiement</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Formulaire de paiement */}
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-green-500 to-green-600 p-6">
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-6 w-6 text-white" />
+              <h2 className="text-xl font-bold text-white">Effectuer un versement</h2>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {selectedIdx !== null ? (
+              <div className="space-y-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="bg-blue-100 rounded-lg p-2">
+                      <Calendar className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-blue-900">Mois sélectionné</h3>
+                      <p className="text-blue-700">M{selectedIdx + 1}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Informations de paiement */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <DollarSign className="h-5 w-5" />
+                      Informations de paiement
+                    </h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Montant du versement *</label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input 
+                          type="number" 
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                          value={amount} 
+                          onChange={(e) => setAmount(Number(e.target.value))} 
+                          disabled={isClosed}
+                          placeholder="100000"
+                          min="100000"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Minimum: 100 000 FCFA</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date de paiement *</label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="date"
+                            value={paymentDate}
+                            onChange={(e) => setPaymentDate(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Heure de paiement *</label>
+                        <div className="relative">
+                          <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <input
+                            type="time"
+                            value={paymentTime}
+                            onChange={(e) => setPaymentTime(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Mode de paiement */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <Smartphone className="h-5 w-5" />
+                      Mode de paiement
+                    </h3>
+                    
+                    <div className="space-y-3">
+                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+                        <input
+                          type="radio"
+                          name="paymentMode"
+                          value="airtel_money"
+                          checked={paymentMode === 'airtel_money'}
+                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                          className="text-[#234D65] focus:ring-[#234D65]"
+                        />
+                        <div className="ml-3 flex items-center gap-3">
+                          <div className="bg-red-100 rounded-lg p-2">
+                            <Smartphone className="h-5 w-5 text-red-600" />
+                          </div>
+                          <span className="font-medium text-gray-900">Airtel Money</span>
+                        </div>
+                      </label>
+                      
+                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+                        <input
+                          type="radio"
+                          name="paymentMode"
+                          value="mobicash"
+                          checked={paymentMode === 'mobicash'}
+                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                          className="text-[#234D65] focus:ring-[#234D65]"
+                        />
+                        <div className="ml-3 flex items-center gap-3">
+                          <div className="bg-blue-100 rounded-lg p-2">
+                            <Banknote className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <span className="font-medium text-gray-900">Mobicash</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Preuve de paiement */}
+                <div>
+                  <FileInput
+                    accept="image/*"
+                    maxSize={5}
+                    onFileSelect={async (selectedFile) => {
+                      if (!selectedFile) { 
+                        setFile(undefined); 
+                        return 
                       }
-                    }}>Marquer payé</button>
-                  </>
+                      
+                      try {
+                        const dataUrl = await compressImage(selectedFile, IMAGE_COMPRESSION_PRESETS.document)
+                        const res = await fetch(dataUrl)
+                        const blob = await res.blob()
+                        const webpFile = new File([blob], 'proof.webp', { type: 'image/webp' })
+                        setFile(webpFile)
+                        toast.success('Preuve compressée (WebP) prête')
+                      } catch (err) {
+                        console.error(err)
+                        toast.error('Échec de la compression de l\'image')
+                        setFile(undefined)
+                      }
+                    }}
+                    disabled={isClosed}
+                    label="Preuve de paiement *"
+                    placeholder="Glissez-déposez une image ou cliquez pour parcourir"
+                    currentFile={file}
+                    resetKey={fileInputResetKey}
+                    className="w-full"
+                  />
+                </div>
+                
+                {/* Bouton de paiement */}
+                <div className="border-t border-gray-200 pt-6">
+                  <button 
+                    className="w-full md:w-auto mx-auto flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isPaying || !file || selectedIdx === null || !amount || amount < 100000 || !paymentDate || !paymentTime || !paymentMode || isClosed}
+                    onClick={onPay}
+                  >
+                    {isPaying ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Paiement en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Receipt className="h-5 w-5" />
+                        Effectuer le versement M{selectedIdx + 1}
+                        <ArrowRight className="h-5 w-5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                  <Calendar className="h-12 w-12 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Sélectionnez un mois</h3>
+                <p className="text-gray-600">Choisissez une échéance dans la liste ci-dessus pour effectuer un paiement</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section Remboursements */}
+        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-6">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="h-6 w-6 text-white" />
+              <h2 className="text-xl font-bold text-white">Remboursements</h2>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {/* Boutons d'action */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <button 
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-indigo-300 text-indigo-700 rounded-xl hover:bg-indigo-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={isRefunding || !allPaid || hasFinalRefund} 
+                onClick={() => setConfirmFinal(true)}
+              >
+                <TrendingUp className="h-5 w-5" />
+                Demander remboursement final
+              </button>
+              
+              <button 
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-orange-300 text-orange-700 rounded-xl hover:bg-orange-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={isRefunding || !canEarly || hasEarlyRefund} 
+                onClick={async () => {
+                  try { 
+                    setIsRefunding(true); 
+                    await requestEarlyRefund(id); 
+                    await refetch(); 
+                    toast.success('Retrait anticipé demandé'); 
+                  } catch(e: any) { 
+                    toast.error(e?.message || 'Action impossible') 
+                  } finally { 
+                    setIsRefunding(false)
+                  }
+                }}
+              >
+                {isRefunding ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Download className="h-5 w-5" />
                 )}
-                {/* Attestation PDF désactivée temporairement */}
+                Demander retrait anticipé
+              </button>
+            </div>
+            
+            {/* Liste des remboursements */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {(data.refunds || []).length === 0 ? (
+                <div className="lg:col-span-2 text-center py-12">
+                  <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                    <RefreshCw className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun remboursement</h3>
+                  <p className="text-gray-600">Aucune demande de remboursement n'a été effectuée</p>
+                </div>
+              ) : (
+                (data.refunds || []).map((r: any) => {
+                  const getRefundStatusConfig = (status: string) => {
+                    switch (status) {
+                      case 'PENDING':
+                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                      case 'APPROVED':
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle }
+                      case 'PAID':
+                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle }
+                      default:
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle }
+                    }
+                  }
+
+                  const statusConfig = getRefundStatusConfig(r.status)
+                  const StatusIcon = statusConfig.icon
+
+                  return (
+                    <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-indigo-100 rounded-lg p-2">
+                            <RefreshCw className="h-5 w-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">
+                              {r.type === 'FINAL' ? 'Remboursement Final' : r.type === 'EARLY' ? 'Retrait Anticipé' : 'Remboursement par Défaut'}
+                            </h3>
+                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
+                              <StatusIcon className="h-3 w-3" />
+                              {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Montant nominal:</span>
+                          <span className="font-semibold">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Bonus:</span>
+                          <span className="font-semibold">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Échéance:</span>
+                          <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
+                        </div>
+                      </div>
+
+                      {r.status === 'PENDING' && (
+                        <div className="flex gap-3">
+                          <button 
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                            onClick={() => setConfirmApproveId(r.id)}
+                          >
+                            Approuver
+                          </button>
+                          {r.type === 'EARLY' && (
+                            <button 
+                              className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium"
+                              onClick={async () => {
+                                try { 
+                                  await cancelEarlyRefund(id, r.id); 
+                                  await refetch(); 
+                                  toast.success('Demande anticipée annulée') 
+                                } catch(e: any) { 
+                                  toast.error(e?.message || 'Annulation impossible') 
+                                }
+                              }}
+                            >
+                              Annuler
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {r.status === 'APPROVED' && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Cause du retrait *</label>
+                              <textarea
+                                placeholder="Raison du retrait..."
+                                className="w-full p-3 text-sm border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                                rows={3}
+                                value={refundReason || r.reason || ''}
+                                onChange={(e) => setRefundReason(e.target.value)}
+                              />
+                            </div>
+                            
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Date du retrait *</label>
+                                <input
+                                  type="date"
+                                  value={refundDate}
+                                  onChange={(e) => setRefundDate(e.target.value)}
+                                  className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Heure du retrait *</label>
+                                <input
+                                  type="time"
+                                  value={refundTime}
+                                  onChange={(e) => setRefundTime(e.target.value)}
+                                  className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const f = e.target.files?.[0]
+                                if (!f) { setRefundFile(undefined); return }
+                                if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setRefundFile(undefined); return }
+                                try {
+                                  const mod = await import('@/lib/utils')
+                                  const dataUrl = await mod.compressImage(f, mod.IMAGE_COMPRESSION_PRESETS.document)
+                                  const res = await fetch(dataUrl)
+                                  const blob = await res.blob()
+                                  const webpFile = new File([blob], 'refund-proof.webp', { type: 'image/webp' })
+                                  setRefundFile(webpFile)
+                                  toast.success('Preuve compressée (WebP) prête')
+                                } catch (err) {
+                                  console.error(err)
+                                  toast.error('Échec de la compression de l\'image')
+                                  setRefundFile(undefined)
+                                }
+                              }}
+                              className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                            />
+                          </div>
+                          
+                          <button 
+                            className="w-full px-4 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-lg hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" 
+                            disabled={(() => {
+                              const hasFile = !!refundFile
+                              const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
+                              const hasDate = refundDate || r.withdrawalDate
+                              const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== '--:--')
+                              return !hasFile || !hasReason || !hasDate || !hasTime
+                            })()}
+                            onClick={async () => { 
+                              try {
+                                const normalizeDate = (dateValue: any): string | null => {
+                                  if (!dateValue) return null
+                                  try {
+                                    let date: Date
+                                    if (dateValue && typeof dateValue.toDate === 'function') {
+                                      date = dateValue.toDate()
+                                    } else if (dateValue instanceof Date) {
+                                      date = dateValue
+                                    } else if (typeof dateValue === 'string') {
+                                      date = new Date(dateValue)
+                                    } else {
+                                      date = new Date(dateValue)
+                                    }
+                                    return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]
+                                  } catch {
+                                    return null
+                                  }
+                                }
+                                
+                                await markRefundPaid(id, r.id, refundFile, {
+                                  reason: refundReason || r.reason,
+                                  withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                                  withdrawalTime: refundTime || r.withdrawalTime
+                                })
+                                setRefundReason('')
+                                setRefundDate('')
+                                setRefundTime('')
+                                setRefundFile(undefined)
+                                setConfirmPaidId(null)
+                                await refetch()
+                                toast.success('Remboursement marqué payé')
+                              } catch (error: any) {
+                                toast.error(error?.message || 'Erreur lors du marquage')
+                              }
+                            }}
+                          >
+                            <CheckCircle className="h-5 w-5" />
+                            Marquer comme payé
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Modales de confirmation */}
+        {confirmApproveId && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="bg-green-50 border-b border-green-100 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-100 rounded-full p-2">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-green-900">Confirmer l'approbation</h3>
+                </div>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-600 mb-6">Voulez-vous approuver ce remboursement ? Cette action permettra de procéder au paiement.</p>
+                <div className="flex gap-3">
+                  <button 
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium"
+                    onClick={() => setConfirmApproveId(null)}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 font-medium"
+                    onClick={async () => {
+                      await approveRefund(id, confirmApproveId); 
+                      setConfirmApproveId(null); 
+                      await refetch(); 
+                      toast.success('Remboursement approuvé')
+                    }}
+                  >
+                    Confirmer
+                  </button>
+                </div>
               </div>
             </div>
-          ))}
-          {(!data.refunds || data.refunds.length === 0) && (
-            <div className="text-xs text-gray-500">Aucun remboursement</div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {confirmFinal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="bg-blue-50 border-b border-blue-100 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100 rounded-full p-2">
+                    <TrendingUp className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-blue-900">Confirmer la demande</h3>
+                </div>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-600 mb-6">
+                  Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium" 
+                    onClick={() => setConfirmFinal(false)} 
+                    disabled={isRefunding}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium flex items-center justify-center gap-2" 
+                    onClick={async () => {
+                      try { 
+                        setIsRefunding(true); 
+                        await requestFinalRefund(id); 
+                        await refetch(); 
+                        toast.success('Remboursement final demandé'); 
+                      } catch(e: any) { 
+                        toast.error(e?.message || 'Action impossible') 
+                      } finally { 
+                        setIsRefunding(false); 
+                        setConfirmFinal(false)
+                      }
+                    }}
+                    disabled={isRefunding}
+                  >
+                    {isRefunding ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    Confirmer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Confirmations */}
-      {confirmApproveId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Confirmer l'approbation</div>
-            <p className="text-sm text-gray-600">Voulez-vous approuver ce remboursement ?</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmApproveId(null)}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white" onClick={async()=>{ await approveRefund(id, confirmApproveId); setConfirmApproveId(null); await refetch(); toast.success('Remboursement approuvé') }}>Confirmer</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {confirmFinal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Confirmer la demande</div>
-            <p className="text-sm text-gray-600">Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmFinal(false)} disabled={isRefunding}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white" onClick={async()=>{ try{ setIsRefunding(true); await requestFinalRefund(id); await refetch(); toast.success('Remboursement final demandé'); } catch(e:any){ toast.error(e?.message||'Action impossible') } finally { setIsRefunding(false); setConfirmFinal(false)} }}>Confirmer</button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
-
