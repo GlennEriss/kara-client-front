@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState, useMemo, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
@@ -13,6 +15,9 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Textarea } from '@/components/ui/textarea'
+import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData } from '@/types/schemas'
 
 type Props = { id: string }
 
@@ -23,6 +28,7 @@ export default function DailyContract({ id }: Props) {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false)
   const [showEditPaymentModal, setShowEditPaymentModal] = useState(false)
+  const [showLatePaymentModal, setShowLatePaymentModal] = useState(false)
   const [paymentDetails, setPaymentDetails] = useState<any>(null)
   const [editingContribution, setEditingContribution] = useState<any>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
@@ -32,16 +38,10 @@ export default function DailyContract({ id }: Props) {
   const [isEditing, setIsEditing] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
-  const [refundFile, setRefundFile] = useState<File | undefined>()
-  const [refundReason, setRefundReason] = useState('')
-  const [refundDate, setRefundDate] = useState(() => {
-    // Initialiser avec la date du jour par défaut
-    return new Date().toISOString().split('T')[0]
-  })
-  const [refundTime, setRefundTime] = useState(() => {
-    // Initialiser avec l'heure actuelle par défaut
-    const now = new Date()
-    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  // Formulaire de retrait anticipé avec React Hook Form
+  const earlyRefundForm = useForm<EarlyRefundFormData>({
+    resolver: zodResolver(earlyRefundSchema),
+    defaultValues: earlyRefundDefaultValues
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
@@ -53,28 +53,38 @@ export default function DailyContract({ id }: Props) {
       // Trouver le remboursement en attente d'approbation
       const pendingRefund = data.refunds.find((r: any) => r.status === 'APPROVED')
       if (pendingRefund) {
-        // Synchroniser la raison si elle existe
-        if (pendingRefund.reason && !refundReason) {
-          setRefundReason(pendingRefund.reason)
+        // Synchroniser les valeurs existantes dans le formulaire
+        const formData: Partial<EarlyRefundFormData> = {}
+        
+        if (pendingRefund.reason) {
+          formData.reason = pendingRefund.reason
         }
-        // Synchroniser la date si elle existe et est valide
+        
         if (pendingRefund.withdrawalDate) {
           try {
             const date = new Date(pendingRefund.withdrawalDate)
             if (!isNaN(date.getTime())) {
-              setRefundDate(date.toISOString().split('T')[0])
+              formData.withdrawalDate = date.toISOString().split('T')[0]
             }
           } catch (error) {
             console.log('Erreur parsing date existante:', error)
           }
         }
-        // Synchroniser l'heure si elle existe et est valide
+        
         if (pendingRefund.withdrawalTime && pendingRefund.withdrawalTime !== '--:--' && pendingRefund.withdrawalTime !== 'undefined') {
-          setRefundTime(pendingRefund.withdrawalTime)
+          formData.withdrawalTime = pendingRefund.withdrawalTime
+        }
+        
+        // Mettre à jour le formulaire avec les valeurs existantes
+        if (Object.keys(formData).length > 0) {
+          earlyRefundForm.reset({
+            ...earlyRefundDefaultValues,
+            ...formData
+          })
         }
       }
     }
-  }, [data, refundReason, refundTime])
+  }, [data, earlyRefundForm])
 
   if (isLoading) return <div className="p-4">Chargement…</div>
   if (isError) return <div className="p-4 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
@@ -648,6 +658,16 @@ export default function DailyContract({ id }: Props) {
                     <span className="hidden sm:inline">Demander retrait anticipé</span>
                     <span className="sm:hidden">Retrait anticipé</span>
                   </Button>
+                  
+                  <Button 
+                    variant="outline"
+                    disabled={isClosed}
+                    className="w-full sm:w-auto border-orange-300 text-orange-700 hover:bg-orange-50"
+                    onClick={() => setShowLatePaymentModal(true)}
+                  >
+                    <span className="hidden sm:inline">Versement en retard</span>
+                    <span className="sm:hidden">En retard</span>
+                  </Button>
                 </>
               )
             })()}
@@ -712,155 +732,128 @@ export default function DailyContract({ id }: Props) {
                     
                     {r.status === 'APPROVED' && (
                       <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                          {/* Cause du retrait */}
-                          <div>
-                            <Label className="text-xs text-gray-600">Cause du retrait *</Label>
-                            <textarea
-                              placeholder="Raison du retrait..."
-                              className="w-full text-xs p-2 border border-gray-300 rounded-md resize-none"
-                              rows={2}
-                              value={refundReason || r.reason || ''}
-                              onChange={(e) => setRefundReason(e.target.value)}
-                              required
-                            />
-                          </div>
-                          
-                          {/* Date du retrait */}
-                          <div>
-                            <Label className="text-xs text-gray-600">Date du retrait *</Label>
-                            <Input
-                              type="date"
-                              value={refundDate}
-                              onChange={(e) => setRefundDate(e.target.value)}
-                              className="w-full text-xs"
-                              required
-                            />
-                          </div>
-                          
-                          {/* Heure du retrait */}
-                          <div>
-                            <Label className="text-xs text-gray-600">Heure du retrait *</Label>
-                            <Input
-                              type="time"
-                              value={refundTime}
-                              onChange={(e) => setRefundTime(e.target.value)}
-                              className="w-full text-xs"
-                              required
-                            />
-                          </div>
-                          
-                          {/* Preuve du retrait */}
-                          <div>
-                            <Label className="text-xs text-gray-600">Preuve du retrait *</Label>
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              onChange={async (e) => {
-                                const f = e.target.files?.[0]
-                                if (!f) {
-                                  setRefundFile(undefined)
-                                  return
-                                }
-                                if (!f.type.startsWith('image/')) {
-                                  toast.error('La preuve doit être une image')
-                                  setRefundFile(undefined)
-                                  return
-                                }
-                                setRefundFile(f)
-                                toast.success('Preuve sélectionnée')
-                              }}
-                              className="w-full text-xs"
-                              required
-                            />
-                          </div>
-                        </div>
-                        
-                        <Button 
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                          disabled={(() => {
-                            // Fonction utilitaire pour vérifier si une valeur existe et n'est pas vide
-                            const hasValue = (value: any) => {
-                              if (value === null || value === undefined) return false
-                              if (typeof value === 'string') return value.trim().length > 0
-                              if (value instanceof Date) return !isNaN(value.getTime())
-                              return true
-                            }
-                            
-                            // Vérifier chaque champ individuellement
-                            const hasFile = !!refundFile
-                            const hasReason = hasValue(refundReason) || hasValue(r.reason)
-                            const hasDate = hasValue(refundDate) || hasValue(r.withdrawalDate)
-                            const hasTime = hasValue(refundTime) || (hasValue(r.withdrawalTime) && r.withdrawalTime !== '--:--')
-                            
-                            // Debug temporaire avec plus de détails
-                            console.log('Validation bouton DailyContract:', {
-                              hasFile,
-                              hasReason,
-                              hasDate,
-                              hasTime,
-                              // Nouvelles valeurs
-                              refundFile: !!refundFile,
-                              refundReason: refundReason || 'undefined',
-                              refundDate: refundDate || 'undefined',
-                              refundTime: refundTime || 'undefined',
-                              // Valeurs existantes
-                              rReason: r.reason || 'undefined',
-                              rWithdrawalDate: r.withdrawalDate || 'undefined',
-                              rWithdrawalTime: r.withdrawalTime || 'undefined',
-                              // Vérifications détaillées
-                              refundReasonValid: hasValue(refundReason),
-                              refundDateValid: hasValue(refundDate),
-                              refundTimeValid: hasValue(refundTime),
-                              rReasonValid: hasValue(r.reason),
-                              rWithdrawalDateValid: hasValue(r.withdrawalDate),
-                              rWithdrawalTimeValid: hasValue(r.withdrawalTime)
-                            })
-                            
-                            return !hasFile || !hasReason || !hasDate || !hasTime
-                          })()}
-                          onClick={async () => {
+                        <Form {...earlyRefundForm}>
+                          <form onSubmit={earlyRefundForm.handleSubmit(async (data) => {
                             try {
-                              // Fonction utilitaire pour convertir n'importe quel type de date
-                              const normalizeDate = (dateValue: any): string | null => {
-                                if (!dateValue) return null
-                                try {
-                                  let date: Date
-                                  if (dateValue && typeof dateValue.toDate === 'function') {
-                                    date = dateValue.toDate()
-                                  } else if (dateValue instanceof Date) {
-                                    date = dateValue
-                                  } else if (typeof dateValue === 'string') {
-                                    date = new Date(dateValue)
-                                  } else {
-                                    date = new Date(dateValue)
-                                  }
-                                  return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]
-                                } catch {
-                                  return null
-                                }
-                              }
-                              
-                              await markRefundPaid(id, r.id, refundFile, {
-                                reason: refundReason || r.reason,
-                                withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
-                                withdrawalTime: refundTime || r.withdrawalTime
+                              await markRefundPaid(id, r.id, data.proof, {
+                                reason: data.reason,
+                                withdrawalDate: data.withdrawalDate,
+                                withdrawalTime: data.withdrawalTime
                               })
-                              setRefundReason('')
-                              setRefundDate('')
-                              setRefundTime('')
-                              setRefundFile(undefined)
+                              
+                              // Réinitialiser le formulaire
+                              earlyRefundForm.reset(earlyRefundDefaultValues)
                               setConfirmPaidId(null)
                               await refetch()
                               toast.success('Remboursement marqué payé')
                             } catch (error: any) {
                               toast.error(error?.message || 'Erreur lors du marquage')
                             }
-                          }}
-                        >
-                          Marquer payé
-                        </Button>
+                          })}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                              {/* Cause du retrait */}
+                              <FormField
+                                control={earlyRefundForm.control}
+                                name="reason"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs text-gray-600">Cause du retrait *</FormLabel>
+                                    <FormControl>
+                                      <Textarea
+                                        placeholder="Raison du retrait..."
+                                        className="w-full text-xs p-2 border border-gray-300 rounded-md resize-none"
+                                        rows={2}
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              {/* Date du retrait */}
+                              <FormField
+                                control={earlyRefundForm.control}
+                                name="withdrawalDate"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs text-gray-600">Date du retrait *</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="date"
+                                        className="w-full text-xs"
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              {/* Heure du retrait */}
+                              <FormField
+                                control={earlyRefundForm.control}
+                                name="withdrawalTime"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs text-gray-600">Heure du retrait *</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="time"
+                                        className="w-full text-xs"
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                              
+                              {/* Preuve du retrait */}
+                              <FormField
+                                control={earlyRefundForm.control}
+                                name="proof"
+                                render={({ field: { onChange, value, ...field } }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs text-gray-600">Preuve du retrait *</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={async (e) => {
+                                          const file = e.target.files?.[0]
+                                          if (!file) {
+                                            onChange(undefined)
+                                            return
+                                          }
+                                          if (!file.type.startsWith('image/')) {
+                                            toast.error('La preuve doit être une image')
+                                            onChange(undefined)
+                                            return
+                                          }
+                                          onChange(file)
+                                          toast.success('Preuve sélectionnée')
+                                        }}
+                                        className="w-full text-xs"
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            
+                            <Button 
+                              type="submit"
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
+                              disabled={!earlyRefundForm.formState.isValid || earlyRefundForm.formState.isSubmitting}
+                            >
+                              {earlyRefundForm.formState.isSubmitting ? 'Traitement...' : 'Marquer payé'}
+                            </Button>
+                          </form>
+                        </Form>
                       </>
                     )}
                   </div>
@@ -1224,6 +1217,214 @@ export default function DailyContract({ id }: Props) {
               className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
             >
               {isEditing ? 'Modification...' : 'Modifier'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de versement en retard */}
+      <Dialog open={showLatePaymentModal} onOpenChange={setShowLatePaymentModal}>
+        <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-lg lg:text-xl">Versement en retard</DialogTitle>
+            <DialogDescription className="text-sm lg:text-base">
+              Enregistrer un versement pour une date passée (quand l'admin a reçu l'argent mais oublié d'enregistrer)
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="space-y-4 p-1">
+              {/* Date du versement (sélection manuelle) */}
+              <div>
+                <Label htmlFor="late-date" className="text-sm font-medium">Date du versement *</Label>
+                <Input
+                  id="late-date"
+                  type="date"
+                  value={(() => {
+                    // Initialiser avec la date d'hier par défaut pour un versement en retard
+                    const yesterday = new Date()
+                    yesterday.setDate(yesterday.getDate() - 1)
+                    return yesterday.toISOString().split('T')[0]
+                  })()}
+                  onChange={(e) => {
+                    // Mettre à jour la date sélectionnée
+                    const selectedDate = new Date(e.target.value)
+                    setSelectedDate(selectedDate)
+                  }}
+                  max={new Date().toISOString().split('T')[0]} // Pas de dates futures
+                  required
+                  className="w-full mt-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Sélectionnez la date réelle du versement (pas de dates futures)
+                </p>
+              </div>
+              
+              {/* Heure du versement */}
+              <div>
+                <Label htmlFor="late-time" className="text-sm font-medium">Heure du versement *</Label>
+                <Input
+                  id="late-time"
+                  type="time"
+                  value={paymentTime}
+                  onChange={(e) => setPaymentTime(e.target.value)}
+                  required
+                  className="w-full mt-1"
+                />
+              </div>
+              
+              {/* Montant */}
+              <div>
+                <Label htmlFor="late-amount" className="text-sm font-medium">Montant (FCFA) *</Label>
+                <Input
+                  id="late-amount"
+                  type="number"
+                  placeholder="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  min="100"
+                  step="100"
+                  required
+                  className="w-full mt-1"
+                />
+              </div>
+              
+              {/* Mode de paiement */}
+              <div>
+                <Label className="text-sm font-medium">Mode de paiement *</Label>
+                <div className="flex gap-3 mt-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="latePaymentMode"
+                      value="airtel_money"
+                      checked={paymentMode === 'airtel_money'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm">Airtel Money</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="latePaymentMode"
+                      value="mobicash"
+                      checked={paymentMode === 'mobicash'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm">Mobicash</span>
+                  </label>
+                </div>
+              </div>
+              
+              {/* Preuve de versement */}
+              <div>
+                <Label htmlFor="late-proof" className="text-sm font-medium">Preuve de versement *</Label>
+                <Input
+                  id="late-proof"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPaymentFile(e.target.files?.[0])}
+                  required
+                  className="w-full mt-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Capture d'écran ou photo de la transaction
+                </p>
+              </div>
+              
+              {/* Informations supplémentaires */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-orange-800">
+                    <p className="font-medium mb-1">⚠️ Versement en retard</p>
+                    <p>Ce versement sera enregistré pour la date sélectionnée. Assurez-vous que :</p>
+                    <ul className="list-disc list-inside mt-1 space-y-0.5">
+                      <li>L'argent a bien été reçu</li>
+                      <li>La date correspond au jour réel du versement</li>
+                      <li>La preuve est claire et lisible</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex-shrink-0 flex flex-col sm:flex-row gap-2 pt-3 lg:pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowLatePaymentModal(false)
+                setSelectedDate(null)
+                setPaymentAmount('')
+                setPaymentTime('')
+                setPaymentMode('airtel_money')
+                setPaymentFile(undefined)
+              }}
+              className="w-full sm:w-auto order-2 sm:order-1"
+            >
+              Annuler
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!selectedDate || !paymentAmount || !paymentTime || !paymentFile) {
+                  toast.error('Veuillez remplir tous les champs obligatoires')
+                  return
+                }
+
+                const amount = Number(paymentAmount)
+                if (amount <= 0) {
+                  toast.error('Le montant doit être positif')
+                  return
+                }
+
+                try {
+                  setIsPaying(true)
+                  
+                  // Trouver le mois correspondant à la date sélectionnée
+                  const monthIndex = selectedDate.getMonth() - (data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth())
+                  
+                  await pay({ 
+                    contractId: id, 
+                    dueMonthIndex: monthIndex, 
+                    memberId: data.memberId, 
+                    amount, 
+                    file: paymentFile,
+                    paidAt: selectedDate,
+                    time: paymentTime,
+                    mode: paymentMode
+                  })
+                  
+                  await refetch()
+                  toast.success('Versement en retard enregistré avec succès')
+                  setShowLatePaymentModal(false)
+                  setSelectedDate(null)
+                  setPaymentAmount('')
+                  setPaymentTime('')
+                  setPaymentMode('airtel_money')
+                  setPaymentFile(undefined)
+                } catch (err: any) {
+                  toast.error(err?.message || 'Erreur lors de l\'enregistrement')
+                } finally {
+                  setIsPaying(false)
+                }
+              }}
+              disabled={isPaying || !selectedDate || !paymentAmount || !paymentTime || !paymentFile}
+              className="bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto order-1 sm:order-2"
+            >
+              {isPaying ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Enregistrement...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Enregistrer le versement en retard
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

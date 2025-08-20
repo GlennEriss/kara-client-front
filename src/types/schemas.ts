@@ -582,4 +582,44 @@ export const defaultValues = {
     issuingPlace: '', // Obligatoire
     issuingDate: '' // Obligatoire
   }
+}
+
+// ================== EARLY REFUND SCHEMA ==================
+export const earlyRefundSchema = z.object({
+  reason: z.string()
+    .min(10, 'La cause du retrait doit contenir au moins 10 caractères')
+    .max(500, 'La cause du retrait ne peut pas dépasser 500 caractères'),
+  
+  withdrawalDate: z.string()
+    .min(1, 'La date du retrait est requise')
+    .refine((date) => {
+      const withdrawalDate = new Date(date)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999) // Fin de la journée
+      return withdrawalDate <= today
+    }, 'La date du retrait ne peut pas être dans le futur'),
+  
+  withdrawalTime: z.string()
+    .min(1, 'L\'heure du retrait est requise')
+    .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Format d\'heure invalide (HH:MM)'),
+  
+  proof: z.union([
+    z.instanceof(File),
+    z.undefined()
+  ])
+    .refine((file) => {
+      if (!file) return false
+      if (!file.type.startsWith('image/')) return false
+      if (file.size > 5 * 1024 * 1024) return false // 5MB max
+      return true
+    }, 'Une preuve image est requise (JPEG, PNG, WebP, max 5MB)')
+})
+
+export type EarlyRefundFormData = z.infer<typeof earlyRefundSchema>
+
+export const earlyRefundDefaultValues: EarlyRefundFormData = {
+  reason: '',
+  withdrawalDate: new Date().toISOString().split('T')[0],
+  withdrawalTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+  proof: undefined
 } 
