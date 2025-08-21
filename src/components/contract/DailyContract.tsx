@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
+import { useGroupMembers } from '@/hooks/useMembers'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
@@ -17,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData } from '@/types/schemas'
 
 type Props = { id: string }
@@ -35,6 +37,7 @@ export default function DailyContract({ id }: Props) {
   const [paymentTime, setPaymentTime] = useState('')
   const [paymentMode, setPaymentMode] = useState<'airtel_money' | 'mobicash'>('airtel_money')
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
+  const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string>('')
   const [isEditing, setIsEditing] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
@@ -92,6 +95,10 @@ export default function DailyContract({ id }: Props) {
 
   const isClosed = data.status === 'CLOSED'
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
+
+  // Récupérer les membres du groupe si c'est un contrat de groupe
+  const isGroupContract = data.contractType === 'GROUP' || (data as any).groupeId
+  const { data: groupMembers } = useGroupMembers((data as any).groupeId, isGroupContract)
 
   // Fonctions utilitaires pour le calendrier
   const getMonthDays = (date: Date) => {
@@ -263,6 +270,12 @@ export default function DailyContract({ id }: Props) {
       return
     }
 
+    // Validation spécifique pour les contrats de groupe
+    if (isGroupContract && !selectedGroupMemberId) {
+      toast.error('Veuillez sélectionner le membre du groupe qui a effectué le versement')
+      return
+    }
+
     const amount = Number(paymentAmount)
     if (amount <= 0) {
       toast.error('Le montant doit être positif')
@@ -278,7 +291,7 @@ export default function DailyContract({ id }: Props) {
       await pay({ 
         contractId: id, 
         dueMonthIndex: monthIndex, 
-        memberId: data.memberId, 
+        memberId: isGroupContract ? selectedGroupMemberId : data.memberId, 
         amount, 
         file: paymentFile,
         paidAt: selectedDate,
@@ -294,6 +307,7 @@ export default function DailyContract({ id }: Props) {
       setPaymentTime('')
       setPaymentMode('airtel_money')
       setPaymentFile(undefined)
+      setSelectedGroupMemberId('')
     } catch (err: any) {
       toast.error(err?.message || 'Erreur lors de l\'enregistrement')
     } finally {
@@ -304,6 +318,12 @@ export default function DailyContract({ id }: Props) {
   const onEditPaymentSubmit = async () => {
     if (!editingContribution || !paymentAmount || !paymentTime) {
       toast.error('Veuillez remplir tous les champs obligatoires')
+      return
+    }
+
+    // Validation spécifique pour les contrats de groupe
+    if (isGroupContract && !selectedGroupMemberId) {
+      toast.error('Veuillez sélectionner le membre du groupe qui a effectué le versement')
       return
     }
 
@@ -324,7 +344,8 @@ export default function DailyContract({ id }: Props) {
           amount,
           time: paymentTime,
           mode: paymentMode,
-          proofFile: paymentFile // Optionnel
+          proofFile: paymentFile, // Optionnel
+          memberId: isGroupContract ? selectedGroupMemberId : undefined // Ajouter l'ID du membre du groupe
         }
       })
       
@@ -336,6 +357,7 @@ export default function DailyContract({ id }: Props) {
       setPaymentTime('')
       setPaymentMode('airtel_money')
       setPaymentFile(undefined)
+      setSelectedGroupMemberId('')
     } catch (err: any) {
       toast.error(err?.message || 'Erreur lors de la modification')
     } finally {
@@ -952,6 +974,28 @@ export default function DailyContract({ id }: Props) {
               </div>
             </div>
             
+            {/* Sélection du membre du groupe (si contrat de groupe) */}
+            {isGroupContract && groupMembers && groupMembers.length > 0 && (
+              <div>
+                <Label htmlFor="groupMember">Membre du groupe qui verse *</Label>
+                <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionnez le membre qui verse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groupMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.firstName} {member.lastName} ({member.matricule})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Ce champ permet de tracer qui a effectué le versement dans le groupe
+                </p>
+              </div>
+            )}
+            
             {/* Preuve de versement */}
             <div>
               <Label htmlFor="proof">Preuve de versement</Label>
@@ -969,7 +1013,10 @@ export default function DailyContract({ id }: Props) {
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button 
               variant="outline" 
-              onClick={() => setShowPaymentModal(false)}
+              onClick={() => {
+                setShowPaymentModal(false)
+                setSelectedGroupMemberId('')
+              }}
               className="w-full sm:w-auto"
             >
               Annuler
@@ -1087,6 +1134,12 @@ export default function DailyContract({ id }: Props) {
                   setPaymentTime(paymentDetails.contribution.time || '')
                   setPaymentMode(paymentDetails.contribution.mode || 'airtel_money')
                   setPaymentFile(undefined) // Pas de fichier par défaut pour la modification
+                  // Initialiser le membre du groupe si c'est un contrat de groupe
+                  if (isGroupContract && paymentDetails.contribution.memberId) {
+                    setSelectedGroupMemberId(paymentDetails.contribution.memberId)
+                  } else {
+                    setSelectedGroupMemberId('')
+                  }
                   setShowEditPaymentModal(true)
                   setShowPaymentDetailsModal(false)
                 }
@@ -1175,6 +1228,28 @@ export default function DailyContract({ id }: Props) {
                 </div>
               </div>
               
+              {/* Sélection du membre du groupe (si contrat de groupe) */}
+              {isGroupContract && groupMembers && groupMembers.length > 0 && (
+                <div>
+                  <Label htmlFor="edit-groupMember" className="text-xs lg:text-sm">Membre du groupe qui verse *</Label>
+                  <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="Sélectionnez le membre qui verse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groupMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.firstName} {member.lastName} ({member.matricule})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ce champ permet de tracer qui a effectué le versement dans le groupe
+                  </p>
+                </div>
+              )}
+              
               {/* Preuve de versement (optionnelle) */}
               <div>
                 <Label htmlFor="edit-proof" className="text-xs lg:text-sm">
@@ -1206,6 +1281,7 @@ export default function DailyContract({ id }: Props) {
                 setPaymentTime('')
                 setPaymentMode('airtel_money')
                 setPaymentFile(undefined)
+                setSelectedGroupMemberId('')
               }}
               className="w-full sm:w-auto order-2 sm:order-1"
             >
@@ -1318,6 +1394,28 @@ export default function DailyContract({ id }: Props) {
                 </div>
               </div>
               
+              {/* Sélection du membre du groupe (si contrat de groupe) */}
+              {isGroupContract && groupMembers && groupMembers.length > 0 && (
+                <div>
+                  <Label htmlFor="late-groupMember" className="text-sm font-medium">Membre du groupe qui verse *</Label>
+                  <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="Sélectionnez le membre qui verse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groupMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.firstName} {member.lastName} ({member.matricule})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ce champ permet de tracer qui a effectué le versement dans le groupe
+                  </p>
+                </div>
+              )}
+              
               {/* Preuve de versement */}
               <div>
                 <Label htmlFor="late-proof" className="text-sm font-medium">Preuve de versement *</Label>
@@ -1362,6 +1460,7 @@ export default function DailyContract({ id }: Props) {
                 setPaymentTime('')
                 setPaymentMode('airtel_money')
                 setPaymentFile(undefined)
+                setSelectedGroupMemberId('')
               }}
               className="w-full sm:w-auto order-2 sm:order-1"
             >
@@ -1371,6 +1470,12 @@ export default function DailyContract({ id }: Props) {
               onClick={async () => {
                 if (!selectedDate || !paymentAmount || !paymentTime || !paymentFile) {
                   toast.error('Veuillez remplir tous les champs obligatoires')
+                  return
+                }
+
+                // Validation spécifique pour les contrats de groupe
+                if (isGroupContract && !selectedGroupMemberId) {
+                  toast.error('Veuillez sélectionner le membre du groupe qui a effectué le versement')
                   return
                 }
 
@@ -1389,7 +1494,7 @@ export default function DailyContract({ id }: Props) {
                   await pay({ 
                     contractId: id, 
                     dueMonthIndex: monthIndex, 
-                    memberId: data.memberId, 
+                    memberId: isGroupContract ? selectedGroupMemberId : data.memberId, 
                     amount, 
                     file: paymentFile,
                     paidAt: selectedDate,
@@ -1405,6 +1510,7 @@ export default function DailyContract({ id }: Props) {
                   setPaymentTime('')
                   setPaymentMode('airtel_money')
                   setPaymentFile(undefined)
+                  setSelectedGroupMemberId('')
                 } catch (err: any) {
                   toast.error(err?.message || 'Erreur lors de l\'enregistrement')
                 } finally {

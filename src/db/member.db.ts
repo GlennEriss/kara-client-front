@@ -68,7 +68,7 @@ export async function countMembersByGroup(groupId: string): Promise<number> {
   try {
     const membersRef = collection(db, 'users')
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
-    const q = query(membersRef, where('roles', 'array-contains-any', memberRoles), where('groupId', '==', groupId))
+    const q = query(membersRef, where('roles', 'array-contains-any', memberRoles), where('groupIds', 'array-contains', groupId))
     const snap = await getCountFromServer(q as any)
     return snap.data().count || 0
   } catch (e) {
@@ -80,11 +80,16 @@ export async function countMembersByGroup(groupId: string): Promise<number> {
 /**
  * Retire un membre d'un groupe en mettant à jour updatedBy et updatedAt
  */
-export async function removeMemberFromGroup(userId: string, updatedBy: string): Promise<boolean> {
+export async function removeMemberFromGroup(userId: string, groupId: string, updatedBy: string): Promise<boolean> {
   try {
     const userRef = doc(db, 'users', userId)
+    // Récupérer les groupes actuels et retirer le groupe spécifique
+    const userDoc = await getDoc(userRef)
+    const currentGroupIds = userDoc.data()?.groupIds || []
+    const newGroupIds = currentGroupIds.filter((id: string) => id !== groupId)
+    
     await updateDoc(userRef, {
-      groupId: null,
+      groupIds: newGroupIds,
       updatedBy,
       updatedAt: serverTimestamp(),
     } as any)
@@ -96,20 +101,35 @@ export async function removeMemberFromGroup(userId: string, updatedBy: string): 
 }
 
 /**
- * Associe un contrat de Caisse Spéciale à un membre (User)
+ * Associe un contrat de Caisse Spéciale à un membre (User) ou un groupe
  */
-export async function addCaisseContractToUser(userId: string, contractId: string): Promise<boolean> {
+export async function addCaisseContractToEntity(entityId: string, contractId: string, entityType: 'USER' | 'GROUP'): Promise<boolean> {
   try {
-    const userRef = doc(db, 'users', userId)
-    await updateDoc(userRef, {
-      caisseContractIds: arrayUnion(contractId),
-      updatedAt: serverTimestamp(),
-    } as any)
+    if (entityType === 'USER') {
+      const userRef = doc(db, 'users', entityId)
+      await updateDoc(userRef, {
+        caisseContractIds: arrayUnion(contractId),
+        updatedAt: serverTimestamp(),
+      } as any)
+    } else if (entityType === 'GROUP') {
+      const groupRef = doc(db, 'groups', entityId)
+      await updateDoc(groupRef, {
+        caisseContractIds: arrayUnion(contractId),
+        updatedAt: serverTimestamp(),
+      } as any)
+    }
     return true
   } catch (e) {
-    console.error('Erreur addCaisseContractToUser:', e)
+    console.error('Erreur addCaisseContractToEntity:', e)
     return false
   }
+}
+
+/**
+ * Associe un contrat de Caisse Spéciale à un membre (User) - Compatibilité
+ */
+export async function addCaisseContractToUser(userId: string, contractId: string): Promise<boolean> {
+  return addCaisseContractToEntity(userId, contractId, 'USER')
 }
 
 /**
@@ -492,6 +512,46 @@ export async function getMemberStats(): Promise<UserStats> {
   } catch (error) {
     console.error('Erreur lors de la récupération des statistiques:', error)
     throw new Error('Impossible de récupérer les statistiques')
+  }
+}
+
+/**
+ * Récupère les membres d'un groupe spécifique
+ */
+export async function getMembersByGroup(groupId: string): Promise<User[]> {
+  try {
+    const membersRef = collection(db, 'users')
+    const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
+    const q = query(
+      membersRef, 
+      where('roles', 'array-contains-any', memberRoles), 
+      where('groupIds', 'array-contains', groupId)
+    )
+    
+    const querySnapshot = await getDocs(q)
+    const members: User[] = []
+    
+    querySnapshot.docs.forEach(doc => {
+      const data = doc.data()
+      members.push({
+        id: doc.id,
+        ...data,
+        createdAt: convertFirestoreDate(data.createdAt) || new Date(),
+        updatedAt: convertFirestoreDate(data.updatedAt) || new Date(),
+      } as User)
+    })
+    
+    // Trier par nom de famille puis prénom
+    members.sort((a, b) => {
+      const lastNameComparison = (a.lastName || '').localeCompare(b.lastName || '')
+      if (lastNameComparison !== 0) return lastNameComparison
+      return (a.firstName || '').localeCompare(b.firstName || '')
+    })
+    
+    return members
+  } catch (error) {
+    console.error('Erreur lors de la récupération des membres du groupe:', error)
+    throw new Error('Impossible de récupérer les membres du groupe')
   }
 }
 

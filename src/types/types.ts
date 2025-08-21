@@ -414,8 +414,8 @@ export interface User {
   createdAt: Date
   updatedAt: Date
   isActive: boolean
-  // Groupe d'appartenance
-  groupId?: string
+  // Groupes d'appartenance (peut appartenir à plusieurs groupes)
+  groupIds?: string[]
   // Caisse Spéciale
   caisseContractIds?: string[]
 }

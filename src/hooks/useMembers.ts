@@ -6,6 +6,7 @@ import {
   getMemberStats,
   searchMembers,
   getMembershipRequestByDossier,
+  getMembersByGroup,
   PaginatedMembers,
   MemberWithSubscription
 } from '@/db/member.db'
@@ -125,3 +126,18 @@ export function useInvalidateMembers() {
 export type UseMembersResult = ReturnType<typeof useMembers>
 export type UseMemberStatsResult = ReturnType<typeof useMemberStats>
 export type UseSearchMembersResult = ReturnType<typeof useSearchMembers>
+
+/**
+ * Hook pour récupérer les membres d'un groupe spécifique
+ */
+export function useGroupMembers(groupId: string, enabled: boolean = true) {
+  return useQuery<User[]>({
+    queryKey: ['group-members', groupId],
+    queryFn: () => getMembersByGroup(groupId),
+    enabled: enabled && !!groupId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
+export type UseGroupMembersResult = ReturnType<typeof useGroupMembers>

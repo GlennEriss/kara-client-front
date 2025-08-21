@@ -51,6 +51,28 @@ export default function AdminCaissePage() {
     { key: 'closed', title: 'Clos', icon: CheckCircle, color: 'bg-gray-500', bgColor: 'bg-gray-50', textColor: 'text-gray-700' },
   ] as const
 
+  // Fonction pour déterminer si un contrat est un contrat de groupe
+  const isGroupContract = (contract: any) => {
+    return contract.contractType === 'GROUP' || (contract.groupeId && !contract.memberId)
+  }
+
+  // Fonction pour obtenir le type de contrat
+  const getContractType = (contract: any) => {
+    if (contract.contractType === 'GROUP') return 'Groupe'
+    if (contract.contractType === 'INDIVIDUAL') return 'Individuel'
+    // Fallback pour l'ancienne logique
+    if (isGroupContract(contract)) return 'Groupe'
+    return 'Individuel'
+  }
+
+  // Fonction pour obtenir l'identifiant affiché
+  const getContractIdentifier = (contract: any) => {
+    if (contract.contractType === 'GROUP' || isGroupContract(contract)) {
+      return contract.groupeId ? `Groupe: ${contract.groupeId}` : 'Groupe'
+    }
+    return contract.memberId || '—'
+  }
+
   const [modalOpen, setModalOpen] = React.useState(false)
   const [selectedContract, setSelectedContract] = React.useState<any | null>(null)
   const [dueOptions, setDueOptions] = React.useState<any[]>([])
@@ -147,13 +169,16 @@ export default function AdminCaissePage() {
     }))
     const userMap = Object.fromEntries(userEntries)
     const headers = [
-      'id','memberId','matricule','firstName','lastName','monthlyAmount','monthsPlanned','status','nextDueAt','nominalPaid','bonusAccrued','penaltiesTotal','createdAt','contractStartAt','contractEndAt'
+      'id','contractType','type','memberId','groupeId','matricule','firstName','lastName','monthlyAmount','monthsPlanned','status','nextDueAt','nominalPaid','bonusAccrued','penaltiesTotal','createdAt','contractStartAt','contractEndAt'
     ]
     const rows = all.map((c: any) => {
       const u: any = c.memberId ? userMap[c.memberId] : null
       return [
         c.id,
+        c.contractType || '',
+        getContractType(c),
         c.memberId || '',
+        c.groupeId || '',
         u?.matricule || '',
         u?.firstName || '',
         u?.lastName || '',
@@ -201,7 +226,10 @@ export default function AdminCaissePage() {
     if (searchTerm) {
       contracts = contracts.filter((c: any) => 
         c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.memberId?.toLowerCase().includes(searchTerm.toLowerCase())
+        c.memberId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.groupeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.contractType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getContractType(c).toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
     
@@ -215,6 +243,11 @@ export default function AdminCaissePage() {
   const totalContracts = (all.data || []).length
   const totalActive = (p.actifs.data || []).length
   const totalLate = ((p.lateNP.data || []).length + (p.lateWP.data || []).length)
+  
+  // Statistiques pour les contrats de groupe
+  const groupContracts = (all.data || []).filter((c: any) => isGroupContract(c))
+  const totalGroupContracts = groupContracts.length
+  const activeGroupContracts = groupContracts.filter((c: any) => c.status === 'ACTIVE').length
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
@@ -253,7 +286,7 @@ export default function AdminCaissePage() {
         </div>
 
         {/* Statistiques globales */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <div className="bg-white rounded-2xl p-6 shadow-lg shadow-blue-100/50 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
@@ -284,6 +317,18 @@ export default function AdminCaissePage() {
               </div>
               <div className="bg-orange-100 rounded-full p-3">
                 <TrendingDown className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-lg shadow-purple-100/50 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Contrats de Groupe</p>
+                <p className="text-2xl md:text-3xl font-bold text-purple-600">{totalGroupContracts}</p>
+                <p className="text-xs text-gray-500">{activeGroupContracts} actifs</p>
+              </div>
+              <div className="bg-purple-100 rounded-full p-3">
+                <Users className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </div>
@@ -331,6 +376,13 @@ export default function AdminCaissePage() {
                           <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
                             <div className="flex items-center gap-3">
                               <span className="font-mono text-sm font-medium text-gray-900">#{c.id.slice(-6)}</span>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                isGroupContract(c) 
+                                  ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                                  : 'bg-blue-100 text-blue-700 border border-blue-200'
+                              }`}>
+                                {getContractType(c)}
+                              </span>
                               <StatusBadge status={c.status} />
                             </div>
                           </div>
@@ -415,7 +467,16 @@ export default function AdminCaissePage() {
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <h3 className="font-mono text-sm font-bold text-gray-900">#{c.id.slice(-6)}</h3>
-                            <p className="text-xs text-gray-600">ID: {c.memberId}</p>
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                isGroupContract(c) 
+                                  ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                                  : 'bg-blue-100 text-blue-700 border border-blue-200'
+                              }`}>
+                                {getContractType(c)}
+                              </span>
+                              <p className="text-xs text-gray-600">ID: {getContractIdentifier(c)}</p>
+                            </div>
                           </div>
                           <StatusBadge status={c.status} />
                         </div>
@@ -458,7 +519,8 @@ export default function AdminCaissePage() {
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 pr-4 text-sm font-semibold text-gray-700"># Contrat</th>
-                        <th className="text-left py-3 pr-4 text-sm font-semibold text-gray-700">Membre</th>
+                        <th className="text-left py-3 pr-4 text-sm font-semibold text-gray-700">Type</th>
+                        <th className="text-left py-3 pr-4 text-sm font-semibold text-gray-700">Membre/Groupe</th>
                         <th className="text-left py-3 pr-4 text-sm font-semibold text-gray-700">Mensuel</th>
                         <th className="text-left py-3 pr-4 text-sm font-semibold text-gray-700">Durée</th>
                         <th className="text-left py-3 pr-4 text-sm font-semibold text-gray-700">Statut</th>
@@ -481,7 +543,16 @@ export default function AdminCaissePage() {
                               <span className="font-mono text-sm font-medium text-gray-900">#{c.id.slice(-6)}</span>
                             </td>
                             <td className="py-4 pr-4">
-                              <span className="text-sm text-gray-700">{c.memberId}</span>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                isGroupContract(c) 
+                                  ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                                  : 'bg-blue-100 text-blue-700 border border-blue-200'
+                              }`}>
+                                {getContractType(c)}
+                              </span>
+                            </td>
+                            <td className="py-4 pr-4">
+                              <span className="text-sm text-gray-700">{getContractIdentifier(c)}</span>
                             </td>
                             <td className="py-4 pr-4">
                               <span className="text-sm font-semibold text-gray-900">

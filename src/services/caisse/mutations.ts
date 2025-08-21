@@ -50,9 +50,33 @@ function normalizeDateToISOString(dateValue: any): string | null {
   }
 }
 
-export async function subscribe(input: { memberId: string; monthlyAmount: number; monthsPlanned: number; caisseType: any; firstPaymentDate: string }) {
+export async function subscribe(input: { 
+  memberId?: string; 
+  groupeId?: string; 
+  monthlyAmount: number; 
+  monthsPlanned: number; 
+  caisseType: any; 
+  firstPaymentDate: string 
+}) {
+  // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
+  if (!input.memberId && !input.groupeId) {
+    throw new Error('Doit spécifier soit memberId soit groupeId')
+  }
+  if (input.memberId && input.groupeId) {
+    throw new Error('Ne peut pas avoir à la fois memberId et groupeId')
+  }
+
+  // Déterminer le type de contrat
+  const contractType = input.memberId ? 'INDIVIDUAL' : 'GROUP'
+  
   const settings = await getActiveSettings(input.caisseType)
-  const id = await createContract({ ...input, ...(settings?.id ? { settingsVersion: settings.id } : {}) })
+  const contractData = {
+    ...input,
+    contractType,
+    ...(settings?.id ? { settingsVersion: settings.id } : {})
+  }
+  
+  const id = await createContract(contractData)
   
   // Calculer la date de début basée sur firstPaymentDate ou maintenant
   const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
@@ -64,8 +88,14 @@ export async function subscribe(input: { memberId: string; monthlyAmount: number
     await addPayment(id, { dueMonthIndex: i, amount: input.monthlyAmount, status: 'DUE', dueAt: dueDate })
   }
   
-  // Associer au membre
-  await addCaisseContractToUser(input.memberId, id)
+  // Associer au membre ou au groupe selon le type
+  if (contractType === 'INDIVIDUAL' && input.memberId) {
+    await addCaisseContractToUser(input.memberId, id)
+  } else if (contractType === 'GROUP' && input.groupeId) {
+    const { addCaisseContractToEntity } = await import('@/db/member.db')
+    await addCaisseContractToEntity(input.groupeId, id, 'GROUP')
+  }
+  
   return id
 }
 
@@ -140,6 +170,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       proofUrl: proofUrl || undefined,
       time: input.time,
       mode: input.mode,
+      memberId: input.memberId, // Ajouter l'ID du membre du groupe
       createdAt: new Date()
     }
     const existing = Array.isArray(payment.contribs) ? payment.contribs : []
@@ -375,6 +406,7 @@ export async function updatePaymentContribution(input: {
     time?: string
     mode?: 'airtel_money' | 'mobicash'
     proofFile?: File
+    memberId?: string
   }
 }) {
   const { contractId, paymentId, contributionId, updates } = input
@@ -425,6 +457,7 @@ export async function updatePaymentContribution(input: {
     time: updates.time || contribution.time,
     mode: updates.mode || contribution.mode,
     proofUrl: newProofUrl || contribution.proofUrl,
+    memberId: updates.memberId || contribution.memberId, // Ajouter l'ID du membre du groupe
     updatedAt: new Date()
   }
   

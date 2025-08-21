@@ -28,7 +28,11 @@ export interface CaisseSettings {
 
 export interface CaisseContract {
   id: string
-  memberId: string
+  // Champs pour identifier le type de contrat
+  memberId?: string        // Pour les contrats individuels
+  groupeId?: string        // Pour les contrats de groupe
+  contractType: 'INDIVIDUAL' | 'GROUP'  // Type explicite du contrat
+  
   monthlyAmount: number
   monthsPlanned: number
   createdAt: Date
