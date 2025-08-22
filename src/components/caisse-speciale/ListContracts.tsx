@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useRef } from 'react'
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,120 +25,210 @@ import {
   Calendar,
   DollarSign,
   User,
-  Users as GroupIcon
+  Users as GroupIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { useAllCaisseContracts } from '@/hooks/useCaisseContracts'
-import { useMembers } from '@/hooks/useMembers'
-import { useGroups } from '@/hooks/useGroups'
-import routes from '@/constantes/routes'
-import { toast } from 'sonner'
-import Link from 'next/link'
+import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'list'
 
+// Hook personnalisé pour le carousel avec drag/swipe
+const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState(0)
+  const [translateX, setTranslateX] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const maxIndex = Math.max(0, itemCount - itemsPerView)
+
+  const goTo = (index: number) => {
+    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
+    setCurrentIndex(clampedIndex)
+    setTranslateX(-clampedIndex * (100 / itemsPerView))
+  }
+
+  const goNext = () => goTo(currentIndex + 1)
+  const goPrev = () => goTo(currentIndex - 1)
+
+  const handleStart = (clientX: number) => {
+    setIsDragging(true)
+    setStartPos(clientX)
+  }
+  const handleMove = (clientX: number) => {
+    if (!isDragging || !containerRef.current) return
+    const diff = clientX - startPos
+    const containerWidth = containerRef.current.offsetWidth
+    const percentage = (diff / containerWidth) * 100
+    const maxDrag = 30
+    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
+    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
+  }
+  const handleEnd = () => {
+    if (!isDragging || !containerRef.current) return
+    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
+    const threshold = 15
+    if (dragDistance > threshold && currentIndex > 0) {
+      goPrev()
+    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
+      goNext()
+    } else {
+      setTranslateX(-currentIndex * (100 / itemsPerView))
+    }
+    setIsDragging(false)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => { e.preventDefault(); handleStart(e.clientX) }
+  const handleMouseMove = (e: React.MouseEvent) => { handleMove(e.clientX) }
+  const handleMouseUp = () => { handleEnd() }
+  const handleTouchStart = (e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }
+  const handleTouchMove = (e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }
+  const handleTouchEnd = () => { handleEnd() }
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
+    const handleGlobalMouseUp = () => handleEnd()
+    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+
+  return {
+    currentIndex,
+    goTo,
+    goNext,
+    goPrev,
+    canGoPrev: currentIndex > 0,
+    canGoNext: currentIndex < maxIndex,
+    translateX,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    isDragging,
+  }
+}
+
 // Composant pour les statistiques modernes
-const ModernStatsCard = ({ 
+const StatsCard = ({ 
   title, 
   value, 
-  subtitle,
   percentage, 
   color, 
   icon: Icon,
-  trend = 'up',
-  data = []
+  trend 
 }: { 
   title: string
   value: number
-  subtitle?: string
-  percentage?: number
+  percentage: number
   color: string
   icon: React.ComponentType<any>
   trend?: 'up' | 'down' | 'neutral'
-  data?: Array<{ name: string; value: number; fill: string }>
 }) => {
-  const chartData = data.length > 0 ? data : [
-    { name: 'value', value: percentage || 75, fill: color },
-    { name: 'remaining', value: 100 - (percentage || 75), fill: '#f3f4f6' }
+  const data = [
+    { name: 'value', value: percentage, fill: color },
+    { name: 'remaining', value: 100 - percentage, fill: '#f3f4f6' }
   ]
 
   return (
-    <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
-      <CardContent className="p-6 relative z-10">
-        <div className="flex items-center justify-between mb-4">
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div 
-              className="p-3 rounded-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3"
-              style={{ 
-                backgroundColor: `${color}15`,
-                boxShadow: `0 0 0 1px ${color}20`
-              }}
-            >
-              <Icon className="w-6 h-6" style={{ color }} />
+            <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110`} style={{ backgroundColor: `${color}15`, color: color }}>
+              <Icon className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{title}</p>
-              <div className="flex items-center gap-2">
-                <p className="text-3xl font-black text-gray-900">{value.toLocaleString()}</p>
-                {trend !== 'neutral' && percentage && (
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+              <p className="text-xs font-medium text-gray-600 uppercase tracking-wider">{title}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-2xl font-bold text-gray-900">{value}</p>
+                {trend && (
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                     trend === 'up' ? 'bg-green-100 text-green-700' :
                     trend === 'down' ? 'bg-red-100 text-red-700' :
                     'bg-gray-100 text-gray-700'
                   }`}>
                     <TrendingUp className={`w-3 h-3 ${trend === 'down' ? 'rotate-180' : ''}`} />
-                    {percentage.toFixed(1)}%
+                    {percentage.toFixed(0)}%
                   </div>
                 )}
               </div>
-              {subtitle && (
-                <p className="text-sm text-gray-600 mt-1 font-medium">{subtitle}</p>
-              )}
             </div>
           </div>
-          
-          <div className="w-16 h-16 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="w-12 h-12">
             <ResponsiveContainer width="100%" height="100%">
-              {data.length > 2 ? (
-                <BarChart data={data}>
-                  <Bar dataKey="value" fill={color} radius={[2, 2, 0, 0]} />
-                </BarChart>
-              ) : (
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={20}
-                    outerRadius={30}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              )}
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={16}
+                  outerRadius={22}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
-        
-        {/* Barre de progression */}
-        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-          <div 
-            className="h-full rounded-full transition-all duration-700 ease-out group-hover:animate-pulse"
-            style={{ 
-              width: `${percentage || 75}%`, 
-              backgroundColor: color,
-              boxShadow: `0 0 10px ${color}40`
-            }}
-          />
-        </div>
       </CardContent>
     </Card>
+  )
+}
+
+// Composant Carrousel des statistiques avec drag/swipe
+const StatsCarousel = ({ stats }: { stats: any }) => {
+  const statsData = [
+    { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: FileText },
+    { title: 'Brouillons', value: stats.draft, percentage: stats.draftPercentage, color: '#9ca3af', icon: FileText, trend: 'neutral' as const },
+    { title: 'Actifs', value: stats.active, percentage: stats.activePercentage, color: '#10b981', icon: CheckCircle, trend: 'up' as const },
+    { title: 'En Retard', value: stats.late, percentage: stats.latePercentage, color: '#ef4444', icon: Clock, trend: stats.latePercentage > 20 ? 'up' as const : 'neutral' as const },
+    { title: 'Individuels', value: stats.individual, percentage: stats.individualPercentage, color: '#3b82f6', icon: User, trend: 'neutral' as const },
+    { title: 'Groupes', value: stats.group, percentage: stats.groupPercentage, color: '#8b5cf6', icon: GroupIcon, trend: 'neutral' as const },
+  ]
+
+  const [itemsPerView, setItemsPerView] = useState(1)
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth
+      if (w >= 1280) setItemsPerView(4)
+      else if (w >= 1024) setItemsPerView(3)
+      else if (w >= 768) setItemsPerView(2)
+      else setItemsPerView(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+
+  return (
+    <div className="relative">
+
+      <div ref={containerRef} className="overflow-hidden py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
+          {statsData.map((stat, index) => (
+            <div key={index} className="flex-shrink-0" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
+              <StatsCard {...stat} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -252,18 +342,56 @@ const ListContracts = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  // React Query
-  const { 
-    data: contractsData, 
-    isLoading, 
-    error, 
-    refetch 
-  } = useAllCaisseContracts(1000) // Limite élevée pour avoir tous les contrats
+  // Données de test
+  const contractsData = [
+    {
+      id: 'contract-123456789',
+      status: 'ACTIVE',
+      contractType: 'INDIVIDUAL',
+      memberId: 'member-123',
+      groupeId: null,
+      monthlyAmount: 50000,
+      monthsPlanned: 12,
+      nextDueAt: '2025-09-15',
+      nominalPaid: 200000
+    },
+    {
+      id: 'contract-987654321',
+      status: 'DRAFT',
+      contractType: 'GROUP',
+      memberId: null,
+      groupeId: 'group-456',
+      monthlyAmount: 75000,
+      monthsPlanned: 24,
+      nextDueAt: '2025-09-10',
+      nominalPaid: 150000
+    },
+    {
+      id: 'contract-456789123',
+      status: 'LATE_NO_PENALTY',
+      contractType: 'INDIVIDUAL',
+      memberId: 'member-789',
+      groupeId: null,
+      monthlyAmount: 30000,
+      monthsPlanned: 6,
+      nextDueAt: '2025-08-20',
+      nominalPaid: 90000
+    }
+  ]
 
-  // Récupération des membres et groupes pour afficher les noms
-  const { data: membersData } = useMembers({}, 1, 1000)
-  const { data: groupsData } = useGroups()
+  const membersData = {
+    data: [
+      { id: 'member-123', firstName: 'Jean', lastName: 'Dupont' },
+      { id: 'member-789', firstName: 'Marie', lastName: 'Martin' }
+    ]
+  }
+
+  const groupsData = [
+    { id: 'group-456', name: 'Groupe Épargne Solidaire' }
+  ]
 
   // Reset page when filters change
   useEffect(() => {
@@ -279,10 +407,6 @@ const ListContracts = () => {
   const handleResetFilters = () => {
     setFilters({ search: '', status: 'all', type: 'all' })
     setCurrentPage(1)
-    toast.success('🔄 Filtres réinitialisés', {
-      description: 'Tous les filtres ont été remis à zéro',
-      duration: 3000,
-    })
   }
 
   const handlePageChange = (page: number) => {
@@ -290,24 +414,11 @@ const ListContracts = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage)
-    setCurrentPage(1)
-  }
-
   const handleRefresh = async () => {
-    try {
-      await refetch()
-      toast.success('✅ Données actualisées', {
-        description: 'La liste des contrats a été rechargée',
-        duration: 3000,
-      })
-    } catch {
-      toast.error('❌ Erreur lors de l\'actualisation', {
-        description: 'Impossible de recharger les données',
-        duration: 4000,
-      })
-    }
+    setIsLoading(true)
+    // Simuler un rechargement
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    setIsLoading(false)
   }
 
   // Fonctions utilitaires
@@ -436,6 +547,7 @@ const ListContracts = () => {
       draftPercentage: total > 0 ? (draft / total) * 100 : 0,
       activePercentage: total > 0 ? (active / total) * 100 : 0,
       latePercentage: total > 0 ? (late / total) * 100 : 0,
+      individualPercentage: total > 0 ? (individual / total) * 100 : 0,
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
     }
   }, [contractsData])
@@ -463,56 +575,8 @@ const ListContracts = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
-      {/* Statistiques modernes */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <ModernStatsCard
-            title="Total Contrats"
-            value={stats.total}
-            subtitle="Contrats enregistrés"
-            percentage={100}
-            color="#6b7280"
-            icon={FileText}
-            trend="up"
-          />
-          <ModernStatsCard
-            title="Brouillons"
-            value={stats.draft}
-            subtitle="En attente de validation"
-            percentage={stats.draftPercentage}
-            color="#9ca3af"
-            icon={FileText}
-            trend="neutral"
-          />
-          <ModernStatsCard
-            title="Actifs"
-            value={stats.active}
-            subtitle="Contrats en cours"
-            percentage={stats.activePercentage}
-            color="#10b981"
-            icon={CheckCircle}
-            trend="up"
-          />
-          <ModernStatsCard
-            title="En Retard"
-            value={stats.late}
-            subtitle="À régulariser"
-            percentage={stats.latePercentage}
-            color="#ef4444"
-            icon={Clock}
-            trend={stats.latePercentage > 20 ? 'up' : 'neutral'}
-          />
-          <ModernStatsCard
-            title="Groupes"
-            value={stats.group}
-            subtitle="Contrats collectifs"
-            percentage={stats.groupPercentage}
-            color="#8b5cf6"
-            icon={GroupIcon}
-            trend="neutral"
-          />
-        </div>
-      )}
+      {/* Carrousel de statistiques */}
+      {stats && <StatsCarousel stats={stats} />}
 
       {/* Filtres */}
       <ContractFilters
@@ -584,7 +648,6 @@ const ListContracts = () => {
 
               <Button
                 size="sm"
-                onClick={() => { window.location.href = routes.admin.caisseSpeciale }}
                 className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -684,13 +747,12 @@ const ListContracts = () => {
                         <DollarSign className="h-3 w-3 inline mr-1" />
                         Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
                       </div>
-                      <Link 
-                        href={routes.admin.caisseSpecialeContractDetails(contract.id)} 
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[#224D62] border border-[#224D62] rounded-lg hover:bg-[#224D62] hover:text-white transition-all duration-200"
+                      <Button
+                        className="w-full inline-flex items-center bg-white cursor-pointer justify-center gap-2 px-3 py-2 text-sm font-medium text-[#224D62] border border-[#224D62] rounded-lg hover:bg-[#224D62] hover:text-white transition-all duration-200"
                       >
                         <Eye className="h-4 w-4" />
                         Ouvrir
-                      </Link>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
