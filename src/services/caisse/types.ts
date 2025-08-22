@@ -63,8 +63,43 @@ export interface CaissePayment {
   createdAt: Date
   // Extensions pour journalière/libre
   accumulatedAmount?: number
-  contribs?: Array<{ amount: number; paidAt: Date; proofUrl?: string }>
+  contribs?: IndividualPaymentContribution[]
   targetAmount?: number
+  
+  // Extensions pour les contrats de groupe
+  isGroupPayment?: boolean
+  groupContributions?: GroupPaymentContribution[]
+}
+
+export interface GroupPaymentContribution {
+  id: string
+  memberId: string
+  memberName: string
+  memberMatricule: string
+  // Informations complètes du payeur
+  memberFirstName: string
+  memberLastName: string
+  memberPhotoURL?: string
+  memberContacts?: string[]
+  amount: number
+  time: string
+  mode: 'airtel_money' | 'mobicash'
+  proofUrl?: string
+  createdAt: Date
+  updatedAt?: Date
+}
+
+// Type pour les contributions individuelles (contrats individuels)
+export interface IndividualPaymentContribution {
+  id: string
+  amount: number
+  paidAt: Date
+  proofUrl?: string
+  time?: string
+  mode?: 'airtel_money' | 'mobicash'
+  memberId?: string
+  memberName?: string
+  memberPhotoURL?: string
 }
 
 export interface CaisseRefund {

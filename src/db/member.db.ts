@@ -521,24 +521,34 @@ export async function getMemberStats(): Promise<UserStats> {
 export async function getMembersByGroup(groupId: string): Promise<User[]> {
   try {
     const membersRef = collection(db, 'users')
-    const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
+    
+    // Firebase ne permet qu'une seule clause array-contains par requête
+    // On utilise d'abord groupIds puis on filtre côté client pour les rôles
     const q = query(
       membersRef, 
-      where('roles', 'array-contains-any', memberRoles), 
       where('groupIds', 'array-contains', groupId)
     )
     
     const querySnapshot = await getDocs(q)
     const members: User[] = []
+    const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
     
     querySnapshot.docs.forEach(doc => {
       const data = doc.data()
-      members.push({
+      const user = {
         id: doc.id,
         ...data,
         createdAt: convertFirestoreDate(data.createdAt) || new Date(),
         updatedAt: convertFirestoreDate(data.updatedAt) || new Date(),
-      } as User)
+      } as User
+      
+      // Filtrer côté client pour les rôles de membre
+      if (user.roles && Array.isArray(user.roles)) {
+        const hasMemberRole = user.roles.some(role => memberRoles.includes(role))
+        if (hasMemberRole) {
+          members.push(user)
+        }
+      }
     })
     
     // Trier par nom de famille puis prénom

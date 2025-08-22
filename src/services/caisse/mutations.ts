@@ -9,6 +9,7 @@ import { auth } from '@/firebase/auth'
 import { addCaisseContractToUser } from '@/db/member.db'
 import { deleteObject, ref } from '@/firebase/storage'
 import { getStorageInstance } from '@/firebase/storage'
+import type { GroupPaymentContribution } from './types'
 
 // Fonction utilitaire pour convertir n'importe quel type de date en chaîne ISO
 function normalizeDateToISOString(dateValue: any): string | null {
@@ -539,5 +540,138 @@ export async function updatePaymentContribution(input: {
   }
   
   return true
+}
+
+/**
+ * Fonction spécialisée pour les versements de groupe
+ * Permet d'ajouter des contributions à un versement collectif par jour
+ */
+export async function payGroup(input: { 
+  contractId: string; 
+  dueMonthIndex: number; 
+  memberId: string; 
+  memberName: string;
+  memberMatricule: string;
+  memberPhotoURL?: string;
+  memberContacts?: string[];
+  amount: number; 
+  file?: File; 
+  paidAt?: Date; 
+  time: string; 
+  mode: 'airtel_money' | 'mobicash' 
+}) {
+  const contract = await getContract(input.contractId)
+  if (!contract) throw new Error('Contrat introuvable')
+  
+  // Vérifier que c'est bien un contrat de groupe
+  const isGroupContract = contract.contractType === 'GROUP' || (contract as any).groupeId
+  if (!isGroupContract) {
+    throw new Error('Cette fonction est réservée aux contrats de groupe')
+  }
+  
+  const payments = await listPayments(input.contractId)
+  const payment = payments.find((p: any) => p.dueMonthIndex === input.dueMonthIndex)
+  if (!payment) throw new Error('Échéance introuvable')
+
+  const now = input.paidAt ? new Date(input.paidAt) : new Date()
+  const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
+  const { window, delayDays } = computeDueWindow(dueAt, now)
+
+  if (delayDays > 12) {
+    // Refus et résiliation
+    await updatePayment(input.contractId, payment.id, { status: 'REFUSED' })
+    await updateContract(input.contractId, { status: 'RESCINDED' })
+    return { status: 'RESCINDED' }
+  }
+
+  let proofUrl: string | undefined
+  if (input.file) {
+    const location = `caisse/${input.contractId}/payments/${payment.id}/contributions`
+    const dataUrl = await compressImage(input.file, IMAGE_COMPRESSION_PRESETS.document)
+    const res = await fetch(dataUrl)
+    const blob = await res.blob()
+    const webpFile = new File([blob], `proof.webp`, { type: 'image/webp' })
+    const uploaded = await createFile(webpFile as any, input.memberId, location)
+    proofUrl = uploaded.url
+  }
+
+  // Créer la nouvelle contribution
+  const newContribution: GroupPaymentContribution = {
+    id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    memberId: input.memberId,
+    memberName: input.memberName,
+    memberMatricule: input.memberMatricule,
+    memberFirstName: input.memberName.split(' ')[0] || '',
+    memberLastName: input.memberName.split(' ').slice(1).join(' ') || '',
+    memberPhotoURL: input.memberPhotoURL,
+    memberContacts: input.memberContacts,
+    amount: input.amount,
+    time: input.time,
+    mode: input.mode,
+    proofUrl,
+    createdAt: now,
+    updatedAt: now
+  }
+
+  // Récupérer les contributions existantes ou créer un nouveau tableau
+  const existingContributions = payment.groupContributions || []
+  const updatedContributions = [...existingContributions, newContribution]
+  
+  // Calculer le nouveau montant total
+  const newTotalAmount = updatedContributions.reduce((sum, c) => sum + c.amount, 0)
+  
+  // Mettre à jour le paiement
+  const paymentUpdates: any = {
+    isGroupPayment: true,
+    groupContributions: updatedContributions,
+    accumulatedAmount: newTotalAmount,
+    updatedAt: new Date(),
+    updatedBy: input.memberId
+  }
+
+  // Vérifier si l'objectif du mois est atteint
+  const type = (contract as any).caisseType || 'STANDARD'
+  const targetForMonth = type === 'LIBRE' ? Math.max(100000, payment.targetAmount || 0) : contract.monthlyAmount
+  
+  if (newTotalAmount >= targetForMonth) {
+    paymentUpdates.status = 'PAID'
+    paymentUpdates.paidAt = now
+  }
+
+  await updatePayment(input.contractId, payment.id, paymentUpdates)
+
+  // Mettre à jour le contrat
+  const isFirstPayment = !contract.contractStartAt
+  const contractStartAt = isFirstPayment ? now : contract.contractStartAt
+  
+  if (isFirstPayment) {
+    for (let i = 0; i < payments.length; i++) {
+      const due = new Date(now)
+      due.setMonth(due.getMonth() + i)
+      await updatePayment(input.contractId, payments[i].id, { dueAt: due })
+    }
+  }
+
+  // Calculer les totaux du contrat
+  const allPayments = await listPayments(input.contractId)
+  const totalNominalPaid = allPayments.reduce((sum: number, p: any) => {
+    if (p.status === 'PAID') {
+      return sum + (p.accumulatedAmount || 0)
+    }
+    return sum
+  }, 0)
+
+  await updateContract(input.contractId, {
+    nominalPaid: totalNominalPaid,
+    contractStartAt,
+    updatedAt: new Date(),
+    updatedBy: input.memberId
+  })
+
+  return { 
+    status: paymentUpdates.status || 'IN_PROGRESS', 
+    contributionId: newContribution.id,
+    totalAmount: newTotalAmount
+  }
 }
 

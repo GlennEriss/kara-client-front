@@ -97,8 +97,21 @@ export default function DailyContract({ id }: Props) {
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   // Récupérer les membres du groupe si c'est un contrat de groupe
-  const isGroupContract = data.contractType === 'GROUP' || (data as any).groupeId
-  const { data: groupMembers } = useGroupMembers((data as any).groupeId, isGroupContract)
+  const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
+  const isGroupContract = data.contractType === 'GROUP' || !!groupeId
+  const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
+  
+  // Debug: afficher les informations du contrat
+  console.log('DailyContract Debug:', {
+    contractId: id,
+    contractType: data.contractType,
+    groupeId: groupeId,
+    memberId: (data as any).memberId,
+    isGroupContract,
+    hasGroupMembers: !!groupMembers,
+    groupMembersCount: groupMembers?.length,
+    isLoadingGroupMembers
+  })
 
   // Fonctions utilitaires pour le calendrier
   const getMonthDays = (date: Date) => {
@@ -122,6 +135,60 @@ export default function DailyContract({ id }: Props) {
 
   const getPaymentForDate = (date: Date) => {
     if (!data.payments) return null
+    
+    console.log('🔍 getPaymentForDate - Recherche pour la date:', date.toDateString())
+    console.log('🔍 isGroupContract:', isGroupContract)
+    
+    // Pour les contrats de groupe, chercher par jour spécifique
+    if (isGroupContract) {
+      // Calculer l'index du mois pour cette date
+      const contractStartMonth = data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth()
+      const targetMonth = date.getMonth()
+      const monthIndex = targetMonth - contractStartMonth
+      
+      console.log('🔍 Recherche par mois - monthIndex:', monthIndex, 'targetMonth:', targetMonth, 'contractStartMonth:', contractStartMonth)
+      
+      // Chercher le paiement pour ce mois
+      const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
+      
+      if (payment && payment.groupContributions && payment.groupContributions.length > 0) {
+        // Vérifier si cette date spécifique a des contributions
+        const hasContributionsOnDate = payment.groupContributions.some((contrib: any) => {
+          if (!contrib.createdAt) return false
+          
+          let contribDate: Date
+          if (contrib.createdAt instanceof Date) {
+            contribDate = contrib.createdAt
+          } else if (contrib.createdAt && typeof contrib.createdAt.toDate === 'function') {
+            contribDate = contrib.createdAt.toDate()
+          } else if (typeof contrib.createdAt === 'string') {
+            contribDate = new Date(contrib.createdAt)
+          } else {
+            contribDate = new Date(contrib.createdAt)
+          }
+          
+          // Normaliser les dates pour la comparaison
+          const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
+          const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+          
+          return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
+        })
+        
+        if (hasContributionsOnDate) {
+          console.log('✅ Paiement de groupe trouvé pour la date spécifique:', date.toDateString())
+          return payment
+        } else {
+          console.log('❌ Pas de contribution pour cette date spécifique:', date.toDateString())
+          return null
+        }
+      }
+      
+      console.log('❌ Aucun paiement de groupe trouvé pour le mois:', monthIndex)
+      return null
+    }
+    
+    // Pour les contrats individuels, logique existante
+    console.log('🔍 Recherche par jour pour contrat individuel')
     
     // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
     for (const payment of data.payments) {
@@ -153,9 +220,14 @@ export default function DailyContract({ id }: Props) {
           return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
         })
         
-        if (hasContributionOnDate) return payment
+        if (hasContributionOnDate) {
+          console.log('✅ Paiement individuel trouvé pour la date:', date.toDateString())
+          return payment
       }
     }
+    }
+    
+    console.log('❌ Aucun paiement trouvé pour la date:', date.toDateString())
     return null
   }
 
@@ -208,6 +280,28 @@ export default function DailyContract({ id }: Props) {
   const getMonthStatus = (monthIndex: number) => {
     const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
     if (!payment) return 'DUE'
+    
+    // Pour les contrats de groupe, vérifier si TOUS les jours du mois ont des contributions
+    if (isGroupContract && payment.groupContributions) {
+      // Calculer le nombre de jours dans ce mois
+      const contractStartMonth = data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth()
+      const targetMonth = contractStartMonth + monthIndex
+      const year = data.contractStartAt ? new Date(data.contractStartAt).getFullYear() : new Date().getFullYear()
+      const daysInMonth = new Date(year, targetMonth + 1, 0).getDate()
+      
+      // Vérifier si le nombre de contributions correspond au nombre de jours
+      // (ou si le montant total atteint l'objectif mensuel)
+      const totalContributed = payment.groupContributions.reduce((sum: number, contrib: any) => sum + contrib.amount, 0)
+      const monthlyTarget = data.monthlyAmount || 0
+      
+      if (totalContributed >= monthlyTarget) {
+        return 'PAID'
+      } else {
+        return 'PARTIAL' // Nouveau statut pour paiement partiel
+      }
+    }
+    
+    // Pour les contrats individuels, logique existante
     return payment.status
   }
 
@@ -238,26 +332,27 @@ export default function DailyContract({ id }: Props) {
     
     setSelectedDate(date)
     
-    try {
-      // Récupérer le versement depuis Firestore
-      const existingPayment = await getPaymentByDate(id, date)
+    // Utiliser les données locales au lieu d'appeler Firestore
+    const existingPayment = getPaymentForDate(date)
+    
+    if (existingPayment) {
+      console.log('✅ Paiement trouvé localement:', existingPayment)
       
-      if (existingPayment) {
-        // Stocker les détails du versement et afficher le modal
+      if (isGroupContract) {
+        // Pour les contrats de groupe, permettre d'ajouter de nouvelles contributions
+        // ou de voir les détails existants
         setPaymentDetails(existingPayment)
         setShowPaymentDetailsModal(true)
       } else {
-        // Créer un nouveau versement
-        setPaymentDetails(null)
-        // Initialiser l'heure actuelle par défaut
-        const now = new Date()
-        setPaymentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
-        setShowPaymentModal(true)
+        // Pour les contrats individuels, afficher les détails
+        setPaymentDetails(existingPayment)
+        setShowPaymentDetailsModal(true)
       }
-    } catch (error) {
-      console.error('Erreur lors de la vérification du versement:', error)
-      // En cas d'erreur, afficher le formulaire de création
+    } else {
+      console.log('❌ Aucun paiement trouvé, affichage du formulaire de création')
+      // Créer un nouveau versement
       setPaymentDetails(null)
+      // Initialiser l'heure actuelle par défaut
       const now = new Date()
       setPaymentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
       setShowPaymentModal(true)
@@ -267,12 +362,6 @@ export default function DailyContract({ id }: Props) {
   const onPaymentSubmit = async () => {
     if (!selectedDate || !paymentAmount || !paymentTime || !paymentFile) {
       toast.error('Veuillez remplir tous les champs')
-      return
-    }
-
-    // Validation spécifique pour les contrats de groupe
-    if (isGroupContract && !selectedGroupMemberId) {
-      toast.error('Veuillez sélectionner le membre du groupe qui a effectué le versement')
       return
     }
 
@@ -288,10 +377,38 @@ export default function DailyContract({ id }: Props) {
       // Trouver le mois correspondant à la date sélectionnée
       const monthIndex = selectedDate.getMonth() - (data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth())
       
+      if (isGroupContract && groupMembers) {
+        // Utiliser la nouvelle fonction payGroup pour les contrats de groupe
+        const selectedMember = groupMembers.find(m => m.id === selectedGroupMemberId)
+        if (!selectedMember) {
+          toast.error('Membre du groupe non trouvé')
+          return
+        }
+        
+        const { payGroup } = await import('@/services/caisse/mutations')
+        await payGroup({
+          contractId: id,
+          dueMonthIndex: monthIndex,
+          memberId: selectedMember.id,
+          memberName: `${selectedMember.firstName} ${selectedMember.lastName}`,
+          memberMatricule: selectedMember.matricule || '',
+          memberPhotoURL: selectedMember.photoURL || undefined,
+          memberContacts: selectedMember.contacts || [],
+          amount,
+          file: paymentFile,
+          paidAt: selectedDate,
+          time: paymentTime,
+          mode: paymentMode
+        })
+        
+        toast.success('Contribution ajoutée au versement collectif')
+      } else {
+        // Utiliser la fonction pay normale pour les contrats individuels
+        const { pay } = await import('@/services/caisse/mutations')
       await pay({ 
         contractId: id, 
         dueMonthIndex: monthIndex, 
-        memberId: isGroupContract ? selectedGroupMemberId : data.memberId, 
+        memberId: data.memberId, 
         amount, 
         file: paymentFile,
         paidAt: selectedDate,
@@ -299,8 +416,10 @@ export default function DailyContract({ id }: Props) {
         mode: paymentMode
       })
       
-      await refetch()
       toast.success('Versement enregistré')
+      }
+      
+      await refetch()
       setShowPaymentModal(false)
       setSelectedDate(null)
       setPaymentAmount('')
@@ -321,12 +440,6 @@ export default function DailyContract({ id }: Props) {
       return
     }
 
-    // Validation spécifique pour les contrats de groupe
-    if (isGroupContract && !selectedGroupMemberId) {
-      toast.error('Veuillez sélectionner le membre du groupe qui a effectué le versement')
-      return
-    }
-
     const amount = Number(paymentAmount)
     if (amount <= 0) {
       toast.error('Le montant doit être positif')
@@ -336,6 +449,15 @@ export default function DailyContract({ id }: Props) {
     try {
       setIsEditing(true)
       
+      if (isGroupContract) {
+        // Pour les contrats de groupe, on ne peut pas modifier les contributions individuelles
+        // On peut seulement les supprimer et en créer de nouvelles
+        toast.error('Pour les contrats de groupe, vous ne pouvez pas modifier les contributions. Supprimez et recréez si nécessaire.')
+        setShowEditPaymentModal(false)
+        setEditingContribution(null)
+        return
+      }
+      
       await updatePaymentContribution({
         contractId: id,
         paymentId: paymentDetails.payment.id,
@@ -344,8 +466,7 @@ export default function DailyContract({ id }: Props) {
           amount,
           time: paymentTime,
           mode: paymentMode,
-          proofFile: paymentFile, // Optionnel
-          memberId: isGroupContract ? selectedGroupMemberId : undefined // Ajouter l'ID du membre du groupe
+          proofFile: paymentFile // Optionnel
         }
       })
       
@@ -357,7 +478,6 @@ export default function DailyContract({ id }: Props) {
       setPaymentTime('')
       setPaymentMode('airtel_money')
       setPaymentFile(undefined)
-      setSelectedGroupMemberId('')
     } catch (err: any) {
       toast.error(err?.message || 'Erreur lors de la modification')
     } finally {
@@ -372,6 +492,18 @@ export default function DailyContract({ id }: Props) {
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-6">
+          {/* Debug info pour les contrats de groupe */}
+          {isGroupContract && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Debug Contrat de Groupe:</strong> 
+                ID: {groupeId} | 
+                Type: {data.contractType || 'Non défini'} | 
+                Membres: {groupMembers?.length || 0} | 
+                Chargement: {isLoadingGroupMembers ? 'Oui' : 'Non'}
+              </p>
+            </div>
+          )}
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
               <h1 className="text-xl md:text-3xl lg:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
@@ -621,10 +753,14 @@ export default function DailyContract({ id }: Props) {
                   
                   <div className="flex items-center gap-2">
                     <Badge 
-                      variant={status === 'PAID' ? 'default' : status === 'DUE' ? 'secondary' : 'destructive'}
+                      variant={
+                        status === 'PAID' ? 'default' : 
+                        status === 'PARTIAL' ? 'secondary' : 
+                        status === 'DUE' ? 'secondary' : 'destructive'
+                      }
                       className="text-xs"
                     >
-                      {status === 'PAID' ? 'Complété' : status === 'DUE' ? 'En cours' : status}
+                      {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : status === 'DUE' ? 'En cours' : status}
                     </Badge>
                   </div>
                 </CardContent>
@@ -975,21 +1111,27 @@ export default function DailyContract({ id }: Props) {
             </div>
             
             {/* Sélection du membre du groupe (si contrat de groupe) */}
-            {isGroupContract && groupMembers && groupMembers.length > 0 && (
+            {isGroupContract && (
               <div>
                 <Label htmlFor="groupMember">Membre du groupe qui verse *</Label>
-                <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sélectionnez le membre qui verse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupMembers.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.firstName} {member.lastName} ({member.matricule})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                                  <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionnez le membre qui verse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groupMembers && groupMembers.length > 0 ? (
+                        groupMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.firstName} {member.lastName} ({member.matricule})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Chargement des membres du groupe...
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 <p className="text-xs text-gray-500 mt-1">
                   Ce champ permet de tracer qui a effectué le versement dans le groupe
                 </p>
@@ -1048,8 +1190,115 @@ export default function DailyContract({ id }: Props) {
                 return <div className="text-center text-gray-500 py-8">Chargement des détails...</div>
               }
               
-              const { payment, contribution } = paymentDetails
+              // paymentDetails est déjà l'objet paiement, pas besoin de destructurer
+              const payment = paymentDetails
+              const isGroupContract = data.contractType === 'GROUP' || !!(data as any).groupeId
               
+              if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
+                // Affichage pour les contrats de groupe
+                return (
+                  <div className="space-y-4">
+                    {/* Informations générales */}
+                    <div className="space-y-2 lg:space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
+                        <span className="font-medium text-gray-700 text-xs lg:text-sm">Date:</span>
+                        <span className="text-gray-900 text-xs lg:text-sm font-medium">{selectedDate?.toLocaleDateString('fr-FR')}</span>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-blue-50 rounded-lg gap-1 lg:gap-2">
+                        <span className="font-medium text-blue-700 text-xs lg:text-sm">Statut du mois:</span>
+                        <Badge variant={payment.status === 'PAID' ? 'default' : 'secondary'} className="text-xs">
+                          {payment.status === 'PAID' ? 'Payé' : 'En cours'}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-green-50 rounded-lg gap-1 lg:gap-2">
+                        <span className="font-medium text-green-700 text-xs lg:text-sm">Total du mois:</span>
+                        <span className="text-green-900 font-semibold text-xs lg:text-sm">
+                          {payment.accumulatedAmount?.toLocaleString('fr-FR')} FCFA
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Liste des contributions */}
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-gray-900 text-sm">Contributions des membres :</h4>
+                                             {payment.groupContributions.map((contribution: any, index: number) => (
+                        <div key={contribution.id} className="p-3 bg-white border border-gray-200 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            {/* Photo du membre */}
+                            <div className="flex-shrink-0">
+                              {contribution.memberPhotoURL ? (
+                                <img 
+                                  src={contribution.memberPhotoURL} 
+                                  alt={`${contribution.memberFirstName} ${contribution.memberLastName}`}
+                                  className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <span className="text-gray-500 text-lg font-medium">
+                                    {contribution.memberFirstName?.[0]}{contribution.memberLastName?.[0]}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Informations du membre */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-2">
+                                <h5 className="font-medium text-gray-900 text-sm">
+                                  {contribution.memberFirstName} {contribution.memberLastName}
+                                </h5>
+                                <Badge variant="outline" className="text-xs">
+                                  {contribution.memberMatricule}
+                                </Badge>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                  <span className="font-medium">Montant:</span>
+                                  <span className="ml-1 font-semibold text-green-600">
+                                    {contribution.amount.toLocaleString('fr-FR')} FCFA
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="font-medium">Heure:</span>
+                                  <span className="ml-1">{contribution.time}</span>
+                                </div>
+                                <div>
+                                  <span className="font-medium">Mode:</span>
+                                  <span className="ml-1">
+                                    {contribution.mode === 'airtel_money' ? 'Airtel Money' : 'Mobicash'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="font-medium">Contact:</span>
+                                  <span className="ml-1">
+                                    {contribution.memberContacts?.[0] || 'Non renseigné'}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Preuve de versement */}
+                              {contribution.proofUrl && (
+                                <div className="mt-2">
+                                  <img 
+                                    src={contribution.proofUrl} 
+                                    alt="Preuve de versement" 
+                                    className="w-full h-20 object-cover rounded-md"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              } else if (payment.contribs && payment.contribs.length > 0) {
+                // Affichage pour les contrats individuels
+                const contribution = payment.contribs[0] // Prendre la première contribution
               return (
                 <div className="space-y-2 lg:space-y-3 p-1">
                 {/* Date du versement */}
@@ -1115,6 +1364,9 @@ export default function DailyContract({ id }: Props) {
                 </div>
               </div>
             )
+              } else {
+                return <div className="text-center text-gray-500 py-8">Aucun détail de versement disponible</div>
+              }
           })()}
           </div>
           
@@ -1126,28 +1378,43 @@ export default function DailyContract({ id }: Props) {
             >
               Fermer
             </Button>
+            
+            {/* Bouton pour ajouter une nouvelle contribution (contrats de groupe) */}
+            {isGroupContract && (
             <Button 
               onClick={() => {
-                if (paymentDetails?.contribution) {
+                  setSelectedDate(selectedDate)
+                  setPaymentAmount('')
+                  setPaymentTime('')
+                  setPaymentMode('airtel_money')
+                  setPaymentFile(undefined)
+                  setSelectedGroupMemberId('')
+                  setShowPaymentDetailsModal(false)
+                  setShowPaymentModal(true)
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto order-1 sm:order-2"
+              >
+                Ajouter une contribution
+              </Button>
+            )}
+            
+            {/* Bouton pour modifier le versement (contrats individuels uniquement) */}
+            {!isGroupContract && paymentDetails?.contribution && (
+              <Button 
+                onClick={() => {
                   setEditingContribution(paymentDetails.contribution)
                   setPaymentAmount(paymentDetails.contribution.amount?.toString() || '')
                   setPaymentTime(paymentDetails.contribution.time || '')
                   setPaymentMode(paymentDetails.contribution.mode || 'airtel_money')
-                  setPaymentFile(undefined) // Pas de fichier par défaut pour la modification
-                  // Initialiser le membre du groupe si c'est un contrat de groupe
-                  if (isGroupContract && paymentDetails.contribution.memberId) {
-                    setSelectedGroupMemberId(paymentDetails.contribution.memberId)
-                  } else {
-                    setSelectedGroupMemberId('')
-                  }
+                  setPaymentFile(undefined)
                   setShowEditPaymentModal(true)
                   setShowPaymentDetailsModal(false)
-                }
               }}
               className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
             >
               Modifier le versement
             </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1229,7 +1496,7 @@ export default function DailyContract({ id }: Props) {
               </div>
               
               {/* Sélection du membre du groupe (si contrat de groupe) */}
-              {isGroupContract && groupMembers && groupMembers.length > 0 && (
+              {isGroupContract && (
                 <div>
                   <Label htmlFor="edit-groupMember" className="text-xs lg:text-sm">Membre du groupe qui verse *</Label>
                   <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
@@ -1237,11 +1504,17 @@ export default function DailyContract({ id }: Props) {
                       <SelectValue placeholder="Sélectionnez le membre qui verse" />
                     </SelectTrigger>
                     <SelectContent>
-                      {groupMembers.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.firstName} {member.lastName} ({member.matricule})
+                      {groupMembers && groupMembers.length > 0 ? (
+                        groupMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.firstName} {member.lastName} ({member.matricule})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Chargement des membres du groupe...
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500 mt-1">
@@ -1395,7 +1668,7 @@ export default function DailyContract({ id }: Props) {
               </div>
               
               {/* Sélection du membre du groupe (si contrat de groupe) */}
-              {isGroupContract && groupMembers && groupMembers.length > 0 && (
+              {isGroupContract && (
                 <div>
                   <Label htmlFor="late-groupMember" className="text-sm font-medium">Membre du groupe qui verse *</Label>
                   <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
@@ -1403,11 +1676,17 @@ export default function DailyContract({ id }: Props) {
                       <SelectValue placeholder="Sélectionnez le membre qui verse" />
                     </SelectTrigger>
                     <SelectContent>
-                      {groupMembers.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.firstName} {member.lastName} ({member.matricule})
+                      {groupMembers && groupMembers.length > 0 ? (
+                        groupMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.firstName} {member.lastName} ({member.matricule})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          Chargement des membres du groupe...
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500 mt-1">
@@ -1491,16 +1770,47 @@ export default function DailyContract({ id }: Props) {
                   // Trouver le mois correspondant à la date sélectionnée
                   const monthIndex = selectedDate.getMonth() - (data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth())
                   
+                  if (isGroupContract && groupMembers) {
+                    // Utiliser la nouvelle fonction payGroup pour les contrats de groupe
+                    const selectedMember = groupMembers.find(m => m.id === selectedGroupMemberId)
+                    if (!selectedMember) {
+                      toast.error('Membre du groupe non trouvé')
+                      return
+                    }
+                    
+                    const { payGroup } = await import('@/services/caisse/mutations')
+                    await payGroup({
+                      contractId: id,
+                      dueMonthIndex: monthIndex,
+                      memberId: selectedMember.id,
+                      memberName: `${selectedMember.firstName} ${selectedMember.lastName}`,
+                      memberMatricule: selectedMember.matricule || '',
+                      memberPhotoURL: selectedMember.photoURL || undefined,
+                      memberContacts: selectedMember.contacts || [],
+                      amount,
+                      file: paymentFile,
+                      paidAt: selectedDate,
+                      time: paymentTime,
+                      mode: paymentMode
+                    })
+                    
+                    toast.success('Contribution en retard ajoutée au versement collectif')
+                  } else {
+                    // Utiliser la fonction pay normale pour les contrats individuels
+                    const { pay } = await import('@/services/caisse/mutations')
                   await pay({ 
                     contractId: id, 
                     dueMonthIndex: monthIndex, 
-                    memberId: isGroupContract ? selectedGroupMemberId : data.memberId, 
+                    memberId: data.memberId, 
                     amount, 
                     file: paymentFile,
                     paidAt: selectedDate,
                     time: paymentTime,
                     mode: paymentMode
                   })
+                    
+                    toast.success('Versement en retard enregistré avec succès')
+                  }
                   
                   await refetch()
                   toast.success('Versement en retard enregistré avec succès')
@@ -1607,4 +1917,5 @@ export default function DailyContract({ id }: Props) {
     </div>
   )
 }
+
 
