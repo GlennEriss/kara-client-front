@@ -30,6 +30,7 @@ import {
 import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/lib/utils'
 interface Step1Props {
   form: any // Type du form de react-hook-form
+  requestId?: string // ID de la demande pour exclure lors de la vérification des numéros
 }
 
 
@@ -65,7 +66,20 @@ const MARITAL_STATUS_OPTIONS = [
   { value: 'Concubinage', label: 'Concubinage' }
 ]
 
-export default function Step1({ form }: Step1Props) {
+const RELIGION_OPTIONS = [
+  { value: 'Athée', label: 'Athée' },
+  { value: 'Bahaïsme', label: 'Bahaïsme' },
+  { value: 'Bouddhisme', label: 'Bouddhisme' },
+  { value: 'Christianisme', label: 'Christianisme' },
+  { value: 'Hindouisme', label: 'Hindouisme' },
+  { value: 'Islam', label: 'Islam' },
+  { value: 'Judaïsme', label: 'Judaïsme' },
+  { value: 'Sikhisme', label: 'Sikhisme' },
+  { value: 'Taoïsme', label: 'Taoïsme' },
+  { value: 'Autre', label: 'Autre' }
+]
+
+export default function Step1({ form, requestId }: Step1Props) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
@@ -123,6 +137,7 @@ export default function Step1({ form }: Step1Props) {
     'identity.birthPlace',
     'identity.birthCertificateNumber',
     'identity.prayerPlace',
+    'identity.religion',
     'identity.nationality',
     'identity.photo',
     'identity.gender',
@@ -222,6 +237,11 @@ export default function Step1({ form }: Step1Props) {
         clearErrors('identity.prayerPlace')
       }
       
+      // Nettoyer les erreurs de religion
+      if (value.identity?.religion && errors.identity?.religion) {
+        clearErrors('identity.religion')
+      }
+      
       // Nettoyer les erreurs de nationalité
       if (value.identity?.nationality && errors.identity?.nationality) {
         clearErrors('identity.nationality')
@@ -235,6 +255,11 @@ export default function Step1({ form }: Step1Props) {
       // Nettoyer les erreurs de hasCar
       if (value.identity?.hasCar !== undefined && errors.identity?.hasCar) {
         clearErrors('identity.hasCar')
+      }
+      
+      // Nettoyer les erreurs de code entremetteur
+      if (value.identity?.intermediaryCode && value.identity.intermediaryCode.length >= 2 && errors.identity?.intermediaryCode) {
+        clearErrors('identity.intermediaryCode')
       }
       
       // Nettoyer les erreurs de contacts
@@ -333,7 +358,10 @@ export default function Step1({ form }: Step1Props) {
       const response = await fetch('/api/check-phone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber })
+        body: JSON.stringify({ 
+          phoneNumber,
+          requestId: requestId // Passer l'ID de la demande pour exclusion
+        })
       })
 
       const data = await response.json()
@@ -717,7 +745,7 @@ export default function Step1({ form }: Step1Props) {
             </div>
           </div>
 
-          {/* Lieu de prière et Code entremetteur */}
+          {/* Lieu de prière et Religion */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 w-full">
             <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full min-w-0">
               <Label htmlFor="prayerPlace" className="text-xs sm:text-sm font-medium text-[#224D62]">
@@ -748,25 +776,69 @@ export default function Step1({ form }: Step1Props) {
             </div>
 
             <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full min-w-0">
-              <Label htmlFor="intermediaryCode" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Qui vous a référé?
+              <Label htmlFor="religion" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                Religion <span className="text-red-500">*</span>
               </Label>
               <div className="relative">
-                <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                <Input
-                  id="intermediaryCode"
-                  {...register('identity.intermediaryCode')}
-                  placeholder="Code de référence"
-                  className="pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full"
-                />
+                <Select 
+                  onValueChange={(value) => setValue('identity.religion', value)}
+                  defaultValue={watch('identity.religion')}
+                >
+                  <SelectTrigger className={cn(
+                    "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                    errors?.identity?.religion && "border-red-300 focus:border-red-500 bg-red-50/50",
+                    watchedFields[8] && !errors?.identity?.religion && "border-[#CBB171] bg-[#CBB171]/5"
+                  )}>
+                    <SelectValue placeholder="Sélectionner votre religion" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RELIGION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {watchedFields[8] && !errors?.identity?.religion && (
+                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+                )}
               </div>
-              {errors?.identity?.intermediaryCode && (
+              {errors?.identity?.religion && (
                 <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
                   <AlertCircle className="w-3 h-3" />
-                  <span>{errors.identity.intermediaryCode.message}</span>
+                  <span>{errors.identity.religion.message}</span>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Code entremetteur */}
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full min-w-0">
+            <Label htmlFor="intermediaryCode" className="text-xs sm:text-sm font-medium text-[#224D62]">
+              Qui vous a référé? <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+              <Input
+                id="intermediaryCode"
+                {...register('identity.intermediaryCode')}
+                placeholder="Code de référence"
+                className={cn(
+                  "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                  errors?.identity?.intermediaryCode && "border-red-300 focus:border-red-500 bg-red-50/50",
+                  watchedFields[16] && !errors?.identity?.intermediaryCode && "border-[#CBB171] bg-[#CBB171]/5"
+                )}
+              />
+              {watchedFields[16] && !errors?.identity?.intermediaryCode && (
+                <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+              )}
+            </div>
+            {errors?.identity?.intermediaryCode && (
+              <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-bottom-2 duration-300 break-words">
+                <AlertCircle className="w-3 h-3" />
+                <span>{errors.identity.intermediaryCode.message}</span>
+              </div>
+            )}
           </div>
 
           {/* Contacts */}
@@ -850,19 +922,6 @@ export default function Step1({ form }: Step1Props) {
                           <XCircle className="w-4 h-4" />
                           <span>Ce numéro est déjà utilisé !</span>
                         </div>
-                        {phoneCheckState.details && (
-                          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
-                            <p className="font-medium text-red-800">
-                              Demande existante: {phoneCheckState.details.firstName} {phoneCheckState.details.lastName}
-                            </p>
-                            <p className="text-red-600">
-                              Statut: {phoneCheckState.details.status === 'pending' ? 'En attente' : 
-                                      phoneCheckState.details.status === 'approved' ? 'Approuvée' : 
-                                      phoneCheckState.details.status === 'rejected' ? 'Rejetée' : 
-                                      phoneCheckState.details.status}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
                     

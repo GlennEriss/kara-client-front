@@ -69,6 +69,10 @@ export const identitySchema = z.object({
     .min(2, 'Le lieu de prière doit contenir au moins 2 caractères')
     .max(100, 'Le lieu de prière ne peut pas dépasser 100 caractères'),
   
+  religion: z.string()
+    .min(1, 'La religion est requise')
+    .max(50, 'La religion ne peut pas dépasser 50 caractères'),
+  
   contacts: z.array(
     z.string()
       .min(8, 'Le numéro de téléphone doit contenir au moins 8 chiffres')
@@ -543,6 +547,7 @@ export const defaultValues = {
     birthPlace: '',
     birthCertificateNumber: '',
     prayerPlace: '',
+    religion: '',
     contacts: [''],
     email: '',
     gender: 'Homme',

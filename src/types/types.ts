@@ -10,6 +10,7 @@ export interface RegisterFormData {
     birthPlace: string;
     birthCertificateNumber: string;
     prayerPlace: string;
+    religion: string;
     contacts: string[];
     email?: string;
     gender: string;
@@ -76,6 +77,9 @@ export type ExtendedMembershipRequestStatus = MembershipRequestStatus | 'deleted
 export interface MembershipRequest extends RegisterFormData {
   // Identifiant unique de la demande
   id: string
+  
+  // Matricule unique de la demande
+  matricule: string
   
   // Statut de la demande
   status: MembershipRequestStatus
@@ -531,6 +535,8 @@ export interface Company {
     province?: string
     city?: string
     district?: string
+    arrondissement?: string
+    additionalInfo?: string
   }
   industry?: string
   employeeCount?: number

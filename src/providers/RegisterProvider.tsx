@@ -635,8 +635,12 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         CacheManager.saveSubmissionData(correctionRequest.requestId, userData)
 
         // Afficher toast de succès pour correction
+        const civility = getValues('identity.civility')
+        const firstName = getValues('identity.firstName')
+        const lastName = getValues('identity.lastName')
+        
         toast.success("Corrections soumises !", {
-          description: "Vos corrections ont été enregistrées avec succès. Votre demande est maintenant en attente de validation.",
+          description: `Demande soumise avec succès ${civility} ${firstName} ${lastName}`,
           style: {
             background: '#10B981',
             color: 'white',
@@ -669,8 +673,12 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         CacheManager.saveSubmissionData(membershipRequestId, userData)
 
         // Afficher toast de succès
+        const civility = getValues('identity.civility')
+        const firstName = getValues('identity.firstName')
+        const lastName = getValues('identity.lastName')
+        
         toast.success("Inscription réussie !", {
-          description: "Votre demande d'adhésion a été enregistrée avec succès.",
+          description: `Demande soumise avec succès ${civility} ${firstName} ${lastName}`,
           style: {
             background: '#10B981',
             color: 'white',

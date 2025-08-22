@@ -47,27 +47,49 @@ function toDateSafe(value: any): Date {
 }
 
 /**
- * Génère un matricule au format nombreUser.MK.dateCréation
- * Ex: 0004.MK.040825
+ * Génère un matricule unique au format nombreUser.MK.dateCréation
+ * Ex: 1234.MK.150125
+ * Vérifie l'unicité dans membershipRequests
  */
 export async function generateMatricule(): Promise<string> {
   try {
-    // Compter le nombre d'utilisateurs existants
-    const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
-    const snapshot = await getCountFromServer(usersRef)
-    const userCount = snapshot.data().count
+    const { firebaseCollectionNames } = await import('@/constantes/firebase-collection-names')
     
-    // Numéro utilisateur avec zéros à gauche (4 chiffres)
-    const userNumber = (userCount + 1).toString().padStart(4, '0')
+    let matricule: string
+    let isUnique = false
+    let attempts = 0
+    const maxAttempts = 100 // Limite de sécurité
     
-    // Date actuelle au format DDMMYY
-    const now = new Date()
-    const day = now.getDate().toString().padStart(2, '0')
-    const month = (now.getMonth() + 1).toString().padStart(2, '0')
-    const year = now.getFullYear().toString().slice(-2)
-    const dateString = `${day}${month}${year}`
+    while (!isUnique && attempts < maxAttempts) {
+      // Générer un numéro utilisateur aléatoire à 4 chiffres
+      const userNumber = Math.floor(Math.random() * 9000 + 1000).toString()
+      
+      // Date actuelle au format DDMMYY
+      const now = new Date()
+      const day = now.getDate().toString().padStart(2, '0')
+      const month = (now.getMonth() + 1).toString().padStart(2, '0')
+      const year = now.getFullYear().toString().slice(-2)
+      const dateString = `${day}${month}${year}`
+      
+      matricule = `${userNumber}.MK.${dateString}`
+      
+      // Vérifier si ce matricule existe déjà dans membershipRequests
+      const membershipRequestsRef = collection(firestore, firebaseCollectionNames.membershipRequests || "membership-requests")
+      const q = query(membershipRequestsRef, where("matricule", "==", matricule))
+      const snapshot = await getDocs(q)
+      
+      if (snapshot.empty) {
+        isUnique = true
+      } else {
+        attempts++
+      }
+    }
     
-    return `${userNumber}.MK.${dateString}`
+    if (!isUnique) {
+      throw new Error('Impossible de générer un matricule unique après plusieurs tentatives')
+    }
+    
+    return matricule!
   } catch (error) {
     console.error('Erreur lors de la génération du matricule:', error)
     throw new Error('Impossible de générer le matricule')

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { 
   Briefcase, 
   Building, 
@@ -20,7 +21,12 @@ import {
   UserX,
   Info,
   Search,
-  Loader2
+  Loader2,
+  MapPinIcon,
+  Building2,
+  Home,
+  Navigation,
+  Globe
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { findCompanyByName } from '@/db/company.db'
@@ -41,6 +47,42 @@ interface Suggestion {
   isNew?: boolean
 }
 
+// Interface pour les résultats Photon
+interface PhotonResult {
+  properties: {
+    name: string
+    city?: string
+    state?: string
+    country: string
+    district?: string
+    suburb?: string
+    neighbourhood?: string
+    osm_key: string
+    osm_value: string
+    type?: string
+  }
+  geometry: {
+    coordinates: [number, number]
+  }
+}
+
+// Fonction pour debounce
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
 export default function Step3({ form }: Step3Props) {
   const [showProfessionSuggestions, setShowProfessionSuggestions] = useState(false)
   const [showCompanySuggestions, setShowCompanySuggestions] = useState(false)
@@ -51,6 +93,21 @@ export default function Step3({ form }: Step3Props) {
   const [professionSuggestions, setProfessionSuggestions] = useState<Suggestion[]>([])
   const [isLoadingCompanySuggestions, setIsLoadingCompanySuggestions] = useState(false)
   const [isLoadingProfessionSuggestions, setIsLoadingProfessionSuggestions] = useState(false)
+
+  // États pour la géolocalisation de l'entreprise
+  const [companyDistrictQuery, setCompanyDistrictQuery] = useState('')
+  const [companySearchResults, setCompanySearchResults] = useState<PhotonResult[]>([])
+  const [isSearchingCompany, setIsSearchingCompany] = useState(false)
+  const [showCompanyResults, setShowCompanyResults] = useState(false)
+  const [selectedCompanyLocation, setSelectedCompanyLocation] = useState<PhotonResult | null>(null)
+  
+  // États pour la correction de ville de l'entreprise
+  const [needsCompanyCityCorrection, setNeedsCompanyCityCorrection] = useState(false)
+  const [companyCityQuery, setCompanyCityQuery] = useState('')
+  const [companyCitySearchResults, setCompanyCitySearchResults] = useState<PhotonResult[]>([])
+  const [isSearchingCompanyCity, setIsSearchingCompanyCity] = useState(false)
+  const [showCompanyCityResults, setShowCompanyCityResults] = useState(false)
+  const [detectedCompanyCityName, setDetectedCompanyCityName] = useState('')
 
   const { register, watch, setValue, formState: { errors }, clearErrors } = form
 
@@ -64,6 +121,10 @@ export default function Step3({ form }: Step3Props) {
     'company.profession',
     'company.seniority'
   ])
+
+  // Debounce pour la recherche d'entreprise
+  const debouncedCompanyQuery = useDebounce(companyDistrictQuery, 500)
+  const debouncedCompanyCityQuery = useDebounce(companyCityQuery, 500)
 
   // Nettoyer automatiquement les erreurs quand les champs sont corrigés
   React.useEffect(() => {
@@ -172,6 +233,72 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [])
 
+  // Fonction pour rechercher avec Photon API pour l'entreprise
+  const searchCompanyWithPhoton = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setCompanySearchResults([])
+      return
+    }
+
+    setIsSearchingCompany(true)
+    try {
+      // Bounding box du Gabon: [ouest, sud, est, nord]
+      const gabonBbox = '8.5,-4.0,14.8,2.3'
+      
+      const response = await fetch(
+        `https://photon.komoot.io/api?q=${encodeURIComponent(query)}&bbox=${gabonBbox}&limit=8&lang=fr`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Filtrer pour ne garder que les résultats du Gabon
+        const gabonResults = data.features.filter((result: PhotonResult) => 
+          result.properties.country === 'Gabon' || result.properties.country === 'GA'
+        )
+        setCompanySearchResults(gabonResults)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la recherche Photon pour l\'entreprise:', error)
+      setCompanySearchResults([])
+    } finally {
+      setIsSearchingCompany(false)
+    }
+  }, [])
+
+  // Fonction pour rechercher uniquement les villes pour l'entreprise
+  const searchCompanyCitiesWithPhoton = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setCompanyCitySearchResults([])
+      return
+    }
+
+    setIsSearchingCompanyCity(true)
+    try {
+      // Bounding box du Gabon: [ouest, sud, est, nord]
+      const gabonBbox = '8.5,-4.0,14.8,2.3'
+      
+      const response = await fetch(
+        `https://photon.komoot.io/api?q=${encodeURIComponent(query)}&bbox=${gabonBbox}&limit=8&lang=fr`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Filtrer pour ne garder que les vraies villes du Gabon
+        const cityResults = data.features.filter((result: PhotonResult) => 
+          (result.properties.country === 'Gabon' || result.properties.country === 'GA') &&
+          (result.properties.osm_key === 'place' && 
+           ['city', 'town', 'municipality'].includes(result.properties.osm_value))
+        )
+        setCompanyCitySearchResults(cityResults)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la recherche de villes pour l\'entreprise:', error)
+      setCompanyCitySearchResults([])
+    } finally {
+      setIsSearchingCompanyCity(false)
+    }
+  }, [])
+
   // Effet pour surveiller les changements des champs et récupérer les suggestions
   useEffect(() => {
     const companyName = watch('company.companyName')
@@ -191,6 +318,28 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [watch('company.profession'), fetchProfessionSuggestions])
 
+  // Effet pour déclencher la recherche d'entreprise
+  useEffect(() => {
+    if (debouncedCompanyQuery) {
+      searchCompanyWithPhoton(debouncedCompanyQuery)
+      setShowCompanyResults(true)
+    } else {
+      setCompanySearchResults([])
+      setShowCompanyResults(false)
+    }
+  }, [debouncedCompanyQuery, searchCompanyWithPhoton])
+
+  // Effet pour déclencher la recherche de villes pour l'entreprise
+  useEffect(() => {
+    if (debouncedCompanyCityQuery) {
+      searchCompanyCitiesWithPhoton(debouncedCompanyCityQuery)
+      setShowCompanyCityResults(true)
+    } else {
+      setCompanyCitySearchResults([])
+      setShowCompanyCityResults(false)
+    }
+  }, [debouncedCompanyCityQuery, searchCompanyCitiesWithPhoton])
+
   const handleToggleEmployment = (checked: boolean) => {
     setValue('company.isEmployed', checked)
     
@@ -202,6 +351,13 @@ export default function Step3({ form }: Step3Props) {
       setValue('company.companyAddress.district', '')
       setValue('company.profession', '')
       setValue('company.seniority', '')
+      // Reset des états de géolocalisation
+      setCompanyDistrictQuery('')
+      setCompanySearchResults([])
+      setSelectedCompanyLocation(null)
+      setNeedsCompanyCityCorrection(false)
+      setCompanyCityQuery('')
+      setCompanyCitySearchResults([])
     }
   }
 
@@ -213,6 +369,70 @@ export default function Step3({ form }: Step3Props) {
     if (field === 'company.companyName') setShowCompanySuggestions(false)
     if (field === 'company.profession') setShowProfessionSuggestions(false)
     if (field === 'company.seniority') setShowSenioritySuggestions(false)
+  }
+
+  // Fonction pour sélectionner un résultat de localisation d'entreprise
+  const handleCompanyLocationSelect = (result: PhotonResult) => {
+    const { properties } = result
+    
+    setSelectedCompanyLocation(result)
+    setCompanyDistrictQuery(properties.name)
+    setShowCompanyResults(false)
+
+    // Remplir automatiquement les champs disponibles
+    setValue('company.companyAddress.district', properties.name)
+    
+    // Gérer les cas spéciaux pour la ville
+    let cityValue = ''
+    if (properties.type === 'city') {
+      // Si le type est "city", utiliser le nom comme ville
+      cityValue = properties.name
+      setDetectedCompanyCityName(properties.name)
+      setNeedsCompanyCityCorrection(true)
+    } else {
+      // Sinon, utiliser la logique habituelle
+      cityValue = properties.city || properties.suburb || ''
+      setNeedsCompanyCityCorrection(false)
+    }
+    setValue('company.companyAddress.city', cityValue)
+    
+    setValue('company.companyAddress.province', properties.state || '')
+  }
+
+  // Fonction pour confirmer la ville détectée pour l'entreprise
+  const handleConfirmCompanyCity = () => {
+    setNeedsCompanyCityCorrection(false)
+  }
+
+  // Fonction pour sélectionner une nouvelle ville pour l'entreprise
+  const handleCompanyCitySelect = (result: PhotonResult) => {
+    const { properties } = result
+    
+    // Remplacer uniquement la ville
+    setValue('company.companyAddress.city', properties.name)
+    setCompanyCityQuery('')
+    setShowCompanyCityResults(false)
+    setNeedsCompanyCityCorrection(false)
+  }
+
+  // Fonction pour annuler la correction de ville pour l'entreprise
+  const handleCancelCompanyCityCorrection = () => {
+    setValue('company.companyAddress.city', detectedCompanyCityName)
+    setCompanyCityQuery('')
+    setShowCompanyCityResults(false)
+    setNeedsCompanyCityCorrection(false)
+  }
+
+  // Fonction pour formater l'affichage des résultats d'entreprise
+  const formatCompanyResultDisplay = (result: PhotonResult) => {
+    const { properties } = result
+    const parts = [
+      properties.name,
+      properties.city || properties.suburb,
+      properties.state
+    ].filter(Boolean)
+    
+    return parts.join(', ')
   }
 
   return (
@@ -356,54 +576,289 @@ export default function Step3({ form }: Step3Props) {
                   Adresse de l'entreprise <span className="text-red-500">*</span>
                 </Label>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 w-full">
-                {/* Province entreprise */}
-                <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full min-w-0">
-                  <Label htmlFor="companyProvince" className="text-[10px] sm:text-xs font-medium text-gray-600">
-                    Province
-                  </Label>
-                  <Input
-                    id="companyProvince"
-                    {...register('company.companyAddress.province')}
-                    placeholder="Province"
-                    className={cn(
-                      "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.company?.companyAddress?.province && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[1] && !errors?.company?.companyAddress?.province && "border-[#CBB171] bg-[#CBB171]/5"
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 w-full">
+                {/* Colonne de gauche - Recherche de quartier */}
+                <div className="space-y-4 sm:space-y-6 w-full min-w-0">
+                  {/* Recherche de quartier */}
+                  <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
+                    <Label htmlFor="companyDistrictSearch" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                      Rechercher le quartier de l'entreprise <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative w-full min-w-0">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
+                      <Input
+                        id="companyDistrictSearch"
+                        value={companyDistrictQuery}
+                        onChange={(e) => setCompanyDistrictQuery(e.target.value)}
+                        placeholder="Ex: Glass, Akanda, Lalala..."
+                        className={cn(
+                          "pl-10 pr-12 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                          errors?.company?.companyAddress?.district && "border-red-300 focus:border-red-500 bg-red-50/50",
+                          selectedCompanyLocation && "border-[#CBB171] bg-[#CBB171]/5"
+                        )}
+                      />
+                      
+                      {/* Loading spinner */}
+                      {isSearchingCompany && (
+                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin z-10" />
+                      )}
+                      
+                      {/* Success checkmark */}
+                      {selectedCompanyLocation && !isSearchingCompany && (
+                        <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                      )}
+
+                      {/* Résultats de recherche */}
+                      {showCompanyResults && companySearchResults.length > 0 && (
+                        <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full max-h-64 overflow-y-auto">
+                          <CardContent className="p-2">
+                            <div className="space-y-1">
+                              {companySearchResults.map((result, index) => (
+                                <Button
+                                  key={index}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm p-3"
+                                  onClick={() => handleCompanyLocationSelect(result)}
+                                >
+                                  <div className="flex items-start space-x-2 w-full">
+                                    <MapPinIcon className="w-4 h-4 text-[#CBB171] mt-0.5 flex-shrink-0" />
+                                    <div className="text-left">
+                                      <div className="font-medium text-[#224D62]">
+                                        {result.properties.name}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {formatCompanyResultDisplay(result)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Button>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Aucun résultat */}
+                      {showCompanyResults && companySearchResults.length === 0 && !isSearchingCompany && companyDistrictQuery.length > 2 && (
+                        <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full">
+                          <CardContent className="p-4 text-center">
+                            <div className="text-xs text-gray-500">
+                              Aucun résultat trouvé pour "{companyDistrictQuery}"
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                    
+                    {errors?.company?.companyAddress?.district && (
+                      <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>{errors.company.companyAddress.district.message}</span>
+                      </div>
                     )}
-                  />
+                  </div>
+
+                  {/* Informations automatiques */}
+                  {selectedCompanyLocation && (
+                    <div className="space-y-4 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-200 w-full min-w-0">
+                      <div className="p-4 bg-[#CBB171]/5 rounded-lg border border-[#CBB171]/20">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <CheckCircle className="w-4 h-4 text-[#CBB171]" />
+                          <span className="text-sm font-medium text-[#224D62]">
+                            Localisation de l'entreprise détectée
+                          </span>
+                        </div>
+                        <div className="text-xs text-[#224D62]/80">
+                          {formatCompanyResultDisplay(selectedCompanyLocation)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section de correction de ville */}
+                  {needsCompanyCityCorrection && (
+                    <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 w-full min-w-0">
+                      <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-start space-x-3">
+                          <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                          <div className="space-y-3 flex-1">
+                            <div>
+                              <h4 className="text-sm font-medium text-orange-800">
+                                Vérification de la ville de l'entreprise
+                              </h4>
+                              <p className="text-xs text-orange-700 mt-1">
+                                Nous avons détecté <strong>"{detectedCompanyCityName}"</strong> comme ville. 
+                                Est-ce correct ou souhaitez-vous la corriger ?
+                              </p>
+                            </div>
+                            
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={handleConfirmCompanyCity}
+                                className="bg-[#CBB171] hover:bg-[#CBB171]/90 text-white flex-1 sm:flex-none"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                C'est correct
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  // Activer la recherche de ville
+                                  setCompanyCityQuery('')
+                                  document.getElementById('companyCitySearch')?.focus()
+                                }}
+                                className="border-orange-300 text-orange-700 hover:bg-orange-50 flex-1 sm:flex-none"
+                              >
+                                <Search className="w-4 h-4 mr-1" />
+                                Corriger la ville
+                              </Button>
+                            </div>
+
+                            {/* Champ de recherche de ville conditionnel */}
+                            <div className="space-y-2">
+                              <Label htmlFor="companyCitySearch" className="text-xs font-medium text-orange-800">
+                                Rechercher la vraie ville
+                              </Label>
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500 z-10" />
+                                <Input
+                                  id="companyCitySearch"
+                                  value={companyCityQuery}
+                                  onChange={(e) => setCompanyCityQuery(e.target.value)}
+                                  placeholder="Ex: Libreville, Port-Gentil..."
+                                  className="pl-10 pr-12 border-orange-300 focus:border-orange-500 focus:ring-orange-200 w-full"
+                                />
+                                
+                                {isSearchingCompanyCity && (
+                                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500 animate-spin z-10" />
+                                )}
+
+                                {/* Résultats de recherche de villes */}
+                                {showCompanyCityResults && companyCitySearchResults.length > 0 && (
+                                  <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-orange-300 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full max-h-48 overflow-y-auto">
+                                    <CardContent className="p-2">
+                                      <div className="space-y-1">
+                                        {companyCitySearchResults.map((result, index) => (
+                                          <Button
+                                            key={index}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="w-full justify-start text-left hover:bg-orange-50 transition-colors text-xs p-3"
+                                            onClick={() => handleCompanyCitySelect(result)}
+                                          >
+                                            <div className="flex items-start space-x-2 w-full">
+                                              <Building2 className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                                              <div className="text-left">
+                                                <div className="font-medium text-orange-800">
+                                                  {result.properties.name}
+                                                </div>
+                                                <div className="text-xs text-orange-600">
+                                                  {result.properties.state ? `${result.properties.state}, Gabon` : 'Gabon'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </Button>
+                                        ))}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                )}
+
+                                {/* Aucun résultat pour les villes */}
+                                {showCompanyCityResults && companyCitySearchResults.length === 0 && !isSearchingCompanyCity && companyCityQuery.length > 2 && (
+                                  <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-orange-300 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full">
+                                    <CardContent className="p-4 text-center">
+                                      <div className="text-xs text-orange-600">
+                                        Aucune ville trouvée pour "{companyCityQuery}"
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                )}
+                              </div>
+
+                              <div className="flex gap-2 pt-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleCancelCompanyCityCorrection}
+                                  className="border-gray-300 text-gray-600 hover:bg-gray-50 text-xs"
+                                >
+                                  Annuler
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {/* Ville entreprise */}
-                <div className="space-y-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-300 w-full min-w-0">
-                  <Label htmlFor="companyCity" className="text-[10px] sm:text-xs font-medium text-gray-600">
-                    Ville
-                  </Label>
-                  <Input
-                    id="companyCity"
-                    {...register('company.companyAddress.city')}
-                    placeholder="Ville"
-                    className={cn(
-                      "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.company?.companyAddress?.city && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[2] && !errors?.company?.companyAddress?.city && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
-                  />
-                </div>
-                {/* Quartier entreprise */}
-                <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-400 w-full min-w-0">
-                  <Label htmlFor="companyDistrict" className="text-[10px] sm:text-xs font-medium text-gray-600">
-                    Quartier
-                  </Label>
-                  <Input
-                    id="companyDistrict"
-                    {...register('company.companyAddress.district')}
-                    placeholder="Quartier"
-                    className={cn(
-                      "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.company?.companyAddress?.district && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[3] && !errors?.company?.companyAddress?.district && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
-                  />
+
+                {/* Colonne de droite - Champs automatiques */}
+                <div className="space-y-4 sm:space-y-6 w-full min-w-0">
+                  {/* Ville (automatique) */}
+                  <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
+                    <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+                      Ville <span className="text-red-500">*</span>
+                      <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
+                        Automatique
+                      </Badge>
+                    </Label>
+                    <div className="relative w-full min-w-0">
+                      <Home className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        {...register('company.companyAddress.city')}
+                        disabled
+                        placeholder="Sélectionnez d'abord un quartier"
+                        className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Province (automatique) */}
+                  <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-200 w-full min-w-0">
+                    <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+                      Province <span className="text-red-500">*</span>
+                      <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
+                        Automatique
+                      </Badge>
+                    </Label>
+                    <div className="relative w-full min-w-0">
+                      <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        {...register('company.companyAddress.province')}
+                        disabled
+                        placeholder="Sélectionnez d'abord un quartier"
+                        className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quartier (automatique) */}
+                  <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-250 w-full min-w-0">
+                    <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+                      Quartier <span className="text-red-500">*</span>
+                      <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
+                        Automatique
+                      </Badge>
+                    </Label>
+                    <div className="relative w-full min-w-0">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        {...register('company.companyAddress.district')}
+                        disabled
+                        placeholder="Sélectionnez d'abord un quartier"
+                        className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

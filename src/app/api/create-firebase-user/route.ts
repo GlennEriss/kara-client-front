@@ -1,7 +1,7 @@
 import { adminAuth } from "@/firebase/adminAuth";
 import { NextRequest, NextResponse } from "next/server";
 import { updateMembershipRequestStatus, getMembershipRequestById, checkPhoneNumberExists } from "@/db/membership.db";
-import { createUserWithMatricule, addSubscriptionToUser, generateMatricule } from "@/db/user.db";
+import { createUserWithMatricule, addSubscriptionToUser } from "@/db/user.db";
 import { createDefaultSubscription, updateSubscription } from "@/db/subscription.db";
 import { findOrCreateCompany } from "@/db/company.db";
 import { findOrCreateProfession } from "@/db/profession.db";
@@ -70,9 +70,14 @@ export async function POST(req: NextRequest) {
         }
         console.log('Numéro de téléphone vérifié - aucun conflit détecté');
 
-        // Générer le matricule AVANT la création de l'utilisateur Firebase
-        const matricule = await generateMatricule();
-        console.log('Matricule généré:', matricule);
+        // Utiliser le matricule existant de la demande d'adhésion
+        const membershipRequest = await getMembershipRequestById(requestId);
+        if (!membershipRequest) {
+            return NextResponse.json({ error: "Demande d'adhésion non trouvée" }, { status: 404 });
+        }
+
+        const matricule = membershipRequest.matricule;
+        console.log('Matricule utilisé depuis la demande:', matricule);
 
         let userRecord;
         
@@ -95,12 +100,6 @@ export async function POST(req: NextRequest) {
         }
 
         console.log('Type de membre sélectionné:', membershipType);
-
-        // Récupérer les données de la demande d'adhésion
-        const membershipRequest = await getMembershipRequestById(requestId);
-        if (!membershipRequest) {
-            return NextResponse.json({ error: "Demande d'adhésion non trouvée" }, { status: 404 });
-        }
 
         // Créer le document utilisateur dans la collection users
         // Utiliser le matricule déjà généré comme ID du document
@@ -172,12 +171,25 @@ export async function POST(req: NextRequest) {
             if (companyName || membershipRequest.company?.companyName) {
                 try {
                     const finalCompanyName = companyName || membershipRequest.company.companyName;
+                    
+                    // Préparer l'adresse complète de l'entreprise
+                    const companyAddress = membershipRequest.company.companyAddress ? {
+                        address: {
+                            province: membershipRequest.company.companyAddress.province,
+                            city: membershipRequest.company.companyAddress.city,
+                            district: membershipRequest.company.companyAddress.district,
+                            arrondissement: membershipRequest.address?.arrondissement,
+                            additionalInfo: membershipRequest.address?.additionalInfo
+                        }
+                    } : undefined;
+                    
                     const companyResult = await findOrCreateCompany(
                         finalCompanyName,
-                        adminId || 'system'
+                        adminId || 'system',
+                        companyAddress
                     );
                     companyId = companyResult.id;
-                    console.log(companyResult.isNew ? 'Nouvelle entreprise créée:' : 'Entreprise existante trouvée:', companyId);
+                    console.log(companyResult.isNew ? 'Nouvelle entreprise créée avec adresse:' : 'Entreprise existante trouvée:', companyId);
                 } catch (error) {
                     console.error('Erreur lors de la persistance de l\'entreprise:', error);
                     // Ne pas bloquer le processus d'approbation pour cette erreur

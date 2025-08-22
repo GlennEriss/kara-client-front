@@ -3,14 +3,14 @@ import { checkPhoneNumberExists } from "@/db/membership.db";
 
 export async function POST(req: NextRequest) {
     try {
-        const { phoneNumber } = await req.json();
+        const { phoneNumber, requestId } = await req.json();
 
         if (!phoneNumber) {
             return NextResponse.json({ error: "Numéro de téléphone requis" }, { status: 400 });
         }
 
-        // Vérifier si le numéro existe déjà
-        const phoneCheck = await checkPhoneNumberExists(phoneNumber);
+        // Vérifier si le numéro existe déjà (en excluant la demande actuelle si requestId est fourni)
+        const phoneCheck = await checkPhoneNumberExists(phoneNumber, requestId);
         
         if (phoneCheck.isUsed) {
             return NextResponse.json({ 
