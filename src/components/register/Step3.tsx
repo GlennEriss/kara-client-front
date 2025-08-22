@@ -45,6 +45,7 @@ const SENIORITY_SUGGESTIONS = [
 interface Suggestion {
   name: string
   isNew?: boolean
+  hasAddress?: boolean
 }
 
 // Interface pour les résultats Photon
@@ -174,18 +175,31 @@ export default function Step3({ form }: Step3Props) {
       const suggestions: Suggestion[] = []
       
       if (result.found && result.company) {
-        suggestions.push({ name: result.company.name })
+        // Ajouter l'entreprise trouvée en premier
+        suggestions.push({ 
+          name: result.company.name,
+          isNew: false,
+          hasAddress: !!(result.company.address?.province || result.company.address?.city || result.company.address?.district)
+        })
       }
       
       if (result.suggestions) {
         result.suggestions.forEach(suggestion => {
-          suggestions.push({ name: suggestion })
+          suggestions.push({ 
+            name: suggestion,
+            isNew: false,
+            hasAddress: false // On ne sait pas si elles ont une adresse
+          })
         })
       }
       
       // Ajouter l'option de créer une nouvelle entreprise
       if (query.length >= 2) {
-        suggestions.push({ name: `Créer "${query}"`, isNew: true })
+        suggestions.push({ 
+          name: `Créer "${query}"`, 
+          isNew: true,
+          hasAddress: false
+        })
       }
       
       setCompanySuggestions(suggestions)
@@ -318,6 +332,40 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [watch('company.profession'), fetchProfessionSuggestions])
 
+  // Effet pour déclencher les suggestions lors du focus
+  useEffect(() => {
+    if (showCompanySuggestions && companySuggestions.length === 0) {
+      const companyName = watch('company.companyName')
+      if (companyName && companyName.length >= 2) {
+        fetchCompanySuggestions(companyName)
+      }
+    }
+  }, [showCompanySuggestions, companySuggestions.length, watch('company.companyName'), fetchCompanySuggestions])
+
+  useEffect(() => {
+    if (showProfessionSuggestions && professionSuggestions.length === 0) {
+      const profession = watch('company.profession')
+      if (profession && profession.length >= 2) {
+        fetchProfessionSuggestions(profession)
+      }
+    }
+  }, [showProfessionSuggestions, professionSuggestions.length, watch('company.profession'), fetchProfessionSuggestions])
+
+  // Effet pour charger les suggestions initiales si il y a déjà des valeurs
+  useEffect(() => {
+    const companyName = watch('company.companyName')
+    if (companyName && companyName.length >= 2 && companySuggestions.length === 0) {
+      fetchCompanySuggestions(companyName)
+    }
+  }, [watch('company.companyName'), companySuggestions.length, fetchCompanySuggestions])
+
+  useEffect(() => {
+    const profession = watch('company.profession')
+    if (profession && profession.length >= 2 && professionSuggestions.length === 0) {
+      fetchProfessionSuggestions(profession)
+    }
+  }, [watch('company.profession'), professionSuggestions.length, fetchProfessionSuggestions])
+
   // Effet pour déclencher la recherche d'entreprise
   useEffect(() => {
     if (debouncedCompanyQuery) {
@@ -361,12 +409,58 @@ export default function Step3({ form }: Step3Props) {
     }
   }
 
-  const handleSuggestionClick = (field: string, value: string, isNew: boolean = false) => {
+  const handleSuggestionClick = async (field: string, value: string, isNew: boolean = false) => {
     // Si c'est une nouvelle entrée, extraire le nom sans "Créer"
     const finalValue = isNew ? value.replace(/^Créer "/, '').replace(/"$/, '') : value
     setValue(field, finalValue)
     
-    if (field === 'company.companyName') setShowCompanySuggestions(false)
+    if (field === 'company.companyName') {
+      setShowCompanySuggestions(false)
+      
+      // Si ce n'est pas une nouvelle entreprise, récupérer et remplir les informations d'adresse
+      if (!isNew) {
+        try {
+          const companyResult = await findCompanyByName(finalValue)
+          if (companyResult.found && companyResult.company && companyResult.company.address) {
+            const address = companyResult.company.address
+            
+            // Remplir automatiquement les champs d'adresse
+            if (address.province) {
+              setValue('company.companyAddress.province', address.province)
+            }
+            if (address.city) {
+              setValue('company.companyAddress.city', address.city)
+            }
+            if (address.district) {
+              setValue('company.companyAddress.district', address.district)
+            }
+            
+            // Mettre à jour l'état de géolocalisation pour refléter l'adresse existante
+            setCompanyDistrictQuery(address.district || '')
+            setSelectedCompanyLocation({
+              properties: {
+                name: address.district || '',
+                city: address.city || '',
+                state: address.province || '',
+                country: 'Gabon',
+                osm_key: 'place',
+                osm_value: 'district',
+                type: 'district'
+              },
+              geometry: {
+                coordinates: [0, 0] // Coordonnées par défaut
+              }
+            } as PhotonResult)
+            
+            // Afficher un message de succès
+            console.log('✅ Adresse de l\'entreprise remplie automatiquement')
+          }
+        } catch (error) {
+          console.error('Erreur lors de la récupération des informations de l\'entreprise:', error)
+        }
+      }
+    }
+    
     if (field === 'company.profession') setShowProfessionSuggestions(false)
     if (field === 'company.seniority') setShowSenioritySuggestions(false)
   }
@@ -514,6 +608,9 @@ export default function Step3({ form }: Step3Props) {
             <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
               <Label htmlFor="companyName" className="text-xs sm:text-sm font-medium text-[#224D62]">
                 Nom de l'entreprise <span className="text-red-500">*</span>
+                <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
+                  Suggestions automatiques
+                </Badge>
               </Label>
               <div className="relative w-full min-w-0">
                 <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
@@ -523,6 +620,16 @@ export default function Step3({ form }: Step3Props) {
                   placeholder="Ex: Total Gabon, Ministère de la Santé..."
                   onFocus={() => setShowCompanySuggestions(true)}
                   onBlur={() => setTimeout(() => setShowCompanySuggestions(false), 200)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value.length >= 2) {
+                      fetchCompanySuggestions(value)
+                      setShowCompanySuggestions(true)
+                    } else {
+                      setCompanySuggestions([])
+                      setShowCompanySuggestions(false)
+                    }
+                  }}
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                     errors?.company?.companyName && "border-red-300 focus:border-red-500 bg-red-50/50",
@@ -540,6 +647,19 @@ export default function Step3({ form }: Step3Props) {
                 {showCompanySuggestions && companySuggestions.length > 0 && (
                   <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 max-h-32 sm:max-h-48 overflow-y-auto w-full">
                     <CardContent className="p-2">
+                      {/* Message d'information */}
+                      <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                        <div className="flex items-center space-x-2">
+                          <Info className="w-3 h-3" />
+                          <span>
+                            {companySuggestions.some(s => !s.isNew && s.hasAddress) 
+                              ? 'Les entreprises avec 📍 seront pré-remplies automatiquement'
+                              : 'Sélectionnez une entreprise existante ou créez-en une nouvelle'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      
                       <div className="space-y-1">
                         {companySuggestions.map((suggestion, index) => (
                           <Button
@@ -547,13 +667,24 @@ export default function Step3({ form }: Step3Props) {
                             variant="ghost"
                             size="sm"
                             className={cn(
-                              "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm",
+                              "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm p-2",
                               suggestion.isNew && "text-[#CBB171] font-medium"
                             )}
                             onMouseDown={() => handleSuggestionClick('company.companyName', suggestion.name, suggestion.isNew)}
                           >
-                            {suggestion.isNew && <Search className="w-3 h-3 mr-2" />}
-                            {suggestion.name}
+                            <div className="flex items-center space-x-2 w-full">
+                              {suggestion.isNew ? (
+                                <Search className="w-3 h-3 text-[#CBB171] flex-shrink-0" />
+                              ) : (
+                                <Building className="w-3 h-3 text-[#224D62] flex-shrink-0" />
+                              )}
+                              <span className="truncate">{suggestion.name}</span>
+                              {!suggestion.isNew && suggestion.hasAddress && (
+                                <Badge variant="secondary" className="ml-auto bg-green-100 text-green-700 text-[10px] px-1 py-0">
+                                  📍 Adresse
+                                </Badge>
+                              )}
+                            </div>
                           </Button>
                         ))}
                       </div>
@@ -667,12 +798,23 @@ export default function Step3({ form }: Step3Props) {
                         <div className="flex items-center space-x-2 mb-2">
                           <CheckCircle className="w-4 h-4 text-[#CBB171]" />
                           <span className="text-sm font-medium text-[#224D62]">
-                            Localisation de l'entreprise détectée
+                            {watch('company.companyName') && companySuggestions.some(s => s.name === watch('company.companyName') && !s.isNew) 
+                              ? 'Adresse de l\'entreprise existante chargée'
+                              : 'Localisation de l\'entreprise détectée'
+                            }
                           </span>
                         </div>
                         <div className="text-xs text-[#224D62]/80">
                           {formatCompanyResultDisplay(selectedCompanyLocation)}
                         </div>
+                        {watch('company.companyName') && companySuggestions.some(s => s.name === watch('company.companyName') && !s.isNew) && (
+                          <div className="mt-2 pt-2 border-t border-[#CBB171]/20">
+                            <div className="flex items-center space-x-2 text-[10px] text-[#CBB171]">
+                              <Building className="w-3 h-3" />
+                              <span>Entreprise existante - adresse pré-remplie</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -868,6 +1010,9 @@ export default function Step3({ form }: Step3Props) {
               <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full min-w-0">
                 <Label htmlFor="profession" className="text-xs sm:text-sm font-medium text-[#224D62]">
                   Profession <span className="text-red-500">*</span>
+                  <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
+                    Suggestions automatiques
+                  </Badge>
                 </Label>
                 <div className="relative w-full min-w-0">
                   <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
@@ -877,6 +1022,16 @@ export default function Step3({ form }: Step3Props) {
                     placeholder="Ex: Ingénieur, Médecin..."
                     onFocus={() => setShowProfessionSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowProfessionSuggestions(false), 200)}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (value.length >= 2) {
+                        fetchProfessionSuggestions(value)
+                        setShowProfessionSuggestions(true)
+                      } else {
+                        setProfessionSuggestions([])
+                        setShowProfessionSuggestions(false)
+                      }
+                    }}
                     className={cn(
                       "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                       errors?.company?.profession && "border-red-300 focus:border-red-500 bg-red-50/50",
@@ -900,13 +1055,19 @@ export default function Step3({ form }: Step3Props) {
                               variant="ghost"
                               size="sm"
                               className={cn(
-                                "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm",
+                                "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm p-2",
                                 suggestion.isNew && "text-[#CBB171] font-medium"
                               )}
                               onMouseDown={() => handleSuggestionClick('company.profession', suggestion.name, suggestion.isNew)}
                             >
-                              {suggestion.isNew && <Search className="w-3 h-3 mr-2" />}
-                              {suggestion.name}
+                              <div className="flex items-center space-x-2 w-full">
+                                {suggestion.isNew ? (
+                                  <Search className="w-3 h-3 text-[#CBB171] flex-shrink-0" />
+                                ) : (
+                                  <GraduationCap className="w-3 h-3 text-[#224D62] flex-shrink-0" />
+                                )}
+                                <span className="truncate">{suggestion.name}</span>
+                              </div>
                             </Button>
                           ))}
                         </div>
