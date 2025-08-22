@@ -72,3 +72,23 @@ export async function listContracts(opts: { status?: string; limit?: number } = 
   return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
 }
 
+// Nouvelle fonction pour récupérer tous les contrats
+export async function getAllContracts() {
+  const { db, collection, getDocs, query, orderBy } = await getFirestore() as any
+  const colRef = collection(db, firebaseCollectionNames.caisseContracts)
+  const q = query(colRef, orderBy('createdAt', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map((d: any) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      ...data,
+      contractStartAt: (typeof data.contractStartAt?.toDate === 'function') ? data.contractStartAt.toDate() : (data.contractStartAt ? new Date(data.contractStartAt) : undefined),
+      contractEndAt: (typeof data.contractEndAt?.toDate === 'function') ? data.contractEndAt.toDate() : (data.contractEndAt ? new Date(data.contractEndAt) : undefined),
+      nextDueAt: (typeof data.nextDueAt?.toDate === 'function') ? data.nextDueAt.toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined),
+      createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
+      updatedAt: (typeof data.updatedAt?.toDate === 'function') ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : undefined),
+    }
+  })
+}
+
