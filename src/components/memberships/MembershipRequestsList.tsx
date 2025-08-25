@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight, Zap, Target, DollarSign } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +36,14 @@ import { useRouter } from 'next/navigation'
 import { findCompanyByName } from '@/db/company.db'
 import { findProfessionByName } from '@/db/profession.db'
 import { cn } from '@/lib/utils'
+import { 
+  createTestMembershipRequestPending, 
+  createTestMembershipRequestPendingUnpaid,
+  createTestMembershipRequestUnderReview, 
+  createTestMembershipRequestRejected, 
+  createTestMembershipRequestApproved, 
+  createTestMembershipRequestWithFilters 
+} from '@/utils/test-data'
 
 // Couleurs pour les graphiques
 const COLORS = {
@@ -1325,6 +1333,74 @@ export default function MembershipRequestsList() {
     handleFilterChange('searchQuery', searchQuery)
   }
 
+  // Fonctions de test (en développement uniquement)
+  const handleCreateTestRequestPending = async () => {
+    try {
+      toast.info('📝 Création d\'une demande en attente...', { duration: 2000 })
+      await createTestMembershipRequestPending()
+      toast.success('✅ Demande en attente créée avec succès')
+      // Recharger les données
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestPendingUnpaid = async () => {
+    try {
+      toast.info('💰 Création d\'une demande en attente non payée...', { duration: 2000 })
+      await createTestMembershipRequestPendingUnpaid()
+      toast.success('✅ Demande en attente non payée créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestUnderReview = async () => {
+    try {
+      toast.info('🔍 Création d\'une demande en cours d\'examen...', { duration: 2000 })
+      await createTestMembershipRequestUnderReview()
+      toast.success('✅ Demande en cours d\'examen créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestRejected = async () => {
+    try {
+      toast.info('❌ Création d\'une demande rejetée...', { duration: 2000 })
+      await createTestMembershipRequestRejected()
+      toast.success('✅ Demande rejetée créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestApproved = async () => {
+    try {
+      toast.info('✅ Création d\'une demande approuvée...', { duration: 2000 })
+      await createTestMembershipRequestApproved()
+      toast.success('✅ Demande approuvée créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestWithFilters = async () => {
+    try {
+      toast.info('🔍 Création d\'une demande avec données de filtres...', { duration: 2000 })
+      await createTestMembershipRequestWithFilters()
+      toast.success('✅ Demande avec filtres créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
   // Calcul des statistiques
   const stats = React.useMemo(() => {
     if (!membershipData) return null
@@ -1378,6 +1454,82 @@ export default function MembershipRequestsList() {
 
       {/* Statistiques avec nouveau carousel */}
       {stats && <StatsCarousel stats={stats} />}
+
+      {/* Boutons de test modernisés */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border-0 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 mr-4">
+                <div className="p-2 rounded-lg bg-amber-200">
+                  <Zap className="w-4 h-4 text-amber-700" />
+                </div>
+                <span className="font-bold text-amber-800">🧪 Outils de Test - Demandes d'Adhésion</span>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestPending}
+                className="bg-white border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Demande En Attente
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestPendingUnpaid}
+                className="bg-white border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Demande Non Payée
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestUnderReview}
+                className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Demande En Examen
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestRejected}
+                className="bg-white border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Demande Rejetée
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestApproved}
+                className="bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Demande Approuvée
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestWithFilters}
+                className="bg-white border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Demande + Filtres
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filtres et recherche avec design moderne */}
       <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
