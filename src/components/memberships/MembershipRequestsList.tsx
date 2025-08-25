@@ -544,16 +544,6 @@ const MembershipRequestCard = ({
   const handleApprove = async () => {
     setIsApproving(true)
     try {
-      const phoneNumber = request.identity.contacts[0]
-
-      if (!phoneNumber) {
-        toast.error('📞 Numéro de téléphone manquant', {
-          description: 'Impossible de créer le compte utilisateur : aucun numéro de téléphone trouvé pour ce demandeur.',
-          duration: 4000,
-        })
-        return
-      }
-
       // Upload PDF si fourni
       let adhesionPdfURL: string | undefined = undefined
       if (approvalPdfFile) {
@@ -574,13 +564,12 @@ const MembershipRequestCard = ({
         }
       }
 
-      const response = await fetch('/api/create-firebase-user', {
+      const response = await fetch('/api/create-firebase-user-email-pwd', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber,
           requestId: request.id,
           adminId: user?.uid,
           membershipType: membershipType,
@@ -594,7 +583,7 @@ const MembershipRequestCard = ({
 
       if (response.ok && data.success) {
         toast.success('✅ Demande approuvée avec succès', {
-          description: `${request.identity.firstName} ${request.identity.lastName} est maintenant membre ${membershipType}. Matricule: ${data.matricule}`,
+          description: `${request.identity.firstName} ${request.identity.lastName} est maintenant membre ${membershipType}. Matricule: ${data.matricule}, Email: ${data.email}, Mot de passe: ${data.password}`,
           duration: 5000,
         })
         await queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })
