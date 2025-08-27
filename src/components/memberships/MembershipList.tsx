@@ -129,7 +129,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
 // Composant Carrousel des statistiques avec drag/swipe
 const StatsCarousel = ({ stats }: { stats: any }) => {
   const statsData = [
-    { title: 'Total Membres', value: stats.total, percentage: 100, color: '#6b7280', icon: Users, trend: 'up' as const },
+    { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: Users, trend: 'up' as const },
     { title: 'Actifs', value: stats.active, percentage: stats.activePercentage, color: '#10b981', icon: UserCheck, trend: 'up' as const },
     { title: 'Expirés', value: stats.expired, percentage: stats.expiredPercentage, color: '#ef4444', icon: Clock, trend: stats.expiredPercentage > 20 ? 'up' as const : 'neutral' as const },
     { title: 'Hommes', value: stats.men, percentage: stats.menPercentage, color: '#3b82f6', icon: Mars, trend: 'neutral' as const },
@@ -168,7 +168,7 @@ const StatsCarousel = ({ stats }: { stats: any }) => {
       <div ref={containerRef} className="overflow-hidden px-12 py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
         <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
           {statsData.map((stat, index) => (
-            <div key={index} className="flex-shrink-0" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
+            <div key={index} className="flex-shrink-0" style={{ width: `calc(${100 / itemsPerView}% - ${(1 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
               <ModernStatsCard {...stat} />
             </div>
           ))}
@@ -204,79 +204,56 @@ const ModernStatsCard = ({
   ]
 
   return (
-    <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
-      <CardContent className="p-6 relative z-10">
-        <div className="flex items-center justify-between mb-4">
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+      <CardContent className="p-4 relative z-10">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div 
-              className="p-3 rounded-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3"
+              className="p-2.5 rounded-xl transition-transform duration-300 group-hover:scale-110"
               style={{ 
                 backgroundColor: `${color}15`,
-                boxShadow: `0 0 0 1px ${color}20`
+                color: color
               }}
             >
-              <Icon className="w-6 h-6" style={{ color }} />
+              <Icon className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{title}</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-black text-gray-900">{value.toLocaleString()}</p>
+              <p className="text-xs font-medium text-gray-600 uppercase tracking-wider">{title}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-2xl font-bold text-gray-900">{value.toLocaleString()}</p>
                 {trend !== 'neutral' && percentage && (
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                     trend === 'up' ? 'bg-green-100 text-green-700' :
                     trend === 'down' ? 'bg-red-100 text-red-700' :
                     'bg-gray-100 text-gray-700'
                   }`}>
                     <TrendingUp className={`w-3 h-3 ${trend === 'down' ? 'rotate-180' : ''}`} />
-                    {percentage.toFixed(1)}%
+                    {percentage.toFixed(0)}%
                   </div>
                 )}
               </div>
-              {subtitle && (
-                <p className="text-sm text-gray-600 mt-1 font-medium">{subtitle}</p>
-              )}
             </div>
           </div>
           
-          <div className="w-16 h-16 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="w-12 h-12">
             <ResponsiveContainer width="100%" height="100%">
-              {data.length > 2 ? (
-                <BarChart data={data}>
-                  <Bar dataKey="value" fill={color} radius={[2, 2, 0, 0]} />
-                </BarChart>
-              ) : (
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={20}
-                    outerRadius={30}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              )}
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={16}
+                  outerRadius={22}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
-        
-        {/* Barre de progression */}
-        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-          <div 
-            className="h-full rounded-full transition-all duration-700 ease-out group-hover:animate-pulse"
-            style={{ 
-              width: `${percentage || 75}%`, 
-              backgroundColor: color,
-              boxShadow: `0 0 10px ${color}40`
-            }}
-          />
         </div>
       </CardContent>
     </Card>
@@ -503,7 +480,7 @@ const MembershipList = () => {
         {/* Stats même en cas d'erreur */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ModernStatsCard
-            title="Total Membres"
+            title="Total"
             value={0}
             subtitle="Erreur de chargement"
             percentage={0}

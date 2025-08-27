@@ -235,7 +235,7 @@ export default function GroupDetails({ groupId }: Props) {
                         trend="correspondances trouvées"
                     />
                     <StatCard
-                        title="Total membres"
+                        title="Total"
                         value={members.length}
                         icon={UserCheck}
                         color="#f59e0b"
