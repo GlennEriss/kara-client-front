@@ -146,6 +146,10 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                   <FileText className="h-4 w-4 mr-2" />
                   Historique des paiements
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.contractsHistoryDetails(member.dossier))}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Historique des contrats
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

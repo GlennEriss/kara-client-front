@@ -1,0 +1,304 @@
+'use client'
+
+import React from 'react'
+import { useParams } from 'next/navigation'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
+import { useContracts } from '@/hooks/useContracts'
+import { useContractPayments } from '@/hooks/useContractPayments'
+import { Skeleton } from '@/components/ui/skeleton'
+import Link from 'next/link'
+import routes from '@/constantes/routes'
+
+// Fonction de traduction des statuts de contrat
+const translateContractStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'DRAFT': 'En cours',
+    'ACTIVE': 'Actif',
+    'LATE_NO_PENALTY': 'Retard (J+0..3)',
+    'LATE_WITH_PENALTY': 'Retard (J+4..12)',
+    'DEFAULTED_AFTER_J12': 'Résilié (>J+12)',
+    'EARLY_WITHDRAW_REQUESTED': 'Retrait anticipé demandé',
+    'FINAL_REFUND_PENDING': 'Remboursement final en attente',
+    'EARLY_REFUND_PENDING': 'Remboursement anticipé en attente',
+    'RESCINDED': 'Résilié',
+    'CLOSED': 'Clos'
+  }
+  return statusMap[status] || status
+}
+
+// Fonction de traduction des statuts de versement
+const translatePaymentStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'PAID': 'Payé',
+    'PENDING': 'En attente',
+    'OVERDUE': 'En retard'
+  }
+  return statusMap[status] || status
+}
+
+export default function ContractPaymentsPage() {
+  const params = useParams()
+  const contractId = params.id as string
+
+  // Récupérer les données du contrat
+  const { contracts, isLoading: isLoadingContracts, error } = useContracts()
+  const contract = contracts.find(c => c.id === contractId)
+
+  // Récupérer les versements du contrat
+  const { payments, isLoading: isLoadingPayments, error: paymentsError } = useContractPayments(contractId)
+
+  if (isLoadingContracts || isLoadingPayments) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error || paymentsError) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Historique des Versements</h1>
+          <p className="text-muted-foreground">
+            Erreur lors du chargement des données
+          </p>
+        </div>
+        <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
+          <AlertCircle className="h-5 w-5 text-red-600" />
+          <AlertDescription className="text-red-700 font-medium">
+            Une erreur est survenue lors du chargement des données : {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  if (!contract) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Historique des Versements</h1>
+          <p className="text-muted-foreground">
+            Contrat introuvable
+          </p>
+        </div>
+        <Alert className="border-0 bg-gradient-to-r from-yellow-50 to-amber-50 shadow-lg">
+          <AlertCircle className="h-5 w-5 text-yellow-600" />
+          <AlertDescription className="text-yellow-700 font-medium">
+            Le contrat avec l'ID {contractId} n'a pas été trouvé.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* En-tête avec bouton retour */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-4">
+          <Link
+            href={routes.admin.caisseSpecialeContractDetails(contractId)}
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Retour au contrat
+          </Link>
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight">Historique des Versements</h1>
+        <p className="text-muted-foreground">
+          Versements du contrat #{contract.id}
+        </p>
+      </div>
+
+      {/* Informations du contrat */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Informations du contrat
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Statut</p>
+                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                 contract.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                 contract.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' :
+                 contract.status === 'CLOSED' ? 'bg-gray-100 text-gray-800' :
+                 'bg-red-100 text-red-800'
+               }`}>
+                 {translateContractStatus(contract.status)}
+               </span>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Type</p>
+              <p className="text-base text-gray-900">{contract.contractType}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Montant mensuel</p>
+              <p className="text-base text-gray-900">{contract.monthlyAmount?.toLocaleString()} FCFA</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Durée</p>
+              <p className="text-base text-gray-900">{contract.monthsPlanned} mois</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Montant nominal payé</p>
+              <p className="text-base text-gray-900">{contract.nominalPaid?.toLocaleString()} FCFA</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Prochaine échéance</p>
+              <p className="text-base text-gray-900">
+                {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : 'Non définie'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Historique des versements */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Historique des versements ({payments.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {payments.length > 0 ? (
+            <div className="space-y-4">
+              {payments.map((payment) => {
+                // Calculer le statut réel basé sur la date actuelle
+                const now = new Date()
+                const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
+                
+                let realStatus = payment.status
+                let statusLabel = ''
+                let statusColor = ''
+                let statusIcon = null
+                
+                if (payment.status === 'PAID') {
+                  realStatus = 'PAID'
+                  statusLabel = translatePaymentStatus('PAID')
+                  statusColor = 'bg-green-100 text-green-800'
+                  statusIcon = <CheckCircle className="h-4 w-4 text-green-600" />
+                } else if (dueDate) {
+                  // Si la date d'échéance est passée et pas payé = en retard
+                  if (now > dueDate) {
+                    realStatus = 'OVERDUE'
+                    statusLabel = translatePaymentStatus('OVERDUE')
+                    statusColor = 'bg-red-100 text-red-800'
+                    statusIcon = <AlertTriangle className="h-4 w-4 text-red-600" />
+                  } else {
+                    // Si la date d'échéance n'est pas encore arrivée = en attente
+                    realStatus = 'PENDING'
+                    statusLabel = translatePaymentStatus('PENDING')
+                    statusColor = 'bg-yellow-100 text-yellow-800'
+                    statusIcon = <Clock className="h-4 w-4 text-yellow-600" />
+                  }
+                } else {
+                  // Pas de date d'échéance = en attente
+                  realStatus = 'PENDING'
+                  statusLabel = translatePaymentStatus('PENDING')
+                  statusColor = 'bg-yellow-100 text-yellow-800'
+                  statusIcon = <Clock className="h-4 w-4 text-yellow-600" />
+                }
+                
+                return (
+                <div key={payment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900">
+                      Versement #{payment.id} - Mois {payment.dueMonthIndex}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                        {statusLabel}
+                      </span>
+                      {statusIcon}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Échéance:</span>
+                      <span className="font-medium">
+                        {payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'Non définie'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Montant:</span>
+                      <span className="font-medium">{payment.amount?.toLocaleString()} FCFA</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <span className="text-gray-600">Contributions:</span>
+                      <span className="font-medium">{payment.contribs?.length || 0}</span>
+                    </div>
+                  </div>
+
+                  {payment.paidAt && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Payé le {new Date(payment.paidAt).toLocaleDateString('fr-FR')}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {payment.contribs && payment.contribs.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Détail des contributions:</h4>
+                      <div className="space-y-2">
+                        {payment.contribs.map((contrib, index) => (
+                          <div key={index} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
+                            <span className="text-gray-600">Membre {contrib.memberId}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{contrib.amount?.toLocaleString()} FCFA</span>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                contrib.status === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {contrib.status === 'PAID' ? 'Payé' : 'En attente'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                                         </div>
+                   )}
+                 </div>
+               )
+               })}
+             </div>
+          ) : (
+            <Alert className="border-0 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+              <AlertDescription className="text-blue-700 font-medium">
+                Aucun versement trouvé pour ce contrat.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

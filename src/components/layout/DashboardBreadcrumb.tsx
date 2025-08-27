@@ -23,6 +23,7 @@ const routeLabels: Record<string, string> = {
   '/jobs': 'Métiers',
   '/companies': 'Entreprises',
   '/payments-history': 'Historique des paiements',
+  '/contracts-history': 'Historique des contrats',
   '/groups': 'Groupes',
   '/memberships/add': 'Nouveau membre',
   '/caisse-speciale': 'Caisse Spéciale',
@@ -50,11 +51,17 @@ const getRouteLabel = (path: string): string => {
   if (path.match(/^\/payments-history\/[^\/]+$/)) {
     return 'Détails'
   }
+  if (path.match(/^\/contracts-history\/[^\/]+$/)) {
+    return 'Détails'
+  }
   if (path.match(/^\/groups\/[^\/]+$/)) {
     return 'Détails'
   }
   if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+$/)) {
     return 'Détails'
+  }
+  if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+\/versements$/)) {
+    return 'Versements'
   }
 
   // Vérifier les routes qui commencent par un pattern
