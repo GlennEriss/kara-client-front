@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { cn } from '@/lib/utils'
+import { useContracts, Contract } from '@/hooks/useContracts'
 
 type ViewMode = 'grid' | 'list'
 
@@ -350,56 +351,13 @@ const ListContracts = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
 
-  // Données de test
-  const contractsData = [
-    {
-      id: 'contract-123456789',
-      status: 'ACTIVE',
-      contractType: 'INDIVIDUAL',
-      memberId: 'member-123',
-      groupeId: null,
-      monthlyAmount: 50000,
-      monthsPlanned: 12,
-      nextDueAt: '2025-09-15',
-      nominalPaid: 200000
-    },
-    {
-      id: 'contract-987654321',
-      status: 'DRAFT',
-      contractType: 'GROUP',
-      memberId: null,
-      groupeId: 'group-456',
-      monthlyAmount: 75000,
-      monthsPlanned: 24,
-      nextDueAt: '2025-09-10',
-      nominalPaid: 150000
-    },
-    {
-      id: 'contract-456789123',
-      status: 'LATE_NO_PENALTY',
-      contractType: 'INDIVIDUAL',
-      memberId: 'member-789',
-      groupeId: null,
-      monthlyAmount: 30000,
-      monthsPlanned: 6,
-      nextDueAt: '2025-08-20',
-      nominalPaid: 90000
-    }
-  ]
+  // Hook pour récupérer les contrats depuis Firestore
+  const { contracts: contractsData, isLoading, error, refetch } = useContracts()
 
-  const membersData = {
-    data: [
-      { id: 'member-123', firstName: 'Jean', lastName: 'Dupont' },
-      { id: 'member-789', firstName: 'Marie', lastName: 'Martin' }
-    ]
-  }
-
-  const groupsData = [
-    { id: 'group-456', name: 'Groupe Épargne Solidaire' }
-  ]
+  // Données des membres et groupes (à récupérer depuis Firestore si nécessaire)
+  const membersData = { data: [] as any[] }
+  const groupsData: any[] = []
 
   // Reset page when filters change
   useEffect(() => {
@@ -423,10 +381,7 @@ const ListContracts = () => {
   }
 
   const handleRefresh = async () => {
-    setIsLoading(true)
-    // Simuler un rechargement
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsLoading(false)
+    await refetch()
   }
 
   // Fonctions utilitaires
@@ -567,7 +522,7 @@ const ListContracts = () => {
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des contrats.
+            Une erreur est survenue lors du chargement des contrats : {error}
             <Button
               variant="link"
               className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"

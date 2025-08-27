@@ -43,7 +43,7 @@ const brand = {
   hover: "hover:bg-[#1a3a4f]",
 }
 
-function Badge({ children, tone = "slate" as "slate" | "green" | "red" | "yellow" | "blue" }) {
+function Badge({ children, tone = "slate" as "slate" | "green" | "red" | "yellow" | "blue" }: React.PropsWithChildren<{ tone?: "slate" | "green" | "red" | "yellow" | "blue" }>) {
   const tones: Record<string, string> = {
     slate: "bg-slate-100 text-slate-700",
     green: "bg-green-100 text-green-700",

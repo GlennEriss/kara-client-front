@@ -801,6 +801,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
               birthPlace: request.identity.birthPlace,
               birthCertificateNumber: request.identity.birthCertificateNumber,
               prayerPlace: request.identity.prayerPlace,
+              religion: request.identity.religion,
               contacts: request.identity.contacts,
               email: request.identity.email,
               gender: request.identity.gender,
