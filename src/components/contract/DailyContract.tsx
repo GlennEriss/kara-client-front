@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
+import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useGroupMembers } from '@/hooks/useMembers'
@@ -524,6 +526,18 @@ export default function DailyContract({ id }: Props) {
               </Badge>
             </div>
           </div>
+          
+          {/* Lien vers l'historique des versements */}
+          <div className="mt-6 flex justify-center">
+            <Link
+              href={routes.admin.caisseSpecialeContractPayments(id)}
+              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+            >
+              <FileText className="h-4 w-4" />
+              Historique des versements
+            </Link>
+          </div>
+          </div>
         </div>
 
         {/* Navigation du calendrier */}
@@ -1027,7 +1041,6 @@ export default function DailyContract({ id }: Props) {
             )}
           </div>
         </div>
-      </div>
 
       {/* Modal de versement */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
@@ -1114,24 +1127,24 @@ export default function DailyContract({ id }: Props) {
             {isGroupContract && (
               <div>
                 <Label htmlFor="groupMember">Membre du groupe qui verse *</Label>
-                                  <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionnez le membre qui verse" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {groupMembers && groupMembers.length > 0 ? (
-                        groupMembers.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.firstName} {member.lastName} ({member.matricule})
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="" disabled>
-                          Chargement des membres du groupe...
+                <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionnez le membre qui verse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groupMembers && groupMembers.length > 0 ? (
+                      groupMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.firstName} {member.lastName} ({member.matricule})
                         </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        Chargement des membres du groupe...
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-gray-500 mt-1">
                   Ce champ permet de tracer qui a effectué le versement dans le groupe
                 </p>
@@ -1912,8 +1925,6 @@ export default function DailyContract({ id }: Props) {
           </DialogContent>
         </Dialog>
       )}
-
-
     </div>
   )
 }

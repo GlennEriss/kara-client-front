@@ -1,6 +1,7 @@
 'use client'
 import React, { useRef } from 'react'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -342,6 +343,7 @@ const ContractFilters = ({
 
 // Composant principal
 const ListContracts = () => {
+  const router = useRouter()
   // États
   const [filters, setFilters] = useState({
     search: '',
@@ -707,6 +709,7 @@ const ListContracts = () => {
                         Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
                       </div>
                       <Button
+                        onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
                         className="w-full inline-flex items-center bg-white cursor-pointer justify-center gap-2 px-3 py-2 text-sm font-medium text-[#224D62] border border-[#224D62] rounded-lg hover:bg-[#224D62] hover:text-white transition-all duration-200"
                       >
                         <Eye className="h-4 w-4" />

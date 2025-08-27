@@ -280,6 +280,16 @@ export default function StandardContract({ id }: Props) {
             >
               <UserRound className="h-4 w-4" /> Voir membre
             </Link>
+            <Link
+              className={classNames(
+                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
+                "bg-green-600 hover:bg-green-700 text-white",
+                "shadow"
+              )}
+              href={routes.admin.caisseSpecialeContractPayments(id)}
+            >
+              <FileText className="h-4 w-4" /> Historique des versements
+            </Link>
           </div>
         </div>
 

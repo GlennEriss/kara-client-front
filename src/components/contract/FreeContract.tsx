@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState } from 'react'
+import Link from 'next/link'
+import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
@@ -258,6 +260,17 @@ export default function FreeContract({ id }: Props) {
                   <p className="font-semibold text-gray-900">100 000 FCFA/mois</p>
                 </div>
               </div>
+            </div>
+            
+            {/* Lien vers l'historique des versements */}
+            <div className="mt-6 flex justify-center">
+              <Link
+                href={routes.admin.caisseSpecialeContractPayments(id)}
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+              >
+                <FileText className="h-4 w-4" />
+                Historique des versements
+              </Link>
             </div>
           </div>
         </div>
