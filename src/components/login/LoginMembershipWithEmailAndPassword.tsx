@@ -314,19 +314,9 @@ export default function LoginMembershipWithEmailAndPassword() {
               Pas encore membre ?{' '}
               <button 
                 onClick={() => router.push(routes.public.register)}
-                className="text-[#234E64] hover:text-[#234E64] font-semibold underline transition-colors duration-300"
+                className="cursor-pointer text-[#234E64] hover:text-[#234E64] font-semibold underline transition-colors duration-300"
               >
                 Rejoignez KARA
-              </button>
-            </p>
-
-            <p className="text-sm text-slate-500">
-              Préférez la connexion par SMS ?{' '}
-              <button 
-                onClick={() => router.push(routes.public.login)}
-                className="text-[#234E64] hover:text-[#234E64] font-semibold underline transition-colors duration-300"
-              >
-                Cliquez ici
               </button>
             </p>
           </div>

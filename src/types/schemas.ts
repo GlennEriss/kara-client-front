@@ -221,85 +221,130 @@ export const companySchema = z.object({
   profession: z.string().optional(),
   
   seniority: z.string().optional()
-}).refine((data) => {
+}).superRefine((data, ctx) => {
   // Si la personne travaille, tous les champs deviennent obligatoires
   if (data.isEmployed) {
-    // Vérifier que tous les champs sont remplis
-    const hasCompanyName = data.companyName && data.companyName.length >= 2 && data.companyName.length <= 100
-    const hasCompanyAddress = data.companyAddress && 
-      data.companyAddress.province && data.companyAddress.province.length >= 2 && data.companyAddress.province.length <= 50 &&
-      data.companyAddress.city && data.companyAddress.city.length >= 2 && data.companyAddress.city.length <= 50 &&
-      data.companyAddress.district && data.companyAddress.district.length >= 2 && data.companyAddress.district.length <= 100
-    const hasProfession = data.profession && data.profession.length >= 2 && data.profession.length <= 100
-    const hasSeniority = data.seniority && data.seniority.match(/^\d+\s*(mois|années?|ans?)$/)
+    // Vérifier le nom de l'entreprise
+    if (!data.companyName || data.companyName.trim().length < 2 || data.companyName.trim().length > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le nom de l\'entreprise est requis et doit contenir entre 2 et 100 caractères',
+        path: ['companyName']
+      })
+    }
     
-    return hasCompanyName && hasCompanyAddress && hasProfession && hasSeniority
-  }
-  return true
-}, {
-  message: 'Tous les champs entreprise sont requis si vous travaillez',
-  path: ['companyName']
-}).refine((data) => {
-  // Validation des formats si les champs sont remplis (même si isEmployed = false)
-  if (data.companyName && data.companyName.length > 0) {
-    if (data.companyName.length < 2 || data.companyName.length > 100) {
-      return false
+    // Vérifier l'adresse de l'entreprise
+    if (!data.companyAddress) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'L\'adresse de l\'entreprise est requise',
+        path: ['companyAddress']
+      })
+    } else {
+      if (!data.companyAddress.province || data.companyAddress.province.trim().length < 2 || data.companyAddress.province.trim().length > 50) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'La province est requise et doit contenir entre 2 et 50 caractères',
+          path: ['companyAddress', 'province']
+        })
+      }
+      
+      if (!data.companyAddress.city || data.companyAddress.city.trim().length < 2 || data.companyAddress.city.trim().length > 50) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'La ville est requise et doit contenir entre 2 et 50 caractères',
+          path: ['companyAddress', 'city']
+        })
+      }
+      
+      if (!data.companyAddress.district || data.companyAddress.district.trim().length < 2 || data.companyAddress.district.trim().length > 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Le quartier est requis et doit contenir entre 2 et 100 caractères',
+          path: ['companyAddress', 'district']
+        })
+      }
+    }
+    
+    // Vérifier la profession
+    if (!data.profession || data.profession.trim().length < 2 || data.profession.trim().length > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La profession est requise et doit contenir entre 2 et 100 caractères',
+        path: ['profession']
+      })
+    }
+    
+    // Vérifier l'ancienneté
+    if (!data.seniority || !data.seniority.trim().match(/^\d+\s*(mois|années?|ans?)$/)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'L\'ancienneté est requise au format "2 ans" ou "6 mois"',
+        path: ['seniority']
+      })
     }
   }
-  return true
-}, {
+  
+  // Validation des formats si les champs sont remplis (même si isEmployed = false)
+  if (data.companyName && data.companyName.trim().length > 0) {
+    if (data.companyName.trim().length < 2 || data.companyName.trim().length > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
   message: 'Le nom de l\'entreprise doit contenir entre 2 et 100 caractères',
   path: ['companyName']
-}).refine((data) => {
-  if (data.companyAddress?.province && data.companyAddress.province.length > 0) {
-    if (data.companyAddress.province.length < 2 || data.companyAddress.province.length > 50) {
-      return false
+      })
     }
   }
-  return true
-}, {
+  
+  if (data.companyAddress?.province && data.companyAddress.province.trim().length > 0) {
+    if (data.companyAddress.province.trim().length < 2 || data.companyAddress.province.trim().length > 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
   message: 'La province doit contenir entre 2 et 50 caractères',
   path: ['companyAddress', 'province']
-}).refine((data) => {
-  if (data.companyAddress?.city && data.companyAddress.city.length > 0) {
-    if (data.companyAddress.city.length < 2 || data.companyAddress.city.length > 50) {
-      return false
+      })
     }
   }
-  return true
-}, {
+  
+  if (data.companyAddress?.city && data.companyAddress.city.trim().length > 0) {
+    if (data.companyAddress.city.trim().length < 2 || data.companyAddress.city.trim().length > 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
   message: 'La ville doit contenir entre 2 et 50 caractères',
   path: ['companyAddress', 'city']
-}).refine((data) => {
-  if (data.companyAddress?.district && data.companyAddress.district.length > 0) {
-    if (data.companyAddress.district.length < 2 || data.companyAddress.district.length > 100) {
-      return false
+      })
     }
   }
-  return true
-}, {
+  
+  if (data.companyAddress?.district && data.companyAddress.district.trim().length > 0) {
+    if (data.companyAddress.district.trim().length < 2 || data.companyAddress.district.trim().length > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
   message: 'Le quartier doit contenir entre 2 et 100 caractères',
   path: ['companyAddress', 'district']
-}).refine((data) => {
-  if (data.profession && data.profession.length > 0) {
-    if (data.profession.length < 2 || data.profession.length > 100) {
-      return false
+      })
     }
   }
-  return true
-}, {
+  
+  if (data.profession && data.profession.trim().length > 0) {
+    if (data.profession.trim().length < 2 || data.profession.trim().length > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
   message: 'La profession doit contenir entre 2 et 100 caractères',
   path: ['profession']
-}).refine((data) => {
-  if (data.seniority && data.seniority.length > 0) {
-    if (!data.seniority.match(/^\d+\s*(mois|années?|ans?)$/)) {
-      return false
+      })
     }
   }
-  return true
-}, {
+  
+  if (data.seniority && data.seniority.trim().length > 0) {
+    if (!data.seniority.trim().match(/^\d+\s*(mois|années?|ans?)$/)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
   message: 'L\'ancienneté doit être au format "2 ans" ou "6 mois"',
   path: ['seniority']
+      })
+    }
+  }
 })
 
 // ================== STEP 4: PIÈCES D'IDENTITÉ ==================

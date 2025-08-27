@@ -247,6 +247,20 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [])
 
+  // Fonction pour forcer la création automatique si aucune suggestion n'est sélectionnée
+  const forceCreateIfNoSelection = useCallback((field: string, value: string) => {
+    if (!value || value.trim().length === 0) return
+    
+    // Si la valeur n'est pas dans les suggestions existantes, forcer la création
+    const existingSuggestions = field === 'company.companyName' ? companySuggestions : professionSuggestions
+    const hasExistingMatch = existingSuggestions.some(s => !s.isNew && s.name === value)
+    
+    if (!hasExistingMatch && value.trim().length >= 2) {
+      // Forcer la création automatique
+      handleSuggestionClick(field, `Créer "${value}"`, true)
+    }
+  }, [companySuggestions, professionSuggestions])
+
   // Fonction pour rechercher avec Photon API pour l'entreprise
   const searchCompanyWithPhoton = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
@@ -387,6 +401,31 @@ export default function Step3({ form }: Step3Props) {
       setShowCompanyCityResults(false)
     }
   }, [debouncedCompanyCityQuery, searchCompanyCitiesWithPhoton])
+
+  // Effet pour forcer la création automatique quand les suggestions changent
+  useEffect(() => {
+    if (companySuggestions.length > 0 && !companySuggestions.some(s => !s.isNew && s.name === watch('company.companyName'))) {
+      const companyName = watch('company.companyName')
+      if (companyName && companyName.trim().length >= 2) {
+        // Si la valeur n'est pas dans les suggestions existantes, forcer la création
+        setTimeout(() => {
+          forceCreateIfNoSelection('company.companyName', companyName)
+        }, 100)
+      }
+    }
+  }, [companySuggestions, watch('company.companyName'), forceCreateIfNoSelection])
+
+  useEffect(() => {
+    if (professionSuggestions.length > 0 && !professionSuggestions.some(s => !s.isNew && s.name === watch('company.profession'))) {
+      const profession = watch('company.profession')
+      if (profession && profession.trim().length >= 2) {
+        // Si la valeur n'est pas dans les suggestions existantes, forcer la création
+        setTimeout(() => {
+          forceCreateIfNoSelection('company.profession', profession)
+        }, 100)
+      }
+    }
+  }, [professionSuggestions, watch('company.profession'), forceCreateIfNoSelection])
 
   const handleToggleEmployment = (checked: boolean) => {
     setValue('company.isEmployed', checked)
@@ -529,6 +568,21 @@ export default function Step3({ form }: Step3Props) {
     return parts.join(', ')
   }
 
+  // Fonction pour valider et forcer la création si nécessaire
+  const validateAndForceCreation = useCallback(() => {
+    const companyName = watch('company.companyName')
+    const profession = watch('company.profession')
+    
+    // Forcer la création si les champs ne sont pas vides mais pas dans les suggestions
+    if (companyName && companyName.trim().length >= 2) {
+      forceCreateIfNoSelection('company.companyName', companyName)
+    }
+    
+    if (profession && profession.trim().length >= 2) {
+      forceCreateIfNoSelection('company.profession', profession)
+    }
+  }, [watch, forceCreateIfNoSelection])
+
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header avec animation */}
@@ -619,7 +673,6 @@ export default function Step3({ form }: Step3Props) {
                   {...register('company.companyName')}
                   placeholder="Ex: Total Gabon, Ministère de la Santé..."
                   onFocus={() => setShowCompanySuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowCompanySuggestions(false), 200)}
                   onChange={(e) => {
                     const value = e.target.value
                     if (value.length >= 2) {
@@ -629,6 +682,11 @@ export default function Step3({ form }: Step3Props) {
                       setCompanySuggestions([])
                       setShowCompanySuggestions(false)
                     }
+                  }}
+                  onBlur={(e) => {
+                    // Forcer la création si aucune suggestion n'est sélectionnée
+                    forceCreateIfNoSelection('company.companyName', e.target.value)
+                    setTimeout(() => setShowCompanySuggestions(false), 200)
                   }}
                   className={cn(
                     "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
@@ -1021,7 +1079,6 @@ export default function Step3({ form }: Step3Props) {
                     {...register('company.profession')}
                     placeholder="Ex: Ingénieur, Médecin..."
                     onFocus={() => setShowProfessionSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowProfessionSuggestions(false), 200)}
                     onChange={(e) => {
                       const value = e.target.value
                       if (value.length >= 2) {
@@ -1031,6 +1088,11 @@ export default function Step3({ form }: Step3Props) {
                         setProfessionSuggestions([])
                         setShowProfessionSuggestions(false)
                       }
+                    }}
+                    onBlur={(e) => {
+                      // Forcer la création si aucune suggestion n'est sélectionnée
+                      forceCreateIfNoSelection('company.profession', e.target.value)
+                      setTimeout(() => setShowProfessionSuggestions(false), 200)
                     }}
                     className={cn(
                       "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
@@ -1140,20 +1202,34 @@ export default function Step3({ form }: Step3Props) {
             {(watchedFields[0] || watchedFields[4]) && (
               <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
                 <CardContent className="p-3 sm:p-4 w-full">
-                  <div className="flex items-start space-x-3 w-full min-w-0">
-                    <TrendingUp className="w-5 h-5 text-[#224D62] mt-1 flex-shrink-0" />
-                    <div className="space-y-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-medium text-[#224D62] truncate">Profil professionnel détecté</p>
-                      <p className="text-[10px] sm:text-xs text-gray-600 truncate">
-                        {watchedFields[4] && watchedFields[0] 
-                          ? `${watchedFields[4]} chez ${watchedFields[0]}`
-                          : watchedFields[4] 
-                            ? `Profession: ${watchedFields[4]}`
-                            : `Entreprise: ${watchedFields[0]}`
-                        }
-                        {watchedFields[5] && ` • ${watchedFields[5]} d'expérience`}
-                      </p>
+                  <div className="flex items-start justify-between w-full min-w-0">
+                    <div className="flex items-start space-x-3 min-w-0">
+                      <TrendingUp className="w-5 h-5 text-[#224D62] mt-1 flex-shrink-0" />
+                      <div className="space-y-1 min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-[#224D62] truncate">Profil professionnel détecté</p>
+                        <p className="text-[10px] sm:text-xs text-gray-600 truncate">
+                          {watchedFields[4] && watchedFields[0] 
+                            ? `${watchedFields[4]} chez ${watchedFields[0]}`
+                            : watchedFields[4] 
+                              ? `Profession: ${watchedFields[4]}`
+                              : `Entreprise: ${watchedFields[0]}`
+                          }
+                          {watchedFields[5] && ` • ${watchedFields[5]} d'expérience`}
+                        </p>
+                      </div>
                     </div>
+                    
+                    {/* Bouton de validation manuelle */}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={validateAndForceCreation}
+                      className="border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/5 text-xs"
+                    >
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Valider
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1165,9 +1241,15 @@ export default function Step3({ form }: Step3Props) {
       <div className="text-center p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words shadow-lg">
         <div className="flex items-center justify-center space-x-3">
           <Info className="w-6 h-6 text-[#CBB171]" />
-          <p className="text-sm sm:text-base text-[#224D62] font-bold">
-            <strong>Information :</strong> Ces données professionnelles nous aident à mieux vous connaître et adapter nos services
-          </p>
+          <div className="text-center space-y-2">
+            <p className="text-sm sm:text-base text-[#224D62] font-bold">
+              <strong>Information :</strong> Ces données professionnelles nous aident à mieux vous connaître et adapter nos services
+            </p>
+            <p className="text-xs sm:text-sm text-[#224D62]/70">
+              💡 <strong>Astuce :</strong> Si vous tapez une entreprise ou profession qui n'existe pas, elle sera automatiquement créée. 
+              Utilisez le bouton "Valider" pour forcer la création si nécessaire.
+            </p>
+          </div>
         </div>
       </div>
     </div>

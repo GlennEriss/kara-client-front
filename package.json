@@ -8,6 +8,7 @@
     "start": "next start",
     "emulator": "firebase emulators:start --import=./firebase-data --export-on-exit=./firebase-data",
     "emulator:clean": "npm run kill-firebase && firebase emulators:start --import=./firebase-data --export-on-exit=./firebase-data",
+    "kill-firebase-js": "node ./scripts/kill-firebase.js",
     "kill-firebase": "./scripts/kill-firebase.sh",
     "clean-exports": "rm -rf firebase-export-*",
     "dev:emulator": "npm run copy:env:dev && next dev --turbopack & npm run emulator",
