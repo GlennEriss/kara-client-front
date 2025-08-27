@@ -1,9 +1,10 @@
 "use client"
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
@@ -11,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { companyCrudSchema, type CompanyCrudFormData } from '@/types/schemas'
 import { useCompaniesPaginated, useCompanyMutations } from '@/hooks/useCompaniesQuery'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Building2, RefreshCw } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, MapPinIcon, CheckCircle, Loader2, Home } from 'lucide-react'
 
 function CompanySkeleton() {
   return (
@@ -36,6 +37,13 @@ export default function CompanyList() {
   const [companyToDelete, setCompanyToDelete] = useState<{ id: string; name: string } | null>(null)
   const [editingCompany, setEditingCompany] = useState<{ id: string; name: string; industry?: string; employeeCount?: number; address?: { province?: string; city?: string; district?: string } } | null>(null)
 
+  // États pour la géolocalisation
+  const [districtQuery, setDistrictQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState<any>(null)
+
   const filters = useMemo(() => ({ search: search.trim() || undefined }), [search])
   const { data, isLoading, error, refetch } = useCompaniesPaginated(filters, page, limit)
   const { create, update, remove } = useCompanyMutations()
@@ -45,12 +53,22 @@ export default function CompanyList() {
   const openCreate = () => {
     setEditingCompany(null)
     form.reset({ name: '', industry: '', address: { province: '', city: '', district: '' } })
+    // Réinitialiser les états de géolocalisation
+    setDistrictQuery('')
+    setSearchResults([])
+    setSelectedLocation(null)
+    setShowResults(false)
     setIsCreateOpen(true)
   }
 
   const openEdit = (c: { id: string; name: string; industry?: string; employeeCount?: number; address?: { province?: string; city?: string; district?: string } }) => {
     setEditingCompany(c)
     form.reset({ name: c.name, industry: c.industry || '', address: { province: c.address?.province || '', city: c.address?.city || '', district: c.address?.district || '' } })
+    // Réinitialiser et remplir les états de géolocalisation
+    setDistrictQuery(c.address?.district || '')
+    setSearchResults([])
+    setSelectedLocation(null)
+    setShowResults(false)
     setIsCreateOpen(true)
   }
 
@@ -69,6 +87,79 @@ export default function CompanyList() {
       toast.error("Erreur lors de l'enregistrement de l'entreprise")
     }
   }
+
+  // Fonction pour rechercher avec Photon API
+  const searchWithPhoton = async (query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    setIsSearching(true)
+    try {
+      // Bounding box du Gabon: [ouest, sud, est, nord]
+      const gabonBbox = '8.5,-4.0,14.8,2.3'
+      
+      const response = await fetch(
+        `https://photon.komoot.io/api?q=${encodeURIComponent(query)}&bbox=${gabonBbox}&limit=8&lang=fr`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        // Filtrer pour ne garder que les résultats du Gabon
+        const gabonResults = data.features.filter((result: any) => 
+          result.properties.country === 'Gabon' || result.properties.country === 'GA'
+        )
+        setSearchResults(gabonResults)
+      }
+    } catch (error) {
+      console.error('Erreur lors de la recherche Photon:', error)
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Fonction pour sélectionner un résultat
+  const handleLocationSelect = (result: any) => {
+    const { properties } = result
+    
+    setSelectedLocation(result)
+    setDistrictQuery(properties.name)
+    setShowResults(false)
+
+    // Remplir automatiquement les champs disponibles
+    form.setValue('address.district', properties.name)
+    form.setValue('address.city', properties.city || properties.suburb || '')
+    form.setValue('address.province', properties.state || '')
+  }
+
+  // Fonction pour formater l'affichage des résultats
+  const formatResultDisplay = (result: any) => {
+    const { properties } = result
+    const parts = [
+      properties.name,
+      properties.city || properties.suburb,
+      properties.state
+    ].filter(Boolean)
+    
+    return parts.join(', ')
+  }
+
+  // Effet pour déclencher la recherche
+  useEffect(() => {
+    if (districtQuery.length >= 2) {
+      const timeoutId = setTimeout(() => {
+        searchWithPhoton(districtQuery)
+        setShowResults(true)
+      }, 500)
+      
+      return () => clearTimeout(timeoutId)
+    } else {
+      setSearchResults([])
+      setShowResults(false)
+    }
+  }, [districtQuery])
 
   const confirmDelete = async () => {
     if (!companyToDelete) return
@@ -215,46 +306,162 @@ export default function CompanyList() {
                 )}
               />
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <FormField
-                  control={form.control}
-                  name="address.province"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Province</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Province" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="address.city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ville</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Ville" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {/* Recherche de quartier avec géolocalisation automatique */}
+              <div className="space-y-4">
                 <FormField
                   control={form.control}
                   name="address.district"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Quartier</FormLabel>
+                      <FormLabel className="flex items-center space-x-2">
+                        <span>Rechercher le quartier</span>
+                        <Badge variant="secondary" className="bg-[#CBB171]/10 text-[#CBB171] text-[10px]">
+                          Géolocalisation
+                        </Badge>
+                      </FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Quartier" />
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
+                          <Input
+                            {...field}
+                            placeholder="Ex: Glass, Akanda, Lalala..."
+                            value={districtQuery}
+                            onChange={(e) => {
+                              field.onChange(e.target.value)
+                              setDistrictQuery(e.target.value)
+                            }}
+                            className="pl-10 pr-12 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300"
+                          />
+                          
+                          {/* Loading spinner */}
+                          {isSearching && (
+                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin z-10" />
+                          )}
+                          
+                          {/* Success checkmark */}
+                          {selectedLocation && !isSearching && (
+                            <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                          )}
+
+                          {/* Résultats de recherche */}
+                          {showResults && searchResults.length > 0 && (
+                            <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full max-h-64 overflow-y-auto">
+                              <CardContent className="p-2">
+                                <div className="space-y-1">
+                                  {searchResults.map((result, index) => (
+                                    <Button
+                                      key={index}
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm p-3"
+                                      onClick={() => handleLocationSelect(result)}
+                                    >
+                                      <div className="flex items-start space-x-2 w-full">
+                                        <MapPinIcon className="w-4 h-4 text-[#CBB171] mt-0.5 flex-shrink-0" />
+                                        <div className="text-left">
+                                          <div className="font-medium text-[#224D62]">
+                                            {result.properties.name}
+                                          </div>
+                                          <div className="text-xs text-gray-500">
+                                            {formatResultDisplay(result)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </Button>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {/* Aucun résultat */}
+                          {showResults && searchResults.length === 0 && !isSearching && districtQuery.length > 2 && (
+                            <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full">
+                              <CardContent className="p-4 text-center">
+                                <div className="text-xs text-gray-500">
+                                  Aucun résultat trouvé pour "{districtQuery}"
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {/* Informations automatiques après sélection */}
+                {selectedLocation && (
+                  <div className="p-4 bg-[#CBB171]/5 rounded-lg border border-[#CBB171]/20 animate-in fade-in-0 slide-in-from-top-4 duration-500">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <CheckCircle className="w-4 h-4 text-[#CBB171]" />
+                      <span className="text-sm font-medium text-[#224D62]">
+                        Localisation détectée
+                      </span>
+                    </div>
+                    <div className="text-xs text-[#224D62]/80">
+                      {formatResultDisplay(selectedLocation)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Champs automatiques remplis */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="address.city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center space-x-2">
+                          <span>Ville</span>
+                          <Badge variant="secondary" className="bg-[#224D62]/10 text-[#224D62] text-[10px]">
+                            Automatique
+                          </Badge>
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Home className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                              {...field}
+                              disabled
+                              placeholder="Sélectionnez d'abord un quartier"
+                              className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="address.province"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center space-x-2">
+                          <span>Province</span>
+                          <Badge variant="secondary" className="bg-[#224D62]/10 text-[#224D62] text-[10px]">
+                            Automatique
+                          </Badge>
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                              {...field}
+                              disabled
+                              placeholder="Sélectionnez d'abord un quartier"
+                              className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Annuler</Button>

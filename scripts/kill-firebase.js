@@ -80,6 +80,7 @@ if (executeCommand('firebase emulators:kill')) {
 }
 
 // Attendre un peu
+console.log('  Attente de 2 secondes...');
 setTimeout(() => {
     // Nettoyer les processus sur les ports Firebase
     console.log('  Nettoyage des ports Firebase...');
@@ -88,10 +89,23 @@ setTimeout(() => {
     // Nettoyer les exports automatiques
     console.log('  Nettoyage des exports automatiques...');
     if (isWindows) {
-        executeCommand('if exist firebase-export-* rmdir /s /q firebase-export-*');
+        try {
+            execSync('if exist firebase-export-* rmdir /s /q firebase-export-*', { 
+                shell: 'cmd.exe',
+                stdio: 'ignore'
+            });
+        } catch (e) {
+            // Pas d'export à nettoyer
+        }
     } else {
         executeCommand('rm -rf firebase-export-*');
     }
     
     console.log('✅ Nettoyage terminé');
 }, 2000);
+
+// Attendre que le nettoyage soit terminé
+console.log('  Nettoyage en cours...');
+setTimeout(() => {
+    console.log('✅ Script terminé');
+}, 3000);
