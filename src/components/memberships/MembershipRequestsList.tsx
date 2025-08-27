@@ -328,18 +328,6 @@ const StatsCarousel = ({ stats }: { stats: any }) => {
           ))}
         </div>
       </div>
-
-      <div className="flex justify-center mt-4 space-x-2">
-        {Array.from({ length: Math.ceil(statsData.length / itemsPerView) }).map((_, index) => (
-          <button key={index} className={cn('w-2 h-2 rounded-full transition-all duration-300', Math.floor(currentIndex / itemsPerView) === index ? 'bg-[#234D65] w-8' : 'bg-gray-300 hover:bg-gray-400')} onClick={() => {
-            const targetIndex = index * itemsPerView
-            const clampedIndex = Math.min(targetIndex, statsData.length - itemsPerView)
-            const maxIndex = Math.max(0, statsData.length - itemsPerView)
-            const finalIndex = Math.max(0, Math.min(clampedIndex, maxIndex))
-            goTo(finalIndex)
-          }} />
-        ))}
-      </div>
     </div>
   )
 }

@@ -5,10 +5,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  FileText, 
-  RefreshCw, 
-  Grid3X3, 
+import {
+  FileText,
+  RefreshCw,
+  Grid3X3,
   List,
   AlertCircle,
   FileDown,
@@ -119,14 +119,14 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
 }
 
 // Composant pour les statistiques modernes
-const StatsCard = ({ 
-  title, 
-  value, 
-  percentage, 
-  color, 
+const StatsCard = ({
+  title,
+  value,
+  percentage,
+  color,
   icon: Icon,
-  trend 
-}: { 
+  trend
+}: {
   title: string
   value: number
   percentage: number
@@ -152,11 +152,10 @@ const StatsCard = ({
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-2xl font-bold text-gray-900">{value}</p>
                 {trend && (
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                    trend === 'up' ? 'bg-green-100 text-green-700' :
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${trend === 'up' ? 'bg-green-100 text-green-700' :
                     trend === 'down' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
+                      'bg-gray-100 text-gray-700'
+                    }`}>
                     <TrendingUp className={`w-3 h-3 ${trend === 'down' ? 'rotate-180' : ''}`} />
                     {percentage.toFixed(0)}%
                   </div>
@@ -218,8 +217,17 @@ const StatsCarousel = ({ stats }: { stats: any }) => {
 
   return (
     <div className="relative">
-
-      <div ref={containerRef} className="overflow-hidden py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+      <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goPrev} disabled={!canGoPrev}>
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
+      </div>
+      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goNext} disabled={!canGoNext}>
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      </div>
+      <div ref={containerRef} className="ml-8 overflow-hidden py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
         <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
           {statsData.map((stat, index) => (
             <div key={index} className="flex-shrink-0" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
@@ -253,11 +261,11 @@ const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
 )
 
 // Composant de filtres
-const ContractFilters = ({ 
-  filters, 
-  onFiltersChange, 
-  onReset 
-}: { 
+const ContractFilters = ({
+  filters,
+  onFiltersChange,
+  onReset
+}: {
   filters: any
   onFiltersChange: (filters: any) => void
   onReset: () => void
@@ -489,12 +497,12 @@ const ListContracts = () => {
   // Filtrage des contrats
   const filteredContracts = React.useMemo(() => {
     if (!contractsData) return []
-    
+
     let contracts = contractsData
-    
+
     if (filters.search) {
       const searchLower = filters.search.toLowerCase()
-      contracts = contracts.filter((c: any) => 
+      contracts = contracts.filter((c: any) =>
         c.id.toLowerCase().includes(searchLower) ||
         c.memberId?.toLowerCase().includes(searchLower) ||
         c.groupeId?.toLowerCase().includes(searchLower) ||
@@ -502,11 +510,11 @@ const ListContracts = () => {
         getContractDisplayName(c).toLowerCase().includes(searchLower)
       )
     }
-    
+
     if (filters.status !== 'all') {
       contracts = contracts.filter((c: any) => c.status === filters.status)
     }
-    
+
     if (filters.type !== 'all') {
       if (filters.type === 'GROUP') {
         contracts = contracts.filter((c: any) => isGroupContract(c))
@@ -514,7 +522,7 @@ const ListContracts = () => {
         contracts = contracts.filter((c: any) => !isGroupContract(c))
       }
     }
-    
+
     return contracts
   }, [contractsData, filters, groupsData, membersData])
 
@@ -527,16 +535,16 @@ const ListContracts = () => {
   // Calcul des statistiques
   const stats = React.useMemo(() => {
     if (!contractsData) return null
-    
+
     const total = contractsData.length
     const draft = contractsData.filter((c: any) => c.status === 'DRAFT').length
     const active = contractsData.filter((c: any) => c.status === 'ACTIVE').length
-    const late = contractsData.filter((c: any) => 
+    const late = contractsData.filter((c: any) =>
       c.status === 'LATE_NO_PENALTY' || c.status === 'LATE_WITH_PENALTY'
     ).length
     const group = contractsData.filter((c: any) => isGroupContract(c)).length
     const individual = total - group
-    
+
     return {
       total,
       draft,
@@ -559,9 +567,9 @@ const ListContracts = () => {
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des contrats. 
-            <Button 
-              variant="link" 
+            Une erreur est survenue lors du chargement des contrats.
+            <Button
+              variant="link"
               className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"
               onClick={handleRefresh}
             >
@@ -610,11 +618,10 @@ const ListContracts = () => {
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${
-                    viewMode === 'grid' 
-                      ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105' 
-                      : 'hover:bg-white hover:shadow-md'
-                  }`}
+                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'grid'
+                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
+                    : 'hover:bg-white hover:shadow-md'
+                    }`}
                 >
                   <Grid3X3 className="h-4 w-4 mr-2" />
                   Grille
@@ -623,11 +630,10 @@ const ListContracts = () => {
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${
-                    viewMode === 'list' 
-                      ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105' 
-                      : 'hover:bg-white hover:shadow-md'
-                  }`}
+                  className={`h-10 px-4 rounded-lg transition-all duration-300 ${viewMode === 'list'
+                    ? 'bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105'
+                    : 'hover:bg-white hover:shadow-md'
+                    }`}
                 >
                   <List className="h-4 w-4 mr-2" />
                   Liste
@@ -661,7 +667,7 @@ const ListContracts = () => {
       {/* Liste des contrats */}
       {isLoading ? (
         <div className={
-          viewMode === 'grid' 
+          viewMode === 'grid'
             ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
             : 'space-y-6'
         }>
@@ -672,27 +678,26 @@ const ListContracts = () => {
       ) : currentContracts.length > 0 ? (
         <>
           <div className={
-            viewMode === 'grid' 
+            viewMode === 'grid'
               ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
               : 'space-y-6'
           }>
             {currentContracts.map((contract: any, index: number) => (
-              <div 
+              <div
                 key={contract.id}
                 className="animate-in fade-in-0 slide-in-from-bottom-4"
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
                 <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
+
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-3">
-                        <div className={`p-3 rounded-2xl transition-all duration-500 group-hover:scale-110 ${
-                          isGroupContract(contract) 
-                            ? 'bg-purple-100 text-purple-600' 
-                            : 'bg-blue-100 text-blue-600'
-                        }`}>
+                        <div className={`p-3 rounded-2xl transition-all duration-500 group-hover:scale-110 ${isGroupContract(contract)
+                          ? 'bg-purple-100 text-purple-600'
+                          : 'bg-blue-100 text-blue-600'
+                          }`}>
                           {isGroupContract(contract) ? (
                             <GroupIcon className="w-6 h-6" />
                           ) : (
@@ -701,11 +706,10 @@ const ListContracts = () => {
                         </div>
                         <div>
                           <h3 className="font-mono text-sm font-bold text-gray-900">#{contract.id.slice(-6)}</h3>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            isGroupContract(contract) 
-                              ? 'bg-purple-100 text-purple-700 border border-purple-200' 
-                              : 'bg-blue-100 text-blue-700 border border-blue-200'
-                          }`}>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isGroupContract(contract)
+                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                            : 'bg-blue-100 text-blue-700 border border-blue-200'
+                            }`}>
                             {getContractType(contract)}
                           </span>
                         </div>
@@ -714,25 +718,25 @@ const ListContracts = () => {
                         {getStatusLabel(contract.status)}
                       </span>
                     </div>
-                    
+
                     <div className="space-y-3 mb-4">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Nom:</span>
                         <span className="font-medium text-gray-900">{getContractDisplayName(contract)}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Mensuel:</span>
                         <span className="font-semibold text-green-600">
                           {(contract.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Durée:</span>
                         <span className="font-medium text-gray-900">{contract.monthsPlanned} mois</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Prochaine échéance:</span>
                         <div className="flex items-center gap-1 text-gray-700">
@@ -741,7 +745,7 @@ const ListContracts = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="pt-3 border-t border-gray-100 mt-auto">
                       <div className="text-xs text-gray-600 mb-2">
                         <DollarSign className="h-3 w-3 inline mr-1" />
@@ -808,7 +812,7 @@ const ListContracts = () => {
                   Aucun contrat trouvé
                 </h3>
                 <p className="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
-                  {Object.values(filters).some(f => f !== 'all' && f !== '') 
+                  {Object.values(filters).some(f => f !== 'all' && f !== '')
                     ? 'Essayez de modifier vos critères de recherche ou de réinitialiser les filtres.'
                     : 'Il n\'y a pas encore de contrats enregistrés dans le système.'
                   }
@@ -816,8 +820,8 @@ const ListContracts = () => {
               </div>
               <div className="flex justify-center space-x-4">
                 {Object.values(filters).some(f => f !== 'all' && f !== '') && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleResetFilters}
                     className="h-12 px-6 border-2 border-gray-300 hover:border-gray-400 transition-all duration-300 hover:scale-105"
                   >

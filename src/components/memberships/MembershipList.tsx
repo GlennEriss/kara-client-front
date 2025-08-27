@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -19,6 +19,10 @@ import {
   Clock,
   Zap,
   Target,
+  ChevronLeft,
+  ChevronRight,
+  Venus,
+  Mars,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { useMembers } from '@/hooks/useMembers'
@@ -34,8 +38,145 @@ import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, 
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ExportMembershipModal from './ExportMembershipModal'
+import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'list'
+
+// Hook personnalisé pour le carousel avec drag/swipe
+const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState(0)
+  const [translateX, setTranslateX] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const maxIndex = Math.max(0, itemCount - itemsPerView)
+
+  const goTo = (index: number) => {
+    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
+    setCurrentIndex(clampedIndex)
+    setTranslateX(-clampedIndex * (100 / itemsPerView))
+  }
+
+  const goNext = () => goTo(currentIndex + 1)
+  const goPrev = () => goTo(currentIndex - 1)
+
+  const handleStart = (clientX: number) => {
+    setIsDragging(true)
+    setStartPos(clientX)
+  }
+  const handleMove = (clientX: number) => {
+    if (!isDragging || !containerRef.current) return
+    const diff = clientX - startPos
+    const containerWidth = containerRef.current.offsetWidth
+    const percentage = (diff / containerWidth) * 100
+    const maxDrag = 30
+    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
+    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
+  }
+  const handleEnd = () => {
+    if (!isDragging || !containerRef.current) return
+    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
+    const threshold = 15
+    if (dragDistance > threshold && currentIndex > 0) {
+      goPrev()
+    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
+      goNext()
+    } else {
+      setTranslateX(-currentIndex * (100 / itemsPerView))
+    }
+    setIsDragging(false)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => { e.preventDefault(); handleStart(e.clientX) }
+  const handleMouseMove = (e: React.MouseEvent) => { handleMove(e.clientX) }
+  const handleMouseUp = () => { handleEnd() }
+  const handleTouchStart = (e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }
+  const handleTouchMove = (e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }
+  const handleTouchEnd = () => { handleEnd() }
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
+    const handleGlobalMouseUp = () => handleEnd()
+    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+
+  return {
+    currentIndex,
+    goTo,
+    goNext,
+    goPrev,
+    canGoPrev: currentIndex > 0,
+    canGoNext: currentIndex < maxIndex,
+    translateX,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    isDragging,
+  }
+}
+
+// Composant Carrousel des statistiques avec drag/swipe
+const StatsCarousel = ({ stats }: { stats: any }) => {
+  const statsData = [
+    { title: 'Total Membres', value: stats.total, percentage: 100, color: '#6b7280', icon: Users, trend: 'up' as const },
+    { title: 'Actifs', value: stats.active, percentage: stats.activePercentage, color: '#10b981', icon: UserCheck, trend: 'up' as const },
+    { title: 'Expirés', value: stats.expired, percentage: stats.expiredPercentage, color: '#ef4444', icon: Clock, trend: stats.expiredPercentage > 20 ? 'up' as const : 'neutral' as const },
+    { title: 'Hommes', value: stats.men, percentage: stats.menPercentage, color: '#3b82f6', icon: Mars, trend: 'neutral' as const },
+    { title: 'Femmes', value: stats.women, percentage: stats.womenPercentage, color: '#ec4899', icon: Venus, trend: 'neutral' as const },
+  ]
+
+  const [itemsPerView, setItemsPerView] = useState(1)
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth
+      if (w >= 1280) setItemsPerView(5)
+      else if (w >= 1024) setItemsPerView(4)
+      else if (w >= 768) setItemsPerView(3)
+      else setItemsPerView(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+
+  return (
+    <div className="relative">
+      <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goPrev} disabled={!canGoPrev}>
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
+      </div>
+      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goNext} disabled={!canGoNext}>
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      </div>
+
+      <div ref={containerRef} className="overflow-hidden px-12 py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
+          {statsData.map((stat, index) => (
+            <div key={index} className="flex-shrink-0" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
+              <ModernStatsCard {...stat} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // Composant pour les statistiques modernes
 const ModernStatsCard = ({ 
@@ -336,14 +477,22 @@ const MembershipList = () => {
     const expiredMembers = membersWithSubscriptions.filter(m => m.lastSubscription && !m.isSubscriptionValid).length
     const noSubscription = membersWithSubscriptions.filter(m => !m.lastSubscription).length
     
+    // Calcul des statistiques de genre
+    const men = membersWithSubscriptions.filter(m => m.gender === 'Homme').length
+    const women = membersWithSubscriptions.filter(m => m.gender === 'Femme').length
+    
     return {
       total,
       active: activeMembers,
       expired: expiredMembers,
       noSub: noSubscription,
+      men,
+      women,
       activePercentage: total > 0 ? (activeMembers / total) * 100 : 0,
       expiredPercentage: total > 0 ? (expiredMembers / total) * 100 : 0,
       noSubPercentage: total > 0 ? (noSubscription / total) * 100 : 0,
+      menPercentage: total > 0 ? (men / total) * 100 : 0,
+      womenPercentage: total > 0 ? (women / total) * 100 : 0,
     }
   }, [membersData, membersWithSubscriptions])
 
@@ -384,44 +533,7 @@ const MembershipList = () => {
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Statistiques modernes */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <ModernStatsCard
-            title="Total Membres"
-            value={stats.total}
-            subtitle="Membres enregistrés"
-            percentage={100}
-            color="#6b7280"
-            icon={Users}
-            trend="up"
-          />
-          <ModernStatsCard
-            title="Actifs"
-            value={stats.active}
-            subtitle="Abonnements valides"
-            percentage={stats.activePercentage}
-            color="#10b981"
-            icon={UserCheck}
-            trend="up"
-          />
-          <ModernStatsCard
-            title="Expirés"
-            value={stats.expired}
-            subtitle="À renouveler"
-            percentage={stats.expiredPercentage}
-            color="#ef4444"
-            icon={Clock}
-            trend={stats.expiredPercentage > 20 ? 'up' : 'neutral'}
-          />
-          <ModernStatsCard
-            title="Sans Abo"
-            value={stats.noSub}
-            subtitle="En attente"
-            percentage={stats.noSubPercentage}
-            color="#f59e0b"
-            icon={UserX}
-            trend="neutral"
-          />
-        </div>
+        <StatsCarousel stats={stats} />
       )}
 
       {/* Boutons de test modernisés */}
