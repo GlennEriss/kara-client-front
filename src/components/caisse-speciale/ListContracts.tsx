@@ -193,7 +193,7 @@ const StatsCard = ({
 const StatsCarousel = ({ stats }: { stats: any }) => {
   const statsData = [
     { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: FileText },
-    { title: 'Brouillons', value: stats.draft, percentage: stats.draftPercentage, color: '#9ca3af', icon: FileText, trend: 'neutral' as const },
+    { title: 'En cours', value: stats.draft, percentage: stats.draftPercentage, color: '#9ca3af', icon: FileText, trend: 'neutral' as const },
     { title: 'Actifs', value: stats.active, percentage: stats.activePercentage, color: '#10b981', icon: CheckCircle, trend: 'up' as const },
     { title: 'En Retard', value: stats.late, percentage: stats.latePercentage, color: '#ef4444', icon: Clock, trend: stats.latePercentage > 20 ? 'up' as const : 'neutral' as const },
     { title: 'Individuels', value: stats.individual, percentage: stats.individualPercentage, color: '#3b82f6', icon: User, trend: 'neutral' as const },
@@ -294,7 +294,7 @@ const ContractFilters = ({
               onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
             >
               <option value="all">Tous les statuts</option>
-              <option value="DRAFT">Brouillon</option>
+              <option value="DRAFT">En cours</option>
               <option value="ACTIVE">Actif</option>
               <option value="LATE_NO_PENALTY">Retard (J+0..3)</option>
               <option value="LATE_WITH_PENALTY">Retard (J+4..12)</option>
@@ -472,7 +472,7 @@ const ListContracts = () => {
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      DRAFT: 'Brouillon',
+      DRAFT: 'En cours',
       ACTIVE: 'Actif',
       LATE_NO_PENALTY: 'Retard (J+0..3)',
       LATE_WITH_PENALTY: 'Retard (J+4..12)',

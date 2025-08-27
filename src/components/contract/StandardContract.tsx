@@ -128,7 +128,7 @@ export default function StandardContract({ id }: Props) {
   }
   function contractStatusLabel(s: string): string {
     const map: Record<string, string> = {
-      DRAFT: "Brouillon",
+      DRAFT: "En cours",
       ACTIVE: "Actif",
       LATE_NO_PENALTY: "Retard (J+0..3)",
       LATE_WITH_PENALTY: "Retard (J+4..12)",
