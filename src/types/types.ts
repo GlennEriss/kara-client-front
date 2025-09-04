@@ -577,6 +577,84 @@ export interface ProfessionSearchResult {
   suggestions?: string[] // Suggestions si pas trouvé
 }
 
+// ================== TYPES POUR LA CRÉATION DE CONTRATS ==================
+
+/**
+ * Type pour le formulaire de création de contrat
+ */
+export interface ContractFormData {
+  // Étape 1: Sélection du type de contrat
+  contractType: 'INDIVIDUAL' | 'GROUP'
+  memberId?: string
+  groupeId?: string
+  
+  // Étape 2: Configuration de la caisse
+  caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+  monthlyAmount: number
+  monthsPlanned: number
+  
+  // Étape 3: Planification des versements
+  firstPaymentDate: string
+  
+  // Métadonnées
+  isValid: boolean
+  currentStep: number
+}
+
+/**
+ * Type pour les résultats de recherche d'entités (membres/groupes)
+ */
+export interface EntitySearchResult {
+  id: string
+  displayName: string
+  type: 'member' | 'group'
+  additionalInfo: string // matricule, nom du groupe, etc.
+  photoURL?: string
+  contacts?: string[]
+}
+
+/**
+ * Type pour les filtres de recherche d'entités
+ */
+export interface EntitySearchFilters {
+  type: 'member' | 'group' | 'both'
+  searchQuery: string
+  limit: number
+}
+
+/**
+ * Type pour la validation des paramètres de caisse
+ */
+export interface CaisseValidationResult {
+  isValid: boolean
+  isLoading: boolean
+  error?: string
+  settings?: any
+}
+
+/**
+ * Type pour les étapes du formulaire
+ */
+export interface ContractFormStep {
+  id: number
+  title: string
+  description: string
+  isCompleted: boolean
+  isActive: boolean
+  isValid: boolean
+}
+
+/**
+ * Type pour la navigation entre les étapes
+ */
+export interface ContractFormNavigation {
+  currentStep: number
+  totalSteps: number
+  canGoNext: boolean
+  canGoPrev: boolean
+  canSubmit: boolean
+}
+
 // ================== EXPORTS ==================
 // Pas besoin d'exporter depuis schemas.ts car tout est défini ici
 

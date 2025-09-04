@@ -213,7 +213,7 @@ export default function LoginMembershipWithEmailAndPassword() {
                             <Input
                               {...field}
                               type="email"
-                              placeholder="votre@email.com"
+                              placeholder="email@kara.ga"
                               className={cn(
                                 "pl-12 h-14 border-2 border-[#234E64]/30 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/20 transition-all duration-300 text-lg bg-white/70 backdrop-blur-sm",
                                 "hover:border-[#CBB171]/50 hover:bg-white/90",

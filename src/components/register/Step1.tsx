@@ -114,7 +114,7 @@ export default function Step1({ form, requestId }: Step1Props) {
   // Nettoyer les contacts vides au blur/changement
   const cleanEmptyContacts = React.useCallback(() => {
     const contacts = watch('identity.contacts') || []
-    const cleanedContacts = contacts.filter((contact: string) => contact && contact.trim() !== '')
+    const cleanedContacts = contacts.filter((contact: string) => contact && contact.trim().length >= 8)
     
     // S'assurer qu'il y a au moins un champ, même vide
     if (cleanedContacts.length === 0) {
@@ -208,14 +208,18 @@ export default function Step1({ form, requestId }: Step1Props) {
       }
       
       // Nettoyer les erreurs de nom
-      if (value.identity?.lastName && value.identity.lastName.length >= 2 && errors.identity?.lastName) {
+      if (value.identity?.lastName && value.identity.lastName.trim().length >= 2 && errors.identity?.lastName) {
         clearErrors('identity.lastName')
       }
       
-      // Nettoyer les erreurs de prénom
-      if (value.identity?.firstName && value.identity.firstName.length >= 2 && errors.identity?.firstName) {
-        clearErrors('identity.firstName')
-      }
+             // Nettoyer les erreurs de prénom (optionnel)
+       if (value.identity?.firstName && value.identity.firstName.trim().length >= 2 && errors.identity?.firstName) {
+         clearErrors('identity.firstName')
+       }
+       // Si le prénom est vide, c'est OK car c'est optionnel
+       if ((!value.identity?.firstName || value.identity.firstName.trim() === '') && errors.identity?.firstName) {
+         clearErrors('identity.firstName')
+       }
       
       // Nettoyer les erreurs de date de naissance
       if (value.identity?.birthDate && errors.identity?.birthDate) {
@@ -223,17 +227,17 @@ export default function Step1({ form, requestId }: Step1Props) {
       }
       
       // Nettoyer les erreurs de lieu de naissance
-      if (value.identity?.birthPlace && value.identity.birthPlace.length >= 2 && errors.identity?.birthPlace) {
+      if (value.identity?.birthPlace && value.identity.birthPlace.trim().length >= 2 && errors.identity?.birthPlace) {
         clearErrors('identity.birthPlace')
       }
       
       // Nettoyer les erreurs de numéro d'acte de naissance
-      if (value.identity?.birthCertificateNumber && value.identity.birthCertificateNumber.length >= 2 && errors.identity?.birthCertificateNumber) {
+      if (value.identity?.birthCertificateNumber && value.identity.birthCertificateNumber.trim().length >= 2 && errors.identity?.birthCertificateNumber) {
         clearErrors('identity.birthCertificateNumber')
       }
       
       // Nettoyer les erreurs de lieu de prière
-      if (value.identity?.prayerPlace && value.identity.prayerPlace.length >= 2 && errors.identity?.prayerPlace) {
+      if (value.identity?.prayerPlace && value.identity.prayerPlace.trim().length >= 2 && errors.identity?.prayerPlace) {
         clearErrors('identity.prayerPlace')
       }
       
@@ -258,7 +262,7 @@ export default function Step1({ form, requestId }: Step1Props) {
       }
       
       // Nettoyer les erreurs de code entremetteur
-      if (value.identity?.intermediaryCode && value.identity.intermediaryCode.length >= 2 && errors.identity?.intermediaryCode) {
+      if (value.identity?.intermediaryCode && value.identity.intermediaryCode.trim().length >= 2 && errors.identity?.intermediaryCode) {
         clearErrors('identity.intermediaryCode')
       }
       
@@ -269,13 +273,13 @@ export default function Step1({ form, requestId }: Step1Props) {
       
       // Nettoyer les erreurs du conjoint si nécessaire
       if (requiresSpouseInfo) {
-        if (value.identity?.spouseLastName && value.identity.spouseLastName.length >= 2 && errors.identity?.spouseLastName) {
+        if (value.identity?.spouseLastName && value.identity.spouseLastName.trim().length >= 2 && errors.identity?.spouseLastName) {
           clearErrors('identity.spouseLastName')
         }
-        if (value.identity?.spouseFirstName && value.identity.spouseFirstName.length >= 2 && errors.identity?.spouseFirstName) {
+        if (value.identity?.spouseFirstName && value.identity.spouseFirstName.trim().length >= 2 && errors.identity?.spouseFirstName) {
           clearErrors('identity.spouseFirstName')
         }
-        if (value.identity?.spousePhone && value.identity.spousePhone.length >= 8 && errors.identity?.spousePhone) {
+        if (value.identity?.spousePhone && value.identity.spousePhone.trim().length >= 8 && errors.identity?.spousePhone) {
           clearErrors('identity.spousePhone')
         }
       }
@@ -339,9 +343,20 @@ export default function Step1({ form, requestId }: Step1Props) {
     }
   }
 
+  // Fonction pour nettoyer et valider un numéro de téléphone
+  const cleanPhoneNumber = (value: string) => {
+    // Supprimer tous les caractères sauf chiffres, espaces, tirets, parenthèses et plus
+    let cleaned = value.replace(/[^\d\s\-\(\)\+]/g, '')
+    // Limiter à 9 caractères maximum
+    if (cleaned.length > 9) {
+      cleaned = cleaned.substring(0, 9)
+    }
+    return cleaned
+  }
+
   // Fonction de vérification des numéros de téléphone
   const checkPhoneNumber = useCallback(async (phoneNumber: string, index: number) => {
-    if (!phoneNumber || phoneNumber.length < 8) {
+    if (!phoneNumber || phoneNumber.trim().length < 8) {
       setPhoneCheckStates(prev => ({
         ...prev,
         [index]: { isChecking: false, exists: null, message: '' }
@@ -409,8 +424,8 @@ export default function Step1({ form, requestId }: Step1Props) {
       timeouts = []
       
       const contactValues = value.identity?.contacts || []
-      // Filtrer les contacts vides pour éviter les erreurs de validation
-      const validContacts = contactValues.filter((contact: string) => contact && contact.trim() !== '')
+      // Filtrer les contacts valides pour éviter les erreurs de validation
+      const validContacts = contactValues.filter((contact: string) => contact && contact.trim().length >= 8)
       
       validContacts.forEach((phoneNumber: string, index: number) => {
         const timeoutId = setTimeout(() => {
@@ -421,7 +436,7 @@ export default function Step1({ form, requestId }: Step1Props) {
 
       // Nettoyer les états de vérification pour les champs vides
       contactValues.forEach((phoneNumber: string, index: number) => {
-        if (!phoneNumber || phoneNumber.trim() === '') {
+        if (!phoneNumber || phoneNumber.trim().length < 8) {
           setPhoneCheckStates(prev => ({
             ...prev,
             [index]: { isChecking: false, exists: null, message: '' }
@@ -600,7 +615,7 @@ export default function Step1({ form, requestId }: Step1Props) {
 
             <div className="space-y-3 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
               <Label htmlFor="firstName" className="text-sm font-bold text-[#224D62]">
-                Prénom <span className="text-red-500">*</span>
+                Prénom (optionnel)
               </Label>
               <div className="relative">
                 <Input
@@ -876,8 +891,15 @@ export default function Step1({ form, requestId }: Step1Props) {
                         <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
                         <Input
                           {...register(`identity.contacts.${index}`)}
+                          type="tel"
                           placeholder={`Téléphone ${index + 1}`}
                           onBlur={cleanEmptyContacts}
+                          onChange={(e) => {
+                            const cleanedValue = cleanPhoneNumber(e.target.value)
+                            if (cleanedValue !== e.target.value) {
+                              setValue(`identity.contacts.${index}`, cleanedValue)
+                            }
+                          }}
                           className={cn(
                             "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                             phoneCheckState.exists === true && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
@@ -1154,8 +1176,15 @@ export default function Step1({ form, requestId }: Step1Props) {
                     <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
                     <Input
                       id="spousePhone"
+                      type="tel"
                       {...register('identity.spousePhone')}
                       placeholder="Numéro du conjoint"
+                      onChange={(e) => {
+                        const cleanedValue = cleanPhoneNumber(e.target.value)
+                        if (cleanedValue !== e.target.value) {
+                          setValue('identity.spousePhone', cleanedValue)
+                        }
+                      }}
                       className={cn(
                         "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                         errors?.identity?.spousePhone && "border-red-300 focus:border-red-500 bg-red-50/50",

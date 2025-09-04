@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  FileText, 
-  Calendar, 
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  FileText,
+  Calendar,
   Camera,
   Upload,
   CheckCircle,
@@ -44,7 +45,8 @@ export default function Step4({ form }: Step4Props) {
   const [isCompressingBack, setIsCompressingBack] = useState(false)
   const [frontCompressionInfo, setFrontCompressionInfo] = useState<string | null>(null)
   const [backCompressionInfo, setBackCompressionInfo] = useState<string | null>(null)
-  
+  const [termsAccepted, setTermsAccepted] = useState(false)
+
   const frontFileInputRef = useRef<HTMLInputElement>(null)
   const backFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -61,11 +63,23 @@ export default function Step4({ form }: Step4Props) {
     'documents.issuingDate'
   ])
 
+  // Validation des conditions acceptées
+  React.useEffect(() => {
+    if (!termsAccepted) {
+      setError('documents.termsAccepted', {
+        type: 'required',
+        message: 'Vous devez accepter les conditions pour continuer'
+      })
+    } else {
+      clearErrors('documents.termsAccepted')
+    }
+  }, [termsAccepted, setError, clearErrors])
+
   // Restaurer les previews des photos si elles existent
   React.useEffect(() => {
     const frontPhoto = watch('documents.documentPhotoFront')
     const backPhoto = watch('documents.documentPhotoBack')
-    
+
     if (frontPhoto && !frontPhotoPreview && typeof frontPhoto === 'string' && frontPhoto.startsWith('data:')) {
       setFrontPhotoPreview(frontPhoto)
     }
@@ -80,7 +94,7 @@ export default function Step4({ form }: Step4Props) {
     const expirationDate = watch('documents.expirationDate')
     const issuingPlace = watch('documents.issuingPlace')
     const issuingDate = watch('documents.issuingDate')
-    
+
     // Validation photo recto
     if (!frontPhoto) {
       setError('documents.documentPhotoFront', {
@@ -90,7 +104,7 @@ export default function Step4({ form }: Step4Props) {
     } else {
       clearErrors('documents.documentPhotoFront')
     }
-    
+
     // Validation date d'expiration
     if (!expirationDate || expirationDate.trim() === '') {
       setError('documents.expirationDate', {
@@ -100,7 +114,7 @@ export default function Step4({ form }: Step4Props) {
     } else {
       clearErrors('documents.expirationDate')
     }
-    
+
     // Validation lieu de délivrance
     if (!issuingPlace || issuingPlace.trim() === '') {
       setError('documents.issuingPlace', {
@@ -115,7 +129,7 @@ export default function Step4({ form }: Step4Props) {
     } else {
       clearErrors('documents.issuingPlace')
     }
-    
+
     // Validation date de délivrance
     if (!issuingDate || issuingDate.trim() === '') {
       setError('documents.issuingDate', {
@@ -126,11 +140,11 @@ export default function Step4({ form }: Step4Props) {
       clearErrors('documents.issuingDate')
     }
   }, [
-    watchedFields[2], 
-    watchedFields[4], 
-    watchedFields[5], 
-    watchedFields[6], 
-    setError, 
+    watchedFields[2],
+    watchedFields[4],
+    watchedFields[5],
+    watchedFields[6],
+    setError,
     clearErrors,
     watch
   ])
@@ -142,12 +156,12 @@ export default function Step4({ form }: Step4Props) {
       if (value.documents?.identityDocument && errors.documents?.identityDocument) {
         clearErrors('documents.identityDocument')
       }
-      
+
       // Nettoyer les erreurs de numéro de document
       if (value.documents?.identityDocumentNumber && value.documents.identityDocumentNumber.length >= 2 && errors.documents?.identityDocumentNumber) {
         clearErrors('documents.identityDocumentNumber')
       }
-      
+
       // Nettoyer les erreurs de photo verso
       if (value.documents?.documentPhotoBack && errors.documents?.documentPhotoBack) {
         clearErrors('documents.documentPhotoBack')
@@ -168,14 +182,14 @@ export default function Step4({ form }: Step4Props) {
         setIsCompressingFront(true)
         setFrontCompressionInfo(null)
       }
-      
+
       try {
         // Compresser l'image en WebP avec le preset document
         const compressedDataUrl = await compressImage(file, IMAGE_COMPRESSION_PRESETS.document)
-        
+
         // Obtenir les informations sur l'image compressée
         const imageInfo = getImageInfo(compressedDataUrl)
-        
+
         // Mettre à jour les états selon le type (recto/verso)
         if (isBack) {
           setBackPhotoPreview(compressedDataUrl)
@@ -187,7 +201,7 @@ export default function Step4({ form }: Step4Props) {
           clearErrors('documents.documentPhotoFront')
           setFrontCompressionInfo(`${imageInfo.format} • ${imageInfo.sizeText}`)
         }
-        
+
       } catch (error) {
         console.error('Erreur lors de la compression:', error)
         const fieldName = isBack ? 'documents.documentPhotoBack' : 'documents.documentPhotoFront'
@@ -242,7 +256,7 @@ export default function Step4({ form }: Step4Props) {
           <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
             Type de pièce d'identité <span className="text-red-500">*</span>
           </Label>
-          <Select 
+          <Select
             onValueChange={(value) => setValue('documents.identityDocument', value)}
             defaultValue={watch('documents.identityDocument')}
           >
@@ -272,7 +286,7 @@ export default function Step4({ form }: Step4Props) {
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
           <Label htmlFor="identityDocumentNumber" className="text-xs sm:text-sm font-medium text-[#224D62]">
             Numéro de pièce d'identité <span className="text-red-500">*</span>
-              </Label>
+          </Label>
           <div className="relative">
             <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
             <Input
@@ -295,8 +309,8 @@ export default function Step4({ form }: Step4Props) {
               <span>{errors.documents.identityDocumentNumber.message}</span>
             </div>
           )}
-            </div>
-          </div>
+        </div>
+      </div>
 
       {/* Section upload des photos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 w-full">
@@ -311,10 +325,10 @@ export default function Step4({ form }: Step4Props) {
           <CardContent className="space-y-4">
             {/* Zone d'upload recto */}
             <div
-                    className={cn(
+              className={cn(
                 "relative w-full h-48 sm:h-64 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer group",
-                isDragOverFront 
-                  ? "border-[#224D62] bg-[#224D62]/5 shadow-lg scale-105" 
+                isDragOverFront
+                  ? "border-[#224D62] bg-[#224D62]/5 shadow-lg scale-105"
                   : "border-[#224D62]/30 hover:border-[#224D62]/50 hover:bg-[#224D62]/5",
                 frontPhotoPreview && "border-solid border-[#224D62]/50 bg-[#224D62]/5"
               )}
@@ -323,7 +337,7 @@ export default function Step4({ form }: Step4Props) {
               onDragLeave={() => setIsDragOverFront(false)}
               onClick={() => frontFileInputRef.current?.click()}
             >
-                            {isCompressingFront ? (
+              {isCompressingFront ? (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3">
                   <Loader2 className="w-8 h-8 text-[#224D62] animate-spin" />
                   <div className="text-center">
@@ -333,9 +347,9 @@ export default function Step4({ form }: Step4Props) {
                 </div>
               ) : frontPhotoPreview ? (
                 <div className="w-full h-full rounded-lg overflow-hidden relative">
-                  <img 
-                    src={frontPhotoPreview} 
-                    alt="Pièce d'identité recto" 
+                  <img
+                    src={frontPhotoPreview}
+                    alt="Pièce d'identité recto"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-2 right-2">
@@ -352,8 +366,8 @@ export default function Step4({ form }: Step4Props) {
                     </div>
                   )}
                   <div className="absolute bottom-2 left-2 right-2 flex space-x-2">
-                            <Button
-                              size="sm"
+                    <Button
+                      size="sm"
                       variant="secondary"
                       className="flex-1 bg-white/90 text-[#224D62] hover:bg-white"
                       onClick={(e) => {
@@ -363,8 +377,8 @@ export default function Step4({ form }: Step4Props) {
                     >
                       <Upload className="w-3 h-3 mr-1" />
                       Changer
-                            </Button>
-                        </div>
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3 group-hover:scale-105 transition-transform">
@@ -373,8 +387,8 @@ export default function Step4({ form }: Step4Props) {
                     <p className="text-sm font-medium text-[#224D62]">Télécharger la photo recto</p>
                     <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP → Optimisé automatiquement</p>
                   </div>
-                  </div>
-                )}
+                </div>
+              )}
               <input
                 ref={frontFileInputRef}
                 type="file"
@@ -406,10 +420,10 @@ export default function Step4({ form }: Step4Props) {
           <CardContent className="space-y-4">
             {/* Zone d'upload verso */}
             <div
-                    className={cn(
+              className={cn(
                 "relative w-full h-48 sm:h-64 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer group",
-                isDragOverBack 
-                  ? "border-[#CBB171] bg-[#CBB171]/5 shadow-lg scale-105" 
+                isDragOverBack
+                  ? "border-[#CBB171] bg-[#CBB171]/5 shadow-lg scale-105"
                   : "border-[#CBB171]/30 hover:border-[#CBB171]/50 hover:bg-[#CBB171]/5",
                 backPhotoPreview && "border-solid border-[#CBB171]/50 bg-[#CBB171]/5"
               )}
@@ -418,7 +432,7 @@ export default function Step4({ form }: Step4Props) {
               onDragLeave={() => setIsDragOverBack(false)}
               onClick={() => backFileInputRef.current?.click()}
             >
-                            {isCompressingBack ? (
+              {isCompressingBack ? (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3">
                   <Loader2 className="w-8 h-8 text-[#CBB171] animate-spin" />
                   <div className="text-center">
@@ -428,9 +442,9 @@ export default function Step4({ form }: Step4Props) {
                 </div>
               ) : backPhotoPreview ? (
                 <div className="w-full h-full rounded-lg overflow-hidden relative">
-                  <img 
-                    src={backPhotoPreview} 
-                    alt="Pièce d'identité verso" 
+                  <img
+                    src={backPhotoPreview}
+                    alt="Pièce d'identité verso"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-2 right-2">
@@ -468,8 +482,8 @@ export default function Step4({ form }: Step4Props) {
                     <p className="text-sm font-medium text-[#224D62]">Télécharger la photo verso</p>
                     <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP → Optimisé automatiquement</p>
                   </div>
-                  </div>
-                )}
+                </div>
+              )}
               <input
                 ref={backFileInputRef}
                 type="file"
@@ -480,28 +494,62 @@ export default function Step4({ form }: Step4Props) {
             </div>
           </CardContent>
         </Card>
-              </div>
+      </div>
 
       {/* Informations complémentaires du document */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+        {/* Date de délivrance */}
+        <div className="w-full max-w-md">
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full min-w-0">
+            <Label htmlFor="issuingDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
+              Date de délivrance <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+              <Input
+                id="issuingDate"
+                type="date"
+                {...register('documents.issuingDate')}
+                className={cn(
+                  "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                  errors?.documents?.issuingDate && "border-red-300 focus:border-red-500 bg-red-50/50",
+                  watchedFields[6] && !errors?.documents?.issuingDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                )}
+              />
+            </div>
+            {watchedFields[6] && !errors?.documents?.issuingDate && (
+              <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+                <CheckCircle className="w-3 h-3" />
+                <span>Date de délivrance ajoutée</span>
+              </div>
+            )}
+            {errors?.documents?.issuingDate && (
+              <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300">
+                <AlertCircle className="w-3 h-3" />
+                <span>{errors.documents.issuingDate.message}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
         {/* Date d'expiration */}
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full min-w-0">
           <Label htmlFor="expirationDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
             Date d'expiration <span className="text-red-500">*</span>
-                </Label>
+          </Label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                  <Input
+            <Input
               id="expirationDate"
               type="date"
               {...register('documents.expirationDate')}
-                    className={cn(
-                      "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.documents?.expirationDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[4] && !errors?.documents?.expirationDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
-                    )}
-                  />
-                </div>
+              className={cn(
+                "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                errors?.documents?.expirationDate && "border-red-300 focus:border-red-500 bg-red-50/50",
+                watchedFields[4] && !errors?.documents?.expirationDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
+              )}
+            />
+          </div>
           {watchedFields[4] && !errors?.documents?.expirationDate && (
             <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
               <CheckCircle className="w-3 h-3" />
@@ -514,26 +562,26 @@ export default function Step4({ form }: Step4Props) {
               <span>{errors.documents.expirationDate.message}</span>
             </div>
           )}
-                </div>
+        </div>
 
         {/* Lieu de délivrance */}
-              <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-500 w-full min-w-0">
+        <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-500 w-full min-w-0">
           <Label htmlFor="issuingPlace" className="text-xs sm:text-sm font-medium text-[#224D62]">
             Lieu de délivrance <span className="text-red-500">*</span>
-                </Label>
+          </Label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                  <Input
+            <Input
               id="issuingPlace"
               {...register('documents.issuingPlace')}
               placeholder="Ex: Libreville, France..."
-                    className={cn(
+              className={cn(
                 "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                 errors?.documents?.issuingPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
                 watchedFields[5] && !errors?.documents?.issuingPlace && "border-[#CBB171]/50 bg-[#CBB171]/5"
               )}
             />
-                  </div>
+          </div>
           {watchedFields[5] && !errors?.documents?.issuingPlace && (
             <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-right-2 duration-300">
               <CheckCircle className="w-3 h-3" />
@@ -546,51 +594,17 @@ export default function Step4({ form }: Step4Props) {
               <span>{errors.documents.issuingPlace.message}</span>
             </div>
           )}
-              </div>
-            </div>
-
-      {/* Date de délivrance */}
-      <div className="w-full max-w-md">
-        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full min-w-0">
-          <Label htmlFor="issuingDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Date de délivrance <span className="text-red-500">*</span>
-                </Label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-            <Input
-              id="issuingDate"
-              type="date"
-              {...register('documents.issuingDate')}
-              className={cn(
-                "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                errors?.documents?.issuingDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                watchedFields[6] && !errors?.documents?.issuingDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
-              )}
-                        />
-                      </div>
-          {watchedFields[6] && !errors?.documents?.issuingDate && (
-            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
-              <CheckCircle className="w-3 h-3" />
-              <span>Date de délivrance ajoutée</span>
-            </div>
-          )}
-          {errors?.documents?.issuingDate && (
-            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300">
-              <AlertCircle className="w-3 h-3" />
-              <span>{errors.documents.issuingDate.message}</span>
-            </div>
-          )}
         </div>
       </div>
 
-            {/* Résumé du document et validation */}
+      {/* Résumé du document et validation */}
       <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
         <CardContent className="p-4 sm:p-6 w-full">
           <div className="flex items-start space-x-4 w-full min-w-0">
             <FileText className="w-6 h-6 text-[#224D62] mt-1 flex-shrink-0" />
             <div className="space-y-3 min-w-0 flex-1">
               <p className="text-sm sm:text-base font-medium text-[#224D62]">État de validation du document</p>
-              
+
               {/* Grille des validations */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
                 {/* Photo recto */}
@@ -604,7 +618,7 @@ export default function Step4({ form }: Step4Props) {
                     Photo recto {frontPhotoPreview ? "✓" : "(requis)"}
                   </span>
                 </div>
-                
+
                 {/* Date d'expiration */}
                 <div className="flex items-center space-x-2">
                   {watchedFields[4] && !errors?.documents?.expirationDate ? (
@@ -616,7 +630,7 @@ export default function Step4({ form }: Step4Props) {
                     Date d'expiration {watchedFields[4] && !errors?.documents?.expirationDate ? "✓" : "(requis)"}
                   </span>
                 </div>
-                
+
                 {/* Lieu de délivrance */}
                 <div className="flex items-center space-x-2">
                   {watchedFields[5] && !errors?.documents?.issuingPlace ? (
@@ -628,7 +642,7 @@ export default function Step4({ form }: Step4Props) {
                     Lieu de délivrance {watchedFields[5] && !errors?.documents?.issuingPlace ? "✓" : "(requis)"}
                   </span>
                 </div>
-                
+
                 {/* Date de délivrance */}
                 <div className="flex items-center space-x-2">
                   {watchedFields[6] && !errors?.documents?.issuingDate ? (
@@ -666,20 +680,50 @@ export default function Step4({ form }: Step4Props) {
       </Card>
 
       {/* Message d'erreur si des champs sont manquants */}
-      {(!frontPhotoPreview || !watchedFields[4] || !watchedFields[5] || !watchedFields[6] || 
-        errors?.documents?.expirationDate || errors?.documents?.issuingPlace || errors?.documents?.issuingDate) && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg animate-in fade-in-0 slide-in-from-top-2 duration-300 w-full">
+      {(!frontPhotoPreview || !watchedFields[4] || !watchedFields[5] || !watchedFields[6] || !termsAccepted ||
+        errors?.documents?.expirationDate || errors?.documents?.issuingPlace || errors?.documents?.issuingDate || errors?.documents?.termsAccepted) && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg animate-in fade-in-0 slide-in-from-top-2 duration-300 w-full">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-red-800 mb-1">Champs obligatoires manquants</h3>
+                <p className="text-sm text-red-600">
+                  Veuillez remplir tous les champs obligatoires avant de finaliser votre demande d'adhésion.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Checkbox Lu et approuvé */}
+      <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700 w-full">
+        <CardContent className="p-4 sm:p-6">
           <div className="flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="text-sm font-medium text-red-800 mb-1">Champs obligatoires manquants</h3>
-              <p className="text-sm text-red-600">
-                Veuillez remplir tous les champs obligatoires avant de finaliser votre demande d'adhésion.
+            <Checkbox
+              id="termsAccepted"
+              checked={termsAccepted}
+              onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+              className="mt-1"
+            />
+            <div className="space-y-2">
+              <Label htmlFor="termsAccepted" className="text-sm sm:text-base font-medium text-[#224D62] cursor-pointer">
+                Lu et approuvé
+              </Label>
+              <p className="text-sm text-[#224D62]/80">
+                Je confirme avoir lu et approuvé les conditions d'utilisation et la politique de confidentialité. 
+                J'accepte que mes documents d'identité soient utilisés uniquement pour la vérification de mon identité 
+                et stockés de manière sécurisée.
               </p>
             </div>
           </div>
-        </div>
-      )}
+          {errors?.documents?.termsAccepted && (
+            <div className="flex items-center space-x-1 text-red-500 text-xs mt-2 animate-in slide-in-from-top-2 duration-300">
+              <AlertCircle className="w-3 h-3" />
+              <span>{errors.documents.termsAccepted.message}</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Message final */}
       <div className="text-center p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words shadow-lg">

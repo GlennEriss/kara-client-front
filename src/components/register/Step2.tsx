@@ -104,22 +104,22 @@ export default function Step2({ form }: Step2Props) {
   useEffect(() => {
     const subscription = watch((value: any) => {
       // Nettoyer les erreurs de district
-      if (value.address?.district && value.address.district.length >= 2 && errors.address?.district) {
+      if (value.address?.district && value.address.district.trim().length >= 2 && errors.address?.district) {
         clearErrors('address.district')
       }
       
       // Nettoyer les erreurs de city
-      if (value.address?.city && value.address.city.length >= 2 && errors.address?.city) {
+      if (value.address?.city && value.address.city.trim().length >= 2 && errors.address?.city) {
         clearErrors('address.city')
       }
       
       // Nettoyer les erreurs de province
-      if (value.address?.province && value.address.province.length >= 2 && errors.address?.province) {
+      if (value.address?.province && value.address.province.trim().length >= 2 && errors.address?.province) {
         clearErrors('address.province')
       }
       
       // Nettoyer les erreurs d'arrondissement
-      if (value.address?.arrondissement && value.address.arrondissement.length >= 2 && errors.address?.arrondissement) {
+      if (value.address?.arrondissement && value.address.arrondissement.trim().length >= 2 && errors.address?.arrondissement) {
         clearErrors('address.arrondissement')
       }
     })
@@ -133,7 +133,7 @@ export default function Step2({ form }: Step2Props) {
 
   // Fonction pour rechercher avec Photon API
   const searchWithPhoton = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 2) {
       setSearchResults([])
       return
     }
@@ -165,7 +165,7 @@ export default function Step2({ form }: Step2Props) {
 
   // Fonction pour rechercher uniquement les villes
   const searchCitiesWithPhoton = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 2) {
       setCitySearchResults([])
       return
     }

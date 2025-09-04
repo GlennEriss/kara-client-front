@@ -131,30 +131,30 @@ export default function Step3({ form }: Step3Props) {
   React.useEffect(() => {
     const subscription = watch((value: any) => {
       // Nettoyer les erreurs de nom d'entreprise
-      if (value.company?.companyName && value.company.companyName.length >= 2 && value.company.companyName.length <= 100 && errors.company?.companyName) {
+      if (value.company?.companyName && value.company.companyName.trim().length >= 2 && value.company.companyName.trim().length <= 100 && errors.company?.companyName) {
         clearErrors('company.companyName')
       }
       
       // Nettoyer les erreurs d'adresse entreprise
-      if (value.company?.companyAddress?.province && value.company.companyAddress.province.length >= 2 && value.company.companyAddress.province.length <= 50 && errors.company?.companyAddress?.province) {
+      if (value.company?.companyAddress?.province && value.company.companyAddress.province.trim().length >= 2 && value.company.companyAddress.province.trim().length <= 50 && errors.company?.companyAddress?.province) {
         clearErrors('company.companyAddress.province')
       }
       
-      if (value.company?.companyAddress?.city && value.company.companyAddress.city.length >= 2 && value.company.companyAddress.city.length <= 50 && errors.company?.companyAddress?.city) {
+      if (value.company?.companyAddress?.city && value.company.companyAddress.city.trim().length >= 2 && value.company.companyAddress.city.trim().length <= 50 && errors.company?.companyAddress?.city) {
         clearErrors('company.companyAddress.city')
       }
       
-      if (value.company?.companyAddress?.district && value.company.companyAddress.district.length >= 2 && value.company.companyAddress.district.length <= 100 && errors.company?.companyAddress?.district) {
+      if (value.company?.companyAddress?.district && value.company.companyAddress.district.trim().length >= 2 && value.company.companyAddress.district.trim().length <= 100 && errors.company?.companyAddress?.district) {
         clearErrors('company.companyAddress.district')
       }
       
       // Nettoyer les erreurs de profession
-      if (value.company?.profession && value.company.profession.length >= 2 && value.company.profession.length <= 100 && errors.company?.profession) {
+      if (value.company?.profession && value.company.profession.trim().length >= 2 && value.company.profession.trim().length <= 100 && errors.company?.profession) {
         clearErrors('company.profession')
       }
       
       // Nettoyer les erreurs d'ancienneté
-      if (value.company?.seniority && value.company.seniority.match(/^\d+\s*(mois|années?|ans?)$/) && errors.company?.seniority) {
+      if (value.company?.seniority && value.company.seniority.trim().match(/^\d+\s*(mois|années?|ans?)$/) && errors.company?.seniority) {
         clearErrors('company.seniority')
       }
     })
@@ -164,7 +164,7 @@ export default function Step3({ form }: Step3Props) {
 
   // Fonction pour récupérer les suggestions d'entreprises
   const fetchCompanySuggestions = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 2) {
       setCompanySuggestions([])
       return
     }
@@ -194,7 +194,7 @@ export default function Step3({ form }: Step3Props) {
       }
       
       // Ajouter l'option de créer une nouvelle entreprise
-      if (query.length >= 2) {
+      if (query.trim().length >= 2) {
         suggestions.push({ 
           name: `Créer "${query}"`, 
           isNew: true,
@@ -213,7 +213,7 @@ export default function Step3({ form }: Step3Props) {
 
   // Fonction pour récupérer les suggestions de professions
   const fetchProfessionSuggestions = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 2) {
       setProfessionSuggestions([])
       return
     }
@@ -234,7 +234,7 @@ export default function Step3({ form }: Step3Props) {
       }
       
       // Ajouter l'option de créer une nouvelle profession
-      if (query.length >= 2) {
+      if (query.trim().length >= 2) {
         suggestions.push({ name: `Créer "${query}"`, isNew: true })
       }
       
@@ -249,7 +249,7 @@ export default function Step3({ form }: Step3Props) {
 
   // Fonction pour forcer la création automatique si aucune suggestion n'est sélectionnée
   const forceCreateIfNoSelection = useCallback((field: string, value: string) => {
-    if (!value || value.trim().length === 0) return
+    if (!value || value.trim().length < 2) return
     
     // Si la valeur n'est pas dans les suggestions existantes, forcer la création
     const existingSuggestions = field === 'company.companyName' ? companySuggestions : professionSuggestions
@@ -263,7 +263,7 @@ export default function Step3({ form }: Step3Props) {
 
   // Fonction pour rechercher avec Photon API pour l'entreprise
   const searchCompanyWithPhoton = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 2) {
       setCompanySearchResults([])
       return
     }
@@ -295,7 +295,7 @@ export default function Step3({ form }: Step3Props) {
 
   // Fonction pour rechercher uniquement les villes pour l'entreprise
   const searchCompanyCitiesWithPhoton = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 2) {
       setCompanyCitySearchResults([])
       return
     }
@@ -330,7 +330,7 @@ export default function Step3({ form }: Step3Props) {
   // Effet pour surveiller les changements des champs et récupérer les suggestions
   useEffect(() => {
     const companyName = watch('company.companyName')
-    if (companyName && companyName.length >= 2) {
+    if (companyName && companyName.trim().length >= 2) {
       fetchCompanySuggestions(companyName)
     } else {
       setCompanySuggestions([])
@@ -339,7 +339,7 @@ export default function Step3({ form }: Step3Props) {
 
   useEffect(() => {
     const profession = watch('company.profession')
-    if (profession && profession.length >= 2) {
+    if (profession && profession.trim().length >= 2) {
       fetchProfessionSuggestions(profession)
     } else {
       setProfessionSuggestions([])
@@ -350,7 +350,7 @@ export default function Step3({ form }: Step3Props) {
   useEffect(() => {
     if (showCompanySuggestions && companySuggestions.length === 0) {
       const companyName = watch('company.companyName')
-      if (companyName && companyName.length >= 2) {
+      if (companyName && companyName.trim().length >= 2) {
         fetchCompanySuggestions(companyName)
       }
     }
@@ -359,7 +359,7 @@ export default function Step3({ form }: Step3Props) {
   useEffect(() => {
     if (showProfessionSuggestions && professionSuggestions.length === 0) {
       const profession = watch('company.profession')
-      if (profession && profession.length >= 2) {
+      if (profession && profession.trim().length >= 2) {
         fetchProfessionSuggestions(profession)
       }
     }
@@ -368,14 +368,14 @@ export default function Step3({ form }: Step3Props) {
   // Effet pour charger les suggestions initiales si il y a déjà des valeurs
   useEffect(() => {
     const companyName = watch('company.companyName')
-    if (companyName && companyName.length >= 2 && companySuggestions.length === 0) {
+    if (companyName && companyName.trim().length >= 2 && companySuggestions.length === 0) {
       fetchCompanySuggestions(companyName)
     }
   }, [watch('company.companyName'), companySuggestions.length, fetchCompanySuggestions])
 
   useEffect(() => {
     const profession = watch('company.profession')
-    if (profession && profession.length >= 2 && professionSuggestions.length === 0) {
+    if (profession && profession.trim().length >= 2 && professionSuggestions.length === 0) {
       fetchProfessionSuggestions(profession)
     }
   }, [watch('company.profession'), professionSuggestions.length, fetchProfessionSuggestions])

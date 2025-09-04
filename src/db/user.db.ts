@@ -5,10 +5,10 @@ import {
   getDocs, 
   setDoc, 
   updateDoc, 
-  query, 
+  query as firestoreQuery, 
   where, 
   orderBy, 
-  limit, 
+  limit as firestoreLimit, 
   Timestamp,
   getCountFromServer
 } from 'firebase/firestore'
@@ -75,7 +75,7 @@ export async function generateMatricule(): Promise<string> {
       
       // Vérifier si ce matricule existe déjà dans membershipRequests
       const membershipRequestsRef = collection(firestore, firebaseCollectionNames.membershipRequests || "membership-requests")
-      const q = query(membershipRequestsRef, where("matricule", "==", matricule))
+      const q = firestoreQuery(membershipRequestsRef, where("matricule", "==", matricule))
       const snapshot = await getDocs(q)
       
       if (snapshot.empty) {
@@ -221,7 +221,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
-    const q = query(usersRef, where('email', '==', email), limit(1))
+    const q = firestoreQuery(usersRef, where('email', '==', email), firestoreLimit(1))
     const querySnapshot = await getDocs(q)
     
     if (querySnapshot.empty) {
@@ -277,7 +277,7 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
     for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize))
     const results: User[] = []
     for (const chunk of chunks) {
-      const q = query(usersRef, where('id', 'in', chunk))
+      const q = firestoreQuery(usersRef, where('id', 'in', chunk))
       const snap = await getDocs(q)
       snap.docs.forEach((d) => {
         const data = d.data() as any
@@ -347,7 +347,7 @@ export async function getAllUsers(filters: UserFilters = {}): Promise<{ users: U
     
     // Limite
     if (filters.limit) {
-      q = query(q, limit(filters.limit))
+      q = query(q, firestoreLimit(filters.limit))
     }
     
     const querySnapshot = await getDocs(q)
@@ -423,12 +423,12 @@ export async function getUserStats(): Promise<UserStats> {
     const total = totalSnapshot.data().count
     
     // Utilisateurs actifs
-    const activeQuery = query(usersRef, where('isActive', '==', true))
+    const activeQuery = firestoreQuery(usersRef, where('isActive', '==', true))
     const activeSnapshot = await getCountFromServer(activeQuery)
     const active = activeSnapshot.data().count
     
     // Utilisateurs avec voiture
-    const withCarQuery = query(usersRef, where('hasCar', '==', true))
+    const withCarQuery = firestoreQuery(usersRef, where('hasCar', '==', true))
     const withCarSnapshot = await getCountFromServer(withCarQuery)
     const withCar = withCarSnapshot.data().count
     
@@ -551,5 +551,100 @@ export async function getUsersByRole(role: UserRole): Promise<User[]> {
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs par rôle:', error)
     throw new Error('Impossible de récupérer les utilisateurs par rôle')
+  }
+}
+
+/**
+ * Recherche des utilisateurs par nom, prénom ou matricule
+ */
+export async function searchUsers(
+  query: string, 
+  limit: number = 20
+): Promise<User[]> {
+  try {
+    if (!query || query.trim().length < 2) {
+      return []
+    }
+
+    const searchTerm = query.trim().toLowerCase()
+    const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
+    
+    // Si la recherche ressemble à un matricule (contient .MK.), chercher directement par ID
+    if (searchTerm.includes('.mk.')) {
+      console.log('🔍 Recherche par matricule direct:', searchTerm)
+      try {
+        const user = await getUserById(searchTerm)
+        if (user) {
+          console.log('✅ Utilisateur trouvé par matricule:', user.matricule, user.firstName, user.lastName)
+          return [user]
+        } else {
+          console.log('❌ Utilisateur non trouvé par matricule:', searchTerm)
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la recherche par matricule:', error)
+      }
+    }
+    
+    // Recherche par nom/prénom - récupérer plus d'utilisateurs pour un meilleur filtrage
+    console.log('🔍 Recherche générale dans les utilisateurs récents...')
+    const q = firestoreQuery(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(100)) // Augmenter la limite
+    const querySnapshot = await getDocs(q)
+    
+    console.log('📊 Nombre total d\'utilisateurs récupérés:', querySnapshot.size)
+    
+    const users: User[] = []
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      const user = {
+        id: doc.id,
+        ...(data as any),
+        createdAt: toDateSafe(data.createdAt),
+        updatedAt: toDateSafe(data.updatedAt),
+      } as User
+      
+      // Filtrer côté client pour la recherche
+      const matchesSearch = 
+        user.firstName?.toLowerCase().includes(searchTerm) ||
+        user.lastName?.toLowerCase().includes(searchTerm) ||
+        user.matricule?.toLowerCase().includes(searchTerm) ||
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm) ||
+        `${user.lastName} ${user.firstName}`.toLowerCase().includes(searchTerm)
+      
+      if (matchesSearch) {
+        console.log('✅ Utilisateur correspondant trouvé:', user.matricule, user.firstName, user.lastName)
+        users.push(user)
+      }
+    })
+    
+    console.log('📊 Nombre d\'utilisateurs correspondants:', users.length)
+    
+    // Trier par pertinence (matricule exact en premier, puis nom/prénom)
+    users.sort((a, b) => {
+      const aMatricule = a.matricule?.toLowerCase() || ''
+      const bMatricule = b.matricule?.toLowerCase() || ''
+      const aName = `${a.firstName} ${a.lastName}`.toLowerCase()
+      const bName = `${b.firstName} ${b.lastName}`.toLowerCase()
+      
+      // Priorité aux matricules exacts
+      if (aMatricule === searchTerm && bMatricule !== searchTerm) return -1
+      if (bMatricule === searchTerm && aMatricule !== searchTerm) return 1
+      
+      // Puis aux matricules qui commencent par la recherche
+      if (aMatricule.startsWith(searchTerm) && !bMatricule.startsWith(searchTerm)) return -1
+      if (bMatricule.startsWith(searchTerm) && !aMatricule.startsWith(searchTerm)) return 1
+      
+      // Puis aux noms qui commencent par la recherche
+      if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1
+      if (bName.startsWith(searchTerm) && !aName.startsWith(searchTerm)) return 1
+      
+      return 0
+    })
+    
+    // Retourner seulement le nombre demandé
+    return users.slice(0, limit)
+  } catch (error) {
+    console.error('Erreur lors de la recherche d\'utilisateurs:', error)
+    throw new Error('Impossible de rechercher les utilisateurs')
   }
 }

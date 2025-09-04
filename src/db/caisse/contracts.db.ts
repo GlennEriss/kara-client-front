@@ -5,8 +5,19 @@ export async function createContract(input: any) {
   const { db, collection, addDoc, serverTimestamp } = await getFirestore() as any
   const colRef = collection(db, firebaseCollectionNames.caisseContracts)
   const now = serverTimestamp()
+  
+  // Nettoyer les valeurs undefined pour éviter les erreurs Firestore
+  const cleanInput = { ...input }
+  Object.keys(cleanInput).forEach((key) => {
+    if (cleanInput[key] === undefined) {
+      delete cleanInput[key]
+    }
+  })
+  
+  console.log('🧹 Données nettoyées dans createContract:', cleanInput)
+  
   const docRef = await addDoc(colRef, {
-    ...input,
+    ...cleanInput,
     status: 'DRAFT',
     nominalPaid: 0,
     bonusAccrued: 0,

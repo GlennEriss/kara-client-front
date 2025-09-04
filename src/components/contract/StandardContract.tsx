@@ -5,6 +5,7 @@ import Link from "next/link"
 import routes from "@/constantes/routes"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
+import { useGroupMembers } from "@/hooks/useMembers"
 import {
   pay,
   requestFinalRefund,
@@ -30,6 +31,7 @@ import {
   Wallet,
   CreditCard,
   FileText,
+  Users,
 } from "lucide-react"
 
 // ————————————————————————————————————————————————————————————
@@ -121,6 +123,7 @@ export default function StandardContract({ id }: Props) {
   const [confirmFinal, setConfirmFinal] = useState(false)
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("airtel_money")
+  const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string | null>(null)
 
   function paymentStatusLabel(s: string): string {
     const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }
@@ -165,6 +168,11 @@ export default function StandardContract({ id }: Props) {
   const isClosed = data.status === "CLOSED"
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
+  // Récupérer les membres du groupe si c'est un contrat de groupe
+  const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
+  const isGroupContract = data.contractType === 'GROUP' || !!groupeId
+  const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
+
   const payments = data.payments || []
   const paidCount = payments.filter((p: any) => p.status === "PAID").length
   const totalMonths = data.monthsPlanned || 0
@@ -198,17 +206,53 @@ export default function StandardContract({ id }: Props) {
 
     try {
       setIsPaying(true)
-      await pay({
-        contractId: id,
-        dueMonthIndex: selectedIdx,
-        memberId: data.memberId,
-        file,
-        paidAt: new Date(`${paymentDate}T${paymentTime}`),
-        time: paymentTime,
-        mode: paymentMode,
-      })
+      
+      if (isGroupContract && groupMembers) {
+        // Validation spécifique pour les contrats de groupe
+        if (!selectedGroupMemberId) {
+          toast.error("Veuillez sélectionner le membre du groupe qui effectue le versement.")
+          return
+        }
+        
+        // Utiliser la fonction payGroup pour les contrats de groupe
+        const selectedMember = groupMembers.find(m => m.id === selectedGroupMemberId)
+        if (!selectedMember) {
+          toast.error("Membre du groupe non trouvé")
+          return
+        }
+        
+        const { payGroup } = await import('@/services/caisse/mutations')
+        await payGroup({
+          contractId: id,
+          dueMonthIndex: selectedIdx,
+          memberId: selectedMember.id,
+          memberName: `${selectedMember.firstName} ${selectedMember.lastName}`,
+          memberMatricule: selectedMember.matricule || '',
+          memberPhotoURL: selectedMember.photoURL || undefined,
+          memberContacts: selectedMember.contacts || [],
+          amount: data.monthlyAmount || 0,
+          file,
+          paidAt: new Date(`${paymentDate}T${paymentTime}`),
+          time: paymentTime,
+          mode: paymentMode
+        })
+        
+        toast.success("Contribution ajoutée au versement collectif")
+      } else {
+        // Utiliser la fonction pay normale pour les contrats individuels
+        await pay({
+          contractId: id,
+          dueMonthIndex: selectedIdx,
+          memberId: data.memberId,
+          file,
+          paidAt: new Date(`${paymentDate}T${paymentTime}`),
+          time: paymentTime,
+          mode: paymentMode,
+        })
+        toast.success("Paiement enregistré")
+      }
+      
       await refetch()
-      toast.success("Paiement enregistré")
 
       // Reset UI
       setSelectedIdx(null)
@@ -222,6 +266,7 @@ export default function StandardContract({ id }: Props) {
           .padStart(2, "0")}`
       })
       setPaymentMode("airtel_money")
+      setSelectedGroupMemberId("")
       setFileInputResetKey((prev) => prev + 1)
     } finally {
       setIsPaying(false)
@@ -243,10 +288,22 @@ export default function StandardContract({ id }: Props) {
                 <Badge tone="blue">
                   <BadgeCheck className="h-3.5 w-3.5" /> {contractStatusLabel(data.status)}
                 </Badge>
+                {isGroupContract && (
+                  <Badge tone="green">
+                    <Users className="h-3.5 w-3.5" /> Contrat de Groupe
+                  </Badge>
+                )}
                 <span className="text-xs text-slate-500">
                   Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : "—"}
                 </span>
               </div>
+              {isGroupContract && (
+                <div className="mt-2 text-xs text-blue-600 bg-blue-50 p-2 rounded-lg">
+                  <strong>💡 Contrat de Groupe :</strong> Les versements sont cumulés par mois. 
+                  Chaque membre peut contribuer et le mois est considéré comme payé quand le montant total 
+                  ({data.monthlyAmount?.toLocaleString('fr-FR')} FCFA) est atteint.
+                </div>
+              )}
             </div>
           </div>
 
@@ -346,33 +403,82 @@ export default function StandardContract({ id }: Props) {
             const isSelectable = p.status === "DUE" && !isClosed
             const isSelected = selectedIdx === p.dueMonthIndex
 
+            // Déterminer les couleurs selon le statut
+            let cardColors = ""
+            let borderColors = ""
+            let bgColors = ""
+            
+            if (p.status === "PAID") {
+              cardColors = "border-green-200 bg-green-50"
+              borderColors = "border-green-300"
+              bgColors = "bg-green-50"
+            } else if (p.status === "DUE") {
+              cardColors = "border-blue-200 bg-blue-50"
+              borderColors = "border-blue-300"
+              bgColors = "bg-blue-50"
+            } else if (p.status === "REFUSED") {
+              cardColors = "border-red-200 bg-red-50"
+              borderColors = "border-red-300"
+              bgColors = "bg-red-50"
+            } else {
+              cardColors = "border-slate-200 bg-slate-50"
+              borderColors = "border-slate-300"
+              bgColors = "bg-slate-50"
+            }
+
+            // Couleur de sélection
+            if (isSelected) {
+              cardColors = `${brand.ring} ring-2 border-[#234D65] bg-[#234D65]/5`
+            }
+
             return (
               <div
                 key={p.id}
                 className={classNames(
                   "rounded-2xl border p-4 shadow-sm transition-all",
-                  isSelected ? `${brand.ring} ring-2` : "hover:shadow",
+                  cardColors,
+                  isSelected ? `${brand.ring} ring-2` : "hover:shadow-md",
                   !isSelectable && "opacity-70"
                 )}
               >
                 <div className="flex items-center justify-between">
-                  <div className="font-medium">M{p.dueMonthIndex + 1}</div>
+                  <div className={classNames(
+                    "font-medium text-lg",
+                    p.status === "PAID" ? "text-green-700" : 
+                    p.status === "DUE" ? "text-blue-700" : 
+                    p.status === "REFUSED" ? "text-red-700" : 
+                    "text-slate-700"
+                  )}>
+                    M{p.dueMonthIndex + 1}
+                  </div>
                   <div className="flex items-center gap-2">
                     {badge}
-                    <Badge>{paymentStatusLabel(p.status)}</Badge>
+                    <Badge 
+                      tone={
+                        p.status === "PAID" ? "green" : 
+                        p.status === "DUE" ? "blue" : 
+                        p.status === "REFUSED" ? "red" : 
+                        "slate"
+                      }
+                    >
+                      {paymentStatusLabel(p.status)}
+                    </Badge>
                   </div>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
                   <div>Échéance: {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}</div>
                   <div>Payé le: {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}</div>
                   {p.penaltyApplied ? (
-                    <div className="col-span-2 text-red-600">Pénalité: {p.penaltyApplied}</div>
+                    <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied}</div>
                   ) : null}
                 </div>
 
                 <label className={classNames(
-                  "mt-3 flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm",
-                  isSelectable ? "hover:bg-slate-50" : "cursor-not-allowed opacity-60"
+                  "mt-3 flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+                  isSelectable ? 
+                    "hover:bg-white hover:border-[#234D65] hover:shadow-sm" : 
+                    "cursor-not-allowed opacity-60",
+                  isSelected ? "bg-[#234D65] text-white border-[#234D65]" : "bg-white"
                 )}>
                   <input
                     type="radio"
@@ -382,7 +488,9 @@ export default function StandardContract({ id }: Props) {
                     disabled={!isSelectable}
                     className="accent-[#234D65]"
                   />
-                  <span>Sélectionner pour payer</span>
+                  <span className={isSelected ? "text-white" : ""}>
+                    {isSelectable ? "Sélectionner pour payer" : "Non disponible"}
+                  </span>
                 </label>
               </div>
             )
@@ -455,6 +563,39 @@ export default function StandardContract({ id }: Props) {
             </div>
           </div>
 
+          {/* Sélection du membre du groupe (si contrat de groupe) */}
+          {isGroupContract && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Membre du groupe qui verse *</label>
+              <select
+                value={selectedGroupMemberId || ""}
+                onChange={(e) => setSelectedGroupMemberId(e.target.value)}
+                className={classNames(
+                  "w-full rounded-xl border p-2 text-sm shadow-sm transition-all",
+                  "focus:outline-none focus:ring-2",
+                  brand.ring
+                )}
+                required
+              >
+                <option value="">Sélectionnez le membre qui verse</option>
+                {groupMembers && groupMembers.length > 0 ? (
+                  groupMembers.map((member: any) => (
+                    <option key={member.id} value={member.id}>
+                      {member.firstName} {member.lastName} ({member.matricule})
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    Chargement des membres du groupe...
+                  </option>
+                )}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Ce champ permet de tracer qui a effectué le versement dans le groupe
+              </p>
+            </div>
+          )}
+
           {/* Preuve */}
           <div>
             <FileInput
@@ -491,7 +632,15 @@ export default function StandardContract({ id }: Props) {
         <div className="sticky bottom-3 mt-2 flex justify-center">
           <button
             onClick={onPay}
-            disabled={isPaying || !file || !paymentDate || !paymentTime || !paymentMode || isClosed}
+            disabled={
+              isPaying || 
+              !file || 
+              !paymentDate || 
+              !paymentTime || 
+              !paymentMode || 
+              isClosed ||
+              (isGroupContract && !selectedGroupMemberId)
+            }
             className={classNames(
               "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white shadow",
               brand.bg,

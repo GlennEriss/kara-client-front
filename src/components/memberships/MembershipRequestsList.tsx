@@ -976,6 +976,7 @@ const MembershipRequestCard = ({
                 <SelectContent>
                   <SelectItem value="airtel_money">Airtel Money</SelectItem>
                   <SelectItem value="mobicash">Mobicash</SelectItem>
+                  <SelectItem value="cash">Espèce</SelectItem>
                 </SelectContent>
               </Select>
             </div>

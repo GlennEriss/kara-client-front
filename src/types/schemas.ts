@@ -38,15 +38,43 @@ export const InsuranceTypeEnum = z.enum([
 export const identitySchema = z.object({
   civility: CivilityEnum,
   
-  lastName: z.string()
-    .min(2, 'Le nom doit contenir au moins 2 caractères')
-    .max(50, 'Le nom ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+  lastName: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'Le nom doit contenir au moins 2 caractères')
+      .max(50, 'Le nom ne peut pas dépasser 50 caractères')
+      .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets')
+  ),
   
-  firstName: z.string()
-    .min(2, 'Le prénom doit contenir au moins 2 caractères')
-    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+  firstName: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+  ).optional().superRefine((value, ctx) => {
+    // Si pas de valeur ou valeur vide, c'est valide
+    if (!value || value.trim() === '') return
+    
+    const trimmedValue = value.trim()
+    
+    // Vérifier la longueur minimale
+    if (trimmedValue.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le prénom doit contenir au moins 2 caractères',
+        path: ['firstName']
+      })
+      return
+    }
+    
+    // Vérifier le format
+    if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(trimmedValue)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le prénom ne peut contenir que des lettres, espaces, apostrophes et tirets',
+        path: ['firstName']
+      })
+    }
+  }),
   
   birthDate: z.string()
     .min(1, 'La date de naissance est requise')
@@ -57,21 +85,33 @@ export const identitySchema = z.object({
       return age >= 18 && age <= 120
     }, 'Vous devez avoir au moins 18 ans'),
   
-  birthPlace: z.string()
-    .min(2, 'Le lieu de naissance doit contenir au moins 2 caractères')
-    .max(100, 'Le lieu de naissance ne peut pas dépasser 100 caractères'),
+  birthPlace: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'Le lieu de naissance doit contenir au moins 2 caractères')
+      .max(100, 'Le lieu de naissance ne peut pas dépasser 100 caractères')
+  ),
   
-  birthCertificateNumber: z.string()
-    .min(1, 'Le numéro d\'acte de naissance est requis')
-    .max(50, 'Le numéro d\'acte de naissance ne peut pas dépasser 50 caractères'),
+  birthCertificateNumber: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(1, 'Le numéro d\'acte de naissance est requis')
+      .max(50, 'Le numéro d\'acte de naissance ne peut pas dépasser 50 caractères')
+  ),
   
-  prayerPlace: z.string()
-    .min(2, 'Le lieu de prière doit contenir au moins 2 caractères')
-    .max(100, 'Le lieu de prière ne peut pas dépasser 100 caractères'),
+  prayerPlace: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'Le lieu de prière doit contenir au moins 2 caractères')
+      .max(100, 'Le lieu de prière ne peut pas dépasser 100 caractères')
+  ),
   
-  religion: z.string()
-    .min(1, 'La religion est requise')
-    .max(50, 'La religion ne peut pas dépasser 50 caractères'),
+  religion: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(1, 'La religion est requise')
+      .max(50, 'La religion ne peut pas dépasser 50 caractères')
+  ),
   
   contacts: z.array(
     z.string()
@@ -96,10 +136,13 @@ export const identitySchema = z.object({
   
   gender: GenderEnum,
   
-  nationality: z.string()
-    .min(2, 'La nationalité doit contenir au moins 2 caractères')
-    .max(50, 'La nationalité ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'La nationalité ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+  nationality: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'La nationalité doit contenir au moins 2 caractères')
+      .max(50, 'La nationalité ne peut pas dépasser 50 caractères')
+      .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'La nationalité ne peut contenir que des lettres, espaces, apostrophes et tirets')
+  ),
   
   maritalStatus: MaritalStatusEnum,
   
@@ -183,21 +226,33 @@ export const identitySchema = z.object({
 
 // ================== STEP 2: ADRESSE ==================
 export const addressSchema = z.object({
-  province: z.string()
-    .min(2, 'La province doit contenir au moins 2 caractères')
-    .max(50, 'La province ne peut pas dépasser 50 caractères'),
+  province: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'La province doit contenir au moins 2 caractères')
+      .max(50, 'La province ne peut pas dépasser 50 caractères')
+  ),
   
-  city: z.string()
-    .min(2, 'La ville doit contenir au moins 2 caractères')
-    .max(50, 'La ville ne peut pas dépasser 50 caractères'),
+  city: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'La ville doit contenir au moins 2 caractères')
+      .max(50, 'La ville ne peut pas dépasser 50 caractères')
+  ),
   
-  district: z.string()
-    .min(2, 'Le quartier doit contenir au moins 2 caractères')
-    .max(100, 'Le quartier ne peut pas dépasser 100 caractères'),
+  district: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'Le quartier doit contenir au moins 2 caractères')
+      .max(100, 'Le quartier ne peut pas dépasser 100 caractères')
+  ),
   
-  arrondissement: z.string()
-    .min(2, 'L\'arrondissement doit contenir au moins 2 caractères')
-    .max(50, 'L\'arrondissement ne peut pas dépasser 50 caractères'),
+  arrondissement: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(2, 'L\'arrondissement doit contenir au moins 2 caractères')
+      .max(50, 'L\'arrondissement ne peut pas dépasser 50 caractères')
+  ),
   
   additionalInfo: z.string()
     .max(200, 'Les informations complémentaires ne peuvent pas dépasser 200 caractères')
@@ -210,17 +265,35 @@ export const companySchema = z.object({
   isEmployed: z.boolean().default(false),
   
   // Les champs suivants ne sont requis que si isEmployed = true
-  companyName: z.string().optional(),
+  companyName: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string().optional()
+  ),
   
   companyAddress: z.object({
-    province: z.string().optional(),
-    city: z.string().optional(),
-    district: z.string().optional()
+    province: z.preprocess(
+      (val) => (typeof val === 'string' ? val.trim() : val),
+      z.string().optional()
+    ),
+    city: z.preprocess(
+      (val) => (typeof val === 'string' ? val.trim() : val),
+      z.string().optional()
+    ),
+    district: z.preprocess(
+      (val) => (typeof val === 'string' ? val.trim() : val),
+      z.string().optional()
+    )
   }).optional(),
   
-  profession: z.string().optional(),
+  profession: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string().optional()
+  ),
   
-  seniority: z.string().optional()
+  seniority: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string().optional()
+  )
 }).superRefine((data, ctx) => {
   // Si la personne travaille, tous les champs deviennent obligatoires
   if (data.isEmployed) {
@@ -673,3 +746,122 @@ export const earlyRefundDefaultValues: EarlyRefundFormData = {
   withdrawalTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
   proof: undefined
 } 
+
+// ================== CONTRACT CREATION SCHEMA ==================
+
+export const contractCreationSchema = z.object({
+  // Étape 1: Sélection du type de contrat
+  contractType: z.enum(['INDIVIDUAL', 'GROUP']),
+  
+  memberId: z.string().optional(),
+  
+  groupeId: z.string().optional(),
+  
+  // Étape 2: Configuration de la caisse
+  caisseType: z.enum(['STANDARD', 'JOURNALIERE', 'LIBRE']),
+  
+  monthlyAmount: z.number()
+    .min(100, 'Le montant mensuel doit être au moins 100 FCFA')
+    .max(1000000, 'Le montant mensuel ne peut pas dépasser 1 000 000 FCFA'),
+  
+  monthsPlanned: z.number()
+    .min(1, 'La durée doit être d\'au moins 1 mois')
+    .max(60, 'La durée ne peut pas dépasser 60 mois'),
+  
+  // Étape 3: Planification des versements
+  firstPaymentDate: z.string()
+    .min(1, 'La date du premier versement est requise')
+    .refine((date) => {
+      const selectedDate = new Date(date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      return selectedDate >= today
+    }, 'La date du premier versement ne peut pas être dans le passé'),
+  
+}).superRefine((data, ctx) => {
+  // Validation croisée pour memberId/groupeId selon le type de contrat
+  if (data.contractType === 'INDIVIDUAL') {
+    if (!data.memberId || data.memberId.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Veuillez sélectionner un membre pour un contrat individuel',
+        path: ['memberId']
+      })
+    }
+    if (data.groupeId && data.groupeId.trim() !== '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Un contrat individuel ne peut pas avoir d\'ID de groupe',
+        path: ['groupeId']
+      })
+    }
+  } else if (data.contractType === 'GROUP') {
+    if (!data.groupeId || data.groupeId.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Veuillez sélectionner un groupe pour un contrat de groupe',
+        path: ['groupeId']
+      })
+    }
+    if (data.memberId && data.memberId.trim() !== '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Un contrat de groupe ne peut pas avoir d\'ID de membre',
+        path: ['memberId']
+      })
+    }
+  }
+  
+  // Validation spécifique pour le type LIBRE
+  if (data.caisseType === 'LIBRE' && data.monthlyAmount < 100000) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA',
+      path: ['monthlyAmount']
+    })
+  }
+  
+  // Validation de la durée selon le type de caisse
+  if (data.caisseType === 'JOURNALIERE' && data.monthsPlanned > 12) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Pour un contrat Journalier, la durée ne peut pas dépasser 12 mois',
+      path: ['monthsPlanned']
+    })
+  }
+})
+
+export type ContractCreationFormData = z.infer<typeof contractCreationSchema>
+
+// Valeurs par défaut pour le formulaire
+export const contractCreationDefaultValues: ContractCreationFormData = {
+  contractType: 'INDIVIDUAL',
+  memberId: '',
+  groupeId: '',
+  caisseType: 'STANDARD',
+  monthlyAmount: 10000,
+  monthsPlanned: 12,
+  firstPaymentDate: new Date().toISOString().split('T')[0]
+}
+
+// Schémas pour chaque étape individuelle
+export const step1Schema = z.object({
+  contractType: z.enum(['INDIVIDUAL', 'GROUP']),
+  memberId: z.string().optional(),
+  groupeId: z.string().optional()
+})
+
+export const step2Schema = z.object({
+  caisseType: z.enum(['STANDARD', 'JOURNALIERE', 'LIBRE']),
+  monthlyAmount: z.number().min(100).max(1000000),
+  monthsPlanned: z.number().min(1).max(60)
+})
+
+export const step3Schema = z.object({
+  firstPaymentDate: z.string().min(1)
+})
+
+// Types pour chaque étape
+export type Step1FormData = z.infer<typeof step1Schema>
+export type Step2FormData = z.infer<typeof step2Schema>
+export type Step3FormData = z.infer<typeof step3Schema> 

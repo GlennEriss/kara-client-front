@@ -71,13 +71,28 @@ export async function subscribe(input: {
   const contractType = input.memberId ? 'INDIVIDUAL' : 'GROUP'
   
   const settings = await getActiveSettings(input.caisseType)
-  const contractData = {
-    ...input,
+  
+  // Nettoyer les données pour éviter les valeurs undefined dans Firestore
+  const cleanData: any = {
     contractType,
+    monthlyAmount: input.monthlyAmount,
+    monthsPlanned: input.monthsPlanned,
+    caisseType: input.caisseType,
+    firstPaymentDate: input.firstPaymentDate,
     ...(settings?.id ? { settingsVersion: settings.id } : {})
   }
   
-  const id = await createContract(contractData)
+  // Ajouter seulement les champs non-undefined
+  if (input.memberId) {
+    cleanData.memberId = input.memberId
+  }
+  if (input.groupeId) {
+    cleanData.groupeId = input.groupeId
+  }
+  
+  console.log('🧹 Données nettoyées pour Firestore:', cleanData)
+  
+  const id = await createContract(cleanData)
   
   // Calculer la date de début basée sur firstPaymentDate ou maintenant
   const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()

@@ -344,6 +344,12 @@ const ContractFilters = ({
 // Composant principal
 const ListContracts = () => {
   const router = useRouter()
+  
+  // Fonction de navigation vers la création de contrat
+  const handleCreateContract = () => {
+    router.push('/caisse-speciale/create')
+  }
+  
   // États
   const [filters, setFilters] = useState({
     search: '',
@@ -611,6 +617,7 @@ const ListContracts = () => {
 
               <Button
                 size="sm"
+                onClick={handleCreateContract}
                 className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="h-4 w-4 mr-2" />
