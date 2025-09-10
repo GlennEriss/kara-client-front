@@ -3,7 +3,7 @@
 import React from 'react'
 import { useActiveCaisseSettings, useCaisseSettingsList, useCaisseSettingsMutations } from '@/hooks/useCaisseSettings'
 import { toast } from 'sonner'
-import { Plus, Edit3, Power, Trash2, Calendar, Settings, DollarSign, TrendingUp, AlertTriangle, Check, X, Loader2 } from 'lucide-react'
+import { Plus, Edit3, Power, Trash2, Calendar, Settings, DollarSign, TrendingUp, AlertTriangle, Check, X, Loader2, Download } from 'lucide-react'
 
 export default function AdminCaisseSettingsPage() {
   const active = useActiveCaisseSettings()
@@ -16,6 +16,7 @@ export default function AdminCaisseSettingsPage() {
   const [editUseSteps, setEditUseSteps] = React.useState(false)
   const [editSteps, setEditSteps] = React.useState<Array<{ from: number; to: number; rate: number }>>([])
   const [editPerDay, setEditPerDay] = React.useState(0)
+  const [isExporting, setIsExporting] = React.useState(false)
 
   const [createBonusTable, setCreateBonusTable] = React.useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {}
@@ -105,6 +106,98 @@ export default function AdminCaisseSettingsPage() {
     }
   }
 
+  const exportToExcel = async () => {
+    if (!list.data || list.data.length === 0) {
+      toast.error('Aucune donnée à exporter')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      // Préparer les données pour l'export
+      const exportData = list.data.map((setting: any) => {
+        const bonusTable = setting.bonusTable || {}
+        const penaltyRules = setting.penaltyRules || {}
+        const day4To12 = penaltyRules.day4To12 || {}
+        
+        return {
+          'ID': setting.id,
+          'Type de Caisse': setting.caisseType || 'STANDARD',
+          'Statut': setting.isActive ? 'Active' : 'Inactive',
+          'Date d\'effet': setting.effectiveAt ? (() => {
+            const d = setting.effectiveAt && typeof setting.effectiveAt === 'object' && 'seconds' in setting.effectiveAt 
+              ? new Date(setting.effectiveAt.seconds * 1000) 
+              : new Date(setting.effectiveAt)
+            return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
+          })() : '—',
+          'Bonus M4 (%)': bonusTable.M4 || 0,
+          'Bonus M5 (%)': bonusTable.M5 || 0,
+          'Bonus M6 (%)': bonusTable.M6 || 0,
+          'Bonus M7 (%)': bonusTable.M7 || 0,
+          'Bonus M8 (%)': bonusTable.M8 || 0,
+          'Bonus M9 (%)': bonusTable.M9 || 0,
+          'Bonus M10 (%)': bonusTable.M10 || 0,
+          'Bonus M11 (%)': bonusTable.M11 || 0,
+          'Bonus M12 (%)': bonusTable.M12 || 0,
+          'Pénalité par jour (%)': day4To12.perDay || 0,
+          'Utilise des paliers': day4To12.steps ? 'Oui' : 'Non',
+          'Paliers (JSON)': day4To12.steps ? JSON.stringify(day4To12.steps) : '',
+          'Date de création': setting.createdAt ? (() => {
+            const d = setting.createdAt && typeof setting.createdAt === 'object' && 'seconds' in setting.createdAt 
+              ? new Date(setting.createdAt.seconds * 1000) 
+              : new Date(setting.createdAt)
+            return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
+          })() : '—',
+          'Dernière modification': setting.updatedAt ? (() => {
+            const d = setting.updatedAt && typeof setting.updatedAt === 'object' && 'seconds' in setting.updatedAt 
+              ? new Date(setting.updatedAt.seconds * 1000) 
+              : new Date(setting.updatedAt)
+            return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
+          })() : '—'
+        }
+      })
+
+      // Créer le fichier CSV avec BOM pour Excel
+      const headers = Object.keys(exportData[0])
+      
+      // Ajouter le BOM UTF-8 pour Excel
+      const BOM = '\uFEFF'
+      
+      const csvContent = BOM + [
+        headers.join(';'),
+        ...exportData.map(row => 
+          headers.map(header => {
+            const value = row[header]
+            // Échapper les points-virgules et guillemets dans les valeurs
+            if (typeof value === 'string' && (value.includes(';') || value.includes('"'))) {
+              return `"${value.replace(/"/g, '""')}"`
+            }
+            return value
+          }).join(';')
+        )
+      ].join('\r\n')
+
+      // Créer et télécharger le fichier
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `parametres-caisse-speciale-${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success('Export réussi !')
+    } catch (error) {
+      console.error('Erreur lors de l\'export:', error)
+      toast.error('Erreur lors de l\'export')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -115,6 +208,23 @@ export default function AdminCaisseSettingsPage() {
             </h1>
             <p className="text-gray-600 text-lg">Configurez les bonus et pénalités par type de caisse</p>
           </div>
+          <button
+            onClick={exportToExcel}
+            disabled={isExporting || list.isLoading || !list.data || list.data.length === 0}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Export en cours...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Exporter Excel
+              </>
+            )}
+          </button>
         </div>
 
         {/* Information sur l'activation */}
@@ -313,29 +423,31 @@ export default function AdminCaisseSettingsPage() {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <button
-                                      className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200"
-                                      onClick={() => {
-                                        setEditId(s.id)
-                                        const bt = (s as any)?.bonusTable || {}
-                                        const prefilled: Record<string, number> = {}
-                                        for (let m = 4; m <= 12; m++) prefilled[`M${m}`] = Number(bt[`M${m}`] || 0)
-                                        setEditBonusTable(prefilled)
-                                        const pr = (s as any)?.penaltyRules || {}
-                                        if (pr.day4To12?.steps) {
-                                          setEditUseSteps(true)
-                                          setEditSteps((pr.day4To12.steps || []).map((x: any) => ({ from: Number(x.from), to: Number(x.to), rate: Number(x.rate) })))
-                                          setEditPerDay(0)
-                                        } else {
-                                          setEditUseSteps(false)
-                                          setEditSteps([])
-                                          setEditPerDay(Number(pr.day4To12?.perDay || 0))
-                                        }
-                                      }}
-                                      title="Éditer"
-                                    >
-                                      <Edit3 className="h-4 w-4" />
-                                    </button>
+                                    {process.env.NODE_ENV === 'development' && (
+                                      <button
+                                        className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200"
+                                        onClick={() => {
+                                          setEditId(s.id)
+                                          const bt = (s as any)?.bonusTable || {}
+                                          const prefilled: Record<string, number> = {}
+                                          for (let m = 4; m <= 12; m++) prefilled[`M${m}`] = Number(bt[`M${m}`] || 0)
+                                          setEditBonusTable(prefilled)
+                                          const pr = (s as any)?.penaltyRules || {}
+                                          if (pr.day4To12?.steps) {
+                                            setEditUseSteps(true)
+                                            setEditSteps((pr.day4To12.steps || []).map((x: any) => ({ from: Number(x.from), to: Number(x.to), rate: Number(x.rate) })))
+                                            setEditPerDay(0)
+                                          } else {
+                                            setEditUseSteps(false)
+                                            setEditSteps([])
+                                            setEditPerDay(Number(pr.day4To12?.perDay || 0))
+                                          }
+                                        }}
+                                        title="Éditer"
+                                      >
+                                        <Edit3 className="h-4 w-4" />
+                                      </button>
+                                    )}
                                     {!s.isActive && (
                                       <button 
                                         className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200" 
@@ -352,13 +464,15 @@ export default function AdminCaisseSettingsPage() {
                                         <Power className="h-4 w-4" />
                                       </button>
                                     )}
-                                    <button 
-                                      className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
-                                      onClick={() => setConfirmDeleteId(s.id)}
-                                      title="Supprimer"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
+                                    {process.env.NODE_ENV === 'development' && (
+                                      <button 
+                                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
+                                        onClick={() => setConfirmDeleteId(s.id)}
+                                        title="Supprimer"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -375,7 +489,7 @@ export default function AdminCaisseSettingsPage() {
         </div>
 
         {/* Modal de confirmation de suppression */}
-        {confirmDeleteId && (
+        {process.env.NODE_ENV === 'development' && confirmDeleteId && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
               <div className="bg-red-50 border-b border-red-100 p-6">
@@ -415,7 +529,7 @@ export default function AdminCaisseSettingsPage() {
         )}
 
         {/* Modal d'édition */}
-        {editId && (
+        {process.env.NODE_ENV === 'development' && editId && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
               <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6">

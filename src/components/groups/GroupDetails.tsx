@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, RefreshCw, Trash2, Users, Search, UserPlus, Calendar, Mail, IdCard, UserCheck, Filter, ArrowLeft, FileText } from 'lucide-react'
+import { Plus, RefreshCw, Trash2, Users, Search, UserPlus, Calendar, Mail, IdCard, UserCheck, Filter, ArrowLeft, FileText, Download } from 'lucide-react'
 import type { Group, User } from '@/types/types'
 import { listGroups } from '@/db/group.db'
 import { useMembers } from '@/hooks/useMembers'
@@ -98,6 +98,7 @@ export default function GroupDetails({ groupId }: Props) {
     const [createContractOpen, setCreateContractOpen] = React.useState(false)
     const [toRemove, setToRemove] = React.useState<User | null>(null)
     const [isRemoving, setIsRemoving] = React.useState(false)
+    const [isExporting, setIsExporting] = React.useState(false)
 
     React.useEffect(() => {
         ; (async () => {
@@ -124,6 +125,88 @@ export default function GroupDetails({ groupId }: Props) {
             (m.matricule || '').toLowerCase().includes(q)
         )
     })
+
+    const exportToExcel = async () => {
+        if (filteredMembers.length === 0) {
+            toast.error('Aucun membre à exporter')
+            return
+        }
+
+        setIsExporting(true)
+        try {
+            // Préparer les données pour l'export
+            const exportData = filteredMembers.map((member: any) => {
+                const toISO = (v: any) => {
+                    try {
+                        if (!v) return ''
+                        const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
+                        return isNaN(d.getTime()) ? '' : d.toISOString()
+                    } catch {
+                        return ''
+                    }
+                }
+
+                return {
+                    'Matricule': member?.matricule || member?.id || '',
+                    'Prénom': member?.firstName || '',
+                    'Nom': member?.lastName || '',
+                    'Email': member?.email || '',
+                    'Sexe': member?.gender || '',
+                    'Nationalité': member?.nationality || '',
+                    'Profession': member?.profession || '',
+                    'Province': member?.address?.province || '',
+                    'Ville': member?.address?.city || '',
+                    'Quartier': member?.address?.district || '',
+                    'Arrondissement': member?.address?.arrondissement || '',
+                    'Téléphones': Array.isArray(member?.contacts) ? member.contacts.join(' | ') : '',
+                    'Possède un véhicule': member?.hasCar ? 'Oui' : 'Non',
+                    'Date d\'adhésion': toISO(member?.createdAt),
+                    'Dernière modification': toISO(member?.updatedAt),
+                    'Nombre de groupes': (member?.groupIds || []).length,
+                    'Autres groupes': (member?.groupIds || []).filter((id: string) => id !== groupId).length,
+                }
+            })
+
+            // Créer le fichier CSV avec BOM pour Excel
+            const headers = Object.keys(exportData[0])
+            
+            // Ajouter le BOM UTF-8 pour Excel
+            const BOM = '\uFEFF'
+            
+            const csvContent = BOM + [
+                headers.join(';'),
+                ...exportData.map((row: Record<string, any>) => 
+                    headers.map(header => {
+                        const value = row[header]
+                        // Échapper les points-virgules et guillemets dans les valeurs
+                        if (typeof value === 'string' && (value.includes(';') || value.includes('"'))) {
+                            return `"${value.replace(/"/g, '""')}"`
+                        }
+                        return value
+                    }).join(';')
+                )
+            ].join('\r\n')
+
+            // Créer et télécharger le fichier
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            const url = URL.createObjectURL(blob)
+            link.setAttribute('href', url)
+            link.setAttribute('download', `membres-groupe-${group?.name || 'groupe'}-${new Date().toISOString().split('T')[0]}.csv`)
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            URL.revokeObjectURL(url)
+
+            toast.success('Export réussi !')
+        } catch (error) {
+            console.error('Erreur lors de l\'export:', error)
+            toast.error('Erreur lors de l\'export')
+        } finally {
+            setIsExporting(false)
+        }
+    }
 
     if (isLoading) {
         return (
@@ -265,6 +348,24 @@ export default function GroupDetails({ groupId }: Props) {
                                 >
                                     <RefreshCw className="w-4 h-4 mr-2" />
                                     Actualiser
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={exportToExcel}
+                                    disabled={isExporting || filteredMembers.length === 0}
+                                    className="h-12 px-6 border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isExporting ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
+                                            Export...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Exporter Excel
+                                        </>
+                                    )}
                                 </Button>
                                 <Button
                                     className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"

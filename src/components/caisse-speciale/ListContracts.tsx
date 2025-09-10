@@ -28,11 +28,13 @@ import {
   User,
   Users as GroupIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Download
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { cn } from '@/lib/utils'
 import { useContracts, Contract } from '@/hooks/useContracts'
+import { toast } from 'sonner'
 
 type ViewMode = 'grid' | 'list'
 
@@ -309,10 +311,8 @@ const ContractFilters = ({
               <option value="LATE_NO_PENALTY">Retard (J+0..3)</option>
               <option value="LATE_WITH_PENALTY">Retard (J+4..12)</option>
               <option value="DEFAULTED_AFTER_J12">Résilié (&gt;J+12)</option>
-              <option value="EARLY_WITHDRAW_REQUESTED">Retrait anticipé</option>
               <option value="FINAL_REFUND_PENDING">Remboursement final</option>
-              <option value="EARLY_REFUND_PENDING">Remboursement anticipé</option>
-              <option value="RESCINDED">Résilié</option>
+              <option value="RESCINDED">Résilié en urgence</option>
               <option value="CLOSED">Clos</option>
             </select>
 
@@ -359,6 +359,7 @@ const ListContracts = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [isExporting, setIsExporting] = useState(false)
 
   // Hook pour récupérer les contrats depuis Firestore
   const { contracts: contractsData, isLoading, error, refetch } = useContracts()
@@ -390,6 +391,100 @@ const ListContracts = () => {
 
   const handleRefresh = async () => {
     await refetch()
+  }
+
+  const exportToExcel = async () => {
+    if (filteredContracts.length === 0) {
+      toast.error('Aucun contrat à exporter')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      // Préparer les données pour l'export
+      const exportData = filteredContracts.map((contract: any) => {
+        const toISO = (v: any) => {
+          try {
+            if (!v) return ''
+            const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
+            return isNaN(d.getTime()) ? '' : d.toISOString()
+          } catch {
+            return ''
+          }
+        }
+
+        const toDate = (v: any) => {
+          try {
+            if (!v) return ''
+            const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
+            return isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR')
+          } catch {
+            return ''
+          }
+        }
+
+        return {
+          'ID Contrat': contract?.id || '',
+          'Type': getContractType(contract),
+          'Nom': getContractDisplayName(contract),
+          'Statut': getStatusLabel(contract.status),
+          'Montant mensuel (FCFA)': contract?.monthlyAmount || 0,
+          'Durée (mois)': contract?.monthsPlanned || 0,
+          'Montant total (FCFA)': (contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0),
+          'Montant versé (FCFA)': contract?.nominalPaid || 0,
+          'Montant restant (FCFA)': ((contract?.monthlyAmount || 0) * (contract?.monthsPlanned || 0)) - (contract?.nominalPaid || 0),
+          'Prochaine échéance': toDate(contract?.nextDueAt),
+          'Date de création': toDate(contract?.createdAt),
+          'Dernière modification': toDate(contract?.updatedAt),
+          'Type de caisse': contract?.caisseType || '',
+          'Date premier versement': toDate(contract?.firstPaymentDate),
+          'Jours de retard': contract?.daysLate || 0,
+          'Pénalités (FCFA)': contract?.penalties || 0,
+          'Bonus (FCFA)': contract?.bonuses || 0,
+          'ID Membre': contract?.memberId || '',
+          'ID Groupe': contract?.groupeId || '',
+        }
+      })
+
+      // Créer le fichier CSV avec BOM pour Excel
+      const headers = Object.keys(exportData[0])
+      
+      // Ajouter le BOM UTF-8 pour Excel
+      const BOM = '\uFEFF'
+      
+      const csvContent = BOM + [
+        headers.join(';'),
+        ...exportData.map((row: Record<string, any>) => 
+          headers.map(header => {
+            const value = row[header]
+            // Échapper les points-virgules et guillemets dans les valeurs
+            if (typeof value === 'string' && (value.includes(';') || value.includes('"'))) {
+              return `"${value.replace(/"/g, '""')}"`
+            }
+            return value
+          }).join(';')
+        )
+      ].join('\r\n')
+
+      // Créer et télécharger le fichier
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `contrats-caisse-speciale-${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      toast.success('Export réussi !')
+    } catch (error) {
+      console.error('Erreur lors de l\'export:', error)
+      toast.error('Erreur lors de l\'export')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Fonctions utilitaires
@@ -613,6 +708,26 @@ const ListContracts = () => {
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToExcel}
+                disabled={isExporting || filteredContracts.length === 0}
+                className="h-10 px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
+                    Export...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Exporter Excel
+                  </>
+                )}
               </Button>
 
               <Button

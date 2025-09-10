@@ -222,16 +222,22 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
   function toCSV(rows: any[]): string {
     if (!rows.length) return ''
     const headers = Object.keys(rows[0])
+    
+    // Ajouter le BOM UTF-8 pour Excel
+    const BOM = '\uFEFF'
+    
     const escape = (val: any) => {
       if (val == null) return ''
       const s = String(val).replace(/"/g, '""')
-      return s.includes(',') || s.includes('\n') ? `"${s}"` : s
+      return s.includes(';') || s.includes('\n') || s.includes('"') ? `"${s}"` : s
     }
-    const lines = [headers.join(',')]
+    
+    const lines = [headers.join(';')]
     for (const row of rows) {
-      lines.push(headers.map((h) => escape(row[h])).join(','))
+      lines.push(headers.map((h) => escape(row[h])).join(';'))
     }
-    return lines.join('\n')
+    
+    return BOM + lines.join('\r\n')
   }
 
   return (
