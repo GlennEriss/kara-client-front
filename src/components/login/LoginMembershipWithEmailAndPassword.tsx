@@ -610,10 +610,12 @@ export default function LoginMembershipWithEmailAndPassword() {
         
         .animate-fade-in-left {
           animation: fade-in-left 1s ease-out;
+          animation-fill-mode: both;
         }
         
         .animate-fade-in-right {
           animation: fade-in-right 1.2s ease-out;
+          animation-fill-mode: both;
         }
         
         .animate-fade-in-up {
