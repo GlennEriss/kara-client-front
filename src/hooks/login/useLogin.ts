@@ -1,68 +1,58 @@
-import { useForm } from "react-hook-form";
-import { MemberLoginFormData } from "@/schemas/login.schema";
+import { useForm, FieldErrors } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { MemberLoginFormData, memberLoginSchema } from "@/schemas/login.schema";
 import { LoginMediatorFactory } from "@/factories/LoginMediatorFactory";
 import { toast } from "sonner"
 import { ADMIN_ROLES } from '@/types/types'
 import { auth } from '@/firebase/auth'
-import { signInWithEmailAndPassword } from 'firebase/auth'
 import { useRouter } from "next/navigation";
 import routes from "@/constantes/routes";
+import LoginService from "@/services/login/LoginService";
 
 export const useLogin = () => {
-  const router = useRouter()  
-  const form = useForm<MemberLoginFormData>();
+  const router = useRouter()
+  const form = useForm<MemberLoginFormData>({
+    resolver: zodResolver(memberLoginSchema)
+  });
   const mediator = LoginMediatorFactory.create(form);
 
-  const onInvalid = (errors: any) => {
-    toast.error("Validation finale échouée", {
+  const onInvalid = (errors: FieldErrors<MemberLoginFormData>) => {
+    toast.error("Connexion échouée", {
       description: "Corrigez les erreurs du formulaire avant de soumettre.",
       duration: 3000
     })
   }
 
   const onSubmit = async (data: MemberLoginFormData) => {
+    const userData = memberLoginSchema.safeParse(data)
+    if (!userData.success) {
+      toast.error("Connexion échouée", {
+        description: "Corrigez les erreurs du formulaire avant de soumettre.",
+        duration: 3000
+      })
+      return
+    }
+    const loginService = LoginService.getInstance()
     try {
-      // 1) Vérifier l'existence de l'utilisateur par UID (matricule)
-      const resp = await fetch('/api/firebase/auth/get-user/by-uid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: data.matricule.trim() }),
+      const idToken = await loginService.signIn(userData)
+      // Sauvegarder le token dans un cookie
+      document.cookie = `auth-token=${idToken}; path=/; max-age=3600; secure; samesite=strict`
+
+      toast.success('Connexion réussie !', {
+        description: 'Bienvenue dans votre espace membre',
+        style: {
+          background: "#10b981",
+          color: "white",
+          border: "none"
+        },
+        duration: 2000
       })
 
-      if (!resp.ok) throw new Error('USER_CHECK_FAILED')
-      const userInfo = await resp.json()
-      if (!userInfo?.found) throw new Error('USER_NOT_FOUND')
+      // Vérifier le rôle et rediriger
+      const role = await JSON.parse(((auth?.currentUser as any)?.reloadUserInfo?.customAttributes))["role"]
+      const isAdmin = role && ADMIN_ROLES.includes(role)
+      router.push(isAdmin ? routes.admin.dashboard : routes.member.home)
 
-      // 2) Tentative de connexion avec email/mot de passe
-      const userCred = await signInWithEmailAndPassword(auth, data.email, data.password)
-
-      if (userCred.user) {
-        // Vérifier que l'utilisateur connecté correspond au matricule
-        if (userCred.user.uid !== data.matricule.trim()) {
-          throw new Error('MATRICULE_EMAIL_MISMATCH')
-        }
-
-        // Obtenir le token ID pour l'authentification côté serveur
-        const idToken = await userCred.user.getIdToken()
-
-        // Sauvegarder le token dans un cookie
-        document.cookie = `auth-token=${idToken}; path=/; max-age=3600; secure; samesite=strict`
-
-        toast.success('Connexion réussie !', {
-          description: 'Bienvenue dans votre espace membre',
-          style: {
-            background: "#10b981",
-            color: "white",
-            border: "none"
-          },
-          duration: 2000
-        })
-
-        // Vérifier le rôle et rediriger
-        const role = await JSON.parse(((auth?.currentUser as any)?.reloadUserInfo?.customAttributes))["role"]
-        const isAdmin = role && ADMIN_ROLES.includes(role)
-        router.push(isAdmin ? routes.admin.dashboard : routes.member.home)
-      }
     } catch (error: any) {
       console.error('Erreur de connexion:', error)
 

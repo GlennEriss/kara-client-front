@@ -16,7 +16,7 @@ export default class LoginMediator {
     return this.form.formState.errors;
   }
 
-  handleSubmit(data: any,onSubmit: SubmitHandler<MemberLoginFormData>, onInvalid:SubmitErrorHandler<MemberLoginFormData>) {
-    this.form.handleSubmit(onSubmit, onInvalid)(data);
+  handleSubmit(onSubmit: SubmitHandler<MemberLoginFormData>, onInvalid: SubmitErrorHandler<MemberLoginFormData>) {
+    return this.form.handleSubmit(onSubmit, onInvalid);
   }
 }

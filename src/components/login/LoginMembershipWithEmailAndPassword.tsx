@@ -64,11 +64,11 @@ export default function LoginMembershipWithEmailAndPassword() {
                 </div>
 
                 <Form {...mediator.getForm()}>
-                  <form onSubmit={(data) => mediator.handleSubmit(data, onSubmit, onInvalid)} className="space-y-6">
+                  <form method="post" onSubmit={mediator.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
 
                     {/* Champ Matricule */}
                     <FormField
-                      control={form.control}
+                      control={mediator.getForm().control}
                       name="matricule"
                       render={({ field }) => (
                         <FormItem>
@@ -95,7 +95,7 @@ export default function LoginMembershipWithEmailAndPassword() {
 
                     {/* Champ Email */}
                     <FormField
-                      control={form.control}
+                      control={mediator.getForm().control}
                       name="email"
                       render={({ field }) => (
                         <FormItem>
@@ -122,7 +122,7 @@ export default function LoginMembershipWithEmailAndPassword() {
 
                     {/* Champ Mot de passe */}
                     <FormField
-                      control={form.control}
+                      control={mediator.getForm().control}
                       name="password"
                       render={({ field }) => (
                         <FormItem>
@@ -245,11 +245,11 @@ export default function LoginMembershipWithEmailAndPassword() {
               <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 p-6">
 
                 <Form {...mediator.getForm()}>
-                  <form onSubmit={(data) => mediator.handleSubmit(data, onSubmit, onInvalid)} className="space-y-5">
+                  <form method="post" onSubmit={mediator.handleSubmit(onSubmit, onInvalid)} className="space-y-5">
 
                     {/* Champ Matricule Desktop */}
                     <FormField
-                      control={form.control}
+                      control={mediator.getForm().control}
                       name="matricule"
                       render={({ field }) => (
                         <FormItem className="animate-fade-in-up animation-delay-200">
@@ -277,7 +277,7 @@ export default function LoginMembershipWithEmailAndPassword() {
 
                     {/* Champ Email Desktop */}
                     <FormField
-                      control={form.control}
+                      control={mediator.getForm().control}
                       name="email"
                       render={({ field }) => (
                         <FormItem className="animate-fade-in-up animation-delay-400">
@@ -305,7 +305,7 @@ export default function LoginMembershipWithEmailAndPassword() {
 
                     {/* Champ Mot de passe Desktop */}
                     <FormField
-                      control={form.control}
+                      control={mediator.getForm().control}
                       name="password"
                       render={({ field }) => (
                         <FormItem className="animate-fade-in-up animation-delay-600">
