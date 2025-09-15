@@ -118,6 +118,7 @@ const Homepage = () => {
                 className="text-lg sm:text-xl lg:text-2xl font-light leading-relaxed opacity-95 max-w-lg"
                 expandedTexts={expandedTexts}
                 onToggle={toggleText}
+                isTextWhite={true}
               />
               
               <div className="flex flex-col sm:flex-row gap-4 pt-6">

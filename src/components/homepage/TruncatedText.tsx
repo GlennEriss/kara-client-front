@@ -1,5 +1,5 @@
+import { cn } from '@/lib/utils'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { useTruncatedText } from '@/hooks/homepage/useTruncatedText'
 
 interface TruncatedTextProps {
   id: string
@@ -7,7 +7,8 @@ interface TruncatedTextProps {
   truncatedText: string
   className?: string
   expandedTexts: Record<string, boolean>
-  onToggle: (textId: string) => void
+  onToggle: (textId: string) => void,
+  isTextWhite?: boolean
 }
 
 export const TruncatedText = ({
@@ -16,10 +17,10 @@ export const TruncatedText = ({
   truncatedText,
   className = "text-lg leading-relaxed text-gray-700",
   expandedTexts,
-  onToggle
+  onToggle,
+  isTextWhite = false
 }: TruncatedTextProps) => {
-  const { actions } = useTruncatedText()
-  const isExpanded = actions.isExpanded(id)
+  const isExpanded = expandedTexts[id] || false
   
   return (
     <div>
@@ -28,7 +29,9 @@ export const TruncatedText = ({
       </p>
       <button
         onClick={() => onToggle(id)}
-        className="md:hidden mt-2 mx-auto text-kara-blue hover:text-kara-gold transition-colors text-sm font-medium flex items-center"
+        className={cn("md:hidden mt-2 mx-auto hover:text-kara-gold transition-colors text-sm font-medium flex items-center",
+          isTextWhite ? "text-white" : "text-kara-blue"
+        )}
       >
         {isExpanded ? (
           <>
