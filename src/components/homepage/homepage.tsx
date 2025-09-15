@@ -98,7 +98,7 @@ const Homepage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section id="accueil" className="hero-section min-h-screen flex items-center relative overflow-hidden">
+      <section id="accueil" className="hero-section md:px-5 min-h-screen flex items-center relative overflow-hidden">
         <div className="container mx-auto px-4 lg:px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 xl:gap-16 items-center">
             <div className="text-white space-y-8 animate-fade-in-left">
@@ -165,7 +165,7 @@ const Homepage = () => {
       </section>
 
       {/* Qui sommes-nous Section */}
-      <section id="qui-sommes-nous" className="py-16 lg:py-24 bg-gradient-to-br from-gray-50 to-white relative">
+      <section id="qui-sommes-nous" className="py-16 md:px-5 lg:py-24 bg-gradient-to-br from-gray-50 to-white relative">
         <div className="container mx-auto px-4 lg:px-6">
           <div className="text-center mb-16 animate-fade-in-up">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-kara-blue/10 rounded-2xl mb-6">
@@ -228,7 +228,7 @@ const Homepage = () => {
       </section>
 
       {/* Objectifs Section */}
-      <section id="objectifs" className="py-20 bg-white">
+      <section id="objectifs" className="py-20 md:px-5 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 animate-fade-in-up">
             <h2 className="text-4xl font-bold text-kara-blue mb-4">Nos Objectifs</h2>
@@ -341,7 +341,7 @@ const Homepage = () => {
       </section>
 
       {/* Adhésion Section */}
-      <section id="adhesion" className="py-20 bg-white">
+      <section id="adhesion" className="py-20 md:px-5 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-fade-in-up">
