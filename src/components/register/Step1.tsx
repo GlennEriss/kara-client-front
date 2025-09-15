@@ -276,7 +276,7 @@ export default function Step1({ form, requestId }: Step1Props) {
         })
         
         if (validContacts.length > 0 && errors.identity?.contacts) {
-          clearErrors('identity.contacts')
+        clearErrors('identity.contacts')
         }
       }
       

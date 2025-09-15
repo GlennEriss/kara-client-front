@@ -111,15 +111,9 @@ const Homepage = () => {
                 <div className="w-24 h-1 bg-gradient-to-r from-kara-gold to-transparent rounded-full"></div>
               </div>
               
-              <TruncatedText
-                id="hero-description"
-                fullText="Une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue."
-                truncatedText="Une famille élargie et inclusive, un réseau de cœurs ouverts..."
-                className="text-lg sm:text-xl lg:text-2xl font-light leading-relaxed opacity-95 max-w-lg"
-                expandedTexts={expandedTexts}
-                onToggle={toggleText}
-                isTextWhite={true}
-              />
+              <p className="text-lg sm:text-xl lg:text-2xl font-light leading-relaxed opacity-95 max-w-lg">
+                Une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
+              </p>
               
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Button
