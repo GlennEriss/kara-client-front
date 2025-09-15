@@ -2,7 +2,8 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Menu, X, Heart, Users, Lightbulb, Gift, CalendarCheck, PiggyBank, Cross, HandHeart, MousePointer, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Star, Home, HeartHandshake, ChevronDown, ChevronUp } from 'lucide-react'
+import { Menu, X, Heart, Users, Lightbulb, Gift, CalendarCheck, PiggyBank, Cross, HandHeart, MousePointer, Mail, Phone, MapPin, Star, Home, HeartHandshake } from 'lucide-react'
+import { IconBrandTiktok, IconBrandFacebook, IconBrandInstagram, IconBrandLinkedin, IconBrandTwitter, IconBrandYoutube } from '@tabler/icons-react'
 import { NavbarLogo, FooterLogo } from '@/components/logo'
 import './homepage.css'
 import { useHomepage } from '@/hooks/homepage/useHomepage'
@@ -457,16 +458,22 @@ const Homepage = () => {
               <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
               <div className="flex space-x-4">
                 <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Facebook size={24} />
+                  <IconBrandFacebook size={24} />
                 </button>
                 <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Twitter size={24} />
+                  <IconBrandTwitter size={24} />
                 </button>
                 <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Instagram size={24} />
+                  <IconBrandInstagram size={24} />
                 </button>
                 <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Linkedin size={24} />
+                  <IconBrandLinkedin size={24} />
+                </button>
+                <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                  <IconBrandYoutube size={24} />
+                </button>
+                <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                  <IconBrandTiktok size={24} />
                 </button>
               </div>
             </div>
