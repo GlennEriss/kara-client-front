@@ -16,6 +16,7 @@ export interface Payment {
   }>
   createdAt?: Date
   updatedAt?: Date
+  updatedBy?: string // Administrateur qui a traité le versement
 }
 
 export function useContractPayments(contractId: string) {

@@ -10,6 +10,8 @@ import { useContractPayments } from '@/hooks/useContractPayments'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
+import { useAuth } from '@/hooks/useAuth'
+import { getAdminById } from '@/db/admin.db'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -41,6 +43,7 @@ const translatePaymentStatus = (status: string): string => {
 export default function ContractPaymentsPage() {
   const params = useParams()
   const contractId = params.id as string
+  const { user } = useAuth()
 
   // Récupérer les données du contrat
   const { contracts, isLoading: isLoadingContracts, error } = useContracts()
@@ -48,6 +51,76 @@ export default function ContractPaymentsPage() {
 
   // Récupérer les versements du contrat
   const { payments, isLoading: isLoadingPayments, error: paymentsError } = useContractPayments(contractId)
+
+  // État pour stocker les informations des administrateurs
+  const [adminInfos, setAdminInfos] = React.useState<Record<string, { firstName: string; lastName: string }>>({})
+  const [loadingAdmins, setLoadingAdmins] = React.useState<Set<string>>(new Set())
+
+  // Fonction pour récupérer les informations d'un administrateur
+  const fetchAdminInfo = React.useCallback(async (adminId: string) => {
+    if (adminInfos[adminId] || loadingAdmins.has(adminId)) return
+
+    setLoadingAdmins(prev => new Set(prev).add(adminId))
+    
+    try {
+      // Si c'est l'utilisateur connecté, utiliser ses informations
+      if (user?.uid === adminId) {
+        setAdminInfos(prev => ({
+          ...prev,
+          [adminId]: {
+            firstName: user.displayName?.split(' ')[0] || 'Utilisateur',
+            lastName: user.displayName?.split(' ').slice(1).join(' ') || 'Connecté'
+          }
+        }))
+      } else {
+        // Sinon, récupérer les informations depuis la collection admins
+        const adminData = await getAdminById(adminId)
+        if (adminData) {
+          setAdminInfos(prev => ({
+            ...prev,
+            [adminId]: {
+              firstName: adminData.firstName,
+              lastName: adminData.lastName
+            }
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'administrateur:', error)
+    } finally {
+      setLoadingAdmins(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(adminId)
+        return newSet
+      })
+    }
+  }, [adminInfos, loadingAdmins, user])
+
+  // Charger les informations des administrateurs pour tous les versements
+  React.useEffect(() => {
+    if (!payments.length) return
+
+    const uniqueAdminIds = [...new Set(payments.map(p => p.updatedBy).filter((id): id is string => Boolean(id)))]
+    uniqueAdminIds.forEach(adminId => {
+      fetchAdminInfo(adminId)
+    })
+  }, [payments, fetchAdminInfo])
+
+  // Fonction pour obtenir le nom de l'administrateur
+  const getAdminDisplayName = (adminId?: string) => {
+    if (!adminId) return 'Non renseigné'
+    
+    if (loadingAdmins.has(adminId)) {
+      return 'Chargement...'
+    }
+    
+    const adminInfo = adminInfos[adminId]
+    if (adminInfo) {
+      return `${adminInfo.firstName} ${adminInfo.lastName}`
+    }
+    
+    return adminId // Fallback vers l'UID si pas d'info
+  }
 
   if (isLoadingContracts || isLoadingPayments) {
     return (
@@ -261,6 +334,18 @@ export default function ContractPaymentsPage() {
                       <div className="flex items-center gap-2 text-sm text-green-700">
                         <CheckCircle className="h-4 w-4" />
                         <span>Payé le {new Date(payment.paidAt).toLocaleDateString('fr-FR')}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {payment.updatedBy && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Users className="h-4 w-4" />
+                        <span>Traité par:</span>
+                        <span className={`font-medium ${loadingAdmins.has(payment.updatedBy) ? 'animate-pulse' : ''}`}>
+                          {getAdminDisplayName(payment.updatedBy)}
+                        </span>
                       </div>
                     </div>
                   )}

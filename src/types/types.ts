@@ -117,7 +117,7 @@ export interface MembershipRequest extends RegisterFormData {
   priorityScore?: number
 }
 
-export type PaymentMode = 'airtel_money' | 'mobicash'
+export type PaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
 export interface Payment {
   date: Date
   mode: PaymentMode
@@ -596,6 +596,9 @@ export interface ContractFormData {
   // Étape 3: Planification des versements
   firstPaymentDate: string
   
+  // Étape 3: Document PDF du contrat signé
+  contractPdf?: File
+  
   // Métadonnées
   isValid: boolean
   currentStep: number
@@ -653,6 +656,73 @@ export interface ContractFormNavigation {
   canGoNext: boolean
   canGoPrev: boolean
   canSubmit: boolean
+}
+
+// ================== TYPES POUR LES CONTRATS CAISSE ==================
+
+/**
+ * Interface pour les documents PDF des remboursements
+ */
+export interface RefundDocument {
+  id: string
+  url: string
+  path: string
+  uploadedAt: Date
+  uploadedBy: string
+  originalFileName: string
+  fileSize: number
+  status: 'active' | 'archived' | 'replaced'
+}
+
+/**
+ * Interface pour les remboursements avec documents
+ */
+export interface RefundWithDocument {
+  id: string
+  type: 'FINAL' | 'EARLY' | 'DEFAULT'
+  status: 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED'
+  amountNominal: number
+  amountBonus: number
+  deadlineAt?: Date
+  reason?: string
+  withdrawalDate?: Date
+  withdrawalTime?: string
+  document?: RefundDocument
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Interface pour les contrats de caisse avec documents
+ */
+export interface CaisseContract {
+  id: string
+  memberId: string
+  groupeId?: string
+  contractType: 'INDIVIDUAL' | 'GROUP'
+  caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+  monthlyAmount: number
+  monthsPlanned: number
+  status: string
+  nominalPaid: number
+  bonusAccrued: number
+  penaltiesTotal: number
+  currentMonthIndex: number
+  withdrawLockedUntilM: number
+  contractStartAt?: Date
+  contractEndAt?: Date
+  nextDueAt?: Date
+  payments: any[]
+  refunds: RefundWithDocument[]
+  contractPdf?: {
+    url: string
+    path: string
+    uploadedAt: Date
+    originalFileName: string
+    fileSize: number
+  }
+  createdAt: Date
+  updatedAt: Date
 }
 
 // ================== EXPORTS ==================

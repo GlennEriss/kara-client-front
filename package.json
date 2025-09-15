@@ -10,6 +10,7 @@
     "emulator:clean": "npm run kill-firebase && firebase emulators:start --import=./firebase-data --export-on-exit=./firebase-data",
     "kill-firebase-js": "node ./scripts/kill-firebase.js",
     "kill-firebase": "./scripts/kill-firebase.sh",
+    "emulators:stop": "powershell -Command \"Get-NetTCPConnection -LocalPort 5001,5002,8080,9000,9099,9199,9090 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\"",
     "clean-exports": "rm -rf firebase-export-*",
     "dev:emulator": "npm run copy:env:dev && next dev --turbopack & npm run emulator",
     "build:preview": "npm run copy:env:preview && next build",

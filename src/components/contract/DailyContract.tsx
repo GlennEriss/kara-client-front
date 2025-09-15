@@ -11,7 +11,11 @@ import { useGroupMembers } from '@/hooks/useMembers'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye } from 'lucide-react'
+import PdfDocumentModal from './PdfDocumentModal'
+import PdfViewerModal from './PdfViewerModal'
+import type { RefundDocument } from '@/types/types'
+import { listRefunds } from '@/db/caisse/refunds.db'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -37,7 +41,7 @@ export default function DailyContract({ id }: Props) {
   const [editingContribution, setEditingContribution] = useState<any>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentTime, setPaymentTime] = useState('')
-  const [paymentMode, setPaymentMode] = useState<'airtel_money' | 'mobicash'>('airtel_money')
+  const [paymentMode, setPaymentMode] = useState<'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'>('airtel_money')
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string>('')
   const [isEditing, setIsEditing] = useState(false)
@@ -51,12 +55,32 @@ export default function DailyContract({ id }: Props) {
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [showPdfViewer, setShowPdfViewer] = useState(false)
+  const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
+  const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
+  const [refunds, setRefunds] = useState<any[]>([])
+
+  // Load refunds from subcollection
+  useEffect(() => {
+    const loadRefunds = async () => {
+      if (id) {
+        try {
+          const refundsData = await listRefunds(id)
+          setRefunds(refundsData)
+        } catch (error) {
+          console.error('Error loading refunds:', error)
+        }
+      }
+    }
+    loadRefunds()
+  }, [id])
 
   // Synchroniser les valeurs existantes quand les données sont chargées
   useEffect(() => {
-    if (data && data.refunds) {
+    if (data && refunds.length > 0) {
       // Trouver le remboursement en attente d'approbation
-      const pendingRefund = data.refunds.find((r: any) => r.status === 'APPROVED')
+      const pendingRefund = refunds.find((r: any) => r.status === 'APPROVED')
       if (pendingRefund) {
         // Synchroniser les valeurs existantes dans le formulaire
         const formData: Partial<EarlyRefundFormData> = {}
@@ -309,6 +333,28 @@ export default function DailyContract({ id }: Props) {
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
+  const handlePdfUpload = (document: RefundDocument) => {
+    // Le document est maintenant persisté dans la base de données
+    // On peut fermer le modal et rafraîchir les données
+    setShowPdfModal(false)
+    refetch()
+  }
+
+  const handleViewDocument = (refundId: string, document: RefundDocument) => {
+    if (!document) {
+      toast.error('Aucun document à afficher')
+      return
+    }
+    setCurrentRefundId(refundId)
+    setCurrentDocument(document)
+    setShowPdfViewer(true)
+  }
+
+  const handleOpenPdfModal = (refundId: string) => {
+    setCurrentRefundId(refundId)
+    setShowPdfModal(true)
+  }
+
   const onDateClick = async (date: Date) => {
     if (isClosed) return
     
@@ -400,7 +446,7 @@ export default function DailyContract({ id }: Props) {
           file: paymentFile,
           paidAt: selectedDate,
           time: paymentTime,
-          mode: paymentMode
+          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
         })
         
         toast.success('Contribution ajoutée au versement collectif')
@@ -415,7 +461,7 @@ export default function DailyContract({ id }: Props) {
         file: paymentFile,
         paidAt: selectedDate,
         time: paymentTime,
-        mode: paymentMode
+        mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
       })
       
       toast.success('Versement enregistré')
@@ -467,7 +513,7 @@ export default function DailyContract({ id }: Props) {
         updates: {
           amount,
           time: paymentTime,
-          mode: paymentMode,
+          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
           proofFile: paymentFile // Optionnel
         }
       })
@@ -796,8 +842,8 @@ export default function DailyContract({ id }: Props) {
               const paidCount = payments.filter((x: any) => x.status === 'PAID').length
               const allPaid = payments.length > 0 && paidCount === payments.length
               const canEarly = paidCount >= 1 && !allPaid
-              const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
-              const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
+              const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
+              const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
               
               return (
                 <>
@@ -846,7 +892,7 @@ export default function DailyContract({ id }: Props) {
           </div>
           
           <div className="grid grid-cols-1 gap-4">
-            {(data.refunds || []).map((r: any) => (
+            {refunds.map((r: any) => (
               <Card key={r.id} className="border-gray-200">
                 <CardContent className="p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
@@ -877,11 +923,37 @@ export default function DailyContract({ id }: Props) {
                         <Button 
                           size="sm" 
                           onClick={() => setConfirmApproveId(r.id)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                          className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
                         >
                           Approuver
                         </Button>
-                        {r.type === 'EARLY' && (
+                        {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                          <div className="flex gap-2">
+                            {r.document ? (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleViewDocument(r.id, r.document)}
+                                className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                              >
+                                <Eye className="h-4 w-4" />
+                                Voir PDF
+                              </Button>
+                            ) : (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleOpenPdfModal(r.id)}
+                                className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Ajouter PDF
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {r.type === 'EARLY' && !r.document && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -1033,7 +1105,7 @@ export default function DailyContract({ id }: Props) {
               </Card>
             ))}
             
-            {(!data.refunds || data.refunds.length === 0) && (
+            {refunds.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>Aucun remboursement</p>
@@ -1104,7 +1176,7 @@ export default function DailyContract({ id }: Props) {
                     name="paymentMode"
                     value="airtel_money"
                     checked={paymentMode === 'airtel_money'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
                     className="text-blue-600"
                   />
                   <span className="text-sm">Airtel Money</span>
@@ -1115,10 +1187,32 @@ export default function DailyContract({ id }: Props) {
                     name="paymentMode"
                     value="mobicash"
                     checked={paymentMode === 'mobicash'}
-                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
                     className="text-blue-600"
                   />
                   <span className="text-sm">Mobicash</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="cash"
+                    checked={paymentMode === 'cash'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    className="text-blue-600"
+                  />
+                  <span className="text-sm">Espèce</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="bank_transfer"
+                    checked={paymentMode === 'bank_transfer'}
+                    onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                    className="text-blue-600"
+                  />
+                  <span className="text-sm">Virement bancaire</span>
                 </label>
               </div>
             </div>
@@ -1281,7 +1375,10 @@ export default function DailyContract({ id }: Props) {
                                 <div>
                                   <span className="font-medium">Mode:</span>
                                   <span className="ml-1">
-                                    {contribution.mode === 'airtel_money' ? 'Airtel Money' : 'Mobicash'}
+                                    {contribution.mode === 'airtel_money' ? 'Airtel Money' : 
+                                     contribution.mode === 'mobicash' ? 'Mobicash' :
+                                     contribution.mode === 'cash' ? 'Espèce' :
+                                     contribution.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'}
                                   </span>
                                 </div>
                                 <div>
@@ -1341,7 +1438,10 @@ export default function DailyContract({ id }: Props) {
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
                     <span className="font-medium text-gray-700 text-xs lg:text-sm">Mode:</span>
                     <span className="text-gray-900 text-xs lg:text-sm">
-                      {contribution.mode === 'airtel_money' ? 'Airtel Money' : 'Mobicash'}
+                      {contribution.mode === 'airtel_money' ? 'Airtel Money' : 
+                       contribution.mode === 'mobicash' ? 'Mobicash' :
+                       contribution.mode === 'cash' ? 'Espèce' :
+                       contribution.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'}
                     </span>
                   </div>
                 )}
@@ -1489,7 +1589,7 @@ export default function DailyContract({ id }: Props) {
                       name="editPaymentMode"
                       value="airtel_money"
                       checked={paymentMode === 'airtel_money'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
                       className="text-blue-600"
                     />
                     <span className="text-xs lg:text-sm">Airtel Money</span>
@@ -1500,10 +1600,32 @@ export default function DailyContract({ id }: Props) {
                       name="editPaymentMode"
                       value="mobicash"
                       checked={paymentMode === 'mobicash'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
                       className="text-blue-600"
                     />
                     <span className="text-xs lg:text-sm">Mobicash</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editPaymentMode"
+                      value="cash"
+                      checked={paymentMode === 'cash'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-xs lg:text-sm">Espèce</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editPaymentMode"
+                      value="bank_transfer"
+                      checked={paymentMode === 'bank_transfer'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-xs lg:text-sm">Virement bancaire</span>
                   </label>
                 </div>
               </div>
@@ -1661,7 +1783,7 @@ export default function DailyContract({ id }: Props) {
                       name="latePaymentMode"
                       value="airtel_money"
                       checked={paymentMode === 'airtel_money'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
                       className="text-blue-600"
                     />
                     <span className="text-sm">Airtel Money</span>
@@ -1672,10 +1794,32 @@ export default function DailyContract({ id }: Props) {
                       name="latePaymentMode"
                       value="mobicash"
                       checked={paymentMode === 'mobicash'}
-                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash')}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
                       className="text-blue-600"
                     />
                     <span className="text-sm">Mobicash</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="latePaymentMode"
+                      value="cash"
+                      checked={paymentMode === 'cash'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm">Espèce</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="latePaymentMode"
+                      value="bank_transfer"
+                      checked={paymentMode === 'bank_transfer'}
+                      onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm">Virement bancaire</span>
                   </label>
                 </div>
               </div>
@@ -1804,23 +1948,23 @@ export default function DailyContract({ id }: Props) {
                       file: paymentFile,
                       paidAt: selectedDate,
                       time: paymentTime,
-                      mode: paymentMode
+                      mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
                     })
                     
                     toast.success('Contribution en retard ajoutée au versement collectif')
                   } else {
                     // Utiliser la fonction pay normale pour les contrats individuels
                     const { pay } = await import('@/services/caisse/mutations')
-                  await pay({ 
-                    contractId: id, 
-                    dueMonthIndex: monthIndex, 
-                    memberId: data.memberId, 
-                    amount, 
-                    file: paymentFile,
-                    paidAt: selectedDate,
-                    time: paymentTime,
-                    mode: paymentMode
-                  })
+                    await pay({
+                      contractId: id, 
+                      dueMonthIndex: monthIndex, 
+                      memberId: data.memberId, 
+                      amount, 
+                      file: paymentFile,
+                      paidAt: selectedDate,
+                      time: paymentTime,
+                      mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+                    })
                     
                     toast.success('Versement en retard enregistré avec succès')
                   }
@@ -1924,6 +2068,28 @@ export default function DailyContract({ id }: Props) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Modal PDF Document */}
+      <PdfDocumentModal
+        isOpen={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+        onDocumentUploaded={handlePdfUpload}
+        contractId={id}
+        refundId={currentRefundId || ""}
+        existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
+        title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+        description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
+      />
+
+      {/* Modal PDF Viewer */}
+      {currentDocument && (
+        <PdfViewerModal
+          isOpen={showPdfViewer}
+          onClose={() => setShowPdfViewer(false)}
+          document={currentDocument}
+          title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+        />
       )}
     </div>
   )

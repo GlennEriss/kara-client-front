@@ -83,7 +83,7 @@ export interface GroupPaymentContribution {
   memberContacts?: string[]
   amount: number
   time: string
-  mode: 'airtel_money' | 'mobicash'
+  mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
   proofUrl?: string
   createdAt: Date
   updatedAt?: Date
@@ -96,7 +96,7 @@ export interface IndividualPaymentContribution {
   paidAt: Date
   proofUrl?: string
   time?: string
-  mode?: 'airtel_money' | 'mobicash'
+  mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
   memberId?: string
   memberName?: string
   memberPhotoURL?: string

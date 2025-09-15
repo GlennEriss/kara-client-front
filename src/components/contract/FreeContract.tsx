@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import FileInput from '@/components/ui/file-input'
 import type { PaymentMode } from '@/types/types'
+import { listRefunds } from '@/db/caisse/refunds.db'
 import { 
   CreditCard, 
   Calendar, 
@@ -32,8 +33,12 @@ import {
   ArrowRight,
   FileText,
   User,
-  Shield
+  Shield,
+  Building2
 } from 'lucide-react'
+import PdfDocumentModal from './PdfDocumentModal'
+import PdfViewerModal from './PdfViewerModal'
+import type { RefundDocument } from '@/types/types'
 
 type Props = { id: string }
 
@@ -65,6 +70,26 @@ export default function FreeContract({ id }: Props) {
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [showPdfViewer, setShowPdfViewer] = useState(false)
+  const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
+  const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
+  const [refunds, setRefunds] = useState<any[]>([])
+
+  // Load refunds from subcollection
+  useEffect(() => {
+    const loadRefunds = async () => {
+      if (id) {
+        try {
+          const refundsData = await listRefunds(id)
+          setRefunds(refundsData)
+        } catch (error) {
+          console.error('Error loading refunds:', error)
+        }
+      }
+    }
+    loadRefunds()
+  }, [id])
 
   if (isLoading) {
     return (
@@ -151,9 +176,35 @@ export default function FreeContract({ id }: Props) {
         return <Smartphone className="h-4 w-4" />
       case 'mobicash':
         return <Banknote className="h-4 w-4" />
+      case 'cash':
+        return <DollarSign className="h-4 w-4" />
+      case 'bank_transfer':
+        return <Building2 className="h-4 w-4" />
       default:
         return <CreditCard className="h-4 w-4" />
     }
+  }
+
+  const handlePdfUpload = (document: RefundDocument) => {
+    // Le document est maintenant persisté dans la base de données
+    // On peut fermer le modal et rafraîchir les données
+    setShowPdfModal(false)
+    refetch()
+  }
+
+  const handleViewDocument = (refundId: string, document: RefundDocument) => {
+    if (!document) {
+      toast.error('Aucun document à afficher')
+      return
+    }
+    setCurrentRefundId(refundId)
+    setCurrentDocument(document)
+    setShowPdfViewer(true)
+  }
+
+  const handleOpenPdfModal = (refundId: string) => {
+    setCurrentRefundId(refundId)
+    setShowPdfModal(true)
   }
 
   const onPay = async () => {
@@ -200,8 +251,8 @@ export default function FreeContract({ id }: Props) {
   const paidCount = payments.filter((x: any) => x.status === 'PAID').length
   const allPaid = payments.length > 0 && paidCount === payments.length
   const canEarly = paidCount >= 1 && !allPaid
-  const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
-  const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
+  const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
+  const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
@@ -474,6 +525,40 @@ export default function FreeContract({ id }: Props) {
                           <span className="font-medium text-gray-900">Mobicash</span>
                         </div>
                       </label>
+
+                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+                        <input
+                          type="radio"
+                          name="paymentMode"
+                          value="cash"
+                          checked={paymentMode === 'cash'}
+                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                          className="text-[#234D65] focus:ring-[#234D65]"
+                        />
+                        <div className="ml-3 flex items-center gap-3">
+                          <div className="bg-green-100 rounded-lg p-2">
+                            <DollarSign className="h-5 w-5 text-green-600" />
+                          </div>
+                          <span className="font-medium text-gray-900">Espèce</span>
+                        </div>
+                      </label>
+
+                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+                        <input
+                          type="radio"
+                          name="paymentMode"
+                          value="bank_transfer"
+                          checked={paymentMode === 'bank_transfer'}
+                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                          className="text-[#234D65] focus:ring-[#234D65]"
+                        />
+                        <div className="ml-3 flex items-center gap-3">
+                          <div className="bg-purple-100 rounded-lg p-2">
+                            <Building2 className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <span className="font-medium text-gray-900">Virement bancaire</span>
+                        </div>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -593,7 +678,7 @@ export default function FreeContract({ id }: Props) {
             
             {/* Liste des remboursements */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {(data.refunds || []).length === 0 ? (
+              {refunds.length === 0 ? (
                 <div className="lg:col-span-2 text-center py-12">
                   <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
                     <RefreshCw className="h-12 w-12 text-gray-400" />
@@ -602,7 +687,7 @@ export default function FreeContract({ id }: Props) {
                   <p className="text-gray-600">Aucune demande de remboursement n'a été effectuée</p>
                 </div>
               ) : (
-                (data.refunds || []).map((r: any) => {
+                refunds.map((r: any) => {
                   const getRefundStatusConfig = (status: string) => {
                     switch (status) {
                       case 'PENDING':
@@ -656,12 +741,34 @@ export default function FreeContract({ id }: Props) {
                       {r.status === 'PENDING' && (
                         <div className="flex gap-3">
                           <button 
-                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={() => setConfirmApproveId(r.id)}
+                            disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
                           >
                             Approuver
                           </button>
-                          {r.type === 'EARLY' && (
+                          {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                            <div className="flex gap-2">
+                              {r.document ? (
+                                <button 
+                                  className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                                  onClick={() => handleViewDocument(r.id, r.document)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Voir PDF
+                                </button>
+                              ) : (
+                                <button 
+                                  className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                                  onClick={() => handleOpenPdfModal(r.id)}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  Ajouter PDF
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          {r.type === 'EARLY' && !r.document && (
                             <button 
                               className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium"
                               onClick={async () => {
@@ -893,6 +1000,28 @@ export default function FreeContract({ id }: Props) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modal PDF Document */}
+        <PdfDocumentModal
+          isOpen={showPdfModal}
+          onClose={() => setShowPdfModal(false)}
+          onDocumentUploaded={handlePdfUpload}
+          contractId={id}
+          refundId={currentRefundId || ""}
+          existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
+          title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+          description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
+        />
+
+        {/* Modal PDF Viewer */}
+        {currentDocument && (
+          <PdfViewerModal
+            isOpen={showPdfViewer}
+            onClose={() => setShowPdfViewer(false)}
+            document={currentDocument}
+            title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+          />
         )}
       </div>
     </div>

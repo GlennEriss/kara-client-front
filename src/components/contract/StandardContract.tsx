@@ -1,11 +1,12 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import routes from "@/constantes/routes"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers } from "@/hooks/useMembers"
+import { useAuth } from "@/hooks/useAuth"
 import {
   pay,
   requestFinalRefund,
@@ -20,6 +21,7 @@ import { recomputeNow } from "@/services/caisse/readers"
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from "@/lib/utils"
 import FileInput from "@/components/ui/file-input"
 import type { PaymentMode } from "@/types/types"
+import { listRefunds } from "@/db/caisse/refunds.db"
 import {
   RefreshCw,
   UserRound,
@@ -32,7 +34,14 @@ import {
   CreditCard,
   FileText,
   Users,
+  Banknote,
+  Building2,
+  Eye,
+  Trash2,
 } from "lucide-react"
+import PdfDocumentModal from "./PdfDocumentModal"
+import PdfViewerModal from "./PdfViewerModal"
+import type { RefundDocument } from "@/types/types"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -94,6 +103,7 @@ type Props = { id: string }
 
 export default function StandardContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
+  const { user } = useAuth()
   const [file, setFile] = useState<File | undefined>()
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
@@ -124,6 +134,27 @@ export default function StandardContract({ id }: Props) {
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("airtel_money")
   const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string | null>(null)
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [showPdfViewer, setShowPdfViewer] = useState(false)
+  const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
+  const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
+  const [refunds, setRefunds] = useState<any[]>([])
+  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+
+  // Load refunds from subcollection
+  useEffect(() => {
+    const loadRefunds = async () => {
+      if (id) {
+        try {
+          const refundsData = await listRefunds(id)
+          setRefunds(refundsData)
+        } catch (error) {
+          console.error('Error loading refunds:', error)
+        }
+      }
+    }
+    loadRefunds()
+  }, [id])
 
   function paymentStatusLabel(s: string): string {
     const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }
@@ -177,6 +208,63 @@ export default function StandardContract({ id }: Props) {
   const paidCount = payments.filter((p: any) => p.status === "PAID").length
   const totalMonths = data.monthsPlanned || 0
   const progress = totalMonths ? Math.min(100, Math.round((paidCount / totalMonths) * 100)) : 0
+
+  const handlePdfUpload = async (document: RefundDocument | null) => {
+    // Le document est maintenant persisté dans la base de données
+    // On peut fermer le modal et rafraîchir les données
+    setShowPdfModal(false)
+    await refetch()
+    
+    // Rafraîchir explicitement la liste des remboursements
+    try {
+      const refundsData = await listRefunds(id)
+      setRefunds(refundsData)
+    } catch (error) {
+      console.error('Error refreshing refunds after PDF upload:', error)
+    }
+  }
+
+  const handleViewDocument = async (refundId: string, document: RefundDocument) => {
+    if (!document) {
+      toast.error('Aucun document à afficher')
+      return
+    }
+    setCurrentRefundId(refundId)
+    setCurrentDocument(document)
+    setShowPdfViewer(true)
+  }
+
+  const handleOpenPdfModal = (refundId: string) => {
+    setCurrentRefundId(refundId)
+    setShowPdfModal(true)
+  }
+
+  const handleDeleteDocument = async (refundId: string) => {
+    try {
+      const { updateRefund } = await import('@/db/caisse/refunds.db')
+      
+      await updateRefund(id, refundId, { 
+        document: null,
+        updatedBy: user?.uid,
+        documentDeletedAt: new Date()
+      })
+      
+      // Rafraîchir explicitement la liste des remboursements
+      try {
+        const refundsData = await listRefunds(id)
+        setRefunds(refundsData)
+      } catch (error) {
+        console.error('Error refreshing refunds after document deletion:', error)
+      }
+      
+      toast.success("Document supprimé avec succès")
+    } catch (error: any) {
+      console.error('Error deleting document:', error)
+      toast.error(error?.message || "Erreur lors de la suppression du document")
+    } finally {
+      setConfirmDeleteDocumentId(null)
+    }
+  }
 
   const onPay = async () => {
     if (isClosed) {
@@ -234,7 +322,7 @@ export default function StandardContract({ id }: Props) {
           file,
           paidAt: new Date(`${paymentDate}T${paymentTime}`),
           time: paymentTime,
-          mode: paymentMode
+          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
         })
         
         toast.success("Contribution ajoutée au versement collectif")
@@ -247,7 +335,7 @@ export default function StandardContract({ id }: Props) {
           file,
           paidAt: new Date(`${paymentDate}T${paymentTime}`),
           time: paymentTime,
-          mode: paymentMode,
+          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
         })
         toast.success("Paiement enregistré")
       }
@@ -560,6 +648,28 @@ export default function StandardContract({ id }: Props) {
                 />
                 <span className="text-sm text-slate-700">Mobicash</span>
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="cash"
+                  checked={paymentMode === "cash"}
+                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  className="accent-[#234D65]"
+                />
+                <span className="text-sm text-slate-700">Espèce</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="bank_transfer"
+                  checked={paymentMode === "bank_transfer"}
+                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
+                  className="accent-[#234D65]"
+                />
+                <span className="text-sm text-slate-700">Virement bancaire</span>
+              </label>
             </div>
           </div>
 
@@ -673,10 +783,10 @@ export default function StandardContract({ id }: Props) {
             const paidCountLocal = payments.filter((x: any) => x.status === "PAID").length
             const allPaid = payments.length > 0 && paidCountLocal === payments.length
             const canEarly = paidCountLocal >= 1 && !allPaid
-            const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === "FINAL" && r.status !== "ARCHIVED") ||
+            const hasFinalRefund = refunds.some((r: any) => r.type === "FINAL" && r.status !== "ARCHIVED") ||
               data.status === "FINAL_REFUND_PENDING" ||
               data.status === "CLOSED"
-            const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === "EARLY" && r.status !== "ARCHIVED") ||
+            const hasEarlyRefund = refunds.some((r: any) => r.type === "EARLY" && r.status !== "ARCHIVED") ||
               data.status === "EARLY_REFUND_PENDING"
             return (
               <div className="flex gap-2">
@@ -703,6 +813,15 @@ export default function StandardContract({ id }: Props) {
                       setIsRefunding(true)
                       await requestEarlyRefund(id)
                       await refetch()
+                      
+                      // Rafraîchir explicitement la liste des remboursements
+                      try {
+                        const refundsData = await listRefunds(id)
+                        setRefunds(refundsData)
+                      } catch (error) {
+                        console.error('Error refreshing refunds:', error)
+                      }
+                      
                       toast.success("Retrait anticipé demandé")
                     } catch (e: any) {
                       toast.error(e?.message || "Action impossible")
@@ -719,7 +838,7 @@ export default function StandardContract({ id }: Props) {
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {(data.refunds || []).map((r: any) => (
+          {refunds.map((r: any) => (
             <div key={r.id} className="rounded-2xl border bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="font-medium">{refundTypeLabel(r.type)}</div>
@@ -740,18 +859,65 @@ export default function StandardContract({ id }: Props) {
                 {r.status === "PENDING" && (
                   <>
                     <button
-                      className="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50"
+                      className="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => setConfirmApproveId(r.id)}
+                      disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
                     >
                       Approuver
                     </button>
-                    {r.type === "EARLY" && (
+                    {(r.type === "FINAL" || r.type === "EARLY") && (
+                      <div className="flex gap-2">
+                        {r.document ? (
+                          <div className="flex gap-2">
+                            <button
+                              className="rounded-lg border px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
+                              onClick={() => handleViewDocument(r.id, r.document)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              Voir PDF
+                            </button>
+                            <button
+                              className="rounded-lg border px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                              onClick={() => handleOpenPdfModal(r.id)}
+                            >
+                              <FileText className="h-4 w-4" />
+                              Remplacer PDF
+                            </button>
+                            <button
+                              className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                              onClick={() => setConfirmDeleteDocumentId(r.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Supprimer PDF
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            onClick={() => handleOpenPdfModal(r.id)}
+                          >
+                            <FileText className="h-4 w-4" />
+                            Ajouter PDF
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {r.type === "EARLY" && !r.document && (
                       <button
                         className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
                         onClick={async () => {
                           try {
                             await cancelEarlyRefund(id, r.id)
                             await refetch()
+                            
+                            // Rafraîchir explicitement la liste des remboursements
+                            try {
+                              const refundsData = await listRefunds(id)
+                              setRefunds(refundsData)
+                            } catch (error) {
+                              console.error('Error refreshing refunds:', error)
+                            }
+                            
                             toast.success("Demande anticipée annulée")
                           } catch (e: any) {
                             toast.error(e?.message || "Annulation impossible")
@@ -878,6 +1044,15 @@ export default function StandardContract({ id }: Props) {
                           setRefundFile(undefined)
                           setConfirmPaidId(null)
                           await refetch()
+                          
+                          // Rafraîchir explicitement la liste des remboursements
+                          try {
+                            const refundsData = await listRefunds(id)
+                            setRefunds(refundsData)
+                          } catch (error) {
+                            console.error('Error refreshing refunds:', error)
+                          }
+                          
                           toast.success("Remboursement marqué payé")
                         } catch (error: any) {
                           toast.error(error?.message || "Erreur lors du marquage")
@@ -892,7 +1067,7 @@ export default function StandardContract({ id }: Props) {
             </div>
           ))}
 
-          {(!data.refunds || data.refunds.length === 0) && (
+          {refunds.length === 0 && (
             <div className="text-xs text-slate-500">Aucun remboursement</div>
           )}
         </div>
@@ -914,6 +1089,15 @@ export default function StandardContract({ id }: Props) {
                   await approveRefund(id, confirmApproveId)
                   setConfirmApproveId(null)
                   await refetch()
+                  
+                  // Rafraîchir explicitement la liste des remboursements
+                  try {
+                    const refundsData = await listRefunds(id)
+                    setRefunds(refundsData)
+                  } catch (error) {
+                    console.error('Error refreshing refunds:', error)
+                  }
+                  
                   toast.success("Remboursement approuvé")
                 }}
               >
@@ -942,6 +1126,15 @@ export default function StandardContract({ id }: Props) {
                     setIsRefunding(true)
                     await requestFinalRefund(id)
                     await refetch()
+                    
+                    // Rafraîchir explicitement la liste des remboursements
+                    try {
+                      const refundsData = await listRefunds(id)
+                      setRefunds(refundsData)
+                    } catch (error) {
+                      console.error('Error refreshing refunds:', error)
+                    }
+                    
                     toast.success("Remboursement final demandé")
                   } catch (e: any) {
                     toast.error(e?.message || "Action impossible")
@@ -952,6 +1145,54 @@ export default function StandardContract({ id }: Props) {
                 }}
               >
                 Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal PDF Document */}
+      <PdfDocumentModal
+        isOpen={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+        onDocumentUploaded={handlePdfUpload}
+        contractId={id}
+        refundId={currentRefundId || ""}
+        existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
+        title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+        description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
+      />
+
+      {/* Modal PDF Viewer */}
+      {currentDocument && (
+        <PdfViewerModal
+          isOpen={showPdfViewer}
+          onClose={() => setShowPdfViewer(false)}
+          document={currentDocument}
+          title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+        />
+      )}
+
+      {/* Modal de confirmation de suppression */}
+      {confirmDeleteDocumentId && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
+            <div className="text-base font-semibold">Confirmer la suppression</div>
+            <p className="mt-1 text-sm text-slate-600">
+              Voulez-vous vraiment supprimer ce document PDF ? Cette action est irréversible.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button 
+                className="rounded-lg border px-3 py-2 text-sm" 
+                onClick={() => setConfirmDeleteDocumentId(null)}
+              >
+                Annuler
+              </button>
+              <button
+                className="rounded-lg px-3 py-2 text-sm text-white bg-red-600 hover:bg-red-700"
+                onClick={() => handleDeleteDocument(confirmDeleteDocumentId)}
+              >
+                Supprimer
               </button>
             </div>
           </div>

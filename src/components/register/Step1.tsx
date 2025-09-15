@@ -267,8 +267,17 @@ export default function Step1({ form, requestId }: Step1Props) {
       }
       
       // Nettoyer les erreurs de contacts
-      if (value.identity?.contacts && Array.isArray(value.identity.contacts) && value.identity.contacts.some((contact: string) => contact && contact.trim().length >= 8) && errors.identity?.contacts) {
-        clearErrors('identity.contacts')
+      if (value.identity?.contacts && Array.isArray(value.identity.contacts)) {
+        const validContacts = value.identity.contacts.filter((contact: string) => {
+          if (!contact || contact.trim().length < 8) return false
+          // Vérifier le format selon le nouveau schéma
+          const cleaned = contact.replace(/[\s\-\(\)]/g, '')
+          return /^(\+[0-9]+|[0-9]+)$/.test(cleaned)
+        })
+        
+        if (validContacts.length > 0 && errors.identity?.contacts) {
+          clearErrors('identity.contacts')
+        }
       }
       
       // Nettoyer les erreurs du conjoint si nécessaire
@@ -347,9 +356,9 @@ export default function Step1({ form, requestId }: Step1Props) {
   const cleanPhoneNumber = (value: string) => {
     // Supprimer tous les caractères sauf chiffres, espaces, tirets, parenthèses et plus
     let cleaned = value.replace(/[^\d\s\-\(\)\+]/g, '')
-    // Limiter à 9 caractères maximum
-    if (cleaned.length > 9) {
-      cleaned = cleaned.substring(0, 9)
+    // Limiter à 15 caractères maximum (selon le schéma Zod)
+    if (cleaned.length > 15) {
+      cleaned = cleaned.substring(0, 15)
     }
     return cleaned
   }
@@ -902,10 +911,17 @@ export default function Step1({ form, requestId }: Step1Props) {
                           }}
                           className={cn(
                             "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                            errors?.identity?.contacts?.[index] && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
                             phoneCheckState.exists === true && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
                             phoneCheckState.exists === false && "border-green-300 focus:border-green-400 focus:ring-green-100 bg-green-50"
                           )}
                         />
+                        {errors?.identity?.contacts?.[index] && (
+                          <div className="mt-1 flex items-center space-x-2 text-red-600 text-xs">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>{(errors.identity.contacts as any)[index]?.message}</span>
+                          </div>
+                        )}
                       </div>
                       {fields.length > 1 && (
                         <Button

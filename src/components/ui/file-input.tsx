@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { Upload, X, FileImage, AlertCircle } from 'lucide-react'
+import { Upload, X, FileImage, AlertCircle, FileText } from 'lucide-react'
 
 interface FileInputProps {
   accept?: string
@@ -12,7 +12,7 @@ interface FileInputProps {
   placeholder?: string
   className?: string
   currentFile?: File | undefined
-  resetKey?: number // Clé pour forcer la réinitialisation
+  resetKey?: number
 }
 
 export default function FileInput({
@@ -177,7 +177,11 @@ export default function FileInput({
           // Affichage du fichier sélectionné
           <div className="space-y-3">
             <div className="flex items-center justify-center">
-              <FileImage className="w-12 h-12 text-[#234D65]" />
+              {displayFile.type === 'application/pdf' ? (
+                <FileText className="w-12 h-12 text-[#234D65]" />
+              ) : (
+                <FileImage className="w-12 h-12 text-[#234D65]" />
+              )}
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-900 truncate">

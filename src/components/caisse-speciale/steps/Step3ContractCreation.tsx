@@ -5,6 +5,7 @@ import { useContractForm } from '@/providers/ContractFormProvider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import FileInput from '@/components/ui/file-input'
 import { 
   CheckCircle, 
   AlertCircle, 
@@ -16,7 +17,8 @@ import {
   DollarSign,
   Clock,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Upload
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -25,23 +27,32 @@ import routes from '@/constantes/routes'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 
 export function Step3ContractCreation() {
-  const { state, validateCurrentStep, prevStep } = useContractForm()
+  const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()
   const { formData } = state
   const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
+  const [fileInputResetKey, setFileInputResetKey] = useState(0)
 
   // Validation des paramètres de la Caisse Spéciale
   const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(formData.caisseType)
 
   // Validation de l'étape
   React.useEffect(() => {
+    console.log('🔍 Validation de l\'étape - formData:', {
+      firstPaymentDate: formData.firstPaymentDate,
+      contractPdf: formData.contractPdf ? formData.contractPdf.name : 'undefined'
+    })
+    
     const isValid = Boolean(
       formData.firstPaymentDate && 
       formData.firstPaymentDate.trim() !== '' &&
-      new Date(formData.firstPaymentDate) >= new Date()
+      new Date(formData.firstPaymentDate) >= new Date() &&
+      formData.contractPdf
     )
+    
+    console.log('🔍 Étape valide:', isValid)
     validateCurrentStep(isValid)
-  }, [formData.firstPaymentDate, validateCurrentStep])
+  }, [formData.firstPaymentDate, formData.contractPdf, validateCurrentStep])
 
   // Fonction de création du contrat
   const handleCreateContract = async () => {
@@ -57,6 +68,11 @@ export function Step3ContractCreation() {
       // Validation des données du formulaire
       if (!formData.firstPaymentDate) {
         toast.error('Veuillez sélectionner la date du premier versement.')
+        return
+      }
+
+      if (!formData.contractPdf) {
+        toast.error('Veuillez téléverser le contrat PDF signé.')
         return
       }
 
@@ -83,7 +99,8 @@ export function Step3ContractCreation() {
         monthlyAmount: formData.monthlyAmount,
         monthsPlanned: formData.monthsPlanned,
         caisseType: formData.caisseType,
-        firstPaymentDate: formData.firstPaymentDate
+        firstPaymentDate: formData.firstPaymentDate,
+        contractPdf: formData.contractPdf
       }
 
       console.log('📝 Données du contrat à créer:', contractData)
@@ -92,7 +109,7 @@ export function Step3ContractCreation() {
       const { subscribe } = await import('@/services/caisse/mutations')
       const contractId = await subscribe(contractData)
 
-      console.log('✅ Contrat créé avec succès, ID:', contractId)
+      console.log('✅ Contrat créé avec succès, ID personnalisé:', contractId)
 
       // Succès avec toast Sonner
       toast.success('Contrat créé avec succès !', {
@@ -270,6 +287,58 @@ export function Step3ContractCreation() {
             </div>
           </div>
 
+          {/* Téléversement du contrat PDF */}
+          <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Upload className="w-4 h-4 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-orange-900">
+                  Contrat PDF signé
+                </h3>
+                <p className="text-sm text-orange-700">
+                  Téléversez le contrat PDF signé par le membre
+                </p>
+              </div>
+            </div>
+            
+            <FileInput
+              accept="application/pdf"
+              maxSize={10}
+              onFileSelect={(selectedFile) => {
+                console.log('📄 Fichier sélectionné:', selectedFile)
+                if (selectedFile) {
+                  console.log('📄 Mise à jour du formData avec le PDF:', selectedFile.name)
+                  updateFormData({ contractPdf: selectedFile })
+                  toast.success('Contrat PDF téléversé avec succès')
+                } else {
+                  console.log('📄 Suppression du PDF du formData')
+                  updateFormData({ contractPdf: undefined })
+                }
+              }}
+              label="Contrat PDF signé *"
+              placeholder="Glissez-déposez le contrat PDF ou cliquez pour parcourir"
+              currentFile={formData.contractPdf}
+              resetKey={fileInputResetKey}
+              className="w-full"
+            />
+            
+            {formData.contractPdf && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-green-700 font-medium">
+                    Contrat PDF téléversé: {formData.contractPdf.name}
+                  </span>
+                </div>
+                <p className="text-xs text-green-600 mt-1">
+                  Taille: {(formData.contractPdf.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Validation des paramètres */}
           {isValidating && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -328,10 +397,10 @@ export function Step3ContractCreation() {
 
         <Button
           onClick={handleCreateContract}
-          disabled={isCreating || !isValid || isValidating}
+          disabled={isCreating || !isValid || isValidating || !formData.contractPdf}
           className={cn(
             "h-12 px-8 transition-all duration-300 rounded-xl",
-            isCreating || !isValid || isValidating
+            isCreating || !isValid || isValidating || !formData.contractPdf
               ? "bg-gray-400 text-gray-600 cursor-not-allowed"
               : "bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl"
           )}
@@ -357,6 +426,17 @@ export function Step3ContractCreation() {
           <br />
           Le contrat sera immédiatement actif et les premiers versements seront planifiés.
         </p>
+        
+        {!formData.contractPdf && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center justify-center gap-2">
+              <AlertCircle className="w-4 h-4 text-yellow-600" />
+              <span className="text-yellow-700 font-medium text-sm">
+                Veuillez téléverser le contrat PDF signé pour pouvoir créer le contrat
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

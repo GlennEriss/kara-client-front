@@ -113,18 +113,59 @@ export const identitySchema = z.object({
       .max(50, 'La religion ne peut pas dépasser 50 caractères')
   ),
   
-  contacts: z.array(
-    z.string()
-      .min(8, 'Le numéro de téléphone doit contenir au moins 8 chiffres')
-      .max(15, 'Le numéro de téléphone ne peut pas dépasser 15 chiffres')
-      .regex(/^[\+]?[0-9\s\-\(\)]+$/, 'Format de téléphone invalide')
-  )
-    .min(1, 'Au moins un numéro de téléphone est requis')
+  contacts: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') return [val]
+      return val
+    },
+    z.array(z.string().optional())
     .max(2, 'Maximum 2 numéros de téléphone')
-    .refine((contacts) => {
-      const uniqueContacts = new Set(contacts)
-      return uniqueContacts.size === contacts.length
-    }, 'Les numéros de téléphone doivent être uniques'),
+    .superRefine((contacts: Array<string | undefined>, ctx) => {
+      let numValid = 0
+      const seen = new Set<string>()
+      contacts.forEach((value, index) => {
+        const str = typeof value === 'string' ? value : ''
+        const trimmed = str.trim()
+        if (trimmed === '') {
+          // Ignorer les champs vides (gérés par l'UI)
+          return
+        }
+        const digits = trimmed.replace(/\D/g, '')
+        if (digits.length < 8) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index],
+            message: 'Le numéro de téléphone doit contenir au moins 8 chiffres'
+          })
+          return
+        }
+        if (digits.length > 15) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index],
+            message: 'Le numéro de téléphone ne peut pas dépasser 15 chiffres'
+          })
+          return
+        }
+        numValid += 1
+        if (seen.has(digits)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index],
+            message: 'Les numéros de téléphone doivent être uniques'
+          })
+        } else {
+          seen.add(digits)
+        }
+      })
+      if (numValid === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [],
+          message: 'Au moins un numéro de téléphone valide est requis'
+        })
+      }
+    })),
   
   email: z.preprocess(
     (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
@@ -778,6 +819,9 @@ export const contractCreationSchema = z.object({
       return selectedDate >= today
     }, 'La date du premier versement ne peut pas être dans le passé'),
   
+  // Étape 3: Document PDF du contrat signé
+  contractPdf: z.instanceof(File).optional(),
+  
 }).superRefine((data, ctx) => {
   // Validation croisée pour memberId/groupeId selon le type de contrat
   if (data.contractType === 'INDIVIDUAL') {
@@ -841,7 +885,8 @@ export const contractCreationDefaultValues: ContractCreationFormData = {
   caisseType: 'STANDARD',
   monthlyAmount: 10000,
   monthsPlanned: 12,
-  firstPaymentDate: new Date().toISOString().split('T')[0]
+  firstPaymentDate: new Date().toISOString().split('T')[0],
+  contractPdf: undefined
 }
 
 // Schémas pour chaque étape individuelle

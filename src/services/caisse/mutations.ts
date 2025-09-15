@@ -57,7 +57,8 @@ export async function subscribe(input: {
   monthlyAmount: number; 
   monthsPlanned: number; 
   caisseType: any; 
-  firstPaymentDate: string 
+  firstPaymentDate: string;
+  contractPdf?: File;
 }) {
   // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
   if (!input.memberId && !input.groupeId) {
@@ -72,6 +73,23 @@ export async function subscribe(input: {
   
   const settings = await getActiveSettings(input.caisseType)
   
+  // Récupérer le matricule du membre si c'est un contrat individuel
+  let memberMatricule = '0000' // Fallback par défaut
+  if (input.memberId) {
+    try {
+      const { getMemberWithSubscription } = await import('@/db/member.db')
+      const member = await getMemberWithSubscription(input.memberId)
+      memberMatricule = member?.matricule || '0000'
+      console.log('👤 Matricule du membre récupéré:', memberMatricule)
+    } catch (error) {
+      console.warn('⚠️ Impossible de récupérer le matricule du membre:', error)
+    }
+  } else if (input.groupeId) {
+    // Pour les contrats de groupe, utiliser un matricule générique
+    memberMatricule = 'GRP' + input.groupeId.slice(-3).padStart(3, '0')
+    console.log('👥 Matricule de groupe généré:', memberMatricule)
+  }
+  
   // Nettoyer les données pour éviter les valeurs undefined dans Firestore
   const cleanData: any = {
     contractType,
@@ -79,6 +97,7 @@ export async function subscribe(input: {
     monthsPlanned: input.monthsPlanned,
     caisseType: input.caisseType,
     firstPaymentDate: input.firstPaymentDate,
+    memberMatricule, // Ajouter le matricule pour la génération d'ID
     ...(settings?.id ? { settingsVersion: settings.id } : {})
   }
   
@@ -93,6 +112,33 @@ export async function subscribe(input: {
   console.log('🧹 Données nettoyées pour Firestore:', cleanData)
   
   const id = await createContract(cleanData)
+  
+  // Téléverser le PDF du contrat signé si fourni
+  if (input.contractPdf) {
+    try {
+      console.log('📄 Téléversement du contrat PDF signé...')
+      const { uploadSignedContract } = await import('@/db/upload-file.db')
+      const pdfData = await uploadSignedContract(input.contractPdf, id)
+      
+      // Mettre à jour le contrat avec les informations du PDF
+      const { updateContract } = await import('@/db/caisse/contracts.db')
+      await updateContract(id, {
+        contractPdf: {
+          url: pdfData.url,
+          path: pdfData.path,
+          uploadedAt: new Date(),
+          originalFileName: input.contractPdf.name,
+          fileSize: input.contractPdf.size
+        }
+      })
+      
+      console.log('✅ Contrat PDF téléversé et enregistré avec succès')
+    } catch (error: any) {
+      console.error('❌ Erreur lors du téléversement du PDF:', error)
+      // Ne pas faire échouer la création du contrat si le PDF échoue
+      console.warn('⚠️ Le contrat a été créé mais le PDF n\'a pas pu être téléversé')
+    }
+  }
   
   // Calculer la date de début basée sur firstPaymentDate ou maintenant
   const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
@@ -115,7 +161,7 @@ export async function subscribe(input: {
   return id
 }
 
-export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: 'airtel_money' | 'mobicash' }) {
+export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   const settings = await getActiveSettings((contract as any).caisseType)
@@ -420,7 +466,7 @@ export async function updatePaymentContribution(input: {
   updates: {
     amount?: number
     time?: string
-    mode?: 'airtel_money' | 'mobicash'
+    mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
     proofFile?: File
     memberId?: string
   }
@@ -573,7 +619,7 @@ export async function payGroup(input: {
   file?: File; 
   paidAt?: Date; 
   time: string; 
-  mode: 'airtel_money' | 'mobicash' 
+  mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' 
 }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
