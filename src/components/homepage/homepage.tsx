@@ -420,11 +420,11 @@ const Homepage = () => {
       {/* Footer */}
       <footer className="footer-section text-white py-12">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div className="text-center">
               <FooterLogo
                 size="lg"
-                className="mb-4"
+                className="mb-4 mx-auto"
                 clickable
                 onClick={() => scrollToSection('accueil')}
               />
@@ -433,7 +433,7 @@ const Homepage = () => {
               </p>
             </div>
 
-            <div>
+            <div className="text-center">
               <h4 className="text-xl font-semibold mb-4">Liens Rapides</h4>
               <ul className="space-y-2">
                 {[
@@ -453,29 +453,29 @@ const Homepage = () => {
                 ))}
               </ul>
             </div>
+          </div>
 
-            <div>
-              <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
-              <div className="flex space-x-4">
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <IconBrandFacebook size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <IconBrandTwitter size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <IconBrandInstagram size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <IconBrandLinkedin size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <IconBrandYoutube size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <IconBrandTiktok size={24} />
-                </button>
-              </div>
+          <div className="text-center">
+            <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
+            <div className="flex justify-center space-x-4">
+              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandFacebook size={24} />
+              </button>
+              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandTwitter size={24} />
+              </button>
+              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandInstagram size={24} />
+              </button>
+              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandLinkedin size={24} />
+              </button>
+              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandYoutube size={24} />
+              </button>
+              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandTiktok size={24} />
+              </button>
             </div>
           </div>
 
