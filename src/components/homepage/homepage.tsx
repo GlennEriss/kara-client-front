@@ -35,9 +35,8 @@ const Homepage = () => {
                 <button
                   key={item}
                   onClick={() => scrollToSection(item)}
-                  className={`relative font-medium transition-all duration-300 capitalize group ${
-                    isScrolled ? 'text-kara-blue' : 'text-white'
-                  } hover:text-kara-gold`}
+                  className={`relative font-medium transition-all duration-300 capitalize group ${isScrolled ? 'text-kara-blue' : 'text-white'
+                    } hover:text-kara-gold`}
                 >
                   {item.replace('-', ' ')}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-kara-gold transition-all duration-300 group-hover:w-full"></span>
@@ -45,11 +44,10 @@ const Homepage = () => {
               ))}
               <Button
                 variant={isScrolled ? 'outline' : 'default'}
-                className={`ml-4 px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
-                  isScrolled
+                className={`ml-4 px-6 py-2 rounded-full font-semibold transition-all duration-300 ${isScrolled
                     ? 'text-kara-blue border-2 border-kara-blue hover:bg-kara-blue hover:text-white hover:scale-105'
                     : 'bg-kara-blue text-white hover:bg-kara-gold hover:text-white hover:scale-105 border-none'
-                }`}
+                  }`}
                 onClick={() => actions.handleRegister()}
               >
                 {user ? 'Mon espace' : 'Se connecter'}
@@ -111,11 +109,11 @@ const Homepage = () => {
                 </h1>
                 <div className="w-24 h-1 bg-gradient-to-r from-kara-gold to-transparent rounded-full"></div>
               </div>
-              
+
               <p className="text-lg sm:text-xl lg:text-2xl font-light leading-relaxed opacity-95 max-w-lg">
                 Une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Button
                   className="btn-primary px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 group"
@@ -149,7 +147,7 @@ const Homepage = () => {
                 <div className="hero-badge absolute -top-4 -right-4 sm:-top-6 sm:-right-6 w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-kara-gold to-yellow-400 rounded-full flex items-center justify-center animate-bounce-in shadow-xl">
                   <Star className="text-white animate-pulse" size={24} />
                 </div>
-                
+
                 {/* Decorative elements */}
                 <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-kara-gold/20 rounded-full blur-xl animate-pulse"></div>
                 <div className="absolute -top-8 -left-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
@@ -157,7 +155,7 @@ const Homepage = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Background decorative elements */}
         <div className="absolute top-1/4 right-10 w-2 h-2 bg-kara-gold rounded-full animate-ping opacity-60"></div>
         <div className="absolute bottom-1/3 left-10 w-1 h-1 bg-white rounded-full animate-ping opacity-40"></div>
@@ -221,7 +219,7 @@ const Homepage = () => {
             </Card>
           </div>
         </div>
-        
+
         {/* Background decoration */}
         <div className="absolute top-10 right-10 w-20 h-20 bg-kara-gold/5 rounded-full blur-xl"></div>
         <div className="absolute bottom-10 left-10 w-32 h-32 bg-kara-blue/5 rounded-full blur-2xl"></div>
@@ -458,22 +456,34 @@ const Homepage = () => {
           <div className="text-center">
             <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
             <div className="flex justify-center space-x-4">
-              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_FACEBOOK_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
                 <IconBrandFacebook size={24} />
               </button>
-              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_TWITTER_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
                 <IconBrandTwitter size={24} />
               </button>
-              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_INSTAGRAM_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
                 <IconBrandInstagram size={24} />
               </button>
-              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_LINKEDIN_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
                 <IconBrandLinkedin size={24} />
               </button>
-              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_YOUTUBE_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
                 <IconBrandYoutube size={24} />
               </button>
-              <button className="text-gray-300 hover:text-kara-gold transition-colors">
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_TIKTOK_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
                 <IconBrandTiktok size={24} />
               </button>
             </div>
