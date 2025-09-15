@@ -28,7 +28,7 @@ export const TruncatedText = ({
       </p>
       <button
         onClick={() => onToggle(id)}
-        className="md:hidden mt-2 text-kara-blue hover:text-kara-gold transition-colors text-sm font-medium flex items-center"
+        className="md:hidden mt-2 mx-auto text-kara-blue hover:text-kara-gold transition-colors text-sm font-medium flex items-center"
       >
         {isExpanded ? (
           <>

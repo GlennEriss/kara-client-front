@@ -15,7 +15,7 @@ const Homepage = () => {
   const { toggleMenu, scrollToSection, toggleText, handleRegister } = actions
 
   return (
-    <div className="min-h-screen bg-white font-montserrat">
+    <div className="h-screen bg-white font-montserrat">
       {/* Navigation */}
       <nav className={`fixed w-full z-50 transition-all duration-500 ${isScrolled ? 'py-3 navbar-scrolled' : 'py-4'}`}>
         <div className="container mx-auto px-4 lg:px-6">
@@ -103,7 +103,7 @@ const Homepage = () => {
             <div className="text-white space-y-8 animate-fade-in-left">
               <div className="space-y-4">
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-[1.1]">
-                  <span className="block">KARA</span>
+                  <span className="block mt-10">KARA</span>
                   <span className="block text-kara-gold bg-gradient-to-r from-kara-gold to-yellow-400 bg-clip-text text-transparent">
                     Mutuelle de Solidarité
                   </span>
