@@ -59,7 +59,7 @@ export const useHomepage = () => {
   }
 
   const handleRegister = () => {
-    router.push(routes.public.register)
+    router.push(routes.public.login)
   }
 
   return {
