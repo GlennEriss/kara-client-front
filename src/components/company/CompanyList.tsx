@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { companyCrudSchema, type CompanyCrudFormData } from '@/types/schemas'
+import { companyCrudSchema, type CompanyCrudFormData } from '@/schemas/schemas'
 import { useCompaniesPaginated, useCompanyMutations } from '@/hooks/useCompaniesQuery'
 import { toast } from 'sonner'
 import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, MapPinIcon, CheckCircle, Loader2, Home } from 'lucide-react'

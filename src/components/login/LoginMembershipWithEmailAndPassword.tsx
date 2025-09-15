@@ -1,135 +1,26 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Eye, EyeOff, Mail, Lock, Shield, Loader2, IdCard, CheckCircle2 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
-import { toast } from "sonner"
 import routes from '@/constantes/routes'
-import { ADMIN_ROLES } from '@/types/types'
-import { z } from 'zod'
-import { auth } from '@/firebase/auth'
-import { signInWithEmailAndPassword } from 'firebase/auth'
 import Link from 'next/link'
-
-// Schéma de validation pour la connexion membre avec email/mot de passe
-const memberLoginSchema = z.object({
-  matricule: z.string().min(1, "Le matricule est requis"),
-  email: z.string()
-    .email('Format d\'email invalide')
-    .min(1, 'L\'email est requis'),
-  password: z.string()
-    .min(6, 'Le mot de passe doit contenir au moins 6 caractères')
-    .max(100, 'Le mot de passe ne peut pas dépasser 100 caractères')
-})
-
-type MemberLoginFormData = z.infer<typeof memberLoginSchema>
-
-const memberLoginDefaultValues: MemberLoginFormData = {
-  matricule: '',
-  email: '',
-  password: ''
-}
+import { useLogin } from '@/hooks/login'
+import { useRouter } from 'next/navigation'
 
 export default function LoginMembershipWithEmailAndPassword() {
+  const {
+    mediator,
+    form,
+    onSubmit,
+    onInvalid
+  } = useLogin()
+  const router = useRouter()  
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-
-  const form = useForm<MemberLoginFormData>({
-    resolver: zodResolver(memberLoginSchema),
-    defaultValues: memberLoginDefaultValues
-  })
-
-  const onSubmit = async (data: MemberLoginFormData) => {
-    setIsLoading(true)
-    try {
-      // 1) Vérifier l'existence de l'utilisateur par UID (matricule)
-      const resp = await fetch('/api/firebase/auth/get-user/by-uid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: data.matricule.trim() }),
-      })
-
-      if (!resp.ok) throw new Error('USER_CHECK_FAILED')
-      const userInfo = await resp.json()
-      if (!userInfo?.found) throw new Error('USER_NOT_FOUND')
-
-      // 2) Tentative de connexion avec email/mot de passe
-      const userCred = await signInWithEmailAndPassword(auth, data.email, data.password)
-
-      if (userCred.user) {
-        // Vérifier que l'utilisateur connecté correspond au matricule
-        if (userCred.user.uid !== data.matricule.trim()) {
-          throw new Error('MATRICULE_EMAIL_MISMATCH')
-        }
-
-        // Obtenir le token ID pour l'authentification côté serveur
-        const idToken = await userCred.user.getIdToken()
-
-        // Sauvegarder le token dans un cookie
-        document.cookie = `auth-token=${idToken}; path=/; max-age=3600; secure; samesite=strict`
-
-        toast.success('Connexion réussie !', {
-          description: 'Bienvenue dans votre espace membre',
-          style: {
-            background: "#10b981",
-            color: "white",
-            border: "none"
-          },
-          duration: 2000
-        })
-
-        // Vérifier le rôle et rediriger
-        const role = await JSON.parse(((auth?.currentUser as any)?.reloadUserInfo?.customAttributes))["role"]
-        const isAdmin = role && ADMIN_ROLES.includes(role)
-        router.push(isAdmin ? routes.admin.dashboard : routes.member.home)
-      }
-    } catch (error: any) {
-      console.error('Erreur de connexion:', error)
-
-      let errorMessage = "Une erreur est survenue"
-      let errorDescription = "Vérifiez vos informations et réessayez."
-
-      if (error.message === 'USER_NOT_FOUND') {
-        errorMessage = "Matricule incorrect"
-        errorDescription = "Ce matricule n'existe pas dans notre base de données."
-      } else if (error.message === 'MATRICULE_EMAIL_MISMATCH') {
-        errorMessage = "Matricule et email ne correspondent pas"
-        errorDescription = "Le matricule saisi ne correspond pas à l'email utilisé."
-      } else if (error.code === 'auth/user-not-found') {
-        errorMessage = "Email incorrect"
-        errorDescription = "Aucun compte associé à cet email."
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = "Mot de passe incorrect"
-        errorDescription = "Vérifiez votre mot de passe et réessayez."
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = "Email invalide"
-        errorDescription = "Format d'email incorrect."
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = "Trop de tentatives"
-        errorDescription = "Réessayez plus tard."
-      }
-
-      toast.error(errorMessage, {
-        description: errorDescription,
-        style: {
-          background: "#ef4444",
-          color: "white",
-          border: "none"
-        },
-        duration: 4000
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   return (
     <div className="min-h-screen flex">
@@ -172,8 +63,8 @@ export default function LoginMembershipWithEmailAndPassword() {
                   <p className="text-slate-600">Utilisez vos identifiants pour accéder</p>
                 </div>
 
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <Form {...mediator.getForm()}>
+                  <form onSubmit={(data) => mediator.handleSubmit(data, onSubmit, onInvalid)} className="space-y-6">
 
                     {/* Champ Matricule */}
                     <FormField
@@ -190,9 +81,9 @@ export default function LoginMembershipWithEmailAndPassword() {
                                 className={cn(
                                   "pl-12 h-14 border-2 border-[#234E64]/30 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/20 transition-all duration-300 text-lg bg-white/70 backdrop-blur-sm",
                                   "hover:border-[#CBB171]/50 hover:bg-white/90",
-                                  form.formState.errors.matricule && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
+                                  mediator.getForm().formState.errors.matricule && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
                                 )}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                                 autoFocus
                               />
                             </div>
@@ -218,9 +109,9 @@ export default function LoginMembershipWithEmailAndPassword() {
                                 className={cn(
                                   "pl-12 h-14 border-2 border-[#234E64]/30 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/20 transition-all duration-300 text-lg bg-white/70 backdrop-blur-sm",
                                   "hover:border-[#CBB171]/50 hover:bg-white/90",
-                                  form.formState.errors.email && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
+                                  mediator.getForm().formState.errors.email && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
                                 )}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                               />
                             </div>
                           </FormControl>
@@ -245,9 +136,9 @@ export default function LoginMembershipWithEmailAndPassword() {
                                 className={cn(
                                   "pl-12 pr-12 h-14 border-2 border-[#234E64]/30 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/20 transition-all duration-300 text-lg bg-white/70 backdrop-blur-sm",
                                   "hover:border-[#CBB171]/50 hover:bg-white/90",
-                                  form.formState.errors.password && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
+                                  mediator.getForm().formState.errors.password && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
                                 )}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                               />
                               <Button
                                 type="button"
@@ -255,7 +146,7 @@ export default function LoginMembershipWithEmailAndPassword() {
                                 size="sm"
                                 className="absolute right-1 top-1/2 transform -translate-y-1/2 h-12 w-12 text-[#234E64] hover:text-[#CBB171] hover:bg-transparent"
                                 onClick={() => setShowPassword(!showPassword)}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                               >
                                 {showPassword ? (
                                   <EyeOff className="w-4 h-4" />
@@ -273,10 +164,10 @@ export default function LoginMembershipWithEmailAndPassword() {
                     {/* Bouton de connexion */}
                     <Button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={form.formState.isSubmitting}
                       className="w-full h-14 bg-gradient-to-r from-[#234E64] to-[#234E64] hover:from-[#234E64] hover:to-[#234E64] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 group"
                     >
-                      {isLoading ? (
+                      {form.formState.isSubmitting ? (
                         <div className="flex items-center justify-center space-x-2">
                           <Loader2 className="w-5 h-5 animate-spin" />
                           <span>Connexion en cours...</span>
@@ -315,6 +206,7 @@ export default function LoginMembershipWithEmailAndPassword() {
                 Pas encore membre ?{' '}
                 <button
                   onClick={() => router.push(routes.public.register)}
+                  disabled={form.formState.isSubmitting}
                   className="cursor-pointer text-[#234E64] hover:text-[#234E64] font-semibold underline transition-colors duration-300"
                 >
                   Rejoignez KARA
@@ -352,8 +244,8 @@ export default function LoginMembershipWithEmailAndPassword() {
               <div className="absolute -inset-1 bg-gradient-to-r from-[#234E64]/20 via-[#CBB171]/20 to-[#234E64]/20 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
               <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 p-6">
 
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <Form {...mediator.getForm()}>
+                  <form onSubmit={(data) => mediator.handleSubmit(data, onSubmit, onInvalid)} className="space-y-5">
 
                     {/* Champ Matricule Desktop */}
                     <FormField
@@ -371,9 +263,9 @@ export default function LoginMembershipWithEmailAndPassword() {
                                   "pl-10 h-12 border-2 border-[#234E64]/20 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/10 transition-all duration-500 text-base bg-white/80 backdrop-blur-sm rounded-lg",
                                   "hover:border-[#CBB171]/60 hover:bg-white/95 hover:shadow-md hover:-translate-y-0.5",
                                   "focus:scale-102 focus:shadow-lg",
-                                  form.formState.errors.matricule && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
+                                  mediator.getForm().formState.errors.matricule && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
                                 )}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                                 autoFocus
                               />
                             </div>
@@ -400,9 +292,9 @@ export default function LoginMembershipWithEmailAndPassword() {
                                   "pl-10 h-12 border-2 border-[#234E64]/20 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/10 transition-all duration-500 text-base bg-white/80 backdrop-blur-sm rounded-lg",
                                   "hover:border-[#CBB171]/60 hover:bg-white/95 hover:shadow-md hover:-translate-y-0.5",
                                   "focus:scale-102 focus:shadow-lg",
-                                  form.formState.errors.email && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
+                                  mediator.getForm().formState.errors.email && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
                                 )}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                               />
                             </div>
                           </FormControl>
@@ -428,9 +320,9 @@ export default function LoginMembershipWithEmailAndPassword() {
                                   "pl-10 pr-12 h-12 border-2 border-[#234E64]/20 focus:border-[#234E64] focus:ring-2 focus:ring-[#234E64]/10 transition-all duration-500 text-base bg-white/80 backdrop-blur-sm rounded-lg",
                                   "hover:border-[#CBB171]/60 hover:bg-white/95 hover:shadow-md hover:-translate-y-0.5",
                                   "focus:scale-102 focus:shadow-lg",
-                                  form.formState.errors.password && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
+                                  mediator.getForm().formState.errors.password && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50/50"
                                 )}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                               />
                               <Button
                                 type="button"
@@ -438,7 +330,7 @@ export default function LoginMembershipWithEmailAndPassword() {
                                 size="sm"
                                 className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 text-[#234E64] hover:text-[#CBB171] hover:bg-[#234E64]/5 hover:scale-110 transition-all duration-300 rounded-md"
                                 onClick={() => setShowPassword(!showPassword)}
-                                disabled={isLoading}
+                                disabled={form.formState.isSubmitting}
                               >
                                 {showPassword ? (
                                   <EyeOff className="w-4 h-4" />
@@ -456,10 +348,10 @@ export default function LoginMembershipWithEmailAndPassword() {
                     {/* Bouton de connexion Desktop */}
                     <Button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={form.formState.isSubmitting}
                       className="w-full h-12 bg-gradient-to-r from-[#234E64] via-[#234E64] to-[#CBB171] hover:from-[#CBB171] hover:via-[#234E64] hover:to-[#234E64] text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-500 group animate-fade-in-up animation-delay-800 hover:scale-102"
                     >
-                      {isLoading ? (
+                      {form.formState.isSubmitting ? (
                         <div className="flex items-center justify-center space-x-2">
                           <Loader2 className="w-5 h-5 animate-spin" />
                           <span className="text-base">Connexion en cours...</span>

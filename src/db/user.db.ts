@@ -5,7 +5,7 @@ import {
   getDocs, 
   setDoc, 
   updateDoc, 
-  query as firestoreQuery, 
+  query, 
   where, 
   orderBy, 
   limit as firestoreLimit, 
@@ -49,50 +49,94 @@ function toDateSafe(value: any): Date {
 /**
  * Génère un matricule unique au format nombreUser.MK.dateCréation
  * Ex: 1234.MK.150125
- * Vérifie l'unicité dans membershipRequests
+ * Vérifie l'unicité dans membershipRequests ET users
  */
 export async function generateMatricule(): Promise<string> {
   try {
     const { firebaseCollectionNames } = await import('@/constantes/firebase-collection-names')
     
-    let matricule: string
+    let matricule: string = ''
     let isUnique = false
     let attempts = 0
-    const maxAttempts = 100 // Limite de sécurité
+    const maxAttempts = 50 // Réduire le nombre de tentatives
+    
+    // Date actuelle au format DDMMYY
+    const now = new Date()
+    const day = now.getDate().toString().padStart(2, '0')
+    const month = (now.getMonth() + 1).toString().padStart(2, '0')
+    const year = now.getFullYear().toString().slice(-2)
+    const dateString = `${day}${month}${year}`
     
     while (!isUnique && attempts < maxAttempts) {
-      // Générer un numéro utilisateur aléatoire à 4 chiffres
-      const userNumber = Math.floor(Math.random() * 9000 + 1000).toString()
-      
-      // Date actuelle au format DDMMYY
-      const now = new Date()
-      const day = now.getDate().toString().padStart(2, '0')
-      const month = (now.getMonth() + 1).toString().padStart(2, '0')
-      const year = now.getFullYear().toString().slice(-2)
-      const dateString = `${day}${month}${year}`
+      // Générer un numéro utilisateur avec une meilleure distribution
+      // Utiliser timestamp pour réduire les collisions
+      const timestamp = Date.now().toString().slice(-4) // 4 derniers chiffres du timestamp
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      const userNumber = (parseInt(timestamp) + parseInt(random)) % 9000 + 1000
       
       matricule = `${userNumber}.MK.${dateString}`
       
-      // Vérifier si ce matricule existe déjà dans membershipRequests
-      const membershipRequestsRef = collection(firestore, firebaseCollectionNames.membershipRequests || "membership-requests")
-      const q = firestoreQuery(membershipRequestsRef, where("matricule", "==", matricule))
-      const snapshot = await getDocs(q)
+      // Vérifier l'unicité dans membershipRequests ET users
+      const isUniqueInMembershipRequests = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.membershipRequests || "membership-requests", 
+        matricule
+      )
       
-      if (snapshot.empty) {
+      const isUniqueInUsers = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.users || "users", 
+        matricule
+      )
+      
+      if (isUniqueInMembershipRequests && isUniqueInUsers) {
         isUnique = true
       } else {
         attempts++
       }
     }
     
+    // Si on n'a pas trouvé de matricule unique, utiliser un mécanisme de fallback
     if (!isUnique) {
-      throw new Error('Impossible de générer un matricule unique après plusieurs tentatives')
+      console.warn('Tentatives épuisées, utilisation du mécanisme de fallback')
+      const fallbackTimestamp = Date.now().toString().slice(-6) // 6 derniers chiffres
+      matricule = `${fallbackTimestamp}.MK.${dateString}`
+      
+      // Vérifier une dernière fois l'unicité avec le fallback
+      const isUniqueInMembershipRequests = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.membershipRequests || "membership-requests", 
+        matricule
+      )
+      
+      const isUniqueInUsers = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.users || "users", 
+        matricule
+      )
+      
+      if (!isUniqueInMembershipRequests || !isUniqueInUsers) {
+        // En dernier recours, ajouter des millisecondes pour garantir l'unicité
+        const milliseconds = Date.now().toString().slice(-3)
+        matricule = `${fallbackTimestamp}${milliseconds}.MK.${dateString}`
+      }
     }
     
-    return matricule!
+    return matricule
   } catch (error) {
     console.error('Erreur lors de la génération du matricule:', error)
     throw new Error('Impossible de générer le matricule')
+  }
+}
+
+/**
+ * Vérifie l'unicité d'un matricule dans une collection spécifique
+ */
+async function checkMatriculeUniquenessInCollection(collectionName: string, matricule: string): Promise<boolean> {
+  try {
+    const collectionRef = collection(firestore, collectionName)
+    const q = query(collectionRef, where("matricule", "==", matricule))
+    const snapshot = await getDocs(q)
+    return snapshot.empty
+  } catch (error) {
+    console.error(`Erreur lors de la vérification d'unicité dans ${collectionName}:`, error)
+    return false // En cas d'erreur, considérer comme non unique pour être sûr
   }
 }
 
@@ -221,7 +265,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
-    const q = firestoreQuery(usersRef, where('email', '==', email), firestoreLimit(1))
+    const q = query(usersRef, where('email', '==', email), firestoreLimit(1))
     const querySnapshot = await getDocs(q)
     
     if (querySnapshot.empty) {
@@ -277,7 +321,7 @@ export async function getUsersByIds(userIds: string[]): Promise<User[]> {
     for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize))
     const results: User[] = []
     for (const chunk of chunks) {
-      const q = firestoreQuery(usersRef, where('id', 'in', chunk))
+      const q = query(usersRef, where('id', 'in', chunk))
       const snap = await getDocs(q)
       snap.docs.forEach((d) => {
         const data = d.data() as any
@@ -354,10 +398,10 @@ export async function getAllUsers(filters: UserFilters = {}): Promise<{ users: U
     const users: User[] = []
     
     querySnapshot.forEach((doc) => {
-      const data = doc.data()
+      const data = doc.data() as any
       users.push({
         id: doc.id,
-        ...(data as any),
+        ...data,
         createdAt: toDateSafe(data.createdAt),
         updatedAt: toDateSafe(data.updatedAt),
       } as User)
@@ -423,12 +467,12 @@ export async function getUserStats(): Promise<UserStats> {
     const total = totalSnapshot.data().count
     
     // Utilisateurs actifs
-    const activeQuery = firestoreQuery(usersRef, where('isActive', '==', true))
+    const activeQuery = query(usersRef, where('isActive', '==', true))
     const activeSnapshot = await getCountFromServer(activeQuery)
     const active = activeSnapshot.data().count
     
     // Utilisateurs avec voiture
-    const withCarQuery = firestoreQuery(usersRef, where('hasCar', '==', true))
+    const withCarQuery = query(usersRef, where('hasCar', '==', true))
     const withCarSnapshot = await getCountFromServer(withCarQuery)
     const withCar = withCarSnapshot.data().count
     
@@ -558,15 +602,15 @@ export async function getUsersByRole(role: UserRole): Promise<User[]> {
  * Recherche des utilisateurs par nom, prénom ou matricule
  */
 export async function searchUsers(
-  query: string, 
+  searchQuery: string, 
   limit: number = 20
 ): Promise<User[]> {
   try {
-    if (!query || query.trim().length < 2) {
+    if (!searchQuery || searchQuery.trim().length < 2) {
       return []
     }
 
-    const searchTerm = query.trim().toLowerCase()
+    const searchTerm = searchQuery.trim().toLowerCase()
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
     
     // Si la recherche ressemble à un matricule (contient .MK.), chercher directement par ID
@@ -587,7 +631,7 @@ export async function searchUsers(
     
     // Recherche par nom/prénom - récupérer plus d'utilisateurs pour un meilleur filtrage
     console.log('🔍 Recherche générale dans les utilisateurs récents...')
-    const q = firestoreQuery(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(100)) // Augmenter la limite
+    const q = query(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(100)) // Augmenter la limite
     const querySnapshot = await getDocs(q)
     
     console.log('📊 Nombre total d\'utilisateurs récupérés:', querySnapshot.size)
@@ -595,10 +639,10 @@ export async function searchUsers(
     const users: User[] = []
     
     querySnapshot.forEach((doc) => {
-      const data = doc.data()
+      const data = doc.data() as any
       const user = {
         id: doc.id,
-        ...(data as any),
+        ...data,
         createdAt: toDateSafe(data.createdAt),
         updatedAt: toDateSafe(data.updatedAt),
       } as User

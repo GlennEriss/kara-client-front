@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react'
 import { ContractFormData, EntitySearchResult } from '@/types/types'
-import { contractCreationDefaultValues } from '@/types/schemas'
+import { contractCreationDefaultValues } from '@/schemas/schemas'
 
 // Types pour les actions du reducer
 type ContractFormAction =

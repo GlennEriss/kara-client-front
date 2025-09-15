@@ -3,7 +3,7 @@
  * Database operations for membership requests (demandes d'adhésion)
  */
 
-import { RegisterFormData } from "@/types/schemas";
+import { RegisterFormData } from "@/schemas/schemas";
 import { createModel } from "./generic.db";
 import { uploadProfilePhoto, uploadDocumentPhoto } from "./upload-image.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";

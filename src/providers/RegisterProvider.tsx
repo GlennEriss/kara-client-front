@@ -8,7 +8,7 @@ import {
   registerSchema,
   stepSchemas,
   defaultValues
-} from '@/types/schemas'
+} from '@/schemas/schemas'
 import { createMembershipRequest, getMembershipRequestById, updateMembershipRequest, markSecurityCodeAsUsed } from '@/db/membership.db'
 import { toast } from "sonner"
 

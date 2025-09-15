@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { jobSchema, type JobFormData } from '@/types/schemas'
+import { jobSchema, type JobFormData } from '@/schemas/schemas'
 import { useJobs, useJobMutations } from '@/hooks/useJobs'
 import { toast } from 'sonner'
 import { Plus, Search, Edit3, Trash2, Briefcase, RefreshCw } from 'lucide-react'

@@ -6,6 +6,9 @@ export * from './homepage'
 // Auth hooks
 export * from './auth'
 
+// Login hooks
+export * from './login'
+
 // Register hooks
 export * from './register'
 

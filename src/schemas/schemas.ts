@@ -576,7 +576,7 @@ export type CompanyFormData = z.infer<typeof companySchema>
 export type DocumentsFormData = z.infer<typeof documentsSchema>
 
 // Type pour le schéma complet (importé depuis types.ts pour éviter les conflits de modules)
-export type { RegisterFormData } from './types'
+export type { RegisterFormData } from '../types/types'
 
 // Types pour les sous-objets complexes
 export type CompanyAddressData = z.infer<typeof companySchema>['companyAddress']
