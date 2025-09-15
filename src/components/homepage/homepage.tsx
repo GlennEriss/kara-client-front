@@ -384,23 +384,25 @@ const Homepage = () => {
           </div>
 
           <div className="max-w-2xl mx-auto">
-            <Card className="contact-card p-12 animate-scale-in">
+            <Card className="contact-card animate-scale-in">
               <CardContent>
                 <div className="text-center">
                   <Mail className="text-kara-blue mx-auto mb-6" size={80} />
                   <h3 className="text-2xl font-bold text-kara-blue mb-6">Contactez-nous</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center space-x-3">
-                      <Mail className="text-kara-gold" size={20} />
-                      <span className="text-lg">contact@kara-mutuelle.ga</span>
-                    </div>
-                    <div className="flex items-center justify-center space-x-3">
-                      <Phone className="text-kara-gold" size={20} />
-                      <span className="text-lg">+241 XX XX XX XX</span>
-                    </div>
-                    <div className="flex items-center justify-center space-x-3">
-                      <MapPin className="text-kara-gold" size={20} />
-                      <span className="text-lg">Awoungou, Gabon</span>
+                  <div className="flex justify-center">
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-3">
+                        <Mail className="text-kara-gold" size={20} />
+                        <span className="text-lg">contact@kara-mutuelle.ga</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <Phone className="text-kara-gold" size={20} />
+                        <span className="text-lg">+241 XX XX XX XX</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <MapPin className="text-kara-gold" size={20} />
+                        <span className="text-lg">Awoungou, Gabon</span>
+                      </div>
                     </div>
                   </div>
                   <Button className="btn-primary px-8 py-3 rounded-full font-semibold mt-8">
