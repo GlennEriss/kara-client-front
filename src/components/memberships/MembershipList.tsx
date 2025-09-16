@@ -42,6 +42,22 @@ import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'list'
 
+// Fonction utilitaire pour récupérer les détails d'identité de manière sécurisée
+const getUserDisplayName = (user: MemberWithSubscription): string => {
+  const firstName = user.firstName?.trim() || ''
+  const lastName = user.lastName?.trim() || ''
+  
+  if (firstName && lastName) {
+    return `${firstName} ${lastName}`
+  } else if (firstName) {
+    return firstName
+  } else if (lastName) {
+    return lastName
+  } else {
+    return 'Utilisateur'
+  }
+}
+
 // Hook personnalisé pour le carousel avec drag/swipe
 const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -431,7 +447,7 @@ const MembershipList = () => {
     try {
       if (membersWithSubscriptions.length > 0) {
         const firstUser = membersWithSubscriptions[0]
-        toast.info(`🔍 Analyse de ${firstUser.firstName} ${firstUser.lastName}...`, { duration: 2000 })
+        toast.info(`🔍 Analyse de ${getUserDisplayName(firstUser)}...`, { duration: 2000 })
         await debugUserSubscriptions(firstUser.id)
         toast.success('🔍 Analyse utilisateur terminée - vérifiez la console')
       } else {

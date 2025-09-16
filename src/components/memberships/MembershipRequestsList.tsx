@@ -126,6 +126,22 @@ const formatDate = (timestamp: any) => {
   }
 }
 
+// Fonction utilitaire pour récupérer les détails d'identité de manière sécurisée
+const getIdentityDisplayName = (request: MembershipRequest): string => {
+  const firstName = request.identity.firstName?.trim() || ''
+  const lastName = request.identity.lastName?.trim() || ''
+  
+  if (firstName && lastName) {
+    return `${firstName} ${lastName}`
+  } else if (firstName) {
+    return firstName
+  } else if (lastName) {
+    return lastName
+  } else {
+    return 'Utilisateur'
+  }
+}
+
 // Composant pour les statistiques avec graphiques
 const StatsCard = ({ 
   title, 
@@ -481,7 +497,7 @@ const MembershipRequestCard = ({
         })
 
         toast.warning('Corrections demandées', {
-          description: `Des corrections ont été demandées pour la demande de ${request.identity.firstName} ${request.identity.lastName}.`,
+          description: `Des corrections ont été demandées pour la demande de ${getIdentityDisplayName(request)}.`,
           duration: 4000,
         })
       } else {
@@ -493,7 +509,7 @@ const MembershipRequestCard = ({
         })
 
         toast.warning('⏳ Demande mise en examen', {
-          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} est maintenant en cours d'examen.`,
+          description: `La demande de ${getIdentityDisplayName(request)} est maintenant en cours d'examen.`,
           duration: 4000,
         })
       }
@@ -504,7 +520,7 @@ const MembershipRequestCard = ({
         reviewedBy: user?.uid || 'unknown-admin',
       })
       toast.success('Dossier réouvert', {
-        description: `Le dossier de ${request.identity.firstName} ${request.identity.lastName} est repassé en attente.`,
+        description: `Le dossier de ${getIdentityDisplayName(request)} est repassé en attente.`,
         duration: 4000,
       })
     } else {
@@ -520,7 +536,7 @@ const MembershipRequestCard = ({
 
       if (confirmationAction.type === 'reject') {
         toast.error('🚫 Demande rejetée avec succès', {
-          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} a été rejetée.`,
+          description: `La demande de ${getIdentityDisplayName(request)} a été rejetée.`,
           duration: 4000,
         })
       }
@@ -571,7 +587,7 @@ const MembershipRequestCard = ({
 
       if (response.ok && data.success) {
         toast.success('✅ Demande approuvée avec succès', {
-          description: `${request.identity.firstName} ${request.identity.lastName} est maintenant membre ${membershipType}. Matricule: ${data.matricule}, Email: ${data.email}, Mot de passe: ${data.password}`,
+          description: `${getIdentityDisplayName(request)} est maintenant membre ${membershipType}. Matricule: ${data.matricule}, Email: ${data.email}, Mot de passe: ${data.password}`,
           duration: 5000,
         })
         await queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })

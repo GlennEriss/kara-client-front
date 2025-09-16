@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
-import { useForm } from 'react-hook-form'
+import { FormProvider, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   RegisterFormData,
@@ -124,7 +124,7 @@ class CacheManager {
       if ('insurance' in cleanData) {
         delete (cleanData as any).insurance
       }
-      
+
       localStorage.setItem(CACHE_KEYS.FORM_DATA, JSON.stringify(cleanData))
       localStorage.setItem(CACHE_KEYS.TIMESTAMP, Date.now().toString())
       localStorage.setItem(CACHE_KEYS.VERSION, CACHE_VERSION)
@@ -209,7 +209,7 @@ class CacheManager {
 
       const membershipId = localStorage.getItem(CACHE_KEYS.MEMBERSHIP_ID)
       const userData = localStorage.getItem('register-user-data')
-      
+
       if (membershipId && userData) {
         return {
           membershipId,
@@ -299,7 +299,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         // Vérifier d'abord s'il y a un requestId dans l'URL pour les corrections (PRIORITÉ MAXIMALE)
         const urlParams = new URLSearchParams(window.location.search)
         const requestId = urlParams.get('requestId')
-        
+
         if (requestId) {
           console.log('🔍 Demande de correction détectée:', requestId)
           try {
@@ -316,11 +316,11 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
                 setIsLoading(false)
                 return
               }
-              
+
               // Vérifier l'expiration du code de sécurité
               const expiry = request.securityCodeExpiry ? ((request.securityCodeExpiry as any)?.toDate ? (request.securityCodeExpiry as any).toDate() : new Date(request.securityCodeExpiry)) : null;
               const isExpired = expiry ? expiry < new Date() : true;
-              
+
               if (isExpired) {
                 console.warn('⚠️ Code de sécurité expiré')
                 toast.error('Code expiré', {
@@ -331,11 +331,11 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
                 setIsLoading(false)
                 return
               }
-              
+
               // Demande avec corrections trouvée et code valide - NETTOYER LE CACHE DE SOUMISSION
               console.log('🧹 Nettoyage du cache de soumission pour prioriser la correction')
               CacheManager.clearSubmissionData()
-              
+
               setCorrectionRequest({
                 requestId: request.id,
                 reviewNote: request.reviewNote,
@@ -500,7 +500,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       // Valider avec le schéma Zod de manière plus stricte
       const stepData = getValues(sectionKey)
       const schema = stepSchemas[currentStep as keyof typeof stepSchemas]
-      
+
       try {
         await schema.parseAsync(stepData)
         const isSchemaValid = true
@@ -593,6 +593,20 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     return CacheManager.hasCachedData()
   }, [])
 
+  // ================== UTILITAIRES D'IDENTITÉ ==================
+  const getIdentityDetails = useCallback(() => {
+    const civility = getValues('identity.civility')?.trim() || ''
+    const firstName = getValues('identity.firstName')?.trim() || ''
+    const lastName = getValues('identity.lastName')?.trim() || ''
+
+    return {
+      civility,
+      firstName,
+      lastName,
+      displayName: [civility, firstName, lastName].filter(Boolean).join(' ') || 'Utilisateur'
+    }
+  }, [getValues])
+
   // ================== SOUMISSION ==================
   const submitForm = useCallback(async () => {
     setIsSubmitting(true)
@@ -616,7 +630,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       if (correctionRequest?.isVerified) {
         // Mise à jour d'une demande existante (correction)
         console.log('🔄 Mise à jour de la demande de correction:', correctionRequest.requestId)
-        
+
         const success = await updateMembershipRequest(correctionRequest.requestId, formData)
         if (!success) {
           throw new Error('Échec de la mise à jour de la demande d\'adhésion')
@@ -630,17 +644,15 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
         // Vider le cache des données du formulaire
         CacheManager.clearFormDataOnly()
-        
+
         // Sauvegarder l'ID du membership et les données utilisateur pour 48h
         CacheManager.saveSubmissionData(correctionRequest.requestId, userData)
 
         // Afficher toast de succès pour correction
-        const civility = getValues('identity.civility')
-        const firstName = getValues('identity.firstName')
-        const lastName = getValues('identity.lastName')
-        
+        const { displayName } = getIdentityDetails()
+
         toast.success("Corrections soumises !", {
-          description: `Demande soumise avec succès ${civility} ${firstName} ${lastName}`,
+          description: `Demande soumise avec succès ${displayName}`,
           style: {
             background: '#10B981',
             color: 'white',
@@ -668,17 +680,15 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
         // Vider le cache des données du formulaire
         CacheManager.clearFormDataOnly()
-        
+
         // Sauvegarder l'ID du membership et les données utilisateur pour 48h
         CacheManager.saveSubmissionData(membershipRequestId, userData)
 
         // Afficher toast de succès
-        const civility = getValues('identity.civility')
-        const firstName = getValues('identity.firstName')
-        const lastName = getValues('identity.lastName')
-        
+        const { displayName } = getIdentityDetails()
+
         toast.success("Inscription réussie !", {
-          description: `Demande soumise avec succès ${civility} ${firstName} ${lastName}`,
+          description: `Demande soumise avec succès ${displayName}`,
           style: {
             background: '#10B981',
             color: 'white',
@@ -692,10 +702,10 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       }
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error)
-      
+
       // Stocker l'erreur pour l'affichage
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Une erreur inattendue s\'est produite lors de l\'enregistrement'
       setSubmissionError(errorMessage)
 
@@ -709,13 +719,13 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         },
         duration: 5000
       })
-      
+
       throw error
     } finally {
       setIsSubmitting(false)
       setIsLoading(false)
     }
-  }, [trigger, getValues, reset, correctionRequest])
+  }, [trigger, getValues, reset, correctionRequest, getIdentityDetails])
 
   // ================== RESET ==================
   const resetForm = useCallback(() => {
@@ -742,7 +752,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   }, [getValues])
 
   // ================== GESTION DES CORRECTIONS ==================
-  
+
   // Fonction pour nettoyer le cache de soumission quand on accède aux corrections
   const clearSubmissionCacheForCorrections = useCallback(() => {
     console.log('🧹 Nettoyage du cache de soumission pour permettre les corrections')
@@ -750,7 +760,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     setIsSubmitted(false)
     setUserData(undefined)
   }, [])
-  
+
   const verifySecurityCode = useCallback(async (): Promise<boolean> => {
     if (!correctionRequest || !securityCodeInput.trim()) {
       return false
@@ -767,7 +777,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
           })
           return false
         }
-        
+
         // Vérifier si le code a déjà été utilisé
         if (request.securityCodeUsed) {
           toast.error('Code déjà utilisé', {
@@ -776,11 +786,11 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
           })
           return false
         }
-        
+
         // Vérifier l'expiration du code
         const expiry = request.securityCodeExpiry ? ((request.securityCodeExpiry as any)?.toDate ? (request.securityCodeExpiry as any).toDate() : new Date(request.securityCodeExpiry)) : null;
         const isExpired = expiry ? expiry < new Date() : true;
-        
+
         if (isExpired) {
           toast.error('Code expiré', {
             description: 'Le code de sécurité a expiré. Veuillez demander un nouveau code à l\'administrateur.',
@@ -788,7 +798,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
           })
           return false
         }
-        
+
         // Code valide, charger les données de la demande
         if (request) {
           // Convertir les données de la demande en format RegisterFormData
@@ -837,19 +847,19 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
           reset(formData)
           setCurrentStep(1)
           setCompletedSteps(new Set())
-          
+
           // Marquer le code comme utilisé dans la base de données
           await markSecurityCodeAsUsed(correctionRequest.requestId)
-          
+
           // Marquer comme vérifié
           setCorrectionRequest(prev => prev ? { ...prev, isVerified: true } : null)
           setSecurityCodeInput('')
-          
+
           toast.success('Code vérifié !', {
             description: 'Vos données ont été chargées. Vous pouvez maintenant apporter les corrections demandées.',
             duration: 4000,
           })
-          
+
           return true
         }
       } catch (error) {
@@ -865,7 +875,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         duration: 3000,
       })
     }
-    
+
     return false
   }, [correctionRequest, securityCodeInput, reset])
 
@@ -879,14 +889,14 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     try {
       console.log('🔍 Vérification manuelle du statut du membership:', submissionData.membershipId)
       const membershipExists = await getMembershipRequestById(submissionData.membershipId)
-      
+
       if (!membershipExists) {
         console.warn('❌ Membership non trouvé, retour au formulaire')
         CacheManager.clearSubmissionData()
         setIsSubmitted(false)
         setUserData(undefined)
         setCurrentStep(1)
-        
+
         toast.error("Demande introuvable", {
           description: "Votre demande d'adhésion n'a pas été trouvée. Veuillez soumettre une nouvelle demande.",
           style: {
@@ -896,10 +906,10 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
           },
           duration: 5000
         })
-        
+
         return false
       }
-      
+
       console.log('✅ Membership confirmé')
       return true
     } catch (error) {
@@ -952,7 +962,9 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
   return (
     <RegisterContext.Provider value={contextValue}>
-      {children}
+      <FormProvider {...form}>
+        {children}
+      </FormProvider>
     </RegisterContext.Provider>
   )
 }
