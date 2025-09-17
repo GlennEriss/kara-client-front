@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { identitySchema, CivilityEnum, GenderEnum, identityDefaultValues } from './identity.schema'
+import { addressSchema, addressDefaultValues } from './address.schema'
 
 // Énumérations pour les options fixes (valeurs en français)
 export const IdentityDocumentEnum = z.enum([
@@ -24,41 +25,6 @@ export const InsuranceTypeEnum = z.enum([
   'Autre'
 ])
 
-
-// ================== STEP 2: ADRESSE ==================
-export const addressSchema = z.object({
-  province: z.preprocess(
-    (val) => (typeof val === 'string' ? val.trim() : val),
-    z.string()
-      .min(2, 'La province doit contenir au moins 2 caractères')
-      .max(50, 'La province ne peut pas dépasser 50 caractères')
-  ),
-  
-  city: z.preprocess(
-    (val) => (typeof val === 'string' ? val.trim() : val),
-    z.string()
-      .min(2, 'La ville doit contenir au moins 2 caractères')
-      .max(50, 'La ville ne peut pas dépasser 50 caractères')
-  ),
-  
-  district: z.preprocess(
-    (val) => (typeof val === 'string' ? val.trim() : val),
-    z.string()
-      .min(2, 'Le quartier doit contenir au moins 2 caractères')
-      .max(100, 'Le quartier ne peut pas dépasser 100 caractères')
-  ),
-  
-  arrondissement: z.preprocess(
-    (val) => (typeof val === 'string' ? val.trim() : val),
-    z.string()
-      .min(2, 'L\'arrondissement doit contenir au moins 2 caractères')
-      .max(50, 'L\'arrondissement ne peut pas dépasser 50 caractères')
-  ),
-  
-  additionalInfo: z.string()
-    .max(200, 'Les informations complémentaires ne peuvent pas dépasser 200 caractères')
-    .optional()
-})
 
 // ================== STEP 3: ENTREPRISE (Optionnel) ==================
 export const companySchema = z.object({
@@ -455,13 +421,7 @@ export type AdminCreateFormData = z.infer<typeof adminCreateSchema>
 // ================== VALEURS PAR DÉFAUT ==================
 export const defaultValues = {
   identity: identityDefaultValues,
-  address: {
-    province: '',
-    city: '',
-    district: '',
-    arrondissement: '',
-    additionalInfo: ''
-  },
+  address: addressDefaultValues,
   company: {
     isEmployed: false,
     companyName: '',

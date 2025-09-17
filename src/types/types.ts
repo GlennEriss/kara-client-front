@@ -761,3 +761,20 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 
 // Rôles considérés comme administrateurs
 export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary']
+
+
+export interface PhotonResult {
+  properties: {
+    name: string
+    city?: string
+    county?: string
+    state: string
+    country: string
+    postcode?: string
+    housenumber?: string
+    street?: string
+  }
+  geometry: {
+    coordinates: [number, number]
+  }
+}

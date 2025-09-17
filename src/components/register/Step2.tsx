@@ -23,6 +23,7 @@ import {
   MapPinIcon
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { DistrictSearchForm } from '@/components/address-form'
 
 interface Step2Props {
   form: any // Type du form de react-hook-form
@@ -75,10 +76,6 @@ const useDebounce = (value: string, delay: number) => {
 }
 
 export default function Step2({ form }: Step2Props) {
-  const [districtQuery, setDistrictQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<PhotonResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [showResults, setShowResults] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<PhotonResult | null>(null)
   
   // États pour la correction de ville
@@ -128,40 +125,8 @@ export default function Step2({ form }: Step2Props) {
   }, [watch, clearErrors, errors.address])
 
   // Debounce la recherche
-  const debouncedQuery = useDebounce(districtQuery, 500)
   const debouncedCityQuery = useDebounce(cityQuery, 500)
 
-  // Fonction pour rechercher avec Photon API
-  const searchWithPhoton = useCallback(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-      setSearchResults([])
-      return
-    }
-
-    setIsSearching(true)
-    try {
-      // Bounding box du Gabon: [ouest, sud, est, nord]
-      const gabonBbox = '8.5,-4.0,14.8,2.3'
-      
-      const response = await fetch(
-        `https://photon.komoot.io/api?q=${encodeURIComponent(query)}&bbox=${gabonBbox}&limit=8&lang=fr`
-      )
-      
-      if (response.ok) {
-        const data = await response.json()
-        // Filtrer pour ne garder que les résultats du Gabon
-        const gabonResults = data.features.filter((result: PhotonResult) => 
-          result.properties.country === 'Gabon' || result.properties.country === 'GA'
-        )
-        setSearchResults(gabonResults)
-      }
-    } catch (error) {
-      console.error('Erreur lors de la recherche Photon:', error)
-      setSearchResults([])
-    } finally {
-      setIsSearching(false)
-    }
-  }, [])
 
   // Fonction pour rechercher uniquement les villes
   const searchCitiesWithPhoton = useCallback(async (query: string) => {
@@ -197,16 +162,6 @@ export default function Step2({ form }: Step2Props) {
     }
   }, [])
 
-  // Effet pour déclencher la recherche
-  useEffect(() => {
-    if (debouncedQuery) {
-      searchWithPhoton(debouncedQuery)
-      setShowResults(true)
-    } else {
-      setSearchResults([])
-      setShowResults(false)
-    }
-  }, [debouncedQuery, searchWithPhoton])
 
   // Effet pour déclencher la recherche de villes
   useEffect(() => {
@@ -219,35 +174,6 @@ export default function Step2({ form }: Step2Props) {
     }
   }, [debouncedCityQuery, searchCitiesWithPhoton])
 
-  // Fonction pour sélectionner un résultat
-  const handleLocationSelect = (result: PhotonResult) => {
-    const { properties } = result
-    
-    setSelectedLocation(result)
-    setDistrictQuery(properties.name)
-    setShowResults(false)
-
-    // Remplir automatiquement les champs disponibles
-    setValue('address.district', properties.name)
-    
-    // Gérer les cas spéciaux pour la ville
-    let cityValue = ''
-    if (properties.type === 'city') {
-      // Si le type est "city", utiliser le nom comme ville (cas des quartiers comme Nkoltang)
-      cityValue = properties.name
-      setDetectedCityName(properties.name)
-      setNeedsCityCorrection(true) // Activer le mode correction
-    } else {
-      // Sinon, utiliser la logique habituelle
-      cityValue = properties.city || properties.suburb || ''
-      setNeedsCityCorrection(false) // Pas besoin de correction
-    }
-    setValue('address.city', cityValue)
-    
-    setValue('address.province', properties.state || '')
-    
-    // L'arrondissement reste à saisir manuellement par l'utilisateur
-  }
 
   // Fonction pour confirmer la ville détectée
   const handleConfirmCity = () => {
@@ -345,84 +271,7 @@ export default function Step2({ form }: Step2Props) {
         {/* Colonne de gauche - Recherche de quartier */}
         <div className="space-y-4 sm:space-y-6 w-full min-w-0">
           {/* Recherche de quartier */}
-          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
-            <Label htmlFor="districtSearch" className="text-xs sm:text-sm font-medium text-[#224D62]">
-              Rechercher votre quartier <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative w-full min-w-0">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
-              <Input
-                id="districtSearch"
-                value={districtQuery}
-                onChange={(e) => setDistrictQuery(e.target.value)}
-                placeholder="Ex: Glass, Akanda, Lalala..."
-                className={cn(
-                  "pl-10 pr-12 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                  errors?.address?.district && "border-red-300 focus:border-red-500 bg-red-50/50",
-                  selectedLocation && "border-[#CBB171] bg-[#CBB171]/5"
-                )}
-              />
-              
-              {/* Loading spinner */}
-              {isSearching && (
-                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin z-10" />
-              )}
-              
-              {/* Success checkmark */}
-              {selectedLocation && !isSearching && (
-                <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
-              )}
-
-              {/* Résultats de recherche */}
-              {showResults && searchResults.length > 0 && (
-                <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full max-h-64 overflow-y-auto">
-                  <CardContent className="p-2">
-                    <div className="space-y-1">
-                      {searchResults.map((result, index) => (
-                        <Button
-                          key={index}
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm p-3"
-                          onClick={() => handleLocationSelect(result)}
-                        >
-                          <div className="flex items-start space-x-2 w-full">
-                            <MapPinIcon className="w-4 h-4 text-[#CBB171] mt-0.5 flex-shrink-0" />
-                            <div className="text-left">
-                              <div className="font-medium text-[#224D62]">
-                                {result.properties.name}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {formatResultDisplay(result)}
-                              </div>
-                            </div>
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Aucun résultat */}
-              {showResults && searchResults.length === 0 && !isSearching && districtQuery.length > 2 && (
-                <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 w-full">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-xs text-gray-500">
-                      Aucun résultat trouvé pour "{districtQuery}"
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-            
-            {errors?.address?.district && (
-              <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                <AlertCircle className="w-3 h-3" />
-                <span>{errors.address.district.message}</span>
-              </div>
-            )}
-          </div>
+          <DistrictSearchForm />
 
           {/* Informations automatiques */}
           {selectedLocation && (
@@ -441,7 +290,6 @@ export default function Step2({ form }: Step2Props) {
                     size="sm"
                     onClick={() => {
                       setSelectedLocation(null)
-                      setDistrictQuery('')
                       setValue('address.district', '')
                       setValue('address.city', '')
                       setValue('address.province', '')
