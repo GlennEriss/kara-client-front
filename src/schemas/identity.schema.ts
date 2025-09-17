@@ -91,59 +91,94 @@ export const identitySchema = z.object({
             .max(50, 'La religion ne peut pas dépasser 50 caractères')
     ),
 
-    contacts: z.preprocess(
-        (val) => {
-            if (typeof val === 'string') return [val]
-            return val
-        },
-        z.array(z.string("Le numéro de téléphone est requis").optional())
-            .max(2, 'Maximum 2 numéros de téléphone')
-            .superRefine((contacts: Array<string | undefined>, ctx) => {
-                let numValid = 0
-                const seen = new Set<string>()
-                contacts.forEach((value, index) => {
-                    const str = typeof value === 'string' ? value : ''
-                    const trimmed = str.trim()
-                    if (trimmed === '') {
-                        // Ignorer les champs vides (gérés par l'UI)
-                        return
-                    }
-                    const digits = trimmed.replace(/\D/g, '')
-                    if (digits.length < 8) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: [index],
-                            message: 'Le numéro de téléphone doit contenir au moins 8 chiffres'
-                        })
-                        return
-                    }
-                    if (digits.length > 15) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: [index],
-                            message: 'Le numéro de téléphone ne peut pas dépasser 15 chiffres'
-                        })
-                        return
-                    }
-                    numValid += 1
-                    if (seen.has(digits)) {
-                        ctx.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: [index],
-                            message: 'Les numéros de téléphone doivent être uniques'
-                        })
-                    } else {
-                        seen.add(digits)
-                    }
-                })
-                if (numValid === 0) {
+    contacts: z.array(z.string().optional())
+        .max(2, 'Maximum 2 numéros de téléphone')
+        .superRefine((contacts: Array<string | undefined>, ctx) => {
+            let numValid = 0
+            const seen = new Set<string>()
+            contacts.forEach((value, index) => {
+                const str = typeof value === 'string' ? value : ''
+                const trimmed = str.trim()
+                if (trimmed === '') {
+                    // Ignorer les champs vides (gérés par l'UI)
+                    return
+                }
+                
+                // Vérifier le format gabonais: +241 + 8 chiffres (Liberté: 62/66, Airtel: 74/77)
+                if (!trimmed.startsWith('+241')) {
                     ctx.addIssue({
                         code: z.ZodIssueCode.custom,
-                        path: [],
-                        message: 'Au moins un numéro de téléphone valide est requis'
+                        path: [index],
+                        message: 'Le numéro doit commencer par +241'
                     })
+                    return
                 }
-            })),
+                
+                if (trimmed.length !== 12) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [index],
+                        message: 'Le numéro doit contenir exactement 12 caractères (+241 + 8 chiffres)'
+                    })
+                    return
+                }
+                
+                // Extraire les 8 derniers chiffres après +241
+                const phoneDigits = trimmed.substring(4) // Enlever +241
+                
+                // Vérifier que ce sont bien des chiffres
+                if (!/^\d{8}$/.test(phoneDigits)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [index],
+                        message: 'Seuls les chiffres sont autorisés après +241'
+                    })
+                    return
+                }
+                
+                // Vérifier spécifiquement les 2 premiers chiffres (opérateurs gabonais)
+                const operatorCode = phoneDigits.substring(0, 2)
+                if (!['62', '66', '74', '77'].includes(operatorCode)) {
+                    let operatorName = 'inconnu'
+                    let validOptions = ''
+                    
+                    if (operatorCode.startsWith('6')) {
+                        operatorName = 'Liberté'
+                        validOptions = 'Pour Liberté, utilisez 62 ou 66'
+                    } else if (operatorCode.startsWith('7')) {
+                        operatorName = 'Airtel'
+                        validOptions = 'Pour Airtel, utilisez 74 ou 77'
+                    } else {
+                        validOptions = 'Opérateurs valides : Liberté (62, 66) ou Airtel (74, 77)'
+                    }
+                    
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [index],
+                        message: `Code opérateur "${operatorCode}" invalide. ${validOptions}`
+                    })
+                    return
+                }
+                
+                numValid += 1
+                if (seen.has(trimmed)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: [index],
+                        message: 'Les numéros de téléphone doivent être uniques'
+                    })
+                } else {
+                    seen.add(trimmed)
+                }
+            })
+            if (numValid === 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: [],
+                    message: 'Au moins un numéro de téléphone valide est requis'
+                })
+            }
+        }),
 
     email: z.preprocess(
         (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
@@ -186,19 +221,70 @@ export const identitySchema = z.object({
 
     spousePhone: z.string()
         .optional()
-        .refine((value) => {
+        .superRefine((value, ctx) => {
             // Si pas de valeur ou valeur vide, c'est valide (sera géré par la validation conditionnelle)
-            if (!value || value.trim() === '') return true
-            // Si une valeur est fournie, elle doit respecter les règles
-            return value.length >= 8 && value.length <= 15 && /^[\+]?[0-9\s\-\(\)]+$/.test(value)
-        }, 'Le numéro du conjoint doit contenir entre 8 et 15 chiffres et respecter le format téléphonique'),
+            if (!value || value.trim() === '') return
+            
+            const trimmed = value.trim()
+            
+            // Vérifier le format gabonais: +241 + 8 chiffres (Liberté: 62/66, Airtel: 74/77)
+            if (!trimmed.startsWith('+241')) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Le numéro du conjoint doit commencer par +241'
+                })
+                return
+            }
+            
+            if (trimmed.length !== 12) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Le numéro du conjoint doit contenir exactement 12 caractères (+241 + 8 chiffres)'
+                })
+                return
+            }
+            
+            // Extraire les 8 derniers chiffres après +241
+            const phoneDigits = trimmed.substring(4) // Enlever +241
+            
+            // Vérifier que ce sont bien des chiffres
+            if (!/^\d{8}$/.test(phoneDigits)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Seuls les chiffres sont autorisés après +241 pour le numéro du conjoint'
+                })
+                return
+            }
+            
+            // Vérifier spécifiquement les 2 premiers chiffres (opérateurs gabonais)
+            const operatorCode = phoneDigits.substring(0, 2)
+            if (!['62', '66', '74', '77'].includes(operatorCode)) {
+                let validOptions = ''
+                
+                if (operatorCode.startsWith('6')) {
+                    validOptions = 'Pour Liberté, utilisez 62 ou 66'
+                } else if (operatorCode.startsWith('7')) {
+                    validOptions = 'Pour Airtel, utilisez 74 ou 77'
+                } else {
+                    validOptions = 'Opérateurs valides : Liberté (62, 66) ou Airtel (74, 77)'
+                }
+                
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: `Code opérateur "${operatorCode}" invalide pour le conjoint. ${validOptions}`
+                })
+            }
+        }),
 
     intermediaryCode: z.preprocess(
         (val) => (typeof val === 'string' ? val.trim() : val),
         z.string("Le code entremetteur est requis")
             .min(2, 'Le nom doit contenir au moins 2 caractères')
             .max(50, 'Le code entremetteur ne peut pas dépasser 50 caractères')
-            .optional()
+            .regex(
+                /^\d{4}\.MK\.\d{6}$/,
+                'Format requis: [Numéro].MK.[Date] (ex: 0001.MK.160925)'
+            )
     ),
 
     // Nouvelle question simple pour la voiture

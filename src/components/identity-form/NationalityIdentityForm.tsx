@@ -6,7 +6,7 @@ export default function NationalityIdentityForm() {
   return (
     <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-950 w-full min-w-0">
       <FormField
-        name="nationality"
+        name="identity.nationality"
         render={({ field, fieldState }) => (
           <FormItem>
             <FormLabel className="text-xs sm:text-sm font-medium text-[#224D62]">

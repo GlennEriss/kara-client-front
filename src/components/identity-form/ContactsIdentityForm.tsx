@@ -1,8 +1,7 @@
 import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import InputApp from '@/components/forms/InputApp'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { Phone, Plus, Trash2, CheckCircle } from 'lucide-react'
 import useStep1Form from '@/hooks/register/useStep1Form'
 
@@ -11,12 +10,17 @@ export default function ContactsIdentityForm() {
   const { register, watch } = form
 
   // Récupérer les valeurs actuelles des contacts
-  const contacts = watch('contacts') || []
+  const contacts = watch('identity.contacts') || []
+  
+  // S'assurer qu'il y a au moins un contact vide si le tableau est vide
+  React.useEffect(() => {
+    mediator.initializeContacts()
+  }, [mediator])
 
   return (
     <div className="space-y-3 sm:space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full min-w-0">
       <FormField
-        name="contacts"
+        name="identity.contacts"
         render={({ field, fieldState }) => (
           <FormItem>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 w-full">
@@ -40,7 +44,7 @@ export default function ContactsIdentityForm() {
 
             <FormControl>
               <div className="space-y-2 sm:space-y-3 w-full">
-                {contacts.map((contact, index) => (
+                {contacts && contacts.length > 0 ? contacts.map((contact, index) => (
                   <div 
                     key={`contact-${index}`} 
                     className="space-y-2 animate-in slide-in-from-left-4 duration-300 w-full min-w-0" 
@@ -48,21 +52,16 @@ export default function ContactsIdentityForm() {
                   >
                     <div className="flex space-x-2 w-full min-w-0">
                       <div className="flex-1 relative min-w-0">
-                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                        <Input
-                          {...register(`contacts.${index}`)}
-                          type="tel"
-                          placeholder={`Téléphone ${index + 1}`}
-                          onChange={(e) => {
-                            mediator.updateContact(index, e.target.value)
+                        <InputApp
+                          value={contact || ''}
+                          onChange={(value) => {
+                            mediator.updateContact(index, value)
                           }}
-                          className={cn(
-                            "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                            fieldState.error && "border-red-300 focus:border-red-400 focus:ring-red-100 bg-red-50",
-                            contacts[index] && !fieldState.error && "border-[#CBB171] bg-[#CBB171]/5"
-                          )}
+                          placeholder={`Ex: +24162671734 (Liberté/Airtel)`}
+                          icon={Phone}
+                          type="tel"
                         />
-                        {contacts[index] && !fieldState.error && (
+                        {contact && !fieldState.error && (
                           <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                         )}
                       </div>
@@ -80,10 +79,20 @@ export default function ContactsIdentityForm() {
                       )}
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center text-gray-500 py-4">
+                    Aucun contact disponible
+                  </div>
+                )}
               </div>
             </FormControl>
 
+            <div className="text-xs text-gray-600 mt-2">
+              <strong>Opérateurs valides au Gabon :</strong>
+              <br />• Liberté : +24162... ou +24166...
+              <br />• Airtel : +24174... ou +24177...
+            </div>
+            
             <FormMessage className="animate-in slide-in-from-bottom-2 duration-300 break-words text-xs" />
           </FormItem>
         )}

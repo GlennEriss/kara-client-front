@@ -11,17 +11,17 @@ export default function SpouseInfoSection() {
   const { watch, setValue, clearErrors } = form
 
   // Vérifier si la situation matrimoniale nécessite des infos conjoint
-  const maritalStatus = watch('maritalStatus')
+  const maritalStatus = watch('identity.maritalStatus')
   const requiresSpouseInfo = ['Marié(e)', 'Concubinage'].includes(maritalStatus)
 
   // Nettoyer les champs du conjoint si la situation matrimoniale ne le nécessite pas
   React.useEffect(() => {
     if (!requiresSpouseInfo) {
-      setValue('spouseLastName', '')
-      setValue('spouseFirstName', '')
-      setValue('spousePhone', '')
+      setValue('identity.spouseLastName', '')
+      setValue('identity.spouseFirstName', '')
+      setValue('identity.spousePhone', '')
       // Nettoyer aussi les erreurs éventuelles
-      clearErrors(['spouseLastName', 'spouseFirstName', 'spousePhone'])
+      clearErrors(['identity.spouseLastName', 'identity.spouseFirstName', 'identity.spousePhone'])
     }
   }, [requiresSpouseInfo, setValue, clearErrors])
 
@@ -30,14 +30,14 @@ export default function SpouseInfoSection() {
     const subscription = watch((value: any) => {
       // Nettoyer les erreurs du conjoint si nécessaire
       if (requiresSpouseInfo) {
-        if (value.spouseLastName && value.spouseLastName.trim().length >= 2 && form.formState.errors.spouseLastName) {
-          clearErrors('spouseLastName')
+        if (value.spouseLastName && value.spouseLastName.trim().length >= 2 && form.formState.errors.identity.spouseLastName) {
+          clearErrors('identity.spouseLastName')
         }
-        if (value.spouseFirstName && value.spouseFirstName.trim().length >= 2 && form.formState.errors.spouseFirstName) {
-          clearErrors('spouseFirstName')
+        if (value.spouseFirstName && value.spouseFirstName.trim().length >= 2 && form.formState.errors.identity.spouseFirstName) {
+          clearErrors('identity.spouseFirstName')
         }
-        if (value.spousePhone && value.spousePhone.trim().length >= 8 && form.formState.errors.spousePhone) {
-          clearErrors('spousePhone')
+        if (value.spousePhone && value.spousePhone.trim().length >= 8 && form.formState.errors.identity.spousePhone) {
+          clearErrors('identity.spousePhone')
         }
       }
     })

@@ -42,8 +42,8 @@ export class IdentityFormMediator {
             const imageInfo = getImageInfo(compressedDataUrl)
             
             // Mettre à jour le formulaire avec la photo compressée
-            this.form.setValue('photo', compressedDataUrl)
-            this.form.clearErrors('photo')
+            this.form.setValue('identity.photo', compressedDataUrl)
+            this.form.clearErrors('identity.photo')
             
             return {
                 success: true,
@@ -53,7 +53,7 @@ export class IdentityFormMediator {
             
         } catch (error) {
             console.error('Erreur lors de la compression:', error)
-            this.form.setError('photo', {
+            this.form.setError('identity.photo', {
                 type: 'compression',
                 message: 'Erreur lors de la compression de l\'image'
             })
@@ -71,15 +71,15 @@ export class IdentityFormMediator {
      * Valide que la photo est présente
      */
     validatePhoto(): boolean {
-        const photo = this.form.getValues('photo')
+        const photo = this.form.getValues('identity.photo')
         if (!photo) {
-            this.form.setError('photo', {
+            this.form.setError('identity.photo', {
                 type: 'required',
                 message: 'Une photo est requise'
             })
             return false
         }
-        this.form.clearErrors('photo')
+        this.form.clearErrors('identity.photo')
         return true
     }
 
@@ -91,44 +91,72 @@ export class IdentityFormMediator {
     }
 
     /**
-     * Nettoie un numéro de téléphone en gardant seulement les chiffres et le +
+     * Nettoie un numéro de téléphone et ajoute automatiquement le préfixe +241
+     * La validation des opérateurs est gérée par le schéma Zod
      */
     cleanPhoneNumber(value: string): string {
-        return value.replace(/[^\d+]/g, '')
+        // Nettoyer le numéro (garder seulement les chiffres)
+        const digits = value.replace(/\D/g, '')
+        
+        // Si vide, retourner juste le préfixe
+        if (digits.length === 0) {
+            return '+241'
+        }
+        
+        // Si le numéro commence déjà par 241, ajouter le +
+        if (digits.startsWith('241')) {
+            // Limiter à 11 chiffres total (241 + 8 chiffres)
+            return '+' + digits.substring(0, 11)
+        }
+        
+        // Si le numéro ne commence pas par 241, l'ajouter automatiquement
+        // Limiter à 8 chiffres après +241
+        const phoneDigits = digits.substring(0, 8)
+        return '+241' + phoneDigits
     }
 
     /**
-     * Ajoute un nouveau contact au tableau
+     * Initialise le tableau de contacts s'il n'existe pas
+     */
+    initializeContacts(): void {
+        const currentContacts = this.form.getValues('identity.contacts')
+        if (!currentContacts || currentContacts.length === 0) {
+            this.form.setValue('identity.contacts', ['+241'])
+        }
+    }
+
+    /**
+     * Ajoute un nouveau contact au tableau avec le préfixe +241
      */
     addContact(): void {
-        const currentContacts = this.form.getValues('contacts') || []
-        this.form.setValue('contacts', [...currentContacts, ''])
+        const currentContacts = this.form.getValues('identity.contacts') || []
+        this.form.setValue('identity.contacts', [...currentContacts, '+241'])
     }
 
     /**
      * Supprime un contact du tableau
      */
     removeContact(index: number): void {
-        const currentContacts = this.form.getValues('contacts') || []
+        const currentContacts = this.form.getValues('identity.contacts') || []
         if (currentContacts.length > 1) {
             const newContacts = currentContacts.filter((_, i) => i !== index)
-            this.form.setValue('contacts', newContacts)
+            this.form.setValue('identity.contacts', newContacts)
         }
     }
 
     /**
-     * Met à jour un contact spécifique avec nettoyage automatique
+     * Met à jour un contact spécifique avec nettoyage automatique et préfixe +241
      */
     updateContact(index: number, value: string): void {
         const cleanedValue = this.cleanPhoneNumber(value)
-        this.form.setValue(`contacts.${index}`, cleanedValue)
+        this.form.setValue(`identity.contacts.${index}`, cleanedValue)
     }
 
     /**
      * Retourne les contacts actuels
      */
     getContacts(): string[] {
-        const contacts = this.form.getValues('contacts') || []
+        const contacts = this.form.getValues('identity.contacts') || []
         return contacts.filter((contact): contact is string => typeof contact === 'string')
     }
 
@@ -154,10 +182,10 @@ export class IdentityFormMediator {
     }
 
     /**
-     * Met à jour le numéro de téléphone du conjoint avec nettoyage automatique
+     * Met à jour le numéro de téléphone du conjoint avec nettoyage automatique et préfixe +241
      */
     updateSpousePhone(value: string): void {
         const cleanedValue = this.cleanPhoneNumber(value)
-        this.form.setValue('spousePhone', cleanedValue)
+        this.form.setValue('identity.spousePhone', cleanedValue)
     }
 }

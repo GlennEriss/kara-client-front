@@ -1,7 +1,6 @@
 import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+import InputApp from '@/components/forms/InputApp'
 import { FileText, CheckCircle } from 'lucide-react'
 
 export default function BirthCertificateNumberIdentityForm() {
@@ -9,7 +8,7 @@ export default function BirthCertificateNumberIdentityForm() {
     <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-500 w-full min-w-0">
       <FormField
         name="identity.birthCertificateNumber"
-        render={({ field, fieldState }) => (
+        render={({ field }) => (
           <FormItem>
             <FormLabel className="text-xs sm:text-sm font-medium text-[#224D62]">
               Numéro d'acte de naissance <span className="text-red-500">*</span>
@@ -17,14 +16,11 @@ export default function BirthCertificateNumberIdentityForm() {
             
             <FormControl>
               <div className="relative">
-                <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                <Input
-                  {...field}
+                <InputApp
+                  value={field.value}
+                  onChange={field.onChange}
                   placeholder="Numéro de l'acte"
-                  className={cn(
-                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                    field.value && "border-[#CBB171] bg-[#CBB171]/5"
-                  )}
+                  icon={FileText}
                 />
                 {field.value && (
                   <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />

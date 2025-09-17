@@ -1,7 +1,6 @@
 import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+import InputApp from '@/components/forms/InputApp'
 import { Phone, CheckCircle } from 'lucide-react'
 import useStep1Form from '@/hooks/register/useStep1Form'
 
@@ -21,24 +20,24 @@ export default function SpousePhoneIdentityForm() {
               
               <FormControl>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                  <Input
-                    {...field}
-                    type="tel"
-                    placeholder="Numéro du conjoint"
+                  <InputApp
+                    value={field.value}
                     onChange={(e) => {
                       mediator.updateSpousePhone(e.target.value)
                     }}
-                    className={cn(
-                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      field.value && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
+                    placeholder="Ex: +24162671734"
+                    icon={Phone}
+                    type="tel"
                   />
                   {field.value && (
                     <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
                   )}
                 </div>
               </FormControl>
+              
+              <div className="text-xs text-gray-600 mt-1">
+                Format gabonais: +241 + 8 chiffres (Liberté: 62/66, Airtel: 74/77)
+              </div>
               
               <FormMessage className="animate-in slide-in-from-left-2 duration-300 break-words text-xs" />
             </FormItem>

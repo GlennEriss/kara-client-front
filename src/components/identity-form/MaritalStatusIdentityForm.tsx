@@ -7,7 +7,7 @@ export default function MaritalStatusIdentityForm() {
   return (
     <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-1100 w-full min-w-0">
       <FormField
-        name="maritalStatus"
+        name="identity.maritalStatus"
         render={({ field }) => (
           <FormItem>
             <FormLabel className="text-xs sm:text-sm font-medium text-[#224D62]">
