@@ -30,13 +30,13 @@ export default function SpouseInfoSection() {
     const subscription = watch((value: any) => {
       // Nettoyer les erreurs du conjoint si nécessaire
       if (requiresSpouseInfo) {
-        if (value.spouseLastName && value.spouseLastName.trim().length >= 2 && form.formState.errors.identity.spouseLastName) {
+        if (value.spouseLastName && value.spouseLastName.trim().length >= 2 && form.formState.errors.identity?.spouseLastName) {
           clearErrors('identity.spouseLastName')
         }
-        if (value.spouseFirstName && value.spouseFirstName.trim().length >= 2 && form.formState.errors.identity.spouseFirstName) {
+        if (value.spouseFirstName && value.spouseFirstName.trim().length >= 2 && form.formState.errors.identity?.spouseFirstName) {
           clearErrors('identity.spouseFirstName')
         }
-        if (value.spousePhone && value.spousePhone.trim().length >= 8 && form.formState.errors.identity.spousePhone) {
+        if (value.spousePhone && value.spousePhone.trim().length >= 8 && form.formState.errors.identity?.spousePhone) {
           clearErrors('identity.spousePhone')
         }
       }
@@ -55,7 +55,7 @@ export default function SpouseInfoSection() {
       <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-[#CBB171]/10 to-[#224D62]/10 rounded-lg border border-[#CBB171]/30">
         <User className="w-5 h-5 text-[#224D62]" />
         <Label className="text-sm font-bold text-[#224D62]">
-          Informations du conjoint <span className="text-red-500">*</span>
+          Informations du conjoint(e) <span className="text-red-500">*</span>
         </Label>
       </div>
 

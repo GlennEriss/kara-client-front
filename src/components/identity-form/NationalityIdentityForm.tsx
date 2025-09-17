@@ -23,8 +23,6 @@ export default function NationalityIdentityForm() {
                 defaultValue="GA"
               />
             </FormControl>
-            
-            <FormMessage className="animate-in slide-in-from-right-2 duration-300 break-words text-xs" />
           </FormItem>
         )}
       />

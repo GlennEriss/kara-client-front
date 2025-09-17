@@ -7,11 +7,11 @@ export default function SpouseFirstNameIdentityForm() {
   return (
     <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-1300 w-full min-w-0">
       <FormField
-        name="spouseFirstName"
+        name="identity.spouseFirstName"
         render={({ field }) => (
           <FormItem>
             <FormLabel className="text-xs sm:text-sm font-medium text-[#224D62]">
-              Prénom du conjoint <span className="text-red-500">*</span>
+              Prénom du conjoint(e) <span className="text-red-500">*</span>
             </FormLabel>
             
             <FormControl>
@@ -19,7 +19,7 @@ export default function SpouseFirstNameIdentityForm() {
                 <InputApp
                   value={field.value}
                   onChange={field.onChange}
-                  placeholder="Prénom du conjoint"
+                  placeholder="Prénom du conjoint(e)"
                   icon={User}
                 />
                 {field.value && (

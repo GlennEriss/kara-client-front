@@ -344,7 +344,7 @@ export const identityDefaultValues: Partial<IdentityFormData> = {
     civility: 'Monsieur',
     contacts: [''],
     gender: 'Homme',
-    nationality: '',
+    nationality: 'GA',
     maritalStatus: 'Célibataire',
     hasCar: false,
 }

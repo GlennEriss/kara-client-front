@@ -11,19 +11,19 @@ export default function SpousePhoneIdentityForm() {
     <div className="w-full max-w-md">
       <div className="space-y-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-1400 w-full min-w-0">
         <FormField
-          name="spousePhone"
+          name="identity.spousePhone"
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Téléphone du conjoint <span className="text-red-500">*</span>
+                Téléphone du conjoint(e) <span className="text-red-500">*</span>
               </FormLabel>
               
               <FormControl>
                 <div className="relative">
                   <InputApp
                     value={field.value}
-                    onChange={(e) => {
-                      mediator.updateSpousePhone(e.target.value)
+                    onChange={(value) => {
+                      mediator.updateSpousePhone(value)
                     }}
                     placeholder="Ex: +24162671734"
                     icon={Phone}
