@@ -428,11 +428,29 @@ export default function Step2({ form }: Step2Props) {
           {selectedLocation && (
             <div className="space-y-4 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-200 w-full min-w-0">
               <div className="p-4 bg-[#CBB171]/5 rounded-lg border border-[#CBB171]/20">
-                <div className="flex items-center space-x-2 mb-2">
-                  <CheckCircle className="w-4 h-4 text-[#CBB171]" />
-                  <span className="text-sm font-medium text-[#224D62]">
-                    Localisation détectée
-                  </span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-[#CBB171]" />
+                    <span className="text-sm font-medium text-[#224D62]">
+                      Localisation détectée
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedLocation(null)
+                      setDistrictQuery('')
+                      setValue('address.district', '')
+                      setValue('address.city', '')
+                      setValue('address.province', '')
+                      setNeedsCityCorrection(false)
+                    }}
+                    className="text-xs px-2 py-1 h-6 border-[#224D62]/30 text-[#224D62] hover:bg-[#224D62]/10"
+                  >
+                    Réinitialiser
+                  </Button>
                 </div>
                 <div className="text-xs text-[#224D62]/80">
                   {formatResultDisplay(selectedLocation)}
@@ -584,6 +602,14 @@ export default function Step2({ form }: Step2Props) {
                 className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed w-full"
               />
             </div>
+            
+            {/* Notice informative */}
+            <div className="flex items-center space-x-2 text-gray-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+              <Info className="w-3 h-3 flex-shrink-0" />
+              <span>
+                Rempli automatiquement lors de la sélection du quartier
+              </span>
+            </div>
           </div>
 
           {/* Province (automatique) */}
@@ -603,25 +629,67 @@ export default function Step2({ form }: Step2Props) {
                 className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed w-full"
               />
             </div>
+            
+            {/* Notice informative */}
+            <div className="flex items-center space-x-2 text-gray-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+              <Info className="w-3 h-3 flex-shrink-0" />
+              <span>
+                Rempli automatiquement lors de la sélection du quartier
+              </span>
+            </div>
           </div>
 
-          {/* Quartier (automatique) */}
+          {/* Quartier (automatique puis modifiable) */}
           <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-250 w-full min-w-0">
             <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
               Quartier <span className="text-red-500">*</span>
-              <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
-                Automatique
+              <Badge variant="secondary" className={cn(
+                "ml-2 text-[10px] sm:text-xs",
+                selectedLocation 
+                  ? "bg-green-100 text-green-700" 
+                  : "bg-[#224D62]/10 text-[#224D62]"
+              )}>
+                {selectedLocation ? 'Modifiable' : 'Automatique'}
               </Badge>
             </Label>
             <div className="relative w-full min-w-0">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <MapPin className={cn(
+                "absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 z-10",
+                selectedLocation ? "text-[#CBB171]" : "text-gray-400"
+              )} />
               <Input
                 {...register('address.district')}
-                disabled
-                placeholder="Sélectionnez d'abord un quartier"
-                className="pl-10 bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed w-full"
+                disabled={!selectedLocation}
+                placeholder={selectedLocation ? "Modifiez le quartier si nécessaire" : "Sélectionnez d'abord un quartier"}
+                className={cn(
+                  "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                  selectedLocation 
+                    ? "bg-white text-[#224D62] border-[#CBB171]/30" 
+                    : "bg-gray-50 text-gray-600 border-gray-200 cursor-not-allowed",
+                  errors?.address?.district && "border-red-300 focus:border-red-500 bg-red-50/50",
+                  watchedFields[2] && !errors?.address?.district && "border-[#CBB171] bg-[#CBB171]/5"
+                )}
               />
+              {watchedFields[2] && !errors?.address?.district && (
+                <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+              )}
             </div>
+            {errors?.address?.district && (
+              <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+                <AlertCircle className="w-3 h-3" />
+                <span>{errors.address.district.message}</span>
+              </div>
+            )}
+            
+            {/* Notice informative quand le champ est désactivé */}
+            {!selectedLocation && (
+              <div className="flex items-center space-x-2 text-gray-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+                <Info className="w-3 h-3 flex-shrink-0" />
+                <span>
+                  Sélectionnez d'abord un quartier dans la recherche. Vous pourrez ensuite corriger la syntaxe si nécessaire.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Arrondissement (manuel) */}
