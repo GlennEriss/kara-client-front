@@ -13,14 +13,10 @@ interface DistrictAddressFormProps {
 }
 
 export default function DistrictAddressForm({ form }: DistrictAddressFormProps) {
-  // Surveiller les changements pour forcer le re-render
-  const districtValue = form.watch('address.district')
-  
   return (
     <FormField
       control={form.control}
       name="address.district"
-      key={districtValue} // Force le re-render quand la valeur change
       render={({ field, fieldState }) => {
         console.log('🏘️ DistrictAddressForm - field.value:', field.value)
         return (

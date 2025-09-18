@@ -14,14 +14,10 @@ interface CityAddressFormProps {
 }
 
 export default function CityAddressForm({ form }: CityAddressFormProps) {
-  // Surveiller les changements pour forcer le re-render
-  const cityValue = form.watch('address.city')
-
   return (
     <FormField
       control={form.control}
       name="address.city"
-      key={cityValue} // Force le re-render quand la valeur change
       render={({ field, fieldState }) => {
         console.log('🏙️ CityAddressForm - field.value:', field.value)
         return (
@@ -33,7 +29,7 @@ export default function CityAddressForm({ form }: CityAddressFormProps) {
             <InputApp
               icon={MapPin}
               placeholder="Ex: Libreville, Port-Gentil..."
-              value={cityValue || ''}
+              value={field.value || ''}
               onChange={field.onChange}
               disabled
               className={cn(

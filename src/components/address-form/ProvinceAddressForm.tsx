@@ -14,14 +14,10 @@ interface ProvinceAddressFormProps {
 }
 
 export default function ProvinceAddressForm({ form }: ProvinceAddressFormProps) {
-  // Surveiller les changements pour forcer le re-render
-  const provinceValue = form.watch('address.province')
-
   return (
     <FormField
       control={form.control}
       name="address.province"
-      key={provinceValue} // Force le re-render quand la valeur change
       render={({ field, fieldState }) => {
         console.log('🗺️ ProvinceAddressForm - field.value:', field.value)
         return (
@@ -33,7 +29,7 @@ export default function ProvinceAddressForm({ form }: ProvinceAddressFormProps) 
             <InputApp
               icon={MapPin}
               placeholder="Ex: Estuaire, Haut-Ogooué..."
-              value={provinceValue || ''}
+              value={field.value || ''}
               onChange={field.onChange}
               disabled
               className={cn(

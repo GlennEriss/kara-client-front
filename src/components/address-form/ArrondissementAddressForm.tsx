@@ -24,14 +24,10 @@ const ARRONDISSEMENT_OPTIONS = Array.from({ length: 8 }, (_, i) => {
 })
 
 export default function ArrondissementAddressForm({ form }: ArrondissementAddressFormProps) {
-  // Surveiller les changements pour forcer le re-render
-  const arrondissementValue = form.watch('address.arrondissement')
-
   return (
     <FormField
       control={form.control}
       name="address.arrondissement"
-      key={arrondissementValue} // Force le re-render quand la valeur change
       render={({ field, fieldState }) => {
         console.log('🏢 ArrondissementAddressForm - field.value:', field.value)
         return (
@@ -42,7 +38,7 @@ export default function ArrondissementAddressForm({ form }: ArrondissementAddres
             <FormControl>
               <SelectApp
                 options={ARRONDISSEMENT_OPTIONS}
-                value={arrondissementValue || ''}
+                value={field.value || ''}
                 onChange={field.onChange}
                 placeholder="Sélectionnez un arrondissement..."
                 className={cn(
