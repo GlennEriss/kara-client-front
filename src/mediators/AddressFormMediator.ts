@@ -116,14 +116,14 @@ export class AddressFormMediator {
         this.setDistrictQuery(result.properties.name)
         
         // Mise à jour du formulaire avec les données de la localisation
-        // Note: Photon API utilise 'county' au lieu de 'city'
+        // Note: Photon API peut utiliser 'city' ou 'county' - privilégier 'city'
         this.form.setValue('address.district', result.properties.name)
-        this.form.setValue('address.city', result.properties.county || result.properties.city || '')
+        this.form.setValue('address.city', result.properties.city || result.properties.county || '')
         this.form.setValue('address.province', result.properties.state || '')
         
         console.log('📝 Valeurs mises à jour:', {
             district: result.properties.name,
-            city: result.properties.county || result.properties.city || '',
+            city: result.properties.city || result.properties.county || '',
             province: result.properties.state || ''
         })
         
