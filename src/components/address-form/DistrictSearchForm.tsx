@@ -14,11 +14,17 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useStep2Form } from '@/hooks/register/useStep2Form'
 import { PhotonResult } from '@/types/types'
+import { UseFormReturn } from 'react-hook-form'
+import { RegisterFormData } from '@/schemas/schemas'
+import { AddressFormMediatorFactory } from '@/factories/AddressFormMediatorFactory'
 
-export default function DistrictSearchForm() {
-  const { form, mediator } = useStep2Form()
+interface DistrictSearchFormProps {
+  form: UseFormReturn<RegisterFormData>
+}
+
+export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
+  const mediator = AddressFormMediatorFactory.create(form)
   
   // État local pour les résultats
   const [localResults, setLocalResults] = useState<PhotonResult[]>([])

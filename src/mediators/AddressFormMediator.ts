@@ -121,6 +121,20 @@ export class AddressFormMediator {
         this.form.setValue('address.city', result.properties.county || result.properties.city || '')
         this.form.setValue('address.province', result.properties.state || '')
         
+        console.log('📝 Valeurs mises à jour:', {
+            district: result.properties.name,
+            city: result.properties.county || result.properties.city || '',
+            province: result.properties.state || ''
+        })
+        
+        // Vérifier les valeurs après setValue
+        const currentValues = this.form.getValues()
+        console.log('🔍 Valeurs actuelles du formulaire:', {
+            district: currentValues.address?.district,
+            city: currentValues.address?.city,
+            province: currentValues.address?.province
+        })
+        
         // Forcer le re-render en déclenchant un changement
         this.form.trigger(['address.district', 'address.city', 'address.province'])
         
