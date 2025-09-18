@@ -34,7 +34,7 @@ export default function ProvinceAddressForm({ form }: ProvinceAddressFormProps) 
               placeholder="Ex: Estuaire, Haut-Ogooué..."
               value={provinceValue || ''}
               onChange={field.onChange}
-              disabled={!provinceValue}
+              disabled
               className={cn(
                 fieldState.error && "border-red-300 focus:border-red-500 bg-red-50/50"
               )}

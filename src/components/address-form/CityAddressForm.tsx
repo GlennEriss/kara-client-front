@@ -34,7 +34,7 @@ export default function CityAddressForm({ form }: CityAddressFormProps) {
               placeholder="Ex: Libreville, Port-Gentil..."
               value={cityValue || ''}
               onChange={field.onChange}
-              disabled={!cityValue}
+              disabled
               className={cn(
                 fieldState.error && "border-red-300 focus:border-red-500 bg-red-50/50"
               )}
