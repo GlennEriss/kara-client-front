@@ -2,9 +2,10 @@
 
 import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { MapPin } from 'lucide-react'
+import { MapPin, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import InputApp from '../forms/InputApp'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { UseFormReturn } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
 
@@ -40,12 +41,12 @@ export default function ProvinceAddressForm({ form }: ProvinceAddressFormProps) 
               )}
             />
           </FormControl>
-          <div className="flex items-center space-x-2 text-gray-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
-            <MapPin className="w-3 h-3 flex-shrink-0" />
-            <span>
-              Rempli automatiquement lors de la sélection du quartier
-            </span>
-          </div>
+          <Alert className="border-[#CBB171]/30 bg-[#CBB171]/5">
+            <Info className="h-4 w-4 text-[#CBB171]" />
+            <AlertDescription className="text-xs text-[#224D62]/80">
+              <strong>Remplissage automatique :</strong> Ce champ sera automatiquement rempli lors de la sélection d'un quartier dans la recherche.
+            </AlertDescription>
+          </Alert>
           <FormMessage />
         </FormItem>
         )
