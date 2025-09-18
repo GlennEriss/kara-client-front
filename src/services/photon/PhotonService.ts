@@ -66,6 +66,25 @@ export class PhotonService {
     )
   }
 
+  /**
+   * Recherche des villes au Gabon (city uniquement)
+   * @param query Terme de recherche
+   * @returns Promise<PhotonResult[]> Liste des villes gabonaises
+   */
+  static async searchCities(query: string): Promise<PhotonResult[]> {
+    const results = await this.search(query)
+
+    return results.filter((feature: PhotonResult) =>
+      feature.properties.country === 'Gabon' &&
+      // On privilégie les entrées avec city défini
+      Boolean(feature.properties.city) &&
+      (
+        feature.properties.city!.toLowerCase().includes(query.toLowerCase()) ||
+        feature.properties.name.toLowerCase().includes(query.toLowerCase())
+      )
+    )
+  }
+
 
   /**
    * Formate l'affichage d'un résultat Photon

@@ -12,7 +12,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DistrictSearchForm, ProvinceAddressForm, CityAddressForm, DistrictAddressForm } from '@/components/address-form'
+import { DistrictSearchForm, ProvinceAddressForm, CityAddressForm, DistrictAddressForm, CityCorrectionSearch } from '@/components/address-form'
 
 interface Step2Props {
   form: any // Type du form de react-hook-form
@@ -92,6 +92,8 @@ export default function Step2({ form }: Step2Props) {
         <div className="space-y-4 sm:space-y-6 w-full min-w-0">
           {/* Recherche de quartier */}
           <DistrictSearchForm form={form} />
+          {/* Suggestion et recherche ville uniquement si district == city */}
+          <CityCorrectionSearch form={form} />
         </div>
 
         {/* Colonne de droite - Champs automatiques */}

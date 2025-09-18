@@ -57,6 +57,28 @@ export class AddressFormMediator {
         }
     }
 
+    // ================= Recherche de ville seule =================
+    async searchCitiesOnly(query: string): Promise<PhotonResult[]> {
+        if (!PhotonService.isValidQuery(query)) {
+            return []
+        }
+
+        try {
+            const results = await PhotonService.searchCities(query)
+            return results
+        } catch (error) {
+            console.error('Erreur lors de la recherche de villes:', error)
+            return []
+        }
+    }
+
+    selectCityOnly(result: PhotonResult): void {
+        const newCity = result.properties.city || result.properties.name
+        this.form.setValue('address.city', newCity || '')
+        this.form.trigger('address.city')
+        this.form.clearErrors('address.city')
+    }
+
     // Gestion du cache
     getSearchCache(): Map<string, PhotonResult[]> {
         return this.searchCache
