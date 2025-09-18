@@ -4,34 +4,21 @@ import React from 'react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  MapPin, 
-  Building,
+import {
+  MapPin,
   Search,
-  AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DistrictSearchForm, ProvinceAddressForm, CityAddressForm, DistrictAddressForm, CityCorrectionSearch } from '@/components/address-form'
+import { DistrictSearchForm, ProvinceAddressForm, CityAddressForm, DistrictAddressForm, CityCorrectionSearch, ArrondissementAddressForm } from '@/components/address-form'
 
 interface Step2Props {
   form: any // Type du form de react-hook-form
 }
 
-// Génération des options d'arrondissement (1 à 8)
-const ARRONDISSEMENT_OPTIONS = Array.from({ length: 8 }, (_, i) => {
-  const num = i + 1
-  let suffix = 'ème'
-  if (num === 1) suffix = 'er'
-  return {
-    value: `${num}${suffix} Arrondissement`,
-    label: `${num}${suffix} Arrondissement`
-  }
-})
 
 export default function Step2({ form }: Step2Props) {
 
-  const { register, watch, setValue, formState: { errors }, clearErrors } = form
+  const { register } = form
 
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
@@ -98,54 +85,18 @@ export default function Step2({ form }: Step2Props) {
 
         {/* Colonne de droite - Champs automatiques */}
         <div className="space-y-4 sm:space-y-6 w-full min-w-0">
-          
-                  {/* Province */}
-                  <ProvinceAddressForm form={form} />
 
-                  {/* Ville */}
-                  <CityAddressForm form={form} />
+          {/* Province */}
+          <ProvinceAddressForm form={form} />
 
-                  {/* Quartier */}
-                  <DistrictAddressForm form={form} />
+          {/* Ville */}
+          <CityAddressForm form={form} />
 
-          {/* Arrondissement (manuel) */}
-          <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-300 w-full min-w-0">
-            <Label htmlFor="arrondissement" className="text-xs sm:text-sm font-medium text-[#224D62]">
-              Arrondissement <span className="text-red-500">*</span>
-              <Badge variant="secondary" className="ml-2 bg-orange-100 text-orange-800 text-[10px] sm:text-xs">
-                Manuel
-              </Badge>
-            </Label>
-            <div className="relative w-full min-w-0">
-              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
-              <Select
-                value={watch('address.arrondissement') || ''}
-                onValueChange={(value) => setValue('address.arrondissement', value)}
-              >
-                <SelectTrigger 
-                  className={cn(
-                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                  errors?.address?.arrondissement && "border-red-300 focus:border-red-500 bg-red-50/50"
-                  )}
-                >
-                  <SelectValue placeholder="Sélectionnez un arrondissement..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {ARRONDISSEMENT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {errors?.address?.arrondissement && (
-              <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
-                <AlertCircle className="w-3 h-3" />
-                <span>{errors.address.arrondissement.message}</span>
-              </div>
-            )}
-          </div>
+          {/* Quartier */}
+          <DistrictAddressForm form={form} />
+
+          {/* Arrondissement */}
+          <ArrondissementAddressForm form={form} />
 
           {/* Informations complémentaires (toujours actif) */}
           <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-400 w-full min-w-0">

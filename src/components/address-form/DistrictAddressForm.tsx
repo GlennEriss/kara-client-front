@@ -34,7 +34,6 @@ export default function DistrictAddressForm({ form }: DistrictAddressFormProps) 
                 placeholder="Ex: Glass, Akanda, Lalala..."
                 value={field.value || ''}
                 onChange={field.onChange}
-                disabled={!field.value}
                 className={cn(
                   fieldState.error && "border-red-300 focus:border-red-500 bg-red-50/50"
                 )}
