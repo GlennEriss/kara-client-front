@@ -1,10 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import Link from "next/link"
-import routes from "@/constantes/routes"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
-import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers } from "@/hooks/useMembers"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -16,31 +13,26 @@ import {
   cancelEarlyRefund,
 } from "@/services/caisse/mutations"
 import { toast } from "sonner"
-// PDF generation désactivée pour build Next 15; à réactiver via import dynamique côté client si besoin
-import { recomputeNow } from "@/services/caisse/readers"
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from "@/lib/utils"
 import FileInput from "@/components/ui/file-input"
 import type { PaymentMode } from "@/types/types"
 import { listRefunds } from "@/db/caisse/refunds.db"
 import {
-  RefreshCw,
-  UserRound,
-  CalendarDays,
-  BadgeCheck,
   AlertTriangle,
   Clock,
   CheckCircle2,
-  Wallet,
   CreditCard,
   FileText,
-  Users,
   Banknote,
   Building2,
   Eye,
   Trash2,
+  BadgeCheck,
+  CalendarDays,
 } from "lucide-react"
 import PdfDocumentModal from "./PdfDocumentModal"
 import PdfViewerModal from "./PdfViewerModal"
+import HeaderContractSection from "./standard/HeaderContractSection"
 import type { RefundDocument } from "@/types/types"
 
 // ————————————————————————————————————————————————————————————
@@ -160,21 +152,6 @@ export default function StandardContract({ id }: Props) {
     const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }
     return map[s] || s
   }
-  function contractStatusLabel(s: string): string {
-    const map: Record<string, string> = {
-      DRAFT: "En cours",
-      ACTIVE: "Actif",
-      LATE_NO_PENALTY: "Retard (J+0..3)",
-      LATE_WITH_PENALTY: "Retard (J+4..12)",
-      DEFAULTED_AFTER_J12: "Résilié (>J+12)",
-      EARLY_WITHDRAW_REQUESTED: "Retrait anticipé demandé",
-      FINAL_REFUND_PENDING: "Remboursement final en attente",
-      EARLY_REFUND_PENDING: "Remboursement anticipé en attente",
-      RESCINDED: "Résilié",
-      CLOSED: "Clos",
-    }
-    return map[s] || s
-  }
   function refundStatusLabel(s: string): string {
     const map: Record<string, string> = {
       PENDING: "En attente",
@@ -197,7 +174,6 @@ export default function StandardContract({ id }: Props) {
   if (!data) return <div className="p-6">Contrat introuvable</div>
 
   const isClosed = data.status === "CLOSED"
-  const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
@@ -364,104 +340,17 @@ export default function StandardContract({ id }: Props) {
   return (
     <div className="space-y-8 p-4 md:p-6">
       {/* Header */}
-      <div className="rounded-2xl border bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-3">
-            <div className={classNames("h-10 w-10 rounded-xl flex items-center justify-center", brand.bg, "text-white shadow")}> 
-              <Wallet className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-slate-900">Contrat #{id}</h1>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                <Badge tone="blue">
-                  <BadgeCheck className="h-3.5 w-3.5" /> {contractStatusLabel(data.status)}
-                </Badge>
-                {isGroupContract && (
-                  <Badge tone="green">
-                    <Users className="h-3.5 w-3.5" /> Contrat de Groupe
-                  </Badge>
-                )}
-                <span className="text-xs text-slate-500">
-                  Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : "—"}
-                </span>
-              </div>
-              {isGroupContract && (
-                <div className="mt-2 text-xs text-blue-600 bg-blue-50 p-2 rounded-lg">
-                  <strong>💡 Contrat de Groupe :</strong> Les versements sont cumulés par mois. 
-                  Chaque membre peut contribuer et le mois est considéré comme payé quand le montant total 
-                  ({data.monthlyAmount?.toLocaleString('fr-FR')} FCFA) est atteint.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={async () => {
-                setIsRecomputing(true)
-                await recomputeNow(id)
-                await refetch()
-                setIsRecomputing(false)
-              }}
-              className={classNames(
-                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
-                "transition-colors",
-                brand.bgSoft,
-                "hover:bg-slate-100"
-              )}
-            >
-              <RefreshCw className={classNames("h-4 w-4", isRecomputing ? "animate-spin" : "")} />
-              {isRecomputing ? "Recalcul…" : "Recalculer maintenant"}
-            </button>
-            <Link
-              className={classNames(
-                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
-                brand.bg,
-                "text-white",
-                brand.hover,
-                "shadow"
-              )}
-              href={routes.admin.membershipDetails(data.memberId)}
-            >
-              <UserRound className="h-4 w-4" /> Voir membre
-            </Link>
-            <Link
-              className={classNames(
-                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
-                "bg-green-600 hover:bg-green-700 text-white",
-                "shadow"
-              )}
-              href={routes.admin.caisseSpecialeContractPayments(id)}
-            >
-              <FileText className="h-4 w-4" /> Historique des versements
-            </Link>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="mt-4 rounded-xl border bg-slate-50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div className="flex items-center gap-2 text-slate-700">
-              <CalendarDays className="h-4 w-4" />
-              <span>
-                Mois payés: <b>{paidCount}</b> / {totalMonths}
-              </span>
-            </div>
-            <div className="text-slate-700">
-              Total dû: <b>{(((data.monthlyAmount || 0) * totalMonths) || 0).toLocaleString("fr-FR")} FCFA</b>
-            </div>
-            <div className="text-slate-700">
-              Reste: <b>{Math.max(0, ((data.monthlyAmount || 0) * totalMonths) - (data.nominalPaid || 0)).toLocaleString("fr-FR")} FCFA</b>
-            </div>
-          </div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white shadow-inner">
-            <div
-              className={classNames("h-2 rounded-full", brand.bg)}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      </div>
+      <HeaderContractSection
+        id={id}
+        data={data}
+        isGroupContract={isGroupContract}
+        paidCount={paidCount}
+        totalMonths={totalMonths}
+        progress={progress}
+        isRecomputing={isRecomputing}
+        setIsRecomputing={setIsRecomputing}
+        refetch={refetch}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -469,6 +358,7 @@ export default function StandardContract({ id }: Props) {
         <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
         <StatCard icon={CheckCircle2} label="Nominal payé" value={`${(data.nominalPaid || 0).toLocaleString("fr-FR")} FCFA`} />
         <StatCard icon={BadgeCheck} label="Bonus cumulés" value={`${(data.bonusAccrued || 0).toLocaleString("fr-FR")} FCFA`} accent="emerald" />
+        <StatCard icon={CalendarDays} label="Bonus cumulés" value={`${(data.bonusAccrued || 0).toLocaleString("fr-FR")} FCFA`} accent="emerald" />
         <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${(data.penaltiesTotal || 0).toLocaleString("fr-FR")} FCFA`} accent="red" />
         <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
       </div>

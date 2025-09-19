@@ -1,4 +1,5 @@
 import { createUser } from '@/db/user.db'
+import type { UserRole } from '@/types/types'
 
 // Script temporaire pour créer des utilisateurs de test
 export async function createTestUsers() {
@@ -12,7 +13,7 @@ export async function createTestUsers() {
         email: 'jean.dupont@test.com',
         phone: '+241 01 23 45 67',
         membershipType: 'adherant' as const,
-        roles: ['Member'],
+        roles: ['Member'] as unknown as UserRole[],
         isActive: true,
         hasCar: true,
         subscriptions: [],
@@ -28,7 +29,7 @@ export async function createTestUsers() {
         email: 'marie.martin@test.com',
         phone: '+241 02 34 56 78',
         membershipType: 'bienfaiteur' as const,
-        roles: ['Member'],
+        roles: ['Member'] as unknown as UserRole[],
         isActive: true,
         hasCar: false,
         subscriptions: [],
@@ -44,7 +45,7 @@ export async function createTestUsers() {
         email: 'pierre.durand@test.com',
         phone: '+241 03 45 67 89',
         membershipType: 'sympathisant' as const,
-        roles: ['Member'],
+        roles: ['Member'] as unknown as UserRole[],
         isActive: true,
         hasCar: true,
         subscriptions: [],
@@ -60,7 +61,7 @@ export async function createTestUsers() {
         email: 'sophie.bernard@test.com',
         phone: '+241 04 56 78 90',
         membershipType: 'adherant' as const,
-        roles: ['Member'],
+        roles: ['Member'] as unknown as UserRole[],
         isActive: true,
         hasCar: false,
         subscriptions: [],
@@ -76,7 +77,7 @@ export async function createTestUsers() {
         email: 'lucas.petit@test.com',
         phone: '+241 05 67 89 01',
         membershipType: 'bienfaiteur' as const,
-        roles: ['Member'],
+        roles: ['Member'] as unknown as UserRole[],
         isActive: true,
         hasCar: true,
         subscriptions: [],
