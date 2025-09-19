@@ -10,6 +10,7 @@ import { addCaisseContractToUser } from '@/db/member.db'
 import { deleteObject, ref } from '@/firebase/storage'
 import { getStorageInstance } from '@/firebase/storage'
 import type { GroupPaymentContribution } from './types'
+import { EmergencyContact } from '@/schemas/emergency-contact.schema'
 
 // Fonction utilitaire pour convertir n'importe quel type de date en chaîne ISO
 function normalizeDateToISOString(dateValue: any): string | null {
@@ -59,13 +60,7 @@ export async function subscribe(input: {
   caisseType: any; 
   firstPaymentDate: string;
   contractPdf?: File;
-  emergencyContact?: {
-    lastName: string;
-    firstName?: string;
-    phone1: string;
-    phone2?: string;
-    relationship: string;
-  };
+  emergencyContact?: EmergencyContact;
 }) {
   // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
   if (!input.memberId && !input.groupeId) {

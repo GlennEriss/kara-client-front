@@ -1,5 +1,7 @@
 // ================== TYPES CENTRALISÉS ==================
 
+import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+
 export interface INavigation {
   push(path: string): void;
   replace(path: string): void;
@@ -613,13 +615,7 @@ export interface ContractFormData {
   contractPdf?: File
 
   // Étape 3: Contact d'urgence
-  emergencyContact?: {
-    lastName: string
-    firstName?: string
-    phone1: string
-    phone2?: string
-    relationship: string
-  }
+  emergencyContact?: EmergencyContact
 
   // Métadonnées
   isValid: boolean
@@ -743,13 +739,7 @@ export interface CaisseContract {
     originalFileName: string
     fileSize: number
   }
-  emergencyContact?: {
-    lastName: string
-    firstName?: string
-    phone1: string
-    phone2?: string
-    relationship: string
-  }
+  emergencyContact?: EmergencyContact
   createdAt: Date
   updatedAt: Date
 }
