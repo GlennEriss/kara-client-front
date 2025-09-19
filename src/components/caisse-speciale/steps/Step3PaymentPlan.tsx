@@ -24,7 +24,7 @@ export function Step3PaymentPlan() {
 
   // Validation de l'étape
   useEffect(() => {
-    const isValid = selectedDate && isValidDate(selectedDate)
+    const isValid = Boolean(selectedDate && isValidDate(selectedDate))
     validateCurrentStep(isValid)
   }, [selectedDate, validateCurrentStep])
 
