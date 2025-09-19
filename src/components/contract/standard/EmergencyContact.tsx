@@ -54,7 +54,7 @@ export default function EmergencyContact({ emergencyContact }: Props) {
             "text-slate-700"
           )}
         >
-          <Heart className="h-4 w-4" />
+          <AlertTriangle className="h-4 w-4" />
           Contact d'urgence
         </button>
       </DialogTrigger>
