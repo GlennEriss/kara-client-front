@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { identitySchema, CivilityEnum, GenderEnum, identityDefaultValues } from './identity.schema'
 import { addressSchema, addressDefaultValues } from './address.schema'
+import { companySchema, companyCrudSchema, companyDefaultValues } from './company.schema'
 
 // Énumérations pour les options fixes (valeurs en français)
 export const IdentityDocumentEnum = z.enum([
@@ -26,166 +27,6 @@ export const InsuranceTypeEnum = z.enum([
 ])
 
 
-// ================== STEP 3: ENTREPRISE (Optionnel) ==================
-export const companySchema = z.object({
-  // Champ pour indiquer si l'utilisateur travaille
-  isEmployed: z.boolean().default(false),
-  
-  // Les champs suivants ne sont requis que si isEmployed = true
-  companyName: z.preprocess(
-    (val) => (typeof val === 'string' ? val.trim() : val),
-    z.string().optional()
-  ),
-  
-  companyAddress: z.object({
-    province: z.preprocess(
-      (val) => (typeof val === 'string' ? val.trim() : val),
-      z.string().optional()
-    ),
-    city: z.preprocess(
-      (val) => (typeof val === 'string' ? val.trim() : val),
-      z.string().optional()
-    ),
-    district: z.preprocess(
-      (val) => (typeof val === 'string' ? val.trim() : val),
-      z.string().optional()
-    )
-  }).optional(),
-  
-  profession: z.preprocess(
-    (val) => (typeof val === 'string' ? val.trim() : val),
-    z.string().optional()
-  ),
-  
-  seniority: z.preprocess(
-    (val) => (typeof val === 'string' ? val.trim() : val),
-    z.string().optional()
-  )
-}).superRefine((data, ctx) => {
-  // Si la personne travaille, tous les champs deviennent obligatoires
-  if (data.isEmployed) {
-    // Vérifier le nom de l'entreprise
-    if (!data.companyName || data.companyName.trim().length < 2 || data.companyName.trim().length > 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Le nom de l\'entreprise est requis et doit contenir entre 2 et 100 caractères',
-        path: ['companyName']
-      })
-    }
-    
-    // Vérifier l'adresse de l'entreprise
-    if (!data.companyAddress) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'L\'adresse de l\'entreprise est requise',
-        path: ['companyAddress']
-      })
-    } else {
-      if (!data.companyAddress.province || data.companyAddress.province.trim().length < 2 || data.companyAddress.province.trim().length > 50) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'La province est requise et doit contenir entre 2 et 50 caractères',
-          path: ['companyAddress', 'province']
-        })
-      }
-      
-      if (!data.companyAddress.city || data.companyAddress.city.trim().length < 2 || data.companyAddress.city.trim().length > 50) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'La ville est requise et doit contenir entre 2 et 50 caractères',
-          path: ['companyAddress', 'city']
-        })
-      }
-      
-      if (!data.companyAddress.district || data.companyAddress.district.trim().length < 2 || data.companyAddress.district.trim().length > 100) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Le quartier est requis et doit contenir entre 2 et 100 caractères',
-          path: ['companyAddress', 'district']
-        })
-      }
-    }
-    
-    // Vérifier la profession
-    if (!data.profession || data.profession.trim().length < 2 || data.profession.trim().length > 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'La profession est requise et doit contenir entre 2 et 100 caractères',
-        path: ['profession']
-      })
-    }
-    
-    // Vérifier l'ancienneté
-    if (!data.seniority || !data.seniority.trim().match(/^\d+\s*(mois|années?|ans?)$/)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'L\'ancienneté est requise au format "2 ans" ou "6 mois"',
-        path: ['seniority']
-      })
-    }
-  }
-  
-  // Validation des formats si les champs sont remplis (même si isEmployed = false)
-  if (data.companyName && data.companyName.trim().length > 0) {
-    if (data.companyName.trim().length < 2 || data.companyName.trim().length > 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-  message: 'Le nom de l\'entreprise doit contenir entre 2 et 100 caractères',
-  path: ['companyName']
-      })
-    }
-  }
-  
-  if (data.companyAddress?.province && data.companyAddress.province.trim().length > 0) {
-    if (data.companyAddress.province.trim().length < 2 || data.companyAddress.province.trim().length > 50) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-  message: 'La province doit contenir entre 2 et 50 caractères',
-  path: ['companyAddress', 'province']
-      })
-    }
-  }
-  
-  if (data.companyAddress?.city && data.companyAddress.city.trim().length > 0) {
-    if (data.companyAddress.city.trim().length < 2 || data.companyAddress.city.trim().length > 50) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-  message: 'La ville doit contenir entre 2 et 50 caractères',
-  path: ['companyAddress', 'city']
-      })
-    }
-  }
-  
-  if (data.companyAddress?.district && data.companyAddress.district.trim().length > 0) {
-    if (data.companyAddress.district.trim().length < 2 || data.companyAddress.district.trim().length > 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-  message: 'Le quartier doit contenir entre 2 et 100 caractères',
-  path: ['companyAddress', 'district']
-      })
-    }
-  }
-  
-  if (data.profession && data.profession.trim().length > 0) {
-    if (data.profession.trim().length < 2 || data.profession.trim().length > 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-  message: 'La profession doit contenir entre 2 et 100 caractères',
-  path: ['profession']
-      })
-    }
-  }
-  
-  if (data.seniority && data.seniority.trim().length > 0) {
-    if (!data.seniority.trim().match(/^\d+\s*(mois|années?|ans?)$/)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-  message: 'L\'ancienneté doit être au format "2 ans" ou "6 mois"',
-  path: ['seniority']
-      })
-    }
-  }
-})
 
 // ================== STEP 4: PIÈCES D'IDENTITÉ ==================
 export const documentsSchema = z.object({
@@ -294,14 +135,15 @@ export type InsuranceType = z.infer<typeof InsuranceTypeEnum>
 
 // Types pour chaque schéma individuel
 export type AddressFormData = z.infer<typeof addressSchema>
-export type CompanyFormData = z.infer<typeof companySchema>
 export type DocumentsFormData = z.infer<typeof documentsSchema>
 
 // Type pour le schéma complet (importé depuis types.ts pour éviter les conflits de modules)
 export type { RegisterFormData } from '../types/types'
 
-// Types pour les sous-objets complexes
-export type CompanyAddressData = z.infer<typeof companySchema>['companyAddress']
+// Re-exports des schémas company pour compatibilité
+export { companySchema, companyCrudSchema, companyDefaultValues } from './company.schema'
+export type { CompanyFormData, CompanyCrudFormData, CompanyAddressData } from './company.schema'
+
 
 // ================== SCHÉMAS PARTIELS POUR CHAQUE STEP ==================
 // Utiles pour la validation étape par étape
@@ -379,17 +221,6 @@ export const jobSchema = z.object({
 })
 export type JobFormData = z.infer<typeof jobSchema>
 
-// ================== COMPANY CRUD SCHEMA (admin -> companies) ==================
-export const companyCrudSchema = z.object({
-  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(120),
-  industry: z.string().optional(),
-  address: z.object({
-    province: z.string().optional(),
-    city: z.string().optional(),
-    district: z.string().optional(),
-  }).optional(),
-})
-export type CompanyCrudFormData = z.infer<typeof companyCrudSchema>
 
 
 export const adminCreateSchema = z.object({
@@ -422,17 +253,7 @@ export type AdminCreateFormData = z.infer<typeof adminCreateSchema>
 export const defaultValues = {
   identity: identityDefaultValues,
   address: addressDefaultValues,
-  company: {
-    isEmployed: false,
-    companyName: '',
-    companyAddress: {
-      province: '',
-      city: '',
-      district: ''
-    },
-    profession: '',
-    seniority: ''
-  },
+  company: companyDefaultValues,
   documents: {
     identityDocument: 'NIP',
     identityDocumentNumber: '',

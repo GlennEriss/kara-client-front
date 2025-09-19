@@ -527,14 +527,17 @@ export interface UserFilters {
 /**
  * Type pour une entreprise dans la collection companies
  */
+export interface CompanyAddress {
+  province?: string
+  city?: string
+  district?: string
+}
+
 export interface Company {
   id: string
   name: string
   normalizedName: string // Nom normalisé pour la recherche
-  address?: {
-    province?: string
-    city?: string
-    district?: string
+  address?: CompanyAddress & {
     arrondissement?: string
     additionalInfo?: string
   }

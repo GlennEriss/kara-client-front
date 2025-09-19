@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { 
   Briefcase, 
-  Building, 
   MapPin, 
   Clock,
   CheckCircle,
@@ -25,12 +24,11 @@ import {
   MapPinIcon,
   Building2,
   Home,
-  Navigation,
-  Globe
+  Navigation
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { findCompanyByName } from '@/db/company.db'
 import { findProfessionByName } from '@/db/profession.db'
+import { CompanyNameForm } from '@/components/company-form'
 
 interface Step3Props {
   form: any // Type du form de react-hook-form
@@ -86,13 +84,10 @@ const useDebounce = (value: string, delay: number) => {
 
 export default function Step3({ form }: Step3Props) {
   const [showProfessionSuggestions, setShowProfessionSuggestions] = useState(false)
-  const [showCompanySuggestions, setShowCompanySuggestions] = useState(false)
   const [showSenioritySuggestions, setShowSenioritySuggestions] = useState(false)
   
   // États pour les suggestions dynamiques
-  const [companySuggestions, setCompanySuggestions] = useState<Suggestion[]>([])
   const [professionSuggestions, setProfessionSuggestions] = useState<Suggestion[]>([])
-  const [isLoadingCompanySuggestions, setIsLoadingCompanySuggestions] = useState(false)
   const [isLoadingProfessionSuggestions, setIsLoadingProfessionSuggestions] = useState(false)
 
   // États pour la géolocalisation de l'entreprise
@@ -115,7 +110,6 @@ export default function Step3({ form }: Step3Props) {
   // Watch pour la logique conditionnelle et animations
   const isEmployed = watch('company.isEmployed')
   const watchedFields = watch([
-    'company.companyName',
     'company.companyAddress.province',
     'company.companyAddress.city',
     'company.companyAddress.district',
@@ -130,10 +124,6 @@ export default function Step3({ form }: Step3Props) {
   // Nettoyer automatiquement les erreurs quand les champs sont corrigés
   React.useEffect(() => {
     const subscription = watch((value: any) => {
-      // Nettoyer les erreurs de nom d'entreprise
-      if (value.company?.companyName && value.company.companyName.trim().length >= 2 && value.company.companyName.trim().length <= 100 && errors.company?.companyName) {
-        clearErrors('company.companyName')
-      }
       
       // Nettoyer les erreurs d'adresse entreprise
       if (value.company?.companyAddress?.province && value.company.companyAddress.province.trim().length >= 2 && value.company.companyAddress.province.trim().length <= 50 && errors.company?.companyAddress?.province) {
@@ -162,54 +152,6 @@ export default function Step3({ form }: Step3Props) {
     return () => subscription.unsubscribe()
   }, [watch, clearErrors, errors.company])
 
-  // Fonction pour récupérer les suggestions d'entreprises
-  const fetchCompanySuggestions = useCallback(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-      setCompanySuggestions([])
-      return
-    }
-
-    setIsLoadingCompanySuggestions(true)
-    try {
-      const result = await findCompanyByName(query)
-      const suggestions: Suggestion[] = []
-      
-      if (result.found && result.company) {
-        // Ajouter l'entreprise trouvée en premier
-        suggestions.push({ 
-          name: result.company.name,
-          isNew: false,
-          hasAddress: !!(result.company.address?.province || result.company.address?.city || result.company.address?.district)
-        })
-      }
-      
-      if (result.suggestions) {
-        result.suggestions.forEach(suggestion => {
-          suggestions.push({ 
-            name: suggestion,
-            isNew: false,
-            hasAddress: false // On ne sait pas si elles ont une adresse
-          })
-        })
-      }
-      
-      // Ajouter l'option de créer une nouvelle entreprise
-      if (query.trim().length >= 2) {
-        suggestions.push({ 
-          name: `Créer "${query}"`, 
-          isNew: true,
-          hasAddress: false
-        })
-      }
-      
-      setCompanySuggestions(suggestions)
-    } catch (error) {
-      console.error('Erreur lors de la récupération des suggestions d\'entreprises:', error)
-      setCompanySuggestions([])
-    } finally {
-      setIsLoadingCompanySuggestions(false)
-    }
-  }, [])
 
   // Fonction pour récupérer les suggestions de professions
   const fetchProfessionSuggestions = useCallback(async (query: string) => {
@@ -252,14 +194,14 @@ export default function Step3({ form }: Step3Props) {
     if (!value || value.trim().length < 2) return
     
     // Si la valeur n'est pas dans les suggestions existantes, forcer la création
-    const existingSuggestions = field === 'company.companyName' ? companySuggestions : professionSuggestions
+    const existingSuggestions = professionSuggestions
     const hasExistingMatch = existingSuggestions.some(s => !s.isNew && s.name === value)
     
     if (!hasExistingMatch && value.trim().length >= 2) {
       // Forcer la création automatique
       handleSuggestionClick(field, `Créer "${value}"`, true)
     }
-  }, [companySuggestions, professionSuggestions])
+  }, [professionSuggestions])
 
   // Fonction pour rechercher avec Photon API pour l'entreprise
   const searchCompanyWithPhoton = useCallback(async (query: string) => {
@@ -327,15 +269,6 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [])
 
-  // Effet pour surveiller les changements des champs et récupérer les suggestions
-  useEffect(() => {
-    const companyName = watch('company.companyName')
-    if (companyName && companyName.trim().length >= 2) {
-      fetchCompanySuggestions(companyName)
-    } else {
-      setCompanySuggestions([])
-    }
-  }, [watch('company.companyName'), fetchCompanySuggestions])
 
   useEffect(() => {
     const profession = watch('company.profession')
@@ -346,15 +279,6 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [watch('company.profession'), fetchProfessionSuggestions])
 
-  // Effet pour déclencher les suggestions lors du focus
-  useEffect(() => {
-    if (showCompanySuggestions && companySuggestions.length === 0) {
-      const companyName = watch('company.companyName')
-      if (companyName && companyName.trim().length >= 2) {
-        fetchCompanySuggestions(companyName)
-      }
-    }
-  }, [showCompanySuggestions, companySuggestions.length, watch('company.companyName'), fetchCompanySuggestions])
 
   useEffect(() => {
     if (showProfessionSuggestions && professionSuggestions.length === 0) {
@@ -365,13 +289,6 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [showProfessionSuggestions, professionSuggestions.length, watch('company.profession'), fetchProfessionSuggestions])
 
-  // Effet pour charger les suggestions initiales si il y a déjà des valeurs
-  useEffect(() => {
-    const companyName = watch('company.companyName')
-    if (companyName && companyName.trim().length >= 2 && companySuggestions.length === 0) {
-      fetchCompanySuggestions(companyName)
-    }
-  }, [watch('company.companyName'), companySuggestions.length, fetchCompanySuggestions])
 
   useEffect(() => {
     const profession = watch('company.profession')
@@ -402,18 +319,6 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [debouncedCompanyCityQuery, searchCompanyCitiesWithPhoton])
 
-  // Effet pour forcer la création automatique quand les suggestions changent
-  useEffect(() => {
-    if (companySuggestions.length > 0 && !companySuggestions.some(s => !s.isNew && s.name === watch('company.companyName'))) {
-      const companyName = watch('company.companyName')
-      if (companyName && companyName.trim().length >= 2) {
-        // Si la valeur n'est pas dans les suggestions existantes, forcer la création
-        setTimeout(() => {
-          forceCreateIfNoSelection('company.companyName', companyName)
-        }, 100)
-      }
-    }
-  }, [companySuggestions, watch('company.companyName'), forceCreateIfNoSelection])
 
   useEffect(() => {
     if (professionSuggestions.length > 0 && !professionSuggestions.some(s => !s.isNew && s.name === watch('company.profession'))) {
@@ -432,7 +337,6 @@ export default function Step3({ form }: Step3Props) {
     
     // Reset des champs si désactivé
     if (!checked) {
-      setValue('company.companyName', '')
       setValue('company.companyAddress.province', '')
       setValue('company.companyAddress.city', '')
       setValue('company.companyAddress.district', '')
@@ -453,52 +357,6 @@ export default function Step3({ form }: Step3Props) {
     const finalValue = isNew ? value.replace(/^Créer "/, '').replace(/"$/, '') : value
     setValue(field, finalValue)
     
-    if (field === 'company.companyName') {
-      setShowCompanySuggestions(false)
-      
-      // Si ce n'est pas une nouvelle entreprise, récupérer et remplir les informations d'adresse
-      if (!isNew) {
-        try {
-          const companyResult = await findCompanyByName(finalValue)
-          if (companyResult.found && companyResult.company && companyResult.company.address) {
-            const address = companyResult.company.address
-            
-            // Remplir automatiquement les champs d'adresse
-            if (address.province) {
-              setValue('company.companyAddress.province', address.province)
-            }
-            if (address.city) {
-              setValue('company.companyAddress.city', address.city)
-            }
-            if (address.district) {
-              setValue('company.companyAddress.district', address.district)
-            }
-            
-            // Mettre à jour l'état de géolocalisation pour refléter l'adresse existante
-            setCompanyDistrictQuery(address.district || '')
-            setSelectedCompanyLocation({
-              properties: {
-                name: address.district || '',
-                city: address.city || '',
-                state: address.province || '',
-                country: 'Gabon',
-                osm_key: 'place',
-                osm_value: 'district',
-                type: 'district'
-              },
-              geometry: {
-                coordinates: [0, 0] // Coordonnées par défaut
-              }
-            } as PhotonResult)
-            
-            // Afficher un message de succès
-            console.log('✅ Adresse de l\'entreprise remplie automatiquement')
-          }
-        } catch (error) {
-          console.error('Erreur lors de la récupération des informations de l\'entreprise:', error)
-        }
-      }
-    }
     
     if (field === 'company.profession') setShowProfessionSuggestions(false)
     if (field === 'company.seniority') setShowSenioritySuggestions(false)
@@ -570,13 +428,7 @@ export default function Step3({ form }: Step3Props) {
 
   // Fonction pour valider et forcer la création si nécessaire
   const validateAndForceCreation = useCallback(() => {
-    const companyName = watch('company.companyName')
     const profession = watch('company.profession')
-    
-    // Forcer la création si les champs ne sont pas vides mais pas dans les suggestions
-    if (companyName && companyName.trim().length >= 2) {
-      forceCreateIfNoSelection('company.companyName', companyName)
-    }
     
     if (profession && profession.trim().length >= 2) {
       forceCreateIfNoSelection('company.profession', profession)
@@ -659,104 +511,7 @@ export default function Step3({ form }: Step3Props) {
         {isEmployed && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
             {/* Nom de l'entreprise */}
-            <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
-              <Label htmlFor="companyName" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                Nom de l'entreprise <span className="text-red-500">*</span>
-                <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
-                  Suggestions automatiques
-                </Badge>
-              </Label>
-              <div className="relative w-full min-w-0">
-                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
-                <Input
-                  id="companyName"
-                  {...register('company.companyName')}
-                  placeholder="Ex: Total Gabon, Ministère de la Santé..."
-                  onFocus={() => setShowCompanySuggestions(true)}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    if (value.length >= 2) {
-                      fetchCompanySuggestions(value)
-                      setShowCompanySuggestions(true)
-                    } else {
-                      setCompanySuggestions([])
-                      setShowCompanySuggestions(false)
-                    }
-                  }}
-                  onBlur={(e) => {
-                    // Forcer la création si aucune suggestion n'est sélectionnée
-                    forceCreateIfNoSelection('company.companyName', e.target.value)
-                    setTimeout(() => setShowCompanySuggestions(false), 200)
-                  }}
-                  className={cn(
-                    "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                    errors?.company?.companyName && "border-red-300 focus:border-red-500 bg-red-50/50",
-                    watchedFields[0] && !errors?.company?.companyName && "border-[#CBB171] bg-[#CBB171]/5"
-                  )}
-                />
-                {isLoadingCompanySuggestions && (
-                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin" />
-                )}
-                {watchedFields[0] && !errors?.company?.companyName && !isLoadingCompanySuggestions && (
-                  <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
-                )}
-                
-                {/* Suggestions entreprises */}
-                {showCompanySuggestions && companySuggestions.length > 0 && (
-                  <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 max-h-32 sm:max-h-48 overflow-y-auto w-full">
-                    <CardContent className="p-2">
-                      {/* Message d'information */}
-                      <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                        <div className="flex items-center space-x-2">
-                          <Info className="w-3 h-3" />
-                          <span>
-                            {companySuggestions.some(s => !s.isNew && s.hasAddress) 
-                              ? 'Les entreprises avec 📍 seront pré-remplies automatiquement'
-                              : 'Sélectionnez une entreprise existante ou créez-en une nouvelle'
-                            }
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        {companySuggestions.map((suggestion, index) => (
-                          <Button
-                            key={index}
-                            variant="ghost"
-                            size="sm"
-                            className={cn(
-                              "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm p-2",
-                              suggestion.isNew && "text-[#CBB171] font-medium"
-                            )}
-                            onMouseDown={() => handleSuggestionClick('company.companyName', suggestion.name, suggestion.isNew)}
-                          >
-                            <div className="flex items-center space-x-2 w-full">
-                              {suggestion.isNew ? (
-                                <Search className="w-3 h-3 text-[#CBB171] flex-shrink-0" />
-                              ) : (
-                                <Building className="w-3 h-3 text-[#224D62] flex-shrink-0" />
-                              )}
-                              <span className="truncate">{suggestion.name}</span>
-                              {!suggestion.isNew && suggestion.hasAddress && (
-                                <Badge variant="secondary" className="ml-auto bg-green-100 text-green-700 text-[10px] px-1 py-0">
-                                  📍 Adresse
-                                </Badge>
-                              )}
-                            </div>
-                          </Button>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-              {errors?.company?.companyName && (
-                <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                  <AlertCircle className="w-3 h-3" />
-                  <span>{errors.company.companyName.message}</span>
-                </div>
-              )}
-            </div>
+            <CompanyNameForm form={form} />
             {/* Adresse de l'entreprise */}
             <div className="space-y-4 w-full min-w-0">
               <div className="flex items-center space-x-2">
@@ -856,23 +611,12 @@ export default function Step3({ form }: Step3Props) {
                         <div className="flex items-center space-x-2 mb-2">
                           <CheckCircle className="w-4 h-4 text-[#CBB171]" />
                           <span className="text-sm font-medium text-[#224D62]">
-                            {watch('company.companyName') && companySuggestions.some(s => s.name === watch('company.companyName') && !s.isNew) 
-                              ? 'Adresse de l\'entreprise existante chargée'
-                              : 'Localisation de l\'entreprise détectée'
-                            }
+                            Localisation de l'entreprise détectée
                           </span>
                         </div>
                         <div className="text-xs text-[#224D62]/80">
                           {formatCompanyResultDisplay(selectedCompanyLocation)}
                         </div>
-                        {watch('company.companyName') && companySuggestions.some(s => s.name === watch('company.companyName') && !s.isNew) && (
-                          <div className="mt-2 pt-2 border-t border-[#CBB171]/20">
-                            <div className="flex items-center space-x-2 text-[10px] text-[#CBB171]">
-                              <Building className="w-3 h-3" />
-                              <span>Entreprise existante - adresse pré-remplie</span>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}
