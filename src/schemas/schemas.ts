@@ -31,12 +31,14 @@ export const InsuranceTypeEnum = z.enum([
 // ================== STEP 4: PIÈCES D'IDENTITÉ ==================
 export const documentsSchema = z.object({
   identityDocument: IdentityDocumentEnum,
-  
-  identityDocumentNumber: z.string()
-    .min(3, 'Le numéro de la pièce d\'identité doit contenir au moins 3 caractères')
-    .max(50, 'Le numéro de la pièce d\'identité ne peut pas dépasser 50 caractères')
-    .regex(/^[a-zA-Z0-9\s\-\/]+$/, 'Le numéro ne peut contenir que des lettres, chiffres, espaces, tirets et slashs'),
-  
+
+  identityDocumentNumber: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val),
+    z.string()
+      .min(3, 'Le numéro de la pièce d\'identité doit contenir au moins 3 caractères')
+      .max(50, 'Le numéro de la pièce d\'identité ne peut pas dépasser 50 caractères')
+      .regex(/^[a-zA-Z0-9\s\-\/]+$/, 'Le numéro ne peut contenir que des lettres, chiffres, espaces, tirets et slashs'),
+  ),
   // Photo de la pièce d'identité recto
   documentPhotoFront: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
@@ -47,19 +49,19 @@ export const documentsSchema = z.object({
       (value) => {
         if (!value) return false // Photo obligatoire
         if (typeof value === 'string') {
-          return value.startsWith('data:image/jpeg') || 
-                 value.startsWith('data:image/png') || 
-                 value.startsWith('data:image/webp')
+          return value.startsWith('data:image/jpeg') ||
+            value.startsWith('data:image/png') ||
+            value.startsWith('data:image/webp')
         }
         if (value instanceof File) {
           return value.size <= 5 * 1024 * 1024 && // 5MB
-                 ['image/jpeg', 'image/png', 'image/webp'].includes(value.type)
+            ['image/jpeg', 'image/png', 'image/webp'].includes(value.type)
         }
         return false
       },
       'La photo recto de la pièce d\'identité est requise (JPEG, PNG ou WebP, max 5MB)'
     ),
-  
+
   // Photo de la pièce d'identité verso (optionnelle pour certains documents)
   documentPhotoBack: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
@@ -71,19 +73,19 @@ export const documentsSchema = z.object({
       (value) => {
         if (!value) return true // Optionnel
         if (typeof value === 'string') {
-          return value.startsWith('data:image/jpeg') || 
-                 value.startsWith('data:image/png') || 
-                 value.startsWith('data:image/webp')
+          return value.startsWith('data:image/jpeg') ||
+            value.startsWith('data:image/png') ||
+            value.startsWith('data:image/webp')
         }
         if (value instanceof File) {
           return value.size <= 5 * 1024 * 1024 && // 5MB
-                 ['image/jpeg', 'image/png', 'image/webp'].includes(value.type)
+            ['image/jpeg', 'image/png', 'image/webp'].includes(value.type)
         }
         return false
       },
       'La photo verso doit être au format JPEG, PNG ou WebP et ne pas dépasser 5MB'
     ),
-  
+
   // Date d'expiration (obligatoire)
   expirationDate: z.string()
     .min(1, 'La date d\'expiration est requise')
@@ -92,12 +94,12 @@ export const documentsSchema = z.object({
       const today = new Date()
       return expirationDate > today
     }, 'La date d\'expiration doit être dans le futur'),
-  
+
   // Lieu de délivrance (obligatoire)
   issuingPlace: z.string()
     .min(2, 'Le lieu de délivrance doit contenir au moins 2 caractères')
     .max(100, 'Le lieu de délivrance ne peut pas dépasser 100 caractères'),
-  
+
   // Date de délivrance (obligatoire)
   issuingDate: z.string()
     .min(1, 'La date de délivrance est requise')
@@ -106,7 +108,7 @@ export const documentsSchema = z.object({
       const today = new Date()
       return issuingDate <= today
     }, 'La date de délivrance ne peut pas être dans le futur'),
-  
+
   // Acceptation des conditions (obligatoire)
   termsAccepted: z.boolean()
     .refine((value) => value === true, 'Vous devez accepter les conditions pour continuer')
@@ -153,7 +155,7 @@ export type { CompanyFormData, CompanyCrudFormData, CompanyAddressData } from '.
 // Utiles pour la validation étape par étape
 export const stepSchemas = {
   1: identitySchema,
-  2: addressSchema, 
+  2: addressSchema,
   3: companySchema,
   4: documentsSchema
 } as const
@@ -201,7 +203,7 @@ export const adminLoginSchema = z.object({
   email: z.string()
     .email('Format d\'email invalide')
     .min(1, 'L\'email est requis'),
-  
+
   password: z.string()
     .min(6, 'Le mot de passe doit contenir au moins 6 caractères')
     .max(100, 'Le mot de passe ne peut pas dépasser 100 caractères')
@@ -274,7 +276,7 @@ export const earlyRefundSchema = z.object({
   reason: z.string()
     .min(10, 'La cause du retrait doit contenir au moins 10 caractères')
     .max(500, 'La cause du retrait ne peut pas dépasser 500 caractères'),
-  
+
   withdrawalDate: z.string()
     .min(1, 'La date du retrait est requise')
     .refine((date) => {
@@ -283,11 +285,11 @@ export const earlyRefundSchema = z.object({
       today.setHours(23, 59, 59, 999) // Fin de la journée
       return withdrawalDate <= today
     }, 'La date du retrait ne peut pas être dans le futur'),
-  
+
   withdrawalTime: z.string()
     .min(1, 'L\'heure du retrait est requise')
     .regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Format d\'heure invalide (HH:MM)'),
-  
+
   proof: z.union([
     z.instanceof(File),
     z.undefined()
@@ -307,29 +309,29 @@ export const earlyRefundDefaultValues: EarlyRefundFormData = {
   withdrawalDate: new Date().toISOString().split('T')[0],
   withdrawalTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
   proof: undefined
-} 
+}
 
 // ================== CONTRACT CREATION SCHEMA ==================
 
 export const contractCreationSchema = z.object({
   // Étape 1: Sélection du type de contrat
   contractType: z.enum(['INDIVIDUAL', 'GROUP']),
-  
+
   memberId: z.string().optional(),
-  
+
   groupeId: z.string().optional(),
-  
+
   // Étape 2: Configuration de la caisse
   caisseType: z.enum(['STANDARD', 'JOURNALIERE', 'LIBRE']),
-  
+
   monthlyAmount: z.number()
     .min(100, 'Le montant mensuel doit être au moins 100 FCFA')
     .max(1000000, 'Le montant mensuel ne peut pas dépasser 1 000 000 FCFA'),
-  
+
   monthsPlanned: z.number()
     .min(1, 'La durée doit être d\'au moins 1 mois')
     .max(60, 'La durée ne peut pas dépasser 60 mois'),
-  
+
   // Étape 3: Planification des versements
   firstPaymentDate: z.string()
     .min(1, 'La date du premier versement est requise')
@@ -339,10 +341,10 @@ export const contractCreationSchema = z.object({
       today.setHours(0, 0, 0, 0)
       return selectedDate >= today
     }, 'La date du premier versement ne peut pas être dans le passé'),
-  
+
   // Étape 3: Document PDF du contrat signé
   contractPdf: z.instanceof(File).optional(),
-  
+
 }).superRefine((data, ctx) => {
   // Validation croisée pour memberId/groupeId selon le type de contrat
   if (data.contractType === 'INDIVIDUAL') {
@@ -376,7 +378,7 @@ export const contractCreationSchema = z.object({
       })
     }
   }
-  
+
   // Validation spécifique pour le type LIBRE
   if (data.caisseType === 'LIBRE' && data.monthlyAmount < 100000) {
     ctx.addIssue({
@@ -385,7 +387,7 @@ export const contractCreationSchema = z.object({
       path: ['monthlyAmount']
     })
   }
-  
+
   // Validation de la durée selon le type de caisse
   if (data.caisseType === 'JOURNALIERE' && data.monthsPlanned > 12) {
     ctx.addIssue({
