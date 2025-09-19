@@ -105,7 +105,11 @@ export const documentsSchema = z.object({
       const issuingDate = new Date(date)
       const today = new Date()
       return issuingDate <= today
-    }, 'La date de délivrance ne peut pas être dans le futur')
+    }, 'La date de délivrance ne peut pas être dans le futur'),
+  
+  // Acceptation des conditions (obligatoire)
+  termsAccepted: z.boolean()
+    .refine((value) => value === true, 'Vous devez accepter les conditions pour continuer')
 }).refine((data) => {
   // Validation croisée : la date d'expiration doit être postérieure à la date de délivrance
   if (data.issuingDate && data.expirationDate) {

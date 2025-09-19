@@ -189,19 +189,6 @@ export default function Step3({ form }: Step3Props) {
     }
   }, [])
 
-  // Fonction pour forcer la création automatique si aucune suggestion n'est sélectionnée
-  const forceCreateIfNoSelection = useCallback((field: string, value: string) => {
-    if (!value || value.trim().length < 2) return
-    
-    // Si la valeur n'est pas dans les suggestions existantes, forcer la création
-    const existingSuggestions = professionSuggestions
-    const hasExistingMatch = existingSuggestions.some(s => !s.isNew && s.name === value)
-    
-    if (!hasExistingMatch && value.trim().length >= 2) {
-      // Forcer la création automatique
-      handleSuggestionClick(field, `Créer "${value}"`, true)
-    }
-  }, [professionSuggestions])
 
   // Fonction pour rechercher avec Photon API pour l'entreprise
   const searchCompanyWithPhoton = useCallback(async (query: string) => {
@@ -270,32 +257,6 @@ export default function Step3({ form }: Step3Props) {
   }, [])
 
 
-  useEffect(() => {
-    const profession = watch('company.profession')
-    if (profession && profession.trim().length >= 2) {
-      fetchProfessionSuggestions(profession)
-    } else {
-      setProfessionSuggestions([])
-    }
-  }, [watch('company.profession'), fetchProfessionSuggestions])
-
-
-  useEffect(() => {
-    if (showProfessionSuggestions && professionSuggestions.length === 0) {
-      const profession = watch('company.profession')
-      if (profession && profession.trim().length >= 2) {
-        fetchProfessionSuggestions(profession)
-      }
-    }
-  }, [showProfessionSuggestions, professionSuggestions.length, watch('company.profession'), fetchProfessionSuggestions])
-
-
-  useEffect(() => {
-    const profession = watch('company.profession')
-    if (profession && profession.trim().length >= 2 && professionSuggestions.length === 0) {
-      fetchProfessionSuggestions(profession)
-    }
-  }, [watch('company.profession'), professionSuggestions.length, fetchProfessionSuggestions])
 
   // Effet pour déclencher la recherche d'entreprise
   useEffect(() => {
@@ -320,17 +281,6 @@ export default function Step3({ form }: Step3Props) {
   }, [debouncedCompanyCityQuery, searchCompanyCitiesWithPhoton])
 
 
-  useEffect(() => {
-    if (professionSuggestions.length > 0 && !professionSuggestions.some(s => !s.isNew && s.name === watch('company.profession'))) {
-      const profession = watch('company.profession')
-      if (profession && profession.trim().length >= 2) {
-        // Si la valeur n'est pas dans les suggestions existantes, forcer la création
-        setTimeout(() => {
-          forceCreateIfNoSelection('company.profession', profession)
-        }, 100)
-      }
-    }
-  }, [professionSuggestions, watch('company.profession'), forceCreateIfNoSelection])
 
   const handleToggleEmployment = (checked: boolean) => {
     setValue('company.isEmployed', checked)
@@ -426,14 +376,6 @@ export default function Step3({ form }: Step3Props) {
     return parts.join(', ')
   }
 
-  // Fonction pour valider et forcer la création si nécessaire
-  const validateAndForceCreation = useCallback(() => {
-    const profession = watch('company.profession')
-    
-    if (profession && profession.trim().length >= 2) {
-      forceCreateIfNoSelection('company.profession', profession)
-    }
-  }, [watch, forceCreateIfNoSelection])
 
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
@@ -822,7 +764,13 @@ export default function Step3({ form }: Step3Props) {
                     id="profession"
                     {...register('company.profession')}
                     placeholder="Ex: Ingénieur, Médecin..."
-                    onFocus={() => setShowProfessionSuggestions(true)}
+                    onFocus={() => {
+                      const value = watch('company.profession')
+                      if (value && value.trim().length >= 2) {
+                        fetchProfessionSuggestions(value)
+                        setShowProfessionSuggestions(true)
+                      }
+                    }}
                     onChange={(e) => {
                       const value = e.target.value
                       if (value.length >= 2) {
@@ -833,9 +781,7 @@ export default function Step3({ form }: Step3Props) {
                         setShowProfessionSuggestions(false)
                       }
                     }}
-                    onBlur={(e) => {
-                      // Forcer la création si aucune suggestion n'est sélectionnée
-                      forceCreateIfNoSelection('company.profession', e.target.value)
+                    onBlur={() => {
                       setTimeout(() => setShowProfessionSuggestions(false), 200)
                     }}
                     className={cn(
@@ -963,17 +909,6 @@ export default function Step3({ form }: Step3Props) {
                       </div>
                     </div>
                     
-                    {/* Bouton de validation manuelle */}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={validateAndForceCreation}
-                      className="border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/5 text-xs"
-                    >
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Valider
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -990,8 +925,7 @@ export default function Step3({ form }: Step3Props) {
               <strong>Information :</strong> Ces données professionnelles nous aident à mieux vous connaître et adapter nos services
             </p>
             <p className="text-xs sm:text-sm text-[#224D62]/70">
-              💡 <strong>Astuce :</strong> Si vous tapez une entreprise ou profession qui n'existe pas, elle sera automatiquement créée. 
-              Utilisez le bouton "Valider" pour forcer la création si nécessaire.
+              💡 <strong>Astuce :</strong> Si vous tapez une entreprise ou profession qui n'existe pas, elle sera automatiquement créée.
             </p>
           </div>
         </div>

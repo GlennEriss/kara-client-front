@@ -63,6 +63,11 @@ export default function Step4({ form }: Step4Props) {
     'documents.issuingDate'
   ])
 
+  // Synchroniser le state local avec le formulaire
+  React.useEffect(() => {
+    setValue('documents.termsAccepted', termsAccepted)
+  }, [termsAccepted, setValue])
+
   // Validation des conditions acceptées
   React.useEffect(() => {
     if (!termsAccepted) {
@@ -696,30 +701,60 @@ export default function Step4({ form }: Step4Props) {
         )}
 
       {/* Checkbox Lu et approuvé */}
-      <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700 w-full">
+      <Card className={cn(
+        "border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700 w-full transition-all duration-300",
+        termsAccepted 
+          ? "border-green-500 bg-gradient-to-r from-green-50 to-green-100 shadow-lg" 
+          : "border-red-300 bg-gradient-to-r from-red-50 to-red-100"
+      )}>
         <CardContent className="p-4 sm:p-6">
-          <div className="flex items-start space-x-3">
-            <Checkbox
-              id="termsAccepted"
-              checked={termsAccepted}
-              onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-              className="mt-1"
-            />
-            <div className="space-y-2">
-              <Label htmlFor="termsAccepted" className="text-sm sm:text-base font-medium text-[#224D62] cursor-pointer">
-                Lu et approuvé
+          <div className="flex items-start space-x-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="termsAccepted"
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                className={cn(
+                  "w-5 h-5 border-2 transition-all duration-200",
+                  termsAccepted 
+                    ? "border-green-600 bg-green-600 text-white" 
+                    : "border-red-400 bg-white hover:border-red-500"
+                )}
+              />
+              {termsAccepted && (
+                <CheckCircle className="w-5 h-5 text-green-600 animate-in zoom-in-50 duration-200" />
+              )}
+            </div>
+            <div className="space-y-3 flex-1">
+              <Label 
+                htmlFor="termsAccepted" 
+                className={cn(
+                  "text-sm sm:text-base font-bold cursor-pointer transition-colors duration-200",
+                  termsAccepted ? "text-green-700" : "text-red-700"
+                )}
+              >
+                Lu et approuvé <span className="text-red-500">*</span>
               </Label>
-              <p className="text-sm text-[#224D62]/80">
+              <p className={cn(
+                "text-sm transition-colors duration-200",
+                termsAccepted ? "text-green-600" : "text-red-600"
+              )}>
                 Je confirme avoir lu et approuvé les conditions d'utilisation et la politique de confidentialité. 
                 J'accepte que mes documents d'identité soient utilisés uniquement pour la vérification de mon identité 
                 et stockés de manière sécurisée.
               </p>
+              {termsAccepted && (
+                <div className="flex items-center space-x-2 text-green-600 text-sm font-medium animate-in slide-in-from-left-2 duration-300">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Conditions acceptées ✓</span>
+                </div>
+              )}
             </div>
           </div>
           {errors?.documents?.termsAccepted && (
-            <div className="flex items-center space-x-1 text-red-500 text-xs mt-2 animate-in slide-in-from-top-2 duration-300">
-              <AlertCircle className="w-3 h-3" />
-              <span>{errors.documents.termsAccepted.message}</span>
+            <div className="flex items-center space-x-2 text-red-600 text-sm mt-3 p-3 bg-red-50 rounded-lg border border-red-200 animate-in slide-in-from-top-2 duration-300">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="font-medium">{errors.documents.termsAccepted.message}</span>
             </div>
           )}
         </CardContent>

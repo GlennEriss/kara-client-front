@@ -188,4 +188,29 @@ export class IdentityFormMediator {
         const cleanedValue = this.cleanPhoneNumber(value)
         this.form.setValue('identity.spousePhone', cleanedValue)
     }
+
+    /**
+     * Met à jour le genre basé sur la civilité sélectionnée
+     * @param civility - La civilité sélectionnée
+     */
+    updateGenderFromCivility(civility: string): void {
+        let gender: 'Homme' | 'Femme'
+        
+        switch (civility) {
+            case 'Monsieur':
+                gender = 'Homme'
+                break
+            case 'Madame':
+            case 'Mademoiselle':
+                gender = 'Femme'
+                break
+            default:
+                // Par défaut, garder la valeur actuelle ou 'Homme'
+                const currentGender = this.form.getValues('identity.gender')
+                gender = (currentGender === 'Homme' || currentGender === 'Femme') ? currentGender : 'Homme'
+                break
+        }
+        
+        this.form.setValue('identity.gender', gender)
+    }
 }

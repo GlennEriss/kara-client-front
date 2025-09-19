@@ -2,8 +2,22 @@ import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import SelectRadioApp, { RadioOption } from '@/components/forms/SelectRadioApp'
 import { CIVILITY_OPTIONS } from '@/components/register/register.data'
+import { IdentityFormMediatorFactory } from '@/factories/IdentityFormMediatorFactory'
+import { useFormContext } from 'react-hook-form'
+import { RegisterFormData } from '@/schemas/schemas'
 
 export default function CivilityIdentityForm() {
+  const form = useFormContext<RegisterFormData>()
+  const mediator = IdentityFormMediatorFactory.create(form)
+
+  const handleCivilityChange = (value: string) => {
+    // Mettre à jour la civilité
+    form.setValue('identity.civility', value)
+    
+    // Mettre à jour automatiquement le genre basé sur la civilité
+    mediator.updateGenderFromCivility(value)
+  }
+
   return (
     <div className="space-y-3 animate-in fade-in-0 slide-in-from-left-4 duration-600 w-full">
       <FormField
@@ -18,7 +32,7 @@ export default function CivilityIdentityForm() {
               <SelectRadioApp
                 options={CIVILITY_OPTIONS}
                 value={field.value}
-                onChange={field.onChange}
+                onChange={handleCivilityChange}
                 name={field.name}
               />
             </FormControl>

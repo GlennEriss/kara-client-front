@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   User,
+  Users,
   Phone,
   Mail,
   MapPin,
@@ -136,6 +137,10 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                 <DropdownMenuItem onClick={() => router.push(routes.admin.membershipSubscription(member.id))}>
                   <Calendar className="h-4 w-4 mr-2" />
                   Voir abonnements
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.membershipFilleuls(member.id!))}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Liste des filleuls
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onPreviewAdhesion(member.lastSubscription?.adhesionPdfURL || null)}>

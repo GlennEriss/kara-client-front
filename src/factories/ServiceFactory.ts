@@ -1,5 +1,8 @@
 import { ICompanySuggestionsService } from '@/services/interfaces/IService'
 import { CompanySuggestionsService } from '@/services/suggestions/CompanySuggestionsService'
+import { IFilleulService } from '@/services/filleuls/IFilleulService'
+import { FilleulService } from '@/services/filleuls/FilleulService'
+import { RepositoryFactory } from './RepositoryFactory'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -15,6 +18,20 @@ export class ServiceFactory {
     
     if (!this.services.has(key)) {
       this.services.set(key, new CompanySuggestionsService())
+    }
+    
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des filleuls
+   */
+  static getFilleulService(): IFilleulService {
+    const key = 'FilleulService'
+    
+    if (!this.services.has(key)) {
+      const memberRepository = RepositoryFactory.getMemberRepository()
+      this.services.set(key, new FilleulService(memberRepository))
     }
     
     return this.services.get(key)

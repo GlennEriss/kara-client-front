@@ -1,5 +1,15 @@
 // ================== TYPES CENTRALISÉS ==================
 
+export interface INavigation {
+  push(path: string): void;
+  replace(path: string): void;
+  back(): void;
+  forward(): void;
+  refresh(): void;
+  getSearchParam(key: string): string | null;
+  getPathname(): string;
+}
+
 // Type pour les données du formulaire d'inscription
 export interface RegisterFormData {
   identity: {
@@ -77,31 +87,31 @@ export type ExtendedMembershipRequestStatus = MembershipRequestStatus | 'deleted
 export interface MembershipRequest extends RegisterFormData {
   // Identifiant unique de la demande
   id: string
-  
+
   // Matricule unique de la demande
   matricule: string
-  
+
   // Statut de la demande
   status: MembershipRequestStatus
-  
+
   // Dates de gestion
   createdAt: Date
   updatedAt: Date
-  
+
   // Date de traitement (quand la demande a été approuvée/rejetée)
   processedAt?: Date
-  
+
   // Administrateur qui a traité la demande
   processedBy?: string
   // Dernier admin ayant mis à jour le dossier (ex: réouverture)
   updatedBy?: string
-  
+
   // Commentaires administratifs
   adminComments?: string
-  
+
   // Numéro de membre attribué (si approuvé)
   memberNumber?: string
-  reviewNote?: string;  
+  reviewNote?: string;
   // Motif de rejet (raison fournie par l'admin)
   motifReject?: string;
   // Paiements
@@ -222,7 +232,7 @@ export interface MembershipNotification {
  */
 export interface InsurancePolicy {
   id: string
-  
+
   // Informations du titulaire
   policyholder: {
     firstName: string
@@ -231,11 +241,11 @@ export interface InsurancePolicy {
     phone: string
     memberNumber?: string // Si c'est un membre KARA
   }
-  
+
   // Informations de la police
   policyNumber: string
   status: 'Active' | 'Expirée' | 'Suspendue' | 'En attente' | 'Annulée'
-  
+
   // Informations du véhicule
   vehicle: {
     make: string // Marque (Peugeot, Citroën, etc.)
@@ -245,7 +255,7 @@ export interface InsurancePolicy {
     vinNumber?: string
     engineNumber?: string
   }
-  
+
   // Informations financières
   premium: {
     amount: number
@@ -253,20 +263,20 @@ export interface InsurancePolicy {
     frequency: 'monthly' | 'quarterly' | 'yearly'
     displayText: string // "€245/mois"
   }
-  
+
   // Dates importantes
   startDate: Date
   expiryDate: Date
   lastPaymentDate?: Date
   nextPaymentDate?: Date
-  
+
   // Couverture
   coverage: {
     type: 'third_party' | 'comprehensive' | 'collision'
     description: string
     deductible?: number
   }
-  
+
   // Historique
   createdAt: Date
   updatedAt: Date
@@ -312,20 +322,20 @@ export interface DashboardStats {
     newThisMonth: number
     changePercentage: number
   }
-  
+
   membershipRequests: {
     pending: number
     newToday: number
     changePercentage: number
   }
-  
+
   insurance: {
     activePolicies: number
     newThisMonth: number
     changePercentage: number
     totalPremiumsMonthly: number
   }
-  
+
   content: {
     publishedArticles: number
     newThisYear: number
@@ -373,10 +383,10 @@ export type UserRole = 'Adherant' | 'Bienfaiteur' | 'Sympathisant' | 'Admin' | '
 export interface User {
   // Identifiant unique (même que l'UID Firebase et matricule)
   id: string
-  
+
   // Matricule au format nombreUser.MK.dateCréation (ex: 0004.MK.040825)
   matricule: string
-  
+
   // Informations personnelles (tirées de RegisterFormData.identity)
   lastName: string
   firstName: string
@@ -386,7 +396,7 @@ export interface User {
   email?: string
   nationality: string
   hasCar: boolean
-  
+
   // Adresse (tirée de RegisterFormData.address)
   address?: {
     province: string
@@ -395,25 +405,25 @@ export interface User {
     arrondissement: string
     additionalInfo?: string
   }
-  
+
   // Informations professionnelles (tirées de RegisterFormData.company)
   companyName?: string
   profession?: string
-  
+
   // Photos
   photoURL?: string | null
   photoPath?: string | null
-  
+
   // Références
   subscriptions: string[] // Liste d'IDs de subscriptions
   dossier: string // Référence vers la demande membership-request
-  
+
   // Type de membre (maintenu pour compatibilité)
   membershipType: MembershipType
-  
+
   // Rôles de l'utilisateur (peut avoir plusieurs rôles)
   roles: UserRole[]
-  
+
   // Métadonnées
   createdAt: Date
   updatedAt: Date
@@ -451,24 +461,24 @@ export interface GroupFilters {
 export interface Subscription {
   // Identifiant unique
   id: string
-  
+
   // Référence vers l'utilisateur
   userId: string
-  
+
   // Dates de validité
   dateStart: Date
   dateEnd: Date
-  
+
   // Montant
   montant: number
   currency: string // 'EUR', 'XOF', etc.
-  
+
   // Type de souscription
   type: MembershipType
-  
+
   // Statut (peut être calculé ou stocké)
   isValid?: boolean
-  
+
   // Métadonnées
   createdAt: Date
   updatedAt: Date
@@ -505,17 +515,17 @@ export interface UserFilters {
   hasCar?: boolean
   isActive?: boolean
   searchQuery?: string // Recherche dans nom, prénom, email, matricule
-  
+
   // Filtres par adresse
   province?: string
   city?: string
   arrondissement?: string
   district?: string
-  
+
   // Filtres professionnels
   companyName?: string
   profession?: string
-  
+
   page?: number
   limit?: number
   orderByField?: string
@@ -590,18 +600,18 @@ export interface ContractFormData {
   contractType: 'INDIVIDUAL' | 'GROUP'
   memberId?: string
   groupeId?: string
-  
+
   // Étape 2: Configuration de la caisse
   caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
   monthlyAmount: number
   monthsPlanned: number
-  
+
   // Étape 3: Planification des versements
   firstPaymentDate: string
-  
+
   // Étape 3: Document PDF du contrat signé
   contractPdf?: File
-  
+
   // Métadonnées
   isValid: boolean
   currentStep: number
@@ -728,13 +738,27 @@ export interface CaisseContract {
   updatedAt: Date
 }
 
+// ================== TYPES POUR LES FILLEULS ==================
+
+/**
+ * Interface pour les filleuls (membres parrainés)
+ */
+export interface Filleul {
+  lastName: string
+  firstName: string
+  matricule: string
+  photoURL?: string | null
+  photoPath?: string | null
+  createdAt: Date
+}
+
 // ================== EXPORTS ==================
 // Pas besoin d'exporter depuis schemas.ts car tout est défini ici
 
 // Labels français pour l'affichage des statuts
 export const MEMBERSHIP_STATUS_LABELS: Record<MembershipRequestStatus, string> = {
   pending: 'En attente',
-  approved: 'Approuvée', 
+  approved: 'Approuvée',
   rejected: 'Rejetée',
   under_review: 'En cours de traitement'
 }

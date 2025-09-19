@@ -165,7 +165,7 @@ export default function AdminCaisseSettingsPage() {
       
       const csvContent = BOM + [
         headers.join(';'),
-        ...exportData.map(row => 
+        ...exportData.map((row: Record<string, any>) => 
           headers.map(header => {
             const value = row[header]
             // Échapper les points-virgules et guillemets dans les valeurs
