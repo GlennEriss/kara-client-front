@@ -66,12 +66,12 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
+      const link = window.document.createElement('a')
       link.href = url
       link.download = document.originalFileName || `document_${document.id}.pdf`
-      document.body.appendChild(link)
+      window.document.body.appendChild(link)
       link.click()
-      document.body.removeChild(link)
+      window.document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
       toast.success('✅ PDF téléchargé avec succès', {
