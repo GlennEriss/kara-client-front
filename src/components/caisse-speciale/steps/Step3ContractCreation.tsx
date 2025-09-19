@@ -419,7 +419,11 @@ export function Step3ContractCreation() {
         onUpdate={(field: string, value: any) => {
           updateFormData({ 
             emergencyContact: { 
-              ...formData.emergencyContact, 
+              lastName: formData.emergencyContact?.lastName || '',
+              firstName: formData.emergencyContact?.firstName || '',
+              phone1: formData.emergencyContact?.phone1 || '',
+              phone2: formData.emergencyContact?.phone2 || '',
+              relationship: formData.emergencyContact?.relationship || 'Autre',
               [field]: value 
             } 
           })
