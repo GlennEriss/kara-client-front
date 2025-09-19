@@ -14,60 +14,58 @@ interface EmergencyContactFormProps {
   onUpdate: (field: string, value: any) => void
 }
 
-// Options pour les liens de parenté
+// Options pour les liens de parenté (triées par ordre alphabétique)
 const RELATIONSHIP_OPTIONS = [
-  // Liens familiaux traditionnels
-  { value: 'Père', label: 'Père' },
-  { value: 'Mère', label: 'Mère' },
-  { value: 'Fils', label: 'Fils' },
-  { value: 'Fille', label: 'Fille' },
-  { value: 'Frère', label: 'Frère' },
-  { value: 'Sœur', label: 'Sœur' },
-  { value: 'Grand-père', label: 'Grand-père' },
-  { value: 'Grand-mère', label: 'Grand-mère' },
-  { value: 'Oncle', label: 'Oncle' },
-  { value: 'Tante', label: 'Tante' },
-  { value: 'Cousin', label: 'Cousin' },
-  { value: 'Cousine', label: 'Cousine' },
-  { value: 'Neveu', label: 'Neveu' },
-  { value: 'Nièce', label: 'Nièce' },
-  { value: 'Beau-père', label: 'Beau-père' },
-  { value: 'Belle-mère', label: 'Belle-mère' },
-  { value: 'Beau-fils', label: 'Beau-fils' },
-  { value: 'Belle-fille', label: 'Belle-fille' },
-  { value: 'Beau-frère', label: 'Beau-frère' },
-  { value: 'Belle-sœur', label: 'Belle-sœur' },
-  { value: 'Demi-frère', label: 'Demi-frère' },
-  { value: 'Demi-sœur', label: 'Demi-sœur' },
-  { value: 'Petit-fils', label: 'Petit-fils' },
-  { value: 'Petite-fille', label: 'Petite-fille' },
-  
-  // Relations spéciales
-  { value: 'Époux', label: 'Époux' },
-  { value: 'Épouse', label: 'Épouse' },
-  { value: 'Conjoint', label: 'Conjoint' },
-  { value: 'Conjointe', label: 'Conjointe' },
-  { value: 'Compagnon', label: 'Compagnon' },
-  { value: 'Compagne', label: 'Compagne' },
-  { value: 'Fiancé', label: 'Fiancé' },
-  { value: 'Fiancée', label: 'Fiancée' },
-  
-  // Relations non-familiales
   { value: 'Ami', label: 'Ami' },
   { value: 'Amie', label: 'Amie' },
-  { value: 'Parrain', label: 'Parrain' },
-  { value: 'Marraine', label: 'Marraine' },
-  { value: 'Filleul', label: 'Filleul' },
-  { value: 'Filleule', label: 'Filleule' },
-  { value: 'Famille d\'accueil', label: 'Famille d\'accueil' },
-  { value: 'Tuteur', label: 'Tuteur' },
-  { value: 'Tutrice', label: 'Tutrice' },
+  { value: 'Arrière-grand-mère', label: 'Arrière-grand-mère' },
+  { value: 'Arrière-grand-père', label: 'Arrière-grand-père' },
+  { value: 'Arrière-petite-fille', label: 'Arrière-petite-fille' },
+  { value: 'Arrière-petit-fils', label: 'Arrière-petit-fils' },
+  { value: 'Autre', label: 'Autre' },
+  { value: 'Beau-fils', label: 'Beau-fils' },
+  { value: 'Beau-frère', label: 'Beau-frère' },
+  { value: 'Beau-père', label: 'Beau-père' },
+  { value: 'Belle-fille', label: 'Belle-fille' },
+  { value: 'Belle-mère', label: 'Belle-mère' },
+  { value: 'Belle-sœur', label: 'Belle-sœur' },
+  { value: 'Collègue', label: 'Collègue' },
+  { value: 'Compagne', label: 'Compagne' },
+  { value: 'Compagnon', label: 'Compagnon' },
+  { value: 'Conjointe', label: 'Conjointe' },
+  { value: 'Conjoint', label: 'Conjoint' },
+  { value: 'Cousin', label: 'Cousin' },
+  { value: 'Cousine', label: 'Cousine' },
   { value: 'Curateur', label: 'Curateur' },
   { value: 'Curatrice', label: 'Curatrice' },
-  { value: 'Collègue', label: 'Collègue' },
+  { value: 'Demi-frère', label: 'Demi-frère' },
+  { value: 'Demi-sœur', label: 'Demi-sœur' },
+  { value: 'Épouse', label: 'Épouse' },
+  { value: 'Époux', label: 'Époux' },
+  { value: 'Famille d\'accueil', label: 'Famille d\'accueil' },
+  { value: 'Fiancé', label: 'Fiancé' },
+  { value: 'Fiancée', label: 'Fiancée' },
+  { value: 'Fille', label: 'Fille' },
+  { value: 'Filleul', label: 'Filleul' },
+  { value: 'Filleule', label: 'Filleule' },
+  { value: 'Frère', label: 'Frère' },
+  { value: 'Grand-mère', label: 'Grand-mère' },
+  { value: 'Grand-père', label: 'Grand-père' },
+  { value: 'Marraine', label: 'Marraine' },
+  { value: 'Mère', label: 'Mère' },
+  { value: 'Neveu', label: 'Neveu' },
+  { value: 'Nièce', label: 'Nièce' },
+  { value: 'Oncle', label: 'Oncle' },
+  { value: 'Parrain', label: 'Parrain' },
+  { value: 'Petite-fille', label: 'Petite-fille' },
+  { value: 'Petit-fils', label: 'Petit-fils' },
+  { value: 'Père', label: 'Père' },
+  { value: 'Sœur', label: 'Sœur' },
+  { value: 'Tante', label: 'Tante' },
+  { value: 'Tutrice', label: 'Tutrice' },
+  { value: 'Tuteur', label: 'Tuteur' },
   { value: 'Voisin', label: 'Voisin' },
-  { value: 'Voisine', label: 'Voisine' },
-  { value: 'Autre', label: 'Autre' }
+  { value: 'Voisine', label: 'Voisine' }
 ]
 
 export default function EmergencyContactForm({ emergencyContact, onUpdate }: EmergencyContactFormProps) {
@@ -110,16 +108,20 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
       case 'phone1':
         if (!value || value.trim() === '') {
           newErrors.phone1 = 'Le numéro de téléphone principal est obligatoire'
-        } else if (!/^(\+241|241)?[0-9]{8}$/.test(value.replace(/\s/g, ''))) {
-          newErrors.phone1 = 'Format de téléphone invalide (ex: +241 62 34 56 78)'
+        } else if (value.length > 12) {
+          newErrors.phone1 = 'Le numéro de téléphone ne peut pas dépasser 12 caractères'
+        } else if (!/^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
+          newErrors.phone1 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)'
         } else {
           delete newErrors.phone1
         }
         break
         
       case 'phone2':
-        if (value && !/^(\+241|241)?[0-9]{8}$/.test(value.replace(/\s/g, ''))) {
-          newErrors.phone2 = 'Format de téléphone invalide (ex: +241 62 34 56 78)'
+        if (value && value.length > 12) {
+          newErrors.phone2 = 'Le numéro de téléphone ne peut pas dépasser 12 caractères'
+        } else if (value && !/^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
+          newErrors.phone2 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)'
         } else {
           delete newErrors.phone2
         }
@@ -139,19 +141,49 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
 
   // Fonction pour gérer les changements
   const handleChange = (field: string, value: string) => {
-    onUpdate(field, value)
-    validateField(field, value)
+    let filteredValue = value
+    
+    // Filtrer les caractères pour les champs téléphone
+    if (field === 'phone1' || field === 'phone2') {
+      // Garder seulement les chiffres, le + et les espaces
+      filteredValue = value.replace(/[^0-9+\s]/g, '')
+      // Limiter à 12 caractères
+      filteredValue = filteredValue.slice(0, 12)
+    }
+    
+    onUpdate(field, filteredValue)
+    validateField(field, filteredValue)
   }
 
+  // Vérifier si le formulaire est valide
+  const isFormValid = lastName.trim() !== '' && 
+                     phone1.trim() !== '' && 
+                     relationship.trim() !== '' &&
+                     Object.keys(errors).length === 0 &&
+                     (!phone1 || phone1.length <= 12) &&
+                     (!phone2 || phone2.length <= 12) &&
+                     (!phone1 || /^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(phone1.replace(/\s/g, ''))) &&
+                     (!phone2 || phone2 === '' || /^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(phone2.replace(/\s/g, '')))
+
   return (
-    <Card className="border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-red-50 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
+    <Card className={`border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 ${
+      isFormValid 
+        ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50' 
+        : 'border-orange-200 bg-gradient-to-br from-orange-50 to-red-50'
+    }`}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg text-orange-800 flex items-center space-x-2">
-          <AlertTriangle className="w-5 h-5" />
+        <CardTitle className={`text-lg flex items-center space-x-2 ${
+          isFormValid ? 'text-green-800' : 'text-orange-800'
+        }`}>
+          <AlertTriangle className={`w-5 h-5 ${
+            isFormValid ? 'text-green-600' : 'text-orange-600'
+          }`} />
           <span>Contact d'urgence</span>
           <Badge variant="destructive" className="text-xs">Obligatoire</Badge>
         </CardTitle>
-        <p className="text-sm text-orange-700">
+        <p className={`text-sm ${
+          isFormValid ? 'text-green-700' : 'text-orange-700'
+        }`}>
           Personne à contacter en cas d'urgence ou d'accident
         </p>
       </CardHeader>
@@ -224,6 +256,9 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                 value={phone1}
                 onChange={(e) => handleChange('phone1', e.target.value)}
                 placeholder="+241 62 34 56 78"
+                maxLength={12}
+                pattern="[0-9+\s]*"
+                inputMode="tel"
                 className={cn(
                   "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20 transition-all duration-300",
                   errors.phone1 && "border-red-300 focus:border-red-500 bg-red-50/50"
@@ -251,6 +286,9 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                 value={phone2}
                 onChange={(e) => handleChange('phone2', e.target.value)}
                 placeholder="+241 66 78 90 12"
+                maxLength={12}
+                pattern="[0-9+\s]*"
+                inputMode="tel"
                 className={cn(
                   "pl-10 border-orange-300 focus:border-orange-500 focus:ring-orange-500/20 transition-all duration-300",
                   errors.phone2 && "border-red-300 focus:border-red-500 bg-red-50/50"

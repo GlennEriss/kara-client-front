@@ -1,63 +1,57 @@
 import { z } from 'zod'
 
-// Énumération pour les liens de parenté
+// Énumération pour les liens de parenté (triée par ordre alphabétique)
 export const RelationshipEnum = z.enum([
-  // Liens familiaux traditionnels
-  'Père',
-  'Mère', 
-  'Fils',
-  'Fille',
-  'Frère',
-  'Sœur',
-  'Grand-père',
-  'Grand-mère',
-  'Oncle',
-  'Tante',
-  'Cousin',
-  'Cousine',
-  'Neveu',
-  'Nièce',
-  'Beau-père',
-  'Belle-mère',
-  'Beau-fils',
-  'Belle-fille',
-  'Beau-frère',
-  'Belle-sœur',
-  'Demi-frère',
-  'Demi-sœur',
-  'Petit-fils',
-  'Petite-fille',
-  'Arrière-grand-père',
-  'Arrière-grand-mère',
-  'Arrière-petit-fils',
-  'Arrière-petite-fille',
-  
-  // Relations spéciales
-  'Époux',
-  'Épouse',
-  'Conjoint',
-  'Conjointe',
-  'Compagnon',
-  'Compagne',
-  'Fiancé',
-  'Fiancée',
-  
-  // Relations non-familiales
   'Ami',
   'Amie',
-  'Parrain',
-  'Marraine',
-  'Filleul',
-  'Filleule',
-  'Famille d\'accueil',
-  'Tuteur',
-  'Tutrice',
+  'Arrière-grand-mère',
+  'Arrière-grand-père',
+  'Arrière-petite-fille',
+  'Arrière-petit-fils',
+  'Autre',
+  'Beau-fils',
+  'Beau-frère',
+  'Beau-père',
+  'Belle-fille',
+  'Belle-mère',
+  'Belle-sœur',
+  'Collègue',
+  'Compagne',
+  'Compagnon',
+  'Conjointe',
+  'Conjoint',
+  'Cousin',
+  'Cousine',
   'Curateur',
   'Curatrice',
-  'Collègue',
+  'Demi-frère',
+  'Demi-sœur',
+  'Épouse',
+  'Époux',
+  'Famille d\'accueil',
+  'Fiancé',
+  'Fiancée',
+  'Fille',
+  'Filleul',
+  'Filleule',
+  'Frère',
+  'Grand-mère',
+  'Grand-père',
+  'Marraine',
+  'Mère',
+  'Neveu',
+  'Nièce',
+  'Oncle',
+  'Parrain',
+  'Petite-fille',
+  'Petit-fils',
+  'Père',
+  'Sœur',
+  'Tante',
+  'Tutrice',
+  'Tuteur',
   'Voisin',
-  'Voisine',
-  'Autre'
+  'Voisine'
 ])
 
 // Schéma pour un contact d'urgence
@@ -77,11 +71,13 @@ export const emergencyContactSchema = z.object({
   // Téléphone 1 obligatoire
   phone1: z.string()
     .min(1, 'Le numéro de téléphone principal est obligatoire')
-    .regex(/^(\+241|241)?[0-9]{8}$/, 'Format de téléphone invalide (ex: +241 62 34 56 78)'),
+    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
+    .regex(/^(\+241|241)?(62|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)'),
   
   // Téléphone 2 optionnel
   phone2: z.string()
-    .regex(/^(\+241|241)?[0-9]{8}$/, 'Format de téléphone invalide (ex: +241 62 34 56 78)')
+    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
+    .regex(/^(\+241|241)?(62|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)')
     .optional()
     .or(z.literal('')),
   

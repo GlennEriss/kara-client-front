@@ -318,17 +318,40 @@ export function Step3ContractCreation() {
           </div>
 
           {/* Téléversement du contrat PDF */}
-          <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+          <div className={`p-4 rounded-lg border ${
+            formData.contractPdf 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-red-50 border-red-200'
+          }`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Upload className="w-4 h-4 text-orange-600" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                formData.contractPdf 
+                  ? 'bg-green-100' 
+                  : 'bg-red-100'
+              }`}>
+                <Upload className={`w-4 h-4 ${
+                  formData.contractPdf 
+                    ? 'text-green-600' 
+                    : 'text-red-600'
+                }`} />
               </div>
               <div>
-                <h3 className="font-semibold text-orange-900">
+                <h3 className={`font-semibold ${
+                  formData.contractPdf 
+                    ? 'text-green-900' 
+                    : 'text-red-900'
+                }`}>
                   Contrat PDF signé
                 </h3>
-                <p className="text-sm text-orange-700">
-                  Téléversez le contrat PDF signé par le membre
+                <p className={`text-sm ${
+                  formData.contractPdf 
+                    ? 'text-green-700' 
+                    : 'text-red-700'
+                }`}>
+                  {formData.contractPdf 
+                    ? 'Contrat PDF téléversé avec succès' 
+                    : 'Téléversez le contrat PDF signé par le membre'
+                  }
                 </p>
               </div>
             </div>
@@ -355,14 +378,14 @@ export function Step3ContractCreation() {
             />
             
             {formData.contractPdf && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="mt-3 p-2 bg-green-100 border border-green-300 rounded-md">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-green-700 font-medium">
-                    Contrat PDF téléversé: {formData.contractPdf.name}
+                  <CheckCircle className="w-4 h-4 text-green-700" />
+                  <span className="text-green-800 font-medium text-sm">
+                    {formData.contractPdf.name}
                   </span>
                 </div>
-                <p className="text-xs text-green-600 mt-1">
+                <p className="text-xs text-green-700 mt-1 ml-6">
                   Taille: {(formData.contractPdf.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
