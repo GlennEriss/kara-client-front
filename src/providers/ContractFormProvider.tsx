@@ -196,7 +196,7 @@ export function ContractFormProvider({ children }: ContractFormProviderProps) {
 
   const canGoNext = useCallback(() => {
     const currentStepData = state.steps.find(step => step.id === state.currentStep)
-    return currentStepData?.isValid && state.currentStep < state.steps.length
+    return Boolean(currentStepData?.isValid) && state.currentStep < state.steps.length
   }, [state.steps, state.currentStep])
 
   const canGoPrev = useCallback(() => {
