@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { RelationshipEnum } from '@/schemas/emergency-contact.schema'
 import { identitySchema, CivilityEnum, GenderEnum, identityDefaultValues } from './identity.schema'
 import { addressSchema, addressDefaultValues } from './address.schema'
 import { companySchema, companyCrudSchema, companyDefaultValues } from './company.schema'
@@ -366,8 +367,7 @@ export const contractCreationSchema = z.object({
       .optional()
       .or(z.literal('')),
     
-    relationship: z.string()
-      .min(1, 'Le lien de parenté est obligatoire')
+    relationship: RelationshipEnum
   }).optional()
 
 }).superRefine((data, ctx) => {
