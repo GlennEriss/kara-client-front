@@ -370,7 +370,11 @@ export const contractCreationSchema = z.object({
       .or(z.literal('')),
     
     relationship: RelationshipEnum
-  }).optional()
+  }).optional(),
+
+  // Métadonnées
+  isValid: z.boolean(),
+  currentStep: z.number().min(1).max(3)
 
 }).superRefine((data, ctx) => {
   // Validation croisée pour memberId/groupeId selon le type de contrat
@@ -437,7 +441,9 @@ export const contractCreationDefaultValues: ContractCreationFormData = {
   monthsPlanned: 12,
   firstPaymentDate: new Date().toISOString().split('T')[0],
   contractPdf: undefined,
-  emergencyContact: undefined
+  emergencyContact: undefined,
+  isValid: false,
+  currentStep: 1
 }
 
 // Schémas pour chaque étape individuelle
