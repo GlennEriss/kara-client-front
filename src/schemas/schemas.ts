@@ -345,6 +345,31 @@ export const contractCreationSchema = z.object({
   // Étape 3: Document PDF du contrat signé
   contractPdf: z.instanceof(File).optional(),
 
+  // Étape 3: Contact d'urgence
+  emergencyContact: z.object({
+    lastName: z.string()
+      .min(1, 'Le nom du contact d\'urgence est obligatoire')
+      .max(50, 'Le nom ne peut pas dépasser 50 caractères')
+      .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes'),
+    
+    firstName: z.string()
+      .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+      .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
+      .optional(),
+    
+    phone1: z.string()
+      .min(1, 'Le numéro de téléphone principal est obligatoire')
+      .regex(/^(\+241|241)?[0-9]{8}$/, 'Format de téléphone invalide (ex: +241 62 34 56 78)'),
+    
+    phone2: z.string()
+      .regex(/^(\+241|241)?[0-9]{8}$/, 'Format de téléphone invalide (ex: +241 62 34 56 78)')
+      .optional()
+      .or(z.literal('')),
+    
+    relationship: z.string()
+      .min(1, 'Le lien de parenté est obligatoire')
+  }).optional()
+
 }).superRefine((data, ctx) => {
   // Validation croisée pour memberId/groupeId selon le type de contrat
   if (data.contractType === 'INDIVIDUAL') {
@@ -409,7 +434,8 @@ export const contractCreationDefaultValues: ContractCreationFormData = {
   monthlyAmount: 10000,
   monthsPlanned: 12,
   firstPaymentDate: new Date().toISOString().split('T')[0],
-  contractPdf: undefined
+  contractPdf: undefined,
+  emergencyContact: undefined
 }
 
 // Schémas pour chaque étape individuelle

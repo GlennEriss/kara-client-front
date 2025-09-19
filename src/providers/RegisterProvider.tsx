@@ -192,7 +192,7 @@ class CacheManager {
   }
 
   // Nouvelles méthodes pour gérer l'état submitted
-  static saveSubmissionData(membershipId: string, userData: { firstName?: string; lastName?: string }): void {
+  static saveSubmissionData(membershipId: string, userData: { firstName?: string; lastName?: string; civility?: string }): void {
     try {
       localStorage.setItem(CACHE_KEYS.MEMBERSHIP_ID, membershipId)
       localStorage.setItem(CACHE_KEYS.SUBMISSION_TIMESTAMP, Date.now().toString())
@@ -203,7 +203,7 @@ class CacheManager {
     }
   }
 
-  static loadSubmissionData(): { membershipId: string; userData: { firstName?: string; lastName?: string } } | null {
+  static loadSubmissionData(): { membershipId: string; userData: { firstName?: string; lastName?: string; civility?: string } } | null {
     try {
       if (this.isSubmissionExpired()) {
         this.clearSubmissionData()
@@ -278,7 +278,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   const [isCacheLoaded, setIsCacheLoaded] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submissionError, setSubmissionError] = useState<string | null>(null)
-  const [userData, setUserData] = useState<{ firstName?: string; lastName?: string } | undefined>(undefined)
+  const [userData, setUserData] = useState<{ firstName?: string; lastName?: string; civility?: string } | undefined>(undefined)
   const [correctionRequest, setCorrectionRequest] = useState<{
     requestId: string;
     reviewNote: string;
@@ -648,7 +648,8 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         // Succès - nettoyer le cache et afficher le message de succès
         const userData = {
           firstName: getValues('identity.firstName'),
-          lastName: getValues('identity.lastName')
+          lastName: getValues('identity.lastName'),
+          civility: getValues('identity.civility')
         }
 
         // Vider le cache des données du formulaire
@@ -684,7 +685,8 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         // Succès - sauvegarder les données de soumission et nettoyer le cache du formulaire
         const userData = {
           firstName: getValues('identity.firstName'),
-          lastName: getValues('identity.lastName')
+          lastName: getValues('identity.lastName'),
+          civility: getValues('identity.civility')
         }
 
         // Vider le cache des données du formulaire

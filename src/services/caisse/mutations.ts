@@ -59,6 +59,13 @@ export async function subscribe(input: {
   caisseType: any; 
   firstPaymentDate: string;
   contractPdf?: File;
+  emergencyContact?: {
+    lastName: string;
+    firstName?: string;
+    phone1: string;
+    phone2?: string;
+    relationship: string;
+  };
 }) {
   // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
   if (!input.memberId && !input.groupeId) {
@@ -98,7 +105,8 @@ export async function subscribe(input: {
     caisseType: input.caisseType,
     firstPaymentDate: input.firstPaymentDate,
     memberMatricule, // Ajouter le matricule pour la génération d'ID
-    ...(settings?.id ? { settingsVersion: settings.id } : {})
+    ...(settings?.id ? { settingsVersion: settings.id } : {}),
+    ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {})
   }
   
   // Ajouter seulement les champs non-undefined

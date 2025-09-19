@@ -612,6 +612,15 @@ export interface ContractFormData {
   // Étape 3: Document PDF du contrat signé
   contractPdf?: File
 
+  // Étape 3: Contact d'urgence
+  emergencyContact?: {
+    lastName: string
+    firstName?: string
+    phone1: string
+    phone2?: string
+    relationship: string
+  }
+
   // Métadonnées
   isValid: boolean
   currentStep: number
@@ -733,6 +742,13 @@ export interface CaisseContract {
     uploadedAt: Date
     originalFileName: string
     fileSize: number
+  }
+  emergencyContact?: {
+    lastName: string
+    firstName?: string
+    phone1: string
+    phone2?: string
+    relationship: string
   }
   createdAt: Date
   updatedAt: Date

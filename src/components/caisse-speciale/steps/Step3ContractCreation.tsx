@@ -25,6 +25,8 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
+import EmergencyContactForm from '../forms/EmergencyContactForm'
+import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
 
 export function Step3ContractCreation() {
   const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()
@@ -40,19 +42,33 @@ export function Step3ContractCreation() {
   React.useEffect(() => {
     console.log('🔍 Validation de l\'étape - formData:', {
       firstPaymentDate: formData.firstPaymentDate,
-      contractPdf: formData.contractPdf ? formData.contractPdf.name : 'undefined'
+      contractPdf: formData.contractPdf ? formData.contractPdf.name : 'undefined',
+      emergencyContact: formData.emergencyContact
     })
+    
+    // Validation du contact d'urgence
+    let isEmergencyContactValid = false
+    if (formData.emergencyContact) {
+      try {
+        emergencyContactSchema.parse(formData.emergencyContact)
+        isEmergencyContactValid = true
+      } catch (error) {
+        console.log('❌ Contact d\'urgence invalide:', error)
+        isEmergencyContactValid = false
+      }
+    }
     
     const isValid = Boolean(
       formData.firstPaymentDate && 
       formData.firstPaymentDate.trim() !== '' &&
       new Date(formData.firstPaymentDate) >= new Date() &&
-      formData.contractPdf
+      formData.contractPdf &&
+      isEmergencyContactValid
     )
     
     console.log('🔍 Étape valide:', isValid)
     validateCurrentStep(isValid)
-  }, [formData.firstPaymentDate, formData.contractPdf, validateCurrentStep])
+  }, [formData.firstPaymentDate, formData.contractPdf, formData.emergencyContact, validateCurrentStep])
 
   // Fonction de création du contrat
   const handleCreateContract = async () => {
@@ -73,6 +89,19 @@ export function Step3ContractCreation() {
 
       if (!formData.contractPdf) {
         toast.error('Veuillez téléverser le contrat PDF signé.')
+        return
+      }
+
+      // Validation du contact d'urgence
+      if (!formData.emergencyContact) {
+        toast.error('Veuillez remplir les informations du contact d\'urgence.')
+        return
+      }
+
+      try {
+        emergencyContactSchema.parse(formData.emergencyContact)
+      } catch (error) {
+        toast.error('Les informations du contact d\'urgence sont incomplètes ou invalides.')
         return
       }
 
@@ -100,7 +129,8 @@ export function Step3ContractCreation() {
         monthsPlanned: formData.monthsPlanned,
         caisseType: formData.caisseType,
         firstPaymentDate: formData.firstPaymentDate,
-        contractPdf: formData.contractPdf
+        contractPdf: formData.contractPdf,
+        emergencyContact: formData.emergencyContact
       }
 
       console.log('📝 Données du contrat à créer:', contractData)
@@ -382,6 +412,19 @@ export function Step3ContractCreation() {
           )}
         </CardContent>
       </Card>
+
+      {/* Formulaire de contact d'urgence */}
+      <EmergencyContactForm 
+        emergencyContact={formData.emergencyContact}
+        onUpdate={(field: string, value: any) => {
+          updateFormData({ 
+            emergencyContact: { 
+              ...formData.emergencyContact, 
+              [field]: value 
+            } 
+          })
+        }}
+      />
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
