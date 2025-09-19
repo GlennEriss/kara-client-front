@@ -12,10 +12,15 @@ export async function createTestUsers() {
         email: 'jean.dupont@test.com',
         phone: '+241 01 23 45 67',
         membershipType: 'adherant' as const,
-        roles: ['Member'] as const,
+        roles: ['Member'],
         isActive: true,
         hasCar: true,
-        subscriptions: []
+        subscriptions: [],
+        gender: 'Homme',
+        birthDate: '1990-01-15',
+        contacts: ['+241 01 23 45 67'],
+        nationality: 'Gabonaise',
+        dossier: 'test-dossier-1'
       },
       {
         firstName: 'Marie',
@@ -23,10 +28,15 @@ export async function createTestUsers() {
         email: 'marie.martin@test.com',
         phone: '+241 02 34 56 78',
         membershipType: 'bienfaiteur' as const,
-        roles: ['Member'] as const,
+        roles: ['Member'],
         isActive: true,
         hasCar: false,
-        subscriptions: []
+        subscriptions: [],
+        gender: 'Femme',
+        birthDate: '1985-05-20',
+        contacts: ['+241 02 34 56 78'],
+        nationality: 'Gabonaise',
+        dossier: 'test-dossier-2'
       },
       {
         firstName: 'Pierre',
@@ -34,10 +44,15 @@ export async function createTestUsers() {
         email: 'pierre.durand@test.com',
         phone: '+241 03 45 67 89',
         membershipType: 'sympathisant' as const,
-        roles: ['Member'] as const,
+        roles: ['Member'],
         isActive: true,
         hasCar: true,
-        subscriptions: []
+        subscriptions: [],
+        gender: 'Homme',
+        birthDate: '1992-12-10',
+        contacts: ['+241 03 45 67 89'],
+        nationality: 'Gabonaise',
+        dossier: 'test-dossier-3'
       },
       {
         firstName: 'Sophie',
@@ -45,10 +60,15 @@ export async function createTestUsers() {
         email: 'sophie.bernard@test.com',
         phone: '+241 04 56 78 90',
         membershipType: 'adherant' as const,
-        roles: ['Member'] as const,
+        roles: ['Member'],
         isActive: true,
         hasCar: false,
-        subscriptions: []
+        subscriptions: [],
+        gender: 'Femme',
+        birthDate: '1988-08-25',
+        contacts: ['+241 04 56 78 90'],
+        nationality: 'Gabonaise',
+        dossier: 'test-dossier-4'
       },
       {
         firstName: 'Lucas',
@@ -56,10 +76,15 @@ export async function createTestUsers() {
         email: 'lucas.petit@test.com',
         phone: '+241 05 67 89 01',
         membershipType: 'bienfaiteur' as const,
-        roles: ['Member'] as const,
+        roles: ['Member'],
         isActive: true,
         hasCar: true,
-        subscriptions: []
+        subscriptions: [],
+        gender: 'Homme',
+        birthDate: '1995-03-12',
+        contacts: ['+241 05 67 89 01'],
+        nationality: 'Gabonaise',
+        dossier: 'test-dossier-5'
       }
     ]
 
