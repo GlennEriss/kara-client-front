@@ -12,14 +12,10 @@ import {
   Grid3X3,
   List,
   AlertCircle,
-  FileDown,
   Plus,
   TrendingUp,
   CheckCircle,
   Clock,
-  AlertTriangle,
-  XCircle,
-  Users,
   Search,
   Filter,
   Eye,
@@ -32,9 +28,9 @@ import {
   Download,
   BarChart3
 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
-import { useContracts, Contract } from '@/hooks/useContracts'
+import { useContracts } from '@/hooks/useContracts'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
 
@@ -730,15 +726,6 @@ const ListContracts = () => {
                     Exporter Excel
                   </>
                 )}
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => router.push(routes.admin.caisseSpecialeStats)}
-                className="h-10 px-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Statistiques
               </Button>
 
               <Button
