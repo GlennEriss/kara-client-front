@@ -1,3 +1,5 @@
+import { PaymentMode } from "@/types/types"
+
 export type CaisseType = 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
 export type CaisseContractStatus =
   | 'DRAFT'
@@ -28,7 +30,11 @@ export interface CaisseSettings {
 
 export interface CaisseContract {
   id: string
-  memberId: string
+  // Champs pour identifier le type de contrat
+  memberId?: string        // Pour les contrats individuels
+  groupeId?: string        // Pour les contrats de groupe
+  contractType: 'INDIVIDUAL' | 'GROUP'  // Type explicite du contrat
+  
   monthlyAmount: number
   monthsPlanned: number
   createdAt: Date
@@ -57,10 +63,50 @@ export interface CaissePayment {
   status: CaissePaymentStatus
   proofUrl?: string
   createdAt: Date
+  updatedAt?: Date
+  updatedBy?: string // ID de l'administrateur qui a traité le paiement
+  // Informations de paiement
+  time?: string
+  mode?: PaymentMode
   // Extensions pour journalière/libre
   accumulatedAmount?: number
-  contribs?: Array<{ amount: number; paidAt: Date; proofUrl?: string }>
+  contribs?: IndividualPaymentContribution[]
   targetAmount?: number
+  
+  // Extensions pour les contrats de groupe
+  isGroupPayment?: boolean
+  groupContributions?: GroupPaymentContribution[]
+}
+
+export interface GroupPaymentContribution {
+  id: string
+  memberId: string
+  memberName: string
+  memberMatricule: string
+  // Informations complètes du payeur
+  memberFirstName: string
+  memberLastName: string
+  memberPhotoURL?: string
+  memberContacts?: string[]
+  amount: number
+  time: string
+  mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+  proofUrl?: string
+  createdAt: Date
+  updatedAt?: Date
+}
+
+// Type pour les contributions individuelles (contrats individuels)
+export interface IndividualPaymentContribution {
+  id: string
+  amount: number
+  paidAt: Date
+  proofUrl?: string
+  time?: string
+  mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+  memberId?: string
+  memberName?: string
+  memberPhotoURL?: string
 }
 
 export interface CaisseRefund {
@@ -73,5 +119,9 @@ export interface CaisseRefund {
   createdAt: Date
   processedAt?: Date
   proofUrl?: string
+  // Nouveaux champs pour le retrait anticipé
+  reason?: string
+  withdrawalDate?: Date
+  withdrawalTime?: string
 }
 

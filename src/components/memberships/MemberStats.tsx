@@ -39,7 +39,7 @@ const MemberStats = () => {
 
   const statsCards = [
     {
-      title: 'Total Membres',
+      title: 'Total',
       value: stats.total,
       icon: Users,
       color: 'text-[#224D62]',

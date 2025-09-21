@@ -5,16 +5,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, RefreshCw, Trash2, Users, Search, UserPlus, Calendar, Mail, IdCard, UserCheck, Filter, ArrowLeft } from 'lucide-react'
+import { Plus, RefreshCw, Trash2, Users, Search, UserPlus, Calendar, Mail, IdCard, UserCheck, Filter, ArrowLeft, FileText, Download } from 'lucide-react'
 import type { Group, User } from '@/types/types'
 import { listGroups } from '@/db/group.db'
 import { useMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
 import { updateUser } from '@/db/user.db'
-import { removeMemberFromGroup } from '@/db/member.db'
 import { updateGroup } from '@/db/group.db'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useRouter } from 'next/navigation'
+import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 
 interface Props { groupId: string }
 
@@ -93,10 +93,12 @@ export default function GroupDetails({ groupId }: Props) {
 
     const { data: membersData, refetch } = useMembers({} as any, 1, 500)
     const members: User[] = (membersData?.data || []) as any
-    const groupMembers = members.filter((m) => (m as any).groupId === groupId)
+    const groupMembers = members.filter((m) => (m as any).groupIds?.includes(groupId))
     const [addOpen, setAddOpen] = React.useState(false)
+    const [createContractOpen, setCreateContractOpen] = React.useState(false)
     const [toRemove, setToRemove] = React.useState<User | null>(null)
     const [isRemoving, setIsRemoving] = React.useState(false)
+    const [isExporting, setIsExporting] = React.useState(false)
 
     React.useEffect(() => {
         ; (async () => {
@@ -123,6 +125,88 @@ export default function GroupDetails({ groupId }: Props) {
             (m.matricule || '').toLowerCase().includes(q)
         )
     })
+
+    const exportToExcel = async () => {
+        if (filteredMembers.length === 0) {
+            toast.error('Aucun membre à exporter')
+            return
+        }
+
+        setIsExporting(true)
+        try {
+            // Préparer les données pour l'export
+            const exportData = filteredMembers.map((member: any) => {
+                const toISO = (v: any) => {
+                    try {
+                        if (!v) return ''
+                        const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
+                        return isNaN(d.getTime()) ? '' : d.toISOString()
+                    } catch {
+                        return ''
+                    }
+                }
+
+                return {
+                    'Matricule': member?.matricule || member?.id || '',
+                    'Prénom': member?.firstName || '',
+                    'Nom': member?.lastName || '',
+                    'Email': member?.email || '',
+                    'Sexe': member?.gender || '',
+                    'Nationalité': member?.nationality || '',
+                    'Profession': member?.profession || '',
+                    'Province': member?.address?.province || '',
+                    'Ville': member?.address?.city || '',
+                    'Quartier': member?.address?.district || '',
+                    'Arrondissement': member?.address?.arrondissement || '',
+                    'Téléphones': Array.isArray(member?.contacts) ? member.contacts.join(' | ') : '',
+                    'Possède un véhicule': member?.hasCar ? 'Oui' : 'Non',
+                    'Date d\'adhésion': toISO(member?.createdAt),
+                    'Dernière modification': toISO(member?.updatedAt),
+                    'Nombre de groupes': (member?.groupIds || []).length,
+                    'Autres groupes': (member?.groupIds || []).filter((id: string) => id !== groupId).length,
+                }
+            })
+
+            // Créer le fichier CSV avec BOM pour Excel
+            const headers = Object.keys(exportData[0])
+            
+            // Ajouter le BOM UTF-8 pour Excel
+            const BOM = '\uFEFF'
+            
+            const csvContent = BOM + [
+                headers.join(';'),
+                ...exportData.map((row: Record<string, any>) => 
+                    headers.map(header => {
+                        const value = row[header]
+                        // Échapper les points-virgules et guillemets dans les valeurs
+                        if (typeof value === 'string' && (value.includes(';') || value.includes('"'))) {
+                            return `"${value.replace(/"/g, '""')}"`
+                        }
+                        return value
+                    }).join(';')
+                )
+            ].join('\r\n')
+
+            // Créer et télécharger le fichier
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+            const link = document.createElement('a')
+            const url = URL.createObjectURL(blob)
+            link.setAttribute('href', url)
+            link.setAttribute('download', `membres-groupe-${group?.name || 'groupe'}-${new Date().toISOString().split('T')[0]}.csv`)
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            URL.revokeObjectURL(url)
+
+            toast.success('Export réussi !')
+        } catch (error) {
+            console.error('Erreur lors de l\'export:', error)
+            toast.error('Erreur lors de l\'export')
+        } finally {
+            setIsExporting(false)
+        }
+    }
 
     if (isLoading) {
         return (
@@ -233,7 +317,7 @@ export default function GroupDetails({ groupId }: Props) {
                         trend="correspondances trouvées"
                     />
                     <StatCard
-                        title="Total membres"
+                        title="Total"
                         value={members.length}
                         icon={UserCheck}
                         color="#f59e0b"
@@ -266,11 +350,36 @@ export default function GroupDetails({ groupId }: Props) {
                                     Actualiser
                                 </Button>
                                 <Button
+                                    variant="outline"
+                                    onClick={exportToExcel}
+                                    disabled={isExporting || filteredMembers.length === 0}
+                                    className="h-12 px-6 border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isExporting ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-green-300 border-t-green-600 rounded-full animate-spin mr-2" />
+                                            Export...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Exporter Excel
+                                        </>
+                                    )}
+                                </Button>
+                                <Button
                                     className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
                                     onClick={() => setAddOpen(true)}
                                 >
                                     <Plus className="w-4 h-4 mr-2" />
                                     Ajouter un membre
+                                </Button>
+                                <Button
+                                    className="h-12 px-6 bg-gradient-to-r from-[#CBB171] to-[#D4C084] hover:from-[#D4C084] hover:to-[#CBB171] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
+                                    onClick={() => setCreateContractOpen(true)}
+                                >
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Créer un contrat
                                 </Button>
                             </div>
                         </div>
@@ -298,7 +407,7 @@ export default function GroupDetails({ groupId }: Props) {
                                 <p className="text-gray-600 mb-6">
                                     {query
                                         ? 'Essayez de modifier votre recherche.'
-                                        : 'Commencez par ajouter des membres à ce groupe.'
+                                        : 'Commencez par ajouter des membres à ce groupe. Les membres peuvent appartenir à plusieurs groupes simultanément.'
                                     }
                                 </p>
                                 {!query && (
@@ -342,18 +451,27 @@ export default function GroupDetails({ groupId }: Props) {
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                                                    Membre actif
-                                                </Badge>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setToRemove(m)}
-                                                    className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 transition-colors duration-300"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
+                                            <div className="space-y-2">
+                                                {/* Afficher les autres groupes si le membre en a */}
+                                                {(m as any).groupIds && (m as any).groupIds.length > 1 && (
+                                                    <div className="flex items-center gap-1 text-xs text-blue-600">
+                                                        <Users className="w-3 h-3" />
+                                                        <span>+{(m as any).groupIds.length - 1} autre{(m as any).groupIds.length > 2 ? 's' : ''} groupe{(m as any).groupIds.length > 2 ? 's' : ''}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                                        Membre actif
+                                                    </Badge>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setToRemove(m)}
+                                                        className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 transition-colors duration-300"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -372,6 +490,17 @@ export default function GroupDetails({ groupId }: Props) {
                     onAdded={async () => {
                         await refetch()
                         toast.success('✅ Membre ajouté au groupe avec succès')
+                    }}
+                />
+
+                {/* Modal création de contrat pour le groupe */}
+                <CreateGroupCaisseContractButton
+                    open={createContractOpen}
+                    onClose={() => setCreateContractOpen(false)}
+                    groupId={groupId}
+                    groupName={group?.name || 'Groupe'}
+                    onCreated={async () => {
+                        toast.success('✅ Contrat créé pour le groupe avec succès')
                     }}
                 />
 
@@ -402,7 +531,10 @@ export default function GroupDetails({ groupId }: Props) {
                                     if (!toRemove) return
                                     try {
                                         setIsRemoving(true)
-                                        const ok = await removeMemberFromGroup(toRemove.id, 'system')
+                                        // Retirer le groupe de la liste des groupes du membre
+                                        const currentGroupIds = (toRemove as any).groupIds || []
+                                        const newGroupIds = currentGroupIds.filter((id: string) => id !== groupId)
+                                        const ok = await updateUser(toRemove.id, { groupIds: newGroupIds })
                                         if (!ok) throw new Error('fail')
                                         await updateGroup(groupId, { updatedBy: 'system' })
                                         await refetch()
@@ -477,7 +609,12 @@ function AddMemberDialog({
     const [adding, setAdding] = React.useState<Record<string, boolean>>({})
 
     const candidates = React.useMemo(() => {
-        const base = allMembers.filter((m) => !(m as any).groupId)
+        // Maintenant on peut ajouter des membres qui appartiennent déjà à d'autres groupes
+        // On exclut seulement ceux qui sont déjà dans ce groupe spécifique
+        const base = allMembers.filter((m) => {
+            const memberGroupIds = (m as any).groupIds || []
+            return !memberGroupIds.includes(groupId)
+        })
         const q = search.trim().toLowerCase()
         if (!q) return base
         return base.filter((m) =>
@@ -486,12 +623,16 @@ function AddMemberDialog({
             (m.matricule || '').toLowerCase().includes(q) ||
             (m.email || '').toLowerCase().includes(q)
         )
-    }, [allMembers, search])
+    }, [allMembers, search, groupId])
 
     const handleAdd = async (userId: string) => {
         try {
             setAdding((s) => ({ ...s, [userId]: true }))
-            const ok = await updateUser(userId, { groupId })
+            // Ajouter le groupe à la liste existante des groupes du membre
+            const member = allMembers.find(m => m.id === userId)
+            const currentGroupIds = (member as any)?.groupIds || []
+            const newGroupIds = [...currentGroupIds, groupId]
+            const ok = await updateUser(userId, { groupIds: newGroupIds })
             if (!ok) throw new Error('Échec de la mise à jour')
             await onAdded()
         } catch {
@@ -509,7 +650,7 @@ function AddMemberDialog({
                         Ajouter un membre au groupe
                     </DialogTitle>
                     <DialogDescription className="text-gray-600">
-                        Sélectionnez un ou plusieurs membres sans groupe et ajoutez-les à ce groupe
+                        Sélectionnez un ou plusieurs membres et ajoutez-les à ce groupe. Les membres peuvent appartenir à plusieurs groupes simultanément.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -536,7 +677,7 @@ function AddMemberDialog({
                                 <p className="text-gray-600">
                                     {search
                                         ? 'Essayez de modifier votre recherche.'
-                                        : 'Tous les membres sont déjà assignés à des groupes.'
+                                        : 'Tous les membres sont déjà dans ce groupe.'
                                     }
                                 </p>
                             </div>
@@ -564,6 +705,13 @@ function AddMemberDialog({
                                                         {m.email || '—'}
                                                     </span>
                                                 </div>
+                                                {/* Afficher les groupes existants si le membre en a déjà */}
+                                                {(m as any).groupIds && (m as any).groupIds.length > 0 && (
+                                                    <div className="flex items-center gap-1 text-xs text-blue-600">
+                                                        <Users className="w-3 h-3" />
+                                                        <span>Déjà dans {(m as any).groupIds.length} autre{(m as any).groupIds.length > 1 ? 's' : ''} groupe{(m as any).groupIds.length > 1 ? 's' : ''}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -600,6 +748,174 @@ function AddMemberDialog({
                         className="h-11 px-6 border-2 rounded-lg"
                     >
                         Fermer
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function CreateGroupCaisseContractButton({
+    open,
+    onClose,
+    groupId,
+    groupName,
+    onCreated
+}: {
+    open: boolean
+    onClose: () => void
+    groupId: string
+    groupName: string
+    onCreated: () => Promise<void>
+}) {
+    const router = useRouter()
+    const [amount, setAmount] = React.useState(10000)
+    const [months, setMonths] = React.useState(12)
+    const [caisseType, setCaisseType] = React.useState<'STANDARD' | 'JOURNALIERE' | 'LIBRE'>('STANDARD')
+    const [firstPaymentDate, setFirstPaymentDate] = React.useState('')
+    const [loading, setLoading] = React.useState(false)
+
+    // Validation des paramètres de la Caisse Spéciale
+    const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(caisseType)
+
+    const isDaily = caisseType === 'JOURNALIERE'
+    const isLibre = caisseType === 'LIBRE'
+
+    React.useEffect(() => {
+        if (isLibre && amount < 100000) {
+            setAmount(100000)
+        }
+    }, [caisseType])
+
+    const onCreate = async () => {
+        try {
+            setLoading(true)
+            
+            // Validation des paramètres de la Caisse Spéciale
+            if (!isValid || isValidating) {
+                toast.error('Les paramètres de la Caisse Spéciale ne sont pas configurés. Impossible de créer un contrat.')
+                return
+            }
+            
+            if (isLibre && amount < 100000) {
+                toast.error('Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA.')
+                return
+            }
+            if (!firstPaymentDate) {
+                toast.error('Veuillez sélectionner la date du premier versement.')
+                return
+            }
+
+            // Créer le contrat pour le groupe
+            const { subscribe } = await import('@/services/caisse/mutations')
+            await subscribe({ 
+                groupeId: groupId,
+                monthlyAmount: amount, 
+                monthsPlanned: months, 
+                caisseType, 
+                firstPaymentDate
+            })
+            
+            toast.success('Contrat créé pour le groupe')
+            onClose()
+            await onCreated()
+        } catch (e: any) {
+            toast.error(e?.message || 'Création impossible')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={(o) => !loading && onClose()}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Nouveau contrat Caisse Spéciale - {groupName}</DialogTitle>
+                    <DialogDescription>Définissez le montant, la durée et la caisse pour ce groupe.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-sm mb-1">
+                            {caisseType === 'STANDARD' ? 'Montant mensuel' : caisseType === 'JOURNALIERE' ? 'Objectif mensuel' : 'Montant mensuel (minimum 100 000)'}
+                        </label>
+                        <input
+                            type="number"
+                            min={isLibre ? 100000 : 100}
+                            step={100}
+                            className="border rounded p-2 w-full"
+                            value={amount}
+                            onChange={(e) => setAmount(Number(e.target.value))}
+                        />
+                        {isDaily && (
+                            <div className="text-xs text-gray-500 mt-1">L'objectif est atteint par contributions quotidiennes sur le mois.</div>
+                        )}
+                        {isLibre && (
+                            <div className="text-xs text-gray-500 mt-1">Le total versé par mois doit être au moins 100 000 FCFA.</div>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-sm mb-1">Durée (mois)</label>
+                        <input type="number" min={1} max={12} className="border rounded p-2 w-full" value={months} onChange={(e) => setMonths(Number(e.target.value))} />
+                    </div>
+                    <div>
+                        <label className="block text-sm mb-1">Caisse</label>
+                        <select className="border rounded p-2 w-full" value={caisseType} onChange={(e) => setCaisseType(e.target.value as 'STANDARD' | 'JOURNALIERE' | 'LIBRE')}>
+                            <option value="STANDARD">Standard</option>
+                            <option value="JOURNALIERE">Journalière</option>
+                            <option value="LIBRE">Libre</option>
+                        </select>
+                        
+                        {/* Validation des paramètres */}
+                        {isValidating && (
+                            <div className="text-xs text-blue-600 mt-1">Vérification des paramètres...</div>
+                        )}
+                        
+                        {!isValidating && !isValid && validationError && (
+                            <div className="flex items-start gap-2 p-3 mt-2 bg-red-50 border border-red-200 rounded-md">
+                                <div className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0">⚠️</div>
+                                <div className="text-xs text-red-700">
+                                    <div className="font-medium mb-1">Paramètres manquants</div>
+                                    <div>{validationError}</div>
+                                    <div className="mt-2 text-red-600">
+                                        Veuillez configurer les paramètres de la Caisse Spéciale dans l'administration avant de créer un contrat.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {!isValidating && isValid && settings && (
+                            <div className="flex items-start gap-2 p-3 mt-2 bg-green-50 border border-green-200 rounded-md">
+                                <div className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0">✓</div>
+                                <div className="text-xs text-green-700">
+                                    <div className="font-medium mb-1">Paramètres configurés</div>
+                                    <div>Version active depuis le {new Date(settings.effectiveAt?.toDate?.() || settings.effectiveAt).toLocaleDateString('fr-FR')}</div>
+                                    <div className="mt-2 text-green-600">
+                                        Vous pouvez maintenant créer un contrat avec ce type de caisse.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-sm mb-1">Date du premier versement *</label>
+                        <input 
+                            type="date" 
+                            className="border rounded p-2 w-full" 
+                            value={firstPaymentDate} 
+                            onChange={(e) => setFirstPaymentDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            required
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={loading}>Annuler</Button>
+                    <Button 
+                        className="bg-[#CBB171] text-white hover:bg-[#D4C084]" 
+                        onClick={onCreate} 
+                        disabled={loading || !isValid || isValidating}
+                    >
+                        {loading ? 'Création…' : 'Créer pour le groupe'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

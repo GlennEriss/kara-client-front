@@ -28,6 +28,7 @@ interface Step5Props {
   userData?: {
     firstName?: string
     lastName?: string
+    civility?: string
   }
   membershipId?: string
 }
@@ -39,6 +40,35 @@ export default function Step5({ userData, membershipId }: Step5Props) {
   const [selectedProvider, setSelectedProvider] = useState<'airtel' | 'mobicash'>('airtel')
   
   const { checkMembershipStatus, resetForm } = useRegister()
+
+  // Fonction pour formater le message de félicitations avec civilité
+  const getGreetingMessage = () => {
+    if (!userData?.firstName || !userData?.lastName) {
+      return "Félicitations !"
+    }
+
+    const civility = userData.civility || ''
+    const firstName = userData.firstName
+    const lastName = userData.lastName
+
+    // Formater la civilité pour l'affichage
+    let civilityPrefix = ''
+    switch (civility) {
+      case 'Monsieur':
+        civilityPrefix = 'M.'
+        break
+      case 'Madame':
+        civilityPrefix = 'Mme'
+        break
+      case 'Mademoiselle':
+        civilityPrefix = 'Mlle'
+        break
+      default:
+        civilityPrefix = ''
+    }
+
+    return `Félicitations ${civilityPrefix} ${lastName} ${firstName} !`
+  }
 
   // Numéros depuis les variables d'environnement
   const airtelNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_AIRTEL || "XX XX XX XX XX"
@@ -130,10 +160,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
             Demande soumise avec succès !
           </h1>
           <p className="text-base sm:text-lg text-[#CBB171] font-medium animate-in slide-in-from-bottom-4 duration-700 delay-400">
-            {userData?.firstName && userData?.lastName
-              ? `Félicitations ${userData.firstName} ${userData.lastName} !`
-              : "Félicitations !"
-            }
+            {getGreetingMessage()}
           </p>
         </div>
 

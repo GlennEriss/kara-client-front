@@ -1,95 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Menu, X, Heart, Users, Lightbulb, Gift, CalendarCheck, PiggyBank, Cross, HandHeart, MousePointer, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Star, Home, HeartHandshake, ChevronDown, ChevronUp } from 'lucide-react'
+import { Menu, X, Heart, Users, Lightbulb, Gift, CalendarCheck, PiggyBank, Cross, HandHeart, MousePointer, Mail, Phone, MapPin, Star, Home, HeartHandshake } from 'lucide-react'
+import { IconBrandTiktok, IconBrandFacebook, IconBrandInstagram, IconBrandLinkedin, IconBrandTwitter, IconBrandYoutube } from '@tabler/icons-react'
 import { NavbarLogo, FooterLogo } from '@/components/logo'
 import './homepage.css'
-import { useRouter } from 'next/navigation'
-import routes from '@/constantes/routes'
-import { useAuth } from '@/hooks/useAuth'
+import { useHomepage } from '@/hooks/homepage/useHomepage'
+import { TruncatedText } from './TruncatedText'
+
 const Homepage = () => {
-  const { user } = useAuth()
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [expandedTexts, setExpandedTexts] = useState<Record<string, boolean>>({})
-  const router = useRouter()
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId)
-    if (element) {
-      // Calculer la position avec offset pour la navbar fixe
-      const navbarHeight = 100 // Hauteur approximative de la navbar + padding
-      const elementPosition = element.offsetTop - navbarHeight
-
-      window.scrollTo({
-        top: elementPosition,
-        behavior: 'smooth'
-      })
-      setIsMenuOpen(false)
-    }
-  }
-
-  const toggleText = (textId: string) => {
-    setExpandedTexts(prev => ({
-      ...prev,
-      [textId]: !prev[textId]
-    }))
-  }
-
-  const handleRegister = () => {
-    router.push(routes.public.register)
-  }
-
-  const TruncatedText = ({
-    id,
-    fullText,
-    truncatedText,
-    className = "text-lg leading-relaxed text-gray-700"
-  }: {
-    id: string
-    fullText: string
-    truncatedText: string
-    className?: string
-  }) => {
-    const isExpanded = expandedTexts[id]
-    return (
-      <div>
-        <p className={className}>
-          {isExpanded ? fullText : truncatedText}
-        </p>
-        <button
-          onClick={() => toggleText(id)}
-          className="md:hidden mt-2 text-kara-blue hover:text-kara-gold transition-colors text-sm font-medium flex items-center"
-        >
-          {isExpanded ? (
-            <>
-              Voir moins <ChevronUp size={16} className="ml-1" />
-            </>
-          ) : (
-            <>
-              Voir plus <ChevronDown size={16} className="ml-1" />
-            </>
-          )}
-        </button>
-      </div>
-    )
-  }
+  // Utilisation du hook de logique métier
+  const { state, actions } = useHomepage()
+  const { isMenuOpen, isScrolled, expandedTexts, user } = state
+  const { toggleMenu, scrollToSection, toggleText, handleRegister } = actions
 
   return (
-    <div className="min-h-screen bg-white font-montserrat">
+    <div className="h-screen bg-white font-montserrat">
       {/* Navigation */}
-      <nav className={`fixed w-full z-50 transition-all duration-300 py-4 ${isScrolled ? 'navbar-scrolled' : ''
-        }`}>
-        <div className="container mx-auto px-4">
+      <nav className={`fixed w-full z-50 transition-all duration-500 ${isScrolled ? 'py-3 navbar-scrolled' : 'py-4'}`}>
+        <div className="container mx-auto px-4 lg:px-6">
           <div className="flex justify-between items-center">
             <NavbarLogo
               size="lg"
@@ -100,24 +30,25 @@ const Homepage = () => {
             />
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex space-x-8">
+            <div className="hidden lg:flex items-center space-x-8">
               {['accueil', 'qui-sommes-nous', 'objectifs', 'services', 'adhesion', 'contact'].map((item) => (
                 <button
                   key={item}
                   onClick={() => scrollToSection(item)}
-                  className="text-white hover:text-kara-gold transition-colors duration-300 capitalize"
+                  className={`relative font-medium transition-all duration-300 capitalize group ${isScrolled ? 'text-kara-blue' : 'text-white'
+                    } hover:text-kara-gold`}
                 >
                   {item.replace('-', ' ')}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-kara-gold transition-all duration-300 group-hover:w-full"></span>
                 </button>
               ))}
               <Button
                 variant={isScrolled ? 'outline' : 'default'}
-                className={
-                  isScrolled
-                    ? 'text-kara-blue border-2 border-kara-blue hover:bg-kara-blue hover:text-white transition-colors duration-300'
-                    : 'bg-kara-blue text-white hover:bg-kara-gold hover:text-white border-none transition-colors duration-300'
-                }
-                onClick={() => router.push(routes.public.login)}
+                className={`ml-4 px-6 py-2 rounded-full font-semibold transition-all duration-300 ${isScrolled
+                    ? 'text-kara-blue border-2 border-kara-blue hover:bg-kara-blue hover:text-white hover:scale-105'
+                    : 'bg-kara-blue text-white hover:bg-kara-gold hover:text-white hover:scale-105 border-none'
+                  }`}
+                onClick={() => actions.handleRegister()}
               >
                 {user ? 'Mon espace' : 'Se connecter'}
               </Button>
@@ -125,33 +56,39 @@ const Homepage = () => {
 
             {/* Mobile Menu Toggle */}
             <button
-              className="md:hidden text-white"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="lg:hidden p-2 rounded-lg transition-all duration-300 hover:bg-white/10"
+              onClick={toggleMenu}
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMenuOpen ? (
+                <X size={24} className={isScrolled ? 'text-kara-blue' : 'text-white'} />
+              ) : (
+                <Menu size={24} className={isScrolled ? 'text-kara-blue' : 'text-white'} />
+              )}
             </button>
           </div>
 
           {/* Mobile Menu */}
           {isMenuOpen && (
-            <div className="md:hidden mobile-menu mt-4 rounded-lg mx-4">
-              <div className="py-4 px-6 space-y-4">
+            <div className="lg:hidden mobile-menu mt-6 rounded-xl mx-4 animate-fade-in-up">
+              <div className="py-6 px-6 space-y-4">
                 {['accueil', 'qui-sommes-nous', 'objectifs', 'services', 'adhesion', 'contact'].map((item) => (
                   <button
                     key={item}
                     onClick={() => scrollToSection(item)}
-                    className="block text-kara-blue hover:text-kara-gold transition-colors capitalize w-full text-left"
+                    className="block text-kara-blue hover:text-kara-gold transition-all duration-300 capitalize w-full text-left py-2 px-2 rounded-lg hover:bg-kara-blue/5 font-medium"
                   >
                     {item.replace('-', ' ')}
                   </button>
                 ))}
-                <Button
-                  variant="outline"
-                  className="w-full text-kara-blue border-kara-blue hover:bg-kara-blue hover:text-white transition-colors"
-                  onClick={() => router.push(routes.public.login)}
-                >
-                  Se connecter
-                </Button>
+                <div className="pt-4 border-t border-kara-blue/10">
+                  <Button
+                    variant="outline"
+                    className="w-full text-kara-blue border-kara-blue hover:bg-kara-blue hover:text-white transition-all duration-300 rounded-full py-3 font-semibold"
+                    onClick={() => actions.handleRegister()}
+                  >
+                    Se connecter
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -159,88 +96,122 @@ const Homepage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section id="accueil" className="hero-section min-h-screen flex items-center">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="text-white space-y-6 animate-fade-in-left">
-              <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
-                KARA
-                <span className="block text-kara-gold">Mutuelle de Solidarité</span>
-              </h1>
-              <TruncatedText
-                id="hero-description"
-                fullText="Une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue."
-                truncatedText="Une famille élargie et inclusive, un réseau de cœurs ouverts..."
-                className="text-xl font-light leading-relaxed opacity-90"
-              />
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+      <section id="accueil" className="hero-section md:px-5 min-h-screen flex items-center relative overflow-hidden">
+        <div className="container mx-auto px-4 lg:px-6 relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 xl:gap-16 items-center">
+            <div className="text-white space-y-8 animate-fade-in-left">
+              <div className="space-y-4">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-[1.1]">
+                  <span className="block mt-10">KARA</span>
+                  <span className="block text-kara-gold bg-gradient-to-r from-kara-gold to-yellow-400 bg-clip-text text-transparent">
+                    Mutuelle de Solidarité
+                  </span>
+                </h1>
+                <div className="w-24 h-1 bg-gradient-to-r from-kara-gold to-transparent rounded-full"></div>
+              </div>
+
+              <p className="text-lg sm:text-xl lg:text-2xl font-light leading-relaxed opacity-95 max-w-lg">
+                Une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Button
-                  className="btn-primary px-8 py-4 rounded-full font-semibold text-lg"
+                  className="btn-primary px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 group"
                   onClick={() => scrollToSection('adhesion')}
                 >
-                  <Heart className="mr-2" size={20} />
+                  <Heart className="mr-2 group-hover:scale-110 transition-transform duration-300" size={20} />
                   Nous Rejoindre
                 </Button>
                 <Button
                   variant="outline"
-                  className="btn-secondary px-8 py-4 rounded-full font-semibold text-lg"
+                  className="btn-secondary px-8 py-4 rounded-full font-semibold text-lg border-2 border-white/30 text-white hover:bg-white hover:text-kara-blue transition-all duration-300 group"
                   onClick={() => scrollToSection('qui-sommes-nous')}
                 >
-                  <Users className="mr-2" size={20} />
+                  <Users className="mr-2 group-hover:scale-110 transition-transform duration-300" size={20} />
                   En Savoir Plus
                 </Button>
               </div>
             </div>
 
-            <div className="animate-fade-in-right">
-              <div className="relative">
-                <div className="hero-card w-full h-96 rounded-3xl overflow-hidden floating">
+            <div className="animate-fade-in-right lg:justify-self-end">
+              <div className="relative max-w-lg mx-auto">
+                <div className="hero-card w-full h-80 sm:h-96 lg:h-[28rem] rounded-3xl overflow-hidden floating shadow-2xl">
                   <img
                     src="/imgkara.webp"
                     alt="KARA - Solidarité Active"
                     className="hero-image-full w-full h-full object-cover"
+                    loading="eager"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-kara-blue/20 to-transparent"></div>
                 </div>
-                <div className="hero-badge absolute -top-6 -right-6 w-24 h-24 bg-kara-gold rounded-full flex items-center justify-center animate-bounce-in">
-                  <Star className="text-white" size={32} />
+                <div className="hero-badge absolute -top-4 -right-4 sm:-top-6 sm:-right-6 w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-kara-gold to-yellow-400 rounded-full flex items-center justify-center animate-bounce-in shadow-xl">
+                  <Star className="text-white animate-pulse" size={24} />
                 </div>
+
+                {/* Decorative elements */}
+                <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-kara-gold/20 rounded-full blur-xl animate-pulse"></div>
+                <div className="absolute -top-8 -left-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Background decorative elements */}
+        <div className="absolute top-1/4 right-10 w-2 h-2 bg-kara-gold rounded-full animate-ping opacity-60"></div>
+        <div className="absolute bottom-1/3 left-10 w-1 h-1 bg-white rounded-full animate-ping opacity-40"></div>
+        <div className="absolute top-1/2 right-1/4 w-1.5 h-1.5 bg-kara-gold rounded-full animate-pulse opacity-50"></div>
       </section>
 
       {/* Qui sommes-nous Section */}
-      <section id="qui-sommes-nous" className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4">
+      <section id="qui-sommes-nous" className="py-16 md:px-5 lg:py-24 bg-gradient-to-br from-gray-50 to-white relative">
+        <div className="container mx-auto px-4 lg:px-6">
           <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl font-bold text-kara-blue mb-4">Qui sommes-nous?</h2>
-            <div className="section-divider mx-auto"></div>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-kara-blue/10 rounded-2xl mb-6">
+              <Users className="w-8 h-8 text-kara-blue" />
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-kara-blue mb-6">
+              Qui sommes-nous?
+            </h2>
+            <div className="section-divider mx-auto mb-4"></div>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Découvrez l'histoire et les valeurs qui animent notre mutuelle
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-stretch">
-            <Card className="card-hover animate-slide-in-left h-full">
-              <CardContent className="p-8 flex flex-col h-full">
-                <div className="text-6xl text-kara-gold mb-6 text-center">
-                  <Home size={80} />
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-stretch max-w-6xl mx-auto">
+            <Card className="card-hover animate-slide-in-left h-full group">
+              <CardContent className="p-8 lg:p-10 flex flex-col h-full text-center">
+                <div className="relative mb-8">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-kara-gold/20 to-kara-gold/10 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                    <Home size={40} className="text-kara-gold" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-kara-gold/20 rounded-full animate-pulse"></div>
                 </div>
                 <div className="flex-grow">
+                  <h3 className="text-xl font-bold text-kara-blue mb-6">Notre origine</h3>
                   <TruncatedText
                     id="qui-sommes-nous-1"
                     fullText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité, la mutuelle KARA est une association gabonaise à but non lucratif s'inscrivant dans une démarche purement sociale."
                     truncatedText="Née du désir profond des jeunes d'Awoungou de créer un espace d'entraide, de partage et de solidarité"
+                    className="text-gray-700 leading-relaxed"
+                    expandedTexts={expandedTexts}
+                    onToggle={toggleText}
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="card-hover animate-slide-in-right h-full">
-              <CardContent className="p-8 flex flex-col h-full">
-                <div className="text-6xl text-kara-blue mb-6 text-center">
-                  <HeartHandshake size={80} />
+            <Card className="card-hover animate-slide-in-right h-full group">
+              <CardContent className="p-8 lg:p-10 flex flex-col h-full text-center">
+                <div className="relative mb-8">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-kara-blue/20 to-kara-blue/10 rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                    <HeartHandshake size={40} className="text-kara-blue" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-kara-blue/20 rounded-full animate-pulse"></div>
                 </div>
-                <div className="flex-grow flex items-center">
-                  <p className="text-lg leading-relaxed text-gray-700">
+                <div className="flex-grow flex flex-col justify-center">
+                  <h3 className="text-xl font-bold text-kara-blue mb-6">Notre vision</h3>
+                  <p className="text-gray-700 leading-relaxed text-lg">
                     Kara c'est d'abord une famille élargie et inclusive, un réseau de cœurs ouverts qui refusent l'indifférence et choisissent la main tendue.
                   </p>
                 </div>
@@ -248,10 +219,14 @@ const Homepage = () => {
             </Card>
           </div>
         </div>
+
+        {/* Background decoration */}
+        <div className="absolute top-10 right-10 w-20 h-20 bg-kara-gold/5 rounded-full blur-xl"></div>
+        <div className="absolute bottom-10 left-10 w-32 h-32 bg-kara-blue/5 rounded-full blur-2xl"></div>
       </section>
 
       {/* Objectifs Section */}
-      <section id="objectifs" className="py-20 bg-white">
+      <section id="objectifs" className="py-20 md:px-5 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 animate-fade-in-up">
             <h2 className="text-4xl font-bold text-kara-blue mb-4">Nos Objectifs</h2>
@@ -269,6 +244,8 @@ const Homepage = () => {
                 fullText="Encourager la solidarité active entre les membres en mettant tout en œuvre pour accompagner humainement, financièrement et matériellement chacun des membres dans ses événements heureux comme malheureux."
                 truncatedText="Encourager la solidarité active entre les membres en mettant tout en œuvre pour accompagner humainement, financièrement et matériellement..."
                 className="text-gray-700 leading-relaxed"
+                expandedTexts={expandedTexts}
+                onToggle={toggleText}
               />
             </div>
 
@@ -323,6 +300,8 @@ const Homepage = () => {
                   fullText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre. En contrepartie des versements mensuels, la mutuelle KARA assure la conservation et la mise à disposition de ces fonds aux épargnants en cas de besoin."
                   truncatedText="La Caisse spéciale est un fond volontaire destiné à encourager l'épargne volontaire et l'autonomie de chaque membre..."
                   className="text-gray-700 text-sm leading-relaxed"
+                  expandedTexts={expandedTexts}
+                  onToggle={toggleText}
                 />
               </CardContent>
             </Card>
@@ -346,6 +325,8 @@ const Homepage = () => {
                   fullText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur» de contribuer exceptionnellement aux œuvres caritatives qu'elle organise."
                   truncatedText="Parce que la générosité n'a pas de frontières, KARA offre la possibilité à une catégorie de membres dits «bienfaiteur»..."
                   className="text-gray-700 text-sm leading-relaxed"
+                  expandedTexts={expandedTexts}
+                  onToggle={toggleText}
                 />
               </CardContent>
             </Card>
@@ -358,7 +339,7 @@ const Homepage = () => {
       </section>
 
       {/* Adhésion Section */}
-      <section id="adhesion" className="py-20 bg-white">
+      <section id="adhesion" className="py-20 md:px-5 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-fade-in-up">
@@ -373,6 +354,8 @@ const Homepage = () => {
                     fullText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur. En adhérant à KARA, vous faîtes le choix d'impacter positivement le monde de votre façon et de semer une graine d'amour dans un cœur."
                     truncatedText="En un clic, vous pouvez choisir dès maintenant de rejoindre notre chaîne de solidarité et découvrir notre règlement intérieur..."
                     className="text-xl leading-relaxed mb-8"
+                    expandedTexts={expandedTexts}
+                    onToggle={toggleText}
                   />
                   <Button onClick={handleRegister} className="btn-secondary px-12 py-4 rounded-full font-bold text-lg mb-6">
                     <Users className="mr-3" size={20} />
@@ -400,23 +383,25 @@ const Homepage = () => {
           </div>
 
           <div className="max-w-2xl mx-auto">
-            <Card className="contact-card p-12 animate-scale-in">
+            <Card className="contact-card animate-scale-in">
               <CardContent>
                 <div className="text-center">
                   <Mail className="text-kara-blue mx-auto mb-6" size={80} />
                   <h3 className="text-2xl font-bold text-kara-blue mb-6">Contactez-nous</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center space-x-3">
-                      <Mail className="text-kara-gold" size={20} />
-                      <span className="text-lg">contact@kara-mutuelle.ga</span>
-                    </div>
-                    <div className="flex items-center justify-center space-x-3">
-                      <Phone className="text-kara-gold" size={20} />
-                      <span className="text-lg">+241 XX XX XX XX</span>
-                    </div>
-                    <div className="flex items-center justify-center space-x-3">
-                      <MapPin className="text-kara-gold" size={20} />
-                      <span className="text-lg">Awoungou, Gabon</span>
+                  <div className="flex justify-center">
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-3">
+                        <Mail className="text-kara-gold" size={20} />
+                        <span className="text-lg">contact@kara-mutuelle.ga</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <Phone className="text-kara-gold" size={20} />
+                        <span className="text-lg">+241 XX XX XX XX</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <MapPin className="text-kara-gold" size={20} />
+                        <span className="text-lg">Awoungou, Gabon</span>
+                      </div>
                     </div>
                   </div>
                   <Button className="btn-primary px-8 py-3 rounded-full font-semibold mt-8">
@@ -433,11 +418,11 @@ const Homepage = () => {
       {/* Footer */}
       <footer className="footer-section text-white py-12">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div className="text-center">
               <FooterLogo
                 size="lg"
-                className="mb-4"
+                className="mb-4 mx-auto"
                 clickable
                 onClick={() => scrollToSection('accueil')}
               />
@@ -446,7 +431,7 @@ const Homepage = () => {
               </p>
             </div>
 
-            <div>
+            <div className="text-center">
               <h4 className="text-xl font-semibold mb-4">Liens Rapides</h4>
               <ul className="space-y-2">
                 {[
@@ -466,23 +451,41 @@ const Homepage = () => {
                 ))}
               </ul>
             </div>
+          </div>
 
-            <div>
-              <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
-              <div className="flex space-x-4">
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Facebook size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Twitter size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Instagram size={24} />
-                </button>
-                <button className="text-gray-300 hover:text-kara-gold transition-colors">
-                  <Linkedin size={24} />
-                </button>
-              </div>
+          <div className="text-center">
+            <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_FACEBOOK_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandFacebook size={24} />
+              </button>
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_TWITTER_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandTwitter size={24} />
+              </button>
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_INSTAGRAM_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandInstagram size={24} />
+              </button>
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_LINKEDIN_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandLinkedin size={24} />
+              </button>
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_YOUTUBE_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandYoutube size={24} />
+              </button>
+              <button
+                onClick={() => window.open(process.env.NEXT_PUBLIC_TIKTOK_URL, '_blank')}
+                className="text-gray-300 hover:text-kara-gold transition-colors">
+                <IconBrandTiktok size={24} />
+              </button>
             </div>
           </div>
 

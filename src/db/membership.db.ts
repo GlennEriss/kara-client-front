@@ -3,11 +3,12 @@
  * Database operations for membership requests (demandes d'adhésion)
  */
 
-import { RegisterFormData } from "@/types/schemas";
+import { RegisterFormData } from "@/schemas/schemas";
 import { createModel } from "./generic.db";
 import { uploadProfilePhoto, uploadDocumentPhoto } from "./upload-image.db";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 import type { MembershipRequestStatus, MembershipRequest, PaginatedMembershipRequests, Payment } from "@/types/types";
+import { generateMatricule } from './user.db'
 
 const getFirestore = () => import("@/firebase/firestore");
 
@@ -67,6 +68,7 @@ function cleanUndefinedValues(obj: any): any {
 // Interface étendue pour la base de données avec champs supplémentaires
 export interface MembershipRequestDB extends Omit<MembershipRequest, 'id' | 'createdAt' | 'updatedAt'> {
     id?: string;
+    matricule: string; // Matricule unique de la demande
     // Champs spécifiques à la base de données pour les photos
     identity: MembershipRequest['identity'] & {
         photoURL?: string | null; // URL de la photo uploadée
@@ -123,6 +125,10 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
                               formData.identity.contacts[0] || 
                               `${formData.identity.firstName}_${formData.identity.lastName}_${Date.now()}`;
 
+        // Générer un matricule unique pour cette demande
+        const matricule = await generateMatricule()
+        console.log('Matricule généré:', matricule)
+
         // Préparer les données de base (adaptées à createModel)
         // Préparer l'identité sans les propriétés photo initialement
         const { photo, ...identityWithoutPhoto } = formData.identity;
@@ -131,6 +137,7 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
         const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents;
         
         let membershipData: Omit<MembershipRequestDB, 'id' | 'createdAt' | 'updatedAt'> = {
+            matricule, // Ajouter le matricule généré
             identity: {
                 ...identityWithoutPhoto
             },
@@ -219,19 +226,24 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
 
         // Nettoyer toutes les valeurs undefined avant d'envoyer à Firestore
         const cleanedMembershipData = cleanUndefinedValues(membershipData);
-console.log('cleanedMembershipData', cleanedMembershipData)
-        // Sauvegarder dans Firestore (createModel ajoute automatiquement les timestamps)
-        const membershipId = await createModel<typeof membershipData>(
-            cleanedMembershipData, 
-            firebaseCollectionNames.membershipRequests || "membership-requests"
-        );
+        console.log('cleanedMembershipData', cleanedMembershipData)
+        
+        // Créer le document avec l'ID personnalisé (le matricule)
+        const { db, doc, setDoc, serverTimestamp } = await getFirestore();
+        const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", matricule);
+        
+        // Ajouter les timestamps
+        const finalData = {
+            ...cleanedMembershipData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+        
+        // Sauvegarder avec l'ID personnalisé
+        await setDoc(docRef, finalData);
 
-        if (!membershipId) {
-            throw new Error("Erreur lors de la création de la demande d'adhésion");
-        }
-
-        console.log(`Demande d'adhésion créée avec succès: ${membershipId}`);
-        return membershipId;
+        console.log(`Demande d'adhésion créée avec succès: ID=${matricule}, Matricule: ${matricule}`);
+        return matricule; // Retourner le matricule comme ID
 
     } catch (error) {
         console.error("Erreur lors de la création de la demande d'adhésion:", error);
@@ -562,11 +574,28 @@ export async function findMembershipRequestsByEmail(email: string): Promise<Memb
  */
 export async function findMembershipRequestsByPhone(phoneNumber: string): Promise<MembershipRequest[]> {
     try {
-        const { getDocs, where, query, collection, db } = await getFirestore();
-        const q = query(
-            collection(db, firebaseCollectionNames.membershipRequests || "membership-requests"),
-            where("identity.contacts", "array-contains", phoneNumber)
+        const { getDocs, where, query, collection, db, or } = await getFirestore();
+        
+        // Générer toutes les variantes possibles du numéro
+        const phoneVariants = generatePhoneVariants(phoneNumber);
+        
+        console.log('🔍 Recherche avec les variantes de téléphone:', phoneVariants);
+        
+        // Créer une requête OR pour chercher toutes les variantes
+        const constraints = phoneVariants.map(variant => 
+            where("identity.contacts", "array-contains", variant)
         );
+        
+        // Si on a plusieurs variantes, utiliser OR, sinon une simple requête
+        const q = constraints.length > 1 
+            ? query(
+                collection(db, firebaseCollectionNames.membershipRequests || "membership-requests"),
+                or(...constraints)
+              )
+            : query(
+                collection(db, firebaseCollectionNames.membershipRequests || "membership-requests"),
+                where("identity.contacts", "array-contains", phoneVariants[0])
+              );
         
         const querySnapshot = await getDocs(q);
         const requests: MembershipRequest[] = [];
@@ -576,11 +605,59 @@ export async function findMembershipRequestsByPhone(phoneNumber: string): Promis
             requests.push(transformDBToMembershipRequest(dbData));
         });
 
+        console.log(`📱 ${requests.length} demande(s) trouvée(s) pour le numéro ${phoneNumber}`);
         return requests;
     } catch (error) {
         console.error("Erreur lors de la recherche par téléphone:", error);
         return [];
     }
+}
+
+/**
+ * Génère toutes les variantes possibles d'un numéro de téléphone
+ */
+function generatePhoneVariants(phoneNumber: string): string[] {
+    const variants = new Set<string>();
+    
+    // Ajouter le numéro original
+    variants.add(phoneNumber);
+    
+    // Nettoyer le numéro
+    let cleaned = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    
+    // Supprimer le + s'il y en a un au début
+    if (cleaned.startsWith('+')) {
+        cleaned = cleaned.substring(1);
+    }
+    
+    // Ajouter la version sans +
+    if (cleaned !== phoneNumber) {
+        variants.add(cleaned);
+    }
+    
+    // Si le numéro commence par 241 ou 221, ajouter les variantes avec et sans 0
+    if (cleaned.startsWith('241') || cleaned.startsWith('221')) {
+        const withoutPrefix = cleaned.substring(3);
+        variants.add(withoutPrefix);
+        variants.add('0' + withoutPrefix);
+        variants.add('+' + cleaned);
+    }
+    
+    // Si le numéro commence par 0, ajouter la version sans 0
+    if (cleaned.startsWith('0')) {
+        variants.add(cleaned.substring(1));
+        // Ajouter avec l'indicatif +241
+        variants.add('+241' + cleaned.substring(1));
+    }
+    
+    // Si le numéro n'a pas d'indicatif, ajouter les variantes avec indicatifs
+    if (!cleaned.startsWith('241') && !cleaned.startsWith('221') && !cleaned.startsWith('0')) {
+        variants.add('0' + cleaned);
+        variants.add('+241' + cleaned);
+        variants.add('+221' + cleaned);
+    }
+    
+    return Array.from(variants);
 }
 
 /**

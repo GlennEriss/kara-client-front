@@ -12,6 +12,7 @@ const routes = {
         memberships: '/memberships',
         membershipDetails: (id: string) => `/memberships/${id}`,
         membershipSubscription: (id: string) => `/memberships/${id}/subscriptions`,
+        membershipFilleuls: (id: string) => `/memberships/${id}/filleuls`,
         membershipAdd: '/memberships/add',
         groups: '/groups',
         groupDetails: (id: string) => `/groups/${id}`,
@@ -21,9 +22,13 @@ const routes = {
         companies: '/companies',
         paymentsHistory: '/payments-history',
         paymentsHistoryDetails: (id: string) => `/payments-history/${id}`,
+        contractsHistory: '/contracts-history',
+        contractsHistoryDetails: (id: string) => `/contracts-history/${id}`,
         // Caisse Spéciale (Espace Admin)
         caisseSpeciale: '/caisse-speciale',
         caisseSpecialeContractDetails: (id: string) => `/caisse-speciale/contrats/${id}`,
+        caisseSpecialeContractPayments: (id: string) => `/caisse-speciale/contrats/${id}/versements`,
+        caisseSpecialeCreateContract: '/caisse-speciale/create',
         caisseSpecialeSettings: '/caisse-speciale/settings',
     },
     member: {

@@ -1,12 +1,64 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import { listRefunds, updateRefund } from './refunds.db'
 const getFirestore = () => import('@/firebase/firestore')
 
+/**
+ * Génère un ID de contrat personnalisé selon le format :
+ * MK_CS_TYPECONTRAT_MATRICULE_DATEDUJOUR_HEURE
+ * Exemple: MK_CS_STANDARD_0001_100925_1640
+ */
+function generateCustomContractId(
+  caisseType: string,
+  matricule: string,
+  date: Date = new Date()
+): string {
+  // Formater le type de contrat
+  const typeFormatted = caisseType.toUpperCase()
+  
+  // Formater le matricule (4 chiffres avec zéros à gauche)
+  const matriculeFormatted = matricule.padStart(4, '0')
+  
+  // Formater la date (DDMMYY)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear().toString().slice(-2)
+  const dateFormatted = `${day}${month}${year}`
+  
+  // Formater l'heure (HHMM)
+  const hour = date.getHours().toString().padStart(2, '0')
+  const minute = date.getMinutes().toString().padStart(2, '0')
+  const timeFormatted = `${hour}${minute}`
+  
+  return `MK_CS_${typeFormatted}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`
+}
+
 export async function createContract(input: any) {
-  const { db, collection, addDoc, serverTimestamp } = await getFirestore() as any
-  const colRef = collection(db, firebaseCollectionNames.caisseContracts)
+  const { db, collection, doc, setDoc, serverTimestamp } = await getFirestore() as any
   const now = serverTimestamp()
-  const docRef = await addDoc(colRef, {
-    ...input,
+  
+  // Nettoyer les valeurs undefined pour éviter les erreurs Firestore
+  const cleanInput = { ...input }
+  Object.keys(cleanInput).forEach((key) => {
+    if (cleanInput[key] === undefined) {
+      delete cleanInput[key]
+    }
+  })
+  
+  console.log('🧹 Données nettoyées dans createContract:', cleanInput)
+  
+  // Générer l'ID personnalisé
+  const customId = generateCustomContractId(
+    cleanInput.caisseType,
+    cleanInput.memberMatricule || '0000', // Fallback si pas de matricule
+    new Date()
+  )
+  
+  console.log('🆔 ID de contrat généré:', customId)
+  
+  // Créer le document avec l'ID personnalisé
+  const docRef = doc(db, firebaseCollectionNames.caisseContracts, customId)
+  await setDoc(docRef, {
+    ...cleanInput,
     status: 'DRAFT',
     nominalPaid: 0,
     bonusAccrued: 0,
@@ -16,7 +68,8 @@ export async function createContract(input: any) {
     createdAt: now,
     updatedAt: now,
   })
-  return docRef.id
+  
+  return customId
 }
 
 export async function getContract(id: string) {
@@ -70,5 +123,140 @@ export async function listContracts(opts: { status?: string; limit?: number } = 
   const q = query(colRef, ...cons)
   const snap = await getDocs(q)
   return snap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+}
+
+// Nouvelle fonction pour récupérer tous les contrats
+export async function getAllContracts() {
+  const { db, collection, getDocs, query, orderBy } = await getFirestore() as any
+  const colRef = collection(db, firebaseCollectionNames.caisseContracts)
+  const q = query(colRef, orderBy('createdAt', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map((d: any) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      ...data,
+      contractStartAt: (typeof data.contractStartAt?.toDate === 'function') ? data.contractStartAt.toDate() : (data.contractStartAt ? new Date(data.contractStartAt) : undefined),
+      contractEndAt: (typeof data.contractEndAt?.toDate === 'function') ? data.contractEndAt.toDate() : (data.contractEndAt ? new Date(data.contractEndAt) : undefined),
+      nextDueAt: (typeof data.nextDueAt?.toDate === 'function') ? data.nextDueAt.toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined),
+      createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
+      updatedAt: (typeof data.updatedAt?.toDate === 'function') ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : undefined),
+    }
+  })
+}
+
+/**
+ * Update a refund with document information
+ * @param contractId - Contract ID
+ * @param refundId - Refund ID
+ * @param documentData - Document data to add/update
+ * @returns Promise<boolean>
+ */
+export async function updateRefundDocument(
+  contractId: string, 
+  refundId: string, 
+  documentData: {
+    url: string
+    path: string
+    uploadedBy: string
+    originalFileName: string
+    fileSize: number
+  }
+): Promise<boolean> {
+  try {
+    const { db, doc, updateDoc, serverTimestamp, arrayUnion } = await getFirestore() as any
+    const contractRef = doc(db, firebaseCollectionNames.caisseContracts, contractId)
+    
+    // Get current contract data
+    const contract = await getContract(contractId)
+    if (!contract) {
+      throw new Error('Contrat introuvable')
+    }
+    
+    // Get refunds from subcollection
+    const refunds = await listRefunds(contractId)
+    console.log('🔍 Debug updateRefundDocument:', {
+      contractId,
+      refundId,
+      refundsCount: refunds.length,
+      refunds: refunds.map((r: any) => ({ id: r.id, type: r.type, status: r.status }))
+    })
+    
+    const refundIndex = refunds.findIndex((r: any) => r.id === refundId)
+    
+    if (refundIndex === -1) {
+      console.error('❌ Refund not found:', {
+        refundId,
+        availableRefunds: refunds.map((r: any) => r.id)
+      })
+      throw new Error('Remboursement introuvable')
+    }
+    
+    // Create document object
+    const document = {
+      id: `${refundId}_doc_${Date.now()}`,
+      url: documentData.url,
+      path: documentData.path,
+      uploadedAt: new Date(),
+      uploadedBy: documentData.uploadedBy,
+      originalFileName: documentData.originalFileName,
+      fileSize: documentData.fileSize,
+      status: 'active' as const
+    }
+    
+    // Update the refund with document in subcollection
+    await updateRefund(contractId, refundId, {
+      document,
+      updatedAt: new Date()
+    })
+    
+    console.log('✅ Refund document updated successfully:', {
+      contractId,
+      refundId,
+      documentId: document.id
+    })
+    
+    return true
+  } catch (error: any) {
+    console.error('❌ Failed to update refund document:', error)
+    throw new Error(`Failed to update refund document: ${error.message}`)
+  }
+}
+
+/**
+ * Remove document from a refund
+ * @param contractId - Contract ID
+ * @param refundId - Refund ID
+ * @returns Promise<boolean>
+ */
+export async function removeRefundDocument(
+  contractId: string, 
+  refundId: string
+): Promise<boolean> {
+  try {
+    // Get refunds from subcollection
+    const refunds = await listRefunds(contractId)
+    const refundIndex = refunds.findIndex((r: any) => r.id === refundId)
+    
+    if (refundIndex === -1) {
+      throw new Error('Remboursement introuvable')
+    }
+    
+    // Remove document from refund in subcollection
+    await updateRefund(contractId, refundId, {
+      document: undefined,
+      updatedAt: new Date()
+    })
+    
+    console.log('✅ Refund document removed successfully:', {
+      contractId,
+      refundId
+    })
+    
+    return true
+  } catch (error: any) {
+    console.error('❌ Failed to remove refund document:', error)
+    throw new Error(`Failed to remove refund document: ${error.message}`)
+  }
 }
 

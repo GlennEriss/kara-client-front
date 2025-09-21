@@ -8,7 +8,7 @@ import {
   query, 
   where, 
   orderBy, 
-  limit, 
+  limit as firestoreLimit, 
   Timestamp,
   getCountFromServer
 } from 'firebase/firestore'
@@ -47,18 +47,18 @@ function toDateSafe(value: any): Date {
 }
 
 /**
- * Génère un matricule au format nombreUser.MK.dateCréation
- * Ex: 0004.MK.040825
+ * Génère un matricule unique au format nombreUser.MK.dateCréation
+ * Ex: 1234.MK.150125
+ * Vérifie l'unicité dans membershipRequests ET users
  */
 export async function generateMatricule(): Promise<string> {
   try {
-    // Compter le nombre d'utilisateurs existants
-    const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
-    const snapshot = await getCountFromServer(usersRef)
-    const userCount = snapshot.data().count
+    const { firebaseCollectionNames } = await import('@/constantes/firebase-collection-names')
     
-    // Numéro utilisateur avec zéros à gauche (4 chiffres)
-    const userNumber = (userCount + 1).toString().padStart(4, '0')
+    let matricule: string = ''
+    let isUnique = false
+    let attempts = 0
+    const maxAttempts = 50 // Réduire le nombre de tentatives
     
     // Date actuelle au format DDMMYY
     const now = new Date()
@@ -67,10 +67,76 @@ export async function generateMatricule(): Promise<string> {
     const year = now.getFullYear().toString().slice(-2)
     const dateString = `${day}${month}${year}`
     
-    return `${userNumber}.MK.${dateString}`
+    while (!isUnique && attempts < maxAttempts) {
+      // Générer un numéro utilisateur avec une meilleure distribution
+      // Utiliser timestamp pour réduire les collisions
+      const timestamp = Date.now().toString().slice(-4) // 4 derniers chiffres du timestamp
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      const userNumber = (parseInt(timestamp) + parseInt(random)) % 9000 + 1000
+      
+      matricule = `${userNumber}.MK.${dateString}`
+      
+      // Vérifier l'unicité dans membershipRequests ET users
+      const isUniqueInMembershipRequests = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.membershipRequests || "membership-requests", 
+        matricule
+      )
+      
+      const isUniqueInUsers = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.users || "users", 
+        matricule
+      )
+      
+      if (isUniqueInMembershipRequests && isUniqueInUsers) {
+        isUnique = true
+      } else {
+        attempts++
+      }
+    }
+    
+    // Si on n'a pas trouvé de matricule unique, utiliser un mécanisme de fallback
+    if (!isUnique) {
+      console.warn('Tentatives épuisées, utilisation du mécanisme de fallback')
+      const fallbackTimestamp = Date.now().toString().slice(-6) // 6 derniers chiffres
+      matricule = `${fallbackTimestamp}.MK.${dateString}`
+      
+      // Vérifier une dernière fois l'unicité avec le fallback
+      const isUniqueInMembershipRequests = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.membershipRequests || "membership-requests", 
+        matricule
+      )
+      
+      const isUniqueInUsers = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.users || "users", 
+        matricule
+      )
+      
+      if (!isUniqueInMembershipRequests || !isUniqueInUsers) {
+        // En dernier recours, ajouter des millisecondes pour garantir l'unicité
+        const milliseconds = Date.now().toString().slice(-3)
+        matricule = `${fallbackTimestamp}${milliseconds}.MK.${dateString}`
+      }
+    }
+    
+    return matricule
   } catch (error) {
     console.error('Erreur lors de la génération du matricule:', error)
     throw new Error('Impossible de générer le matricule')
+  }
+}
+
+/**
+ * Vérifie l'unicité d'un matricule dans une collection spécifique
+ */
+async function checkMatriculeUniquenessInCollection(collectionName: string, matricule: string): Promise<boolean> {
+  try {
+    const collectionRef = collection(firestore, collectionName)
+    const q = query(collectionRef, where("matricule", "==", matricule))
+    const snapshot = await getDocs(q)
+    return snapshot.empty
+  } catch (error) {
+    console.error(`Erreur lors de la vérification d'unicité dans ${collectionName}:`, error)
+    return false // En cas d'erreur, considérer comme non unique pour être sûr
   }
 }
 
@@ -199,7 +265,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
     const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
-    const q = query(usersRef, where('email', '==', email), limit(1))
+    const q = query(usersRef, where('email', '==', email), firestoreLimit(1))
     const querySnapshot = await getDocs(q)
     
     if (querySnapshot.empty) {
@@ -325,17 +391,17 @@ export async function getAllUsers(filters: UserFilters = {}): Promise<{ users: U
     
     // Limite
     if (filters.limit) {
-      q = query(q, limit(filters.limit))
+      q = query(q, firestoreLimit(filters.limit))
     }
     
     const querySnapshot = await getDocs(q)
     const users: User[] = []
     
     querySnapshot.forEach((doc) => {
-      const data = doc.data()
+      const data = doc.data() as any
       users.push({
         id: doc.id,
-        ...(data as any),
+        ...data,
         createdAt: toDateSafe(data.createdAt),
         updatedAt: toDateSafe(data.updatedAt),
       } as User)
@@ -529,5 +595,100 @@ export async function getUsersByRole(role: UserRole): Promise<User[]> {
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs par rôle:', error)
     throw new Error('Impossible de récupérer les utilisateurs par rôle')
+  }
+}
+
+/**
+ * Recherche des utilisateurs par nom, prénom ou matricule
+ */
+export async function searchUsers(
+  searchQuery: string, 
+  limit: number = 20
+): Promise<User[]> {
+  try {
+    if (!searchQuery || searchQuery.trim().length < 2) {
+      return []
+    }
+
+    const searchTerm = searchQuery.trim().toLowerCase()
+    const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
+    
+    // Si la recherche ressemble à un matricule (contient .MK.), chercher directement par ID
+    if (searchTerm.includes('.mk.')) {
+      console.log('🔍 Recherche par matricule direct:', searchTerm)
+      try {
+        const user = await getUserById(searchTerm)
+        if (user) {
+          console.log('✅ Utilisateur trouvé par matricule:', user.matricule, user.firstName, user.lastName)
+          return [user]
+        } else {
+          console.log('❌ Utilisateur non trouvé par matricule:', searchTerm)
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la recherche par matricule:', error)
+      }
+    }
+    
+    // Recherche par nom/prénom - récupérer plus d'utilisateurs pour un meilleur filtrage
+    console.log('🔍 Recherche générale dans les utilisateurs récents...')
+    const q = query(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(100)) // Augmenter la limite
+    const querySnapshot = await getDocs(q)
+    
+    console.log('📊 Nombre total d\'utilisateurs récupérés:', querySnapshot.size)
+    
+    const users: User[] = []
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as any
+      const user = {
+        id: doc.id,
+        ...data,
+        createdAt: toDateSafe(data.createdAt),
+        updatedAt: toDateSafe(data.updatedAt),
+      } as User
+      
+      // Filtrer côté client pour la recherche
+      const matchesSearch = 
+        user.firstName?.toLowerCase().includes(searchTerm) ||
+        user.lastName?.toLowerCase().includes(searchTerm) ||
+        user.matricule?.toLowerCase().includes(searchTerm) ||
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm) ||
+        `${user.lastName} ${user.firstName}`.toLowerCase().includes(searchTerm)
+      
+      if (matchesSearch) {
+        console.log('✅ Utilisateur correspondant trouvé:', user.matricule, user.firstName, user.lastName)
+        users.push(user)
+      }
+    })
+    
+    console.log('📊 Nombre d\'utilisateurs correspondants:', users.length)
+    
+    // Trier par pertinence (matricule exact en premier, puis nom/prénom)
+    users.sort((a, b) => {
+      const aMatricule = a.matricule?.toLowerCase() || ''
+      const bMatricule = b.matricule?.toLowerCase() || ''
+      const aName = `${a.firstName} ${a.lastName}`.toLowerCase()
+      const bName = `${b.firstName} ${b.lastName}`.toLowerCase()
+      
+      // Priorité aux matricules exacts
+      if (aMatricule === searchTerm && bMatricule !== searchTerm) return -1
+      if (bMatricule === searchTerm && aMatricule !== searchTerm) return 1
+      
+      // Puis aux matricules qui commencent par la recherche
+      if (aMatricule.startsWith(searchTerm) && !bMatricule.startsWith(searchTerm)) return -1
+      if (bMatricule.startsWith(searchTerm) && !aMatricule.startsWith(searchTerm)) return 1
+      
+      // Puis aux noms qui commencent par la recherche
+      if (aName.startsWith(searchTerm) && !bName.startsWith(searchTerm)) return -1
+      if (bName.startsWith(searchTerm) && !aName.startsWith(searchTerm)) return 1
+      
+      return 0
+    })
+    
+    // Retourner seulement le nombre demandé
+    return users.slice(0, limit)
+  } catch (error) {
+    console.error('Erreur lors de la recherche d\'utilisateurs:', error)
+    throw new Error('Impossible de rechercher les utilisateurs')
   }
 }

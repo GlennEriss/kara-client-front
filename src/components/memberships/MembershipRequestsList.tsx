@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight, Zap, Target, DollarSign } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +36,14 @@ import { useRouter } from 'next/navigation'
 import { findCompanyByName } from '@/db/company.db'
 import { findProfessionByName } from '@/db/profession.db'
 import { cn } from '@/lib/utils'
+import { 
+  createTestMembershipRequestPending, 
+  createTestMembershipRequestPendingUnpaid,
+  createTestMembershipRequestUnderReview, 
+  createTestMembershipRequestRejected, 
+  createTestMembershipRequestApproved, 
+  createTestMembershipRequestWithFilters 
+} from '@/utils/test-data'
 
 // Couleurs pour les graphiques
 const COLORS = {
@@ -115,6 +123,22 @@ const formatDate = (timestamp: any) => {
     })
   } catch (error) {
     return 'Date invalide'
+  }
+}
+
+// Fonction utilitaire pour récupérer les détails d'identité de manière sécurisée
+const getIdentityDisplayName = (request: MembershipRequest): string => {
+  const firstName = request.identity.firstName?.trim() || ''
+  const lastName = request.identity.lastName?.trim() || ''
+  
+  if (firstName && lastName) {
+    return `${firstName} ${lastName}`
+  } else if (firstName) {
+    return firstName
+  } else if (lastName) {
+    return lastName
+  } else {
+    return 'Utilisateur'
   }
 }
 
@@ -320,18 +344,6 @@ const StatsCarousel = ({ stats }: { stats: any }) => {
           ))}
         </div>
       </div>
-
-      <div className="flex justify-center mt-4 space-x-2">
-        {Array.from({ length: Math.ceil(statsData.length / itemsPerView) }).map((_, index) => (
-          <button key={index} className={cn('w-2 h-2 rounded-full transition-all duration-300', Math.floor(currentIndex / itemsPerView) === index ? 'bg-[#234D65] w-8' : 'bg-gray-300 hover:bg-gray-400')} onClick={() => {
-            const targetIndex = index * itemsPerView
-            const clampedIndex = Math.min(targetIndex, statsData.length - itemsPerView)
-            const maxIndex = Math.max(0, statsData.length - itemsPerView)
-            const finalIndex = Math.max(0, Math.min(clampedIndex, maxIndex))
-            goTo(finalIndex)
-          }} />
-        ))}
-      </div>
     </div>
   )
 }
@@ -485,7 +497,7 @@ const MembershipRequestCard = ({
         })
 
         toast.warning('Corrections demandées', {
-          description: `Des corrections ont été demandées pour la demande de ${request.identity.firstName} ${request.identity.lastName}.`,
+          description: `Des corrections ont été demandées pour la demande de ${getIdentityDisplayName(request)}.`,
           duration: 4000,
         })
       } else {
@@ -497,7 +509,7 @@ const MembershipRequestCard = ({
         })
 
         toast.warning('⏳ Demande mise en examen', {
-          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} est maintenant en cours d'examen.`,
+          description: `La demande de ${getIdentityDisplayName(request)} est maintenant en cours d'examen.`,
           duration: 4000,
         })
       }
@@ -508,7 +520,7 @@ const MembershipRequestCard = ({
         reviewedBy: user?.uid || 'unknown-admin',
       })
       toast.success('Dossier réouvert', {
-        description: `Le dossier de ${request.identity.firstName} ${request.identity.lastName} est repassé en attente.`,
+        description: `Le dossier de ${getIdentityDisplayName(request)} est repassé en attente.`,
         duration: 4000,
       })
     } else {
@@ -524,7 +536,7 @@ const MembershipRequestCard = ({
 
       if (confirmationAction.type === 'reject') {
         toast.error('🚫 Demande rejetée avec succès', {
-          description: `La demande de ${request.identity.firstName} ${request.identity.lastName} a été rejetée.`,
+          description: `La demande de ${getIdentityDisplayName(request)} a été rejetée.`,
           duration: 4000,
         })
       }
@@ -536,16 +548,6 @@ const MembershipRequestCard = ({
   const handleApprove = async () => {
     setIsApproving(true)
     try {
-      const phoneNumber = request.identity.contacts[0]
-
-      if (!phoneNumber) {
-        toast.error('📞 Numéro de téléphone manquant', {
-          description: 'Impossible de créer le compte utilisateur : aucun numéro de téléphone trouvé pour ce demandeur.',
-          duration: 4000,
-        })
-        return
-      }
-
       // Upload PDF si fourni
       let adhesionPdfURL: string | undefined = undefined
       if (approvalPdfFile) {
@@ -566,13 +568,12 @@ const MembershipRequestCard = ({
         }
       }
 
-      const response = await fetch('/api/create-firebase-user', {
+      const response = await fetch('/api/create-firebase-user-email-pwd', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber,
           requestId: request.id,
           adminId: user?.uid,
           membershipType: membershipType,
@@ -586,7 +587,7 @@ const MembershipRequestCard = ({
 
       if (response.ok && data.success) {
         toast.success('✅ Demande approuvée avec succès', {
-          description: `${request.identity.firstName} ${request.identity.lastName} est maintenant membre ${membershipType}. Matricule: ${data.matricule}`,
+          description: `${getIdentityDisplayName(request)} est maintenant membre ${membershipType}. Matricule: ${data.matricule}, Email: ${data.email}, Mot de passe: ${data.password}`,
           duration: 5000,
         })
         await queryClient.invalidateQueries({ queryKey: ['membershipRequests'] })
@@ -991,6 +992,7 @@ const MembershipRequestCard = ({
                 <SelectContent>
                   <SelectItem value="airtel_money">Airtel Money</SelectItem>
                   <SelectItem value="mobicash">Mobicash</SelectItem>
+                  <SelectItem value="cash">Espèce</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1325,6 +1327,74 @@ export default function MembershipRequestsList() {
     handleFilterChange('searchQuery', searchQuery)
   }
 
+  // Fonctions de test (en développement uniquement)
+  const handleCreateTestRequestPending = async () => {
+    try {
+      toast.info('📝 Création d\'une demande en attente...', { duration: 2000 })
+      await createTestMembershipRequestPending()
+      toast.success('✅ Demande en attente créée avec succès')
+      // Recharger les données
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestPendingUnpaid = async () => {
+    try {
+      toast.info('💰 Création d\'une demande en attente non payée...', { duration: 2000 })
+      await createTestMembershipRequestPendingUnpaid()
+      toast.success('✅ Demande en attente non payée créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestUnderReview = async () => {
+    try {
+      toast.info('🔍 Création d\'une demande en cours d\'examen...', { duration: 2000 })
+      await createTestMembershipRequestUnderReview()
+      toast.success('✅ Demande en cours d\'examen créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestRejected = async () => {
+    try {
+      toast.info('❌ Création d\'une demande rejetée...', { duration: 2000 })
+      await createTestMembershipRequestRejected()
+      toast.success('✅ Demande rejetée créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestApproved = async () => {
+    try {
+      toast.info('✅ Création d\'une demande approuvée...', { duration: 2000 })
+      await createTestMembershipRequestApproved()
+      toast.success('✅ Demande approuvée créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateTestRequestWithFilters = async () => {
+    try {
+      toast.info('🔍 Création d\'une demande avec données de filtres...', { duration: 2000 })
+      await createTestMembershipRequestWithFilters()
+      toast.success('✅ Demande avec filtres créée avec succès')
+      window.location.reload()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
   // Calcul des statistiques
   const stats = React.useMemo(() => {
     if (!membershipData) return null
@@ -1378,6 +1448,82 @@ export default function MembershipRequestsList() {
 
       {/* Statistiques avec nouveau carousel */}
       {stats && <StatsCarousel stats={stats} />}
+
+      {/* Boutons de test modernisés */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border-0 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 mr-4">
+                <div className="p-2 rounded-lg bg-amber-200">
+                  <Zap className="w-4 h-4 text-amber-700" />
+                </div>
+                <span className="font-bold text-amber-800">🧪 Outils de Test - Demandes d'Adhésion</span>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestPending}
+                className="bg-white border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Demande En Attente
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestPendingUnpaid}
+                className="bg-white border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Demande Non Payée
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestUnderReview}
+                className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Demande En Examen
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestRejected}
+                className="bg-white border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Demande Rejetée
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestApproved}
+                className="bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Demande Approuvée
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateTestRequestWithFilters}
+                className="bg-white border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Demande + Filtres
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filtres et recherche avec design moderne */}
       <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
