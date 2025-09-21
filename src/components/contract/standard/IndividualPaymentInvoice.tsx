@@ -2,9 +2,11 @@
 
 import React from "react"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, CreditCard, User, Receipt } from "lucide-react"
+import { CalendarDays, CreditCard, User, Receipt, Shield } from "lucide-react"
 import Image from "next/image"
 import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
+import { useAdmin } from "@/hooks/admin/useAdmin"
+import { useAuth } from "@/hooks/useAuth"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -34,6 +36,29 @@ export default function IndividualPaymentInvoice({
   payment, 
   contractData 
 }: IndividualPaymentInvoiceProps) {
+  const { user } = useAuth()
+  const { data: admin, isLoading: isLoadingAdmin } = useAdmin(payment.updatedBy)
+  
+  // Déterminer les informations de l'administrateur
+  const adminInfo = React.useMemo(() => {
+    if (!payment.updatedBy) return null
+    
+    // Si c'est l'utilisateur connecté, utiliser ses informations
+    if (user?.uid === payment.updatedBy) {
+      return {
+        firstName: user.displayName?.split(' ')[0] || 'Utilisateur',
+        lastName: user.displayName?.split(' ').slice(1).join(' ') || 'Connecté',
+        civility: 'Monsieur', // Valeur par défaut
+        roles: ['Admin'], // Valeur par défaut
+        email: user.email || undefined,
+        isActive: true
+      }
+    }
+    
+    // Sinon, utiliser les données de l'admin récupérées
+    return admin
+  }, [user, admin, payment.updatedBy])
+  
   const formatDate = (date?: Date | string) => {
     if (!date) return "—"
     const dateObj = typeof date === 'string' ? new Date(date) : date
@@ -132,6 +157,55 @@ export default function IndividualPaymentInvoice({
           </div>
         </div>
       </div>
+
+      {/* Informations de l'administrateur */}
+      {payment.updatedBy && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Administrateur ayant traité le paiement
+          </h3>
+          <div className="space-y-3 p-4 rounded-lg border bg-slate-50">
+            {isLoadingAdmin ? (
+              <div className="flex items-center gap-2 text-slate-600">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                Chargement des informations...
+              </div>
+            ) : adminInfo ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Nom :</span>
+                  <span className="font-medium">{adminInfo.firstName} {adminInfo.lastName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Civilité :</span>
+                  <span className="font-medium">{adminInfo.civility}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Rôles :</span>
+                  <div className="flex gap-1">
+                    {adminInfo.roles.map((role, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {role}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                {adminInfo.email && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Email :</span>
+                    <span className="font-medium">{adminInfo.email}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-slate-500 text-sm">
+                Administrateur non trouvé (ID: {payment.updatedBy})
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Informations du contrat */}
       <div className="space-y-3">

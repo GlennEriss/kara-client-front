@@ -34,9 +34,6 @@ export default function GroupMemberSelectForm({ groupMembers, isLoading }: Group
             />
           </FormControl>
           <FormMessage />
-          <p className="text-xs text-gray-500 mt-1">
-            Ce champ permet de tracer qui a effectué le versement dans le groupe
-          </p>
         </FormItem>
       )}
     />

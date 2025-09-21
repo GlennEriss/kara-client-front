@@ -714,7 +714,7 @@ export async function payGroup(input: {
     groupContributions: updatedContributions,
     accumulatedAmount: newTotalAmount,
     updatedAt: new Date(),
-    updatedBy: input.memberId,
+    updatedBy: (auth?.currentUser?.uid) || input.memberId,
     // Enregistrer les informations de paiement (du dernier contributeur)
     time: input.time,
     mode: input.mode,

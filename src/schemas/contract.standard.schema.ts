@@ -48,6 +48,9 @@ export const groupContractSchema = z.object({
   // Membre du groupe qui effectue le versement
   selectedGroupMemberId: z.string().min(1, 'Le membre du groupe est obligatoire'),
   
+  // Montant à verser par le membre
+  amount: z.number().min(1, 'Le montant à verser doit être supérieur à 0'),
+  
   // Preuve de paiement
   proofFile: z.instanceof(File, {
     message: 'La preuve de paiement est obligatoire'
@@ -88,4 +91,5 @@ export const groupContractDefaultValues: Partial<GroupContractFormData> = {
   paymentMode: 'airtel_money' as PaymentMode,
   selectedMonthIndex: -1,
   selectedGroupMemberId: '',
+  amount: 0,
 }

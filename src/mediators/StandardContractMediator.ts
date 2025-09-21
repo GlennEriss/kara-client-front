@@ -121,6 +121,10 @@ export class StandardContractMediator {
           throw new Error("Veuillez sélectionner le membre du groupe qui effectue le versement.")
         }
 
+        if (!formData.amount || formData.amount <= 0) {
+          throw new Error("Veuillez saisir un montant valide à verser.")
+        }
+
         // Utiliser la fonction payGroup pour les contrats de groupe
         const selectedMember = groupMembers.find(m => m.id === selectedGroupMemberId)
         if (!selectedMember) {
@@ -136,7 +140,7 @@ export class StandardContractMediator {
           memberMatricule: selectedMember.matricule || '',
           memberPhotoURL: selectedMember.photoURL || undefined,
           memberContacts: selectedMember.contacts || [],
-          amount: contractData.monthlyAmount || 0,
+          amount: formData.amount,
           file,
           paidAt: new Date(`${formData.paymentDate}T${formData.paymentTime}`),
           time: formData.paymentTime,

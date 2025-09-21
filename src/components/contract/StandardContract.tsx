@@ -33,6 +33,7 @@ import PaymentDateForm from "./standard/PaymentDateForm"
 import PaymentTimeForm from "./standard/PaymentTimeForm"
 import PaymentModeForm from "./standard/PaymentModeForm"
 import GroupMemberSelectForm from "./standard/GroupMemberSelectForm"
+import AmountForm from "./standard/AmountForm"
 import ProofFileForm from "./standard/ProofFileForm"
 import { StandardContractMediator } from "@/mediators/StandardContractMediator"
 import { useStandardContractForm } from "@/hooks/contract/standard"
@@ -328,6 +329,11 @@ export default function StandardContract({ id }: Props) {
                    isLoading={isLoadingGroupMembers}
                  />
                )}
+
+               {/* Montant à verser (si contrat de groupe) */}
+               {isGroupContract && (
+                 <AmountForm />
+               )}
             </div>
                {/* Preuve */}
                <ProofFileForm 
@@ -345,6 +351,7 @@ export default function StandardContract({ id }: Props) {
                    !watchedValues.paymentMode ||
                    isClosed ||
                    (isGroupContract && !(watchedValues as any).selectedGroupMemberId) ||
+                   (isGroupContract && !(watchedValues as any).amount) ||
                    watchedValues.selectedMonthIndex !== nextDueMonthIndex
                  }
                  className={classNames(

@@ -167,6 +167,7 @@ export default function StandardEchanceForm({ payments, isClosed, contractData }
                       {p.status === "PAID" ? (
                         // Bouton pour voir la facture si payé
                         <button
+                          type="button"
                           onClick={() => handleViewInvoice(p)}
                           className="mt-3 flex items-center justify-center gap-2 rounded-lg border bg-[#234D65] px-3 py-2 text-sm text-white transition-colors cursor-pointer"
                         >

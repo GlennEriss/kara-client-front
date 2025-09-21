@@ -63,6 +63,8 @@ export interface CaissePayment {
   status: CaissePaymentStatus
   proofUrl?: string
   createdAt: Date
+  updatedAt?: Date
+  updatedBy?: string // ID de l'administrateur qui a traité le paiement
   // Informations de paiement
   time?: string
   mode?: PaymentMode
