@@ -21,6 +21,16 @@ export function useContractsByMember(memberId: string, opts: { status?: string }
   })
 }
 
+// Hook pour récupérer tous les contrats (utilisé dans les statistiques)
+export function useCaisseContracts() {
+  return useQuery({
+    queryKey: ['caisse-contracts'],
+    queryFn: () => getAllContracts(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
 // Hook pour récupérer un contrat avec son état calculé (utilisé dans les pages de détails)
 export function useCaisseContract(contractId?: string) {
   return useQuery({

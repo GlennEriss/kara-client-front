@@ -302,7 +302,12 @@ export default function StandardContract({ id }: Props) {
       <Form {...(form as any)}>
         <form method="POST" onSubmit={form.handleSubmit(onPay)}>
           {/* Calendrier des échéances */}
-          <StandardEchanceForm payments={payments} isClosed={isClosed} contractData={data} />
+          <StandardEchanceForm 
+            payments={payments} 
+            isClosed={isClosed} 
+            contractData={data} 
+            isGroupContract={isGroupContract}
+          />
 
           {/* Paiement */}
           <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">

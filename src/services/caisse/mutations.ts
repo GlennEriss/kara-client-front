@@ -314,6 +314,11 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   updated.status = status
 
   await updateContract(input.contractId, updated)
+  
+  // Recalculer le statut du contrat après le paiement
+  const { recomputeNow } = await import('@/services/caisse/readers')
+  await recomputeNow(input.contractId)
+  
   return { status, penalty, bonus, nextDueAt }
 }
 
@@ -758,6 +763,10 @@ export async function payGroup(input: {
     updatedAt: new Date(),
     updatedBy: input.memberId
   })
+
+  // Recalculer le statut du contrat après le paiement
+  const { recomputeNow } = await import('@/services/caisse/readers')
+  await recomputeNow(input.contractId)
 
   return { 
     status: paymentUpdates.status || 'IN_PROGRESS', 

@@ -29,12 +29,14 @@ import {
   Users as GroupIcon,
   ChevronLeft,
   ChevronRight,
-  Download
+  Download,
+  BarChart3
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { cn } from '@/lib/utils'
 import { useContracts, Contract } from '@/hooks/useContracts'
 import { toast } from 'sonner'
+import routes from '@/constantes/routes'
 
 type ViewMode = 'grid' | 'list'
 
@@ -728,6 +730,15 @@ const ListContracts = () => {
                     Exporter Excel
                   </>
                 )}
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => router.push(routes.admin.caisseSpecialeStats)}
+                className="h-10 px-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Statistiques
               </Button>
 
               <Button

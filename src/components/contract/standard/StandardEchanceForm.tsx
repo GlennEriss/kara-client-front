@@ -33,9 +33,10 @@ type Props = {
   payments: CaissePayment[]
   isClosed: boolean
   contractData: CaisseContract
+  isGroupContract?: boolean
 }
 
-export default function StandardEchanceForm({ payments, isClosed, contractData }: Props) {
+export default function StandardEchanceForm({ payments, isClosed, contractData, isGroupContract = false }: Props) {
   const { watch } = useFormContext<IndividualContractFormData | GroupContractFormData>()
   const selectedMonthIndex = watch("selectedMonthIndex")
   
@@ -61,6 +62,24 @@ export default function StandardEchanceForm({ payments, isClosed, contractData }
   const handleViewInvoice = (payment: CaissePayment) => {
     setSelectedPayment(payment)
     setIsInvoiceModalOpen(true)
+  }
+
+  // Fonction pour calculer le montant restant à payer pour les contrats de groupe
+  const calculateRemainingAmount = (payment: any) => {
+    if (!isGroupContract || payment.status === "PAID") {
+      return null
+    }
+
+    const targetAmount = payment.amount || contractData.monthlyAmount || 0
+    const contributions = payment.groupContributions || []
+    const paidAmount = contributions.reduce((sum: number, contrib: any) => sum + contrib.amount, 0)
+    const remainingAmount = Math.max(0, targetAmount - paidAmount)
+    
+    return {
+      targetAmount,
+      paidAmount,
+      remainingAmount
+    }
   }
 
   return (
@@ -162,6 +181,39 @@ export default function StandardEchanceForm({ payments, isClosed, contractData }
                         {p.penaltyApplied ? (
                           <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied}</div>
                         ) : null}
+                        
+                        {/* Affichage du montant restant pour les contrats de groupe */}
+                        {isGroupContract && p.status === "DUE" && (() => {
+                          const remainingInfo = calculateRemainingAmount(p)
+                          if (!remainingInfo) return null
+                          
+                          return (
+                            <div className="col-span-2 space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-600">Montant cible:</span>
+                                <span className="font-medium">{remainingInfo.targetAmount.toLocaleString("fr-FR")} FCFA</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-600">Déjà versé:</span>
+                                <span className="font-medium text-green-600">{remainingInfo.paidAmount.toLocaleString("fr-FR")} FCFA</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-600">Reste à payer:</span>
+                                <span className={`font-medium ${remainingInfo.remainingAmount > 0 ? "text-orange-600" : "text-green-600"}`}>
+                                  {remainingInfo.remainingAmount.toLocaleString("fr-FR")} FCFA
+                                </span>
+                              </div>
+                              {remainingInfo.remainingAmount > 0 && (
+                                <div className="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-1 bg-orange-500 rounded-full transition-all duration-300"
+                                    style={{ width: `${(remainingInfo.paidAmount / remainingInfo.targetAmount) * 100}%` }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </div>
 
                       {p.status === "PAID" ? (
