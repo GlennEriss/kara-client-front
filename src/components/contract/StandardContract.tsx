@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
+import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers } from "@/hooks/useMembers"
 import { useAuth } from "@/hooks/useAuth"
 import {
@@ -33,7 +34,16 @@ import {
 import PdfDocumentModal from "./PdfDocumentModal"
 import PdfViewerModal from "./PdfViewerModal"
 import HeaderContractSection from "./standard/HeaderContractSection"
+import StandardEchanceForm from "./standard/StandardEchanceForm"
+import PaymentDateForm from "./standard/PaymentDateForm"
+import PaymentTimeForm from "./standard/PaymentTimeForm"
+import PaymentModeForm from "./standard/PaymentModeForm"
+import GroupMemberSelectForm from "./standard/GroupMemberSelectForm"
+import ProofFileForm from "./standard/ProofFileForm"
+import { StandardContractMediator } from "@/mediators/StandardContractMediator"
+import { useStandardContractForm } from "@/hooks/contract/standard"
 import type { RefundDocument } from "@/types/types"
+import { Form } from "../ui/form"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -67,7 +77,7 @@ function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
     brand: "from-[#234D65]/10 to-white",
   }
   return (
-    <div className={`rounded-2xl border bg-gradient-to-b ${accents[accent]} p-4 shadow-sm`}> 
+    <div className={`rounded-2xl border bg-gradient-to-b ${accents[accent]} p-4 shadow-sm`}>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs text-slate-500">{label}</div>
@@ -96,18 +106,7 @@ type Props = { id: string }
 export default function StandardContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
-  const [file, setFile] = useState<File | undefined>()
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split("T")[0])
-  const [paymentTime, setPaymentTime] = useState(() => {
-    const now = new Date()
-    return `${now.getHours().toString().padStart(2, "0")}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`
-  })
-  const [isPaying, setIsPaying] = useState(false)
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
@@ -123,9 +122,6 @@ export default function StandardContract({ id }: Props) {
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
-  const [fileInputResetKey, setFileInputResetKey] = useState(0)
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>("airtel_money")
-  const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string | null>(null)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
@@ -181,16 +177,42 @@ export default function StandardContract({ id }: Props) {
   const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
 
   const payments = data.payments || []
-  const paidCount = payments.filter((p: any) => p.status === "PAID").length
+  const paidCount = StandardContractMediator.calculatePaidCount(payments)
   const totalMonths = data.monthsPlanned || 0
-  const progress = totalMonths ? Math.min(100, Math.round((paidCount / totalMonths) * 100)) : 0
+  const progress = StandardContractMediator.calculateProgress(paidCount, totalMonths)
+
+  // Récupérer les paramètres de caisse pour le calcul du bonus
+  const settings = useActiveCaisseSettingsByType((data as any).caisseType)
+  const currentBonus = StandardContractMediator.calculateCurrentBonus(
+    data.nominalPaid || 0,
+    settings.data?.bonusPercentage || 0
+  )
+
+  // Hook pour le formulaire de contrat standard
+  const form = useStandardContractForm(
+    id,
+    data.memberId,
+    groupeId
+  )
+
+  // Surveiller les valeurs du formulaire pour la validation du bouton
+  const watchedValues = form.watch()
+
+  // Trouver la prochaine échéance à payer (paiement séquentiel)
+  const getNextDueMonthIndex = () => {
+    const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
+    const nextDue = sortedPayments.find(p => p.status === "DUE")
+    return nextDue ? nextDue.dueMonthIndex : -1
+  }
+
+  const nextDueMonthIndex = getNextDueMonthIndex()
 
   const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
     await refetch()
-    
+
     // Rafraîchir explicitement la liste des remboursements
     try {
       const refundsData = await listRefunds(id)
@@ -218,13 +240,13 @@ export default function StandardContract({ id }: Props) {
   const handleDeleteDocument = async (refundId: string) => {
     try {
       const { updateRefund } = await import('@/db/caisse/refunds.db')
-      
-      await updateRefund(id, refundId, { 
+
+      await updateRefund(id, refundId, {
         document: null,
         updatedBy: user?.uid,
         documentDeletedAt: new Date()
       })
-      
+
       // Rafraîchir explicitement la liste des remboursements
       try {
         const refundsData = await listRefunds(id)
@@ -232,7 +254,7 @@ export default function StandardContract({ id }: Props) {
       } catch (error) {
         console.error('Error refreshing refunds after document deletion:', error)
       }
-      
+
       toast.success("Document supprimé avec succès")
     } catch (error: any) {
       console.error('Error deleting document:', error)
@@ -242,99 +264,19 @@ export default function StandardContract({ id }: Props) {
     }
   }
 
-  const onPay = async () => {
-    if (isClosed) {
-      toast.error("Contrat clos: paiement impossible.")
-      return
-    }
-    if (selectedIdx === null) {
-      toast.error("Veuillez choisir un mois à payer.")
-      return
-    }
-    if (!file) {
-      toast.error("Veuillez téléverser une preuve (capture) avant de payer.")
-      return
-    }
-    if (!paymentDate) {
-      toast.error("Veuillez sélectionner la date de paiement.")
-      return
-    }
-    if (!paymentTime) {
-      toast.error("Veuillez sélectionner l'heure de paiement.")
-      return
-    }
-    if (!paymentMode) {
-      toast.error("Veuillez sélectionner le mode de paiement.")
-      return
-    }
-
-    try {
-      setIsPaying(true)
-      
-      if (isGroupContract && groupMembers) {
-        // Validation spécifique pour les contrats de groupe
-        if (!selectedGroupMemberId) {
-          toast.error("Veuillez sélectionner le membre du groupe qui effectue le versement.")
-          return
-        }
-        
-        // Utiliser la fonction payGroup pour les contrats de groupe
-        const selectedMember = groupMembers.find(m => m.id === selectedGroupMemberId)
-        if (!selectedMember) {
-          toast.error("Membre du groupe non trouvé")
-          return
-        }
-        
-        const { payGroup } = await import('@/services/caisse/mutations')
-        await payGroup({
-          contractId: id,
-          dueMonthIndex: selectedIdx,
-          memberId: selectedMember.id,
-          memberName: `${selectedMember.firstName} ${selectedMember.lastName}`,
-          memberMatricule: selectedMember.matricule || '',
-          memberPhotoURL: selectedMember.photoURL || undefined,
-          memberContacts: selectedMember.contacts || [],
-          amount: data.monthlyAmount || 0,
-          file,
-          paidAt: new Date(`${paymentDate}T${paymentTime}`),
-          time: paymentTime,
-          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
-        })
-        
-        toast.success("Contribution ajoutée au versement collectif")
-      } else {
-        // Utiliser la fonction pay normale pour les contrats individuels
-        await pay({
-          contractId: id,
-          dueMonthIndex: selectedIdx,
-          memberId: data.memberId,
-          file,
-          paidAt: new Date(`${paymentDate}T${paymentTime}`),
-          time: paymentTime,
-          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
-        })
-        toast.success("Paiement enregistré")
-      }
-      
-      await refetch()
-
-      // Reset UI
-      setSelectedIdx(null)
-      setFile(undefined)
-      setPaymentDate(new Date().toISOString().split("T")[0])
-      setPaymentTime(() => {
-        const now = new Date()
-        return `${now.getHours().toString().padStart(2, "0")}:${now
-          .getMinutes()
-          .toString()
-          .padStart(2, "0")}`
-      })
-      setPaymentMode("airtel_money")
-      setSelectedGroupMemberId("")
-      setFileInputResetKey((prev) => prev + 1)
-    } finally {
-      setIsPaying(false)
-    }
+  const onPay = async (formData: any) => {
+    // Déléguer la logique au mediator avec le form
+    await StandardContractMediator.onPay({
+      form,
+      selectedMonthIndex: formData.selectedMonthIndex,
+      contractId: id,
+      contractData: data,
+      isGroupContract,
+      groupMembers,
+      selectedGroupMemberId: formData.selectedGroupMemberId,
+      file: formData.proofFile,
+      refetch
+    })
   }
 
   return (
@@ -349,7 +291,7 @@ export default function StandardContract({ id }: Props) {
         progress={progress}
         isRecomputing={isRecomputing}
         setIsRecomputing={setIsRecomputing}
-        refetch={refetch}
+        refetch={async () => { await refetch() }}
       />
 
       {/* Stats */}
@@ -357,313 +299,88 @@ export default function StandardContract({ id }: Props) {
         <StatCard icon={CreditCard} label="Montant mensuel" value={`${(data.monthlyAmount || 0).toLocaleString("fr-FR")} FCFA`} accent="brand" />
         <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
         <StatCard icon={CheckCircle2} label="Nominal payé" value={`${(data.nominalPaid || 0).toLocaleString("fr-FR")} FCFA`} />
-        <StatCard icon={BadgeCheck} label="Bonus cumulés" value={`${(data.bonusAccrued || 0).toLocaleString("fr-FR")} FCFA`} accent="emerald" />
-        <StatCard icon={CalendarDays} label="Bonus cumulés" value={`${(data.bonusAccrued || 0).toLocaleString("fr-FR")} FCFA`} accent="emerald" />
+        <StatCard icon={CalendarDays} label="Bonus" value={`${currentBonus.toLocaleString("fr-FR")} FCFA`} accent="emerald" />
         <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${(data.penaltiesTotal || 0).toLocaleString("fr-FR")} FCFA`} accent="red" />
         <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
       </div>
+      <Form {...(form as any)}>
+        <form method="POST" onSubmit={form.handleSubmit(onPay)}>
+          {/* Calendrier des échéances */}
+          <StandardEchanceForm payments={payments} isClosed={isClosed} contractData={data} />
 
-      {/* Calendrier des échéances */}
-      <div className="space-y-3">
-        <SectionTitle>Calendrier des échéances</SectionTitle>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          {payments.map((p: any) => {
-            let badge: React.ReactNode = null
-            if (p.status === "DUE" && p.dueAt) {
-              const now = new Date()
-              const due = new Date(p.dueAt)
-              const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
-              if (days > 12) badge = <Badge tone="red">{">"}J+12</Badge>
-              else if (days >= 4) badge = <Badge tone="yellow">J+4..J+12</Badge>
-              else if (days >= 0) badge = <Badge tone="yellow">J+0..J+3</Badge>
-            }
+          {/* Paiement */}
+          <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
+            <SectionTitle>
+              {nextDueMonthIndex !== -1 ? 
+                `Payer l'échéance M${nextDueMonthIndex + 1}` : 
+                "Toutes les échéances sont payées"
+              }
+            </SectionTitle>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {/* Date */}
+              <PaymentDateForm />
 
-            const isSelectable = p.status === "DUE" && !isClosed
-            const isSelected = selectedIdx === p.dueMonthIndex
+              {/* Heure */}
+              <PaymentTimeForm />
 
-            // Déterminer les couleurs selon le statut
-            let cardColors = ""
-            let borderColors = ""
-            let bgColors = ""
-            
-            if (p.status === "PAID") {
-              cardColors = "border-green-200 bg-green-50"
-              borderColors = "border-green-300"
-              bgColors = "bg-green-50"
-            } else if (p.status === "DUE") {
-              cardColors = "border-blue-200 bg-blue-50"
-              borderColors = "border-blue-300"
-              bgColors = "bg-blue-50"
-            } else if (p.status === "REFUSED") {
-              cardColors = "border-red-200 bg-red-50"
-              borderColors = "border-red-300"
-              bgColors = "bg-red-50"
-            } else {
-              cardColors = "border-slate-200 bg-slate-50"
-              borderColors = "border-slate-300"
-              bgColors = "bg-slate-50"
-            }
+              {/* Mode */}
+              <PaymentModeForm />
 
-            // Couleur de sélection
-            if (isSelected) {
-              cardColors = `${brand.ring} ring-2 border-[#234D65] bg-[#234D65]/5`
-            }
-
-            return (
-              <div
-                key={p.id}
-                className={classNames(
-                  "rounded-2xl border p-4 shadow-sm transition-all",
-                  cardColors,
-                  isSelected ? `${brand.ring} ring-2` : "hover:shadow-md",
-                  !isSelectable && "opacity-70"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className={classNames(
-                    "font-medium text-lg",
-                    p.status === "PAID" ? "text-green-700" : 
-                    p.status === "DUE" ? "text-blue-700" : 
-                    p.status === "REFUSED" ? "text-red-700" : 
-                    "text-slate-700"
-                  )}>
-                    M{p.dueMonthIndex + 1}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {badge}
-                    <Badge 
-                      tone={
-                        p.status === "PAID" ? "green" : 
-                        p.status === "DUE" ? "blue" : 
-                        p.status === "REFUSED" ? "red" : 
-                        "slate"
-                      }
-                    >
-                      {paymentStatusLabel(p.status)}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                  <div>Échéance: {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}</div>
-                  <div>Payé le: {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}</div>
-                  {p.penaltyApplied ? (
-                    <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied}</div>
-                  ) : null}
-                </div>
-
-                <label className={classNames(
-                  "mt-3 flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
-                  isSelectable ? 
-                    "hover:bg-white hover:border-[#234D65] hover:shadow-sm" : 
-                    "cursor-not-allowed opacity-60",
-                  isSelected ? "bg-[#234D65] text-white border-[#234D65]" : "bg-white"
-                )}>
-                  <input
-                    type="radio"
-                    name="pay"
-                    onChange={() => isSelectable && setSelectedIdx(p.dueMonthIndex)}
-                    checked={isSelected}
-                    disabled={!isSelectable}
-                    className="accent-[#234D65]"
-                  />
-                  <span className={isSelected ? "text-white" : ""}>
-                    {isSelectable ? "Sélectionner pour payer" : "Non disponible"}
-                  </span>
-                </label>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Paiement */}
-      <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
-        <SectionTitle>Payer l’échéance sélectionnée</SectionTitle>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {/* Date */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Date de paiement *</label>
-            <input
-              type="date"
-              value={paymentDate}
-              onChange={(e) => setPaymentDate(e.target.value)}
-              className={classNames(
-                "w-full rounded-xl border p-2 text-sm shadow-sm transition-all",
-                "focus:outline-none focus:ring-2",
-                brand.ring
-              )}
-              required
-            />
-          </div>
-
-          {/* Heure */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Heure de paiement *</label>
-            <input
-              type="time"
-              value={paymentTime}
-              onChange={(e) => setPaymentTime(e.target.value)}
-              className={classNames(
-                "w-full rounded-xl border p-2 text-sm shadow-sm transition-all",
-                "focus:outline-none focus:ring-2",
-                brand.ring
-              )}
-              required
-            />
-          </div>
-
-          {/* Mode */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Mode de paiement *</label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="airtel_money"
-                  checked={paymentMode === "airtel_money"}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                  className="accent-[#234D65]"
-                />
-                <span className="text-sm text-slate-700">Airtel Money</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="mobicash"
-                  checked={paymentMode === "mobicash"}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                  className="accent-[#234D65]"
-                />
-                <span className="text-sm text-slate-700">Mobicash</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="cash"
-                  checked={paymentMode === "cash"}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                  className="accent-[#234D65]"
-                />
-                <span className="text-sm text-slate-700">Espèce</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="bank_transfer"
-                  checked={paymentMode === "bank_transfer"}
-                  onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                  className="accent-[#234D65]"
-                />
-                <span className="text-sm text-slate-700">Virement bancaire</span>
-              </label>
+               {/* Sélection du membre du groupe (si contrat de groupe) */}
+               {isGroupContract && (
+                 <GroupMemberSelectForm 
+                   groupMembers={groupMembers} 
+                   isLoading={isLoadingGroupMembers}
+                 />
+               )}
             </div>
+               {/* Preuve */}
+               <ProofFileForm 
+                 disabled={isClosed}
+               />
+
+             <div className="sticky bottom-3 mt-2 flex justify-center">
+               <button
+                 type="submit"
+                 disabled={
+                   form.formState.isSubmitting ||
+                   !(watchedValues as any).proofFile ||
+                   !watchedValues.paymentDate ||
+                   !watchedValues.paymentTime ||
+                   !watchedValues.paymentMode ||
+                   isClosed ||
+                   (isGroupContract && !(watchedValues as any).selectedGroupMemberId) ||
+                   watchedValues.selectedMonthIndex !== nextDueMonthIndex
+                 }
+                 className={classNames(
+                   "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white shadow",
+                   brand.bg,
+                   brand.hover,
+                   "disabled:cursor-not-allowed disabled:opacity-50"
+                 )}
+               >
+                 {form.formState.isSubmitting ? (
+                   <>
+                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                     Paiement en cours...
+                   </>
+                 ) : (
+                   <>
+                     <CreditCard className="h-4 w-4" />
+                     <span>
+                       {nextDueMonthIndex !== -1 ? 
+                         `Payer l'échéance M${nextDueMonthIndex + 1}` : 
+                         "Toutes les échéances sont payées"
+                       }
+                     </span>
+                   </>
+                 )}
+               </button>
+             </div>
           </div>
+        </form>
+      </Form>
 
-          {/* Sélection du membre du groupe (si contrat de groupe) */}
-          {isGroupContract && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Membre du groupe qui verse *</label>
-              <select
-                value={selectedGroupMemberId || ""}
-                onChange={(e) => setSelectedGroupMemberId(e.target.value)}
-                className={classNames(
-                  "w-full rounded-xl border p-2 text-sm shadow-sm transition-all",
-                  "focus:outline-none focus:ring-2",
-                  brand.ring
-                )}
-                required
-              >
-                <option value="">Sélectionnez le membre qui verse</option>
-                {groupMembers && groupMembers.length > 0 ? (
-                  groupMembers.map((member: any) => (
-                    <option key={member.id} value={member.id}>
-                      {member.firstName} {member.lastName} ({member.matricule})
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>
-                    Chargement des membres du groupe...
-                  </option>
-                )}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Ce champ permet de tracer qui a effectué le versement dans le groupe
-              </p>
-            </div>
-          )}
-
-          {/* Preuve */}
-          <div>
-            <FileInput
-              accept="image/*"
-              maxSize={5}
-              onFileSelect={async (selectedFile) => {
-                if (!selectedFile) {
-                  setFile(undefined)
-                  return
-                }
-                try {
-                  const dataUrl = await compressImage(selectedFile, IMAGE_COMPRESSION_PRESETS.document)
-                  const res = await fetch(dataUrl)
-                  const blob = await res.blob()
-                  const webpFile = new File([blob], "proof.webp", { type: "image/webp" })
-                  setFile(webpFile)
-                  toast.success("Preuve compressée (WebP) prête")
-                } catch (err) {
-                  console.error(err)
-                  toast.error("Échec de la compression de l'image")
-                  setFile(undefined)
-                }
-              }}
-              disabled={isClosed}
-              label="Preuve de paiement *"
-              placeholder="Glissez-déposez une image ou cliquez pour parcourir"
-              currentFile={file}
-              resetKey={fileInputResetKey}
-              className="w-full"
-            />
-          </div>
-        </div>
-
-        <div className="sticky bottom-3 mt-2 flex justify-center">
-          <button
-            onClick={onPay}
-            disabled={
-              isPaying || 
-              !file || 
-              !paymentDate || 
-              !paymentTime || 
-              !paymentMode || 
-              isClosed ||
-              (isGroupContract && !selectedGroupMemberId)
-            }
-            className={classNames(
-              "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white shadow",
-              brand.bg,
-              brand.hover,
-              "disabled:cursor-not-allowed disabled:opacity-50"
-            )}
-          >
-            {isPaying ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Paiement en cours...
-              </>
-            ) : (
-              <>
-                <CreditCard className="h-4 w-4" />
-                <span>
-                  Payer l'échéance {selectedIdx !== null ? `M${selectedIdx + 1}` : ""}
-                </span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
 
       {/* Remboursements */}
       <div className="space-y-4">
@@ -703,7 +420,7 @@ export default function StandardContract({ id }: Props) {
                       setIsRefunding(true)
                       await requestEarlyRefund(id)
                       await refetch()
-                      
+
                       // Rafraîchir explicitement la liste des remboursements
                       try {
                         const refundsData = await listRefunds(id)
@@ -711,7 +428,7 @@ export default function StandardContract({ id }: Props) {
                       } catch (error) {
                         console.error('Error refreshing refunds:', error)
                       }
-                      
+
                       toast.success("Retrait anticipé demandé")
                     } catch (e: any) {
                       toast.error(e?.message || "Action impossible")
@@ -799,7 +516,7 @@ export default function StandardContract({ id }: Props) {
                           try {
                             await cancelEarlyRefund(id, r.id)
                             await refetch()
-                            
+
                             // Rafraîchir explicitement la liste des remboursements
                             try {
                               const refundsData = await listRefunds(id)
@@ -807,7 +524,7 @@ export default function StandardContract({ id }: Props) {
                             } catch (error) {
                               console.error('Error refreshing refunds:', error)
                             }
-                            
+
                             toast.success("Demande anticipée annulée")
                           } catch (e: any) {
                             toast.error(e?.message || "Annulation impossible")
@@ -934,7 +651,7 @@ export default function StandardContract({ id }: Props) {
                           setRefundFile(undefined)
                           setConfirmPaidId(null)
                           await refetch()
-                          
+
                           // Rafraîchir explicitement la liste des remboursements
                           try {
                             const refundsData = await listRefunds(id)
@@ -942,7 +659,7 @@ export default function StandardContract({ id }: Props) {
                           } catch (error) {
                             console.error('Error refreshing refunds:', error)
                           }
-                          
+
                           toast.success("Remboursement marqué payé")
                         } catch (error: any) {
                           toast.error(error?.message || "Erreur lors du marquage")
@@ -979,7 +696,7 @@ export default function StandardContract({ id }: Props) {
                   await approveRefund(id, confirmApproveId)
                   setConfirmApproveId(null)
                   await refetch()
-                  
+
                   // Rafraîchir explicitement la liste des remboursements
                   try {
                     const refundsData = await listRefunds(id)
@@ -987,7 +704,7 @@ export default function StandardContract({ id }: Props) {
                   } catch (error) {
                     console.error('Error refreshing refunds:', error)
                   }
-                  
+
                   toast.success("Remboursement approuvé")
                 }}
               >
@@ -1016,7 +733,7 @@ export default function StandardContract({ id }: Props) {
                     setIsRefunding(true)
                     await requestFinalRefund(id)
                     await refetch()
-                    
+
                     // Rafraîchir explicitement la liste des remboursements
                     try {
                       const refundsData = await listRefunds(id)
@@ -1024,7 +741,7 @@ export default function StandardContract({ id }: Props) {
                     } catch (error) {
                       console.error('Error refreshing refunds:', error)
                     }
-                    
+
                     toast.success("Remboursement final demandé")
                   } catch (e: any) {
                     toast.error(e?.message || "Action impossible")
@@ -1072,8 +789,8 @@ export default function StandardContract({ id }: Props) {
               Voulez-vous vraiment supprimer ce document PDF ? Cette action est irréversible.
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button 
-                className="rounded-lg border px-3 py-2 text-sm" 
+              <button
+                className="rounded-lg border px-3 py-2 text-sm"
                 onClick={() => setConfirmDeleteDocumentId(null)}
               >
                 Annuler

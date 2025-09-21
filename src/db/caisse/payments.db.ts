@@ -1,11 +1,33 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 const getFirestore = () => import('@/firebase/firestore')
 
+// Fonction utilitaire pour générer un ID de paiement personnalisé
+function generatePaymentId(memberId: string, paidAt: Date): string {
+  const date = paidAt.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit', 
+    year: '2-digit'
+  }).replace(/\//g, '')
+  
+  const time = paidAt.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).replace(/:/g, '')
+  
+  return `MK_CS_P_${memberId}_${date}_${time}`
+}
+
 export async function addPayment(contractId: string, input: any) {
-  const { db, collection, addDoc, serverTimestamp, doc } = await getFirestore() as any
+  const { db, collection, setDoc, serverTimestamp, doc } = await getFirestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/payments`)
-  const ref = await addDoc(colRef, { ...input, createdAt: serverTimestamp() })
-  return ref.id
+  
+  // Générer un ID personnalisé pour le paiement
+  const customId = generatePaymentId(input.memberId || 'UNKNOWN', input.dueAt || new Date())
+  const docRef = doc(colRef, customId)
+  
+  await setDoc(docRef, { ...input, createdAt: serverTimestamp() })
+  return customId
 }
 
 export async function listPayments(contractId: string) {

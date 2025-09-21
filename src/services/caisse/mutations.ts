@@ -12,6 +12,23 @@ import { getStorageInstance } from '@/firebase/storage'
 import type { GroupPaymentContribution } from './types'
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
 
+// Fonction utilitaire pour générer un ID de contribution personnalisé
+function generateContributionId(memberId: string, paidAt: Date): string {
+  const date = paidAt.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit', 
+    year: '2-digit'
+  }).replace(/\//g, '')
+  
+  const time = paidAt.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).replace(/:/g, '')
+  
+  return `MK_CS_P_${memberId}_${date}_${time}`
+}
+
 // Fonction utilitaire pour convertir n'importe quel type de date en chaîne ISO
 function normalizeDateToISOString(dateValue: any): string | null {
   if (!dateValue) return null
@@ -82,14 +99,12 @@ export async function subscribe(input: {
       const { getMemberWithSubscription } = await import('@/db/member.db')
       const member = await getMemberWithSubscription(input.memberId)
       memberMatricule = member?.matricule || '0000'
-      console.log('👤 Matricule du membre récupéré:', memberMatricule)
     } catch (error) {
       console.warn('⚠️ Impossible de récupérer le matricule du membre:', error)
     }
   } else if (input.groupeId) {
     // Pour les contrats de groupe, utiliser un matricule générique
     memberMatricule = 'GRP' + input.groupeId.slice(-3).padStart(3, '0')
-    console.log('👥 Matricule de groupe généré:', memberMatricule)
   }
   
   // Nettoyer les données pour éviter les valeurs undefined dans Firestore
@@ -150,7 +165,13 @@ export async function subscribe(input: {
   for (let i = 0; i < input.monthsPlanned; i++) {
     const dueDate = new Date(startDate)
     dueDate.setMonth(dueDate.getMonth() + i)
-    await addPayment(id, { dueMonthIndex: i, amount: input.monthlyAmount, status: 'DUE', dueAt: dueDate })
+    await addPayment(id, { 
+      dueMonthIndex: i, 
+      amount: input.monthlyAmount, 
+      status: 'DUE', 
+      dueAt: dueDate,
+      memberId: input.memberId || input.groupeId || 'UNKNOWN' // Passer l'ID pour générer l'ID personnalisé
+    })
   }
   
   // Associer au membre ou au groupe selon le type
@@ -229,7 +250,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   if (typeof input.amount === 'number' && input.amount > 0) {
     paymentUpdates.accumulatedAmount = newAccumulated
     const contrib = { 
-      id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID unique
+      id: generateContributionId(input.memberId, now), // ID personnalisé au format MK_CS_P_memberId_DATE_HEURE
       amount: input.amount, 
       paidAt: now, 
       proofUrl: proofUrl || undefined,
@@ -661,7 +682,7 @@ export async function payGroup(input: {
 
   // Créer la nouvelle contribution
   const newContribution: GroupPaymentContribution = {
-    id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: generateContributionId(input.memberId, now), // ID personnalisé au format MK_CS_P_memberId_DATE_HEURE
     memberId: input.memberId,
     memberName: input.memberName,
     memberMatricule: input.memberMatricule,
