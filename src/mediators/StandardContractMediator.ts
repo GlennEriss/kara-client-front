@@ -51,17 +51,29 @@ export class StandardContractMediator {
   }
 
   /**
-   * Calcule le bonus actuel basé sur les paramètres de caisse
+   * Calcule le bonus basé sur le mois actuel et les paramètres de caisse
+   * @param currentMonthIndex - Index du mois actuel (0-based)
    * @param nominalPaid - Montant nominal payé
-   * @param bonusPercentage - Pourcentage de bonus actuel des paramètres de caisse
-   * @returns Montant du bonus actuel
+   * @param settings - Paramètres de caisse avec bonusTable
+   * @returns Montant du bonus
    */
-  static calculateCurrentBonus(nominalPaid: number, bonusPercentage: number): number {
-    if (!nominalPaid || !bonusPercentage) {
+  static calculateCurrentBonus(currentMonthIndex: number, nominalPaid: number, settings: any): number {
+    if (!settings?.bonusTable || !nominalPaid || currentMonthIndex < 3) {
       return 0
     }
     
-    return Math.round((nominalPaid * bonusPercentage) / 100)
+    // Le bonus commence à partir du 4ème mois (index 3)
+    // Si je suis au 5ème mois (index 4), je calcule avec M4 (le mois précédent)
+    // Si je suis au 6ème mois (index 5), je calcule avec M5 (le mois précédent)
+    const bonusMonthKey = `M${currentMonthIndex}`
+    const bonusRate = settings.bonusTable[bonusMonthKey] || 0
+    
+    if (bonusRate === 0) {
+      return 0
+    }
+    
+    // Calcul du bonus : (nominalPayé * bonusRate) / 100
+    return Math.round((nominalPaid * bonusRate) / 100)
   }
 
   /**

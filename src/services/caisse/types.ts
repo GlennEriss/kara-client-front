@@ -1,3 +1,5 @@
+import { PaymentMode } from "@/types/types"
+
 export type CaisseType = 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
 export type CaisseContractStatus =
   | 'DRAFT'
@@ -61,6 +63,9 @@ export interface CaissePayment {
   status: CaissePaymentStatus
   proofUrl?: string
   createdAt: Date
+  // Informations de paiement
+  time?: string
+  mode?: PaymentMode
   // Extensions pour journalière/libre
   accumulatedAmount?: number
   contribs?: IndividualPaymentContribution[]

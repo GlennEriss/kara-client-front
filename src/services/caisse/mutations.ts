@@ -246,6 +246,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     proofUrl: proofUrl || payment.proofUrl,
     updatedAt: new Date(),
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
+    // Enregistrer les informations de paiement
+    time: input.time,
+    mode: input.mode,
   }
   if (typeof input.amount === 'number' && input.amount > 0) {
     paymentUpdates.accumulatedAmount = newAccumulated
@@ -711,7 +714,10 @@ export async function payGroup(input: {
     groupContributions: updatedContributions,
     accumulatedAmount: newTotalAmount,
     updatedAt: new Date(),
-    updatedBy: input.memberId
+    updatedBy: input.memberId,
+    // Enregistrer les informations de paiement (du dernier contributeur)
+    time: input.time,
+    mode: input.mode,
   }
 
   // Vérifier si l'objectif du mois est atteint

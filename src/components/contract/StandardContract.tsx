@@ -6,7 +6,6 @@ import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers } from "@/hooks/useMembers"
 import { useAuth } from "@/hooks/useAuth"
 import {
-  pay,
   requestFinalRefund,
   requestEarlyRefund,
   approveRefund,
@@ -15,21 +14,16 @@ import {
 } from "@/services/caisse/mutations"
 import { toast } from "sonner"
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from "@/lib/utils"
-import FileInput from "@/components/ui/file-input"
-import type { PaymentMode } from "@/types/types"
 import { listRefunds } from "@/db/caisse/refunds.db"
 import {
-  AlertTriangle,
   Clock,
   CheckCircle2,
   CreditCard,
   FileText,
-  Banknote,
-  Building2,
   Eye,
   Trash2,
-  BadgeCheck,
   CalendarDays,
+  AlertTriangle,
 } from "lucide-react"
 import PdfDocumentModal from "./PdfDocumentModal"
 import PdfViewerModal from "./PdfViewerModal"
@@ -184,8 +178,9 @@ export default function StandardContract({ id }: Props) {
   // Récupérer les paramètres de caisse pour le calcul du bonus
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
   const currentBonus = StandardContractMediator.calculateCurrentBonus(
+    data.currentMonthIndex || 0,
     data.nominalPaid || 0,
-    settings.data?.bonusPercentage || 0
+    settings.data
   )
 
   // Hook pour le formulaire de contrat standard
