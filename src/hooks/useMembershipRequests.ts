@@ -252,3 +252,19 @@ export function useMembershipRequestFilters(
 
     return defaultFilters;
 }
+
+/**
+ * Hook pour récupérer une demande d'adhésion par son dossier ID
+ */
+export function useMembershipRequestByDossier(dossierId: string, enabled = true) {
+    return useQuery({
+        queryKey: ['membershipRequestByDossier', dossierId],
+        queryFn: async (): Promise<MembershipRequest | null> => {
+            if (!dossierId) return null;
+            return await getMembershipRequestById(dossierId);
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        gcTime: 1000 * 60 * 10, // 10 minutes
+        enabled: enabled && !!dossierId
+    });
+}

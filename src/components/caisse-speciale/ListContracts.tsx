@@ -31,6 +31,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
 import { useContracts } from '@/hooks/useContracts'
+import { useMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
 
@@ -124,13 +125,15 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
 const StatsCard = ({
   title,
   value,
+  subtitle,
   percentage,
   color,
   icon: Icon,
   trend
 }: {
   title: string
-  value: number
+  value: number | string
+  subtitle?: string
   percentage: number
   color: string
   icon: React.ComponentType<any>
@@ -163,6 +166,9 @@ const StatsCard = ({
                   </div>
                 )}
               </div>
+              {subtitle && (
+                <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+              )}
             </div>
           </div>
           <div className="w-12 h-12">
@@ -192,6 +198,13 @@ const StatsCard = ({
 
 // Composant Carrousel des statistiques avec drag/swipe
 const StatsCarousel = ({ stats }: { stats: any }) => {
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XAF'
+    }).format(amount)
+  }
+
   const statsData = [
     { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: FileText },
     { title: 'En cours', value: stats.draft, percentage: stats.draftPercentage, color: '#9ca3af', icon: FileText, trend: 'neutral' as const },
@@ -199,6 +212,34 @@ const StatsCarousel = ({ stats }: { stats: any }) => {
     { title: 'En Retard', value: stats.late, percentage: stats.latePercentage, color: '#ef4444', icon: Clock, trend: stats.latePercentage > 20 ? 'up' as const : 'neutral' as const },
     { title: 'Individuels', value: stats.individual, percentage: stats.individualPercentage, color: '#3b82f6', icon: User, trend: 'neutral' as const },
     { title: 'Groupes', value: stats.group, percentage: stats.groupPercentage, color: '#8b5cf6', icon: GroupIcon, trend: 'neutral' as const },
+    // Statistiques des tontines closes
+    ...(stats.closedStats?.STANDARD ? [{
+      title: 'Standard Closes',
+      value: `${stats.closedStats.STANDARD.count}`,
+      subtitle: formatAmount(stats.closedStats.STANDARD.totalNominal),
+      percentage: 100,
+      color: '#059669',
+      icon: DollarSign,
+      trend: 'up' as const
+    }] : []),
+    ...(stats.closedStats?.JOURNALIERE ? [{
+      title: 'Journalière Closes',
+      value: `${stats.closedStats.JOURNALIERE.count}`,
+      subtitle: formatAmount(stats.closedStats.JOURNALIERE.totalNominal),
+      percentage: 100,
+      color: '#dc2626',
+      icon: Calendar,
+      trend: 'up' as const
+    }] : []),
+    ...(stats.closedStats?.LIBRE ? [{
+      title: 'Libre Closes',
+      value: `${stats.closedStats.LIBRE.count}`,
+      subtitle: formatAmount(stats.closedStats.LIBRE.totalNominal),
+      percentage: 100,
+      color: '#7c3aed',
+      icon: BarChart3,
+      trend: 'up' as const
+    }] : []),
   ]
 
   const [itemsPerView, setItemsPerView] = useState(1)
@@ -342,12 +383,12 @@ const ContractFilters = ({
 // Composant principal
 const ListContracts = () => {
   const router = useRouter()
-  
+
   // Fonction de navigation vers la création de contrat
   const handleCreateContract = () => {
     router.push('/caisse-speciale/create')
   }
-  
+
   // États
   const [filters, setFilters] = useState({
     search: '',
@@ -446,13 +487,13 @@ const ListContracts = () => {
 
       // Créer le fichier CSV avec BOM pour Excel
       const headers = Object.keys(exportData[0])
-      
+
       // Ajouter le BOM UTF-8 pour Excel
       const BOM = '\uFEFF'
-      
+
       const csvContent = BOM + [
         headers.join(';'),
-        ...exportData.map((row: Record<string, any>) => 
+        ...exportData.map((row: Record<string, any>) =>
           headers.map(header => {
             const value = row[header]
             // Échapper les points-virgules et guillemets dans les valeurs
@@ -515,6 +556,35 @@ const ListContracts = () => {
         }
       }
       return `Membre ${contract.memberId?.slice(-6) || 'N/A'}`
+    }
+  }
+
+  // Fonction pour obtenir le nom du membre (version améliorée)
+  const getMemberName = (contract: any) => {
+    if (contract.contractType === 'INDIVIDUAL' && contract.memberId) {
+      const member = membersMap.get(contract.memberId)
+      if (member) {
+        return {
+          firstName: member.firstName,
+          lastName: member.lastName
+        }
+      }
+    }
+    return getContractDisplayName(contract)
+  }
+
+  // Fonction pour obtenir le label du type de contrat
+  const getContractTypeLabel = (contract: any) => {
+    const type = contract.caisseType || 'STANDARD'
+    switch (type) {
+      case 'STANDARD':
+        return 'Standard'
+      case 'JOURNALIERE':
+        return 'Journalière'
+      case 'LIBRE':
+        return 'Libre'
+      default:
+        return type
     }
   }
 
@@ -588,7 +658,20 @@ const ListContracts = () => {
   const endIndex = startIndex + itemsPerPage
   const currentContracts = filteredContracts.slice(startIndex, endIndex)
 
-  // Calcul des statistiques
+  // Récupérer les informations des membres pour les contrats individuels
+  const individualContractMemberIds = React.useMemo(() => {
+    return contractsData
+      ?.filter((contract: any) => contract.contractType === 'INDIVIDUAL' && contract.memberId)
+      .map((contract: any) => contract.memberId) || []
+  }, [contractsData])
+
+  const { data: membersDataFromHook } = useMembers(individualContractMemberIds)
+
+  // Créer un map des membres pour un accès rapide
+  const membersMap = React.useMemo(() => {
+    if (!membersDataFromHook) return new Map()
+    return new Map(membersDataFromHook.map((member: any) => [member.id, member]))
+  }, [membersDataFromHook])
   const stats = React.useMemo(() => {
     if (!contractsData) return null
 
@@ -600,6 +683,18 @@ const ListContracts = () => {
     ).length
     const group = contractsData.filter((c: any) => isGroupContract(c)).length
     const individual = total - group
+
+    // Statistiques des tontines closes par type
+    const closedContracts = contractsData.filter((c: any) => c.status === 'CLOSED')
+    const closedStats = closedContracts.reduce((acc: any, contract: any) => {
+      const type = contract.caisseType || 'STANDARD'
+      if (!acc[type]) {
+        acc[type] = { count: 0, totalNominal: 0 }
+      }
+      acc[type].count += 1
+      acc[type].totalNominal += contract.nominalPaid || 0
+      return acc
+    }, {})
 
     return {
       total,
@@ -613,6 +708,7 @@ const ListContracts = () => {
       latePercentage: total > 0 ? (late / total) * 100 : 0,
       individualPercentage: total > 0 ? (individual / total) * 100 : 0,
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
+      closedStats,
     }
   }, [contractsData])
 
@@ -798,9 +894,33 @@ const ListContracts = () => {
 
                     <div className="space-y-3 mb-4">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Nom:</span>
-                        <span className="font-medium text-gray-900">{getContractDisplayName(contract)}</span>
+                        <span className="text-gray-500">Type de contrat:</span>
+                        <span className="font-medium text-gray-900">{getContractTypeLabel(contract)}</span>
                       </div>
+
+                      {(() => {
+                        const memberName = getMemberName(contract)
+                        if (typeof memberName === 'object' && memberName.firstName && memberName.lastName) {
+                          return (
+                            <>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-500">Nom:</span>
+                                <span className="font-medium text-gray-900">{memberName.lastName}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-500">Prénom:</span>
+                                <span className="font-medium text-gray-900">{memberName.firstName}</span>
+                              </div>
+                            </>
+                          )
+                        }
+                        return (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Nom:</span>
+                            <span className="font-medium text-gray-900">{memberName}</span>
+                          </div>
+                        )
+                      })()}
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Mensuel:</span>
@@ -815,6 +935,14 @@ const ListContracts = () => {
                       </div>
 
                       <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Début d'échéance:</span>
+                        <div className="flex items-center gap-1 text-gray-700">
+                          <Calendar className="h-3 w-3" />
+                          {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Prochaine échéance:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <Calendar className="h-3 w-3" />
@@ -825,7 +953,6 @@ const ListContracts = () => {
 
                     <div className="pt-3 border-t border-gray-100 mt-auto">
                       <div className="text-xs text-gray-600 mb-2">
-                        <DollarSign className="h-3 w-3 inline mr-1" />
                         Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
                       </div>
                       <Button
