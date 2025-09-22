@@ -1,327 +1,808 @@
 "use client"
 
-import React, { useState } from 'react'
-import Link from 'next/link'
-import routes from '@/constantes/routes'
-import { useCaisseContract } from '@/hooks/useCaisseContracts'
-import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
-import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
-import { toast } from 'sonner'
-// PDF generation désactivée pour build Next 15; à réactiver via import dynamique côté client si besoin
-import { recomputeNow } from '@/services/caisse/readers'
-import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
+import React, { useState, useEffect } from "react"
+import { useCaisseContract } from "@/hooks/useCaisseContracts"
+import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
+import { useGroupMembers } from "@/hooks/useMembers"
+import { useAuth } from "@/hooks/useAuth"
+import {
+  requestFinalRefund,
+  requestEarlyRefund,
+  approveRefund,
+  markRefundPaid,
+  cancelEarlyRefund,
+} from "@/services/caisse/mutations"
+import { toast } from "sonner"
+import { compressImage, IMAGE_COMPRESSION_PRESETS } from "@/lib/utils"
+import { listRefunds } from "@/db/caisse/refunds.db"
+import {
+  Clock,
+  CheckCircle2,
+  CreditCard,
+  FileText,
+  Eye,
+  Trash2,
+  CalendarDays,
+  AlertTriangle,
+} from "lucide-react"
+import PdfDocumentModal from "./PdfDocumentModal"
+import PdfViewerModal from "./PdfViewerModal"
+import HeaderContractSection from "./standard/HeaderContractSection"
+import StandardEchanceForm from "./standard/StandardEchanceForm"
+import PaymentDateForm from "./standard/PaymentDateForm"
+import PaymentTimeForm from "./standard/PaymentTimeForm"
+import PaymentModeForm from "./standard/PaymentModeForm"
+import GroupMemberSelectForm from "./standard/GroupMemberSelectForm"
+import AmountForm from "./standard/AmountForm"
+import ProofFileForm from "./standard/ProofFileForm"
+import { StandardContractMediator } from "@/mediators/StandardContractMediator"
+import { useStandardContractForm } from "@/hooks/contract/standard"
+import type { RefundDocument } from "@/types/types"
+import { Form } from "../ui/form"
+
+// ————————————————————————————————————————————————————————————
+// Helpers UI
+// ————————————————————————————————————————————————————————————
+const brand = {
+  bg: "bg-[#234D65]",
+  bgSoft: "bg-[#234D65]/10",
+  text: "text-[#234D65]",
+  ring: "ring-[#234D65]/30",
+  hover: "hover:bg-[#1a3a4f]",
+}
+
+function Badge({ children, tone = "slate" as "slate" | "green" | "red" | "yellow" | "blue" }: React.PropsWithChildren<{ tone?: "slate" | "green" | "red" | "yellow" | "blue" }>) {
+  const tones: Record<string, string> = {
+    slate: "bg-slate-100 text-slate-700",
+    green: "bg-green-100 text-green-700",
+    red: "bg-red-100 text-red-700",
+    yellow: "bg-yellow-100 text-yellow-700",
+    blue: "bg-blue-100 text-blue-700",
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${tones[tone]}`}>{children}</span>
+  )
+}
+
+function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
+  const accents: Record<string, string> = {
+    slate: "from-slate-50 to-white",
+    emerald: "from-emerald-50 to-white",
+    red: "from-rose-50 to-white",
+    brand: "from-[#234D65]/10 to-white",
+  }
+  return (
+    <div className={`rounded-2xl border bg-gradient-to-b ${accents[accent]} p-4 shadow-sm`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-slate-500">{label}</div>
+          <div className="mt-1 text-lg font-semibold text-slate-800">{value}</div>
+        </div>
+        {Icon ? <Icon className={`h-5 w-5 ${brand.text}`} /> : null}
+      </div>
+    </div>
+  )
+}
+
+function SectionTitle({ children }: React.PropsWithChildren) {
+  return <h2 className="text-base font-semibold text-slate-900">{children}</h2>
+}
+
+function classNames(...cls: (string | false | undefined)[]) {
+  return cls.filter(Boolean).join(" ")
+}
+
+// ————————————————————————————————————————————————————————————
+// Component
+// ————————————————————————————————————————————————————————————
 
 type Props = { id: string }
 
 export default function StandardContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
-  const [file, setFile] = useState<File | undefined>()
+  const { user } = useAuth()
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const [isPaying, setIsPaying] = useState(false)
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
+  const [refundReason, setRefundReason] = useState("")
+  const [refundDate, setRefundDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [refundTime, setRefundTime] = useState(() => {
+    const now = new Date()
+    return `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`
+  })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [confirmFinal, setConfirmFinal] = useState(false)
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [showPdfViewer, setShowPdfViewer] = useState(false)
+  const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
+  const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
+  const [refunds, setRefunds] = useState<any[]>([])
+  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+
+  // Load refunds from subcollection
+  useEffect(() => {
+    const loadRefunds = async () => {
+      if (id) {
+        try {
+          const refundsData = await listRefunds(id)
+          setRefunds(refundsData)
+        } catch (error) {
+          console.error('Error loading refunds:', error)
+        }
+      }
+    }
+    loadRefunds()
+  }, [id])
 
   function paymentStatusLabel(s: string): string {
-    const map: Record<string, string> = {
-      DUE: 'À payer',
-      PAID: 'Payé',
-      REFUSED: 'Refusé',
-    }
+    const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }
     return map[s] || s
   }
-
-  function contractStatusLabel(s: string): string {
-    const map: Record<string, string> = {
-      DRAFT: 'Brouillon',
-      ACTIVE: 'Actif',
-      LATE_NO_PENALTY: 'Retard (J+0..3)',
-      LATE_WITH_PENALTY: 'Retard (J+4..12)',
-      DEFAULTED_AFTER_J12: 'Résilié (>J+12)',
-      EARLY_WITHDRAW_REQUESTED: 'Retrait anticipé demandé',
-      FINAL_REFUND_PENDING: 'Remboursement final en attente',
-      EARLY_REFUND_PENDING: 'Remboursement anticipé en attente',
-      RESCINDED: 'Résilié',
-      CLOSED: 'Clos',
-    }
-    return map[s] || s
-  }
-
   function refundStatusLabel(s: string): string {
     const map: Record<string, string> = {
-      PENDING: 'En attente',
-      APPROVED: 'Approuvé',
-      PAID: 'Payé',
-      ARCHIVED: 'Archivé',
+      PENDING: "En attente",
+      APPROVED: "Approuvé",
+      PAID: "Payé",
+      ARCHIVED: "Archivé",
     }
     return map[s] || s
   }
-
   function refundTypeLabel(t: string): string {
-    const map: Record<string, string> = {
-      FINAL: 'Final',
-      EARLY: 'Anticipé',
-      DEFAULT: 'Défaut',
-    }
+    const map: Record<string, string> = { FINAL: "Final", EARLY: "Anticipé", DEFAULT: "Défaut" }
     return map[t] || t
   }
 
-  if (isLoading) return <div className="p-4">Chargement…</div>
-  if (isError) return <div className="p-4 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
-  if (!data) return <div className="p-4">Contrat introuvable</div>
+  if (isLoading) return <div className="p-6">Chargement…</div>
+  if (isError)
+    return (
+      <div className="p-6 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
+    )
+  if (!data) return <div className="p-6">Contrat introuvable</div>
 
-  const isClosed = data.status === 'CLOSED'
+  const isClosed = data.status === "CLOSED"
+
+  // Récupérer les membres du groupe si c'est un contrat de groupe
+  const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
+  const isGroupContract = data.contractType === 'GROUP' || !!groupeId
+  const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
+
+  const payments = data.payments || []
+  const paidCount = StandardContractMediator.calculatePaidCount(payments)
+  const totalMonths = data.monthsPlanned || 0
+  const progress = StandardContractMediator.calculateProgress(paidCount, totalMonths)
+
+  // Récupérer les paramètres de caisse pour le calcul du bonus
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
+  const currentBonus = StandardContractMediator.calculateCurrentBonus(
+    data.currentMonthIndex || 0,
+    data.nominalPaid || 0,
+    settings.data
+  )
 
-  const onPay = async () => {
-    if (isClosed) { toast.error('Contrat clos: paiement impossible.'); return }
-    if (selectedIdx === null) { toast.error('Veuillez choisir un mois à payer.'); return }
-    if (!file) { toast.error('Veuillez téléverser une preuve (capture) avant de payer.') ; return }
+  // Hook pour le formulaire de contrat standard
+  const form = useStandardContractForm(
+    id,
+    data.memberId,
+    groupeId
+  )
+
+  // Surveiller les valeurs du formulaire pour la validation du bouton
+  const watchedValues = form.watch()
+
+  // Trouver la prochaine échéance à payer (paiement séquentiel)
+  const getNextDueMonthIndex = () => {
+    const sortedPayments = [...payments].sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
+    const nextDue = sortedPayments.find(p => p.status === "DUE")
+    return nextDue ? nextDue.dueMonthIndex : -1
+  }
+
+  const nextDueMonthIndex = getNextDueMonthIndex()
+
+  const handlePdfUpload = async (document: RefundDocument | null) => {
+    // Le document est maintenant persisté dans la base de données
+    // On peut fermer le modal et rafraîchir les données
+    setShowPdfModal(false)
+    await refetch()
+
+    // Rafraîchir explicitement la liste des remboursements
     try {
-      setIsPaying(true)
-      await pay({ contractId: id, dueMonthIndex: selectedIdx, memberId: data.memberId, file })
-      await refetch()
-      toast.success('Paiement enregistré')
-      setSelectedIdx(null)
-      setFile(undefined)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    } finally {
-      setIsPaying(false)
+      const refundsData = await listRefunds(id)
+      setRefunds(refundsData)
+    } catch (error) {
+      console.error('Error refreshing refunds after PDF upload:', error)
     }
   }
 
+  const handleViewDocument = async (refundId: string, document: RefundDocument) => {
+    if (!document) {
+      toast.error('Aucun document à afficher')
+      return
+    }
+    setCurrentRefundId(refundId)
+    setCurrentDocument(document)
+    setShowPdfViewer(true)
+  }
+
+  const handleOpenPdfModal = (refundId: string) => {
+    setCurrentRefundId(refundId)
+    setShowPdfModal(true)
+  }
+
+  const handleDeleteDocument = async (refundId: string) => {
+    try {
+      const { updateRefund } = await import('@/db/caisse/refunds.db')
+
+      await updateRefund(id, refundId, {
+        document: null,
+        updatedBy: user?.uid,
+        documentDeletedAt: new Date()
+      })
+
+      // Rafraîchir explicitement la liste des remboursements
+      try {
+        const refundsData = await listRefunds(id)
+        setRefunds(refundsData)
+      } catch (error) {
+        console.error('Error refreshing refunds after document deletion:', error)
+      }
+
+      toast.success("Document supprimé avec succès")
+    } catch (error: any) {
+      console.error('Error deleting document:', error)
+      toast.error(error?.message || "Erreur lors de la suppression du document")
+    } finally {
+      setConfirmDeleteDocumentId(null)
+    }
+  }
+
+  const onPay = async (formData: any) => {
+    // Déléguer la logique au mediator avec le form
+    await StandardContractMediator.onPay({
+      form,
+      selectedMonthIndex: formData.selectedMonthIndex,
+      contractId: id,
+      contractData: data,
+      isGroupContract,
+      groupMembers,
+      selectedGroupMemberId: formData.selectedGroupMemberId,
+      file: formData.proofFile,
+      refetch
+    })
+  }
+
   return (
-    <div className="p-4 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Contrat #{id}</h1>
-        <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span>Statut: {contractStatusLabel(data.status)}</span>
-          <button onClick={async ()=>{ setIsRecomputing(true); await recomputeNow(id); await refetch(); setIsRecomputing(false) }} className="px-2 py-1 rounded border">
-            {isRecomputing ? 'Recalcul…' : 'Recalculer maintenant'}
-          </button>
-          <Link className="px-2 py-1 rounded border underline" href={routes.admin.membershipDetails(data.memberId)}>Voir membre</Link>
-        </div>
-        <div className="text-xs text-gray-500 mt-1">Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}</div>
-      </div>
+    <div className="space-y-8 p-4 md:p-6">
+      {/* Header */}
+      <HeaderContractSection
+        id={id}
+        data={data}
+        isGroupContract={isGroupContract}
+        paidCount={paidCount}
+        totalMonths={totalMonths}
+        progress={progress}
+        isRecomputing={isRecomputing}
+        setIsRecomputing={setIsRecomputing}
+        refetch={async () => { await refetch() }}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <div className="border rounded p-3">
-          <div className="text-xs text-gray-500">Montant mensuel</div>
-          <div className="text-lg font-semibold">{(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</div>
-        </div>
-        <div className="border rounded p-3">
-          <div className="text-xs text-gray-500">Durée (mois)</div>
-          <div className="text-lg font-semibold">{data.monthsPlanned || 0}</div>
-        </div>
-        <div className="border rounded p-3">
-          <div className="text-xs text-gray-500">Nominal payé</div>
-          <div className="text-lg font-semibold">{(data.nominalPaid || 0).toLocaleString('fr-FR')} FCFA</div>
-        </div>
-        <div className="border rounded p-3">
-          <div className="text-xs text-gray-500">Bonus cumulés</div>
-          <div className="text-lg font-semibold text-emerald-700">{(data.bonusAccrued || 0).toLocaleString('fr-FR')} FCFA</div>
-        </div>
-        <div className="border rounded p-3">
-          <div className="text-xs text-gray-500">Pénalités cumulées</div>
-          <div className="text-lg font-semibold text-red-700">{(data.penaltiesTotal || 0).toLocaleString('fr-FR')} FCFA</div>
-        </div>
-        <div className="border rounded p-3">
-          <div className="text-xs text-gray-500">Prochaine échéance</div>
-          <div className="text-lg font-semibold">{data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString('fr-FR') : '—'}</div>
-        </div>
-        <div className="border rounded p-3 md:col-span-3 xl:col-span-2">
-          <div className="text-xs text-gray-500">Récapitulatif</div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard icon={CreditCard} label="Montant mensuel" value={`${(data.monthlyAmount || 0).toLocaleString("fr-FR")} FCFA`} accent="brand" />
+        <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
+        <StatCard icon={CheckCircle2} label="Nominal payé" value={`${(data.nominalPaid || 0).toLocaleString("fr-FR")} FCFA`} />
+        <StatCard icon={CalendarDays} label="Bonus" value={`${currentBonus.toLocaleString("fr-FR")} FCFA`} accent="emerald" />
+        <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${(data.penaltiesTotal || 0).toLocaleString("fr-FR")} FCFA`} accent="red" />
+        <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
+      </div>
+      <Form {...(form as any)}>
+        <form method="POST" onSubmit={form.handleSubmit(onPay)}>
+          {/* Calendrier des échéances */}
+          <StandardEchanceForm payments={payments} isClosed={isClosed} contractData={data} />
+
+          {/* Paiement */}
+          <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
+            <SectionTitle>
+              {nextDueMonthIndex !== -1 ? 
+                `Payer l'échéance M${nextDueMonthIndex + 1}` : 
+                "Toutes les échéances sont payées"
+              }
+            </SectionTitle>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {/* Date */}
+              <PaymentDateForm />
+
+              {/* Heure */}
+              <PaymentTimeForm />
+
+              {/* Mode */}
+              <PaymentModeForm />
+
+               {/* Sélection du membre du groupe (si contrat de groupe) */}
+               {isGroupContract && (
+                 <GroupMemberSelectForm 
+                   groupMembers={groupMembers} 
+                   isLoading={isLoadingGroupMembers}
+                 />
+               )}
+
+               {/* Montant à verser (si contrat de groupe) */}
+               {isGroupContract && (
+                 <AmountForm />
+               )}
+            </div>
+               {/* Preuve */}
+               <ProofFileForm 
+                 disabled={isClosed}
+               />
+
+             <div className="sticky bottom-3 mt-2 flex justify-center">
+               <button
+                 type="submit"
+                 disabled={
+                   form.formState.isSubmitting ||
+                   !(watchedValues as any).proofFile ||
+                   !watchedValues.paymentDate ||
+                   !watchedValues.paymentTime ||
+                   !watchedValues.paymentMode ||
+                   isClosed ||
+                   (isGroupContract && !(watchedValues as any).selectedGroupMemberId) ||
+                   (isGroupContract && !(watchedValues as any).amount) ||
+                   watchedValues.selectedMonthIndex !== nextDueMonthIndex
+                 }
+                 className={classNames(
+                   "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white shadow",
+                   brand.bg,
+                   brand.hover,
+                   "disabled:cursor-not-allowed disabled:opacity-50"
+                 )}
+               >
+                 {form.formState.isSubmitting ? (
+                   <>
+                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                     Paiement en cours...
+                   </>
+                 ) : (
+                   <>
+                     <CreditCard className="h-4 w-4" />
+                     <span>
+                       {nextDueMonthIndex !== -1 ? 
+                         `Payer l'échéance M${nextDueMonthIndex + 1}` : 
+                         "Toutes les échéances sont payées"
+                       }
+                     </span>
+                   </>
+                 )}
+               </button>
+             </div>
+          </div>
+        </form>
+      </Form>
+
+
+      {/* Remboursements */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <SectionTitle>Remboursements</SectionTitle>
           {(() => {
-            const totalDue = (data.monthlyAmount || 0) * (data.monthsPlanned || 0)
-            const paidCount = (data.payments || []).filter((p: any) => p.status === 'PAID').length
+            const paidCountLocal = payments.filter((x: any) => x.status === "PAID").length
+            const allPaid = payments.length > 0 && paidCountLocal === payments.length
+            const canEarly = paidCountLocal >= 1 && !allPaid
+            const hasFinalRefund = refunds.some((r: any) => r.type === "FINAL" && r.status !== "ARCHIVED") ||
+              data.status === "FINAL_REFUND_PENDING" ||
+              data.status === "CLOSED"
+            const hasEarlyRefund = refunds.some((r: any) => r.type === "EARLY" && r.status !== "ARCHIVED") ||
+              data.status === "EARLY_REFUND_PENDING"
             return (
-              <div className="text-sm text-gray-700 flex flex-wrap gap-3 mt-1">
-                <span>Mois payés: <b>{paidCount}</b> / {data.monthsPlanned || 0}</span>
-                <span>Total dû: <b>{totalDue.toLocaleString('fr-FR')} FCFA</b></span>
-                <span>Reste: <b>{Math.max(0, totalDue - (data.nominalPaid||0)).toLocaleString('fr-FR')} FCFA</b></span>
+              <div className="flex gap-2">
+                <button
+                  className={classNames(
+                    "rounded-lg border px-3 py-2 text-sm font-medium",
+                    brand.bgSoft,
+                    "hover:bg-slate-100 disabled:opacity-50"
+                  )}
+                  disabled={isRefunding || !allPaid || hasFinalRefund}
+                  onClick={() => setConfirmFinal(true)}
+                >
+                  Demander remboursement final
+                </button>
+                <button
+                  className={classNames(
+                    "rounded-lg border px-3 py-2 text-sm font-medium",
+                    brand.bgSoft,
+                    "hover:bg-slate-100 disabled:opacity-50"
+                  )}
+                  disabled={isRefunding || !canEarly || hasEarlyRefund}
+                  onClick={async () => {
+                    try {
+                      setIsRefunding(true)
+                      await requestEarlyRefund(id)
+                      await refetch()
+
+                      // Rafraîchir explicitement la liste des remboursements
+                      try {
+                        const refundsData = await listRefunds(id)
+                        setRefunds(refundsData)
+                      } catch (error) {
+                        console.error('Error refreshing refunds:', error)
+                      }
+
+                      toast.success("Retrait anticipé demandé")
+                    } catch (e: any) {
+                      toast.error(e?.message || "Action impossible")
+                    } finally {
+                      setIsRefunding(false)
+                    }
+                  }}
+                >
+                  Demander retrait anticipé
+                </button>
               </div>
             )
           })()}
         </div>
-      </div>
 
-      <div>
-        <h2 className="font-semibold mb-2">Calendrier des échéances</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {data.payments?.map((p: any) => {
-            let badge = null
-            if (p.status === 'DUE' && p.dueAt) {
-              const now = new Date()
-              const due = new Date(p.dueAt)
-              const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
-              if (days > 12) badge = <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-700">{">"}J+12</span>
-              else if (days >= 4) badge = <span className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-700">J+4..J+12</span>
-              else if (days >= 0) badge = <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700">J+0..J+3</span>
-            }
-            return (
-              <div key={p.id} className="border rounded p-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">M{p.dueMonthIndex + 1}</div>
-                  <div className="flex items-center gap-2">
-                    {badge}
-                    <span className="text-xs px-2 py-1 rounded bg-gray-100">{paymentStatusLabel(p.status)}</span>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-600">Échéance: {p.dueAt ? new Date(p.dueAt).toLocaleDateString('fr-FR') : '—'}</div>
-                <div className="text-xs text-gray-600">Payé le: {p.paidAt ? new Date(p.paidAt).toLocaleDateString('fr-FR') : '—'}</div>
-                {p.penaltyApplied ? (
-                  <div className="text-xs text-red-600">Pénalité: {p.penaltyApplied}</div>
-                ) : null}
-                <div className="flex items-center gap-2 mt-1">
-                <input type="radio" name="pay" onChange={() => setSelectedIdx(p.dueMonthIndex)} checked={selectedIdx === p.dueMonthIndex} disabled={p.status !== 'DUE' || isClosed} />
-                  <span className="text-sm">Sélectionner pour payer</span>
-                  {/* Lien PDF désactivé temporairement */}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h2 className="font-semibold">Payer l’échéance sélectionnée</h2>
-        <input
-          type="file"
-          accept="image/*"
-          ref={fileInputRef}
-          disabled={isClosed}
-          onChange={async (e) => {
-            const f = e.target.files?.[0]
-            if (!f) { setFile(undefined); return }
-            if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setFile(undefined); return }
-            try {
-              const dataUrl = await compressImage(f, IMAGE_COMPRESSION_PRESETS.document)
-              const res = await fetch(dataUrl)
-              const blob = await res.blob()
-              const webpFile = new File([blob], 'proof.webp', { type: 'image/webp' })
-              setFile(webpFile)
-              toast.success('Preuve compressée (WebP) prête')
-            } catch (err) {
-              console.error(err)
-              toast.error('Échec de la compression de l\'image')
-              setFile(undefined)
-            }
-          }}
-        />
-        <button onClick={onPay} disabled={isPaying || selectedIdx === null || !file || isClosed} className="px-4 py-2 rounded bg-[#234D65] text-white disabled:opacity-50">
-          {isPaying ? 'Paiement…' : 'Payer'}
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        <h2 className="font-semibold">Remboursements</h2>
-        <div className="flex items-center gap-2">
-          {(() => {
-            const payments = data.payments || []
-            const paidCount = payments.filter((x: any) => x.status === 'PAID').length
-            const allPaid = payments.length > 0 && paidCount === payments.length
-            const canEarly = paidCount >= 1 && !allPaid
-            const hasFinalRefund = (data.refunds || []).some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
-            const hasEarlyRefund = (data.refunds || []).some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
-            return (
-              <>
-                <button className="px-3 py-2 border rounded disabled:opacity-50" disabled={isRefunding || !allPaid || hasFinalRefund} onClick={()=> setConfirmFinal(true)}>Demander remboursement final</button>
-                <button className="px-3 py-2 border rounded disabled:opacity-50" disabled={isRefunding || !canEarly || hasEarlyRefund} onClick={async()=>{ try{ setIsRefunding(true); await requestEarlyRefund(id); await refetch(); toast.success('Retrait anticipé demandé'); } catch(e:any){ toast.error(e?.message||'Action impossible') } finally { setIsRefunding(false)} }}>Demander retrait anticipé</button>
-              </>
-            )
-          })()}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {(data.refunds || []).map((r: any) => (
-            <div key={r.id} className="border rounded p-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {refunds.map((r: any) => (
+            <div key={r.id} className="rounded-2xl border bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="font-medium">{refundTypeLabel(r.type)}</div>
-                <span className={`text-xs px-2 py-1 rounded ${r.status==='PENDING' ? 'bg-yellow-100 text-yellow-700' : r.status==='APPROVED' ? 'bg-blue-100 text-blue-700' : r.status==='PAID' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{refundStatusLabel(r.status)}</span>
+                <Badge
+                  tone={r.status === "PENDING" ? "yellow" : r.status === "APPROVED" ? "blue" : r.status === "PAID" ? "green" : "slate"}
+                >
+                  {refundStatusLabel(r.status)}
+                </Badge>
               </div>
-              <div className="text-xs text-gray-600">Nominal: {(r.amountNominal||0).toLocaleString('fr-FR')} FCFA</div>
-              <div className="text-xs text-gray-600">Bonus: {(r.amountBonus||0).toLocaleString('fr-FR')} FCFA</div>
-              <div className="text-xs text-gray-600">Échéance remboursement: {r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</div>
-              <div className="flex items-center gap-2 mt-2">
-                {r.status === 'PENDING' && (
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div>Nominal: {(r.amountNominal || 0).toLocaleString("fr-FR")} FCFA</div>
+                <div>Bonus: {(r.amountBonus || 0).toLocaleString("fr-FR")} FCFA</div>
+                <div className="col-span-2">
+                  Échéance remboursement: {r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString("fr-FR") : "—"}
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {r.status === "PENDING" && (
                   <>
-                    <button className="px-3 py-1 rounded border" onClick={()=> setConfirmApproveId(r.id)}>Approuver</button>
-                    {r.type === 'EARLY' && (
-                      <button className="px-3 py-1 rounded border text-red-600" onClick={async()=>{ try{ await cancelEarlyRefund(id, r.id); await refetch(); toast.success('Demande anticipée annulée') } catch(e:any){ toast.error(e?.message||'Annulation impossible') } }}>Annuler</button>
+                    <button
+                      className="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setConfirmApproveId(r.id)}
+                      disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
+                    >
+                      Approuver
+                    </button>
+                    {(r.type === "FINAL" || r.type === "EARLY") && (
+                      <div className="flex gap-2">
+                        {r.document ? (
+                          <div className="flex gap-2">
+                            <button
+                              className="rounded-lg border px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
+                              onClick={() => handleViewDocument(r.id, r.document)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              Voir PDF
+                            </button>
+                            <button
+                              className="rounded-lg border px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                              onClick={() => handleOpenPdfModal(r.id)}
+                            >
+                              <FileText className="h-4 w-4" />
+                              Remplacer PDF
+                            </button>
+                            <button
+                              className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                              onClick={() => setConfirmDeleteDocumentId(r.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Supprimer PDF
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            onClick={() => handleOpenPdfModal(r.id)}
+                          >
+                            <FileText className="h-4 w-4" />
+                            Ajouter PDF
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {r.type === "EARLY" && !r.document && (
+                      <button
+                        className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                        onClick={async () => {
+                          try {
+                            await cancelEarlyRefund(id, r.id)
+                            await refetch()
+
+                            // Rafraîchir explicitement la liste des remboursements
+                            try {
+                              const refundsData = await listRefunds(id)
+                              setRefunds(refundsData)
+                            } catch (error) {
+                              console.error('Error refreshing refunds:', error)
+                            }
+
+                            toast.success("Demande anticipée annulée")
+                          } catch (e: any) {
+                            toast.error(e?.message || "Annulation impossible")
+                          }
+                        }}
+                      >
+                        Annuler
+                      </button>
                     )}
                   </>
                 )}
-                {r.status === 'APPROVED' && (
-                  <>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={async (e)=> {
-                        const f = e.target.files?.[0]
-                        if (!f) { setRefundFile(undefined); return }
-                        if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setRefundFile(undefined); return }
+
+                {r.status === "APPROVED" && (
+                  <div className="mt-2 w-full space-y-3 rounded-xl border bg-slate-50 p-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-600">Cause du retrait *</label>
+                        <textarea
+                          placeholder="Raison du retrait..."
+                          className="w-full resize-none rounded-lg border p-2 text-xs"
+                          rows={2}
+                          value={refundReason || r.reason || ""}
+                          onChange={(e) => setRefundReason(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
+                        <input
+                          type="date"
+                          value={refundDate}
+                          onChange={(e) => setRefundDate(e.target.value)}
+                          className="w-full rounded-lg border p-2 text-xs"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-600">Heure du retrait *</label>
+                        <input
+                          type="time"
+                          value={refundTime}
+                          onChange={(e) => setRefundTime(e.target.value)}
+                          className="w-full rounded-lg border p-2 text-xs"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0]
+                            if (!f) {
+                              setRefundFile(undefined)
+                              return
+                            }
+                            if (!f.type.startsWith("image/")) {
+                              toast.error("La preuve doit être une image")
+                              setRefundFile(undefined)
+                              return
+                            }
+                            try {
+                              const dataUrl = await compressImage(f, IMAGE_COMPRESSION_PRESETS.document)
+                              const res = await fetch(dataUrl)
+                              const blob = await res.blob()
+                              const webpFile = new File([blob], "refund-proof.webp", { type: "image/webp" })
+                              setRefundFile(webpFile)
+                              toast.success("Preuve compressée (WebP) prête")
+                            } catch (err) {
+                              console.error(err)
+                              toast.error("Échec de la compression de l'image")
+                              setRefundFile(undefined)
+                            }
+                          }}
+                          className="w-full rounded-lg border p-2 text-xs"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <button
+                      className={classNames(
+                        "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white",
+                        brand.bg,
+                        brand.hover,
+                        "disabled:opacity-50"
+                      )}
+                      disabled={(() => {
+                        const hasFile = !!refundFile
+                        const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
+                        const hasDate = refundDate || r.withdrawalDate
+                        const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
+                        return !hasFile || !hasReason || !hasDate || !hasTime
+                      })()}
+                      onClick={async () => {
                         try {
-                          const dataUrl = await compressImage(f, IMAGE_COMPRESSION_PRESETS.document)
-                          const res = await fetch(dataUrl)
-                          const blob = await res.blob()
-                          const webpFile = new File([blob], 'refund-proof.webp', { type: 'image/webp' })
-                          setRefundFile(webpFile)
-                          toast.success('Preuve compressée (WebP) prête')
-                        } catch (err) {
-                          console.error(err)
-                          toast.error('Échec de la compression de l\'image')
+                          const normalizeDate = (dateValue: any): string | null => {
+                            if (!dateValue) return null
+                            try {
+                              let date: Date
+                              if (dateValue && typeof dateValue.toDate === "function") {
+                                date = dateValue.toDate()
+                              } else if (dateValue instanceof Date) {
+                                date = dateValue
+                              } else if (typeof dateValue === "string") {
+                                date = new Date(dateValue)
+                              } else {
+                                date = new Date(dateValue)
+                              }
+                              return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0]
+                            } catch {
+                              return null
+                            }
+                          }
+
+                          await markRefundPaid(id, r.id, refundFile!, {
+                            reason: refundReason || r.reason,
+                            withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                            withdrawalTime: refundTime || r.withdrawalTime,
+                          })
+                          setRefundReason("")
+                          setRefundDate("")
+                          setRefundTime("")
                           setRefundFile(undefined)
+                          setConfirmPaidId(null)
+                          await refetch()
+
+                          // Rafraîchir explicitement la liste des remboursements
+                          try {
+                            const refundsData = await listRefunds(id)
+                            setRefunds(refundsData)
+                          } catch (error) {
+                            console.error('Error refreshing refunds:', error)
+                          }
+
+                          toast.success("Remboursement marqué payé")
+                        } catch (error: any) {
+                          toast.error(error?.message || "Erreur lors du marquage")
                         }
                       }}
-                    />
-                    <button className="px-3 py-1 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={()=> setConfirmPaidId(r.id)}>Marquer payé</button>
-                  </>
+                    >
+                      <FileText className="h-4 w-4" /> Marquer payé
+                    </button>
+                  </div>
                 )}
-                {/* Attestation PDF désactivée temporairement */}
               </div>
             </div>
           ))}
-          {(!data.refunds || data.refunds.length === 0) && (
-            <div className="text-xs text-gray-500">Aucun remboursement</div>
+
+          {refunds.length === 0 && (
+            <div className="text-xs text-slate-500">Aucun remboursement</div>
           )}
         </div>
       </div>
 
+      {/* Modales */}
       {confirmApproveId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Confirmer l'approbation</div>
-            <p className="text-sm text-gray-600">Voulez-vous approuver ce remboursement ?</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmApproveId(null)}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white" onClick={async()=>{ await approveRefund(id, confirmApproveId); setConfirmApproveId(null); await refetch(); toast.success('Remboursement approuvé') }}>Confirmer</button>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
+            <div className="text-base font-semibold">Confirmer l'approbation</div>
+            <p className="mt-1 text-sm text-slate-600">Voulez-vous approuver ce remboursement ?</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="rounded-lg border px-3 py-2 text-sm" onClick={() => setConfirmApproveId(null)}>
+                Annuler
+              </button>
+              <button
+                className={classNames("rounded-lg px-3 py-2 text-sm text-white", brand.bg, brand.hover)}
+                onClick={async () => {
+                  await approveRefund(id, confirmApproveId)
+                  setConfirmApproveId(null)
+                  await refetch()
+
+                  // Rafraîchir explicitement la liste des remboursements
+                  try {
+                    const refundsData = await listRefunds(id)
+                    setRefunds(refundsData)
+                  } catch (error) {
+                    console.error('Error refreshing refunds:', error)
+                  }
+
+                  toast.success("Remboursement approuvé")
+                }}
+              >
+                Confirmer
+              </button>
             </div>
           </div>
         </div>
       )}
+
       {confirmFinal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Confirmer la demande</div>
-            <p className="text-sm text-gray-600">Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmFinal(false)} disabled={isRefunding}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white" onClick={async()=>{ try{ setIsRefunding(true); await requestFinalRefund(id); await refetch(); toast.success('Remboursement final demandé'); } catch(e:any){ toast.error(e?.message||'Action impossible') } finally { setIsRefunding(false); setConfirmFinal(false)} }}>Confirmer</button>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
+            <div className="text-base font-semibold">Confirmer la demande</div>
+            <p className="mt-1 text-sm text-slate-600">
+              Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="rounded-lg border px-3 py-2 text-sm" onClick={() => setConfirmFinal(false)} disabled={isRefunding}>
+                Annuler
+              </button>
+              <button
+                className={classNames("rounded-lg px-3 py-2 text-sm text-white", brand.bg, brand.hover)}
+                onClick={async () => {
+                  try {
+                    setIsRefunding(true)
+                    await requestFinalRefund(id)
+                    await refetch()
+
+                    // Rafraîchir explicitement la liste des remboursements
+                    try {
+                      const refundsData = await listRefunds(id)
+                      setRefunds(refundsData)
+                    } catch (error) {
+                      console.error('Error refreshing refunds:', error)
+                    }
+
+                    toast.success("Remboursement final demandé")
+                  } catch (e: any) {
+                    toast.error(e?.message || "Action impossible")
+                  } finally {
+                    setIsRefunding(false)
+                    setConfirmFinal(false)
+                  }
+                }}
+              >
+                Confirmer
+              </button>
             </div>
           </div>
         </div>
       )}
-      {confirmPaidId && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded shadow-lg p-4 w-full max-w-sm">
-            <div className="font-semibold mb-2">Marquer comme payé</div>
-            <p className="text-sm text-gray-600">Confirmez le marquage en payé. Une preuve peut être ajoutée.</p>
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button className="px-3 py-2 border rounded" onClick={()=> setConfirmPaidId(null)}>Annuler</button>
-              <button className="px-3 py-2 rounded bg-[#234D65] text-white disabled:opacity-50" disabled={!refundFile} onClick={async()=>{ await markRefundPaid(id, confirmPaidId, refundFile); setRefundFile(undefined); setConfirmPaidId(null); await refetch(); toast.success('Remboursement marqué payé') }}>Confirmer</button>
+
+      {/* Modal PDF Document */}
+      <PdfDocumentModal
+        isOpen={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+        onDocumentUploaded={handlePdfUpload}
+        contractId={id}
+        refundId={currentRefundId || ""}
+        existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
+        title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+        description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
+      />
+
+      {/* Modal PDF Viewer */}
+      {currentDocument && (
+        <PdfViewerModal
+          isOpen={showPdfViewer}
+          onClose={() => setShowPdfViewer(false)}
+          document={currentDocument}
+          title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
+        />
+      )}
+
+      {/* Modal de confirmation de suppression */}
+      {confirmDeleteDocumentId && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
+            <div className="text-base font-semibold">Confirmer la suppression</div>
+            <p className="mt-1 text-sm text-slate-600">
+              Voulez-vous vraiment supprimer ce document PDF ? Cette action est irréversible.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="rounded-lg border px-3 py-2 text-sm"
+                onClick={() => setConfirmDeleteDocumentId(null)}
+              >
+                Annuler
+              </button>
+              <button
+                className="rounded-lg px-3 py-2 text-sm text-white bg-red-600 hover:bg-red-700"
+                onClick={() => handleDeleteDocument(confirmDeleteDocumentId)}
+              >
+                Supprimer
+              </button>
             </div>
           </div>
         </div>
@@ -329,4 +810,3 @@ export default function StandardContract({ id }: Props) {
     </div>
   )
 }
-

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Phone, Mail, MapPin, User, Briefcase, CarFront, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, MapPin, User, Briefcase, CarFront, ExternalLink, AlertTriangle } from 'lucide-react'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,7 @@ import { Wallet } from 'lucide-react'
 import { listContractsByMember } from '@/db/caisse/contracts.db'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 
 export default function MembershipDetails() {
     const params = useParams()
@@ -81,7 +82,7 @@ export default function MembershipDetails() {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 self-start lg:self-auto">
+                <div className="flex flex-col md:flex-row items-center gap-4 self-start lg:self-auto">
                     <Button
                         onClick={() => router.push(routes.admin.membershipRequestDetails(user.dossier))}
                         className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-11 lg:h-12 px-6 lg:px-8"
@@ -212,13 +213,13 @@ export default function MembershipDetails() {
                                 const hasActive = caisseContracts.some((c:any) => activeStatuses.includes(c.status))
                                 return (
                                     <>
-                                      <div className="text-sm">Dernier contrat: <b>#{String(latest.id).slice(-6)}</b> — <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[latest.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'Brouillon', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[latest.status] || latest.status })()}</span></div>
+                                      <div className="text-sm">Dernier contrat: <b>#{String(latest.id).slice(-6)}</b> — <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[latest.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'En cours', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[latest.status] || latest.status })()}</span></div>
                                       <ul className="space-y-2">
                                         {caisseContracts.map((c:any) => (
                                           <li key={c.id} className="flex items-center justify-between text-sm">
                                             <div className="flex items-center gap-2">
                                               <span className="font-medium">Contrat #{String(c.id).slice(-6)}</span>
-                                              <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[c.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'Brouillon', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[c.status] || c.status })()}</span>
+                                              <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[c.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'En cours', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[c.status] || c.status })()}</span>
                                             </div>
                                             <Link href={routes.admin.caisseSpecialeContractDetails(c.id)} className="underline">Ouvrir</Link>
                                           </li>
@@ -273,11 +274,16 @@ export default function MembershipDetails() {
 }
 
 function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string; onCreated: () => Promise<void> | void }) {
+    const router = useRouter()
     const [open, setOpen] = React.useState(false)
     const [amount, setAmount] = React.useState(10000)
     const [months, setMonths] = React.useState(12)
-    const [caisseType, setCaisseType] = React.useState('STANDARD')
+    const [caisseType, setCaisseType] = React.useState<'STANDARD' | 'JOURNALIERE' | 'LIBRE'>('STANDARD')
+    const [firstPaymentDate, setFirstPaymentDate] = React.useState('')
     const [loading, setLoading] = React.useState(false)
+
+    // Validation des paramètres de la Caisse Spéciale
+    const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(caisseType)
 
     const isDaily = caisseType === 'JOURNALIERE'
     const isLibre = caisseType === 'LIBRE'
@@ -291,12 +297,23 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
     const onCreate = async () => {
         try {
             setLoading(true)
+            
+            // Validation des paramètres de la Caisse Spéciale
+            if (!isValid || isValidating) {
+                toast.error('Les paramètres de la Caisse Spéciale ne sont pas configurés. Impossible de créer un contrat.')
+                return
+            }
+            
             if (isLibre && amount < 100000) {
                 toast.error('Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA.')
                 return
             }
+            if (!firstPaymentDate) {
+                toast.error('Veuillez sélectionner la date du premier versement.')
+                return
+            }
             const { subscribe } = await import('@/services/caisse/mutations')
-            await subscribe({ memberId, monthlyAmount: amount, monthsPlanned: months, caisseType })
+            await subscribe({ memberId, monthlyAmount: amount, monthsPlanned: months, caisseType, firstPaymentDate })
             toast.success('Contrat créé')
             setOpen(false)
             await onCreated()
@@ -309,7 +326,7 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
 
     return (
         <>
-            <Button className="bg-[#234D65] text-white" onClick={() => setOpen(true)}>Créer un contrat</Button>
+            <Button className="bg-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-11 lg:h-12 px-6 lg:px-8" onClick={() => setOpen(true)}>Créer un contrat</Button>
             <Dialog open={open} onOpenChange={(o) => !loading && setOpen(o)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -342,16 +359,86 @@ function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string;
                         </div>
                         <div>
                             <label className="block text-sm mb-1">Caisse</label>
-                            <select className="border rounded p-2 w-full" value={caisseType} onChange={(e) => setCaisseType(e.target.value)}>
+                            <select className="border rounded p-2 w-full" value={caisseType} onChange={(e) => setCaisseType(e.target.value as 'STANDARD' | 'JOURNALIERE' | 'LIBRE')}>
                                 <option value="STANDARD">Standard</option>
                                 <option value="JOURNALIERE">Journalière</option>
                                 <option value="LIBRE">Libre</option>
                             </select>
+                            
+                            {/* Validation des paramètres */}
+                            {isValidating && (
+                                <div className="text-xs text-blue-600 mt-1">Vérification des paramètres...</div>
+                            )}
+                            
+                            {!isValidating && !isValid && validationError && (
+                                <div className="flex items-start gap-2 p-3 mt-2 bg-red-50 border border-red-200 rounded-md">
+                                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                                    <div className="text-xs text-red-700">
+                                        <div className="font-medium mb-1">Paramètres manquants</div>
+                                        <div>{validationError}</div>
+                                        <div className="mt-2 text-red-600">
+                                            Veuillez configurer les paramètres de la Caisse Spéciale dans l'administration avant de créer un contrat.
+                                        </div>
+                                        <div className="mt-3">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-xs h-8 px-3 border-red-300 text-red-700 hover:bg-red-100"
+                                                onClick={() => router.push(routes.admin.caisseSpecialeSettings)}
+                                            >
+                                                <ExternalLink className="w-3 h-3 mr-1" />
+                                                Configurer les paramètres
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {!isValidating && isValid && settings && (
+                                <div className="flex items-start gap-2 p-3 mt-2 bg-green-50 border border-green-200 rounded-md">
+                                    <div className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0">✓</div>
+                                    <div className="text-xs text-green-700">
+                                        <div className="font-medium mb-1">Paramètres configurés</div>
+                                        <div>Version active depuis le {new Date(settings.effectiveAt?.toDate?.() || settings.effectiveAt).toLocaleDateString('fr-FR')}</div>
+                                        <div className="mt-2 text-green-600">
+                                            Vous pouvez maintenant créer un contrat avec ce type de caisse.
+                                        </div>
+                                        <div className="mt-3">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-xs h-8 px-3 border-green-300 text-green-700 hover:bg-green-100"
+                                                onClick={() => router.push(routes.admin.caisseSpeciale)}
+                                            >
+                                                <ExternalLink className="w-3 h-3 mr-1" />
+                                                Gérer les contrats
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <label className="block text-sm mb-1">Date du premier versement *</label>
+                            <input 
+                                type="date" 
+                                className="border rounded p-2 w-full" 
+                                value={firstPaymentDate} 
+                                onChange={(e) => setFirstPaymentDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                required
+                            />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Annuler</Button>
-                        <Button className="bg-[#234D65] text-white" onClick={onCreate} disabled={loading}>{loading ? 'Création…' : 'Créer'}</Button>
+                        <Button 
+                            className="bg-[#234D65] text-white" 
+                            onClick={onCreate} 
+                            disabled={loading || !isValid || isValidating}
+                        >
+                            {loading ? 'Création…' : 'Créer'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   User,
+  Users,
   Phone,
   Mail,
   MapPin,
@@ -16,7 +17,10 @@ import {
   Eye,
   MoreVertical,
   CheckCircle,
-  XCircle
+  XCircle,
+  Plus,
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -25,12 +29,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MemberWithSubscription } from '@/db/member.db'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import routes from '@/constantes/routes'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
+import React from 'react'
 
 interface MemberCardProps {
   member: MemberWithSubscription
@@ -130,6 +138,10 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                   <Calendar className="h-4 w-4 mr-2" />
                   Voir abonnements
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.membershipFilleuls(member.id!))}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Liste des filleuls
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onPreviewAdhesion(member.lastSubscription?.adhesionPdfURL || null)}>
                   <FileText className="h-4 w-4 mr-2" />
@@ -138,6 +150,10 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                 <DropdownMenuItem onClick={() => router.push(routes.admin.paymentsHistoryDetails(member.dossier))}>
                   <FileText className="h-4 w-4 mr-2" />
                   Historique des paiements
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push(routes.admin.contractsHistoryDetails(member.dossier))}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Historique des contrats
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -252,12 +268,200 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
               <Calendar className="h-4 w-4 mr-2" />
               Voir abonnements
             </Button>
+            <CreateCaisseContractButton
+              memberId={member.id}
+              onCreated={() => {
+                // Optionnel : rafraîchir les données si nécessaire
+                toast.success('Contrat créé avec succès')
+              }}
+            />
           </div>
 
           
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function CreateCaisseContractButton({ memberId, onCreated }: { memberId: string; onCreated: () => Promise<void> | void }) {
+  const router = useRouter()
+  const [open, setOpen] = React.useState(false)
+  const [amount, setAmount] = React.useState(10000)
+  const [months, setMonths] = React.useState(12)
+  const [caisseType, setCaisseType] = React.useState<'STANDARD' | 'JOURNALIERE' | 'LIBRE'>('STANDARD')
+  const [firstPaymentDate, setFirstPaymentDate] = React.useState('')
+  const [loading, setLoading] = React.useState(false)
+
+  // Validation des paramètres de la Caisse Spéciale
+  const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(caisseType)
+
+  const isDaily = caisseType === 'JOURNALIERE'
+  const isLibre = caisseType === 'LIBRE'
+
+  React.useEffect(() => {
+    if (isLibre && amount < 100000) {
+      setAmount(100000)
+    }
+  }, [caisseType])
+
+  const onCreate = async () => {
+    try {
+      setLoading(true)
+      
+      // Validation des paramètres de la Caisse Spéciale
+      if (!isValid || isValidating) {
+        toast.error('Les paramètres de la Caisse Spéciale ne sont pas configurés. Impossible de créer un contrat.')
+        return
+      }
+      
+      if (isLibre && amount < 100000) {
+        toast.error('Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA.')
+        return
+      }
+      if (!firstPaymentDate) {
+        toast.error('Veuillez sélectionner la date du premier versement.')
+        return
+      }
+      const { subscribe } = await import('@/services/caisse/mutations')
+      await subscribe({ memberId, monthlyAmount: amount, monthsPlanned: months, caisseType, firstPaymentDate })
+      toast.success('Contrat créé')
+      setOpen(false)
+      await onCreated()
+    } catch (e: any) {
+      toast.error(e?.message || 'Création impossible')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <Button 
+        variant="outline"
+        size="sm"
+        className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65] hover:text-white"
+        onClick={() => setOpen(true)}
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Créer un contrat
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => !loading && setOpen(o)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouveau contrat Caisse Spéciale</DialogTitle>
+            <DialogDescription>Définissez le montant, la durée et la caisse.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm mb-1">
+                {caisseType === 'STANDARD' ? 'Montant mensuel' : caisseType === 'JOURNALIERE' ? 'Objectif mensuel' : 'Montant mensuel (minimum 100 000)'}
+              </label>
+              <input
+                type="number"
+                min={isLibre ? 100000 : 100}
+                step={100}
+                className="border rounded p-2 w-full"
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+              />
+              {isDaily && (
+                <div className="text-xs text-gray-500 mt-1">L'objectif est atteint par contributions quotidiennes sur le mois.</div>
+              )}
+              {isLibre && (
+                <div className="text-xs text-gray-500 mt-1">Le total versé par mois doit être au moins 100 000 FCFA.</div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Durée (mois)</label>
+              <input type="number" min={1} max={12} className="border rounded p-2 w-full" value={months} onChange={(e) => setMonths(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Caisse</label>
+              <select className="border rounded p-2 w-full" value={caisseType} onChange={(e) => setCaisseType(e.target.value as 'STANDARD' | 'JOURNALIERE' | 'LIBRE')}>
+                <option value="STANDARD">Standard</option>
+                <option value="JOURNALIERE">Journalière</option>
+                <option value="LIBRE">Libre</option>
+              </select>
+              
+              {/* Validation des paramètres */}
+              {isValidating && (
+                <div className="text-xs text-blue-600 mt-1">Vérification des paramètres...</div>
+              )}
+              
+              {!isValidating && !isValid && validationError && (
+                <div className="flex items-start gap-2 p-3 mt-2 bg-red-50 border border-red-200 rounded-md">
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-red-700">
+                    <div className="font-medium mb-1">Paramètres manquants</div>
+                    <div>{validationError}</div>
+                    <div className="mt-2 text-red-600">
+                      Veuillez configurer les paramètres de la Caisse Spéciale dans l'administration avant de créer un contrat.
+                    </div>
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-8 px-3 border-red-300 text-red-700 hover:bg-red-100"
+                        onClick={() => router.push(routes.admin.caisseSpecialeSettings)}
+                      >
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Configurer les paramètres
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {!isValidating && isValid && settings && (
+                <div className="flex items-start gap-2 p-3 mt-2 bg-green-50 border border-green-200 rounded-md">
+                  <div className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0">✓</div>
+                  <div className="text-xs text-green-700">
+                    <div className="font-medium mb-1">Paramètres configurés</div>
+                    <div>Version active depuis le {new Date(settings.effectiveAt?.toDate?.() || settings.effectiveAt).toLocaleDateString('fr-FR')}</div>
+                    <div className="mt-2 text-green-600">
+                      Vous pouvez maintenant créer un contrat avec ce type de caisse.
+                    </div>
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-8 px-3 border-green-300 text-green-700 hover:bg-green-100"
+                        onClick={() => router.push(routes.admin.caisseSpeciale)}
+                      >
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Gérer les contrats
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Date du premier versement *</label>
+              <input 
+                type="date" 
+                className="border rounded p-2 w-full" 
+                value={firstPaymentDate} 
+                onChange={(e) => setFirstPaymentDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Annuler</Button>
+            <Button 
+              className="bg-[#234D65] text-white" 
+              onClick={onCreate} 
+              disabled={loading || !isValid || isValidating}
+            >
+              {loading ? 'Création…' : 'Créer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

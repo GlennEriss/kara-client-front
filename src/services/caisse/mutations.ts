@@ -7,21 +7,185 @@ import { createFile } from '@/db/upload-image.db'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import { auth } from '@/firebase/auth'
 import { addCaisseContractToUser } from '@/db/member.db'
+import { deleteObject, ref } from '@/firebase/storage'
+import { getStorageInstance } from '@/firebase/storage'
+import type { GroupPaymentContribution } from './types'
+import { EmergencyContact } from '@/schemas/emergency-contact.schema'
 
-export async function subscribe(input: { memberId: string; monthlyAmount: number; monthsPlanned: number; caisseType: any }) {
-  const settings = await getActiveSettings(input.caisseType)
-  const id = await createContract({ ...input, ...(settings?.id ? { settingsVersion: settings.id } : {}) })
-  // Pré-générer les paiements DUE
-  for (let i = 0; i < input.monthsPlanned; i++) {
-    // dueAt se fixera précisément au start + i mois une fois le M1 payé; on peut mettre un placeholder
-    await addPayment(id, { dueMonthIndex: i, amount: input.monthlyAmount, status: 'DUE' })
+// Fonction utilitaire pour générer un ID de contribution personnalisé
+function generateContributionId(memberId: string, paidAt: Date): string {
+  const date = paidAt.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit', 
+    year: '2-digit'
+  }).replace(/\//g, '')
+  
+  const time = paidAt.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).replace(/:/g, '')
+  
+  return `MK_CS_P_${memberId}_${date}_${time}`
+}
+
+// Fonction utilitaire pour convertir n'importe quel type de date en chaîne ISO
+function normalizeDateToISOString(dateValue: any): string | null {
+  if (!dateValue) return null
+  
+  try {
+    let date: Date
+    
+    // Si c'est un objet Firestore Timestamp
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      date = dateValue.toDate()
+    }
+    // Si c'est déjà un objet Date
+    else if (dateValue instanceof Date) {
+      date = dateValue
+    }
+    // Si c'est une chaîne de caractères
+    else if (typeof dateValue === 'string') {
+      date = new Date(dateValue)
+    }
+    // Si c'est un timestamp numérique
+    else if (typeof dateValue === 'number') {
+      date = new Date(dateValue)
+    }
+    // Sinon, essayer de créer une Date
+    else {
+      date = new Date(dateValue)
+    }
+    
+    // Vérifier que la date est valide
+    if (isNaN(date.getTime())) {
+      return null
+    }
+    
+    return date.toISOString().split('T')[0]
+  } catch (error) {
+    console.error('Erreur lors de la conversion de date:', error)
+    return null
   }
-  // Associer au membre
-  await addCaisseContractToUser(input.memberId, id)
+}
+
+export async function subscribe(input: { 
+  memberId?: string; 
+  groupeId?: string; 
+  monthlyAmount: number; 
+  monthsPlanned: number; 
+  caisseType: any; 
+  firstPaymentDate: string;
+  contractPdf?: File;
+  emergencyContact?: EmergencyContact;
+}) {
+  // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
+  if (!input.memberId && !input.groupeId) {
+    throw new Error('Doit spécifier soit memberId soit groupeId')
+  }
+  if (input.memberId && input.groupeId) {
+    throw new Error('Ne peut pas avoir à la fois memberId et groupeId')
+  }
+
+  // Déterminer le type de contrat
+  const contractType = input.memberId ? 'INDIVIDUAL' : 'GROUP'
+  
+  const settings = await getActiveSettings(input.caisseType)
+  
+  // Récupérer le matricule du membre si c'est un contrat individuel
+  let memberMatricule = '0000' // Fallback par défaut
+  if (input.memberId) {
+    try {
+      const { getMemberWithSubscription } = await import('@/db/member.db')
+      const member = await getMemberWithSubscription(input.memberId)
+      memberMatricule = member?.matricule || '0000'
+    } catch (error) {
+      console.warn('⚠️ Impossible de récupérer le matricule du membre:', error)
+    }
+  } else if (input.groupeId) {
+    // Pour les contrats de groupe, utiliser un matricule générique
+    memberMatricule = 'GRP' + input.groupeId.slice(-3).padStart(3, '0')
+  }
+  
+  // Nettoyer les données pour éviter les valeurs undefined dans Firestore
+  const cleanData: any = {
+    contractType,
+    monthlyAmount: input.monthlyAmount,
+    monthsPlanned: input.monthsPlanned,
+    caisseType: input.caisseType,
+    firstPaymentDate: input.firstPaymentDate,
+    memberMatricule, // Ajouter le matricule pour la génération d'ID
+    ...(settings?.id ? { settingsVersion: settings.id } : {}),
+    ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {})
+  }
+  
+  // Ajouter seulement les champs non-undefined
+  if (input.memberId) {
+    cleanData.memberId = input.memberId
+  }
+  if (input.groupeId) {
+    cleanData.groupeId = input.groupeId
+  }
+  
+  console.log('🧹 Données nettoyées pour Firestore:', cleanData)
+  
+  const id = await createContract(cleanData)
+  
+  // Téléverser le PDF du contrat signé si fourni
+  if (input.contractPdf) {
+    try {
+      console.log('📄 Téléversement du contrat PDF signé...')
+      const { uploadSignedContract } = await import('@/db/upload-file.db')
+      const pdfData = await uploadSignedContract(input.contractPdf, id)
+      
+      // Mettre à jour le contrat avec les informations du PDF
+      const { updateContract } = await import('@/db/caisse/contracts.db')
+      await updateContract(id, {
+        contractPdf: {
+          url: pdfData.url,
+          path: pdfData.path,
+          uploadedAt: new Date(),
+          originalFileName: input.contractPdf.name,
+          fileSize: input.contractPdf.size
+        }
+      })
+      
+      console.log('✅ Contrat PDF téléversé et enregistré avec succès')
+    } catch (error: any) {
+      console.error('❌ Erreur lors du téléversement du PDF:', error)
+      // Ne pas faire échouer la création du contrat si le PDF échoue
+      console.warn('⚠️ Le contrat a été créé mais le PDF n\'a pas pu être téléversé')
+    }
+  }
+  
+  // Calculer la date de début basée sur firstPaymentDate ou maintenant
+  const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
+  
+  // Pré-générer les paiements DUE avec dueAt calculé
+  for (let i = 0; i < input.monthsPlanned; i++) {
+    const dueDate = new Date(startDate)
+    dueDate.setMonth(dueDate.getMonth() + i)
+    await addPayment(id, { 
+      dueMonthIndex: i, 
+      amount: input.monthlyAmount, 
+      status: 'DUE', 
+      dueAt: dueDate,
+      memberId: input.memberId || input.groupeId || 'UNKNOWN' // Passer l'ID pour générer l'ID personnalisé
+    })
+  }
+  
+  // Associer au membre ou au groupe selon le type
+  if (contractType === 'INDIVIDUAL' && input.memberId) {
+    await addCaisseContractToUser(input.memberId, id)
+  } else if (contractType === 'GROUP' && input.groupeId) {
+    const { addCaisseContractToEntity } = await import('@/db/member.db')
+    await addCaisseContractToEntity(input.groupeId, id, 'GROUP')
+  }
+  
   return id
 }
 
-export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date }) {
+export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   const settings = await getActiveSettings((contract as any).caisseType)
@@ -82,10 +246,22 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     proofUrl: proofUrl || payment.proofUrl,
     updatedAt: new Date(),
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
+    // Enregistrer les informations de paiement
+    time: input.time,
+    mode: input.mode,
   }
   if (typeof input.amount === 'number' && input.amount > 0) {
     paymentUpdates.accumulatedAmount = newAccumulated
-    const contrib = { amount: input.amount, paidAt: now, proofUrl: proofUrl || undefined }
+    const contrib = { 
+      id: generateContributionId(input.memberId, now), // ID personnalisé au format MK_CS_P_memberId_DATE_HEURE
+      amount: input.amount, 
+      paidAt: now, 
+      proofUrl: proofUrl || undefined,
+      time: input.time,
+      mode: input.mode,
+      memberId: input.memberId, // Ajouter l'ID du membre du groupe
+      createdAt: new Date()
+    }
     const existing = Array.isArray(payment.contribs) ? payment.contribs : []
     paymentUpdates.contribs = [...existing, contrib]
   }
@@ -158,13 +334,27 @@ export async function requestFinalRefund(contractId: string) {
   }
   await updateContract(contractId, { status: 'FINAL_REFUND_PENDING' })
   const amountNominal = c.nominalPaid || 0
-  const amountBonus = c.bonusAccrued || 0
+  // Calcul du bonus final: (montant global versé) * (taux du mois final) / 100, à partir de M4
+  const settings = await getActiveSettings((c as any).caisseType)
+  // Mois final = nombre de mois planifiés si dispo, sinon max des échéances connues
+  const finalMonthNumber = (c as any).monthsPlanned
+    ? Number((c as any).monthsPlanned)
+    : (payments.length > 0 ? (Math.max(...payments.map((p: any) => Number(p.dueMonthIndex || 0))) + 1) : 0)
+  let amountBonus = 0
+  if (finalMonthNumber >= 4 && settings) {
+    const bonusRate = computeBonus(finalMonthNumber - 1, settings as any) || 0 // valeur interprétée comme pourcentage
+    amountBonus = (amountNominal || 0) * (Number(bonusRate) / 100)
+  }
   const deadlineAt = c.contractEndAt ? new Date(new Date(c.contractEndAt).getTime() + 30*86400000) : new Date()
   await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING' })
   return true
 }
 
-export async function requestEarlyRefund(contractId: string) {
+export async function requestEarlyRefund(contractId: string, input?: {
+  reason?: string
+  withdrawalTime?: string
+  withdrawalDate?: string
+}) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
   // Verrou M4: compter les paiements effectués
@@ -186,9 +376,48 @@ export async function requestEarlyRefund(contractId: string) {
   }
   await updateContract(contractId, { status: 'EARLY_REFUND_PENDING' })
   const amountNominal = c.nominalPaid || 0
-  const amountBonus = 0 // retrait anticipé = nominal seul
+  // Bonus du mois précédent (paidCount-1 => M(paidCount-1)) → index = paidCount-2, à partir de M4
+  const settings = await getActiveSettings((c as any).caisseType)
+  // Montant global versé (toutes contributions)
+  let totalPaid = 0
+  const type = (c as any).caisseType || 'STANDARD'
+  if (type === 'STANDARD') {
+    totalPaid = paidCount * (c.monthlyAmount || 0)
+  } else {
+    for (const p of payments) {
+      if (Array.isArray((p as any).contribs)) {
+        totalPaid += (p as any).contribs.reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0)
+      } else if (typeof (p as any).accumulatedAmount === 'number') {
+        totalPaid += Number((p as any).accumulatedAmount) || 0
+      } else if (p.status === 'PAID' && type === 'JOURNALIERE') {
+        totalPaid += c.monthlyAmount || 0
+      }
+    }
+  }
+  let amountBonus = 0
+  if (settings) {
+    const prevIndex = paidCount - 2 // mappe M(paidCount-1)
+    const bonusRate = prevIndex >= 0 ? (computeBonus(prevIndex, settings as any) || 0) : 0
+    if (prevIndex + 1 >= 4 && bonusRate > 0) {
+      amountBonus = (totalPaid || 0) * (Number(bonusRate) / 100)
+    }
+  }
   const deadlineAt = new Date(Date.now() + 45*86400000)
-  await addRefund(contractId, { type: 'EARLY', amountNominal, amountBonus, deadlineAt, status: 'PENDING' })
+
+  // Ajouter les informations de retrait anticipé
+  const withdrawalDate = input?.withdrawalDate ? new Date(input.withdrawalDate) : new Date()
+  const withdrawalTime = input?.withdrawalTime || `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
+
+  await addRefund(contractId, { 
+    type: 'EARLY', 
+    amountNominal, 
+    amountBonus, 
+    deadlineAt, 
+    status: 'PENDING',
+    reason: input?.reason || '',
+    withdrawalDate,
+    withdrawalTime
+  })
   return true
 }
 
@@ -197,13 +426,44 @@ export async function approveRefund(contractId: string, refundId: string) {
   return true
 }
 
-export async function markRefundPaid(contractId: string, refundId: string, proof?: File) {
+export async function markRefundPaid(contractId: string, refundId: string, proof?: File, refundDetails?: {
+  reason?: string
+  withdrawalDate?: string
+  withdrawalTime?: string
+}) {
   let proofUrl: string | undefined
   if (proof) {
     const uploaded = await createFile(proof, contractId, `caisse/${contractId}/refunds/${refundId}`)
     proofUrl = uploaded.url
   }
-  await updateRefund(contractId, refundId, { status: 'PAID', proofUrl, processedAt: new Date() })
+  
+  // Construire les mises à jour
+  const updates: any = { 
+    status: 'PAID', 
+    processedAt: new Date() 
+  }
+  
+  // Ajouter la preuve si fournie
+  if (proofUrl) {
+    updates.proofUrl = proofUrl
+  }
+  
+  // Ajouter les détails du retrait si fournis
+  if (refundDetails?.reason !== undefined) {
+    updates.reason = refundDetails.reason
+  }
+  if (refundDetails?.withdrawalDate !== undefined) {
+    const normalizedDate = normalizeDateToISOString(refundDetails.withdrawalDate)
+    if (normalizedDate) {
+      updates.withdrawalDate = new Date(normalizedDate)
+    }
+  }
+  if (refundDetails?.withdrawalTime !== undefined) {
+    updates.withdrawalTime = refundDetails.withdrawalTime
+  }
+  
+  await updateRefund(contractId, refundId, updates)
+  
   // Si final → fermer le contrat
   const refunds = await listRefunds(contractId)
   const r = refunds.find((x: any) => x.id === refundId)
@@ -224,5 +484,285 @@ export async function cancelEarlyRefund(contractId: string, refundId: string) {
   // Revenir à un statut actif cohérent si nécessaire
   await updateContract(contractId, { status: 'ACTIVE' })
   return true
+}
+
+export async function updatePaymentContribution(input: {
+  contractId: string
+  paymentId: string
+  contributionId: string
+  updates: {
+    amount?: number
+    time?: string
+    mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+    proofFile?: File
+    memberId?: string
+  }
+}) {
+  const { contractId, paymentId, contributionId, updates } = input
+  
+  // Récupérer le paiement et la contribution
+  const payments = await listPayments(contractId)
+  const payment = payments.find((p: any) => p.id === paymentId)
+  if (!payment) throw new Error('Paiement introuvable')
+  
+  if (!payment.contribs || !Array.isArray(payment.contribs)) {
+    throw new Error('Aucune contribution trouvée dans ce paiement')
+  }
+  
+  const contributionIndex = payment.contribs.findIndex((c: any) => c.id === contributionId)
+  if (contributionIndex === -1) {
+    throw new Error('Contribution introuvable')
+  }
+  
+  const contribution = payment.contribs[contributionIndex]
+  
+  // Traitement de la nouvelle preuve si fournie
+  let newProofUrl: string | undefined
+  let oldProofUrl: string | undefined
+  
+  if (updates.proofFile) {
+    // Sauvegarder l'ancienne URL pour suppression ultérieure
+    oldProofUrl = contribution.proofUrl
+    
+    // Upload de la nouvelle image
+    const location = `caisse/${contractId}/payments/${paymentId}`
+    const dataUrl = await compressImage(updates.proofFile, IMAGE_COMPRESSION_PRESETS.document)
+    const res = await fetch(dataUrl)
+    const blob = await res.blob()
+    const webpFile = new File([blob], `proof.webp`, { type: 'image/webp' })
+    const uploaded = await createFile(webpFile as any, contractId, location)
+    newProofUrl = uploaded.url
+  }
+  
+  // Calculer la différence de montant pour ajuster le total accumulé
+  const oldAmount = contribution.amount || 0
+  const newAmount = updates.amount || oldAmount
+  const amountDifference = newAmount - oldAmount
+  
+  // Mettre à jour la contribution
+  const updatedContribution = {
+    ...contribution,
+    amount: newAmount,
+    time: updates.time || contribution.time,
+    mode: updates.mode || contribution.mode,
+    proofUrl: newProofUrl || contribution.proofUrl,
+    memberId: updates.memberId || contribution.memberId, // Ajouter l'ID du membre du groupe
+    updatedAt: new Date()
+  }
+  
+  // Mettre à jour le tableau des contributions
+  const updatedContribs = [...payment.contribs]
+  updatedContribs[contributionIndex] = updatedContribution
+  
+  // Calculer le nouveau montant accumulé
+  const newAccumulatedAmount = updatedContribs.reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
+  
+  // Mettre à jour le paiement
+  await updatePayment(contractId, paymentId, {
+    contribs: updatedContribs,
+    accumulatedAmount: newAccumulatedAmount,
+    updatedAt: new Date(),
+    updatedBy: auth?.currentUser?.uid || contractId
+  })
+  
+  // Mettre à jour le contrat si nécessaire (recalculer les totaux)
+  const contract = await getContract(contractId)
+  if (contract) {
+    const allPayments = await listPayments(contractId)
+    const totalNominalPaid = allPayments.reduce((sum: number, p: any) => {
+      if (p.status === 'PAID') {
+        return sum + (p.accumulatedAmount || 0)
+      }
+      return sum
+    }, 0)
+    
+    await updateContract(contractId, {
+      nominalPaid: totalNominalPaid,
+      updatedAt: new Date(),
+      updatedBy: auth?.currentUser?.uid || contractId
+    })
+  }
+  
+  // Supprimer l'ancienne image si elle existe et qu'une nouvelle a été uploadée
+  if (oldProofUrl && newProofUrl && oldProofUrl !== newProofUrl) {
+    try {
+      const storage = getStorageInstance()
+      
+      // Fonction pour extraire le chemin du fichier depuis l'URL Firebase
+      const extractFilePathFromUrl = (url: string): string | null => {
+        try {
+          // URL Firebase Storage: https://firebasestorage.googleapis.com/v0/b/PROJECT/o/PATH%2FTO%2FFILE?alt=media&token=...
+          const urlObj = new URL(url)
+          const pathParam = urlObj.searchParams.get('o')
+          if (pathParam) {
+            // Décoder l'URL et extraire le chemin
+            const decodedPath = decodeURIComponent(pathParam)
+            return decodedPath
+          }
+          
+          // Fallback: essayer d'extraire depuis le chemin de l'URL
+          const pathMatch = url.match(/\/o\/([^?]+)/)
+          if (pathMatch) {
+            return decodeURIComponent(pathMatch[1])
+          }
+          
+          return null
+        } catch (error) {
+          console.error('Erreur lors de l\'extraction du chemin:', error)
+          return null
+        }
+      }
+      
+      const filePath = extractFilePathFromUrl(oldProofUrl)
+      if (filePath) {
+        const fileRef = ref(storage, filePath)
+        await deleteObject(fileRef)
+        console.log(`🗑️ Ancienne image supprimée: ${filePath}`)
+      } else {
+        console.warn('⚠️ Impossible d\'extraire le chemin du fichier depuis l\'URL:', oldProofUrl)
+      }
+    } catch (error) {
+      console.error('⚠️ Erreur lors de la suppression de l\'ancienne image:', error)
+      // Ne pas faire échouer la modification si la suppression échoue
+    }
+  }
+  
+  return true
+}
+
+/**
+ * Fonction spécialisée pour les versements de groupe
+ * Permet d'ajouter des contributions à un versement collectif par jour
+ */
+export async function payGroup(input: { 
+  contractId: string; 
+  dueMonthIndex: number; 
+  memberId: string; 
+  memberName: string;
+  memberMatricule: string;
+  memberPhotoURL?: string;
+  memberContacts?: string[];
+  amount: number; 
+  file?: File; 
+  paidAt?: Date; 
+  time: string; 
+  mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' 
+}) {
+  const contract = await getContract(input.contractId)
+  if (!contract) throw new Error('Contrat introuvable')
+  
+  // Vérifier que c'est bien un contrat de groupe
+  const isGroupContract = contract.contractType === 'GROUP' || (contract as any).groupeId
+  if (!isGroupContract) {
+    throw new Error('Cette fonction est réservée aux contrats de groupe')
+  }
+  
+  const payments = await listPayments(input.contractId)
+  const payment = payments.find((p: any) => p.dueMonthIndex === input.dueMonthIndex)
+  if (!payment) throw new Error('Échéance introuvable')
+
+  const now = input.paidAt ? new Date(input.paidAt) : new Date()
+  const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
+  const { window, delayDays } = computeDueWindow(dueAt, now)
+
+  if (delayDays > 12) {
+    // Refus et résiliation
+    await updatePayment(input.contractId, payment.id, { status: 'REFUSED' })
+    await updateContract(input.contractId, { status: 'RESCINDED' })
+    return { status: 'RESCINDED' }
+  }
+
+  let proofUrl: string | undefined
+  if (input.file) {
+    const location = `caisse/${input.contractId}/payments/${payment.id}/contributions`
+    const dataUrl = await compressImage(input.file, IMAGE_COMPRESSION_PRESETS.document)
+    const res = await fetch(dataUrl)
+    const blob = await res.blob()
+    const webpFile = new File([blob], `proof.webp`, { type: 'image/webp' })
+    const uploaded = await createFile(webpFile as any, input.memberId, location)
+    proofUrl = uploaded.url
+  }
+
+  // Créer la nouvelle contribution
+  const newContribution: GroupPaymentContribution = {
+    id: generateContributionId(input.memberId, now), // ID personnalisé au format MK_CS_P_memberId_DATE_HEURE
+    memberId: input.memberId,
+    memberName: input.memberName,
+    memberMatricule: input.memberMatricule,
+    memberFirstName: input.memberName.split(' ')[0] || '',
+    memberLastName: input.memberName.split(' ').slice(1).join(' ') || '',
+    memberPhotoURL: input.memberPhotoURL,
+    memberContacts: input.memberContacts,
+    amount: input.amount,
+    time: input.time,
+    mode: input.mode,
+    proofUrl,
+    createdAt: now,
+    updatedAt: now
+  }
+
+  // Récupérer les contributions existantes ou créer un nouveau tableau
+  const existingContributions = payment.groupContributions || []
+  const updatedContributions = [...existingContributions, newContribution]
+  
+  // Calculer le nouveau montant total
+  const newTotalAmount = updatedContributions.reduce((sum, c) => sum + c.amount, 0)
+  
+  // Mettre à jour le paiement
+  const paymentUpdates: any = {
+    isGroupPayment: true,
+    groupContributions: updatedContributions,
+    accumulatedAmount: newTotalAmount,
+    updatedAt: new Date(),
+    updatedBy: (auth?.currentUser?.uid) || input.memberId,
+    // Enregistrer les informations de paiement (du dernier contributeur)
+    time: input.time,
+    mode: input.mode,
+  }
+
+  // Vérifier si l'objectif du mois est atteint
+  const type = (contract as any).caisseType || 'STANDARD'
+  const targetForMonth = type === 'LIBRE' ? Math.max(100000, payment.targetAmount || 0) : contract.monthlyAmount
+  
+  if (newTotalAmount >= targetForMonth) {
+    paymentUpdates.status = 'PAID'
+    paymentUpdates.paidAt = now
+  }
+
+  await updatePayment(input.contractId, payment.id, paymentUpdates)
+
+  // Mettre à jour le contrat
+  const isFirstPayment = !contract.contractStartAt
+  const contractStartAt = isFirstPayment ? now : contract.contractStartAt
+  
+  if (isFirstPayment) {
+    for (let i = 0; i < payments.length; i++) {
+      const due = new Date(now)
+      due.setMonth(due.getMonth() + i)
+      await updatePayment(input.contractId, payments[i].id, { dueAt: due })
+    }
+  }
+
+  // Calculer les totaux du contrat
+  const allPayments = await listPayments(input.contractId)
+  const totalNominalPaid = allPayments.reduce((sum: number, p: any) => {
+    if (p.status === 'PAID') {
+      return sum + (p.accumulatedAmount || 0)
+    }
+    return sum
+  }, 0)
+
+  await updateContract(input.contractId, {
+    nominalPaid: totalNominalPaid,
+    contractStartAt,
+    updatedAt: new Date(),
+    updatedBy: input.memberId
+  })
+
+  return { 
+    status: paymentUpdates.status || 'IN_PROGRESS', 
+    contributionId: newContribution.id,
+    totalAmount: newTotalAmount
+  }
 }
 

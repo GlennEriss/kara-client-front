@@ -13,11 +13,14 @@ import { useMembershipRequest } from '@/hooks/useMembershipRequests'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import type { MembershipRequestStatus } from '@/types/types'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/useAuth'
+import { getAdminById } from '@/db/admin.db'
+import { useState, useEffect } from 'react'
 
 // Fonction utilitaire pour obtenir le badge de statut avec animations
 const getStatusBadge = (status: MembershipRequestStatus) => {
   const baseClasses = "transition-all duration-300 hover:scale-105 flex items-center gap-2 font-semibold px-3 lg:px-4 py-2 text-xs lg:text-sm"
-  
+
   switch (status) {
     case 'pending':
       return (
@@ -88,13 +91,13 @@ const formatDate = (timestamp: any) => {
 }
 
 // Composant InfoField pour affichage uniforme - responsive
-const InfoField = ({ 
-  label, 
-  value, 
-  icon: Icon, 
+const InfoField = ({
+  label,
+  value,
+  icon: Icon,
   color = "text-gray-600",
   copyable = false
-}: { 
+}: {
   label: string
   value: string | React.ReactNode
   icon?: React.ComponentType<any>
@@ -140,7 +143,7 @@ const DetailsSkeleton = () => (
       </div>
       <Skeleton className="h-8 w-32 rounded-full self-start lg:self-auto" />
     </div>
-    
+
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
       <div className="lg:col-span-2 space-y-6 lg:space-y-8">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -161,7 +164,7 @@ const DetailsSkeleton = () => (
           </Card>
         ))}
       </div>
-      
+
       <div className="space-y-6 lg:space-y-8">
         <Card className="animate-pulse">
           <CardHeader>
@@ -190,13 +193,13 @@ const DetailsSkeleton = () => (
 )
 
 // Composant ModernCard pour les sections - responsive
-const ModernCard = ({ 
-  title, 
-  icon: Icon, 
-  children, 
+const ModernCard = ({
+  title,
+  icon: Icon,
+  children,
   className = "",
   iconColor = "text-[#234D65]"
-}: { 
+}: {
   title: string
   icon: React.ComponentType<any>
   children: React.ReactNode
@@ -222,8 +225,44 @@ export default function MembershipRequestDetails() {
   const params = useParams()
   const router = useRouter()
   const requestId = params.id as string
+  const { user } = useAuth()
+  const [processedByAdmin, setProcessedByAdmin] = useState<any>(null)
+  const [isLoadingProcessedBy, setIsLoadingProcessedBy] = useState(false)
 
   const { data: request, isLoading, isError, error } = useMembershipRequest(requestId)
+
+  // Récupérer les informations de l'administrateur qui a traité la demande
+  useEffect(() => {
+    const fetchProcessedByAdmin = async () => {
+      if (!request?.processedBy) return
+      
+      setIsLoadingProcessedBy(true)
+      try {
+        // Si c'est l'utilisateur connecté, utiliser ses informations
+        if (user?.uid === request.processedBy) {
+          setProcessedByAdmin({
+            firstName: user.displayName?.split(' ')[0] || 'Utilisateur',
+            lastName: user.displayName?.split(' ').slice(1).join(' ') || 'Connecté'
+          })
+        } else {
+          // Sinon, récupérer les informations depuis la collection admins
+          const adminData = await getAdminById(request.processedBy)
+          if (adminData) {
+            setProcessedByAdmin({
+              firstName: adminData.firstName,
+              lastName: adminData.lastName
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de l\'administrateur traiteur:', error)
+      } finally {
+        setIsLoadingProcessedBy(false)
+      }
+    }
+
+    fetchProcessedByAdmin()
+  }, [request?.processedBy, user?.uid])
 
   if (isLoading) {
     return (
@@ -245,7 +284,7 @@ export default function MembershipRequestDetails() {
             <p className="text-gray-600 mb-6 lg:mb-8 text-base lg:text-lg max-w-md mx-auto leading-relaxed">
               {error instanceof Error ? error.message : 'La demande d\'adhésion demandée n\'existe pas ou n\'est plus accessible.'}
             </p>
-            <Button 
+            <Button
               onClick={() => router.back()}
               className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-11 lg:h-12 px-6 lg:px-8"
             >
@@ -263,8 +302,8 @@ export default function MembershipRequestDetails() {
       {/* En-tête moderne - responsive */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between bg-gradient-to-r from-white to-gray-50/50 p-4 lg:p-8 rounded-2xl shadow-lg border-0 space-y-4 lg:space-y-0">
         <div className="flex flex-col lg:flex-row lg:items-start space-y-3 lg:space-y-0 lg:space-x-6">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={() => router.back()}
             className="h-10 lg:h-12 px-3 lg:px-4 bg-white hover:bg-gray-100 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl border self-start"
           >
@@ -289,7 +328,7 @@ export default function MembershipRequestDetails() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-6 lg:space-y-8">
-          
+
           {/* Informations personnelles */}
           <ModernCard title="Informations personnelles" icon={User} iconColor="text-blue-600">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
@@ -301,35 +340,34 @@ export default function MembershipRequestDetails() {
               <InfoField label="Lieu de naissance" value={request.identity.birthPlace} icon={MapPin} color="text-red-600" />
               <InfoField label="Nationalité" value={request.identity.nationality} icon={User} color="text-green-600" />
               <InfoField label="Statut matrimonial" value={request.identity.maritalStatus} icon={Heart} color="text-pink-600" />
-              
+
               {request.identity.spouseFirstName && (
                 <>
-                  <InfoField 
-                    label="Époux/Épouse" 
-                    value={`${request.identity.spouseFirstName} ${request.identity.spouseLastName}`} 
-                    icon={Heart} 
-                    color="text-pink-600" 
+                  <InfoField
+                    label="Époux/Épouse"
+                    value={`${request.identity.spouseFirstName} ${request.identity.spouseLastName}`}
+                    icon={Heart}
+                    color="text-pink-600"
                   />
-                  <InfoField 
-                    label="Téléphone époux/épouse" 
-                    value={request.identity.spousePhone || 'Non renseigné'} 
-                    icon={Phone} 
-                    color="text-green-600" 
+                  <InfoField
+                    label="Téléphone époux/épouse"
+                    value={request.identity.spousePhone || 'Non renseigné'}
+                    icon={Phone}
+                    color="text-green-600"
                   />
                 </>
               )}
             </div>
-            
+
             <div className="mt-4 lg:mt-6 pt-4 lg:pt-6 border-t border-gray-100">
               <InfoField label="Lieu de prière" value={request.identity.prayerPlace} icon={Building2} color="text-indigo-600" />
             </div>
-            
+
             <div className="mt-3 lg:mt-4">
-              <div className={`inline-flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl transition-all duration-300 ${
-                request.identity.hasCar 
-                  ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
+              <div className={`inline-flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl transition-all duration-300 ${request.identity.hasCar
+                  ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200'
                   : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200'
-              }`}>
+                }`}>
                 <CarFront className={`w-4 h-4 lg:w-5 lg:h-5 ${request.identity.hasCar ? 'text-emerald-600' : 'text-gray-400'}`} />
                 <span className="font-semibold text-sm lg:text-base">
                   {request.identity.hasCar ? 'Possède un véhicule' : 'Ne possède pas de véhicule'}
@@ -341,14 +379,14 @@ export default function MembershipRequestDetails() {
           {/* Informations de contact */}
           <ModernCard title="Informations de contact" icon={Phone} iconColor="text-green-600">
             <div className="space-y-4">
-              <InfoField 
-                label="Adresse email" 
-                value={request.identity.email || 'Non renseigné'} 
-                icon={Mail} 
-                color="text-blue-600" 
+              <InfoField
+                label="Adresse email"
+                value={request.identity.email || 'Non renseigné'}
+                icon={Mail}
+                color="text-blue-600"
                 copyable={!!request.identity.email}
               />
-              
+
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 block">
                   Numéros de téléphone
@@ -389,14 +427,14 @@ export default function MembershipRequestDetails() {
               <InfoField label="Quartier" value={request.address.district} icon={MapPin} color="text-red-600" />
               <InfoField label="Arrondissement" value={request.address.arrondissement} icon={MapPin} color="text-red-600" />
             </div>
-            
+
             {request.address.additionalInfo && (
               <div className="mt-3 lg:mt-4">
-                <InfoField 
-                  label="Informations complémentaires" 
-                  value={request.address.additionalInfo} 
-                  icon={FileText} 
-                  color="text-gray-600" 
+                <InfoField
+                  label="Informations complémentaires"
+                  value={request.address.additionalInfo}
+                  icon={FileText}
+                  color="text-gray-600"
                 />
               </div>
             )}
@@ -405,11 +443,10 @@ export default function MembershipRequestDetails() {
           {/* Informations professionnelles */}
           <ModernCard title="Informations professionnelles" icon={Briefcase} iconColor="text-purple-600">
             <div className="space-y-4">
-              <div className={`inline-flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl transition-all duration-300 ${
-                request.company.isEmployed 
-                  ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200' 
+              <div className={`inline-flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl transition-all duration-300 ${request.company.isEmployed
+                  ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200'
                   : 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-600 border border-gray-200'
-              }`}>
+                }`}>
                 <Briefcase className={`w-4 h-4 lg:w-5 lg:h-5 ${request.company.isEmployed ? 'text-emerald-600' : 'text-gray-400'}`} />
                 <span className="font-semibold text-sm lg:text-base">
                   {request.company.isEmployed ? 'Employé(e)' : 'Non employé(e)'}
@@ -420,33 +457,33 @@ export default function MembershipRequestDetails() {
                 <div className="mt-4 lg:mt-6 space-y-4">
                   <Separator className="bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
-                    <InfoField 
-                      label="Entreprise" 
-                      value={request.company.companyName || 'Non renseigné'} 
-                      icon={Building2} 
-                      color="text-indigo-600" 
+                    <InfoField
+                      label="Entreprise"
+                      value={request.company.companyName || 'Non renseigné'}
+                      icon={Building2}
+                      color="text-indigo-600"
                     />
-                    <InfoField 
-                      label="Profession" 
-                      value={request.company.profession || 'Non renseigné'} 
-                      icon={Briefcase} 
-                      color="text-purple-600" 
+                    <InfoField
+                      label="Profession"
+                      value={request.company.profession || 'Non renseigné'}
+                      icon={Briefcase}
+                      color="text-purple-600"
                     />
-                    <InfoField 
-                      label="Ancienneté" 
-                      value={request.company.seniority || 'Non renseigné'} 
-                      icon={Calendar} 
-                      color="text-amber-600" 
+                    <InfoField
+                      label="Ancienneté"
+                      value={request.company.seniority || 'Non renseigné'}
+                      icon={Calendar}
+                      color="text-amber-600"
                     />
                   </div>
 
                   {request.company.companyAddress && (
                     <div className="mt-3 lg:mt-4">
-                      <InfoField 
-                        label="Adresse de l'entreprise" 
-                        value={`${request.company.companyAddress.district}, ${request.company.companyAddress.city}, ${request.company.companyAddress.province}`} 
-                        icon={MapPin} 
-                        color="text-red-600" 
+                      <InfoField
+                        label="Adresse de l'entreprise"
+                        value={`${request.company.companyAddress.district}, ${request.company.companyAddress.city}, ${request.company.companyAddress.province}`}
+                        icon={MapPin}
+                        color="text-red-600"
                       />
                     </div>
                   )}
@@ -513,7 +550,7 @@ export default function MembershipRequestDetails() {
                       </div>
                     </div>
                   )}
-                  
+
                   {request.documents.documentPhotoBackURL && (
                     <div className="space-y-3">
                       <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -562,7 +599,7 @@ export default function MembershipRequestDetails() {
 
         {/* Colonne latérale */}
         <div className="space-y-6 lg:space-y-8">
-          
+
           {/* Photo du demandeur */}
           <ModernCard title="Photo du demandeur" icon={User} iconColor="text-cyan-600">
             <div className="space-y-4">
@@ -632,7 +669,7 @@ export default function MembershipRequestDetails() {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="space-y-3 lg:space-y-4">
                 <div>
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
@@ -640,39 +677,38 @@ export default function MembershipRequestDetails() {
                   </label>
                   <div className="w-fit">{getStatusBadge(request.status)}</div>
                 </div>
-                
-                <InfoField 
-                  label="Date de création" 
-                  value={formatDate(request.createdAt)} 
-                  icon={Calendar} 
-                  color="text-blue-600" 
+
+                <InfoField
+                  label="Date de création"
+                  value={formatDate(request.createdAt)}
+                  icon={Calendar}
+                  color="text-blue-600"
                 />
-                
-                <InfoField 
-                  label="Dernière modification" 
-                  value={formatDate(request.updatedAt)} 
-                  icon={Calendar} 
-                  color="text-purple-600" 
+
+                <InfoField
+                  label="Dernière modification"
+                  value={formatDate(request.updatedAt)}
+                  icon={Calendar}
+                  color="text-purple-600"
                 />
 
                 {request.processedAt && (
-                  <InfoField 
-                    label="Date de traitement" 
-                    value={formatDate(request.processedAt)} 
-                    icon={CheckCircle} 
-                    color="text-green-600" 
+                  <InfoField
+                    label="Date de traitement"
+                    value={formatDate(request.processedAt)}
+                    icon={CheckCircle}
+                    color="text-green-600"
                   />
                 )}
 
-                {request.processedBy && (
-                  <InfoField 
-                    label="Traité par" 
-                    value={request.processedBy} 
-                    icon={UserCheck} 
-                    color="text-indigo-600" 
+                {processedByAdmin && (
+                  <InfoField
+                    label="Traité par"
+                    value={isLoadingProcessedBy ? 'Chargement...' : `${processedByAdmin.firstName} ${processedByAdmin.lastName}`}
+                    icon={UserCheck}
+                    color="text-indigo-600"
                   />
                 )}
-
                 {request.memberNumber && (
                   <div className="p-3 lg:p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border-2 border-emerald-200">
                     <label className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2 block flex items-center gap-1">

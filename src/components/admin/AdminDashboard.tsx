@@ -16,7 +16,7 @@ import { useAdmins, useAdminMutations } from '@/hooks/useAdmins'
 import { updateAdminDeep } from '@/db/admin.db'
 import { ADMIN_ROLE_LABELS, AdminRole, AdminUser } from '@/db/admin.db'
 import AdminFormModal from '@/components/admin/AdminFormModal'
-import { AdminCreateFormData } from '@/types/schemas'
+import { AdminCreateFormData } from '@/schemas/schemas'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 type ViewMode = 'grid' | 'list'

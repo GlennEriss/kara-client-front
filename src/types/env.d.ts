@@ -45,5 +45,12 @@ namespace NodeJS {
         VAULT_ADDR: string;
         VAULT_TOKEN: string;
         VAULT_PATH: string;
+        //SOCIALS NETWORKS
+        NEXT_PUBLIC_FACEBOOK_URL: string;
+        NEXT_PUBLIC_TWITTER_URL: string;
+        NEXT_PUBLIC_INSTAGRAM_URL: string;
+        NEXT_PUBLIC_LINKEDIN_URL: string;
+        NEXT_PUBLIC_YOUTUBE_URL: string;
+        NEXT_PUBLIC_TIKTOK_URL: string;
     }
 }

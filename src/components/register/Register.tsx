@@ -112,7 +112,10 @@ function Register() {
 
   // Rendu du composant step actuel
   const renderCurrentStep = () => {
-    const stepProps = { form }
+    const stepProps = { 
+      form,
+      requestId: correctionRequest?.requestId // Passer l'ID de la demande pour la vérification des numéros
+    }
     
     switch (currentStep) {
       case 1:

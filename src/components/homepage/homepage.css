@@ -73,31 +73,36 @@
     filter: brightness(1.1) saturate(1.3);
   }
   
-  /* Navigation */
-  nav {
-    background: rgba(34, 77, 98, 0.2);
-    backdrop-filter: blur(5px);
-  }
-  
-  .navbar-scrolled {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .navbar-scrolled .text-white {
-    color: var(--kara-blue) !important;
-  }
-  
-  .navbar-scrolled .text-white:hover {
-    color: var(--kara-gold) !important;
-  }
-  
-  .mobile-menu {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  }
+/* Navigation */
+nav {
+  background: rgba(34, 77, 98, 0.15);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navbar-scrolled {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(203, 177, 113, 0.2);
+}
+
+.navbar-scrolled .text-white {
+  color: var(--kara-blue) !important;
+}
+
+.navbar-scrolled .text-white:hover {
+  color: var(--kara-gold) !important;
+  transform: translateY(-1px);
+}
+
+.mobile-menu {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(203, 177, 113, 0.2);
+}
   
   /* Boutons */
   .btn-primary {
@@ -128,29 +133,67 @@
     color: white;
   }
   
-  /* Cards */
-  .card-hover {
-    transition: all 0.3s ease;
-    border: 1px solid rgba(203, 177, 113, 0.2);
-  }
-  
-  .card-hover:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 20px 40px rgba(var(--kara-blue-rgb), 0.15);
-    border-color: var(--kara-gold);
-  }
-  
-  .service-card {
-    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-    border: 1px solid rgba(203, 177, 113, 0.2);
-    transition: all 0.3s ease;
-  }
-  
-  .service-card:hover {
-    border-color: var(--kara-gold);
-    box-shadow: 0 15px 35px rgba(var(--kara-gold-rgb), 0.2);
-    transform: translateY(-5px);
-  }
+/* Cards */
+.card-hover {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(203, 177, 113, 0.2);
+  border-radius: 1.5rem;
+  background: linear-gradient(145deg, #ffffff 0%, #fafbfc 100%);
+  overflow: hidden;
+  position: relative;
+}
+
+.card-hover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(203, 177, 113, 0.1), transparent);
+  transition: all 0.6s;
+}
+
+.card-hover:hover::before {
+  left: 100%;
+}
+
+.card-hover:hover {
+  transform: translateY(-12px) scale(1.02);
+  box-shadow: 0 25px 50px rgba(var(--kara-blue-rgb), 0.2);
+  border-color: var(--kara-gold);
+}
+
+.service-card {
+  background: linear-gradient(145deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid rgba(203, 177, 113, 0.15);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 1.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.service-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--kara-blue), var(--kara-gold));
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.service-card:hover::before {
+  transform: scaleX(1);
+}
+
+.service-card:hover {
+  border-color: var(--kara-gold);
+  box-shadow: 0 20px 40px rgba(var(--kara-gold-rgb), 0.15);
+  transform: translateY(-8px) scale(1.02);
+}
   
   .adhesion-card {
     background: linear-gradient(135deg, var(--kara-blue) 0%, #1a3b4d 100%);
@@ -348,86 +391,172 @@
     transform: translateY(-1px);
   }
   
-  /* Responsive Design */
-  @media (max-width: 768px) {
-    .hero-section h1 {
-      font-size: 3rem;
-    }
-    
-    .hero-card {
-      height: 20rem;
-    }
-    
-    .section-divider {
-      width: 80px;
-    }
-    
-    .objective-icon {
-      width: 4rem;
-      height: 4rem;
-    }
-    
-    .service-card {
-      margin-bottom: 1rem;
-      padding: 1.5rem !important;
-    }
-    
-    .service-card h3 {
-      font-size: 1.1rem !important;
-    }
-    
-    .service-card p {
-      font-size: 0.9rem !important;
-      line-height: 1.4 !important;
-    }
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hero-section {
+    padding-top: 7rem;
+    padding-bottom: 3rem;
   }
   
-  @media (max-width: 640px) {
-    .hero-section h1 {
-      font-size: 2.5rem;
-      line-height: 1.2;
-    }
-    
-    .hero-card {
-      height: 16rem;
-    }
-    
-    .hero-card .text-8xl {
-      font-size: 4rem;
-    }
-    
-    .btn-primary, .btn-secondary {
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-    }
-    
-    /* Amélioration des espacements en mobile */
-    .container {
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-    
-    .service-card {
-      padding: 1.25rem !important;
-    }
-    
-    .contact-card {
-      padding: 2rem !important;
-    }
-    
-    .adhesion-card {
-      padding: 2rem !important;
-    }
-    
-    /* Réduction des tailles de police pour les textes longs */
-    .text-xl {
-      font-size: 1.1rem !important;
-    }
-    
-    .text-lg {
-      font-size: 1rem !important;
-    }
+  .hero-section .text-white {
+    padding-top: 1rem;
   }
+  
+  .hero-section h1 {
+    font-size: 2.75rem;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    margin-top: 2rem;
+  }
+  
+  .hero-card {
+    height: 18rem;
+    margin-top: 2rem;
+  }
+  
+  .section-divider {
+    width: 80px;
+    height: 3px;
+  }
+  
+  .objective-icon {
+    width: 4rem;
+    height: 4rem;
+  }
+  
+  .service-card {
+    margin-bottom: 1.5rem;
+    padding: 2rem !important;
+    border-radius: 1rem;
+  }
+  
+  .service-card h3 {
+    font-size: 1.2rem !important;
+    margin-bottom: 1rem;
+  }
+  
+  .service-card p {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+  }
+  
+  /* Amélioration des espacements des sections */
+  section {
+    padding-top: 4rem !important;
+    padding-bottom: 4rem !important;
+  }
+  
+  /* Navigation mobile améliorée */
+  .mobile-menu {
+    margin-top: 1rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  }
+}
+  
+@media (max-width: 640px) {
+  .hero-section {
+    padding-top: 6rem;
+    padding-bottom: 2rem;
+  }
+  
+  .hero-section .text-white {
+    padding-top: 1.5rem;
+  }
+  
+  .hero-section h1 {
+    font-size: 2.25rem;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+  }
+  
+  .hero-card {
+    height: 15rem;
+    margin-top: 1.5rem;
+  }
+  
+  .hero-badge {
+    width: 4rem;
+    height: 4rem;
+    top: -1rem;
+    right: -1rem;
+  }
+  
+  .btn-primary, .btn-secondary {
+    padding: 0.875rem 1.75rem;
+    font-size: 0.95rem;
+    border-radius: 2rem;
+  }
+  
+  /* Amélioration des espacements en mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .service-card {
+    padding: 1.75rem !important;
+    border-radius: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  
+  .contact-card {
+    padding: 2.5rem 0rem !important;
+    border-radius: 1rem;
+  }
+  
+  .adhesion-card {
+    padding: 2.5rem 1.5rem !important;
+    border-radius: 1rem;
+  }
+  
+  /* Amélioration de la typographie mobile */
+  .text-xl {
+    font-size: 1.125rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  .text-lg {
+    font-size: 1.05rem !important;
+    line-height: 1.6 !important;
+  }
+  
+  .text-4xl {
+    font-size: 2rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.5rem !important;
+    line-height: 1.3 !important;
+  }
+  
+  /* Espacement des sections amélioré */
+  section:not(#accueil) {
+    padding-top: 5rem !important;
+    padding-bottom: 3rem !important;
+    scroll-margin-top: 5rem;
+  }
+  
+  .py-20 {
+    padding-top: 5rem !important;
+    padding-bottom: 3rem !important;
+  }
+  
+  /* Grille responsive améliorée */
+  .grid {
+    gap: 1.5rem !important;
+  }
+  
+  .gap-8 {
+    gap: 1.25rem !important;
+  }
+  
+  .gap-12 {
+    gap: 2rem !important;
+  }
+}
   
   /* Interactions et états de focus pour l'accessibilité */
   .btn-primary:focus,
@@ -478,13 +607,24 @@
     animation-fill-mode: forwards;
   }
   
-  /* Logo KARA styles - Optimisés pour le composant React */
-  .logo-kara {
-    height: 80px !important;
-    width: auto !important;
-    transition: all 0.3s ease;
-    filter: brightness(0) invert(1); 
+/* Scroll offset pour les sections avec navigation fixe */
+section[id] {
+  scroll-margin-top: 6rem;
+}
+
+@media (max-width: 768px) {
+  section[id] {
+    scroll-margin-top: 5rem;
   }
+}
+
+/* Logo KARA styles - Optimisés pour le composant React */
+.logo-kara {
+  height: 80px !important;
+  width: auto !important;
+  transition: all 0.3s ease;
+  filter: brightness(0) invert(1); 
+}
   
   .logo-kara:hover {
     filter: brightness(0) invert(1) sepia(1) saturate(10) hue-rotate(35deg);

@@ -82,7 +82,13 @@ export async function createCompany(
   companyName: string, 
   adminId: string,
   additionalData: {
-    address?: { province?: string; city?: string; district?: string };
+    address?: { 
+      province?: string; 
+      city?: string; 
+      district?: string;
+      arrondissement?: string;
+      additionalInfo?: string;
+    };
     industry?: string;
     employeeCount?: number;
   } = {}
@@ -375,7 +381,13 @@ export async function findOrCreateCompany(
   companyName: string,
   adminId: string,
   additionalData: {
-    address?: { province?: string; city?: string; district?: string };
+    address?: { 
+      province?: string; 
+      city?: string; 
+      district?: string;
+      arrondissement?: string;
+      additionalInfo?: string;
+    };
     industry?: string;
     employeeCount?: number;
   } = {}

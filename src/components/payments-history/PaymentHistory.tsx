@@ -11,6 +11,8 @@ import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip }
 import { useMembershipRequest } from '@/hooks/useMembershipRequests'
 import type { Payment, TypePayment } from '@/types/types'
 import routes from '@/constantes/routes'
+import { useAuth } from '@/hooks/useAuth'
+import { getAdminById } from '@/db/admin.db'
 
 function toDate(value: any): Date | null {
   try {
@@ -127,9 +129,33 @@ const StatCard = ({
 }
 
 // Composant pour une ligne de paiement moderne
-const PaymentRow = ({ payment, index }: { payment: Payment, index: number }) => {
+const PaymentRow = ({ 
+  payment, 
+  index, 
+  adminInfos, 
+  loadingAdmins 
+}: { 
+  payment: Payment
+  index: number
+  adminInfos: Record<string, { firstName: string; lastName: string }>
+  loadingAdmins: Set<string>
+}) => {
   const color = PAYMENT_COLORS[payment.paymentType]
   const Icon = PAYMENT_ICONS[payment.paymentType]
+  
+  // Obtenir le nom de l'administrateur
+  const getAdminDisplayName = () => {
+    if (loadingAdmins.has(payment.acceptedBy)) {
+      return 'Chargement...'
+    }
+    
+    const adminInfo = adminInfos[payment.acceptedBy]
+    if (adminInfo) {
+      return `${adminInfo.firstName} ${adminInfo.lastName}`
+    }
+    
+    return payment.acceptedBy // Fallback vers l'UID si pas d'info
+  }
   
   return (
     <div 
@@ -180,8 +206,11 @@ const PaymentRow = ({ payment, index }: { payment: Payment, index: number }) => 
         
         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 pl-0 sm:pl-16">
           <span>Enregistré par:</span>
-          <Badge variant="secondary" className="font-mono text-xs">
-            {payment.acceptedBy}
+          <Badge 
+            variant="secondary" 
+            className={`text-xs ${loadingAdmins.has(payment.acceptedBy) ? 'animate-pulse' : ''}`}
+          >
+            {getAdminDisplayName()}
           </Badge>
         </div>
       </div>
@@ -191,6 +220,7 @@ const PaymentRow = ({ payment, index }: { payment: Payment, index: number }) => 
 
 export default function PaymentHistory({ requestId }: Props) {
   const router = useRouter()
+  const { user } = useAuth()
   const { data: request, isLoading, isError } = useMembershipRequest(requestId)
 
   const [typeFilter, setTypeFilter] = React.useState<TypePayment | 'all'>('all')
@@ -198,6 +228,10 @@ export default function PaymentHistory({ requestId }: Props) {
   const [dateTo, setDateTo] = React.useState<string>('')
   const [page, setPage] = React.useState(1)
   const pageSize = 10
+  
+  // État pour stocker les informations des administrateurs
+  const [adminInfos, setAdminInfos] = React.useState<Record<string, { firstName: string; lastName: string }>>({})
+  const [loadingAdmins, setLoadingAdmins] = React.useState<Set<string>>(new Set())
 
   const payments: Payment[] = React.useMemo(() => {
     const list = request?.payments || []
@@ -253,6 +287,56 @@ export default function PaymentHistory({ requestId }: Props) {
     }))
 
   const totalAmount = Object.values(statsByType).reduce((sum, stats) => sum + stats.amount, 0)
+
+  // Fonction pour récupérer les informations d'un administrateur
+  const fetchAdminInfo = React.useCallback(async (adminId: string) => {
+    if (adminInfos[adminId] || loadingAdmins.has(adminId)) return
+
+    setLoadingAdmins(prev => new Set(prev).add(adminId))
+    
+    try {
+      // Si c'est l'utilisateur connecté, utiliser ses informations
+      if (user?.uid === adminId) {
+        setAdminInfos(prev => ({
+          ...prev,
+          [adminId]: {
+            firstName: user.displayName?.split(' ')[0] || 'Utilisateur',
+            lastName: user.displayName?.split(' ').slice(1).join(' ') || 'Connecté'
+          }
+        }))
+      } else {
+        // Sinon, récupérer les informations depuis la collection admins
+        const adminData = await getAdminById(adminId)
+        if (adminData) {
+          setAdminInfos(prev => ({
+            ...prev,
+            [adminId]: {
+              firstName: adminData.firstName,
+              lastName: adminData.lastName
+            }
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'administrateur:', error)
+    } finally {
+      setLoadingAdmins(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(adminId)
+        return newSet
+      })
+    }
+  }, [adminInfos, loadingAdmins, user])
+
+  // Charger les informations des administrateurs pour tous les paiements
+  React.useEffect(() => {
+    if (!payments.length) return
+
+    const uniqueAdminIds = [...new Set(payments.map(p => p.acceptedBy))]
+    uniqueAdminIds.forEach(adminId => {
+      fetchAdminInfo(adminId)
+    })
+  }, [payments, fetchAdminInfo])
 
   React.useEffect(() => {
     setPage(1)
@@ -536,7 +620,13 @@ export default function PaymentHistory({ requestId }: Props) {
             ) : (
               <div className="divide-y divide-gray-100">
                 {paged.map((payment, index) => (
-                  <PaymentRow key={index} payment={payment} index={index} />
+                  <PaymentRow 
+                    key={index} 
+                    payment={payment} 
+                    index={index}
+                    adminInfos={adminInfos}
+                    loadingAdmins={loadingAdmins}
+                  />
                 ))}
               </div>
             )}

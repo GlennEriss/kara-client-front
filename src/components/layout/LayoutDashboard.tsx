@@ -43,7 +43,7 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
               <span className="text-sm text-gray-600">En ligne</span>
             </div>
           </header>
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto">
             {children}
           </div>
         </main>
