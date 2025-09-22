@@ -20,7 +20,8 @@ import {
   XCircle,
   Plus,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  Cake
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -45,6 +46,22 @@ interface MemberCardProps {
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
   onPreviewAdhesion: (url: string | null) => void
+}
+
+// Fonction utilitaire pour vérifier si c'est l'anniversaire d'un membre
+const isBirthdayToday = (birthDate: string): boolean => {
+  if (!birthDate) return false
+  
+  try {
+    const today = new Date()
+    const birth = new Date(birthDate)
+    
+    // Comparer jour et mois (ignorer l'année)
+    return today.getDate() === birth.getDate() && 
+           today.getMonth() === birth.getMonth()
+  } catch {
+    return false
+  }
 }
 
 const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion }: MemberCardProps) => {
@@ -117,6 +134,14 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                 </AvatarFallback>
               )}
             </Avatar>
+
+            {/* Indicateur d'anniversaire */}
+            {isBirthdayToday(member.birthDate) && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-pink-100 to-purple-100 rounded-full border border-pink-200">
+                <Cake className="h-3 w-3 text-pink-600" />
+                <span className="text-xs font-medium text-pink-700">Anniversaire </span>
+              </div>
+            )}
 
             {/* Menu actions - toujours à droite, jamais poussé */}
             <DropdownMenu>

@@ -9,6 +9,72 @@ import { User, Subscription, MembershipType } from '@/types/types'
 import { generateMatricule } from '@/db/user.db'
 
 /**
+ * Crée un utilisateur de test avec un anniversaire aujourd'hui
+ */
+export async function createTestUserWithBirthdayToday() {
+  try {
+    // Générer un ID unique pour l'utilisateur
+    const userId = `test_birthday_user_${Date.now()}`
+    
+    // Obtenir la date d'aujourd'hui
+    const today = new Date()
+    const day = today.getDate().toString().padStart(2, '0')
+    const month = (today.getMonth() + 1).toString().padStart(2, '0')
+    
+    // Générer une année aléatoire entre 1980 et 2000
+    const randomYear = Math.floor(Math.random() * 21) + 1980 // 1980-2000
+    
+    const birthDate = `${randomYear}-${month}-${day}`
+    
+    // Créer les données utilisateur
+    const userData: Omit<User, 'id'> = {
+      matricule: await generateMatricule(),
+      lastName: 'Anniversaire',
+      firstName: 'Aujourd\'hui',
+      birthDate: birthDate,
+      contacts: ['+33612345678'],
+      gender: 'Homme',
+      email: `anniversaire.${Date.now()}@kara.com`,
+      nationality: 'Française',
+      hasCar: true,
+      address: {
+        province: 'Estuaire',
+        city: 'Libreville',
+        district: 'Centre-ville',
+        arrondissement: '1er Arrondissement',
+        additionalInfo: 'Rue de l\'Anniversaire'
+      },
+      companyName: 'BirthdayCorp',
+      profession: 'Célébrateur',
+      photoURL: null,
+      photoPath: null,
+      subscriptions: [],
+      dossier: `birthday_dossier_${Date.now()}`,
+      membershipType: 'adherant' as MembershipType,
+      roles: ['Adherant'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isActive: true
+    }
+    
+    // Créer l'utilisateur dans Firestore
+    const userRef = doc(db, 'users', userId)
+    await setDoc(userRef, {
+      ...userData,
+      id: userId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
+    
+    console.log('✅ Utilisateur avec anniversaire créé:', userId, 'Date de naissance:', birthDate)
+    return userId
+  } catch (error) {
+    console.error('❌ Erreur lors de la création de l\'utilisateur avec anniversaire:', error)
+    throw error
+  }
+}
+
+/**
  * Crée un utilisateur de test avec une subscription valide
  */
 export async function createTestUserWithSubscription() {
