@@ -1,23 +1,8 @@
 import { useState, useEffect } from 'react'
 import { listPayments } from '@/db/caisse/payments.db'
+import { CaissePayment } from '@/services/caisse/types'
 
-export interface Payment {
-  id: string
-  dueMonthIndex: number
-  dueAt?: Date
-  paidAt?: Date
-  amount: number
-  status: 'PENDING' | 'PAID' | 'OVERDUE'
-  contribs?: Array<{
-    memberId: string
-    amount: number
-    paidAt?: Date
-    status: 'PENDING' | 'PAID'
-  }>
-  createdAt?: Date
-  updatedAt?: Date
-  updatedBy?: string // Administrateur qui a traité le versement
-}
+export type Payment = CaissePayment
 
 export function useContractPayments(contractId: string) {
   const [payments, setPayments] = useState<Payment[]>([])
