@@ -36,11 +36,11 @@ const useIsMobile = () => {
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
-    fontSize: 10,
+    fontSize: 12, // Augmenté de 10 à 12
     paddingTop: 15,
     paddingBottom: 20,
     paddingHorizontal: 25,
-    lineHeight: 1.2,
+    lineHeight: 1.3, // Augmenté de 1.2 à 1.3
   },
   header: {
     flexDirection: 'row',
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleListe: {
-    fontSize: 18,
+    fontSize: 20, // Augmenté de 18 à 20
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#1f3a4e',
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: 12,
-    fontSize: 11,
+    fontSize: 13, // Augmenté de 11 à 13
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     padding: 5,
-    fontSize: 13,
+    fontSize: 15, // Augmenté de 13 à 15
     fontWeight: 'bold',
   },
   stripedTable: {
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   stripedCell: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 11, // Augmenté de 9 à 11
     paddingRight: 5,
   },
   modeReglementTable: {
@@ -191,34 +191,34 @@ const styles = StyleSheet.create({
   italic: {
     fontStyle: 'italic',
     marginBottom: 8,
-    fontSize: 9,
-    lineHeight: 1.3,
+    fontSize: 11, // Augmenté de 9 à 11
+    lineHeight: 1.4, // Augmenté de 1.3 à 1.4
   },
   footer: {
     marginTop: 10,
-    fontSize: 8,
-    lineHeight: 1.2,
+    fontSize: 10, // Augmenté de 8 à 10
+    lineHeight: 1.3, // Augmenté de 1.2 à 1.3
   },
   boldText: {
     fontWeight: 'bold',
   },
   confidentialityTitle: {
-    fontSize: 16,
+    fontSize: 18, // Augmenté de 16 à 18
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 15,
     marginTop: 10,
   },
   articleHeader: {
-    fontSize: 12,
+    fontSize: 14, // Augmenté de 12 à 14
     fontWeight: 'bold',
     marginBottom: 5,
     marginTop: 8,
   },
   articleText: {
     marginBottom: 8,
-    fontSize: 9,
-    lineHeight: 1.3,
+    fontSize: 11, // Augmenté de 9 à 11
+    lineHeight: 1.4, // Augmenté de 1.3 à 1.4
   },
   redText: {
     color: '#ba0c2f',
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   contractSignatureDate: {
     marginTop: 15,
     marginBottom: 10,
-    fontSize: 10,
+    fontSize: 12, // Augmenté de 10 à 12
   },
 })
 
@@ -321,7 +321,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
                 backgroundColor: '#f8f9fa'
               }}>
                 <Text style={{ 
-                  fontSize: 7, 
+                  fontSize: 9, // Augmenté de 7 à 9
                   textAlign: 'center',
                   color: '#666'
                 }}>
@@ -438,12 +438,12 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         <View style={styles.signatureTable}>
           <View style={styles.signatureRow}>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 9 }}>Signature de l'adhérent suivi de la mention "lu et approuvé"</Text>
-              <Text style={{ fontSize: 9 }}>Date : ................../...................../..................</Text>
+              <Text style={{ fontSize: 11 }}>Signature de l'adhérent suivi de la mention "lu et approuvé"</Text>
+              <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 9 }}>Signature et cachet du Secrétariat Exécutif</Text>
-              <Text style={{ fontSize: 9 }}>Date : ................../...................../..................</Text>
+              <Text style={{ fontSize: 11 }}>Signature et cachet du Secrétariat Exécutif</Text>
+              <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
             </View>
           </View>
         </View>
@@ -537,10 +537,10 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         <View style={styles.signatureTable}>
           <View style={styles.signatureRow}>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 9 }}>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
+              <Text style={{ fontSize: 11 }}>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 9 }}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
+              <Text style={{ fontSize: 11 }}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
             </View>
           </View>
         </View>
