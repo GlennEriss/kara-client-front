@@ -67,9 +67,23 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
       age: calculateAge(memberData.birthDate)
     } : memberData
     
+    // Calculer la dernière date de paiement
+    let lastPaymentDate = null
+    if (contractData.firstPaymentDate && contractData.monthsPlanned) {
+      try {
+        const firstDate = new Date(contractData.firstPaymentDate)
+        const lastDate = new Date(firstDate)
+        lastDate.setMonth(lastDate.getMonth() + contractData.monthsPlanned)
+        lastPaymentDate = lastDate
+      } catch (error) {
+        console.error('Erreur lors du calcul de la dernière date de paiement:', error)
+      }
+    }
+    
     return {
       ...contractData,
-      member: memberWithAge
+      member: memberWithAge,
+      lastPaymentDate
     }
   }, [contractData, memberData])
 

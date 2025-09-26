@@ -94,6 +94,8 @@ export async function POST(req: NextRequest) {
             profession: professionName || membershipRequest.company?.profession,
             photoURL: membershipRequest.identity.photoURL,
             photoPath: membershipRequest.identity.photoPath,
+            identityDocument: membershipRequest.documents.identityDocument,
+            identityDocumentNumber: membershipRequest.documents.identityDocumentNumber,
             subscriptions: [], // Sera mis à jour après création de la souscription
             dossier: requestId, // Référence vers la demande d'adhésion
             membershipType: membershipType as MembershipType,

@@ -417,6 +417,10 @@ export interface User {
   photoURL?: string | null
   photoPath?: string | null
 
+  // Documents
+  identityDocument?: string
+  identityDocumentNumber?: string
+
   // Références
   subscriptions: string[] // Liste d'IDs de subscriptions
   dossier: string // Référence vers la demande membership-request

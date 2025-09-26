@@ -141,7 +141,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           </View>
           <View style={styles.row}>
             <Text style={styles.cell}>N°CNI / PASS / CS :</Text>
-            <Text style={styles.cell}>{contract?.member?.identityDocumentNumber || '—'}</Text>
+            <Text style={styles.cell}>{contract?.member?.identityDocument + ' ' + contract?.member?.identityDocumentNumber || '—'}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
@@ -234,7 +234,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
 
         <Text style={styles.articleTitle}>Article 2 : Durée du contrat</Text>
         <Text style={styles.articleText}>
-          Engagement valable pour {contract?.monthsPlanned || 12} mois, conclu en date du {formatDate(contract?.createdAt)} et prend fin le {formatDate(contract?.endDate)}
+          Engagement valable pour {contract?.monthsPlanned || 12} mois, conclu en date du {formatDate(contract?.firstPaymentDate)} et prend fin le {formatDate(contract?.lastPaymentDate)}
         </Text>
 
         <Text style={styles.articleTitle}>Article 3 : Termes contractuels</Text>
