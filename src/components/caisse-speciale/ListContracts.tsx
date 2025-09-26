@@ -26,7 +26,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  BarChart3
+  BarChart3,
+  Upload
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
@@ -35,6 +36,7 @@ import { useMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
 import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
+import ContractPdfUploadModal from './ContractPdfUploadModal'
 
 type ViewMode = 'grid' | 'list'
 
@@ -402,6 +404,8 @@ const ListContracts = () => {
   const [isExporting, setIsExporting] = useState(false)
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<any>(null)
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)
+  const [selectedContractForUpload, setSelectedContractForUpload] = useState<any>(null)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
 
   // Hook pour récupérer les contrats depuis Firestore
   const { contracts: contractsData, isLoading, error, refetch } = useContracts()
@@ -443,6 +447,21 @@ const ListContracts = () => {
   const handleClosePDFModal = () => {
     setIsPDFModalOpen(false)
     setSelectedContractForPDF(null)
+  }
+
+  const handleUploadPDF = (contract: any) => {
+    setSelectedContractForUpload(contract)
+    setIsUploadModalOpen(true)
+  }
+
+  const handleCloseUploadModal = () => {
+    setIsUploadModalOpen(false)
+    setSelectedContractForUpload(null)
+  }
+
+  const handleUploadSuccess = () => {
+    // Rafraîchir la liste des contrats après téléversement
+    refetch()
   }
 
   const exportToExcel = async () => {
@@ -985,8 +1004,8 @@ const ListContracts = () => {
                             </>
                           ) : (
                             <>
-                              <AlertCircle className="h-3 w-3 text-red-500" />
-                              <span className="text-red-500 font-medium">Manquant</span>
+                              <AlertCircle className="h-3 w-3 text-orange-500" />
+                              <span className="text-orange-500 font-medium">À téléverser</span>
                             </>
                           )}
                         </div>
@@ -998,18 +1017,23 @@ const ListContracts = () => {
                         Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
                       </div>
                       <div className="space-y-2">
-                        <Button
-                          onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
-                          disabled={!hasValidContractPdf(contract)}
-                          className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                            hasValidContractPdf(contract)
-                              ? 'bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white'
-                              : 'bg-gray-100 cursor-not-allowed text-gray-400 border border-gray-200'
-                          }`}
-                        >
-                          <Eye className="h-4 w-4" />
-                          {hasValidContractPdf(contract) ? 'Ouvrir' : 'PDF manquant'}
-                        </Button>
+                        {hasValidContractPdf(contract) ? (
+                          <Button
+                            onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Ouvrir
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleUploadPDF(contract)}
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 hover:text-orange-800"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Téléverser le document PDF
+                          </Button>
+                        )}
                         
                         <Button
                           onClick={() => handleViewContractPDF(contract)}
@@ -1109,6 +1133,17 @@ const ListContracts = () => {
           onClose={handleClosePDFModal}
           contractId={selectedContractForPDF.id}
           contractData={selectedContractForPDF}
+        />
+      )}
+
+      {/* Modal Téléversement PDF */}
+      {selectedContractForUpload && (
+        <ContractPdfUploadModal
+          isOpen={isUploadModalOpen}
+          onClose={handleCloseUploadModal}
+          contractId={selectedContractForUpload.id}
+          contractName={`Contrat #${selectedContractForUpload.id.slice(-6)}`}
+          onSuccess={handleUploadSuccess}
         />
       )}
     </div>

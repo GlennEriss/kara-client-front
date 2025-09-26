@@ -25,13 +25,14 @@ import routes from '@/constantes/routes'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
 import EmergencyContactForm from '../forms/EmergencyContactForm'
 import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
+import { useAuth } from '@/hooks/useAuth'
 
 export function Step3ContractCreation() {
   const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()
   const { formData } = state
   const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
-
+  const { user } = useAuth()
   // Validation des paramètres de la Caisse Spéciale
   const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(formData.caisseType)
 
@@ -120,7 +121,8 @@ export function Step3ContractCreation() {
         monthsPlanned: formData.monthsPlanned,
         caisseType: formData.caisseType,
         firstPaymentDate: formData.firstPaymentDate,
-        emergencyContact: formData.emergencyContact
+        emergencyContact: formData.emergencyContact,
+        createdBy: user?.uid
       }
 
       console.log('📝 Données du contrat à créer:', contractData)

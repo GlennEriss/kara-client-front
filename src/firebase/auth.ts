@@ -3,9 +3,9 @@ import { app } from "./app";
 
 export const auth = getAuth(app);
 
-if (process.env.NODE_ENV === 'development') {
+/* if (process.env.NODE_ENV === 'development') {
   connectAuthEmulator(auth, `http://127.0.0.1:9099`);
-}
+} */
 
 export {
   createUserWithEmailAndPassword,

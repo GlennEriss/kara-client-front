@@ -8,7 +8,7 @@ export const getStorageInstance = () => {
     storageInstance = getStorage(app);
     
     // Connect to emulator in development
-    if (process.env.NODE_ENV === 'development') {
+    /* if (process.env.NODE_ENV === 'development') {
       try {
         console.log('🔧 Connecting storage to emulator...');
         connectStorageEmulator(storageInstance, "127.0.0.1", 9097);
@@ -16,7 +16,7 @@ export const getStorageInstance = () => {
       } catch (error) {
         console.error('❌ Failed to connect storage to emulator:', error);
       }
-    }
+    } */
   }
   
   return storageInstance;
