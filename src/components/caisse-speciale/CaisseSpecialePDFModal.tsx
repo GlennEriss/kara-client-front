@@ -28,13 +28,48 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   // Récupérer les informations du membre
   const { data: memberData, isLoading: memberLoading } = useMember(contractData?.memberId)
 
+  // Fonction pour calculer l'âge à partir de la date de naissance
+  const calculateAge = (birthDate: string | Date) => {
+    if (!birthDate) return '—'
+    
+    try {
+      // Créer un objet Date à partir de la date de naissance
+      const birth = new Date(birthDate)
+      const today = new Date()
+      
+      // Vérifier que la date est valide
+      if (isNaN(birth.getTime())) {
+        return '—'
+      }
+      
+      // Calculer l'âge
+      let age = today.getFullYear() - birth.getFullYear()
+      
+      // Vérifier si l'anniversaire n'est pas encore passé cette année
+      const monthDiff = today.getMonth() - birth.getMonth()
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--
+      }
+      
+      return age.toString()
+    } catch {
+      return '—'
+    }
+  }
+
   // Créer un objet contract enrichi avec les données du membre
   const enrichedContract = React.useMemo(() => {
     if (!contractData) return null
     
+    // Calculer l'âge si on a les données du membre
+    const memberWithAge = memberData ? {
+      ...memberData,
+      age: calculateAge(memberData.birthDate)
+    } : memberData
+    
     return {
       ...contractData,
-      member: memberData
+      member: memberWithAge
     }
   }, [contractData, memberData])
 

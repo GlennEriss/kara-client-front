@@ -86,69 +86,6 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
     return amount ? amount.toLocaleString('fr-FR') : '0'
   }
 
-  const calculateAge = (birthDate: string) => {
-    if (!birthDate) return '—'
-    
-    try {
-      // Nettoyer la chaîne au cas où elle contiendrait d'autres informations
-      let cleanDate = birthDate.trim()
-      
-      // Si la chaîne contient " / ", prendre la partie après " / "
-      if (cleanDate.includes(' / ')) {
-        cleanDate = cleanDate.split(' / ').pop() || ''
-      }
-      
-      // Si la chaîne contient juste " / ", prendre la partie après " / "
-      if (cleanDate.includes('/') && !cleanDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-        const parts = cleanDate.split('/')
-        if (parts.length >= 3) {
-          cleanDate = parts.slice(-3).join('/')
-        }
-      }
-      
-      // Vérifier que nous avons maintenant une date au format DD/MM/YYYY
-      if (!cleanDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-        return '—'
-      }
-      
-      // Convertir la date française (DD/MM/YYYY) en objet Date
-      const [day, month, year] = cleanDate.split('/')
-      
-      // Vérifier que tous les éléments sont présents et valides
-      if (!day || !month || !year || isNaN(parseInt(day)) || isNaN(parseInt(month)) || isNaN(parseInt(year))) {
-        return '—'
-      }
-      
-      const dayNum = parseInt(day)
-      const monthNum = parseInt(month)
-      const yearNum = parseInt(year)
-      
-      // Validation des valeurs
-      if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 1900 || yearNum > new Date().getFullYear()) {
-        return '—'
-      }
-      
-      const birth = new Date(yearNum, monthNum - 1, dayNum)
-      const today = new Date()
-      
-      // Vérifier que la date est valide et cohérente
-      if (isNaN(birth.getTime()) || birth.getDate() !== dayNum || birth.getMonth() !== monthNum - 1 || birth.getFullYear() !== yearNum) {
-        return '—'
-      }
-      
-      let age = today.getFullYear() - birth.getFullYear()
-      
-      // Vérifier si l'anniversaire n'est pas encore passé cette année
-      const monthDiff = today.getMonth() - birth.getMonth()
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--
-      }
-      
-      return age.toString()
-    } catch {
-      return '—'
-    }
-  }
 
   const getContractTypeLabel = (type: string) => {
     switch (type) {
@@ -220,7 +157,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           </View>
           <View style={styles.row}>
             <Text style={styles.cell}>ÂGE :</Text>
-            <Text style={styles.cell}>{calculateAge(contract?.member?.birthDate) || '—'}</Text>
+            <Text style={styles.cell}>{contract?.member?.age || '—'}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.cell}>QUARTIER :</Text>
