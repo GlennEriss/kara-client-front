@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
             lastName: membershipRequest.identity.lastName,
             firstName: membershipRequest.identity.firstName,
             birthDate: membershipRequest.identity.birthDate,
+            birthPlace: membershipRequest.identity.birthPlace,
             contacts: membershipRequest.identity.contacts,
             gender: membershipRequest.identity.gender,
             email: membershipRequest.identity.email,

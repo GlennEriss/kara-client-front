@@ -393,6 +393,7 @@ export interface User {
   lastName: string
   firstName: string
   birthDate: string
+  birthPlace?: string
   contacts: string[]
   gender: string
   email?: string

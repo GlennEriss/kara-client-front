@@ -34,6 +34,7 @@ import { useContracts } from '@/hooks/useContracts'
 import { useMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
+import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
 
 type ViewMode = 'grid' | 'list'
 
@@ -399,6 +400,8 @@ const ListContracts = () => {
   const [itemsPerPage, setItemsPerPage] = useState(12)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [isExporting, setIsExporting] = useState(false)
+  const [selectedContractForPDF, setSelectedContractForPDF] = useState<any>(null)
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)
 
   // Hook pour récupérer les contrats depuis Firestore
   const { contracts: contractsData, isLoading, error, refetch } = useContracts()
@@ -430,6 +433,16 @@ const ListContracts = () => {
 
   const handleRefresh = async () => {
     await refetch()
+  }
+
+  const handleViewContractPDF = (contract: any) => {
+    setSelectedContractForPDF(contract)
+    setIsPDFModalOpen(true)
+  }
+
+  const handleClosePDFModal = () => {
+    setIsPDFModalOpen(false)
+    setSelectedContractForPDF(null)
   }
 
   const exportToExcel = async () => {
@@ -586,6 +599,18 @@ const ListContracts = () => {
       default:
         return type
     }
+  }
+
+  // Fonction pour vérifier si le contrat a un PDF valide
+  const hasValidContractPdf = (contract: any) => {
+    const contractPdf = contract.contractPdf
+    if (!contractPdf || typeof contractPdf !== 'object') {
+      return false
+    }
+    
+    // Vérifier que toutes les propriétés requises sont présentes
+    const requiredProperties = ['fileSize', 'originalFileName', 'path', 'uploadedAt', 'url']
+    return requiredProperties.every(prop => contractPdf.hasOwnProperty(prop) && contractPdf[prop] !== null && contractPdf[prop] !== undefined)
   }
 
   const getStatusColor = (status: string) => {
@@ -949,19 +974,52 @@ const ListContracts = () => {
                           {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
                         </div>
                       </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Contrat PDF:</span>
+                        <div className="flex items-center gap-1">
+                          {hasValidContractPdf(contract) ? (
+                            <>
+                              <CheckCircle className="h-3 w-3 text-green-600" />
+                              <span className="text-green-600 font-medium">Disponible</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-3 w-3 text-red-500" />
+                              <span className="text-red-500 font-medium">Manquant</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="pt-3 border-t border-gray-100 mt-auto">
                       <div className="text-xs text-gray-600 mb-2">
                         Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
                       </div>
-                      <Button
-                        onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
-                        className="w-full inline-flex items-center bg-white cursor-pointer justify-center gap-2 px-3 py-2 text-sm font-medium text-[#224D62] border border-[#224D62] rounded-lg hover:bg-[#224D62] hover:text-white transition-all duration-200"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Ouvrir
-                      </Button>
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
+                          disabled={!hasValidContractPdf(contract)}
+                          className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                            hasValidContractPdf(contract)
+                              ? 'bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white'
+                              : 'bg-gray-100 cursor-not-allowed text-gray-400 border border-gray-200'
+                          }`}
+                        >
+                          <Eye className="h-4 w-4" />
+                          {hasValidContractPdf(contract) ? 'Ouvrir' : 'PDF manquant'}
+                        </Button>
+                        
+                        <Button
+                          onClick={() => handleViewContractPDF(contract)}
+                          variant="outline"
+                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Voir contrat
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1042,6 +1100,16 @@ const ListContracts = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Modal PDF */}
+      {selectedContractForPDF && (
+        <CaisseSpecialePDFModal
+          isOpen={isPDFModalOpen}
+          onClose={handleClosePDFModal}
+          contractId={selectedContractForPDF.id}
+          contractData={selectedContractForPDF}
+        />
       )}
     </div>
   )
