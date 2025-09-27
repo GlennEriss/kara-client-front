@@ -40,8 +40,8 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
         file: undefined as any,
         originalFileName: '',
         fileSize: 0,
-        path: '',
-        url: ''
+        path: undefined,
+        url: undefined
       }
     }
   })
@@ -62,12 +62,14 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
       form.setValue('contractPdf.originalFileName', file.name)
       form.setValue('contractPdf.fileSize', file.size)
       // Le chemin et l'URL seront définis après l'upload
-      form.setValue('contractPdf.path', '')
-      form.setValue('contractPdf.url', '')
+      form.setValue('contractPdf.path', undefined)
+      form.setValue('contractPdf.url', undefined)
     }
   }
 
   const onSubmit = async (data: ContractPdfUploadFormData) => {
+    console.log('🚀 onSubmit appelé avec:', data)
+    
     if (!user?.uid) {
       toast.error('Utilisateur non authentifié')
       return
@@ -76,8 +78,10 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
     setUploadError(null)
 
     try {
+      console.log('📁 Début de l\'upload vers Firebase Storage...')
       // Upload du fichier vers Firebase Storage
       const uploadResult = await createFile(data.contractPdf.file, contractId, `contracts/${contractId}`)
+      console.log('✅ Upload réussi:', uploadResult)
       
       const contractPdfData = {
         fileSize: data.contractPdf.fileSize,
@@ -87,6 +91,7 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
         url: uploadResult.url
       }
 
+      console.log('📄 Mise à jour du contrat avec:', contractPdfData)
       await updateContractPdf(contractId, contractPdfData, user.uid)
 
       toast.success('Document PDF téléversé avec succès !')
@@ -94,7 +99,7 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
       onSuccess?.()
       onClose()
     } catch (error: any) {
-      console.error('Erreur lors du téléversement:', error)
+      console.error('❌ Erreur lors du téléversement:', error)
       setUploadError(error.message || 'Erreur lors du téléversement du document')
       toast.error('Erreur lors du téléversement du document')
     }

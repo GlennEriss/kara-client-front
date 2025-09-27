@@ -17,8 +17,8 @@ export const contractPdfUploadSchema = z.object({
     ),
     originalFileName: z.string().min(1, 'Le nom du fichier est requis'),
     fileSize: z.number().min(0, 'La taille du fichier est requise'),
-    path: z.string().min(1, 'Le chemin du fichier est requis'),
-    url: z.string().url('URL invalide')
+    path: z.string().optional(),
+    url: z.string().optional()
   })
 })
 
