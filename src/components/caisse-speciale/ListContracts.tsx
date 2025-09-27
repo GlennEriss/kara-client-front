@@ -37,6 +37,7 @@ import { toast } from 'sonner'
 import routes from '@/constantes/routes'
 import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
 import ContractPdfUploadModal from './ContractPdfUploadModal'
+import ViewUploadedContractModal from './ViewUploadedContractModal'
 
 type ViewMode = 'grid' | 'list'
 
@@ -386,12 +387,12 @@ const ContractFilters = ({
 // Composant principal
 const ListContracts = () => {
   const router = useRouter()
-
+  
   // Fonction de navigation vers la création de contrat
   const handleCreateContract = () => {
     router.push('/caisse-speciale/create')
   }
-
+  
   // États
   const [filters, setFilters] = useState({
     search: '',
@@ -406,6 +407,8 @@ const ListContracts = () => {
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)
   const [selectedContractForUpload, setSelectedContractForUpload] = useState<any>(null)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [selectedContractForViewUploaded, setSelectedContractForViewUploaded] = useState<any>(null)
+  const [isViewUploadedModalOpen, setIsViewUploadedModalOpen] = useState(false)
 
   // Hook pour récupérer les contrats depuis Firestore
   const { contracts: contractsData, isLoading, error, refetch } = useContracts()
@@ -464,6 +467,16 @@ const ListContracts = () => {
     refetch()
   }
 
+  const handleViewUploadedContractPDF = (contract: any) => {
+    setSelectedContractForViewUploaded(contract)
+    setIsViewUploadedModalOpen(true)
+  }
+
+  const handleCloseViewUploadedModal = () => {
+    setIsViewUploadedModalOpen(false)
+    setSelectedContractForViewUploaded(null)
+  }
+
   const exportToExcel = async () => {
     if (filteredContracts.length === 0) {
       toast.error('Aucun contrat à exporter')
@@ -519,13 +532,13 @@ const ListContracts = () => {
 
       // Créer le fichier CSV avec BOM pour Excel
       const headers = Object.keys(exportData[0])
-
+      
       // Ajouter le BOM UTF-8 pour Excel
       const BOM = '\uFEFF'
-
+      
       const csvContent = BOM + [
         headers.join(';'),
-        ...exportData.map((row: Record<string, any>) =>
+        ...exportData.map((row: Record<string, any>) => 
           headers.map(header => {
             const value = row[header]
             // Échapper les points-virgules et guillemets dans les valeurs
@@ -947,10 +960,10 @@ const ListContracts = () => {
                         if (typeof memberName === 'object' && memberName.firstName && memberName.lastName) {
                           return (
                             <>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Nom:</span>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Nom:</span>
                                 <span className="font-medium text-gray-900">{memberName.lastName}</span>
-                              </div>
+                      </div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-gray-500">Prénom:</span>
                                 <span className="font-medium text-gray-900">{memberName.firstName}</span>
@@ -1018,13 +1031,23 @@ const ListContracts = () => {
                       </div>
                       <div className="space-y-2">
                         {hasValidContractPdf(contract) ? (
-                          <Button
-                            onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
-                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
-                          >
-                            <Eye className="h-4 w-4" />
-                            Ouvrir
-                          </Button>
+                          <>
+                      <Button
+                        onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Ouvrir
+                            </Button>
+                            <Button
+                              onClick={() => handleViewUploadedContractPDF(contract)}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Voir contrat
+                            </Button>
+                          </>
                         ) : (
                           <Button
                             onClick={() => handleUploadPDF(contract)}
@@ -1041,8 +1064,8 @@ const ListContracts = () => {
                           className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
                         >
                           <FileText className="h-4 w-4" />
-                          Voir contrat
-                        </Button>
+                          Télécharger contrat
+                      </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -1144,6 +1167,15 @@ const ListContracts = () => {
           contractId={selectedContractForUpload.id}
           contractName={`Contrat #${selectedContractForUpload.id.slice(-6)}`}
           onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* Modal Contrat Uploadé */}
+      {selectedContractForViewUploaded && (
+        <ViewUploadedContractModal
+          isOpen={isViewUploadedModalOpen}
+          onClose={handleCloseViewUploadedModal}
+          contract={selectedContractForViewUploaded}
         />
       )}
     </div>
