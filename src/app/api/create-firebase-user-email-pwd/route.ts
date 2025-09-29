@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
             lastName: membershipRequest.identity.lastName,
             firstName: membershipRequest.identity.firstName,
             birthDate: membershipRequest.identity.birthDate,
+            birthPlace: membershipRequest.identity.birthPlace,
             contacts: membershipRequest.identity.contacts,
             gender: membershipRequest.identity.gender,
             email: membershipRequest.identity.email,
@@ -93,6 +94,8 @@ export async function POST(req: NextRequest) {
             profession: professionName || membershipRequest.company?.profession,
             photoURL: membershipRequest.identity.photoURL,
             photoPath: membershipRequest.identity.photoPath,
+            identityDocument: membershipRequest.documents.identityDocument,
+            identityDocumentNumber: membershipRequest.documents.identityDocumentNumber,
             subscriptions: [], // Sera mis à jour après création de la souscription
             dossier: requestId, // Référence vers la demande d'adhésion
             membershipType: membershipType as MembershipType,

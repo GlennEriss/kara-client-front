@@ -23,9 +23,10 @@ import {
   ChevronRight,
   Venus,
   Mars,
+  Cake,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { useMembers } from '@/hooks/useMembers'
+import { useAllMembers } from '@/hooks/useMembers'
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'
 import MemberFilters from './MemberFilters'
@@ -34,13 +35,29 @@ import MemberCard from './MemberCard'
 import MemberDetailsWrapper from './MemberDetailsWrapper'
 import MembershipPagination from './MembershipPagination'
 import { toast } from 'sonner'
-import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription, createTestUserWithAddressAndProfession } from '@/utils/test-data'
+import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription, createTestUserWithAddressAndProfession, createTestUserWithBirthdayToday } from '@/utils/test-data'
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ExportMembershipModal from './ExportMembershipModal'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'list'
+
+// Fonction utilitaire pour vérifier si c'est l'anniversaire d'un membre
+const isBirthdayToday = (birthDate: string): boolean => {
+  if (!birthDate) return false
+  
+  try {
+    const today = new Date()
+    const birth = new Date(birthDate)
+    
+    // Comparer jour et mois (ignorer l'année)
+    return today.getDate() === birth.getDate() && 
+           today.getMonth() === birth.getMonth()
+  } catch {
+    return false
+  }
+}
 
 // Fonction utilitaire pour récupérer les détails d'identité de manière sécurisée
 const getUserDisplayName = (user: MemberWithSubscription): string => {
@@ -317,7 +334,7 @@ const MembershipList = () => {
     isLoading, 
     error, 
     refetch 
-  } = useMembers(filters, currentPage, itemsPerPage)
+  } = useAllMembers(filters, currentPage, itemsPerPage)
 
   // Reset page when filters change
   useEffect(() => {
@@ -427,6 +444,17 @@ const MembershipList = () => {
       toast.info('🔍 Création d\'un utilisateur avec données de filtres...', { duration: 2000 })
       await createTestUserWithAddressAndProfession()
       toast.success('✅ Utilisateur créé avec données complètes')
+      refetch()
+    } catch (error) {
+      toast.error('❌ Erreur lors de la création')
+    }
+  }
+
+  const handleCreateUserWithBirthday = async () => {
+    try {
+      toast.info('🎂 Création d\'un utilisateur avec anniversaire aujourd\'hui...', { duration: 2000 })
+      await createTestUserWithBirthdayToday()
+      toast.success('🎉 Utilisateur créé avec anniversaire aujourd\'hui !')
       refetch()
     } catch (error) {
       toast.error('❌ Erreur lors de la création')
@@ -579,6 +607,16 @@ const MembershipList = () => {
               >
                 <Target className="w-4 h-4 mr-2" />
                 Utilisateur + Filtres
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateUserWithBirthday}
+                className="bg-white border-pink-300 text-pink-700 hover:bg-pink-50 hover:border-pink-400 transition-all duration-300 hover:scale-105 shadow-sm"
+              >
+                <Cake className="w-4 h-4 mr-2" />
+                Utilisateur Anniversaire
               </Button>
               
               <div className="border-l border-amber-300 pl-3 ml-3">

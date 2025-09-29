@@ -12,14 +12,10 @@ import {
   Grid3X3,
   List,
   AlertCircle,
-  FileDown,
   Plus,
   TrendingUp,
   CheckCircle,
   Clock,
-  AlertTriangle,
-  XCircle,
-  Users,
   Search,
   Filter,
   Eye,
@@ -29,12 +25,19 @@ import {
   Users as GroupIcon,
   ChevronLeft,
   ChevronRight,
-  Download
+  Download,
+  BarChart3,
+  Upload
 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
-import { useContracts, Contract } from '@/hooks/useContracts'
+import { useContracts } from '@/hooks/useContracts'
+import { useMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
+import routes from '@/constantes/routes'
+import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
+import ContractPdfUploadModal from './ContractPdfUploadModal'
+import ViewUploadedContractModal from './ViewUploadedContractModal'
 
 type ViewMode = 'grid' | 'list'
 
@@ -126,13 +129,15 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
 const StatsCard = ({
   title,
   value,
+  subtitle,
   percentage,
   color,
   icon: Icon,
   trend
 }: {
   title: string
-  value: number
+  value: number | string
+  subtitle?: string
   percentage: number
   color: string
   icon: React.ComponentType<any>
@@ -165,6 +170,9 @@ const StatsCard = ({
                   </div>
                 )}
               </div>
+              {subtitle && (
+                <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+              )}
             </div>
           </div>
           <div className="w-12 h-12">
@@ -194,6 +202,13 @@ const StatsCard = ({
 
 // Composant Carrousel des statistiques avec drag/swipe
 const StatsCarousel = ({ stats }: { stats: any }) => {
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XAF'
+    }).format(amount)
+  }
+
   const statsData = [
     { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: FileText },
     { title: 'En cours', value: stats.draft, percentage: stats.draftPercentage, color: '#9ca3af', icon: FileText, trend: 'neutral' as const },
@@ -201,6 +216,34 @@ const StatsCarousel = ({ stats }: { stats: any }) => {
     { title: 'En Retard', value: stats.late, percentage: stats.latePercentage, color: '#ef4444', icon: Clock, trend: stats.latePercentage > 20 ? 'up' as const : 'neutral' as const },
     { title: 'Individuels', value: stats.individual, percentage: stats.individualPercentage, color: '#3b82f6', icon: User, trend: 'neutral' as const },
     { title: 'Groupes', value: stats.group, percentage: stats.groupPercentage, color: '#8b5cf6', icon: GroupIcon, trend: 'neutral' as const },
+    // Statistiques des tontines closes
+    ...(stats.closedStats?.STANDARD ? [{
+      title: 'Standard Closes',
+      value: `${stats.closedStats.STANDARD.count}`,
+      subtitle: formatAmount(stats.closedStats.STANDARD.totalNominal),
+      percentage: 100,
+      color: '#059669',
+      icon: DollarSign,
+      trend: 'up' as const
+    }] : []),
+    ...(stats.closedStats?.JOURNALIERE ? [{
+      title: 'Journalière Closes',
+      value: `${stats.closedStats.JOURNALIERE.count}`,
+      subtitle: formatAmount(stats.closedStats.JOURNALIERE.totalNominal),
+      percentage: 100,
+      color: '#dc2626',
+      icon: Calendar,
+      trend: 'up' as const
+    }] : []),
+    ...(stats.closedStats?.LIBRE ? [{
+      title: 'Libre Closes',
+      value: `${stats.closedStats.LIBRE.count}`,
+      subtitle: formatAmount(stats.closedStats.LIBRE.totalNominal),
+      percentage: 100,
+      color: '#7c3aed',
+      icon: BarChart3,
+      trend: 'up' as const
+    }] : []),
   ]
 
   const [itemsPerView, setItemsPerView] = useState(1)
@@ -360,6 +403,12 @@ const ListContracts = () => {
   const [itemsPerPage, setItemsPerPage] = useState(12)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [isExporting, setIsExporting] = useState(false)
+  const [selectedContractForPDF, setSelectedContractForPDF] = useState<any>(null)
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)
+  const [selectedContractForUpload, setSelectedContractForUpload] = useState<any>(null)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [selectedContractForViewUploaded, setSelectedContractForViewUploaded] = useState<any>(null)
+  const [isViewUploadedModalOpen, setIsViewUploadedModalOpen] = useState(false)
 
   // Hook pour récupérer les contrats depuis Firestore
   const { contracts: contractsData, isLoading, error, refetch } = useContracts()
@@ -391,6 +440,41 @@ const ListContracts = () => {
 
   const handleRefresh = async () => {
     await refetch()
+  }
+
+  const handleViewContractPDF = (contract: any) => {
+    setSelectedContractForPDF(contract)
+    setIsPDFModalOpen(true)
+  }
+
+  const handleClosePDFModal = () => {
+    setIsPDFModalOpen(false)
+    setSelectedContractForPDF(null)
+  }
+
+  const handleUploadPDF = (contract: any) => {
+    setSelectedContractForUpload(contract)
+    setIsUploadModalOpen(true)
+  }
+
+  const handleCloseUploadModal = () => {
+    setIsUploadModalOpen(false)
+    setSelectedContractForUpload(null)
+  }
+
+  const handleUploadSuccess = () => {
+    // Rafraîchir la liste des contrats après téléversement
+    refetch()
+  }
+
+  const handleViewUploadedContractPDF = (contract: any) => {
+    setSelectedContractForViewUploaded(contract)
+    setIsViewUploadedModalOpen(true)
+  }
+
+  const handleCloseViewUploadedModal = () => {
+    setIsViewUploadedModalOpen(false)
+    setSelectedContractForViewUploaded(null)
   }
 
   const exportToExcel = async () => {
@@ -520,6 +604,47 @@ const ListContracts = () => {
     }
   }
 
+  // Fonction pour obtenir le nom du membre (version améliorée)
+  const getMemberName = (contract: any) => {
+    if (contract.contractType === 'INDIVIDUAL' && contract.memberId) {
+      const member = membersMap.get(contract.memberId)
+      if (member) {
+        return {
+          firstName: member.firstName,
+          lastName: member.lastName
+        }
+      }
+    }
+    return getContractDisplayName(contract)
+  }
+
+  // Fonction pour obtenir le label du type de contrat
+  const getContractTypeLabel = (contract: any) => {
+    const type = contract.caisseType || 'STANDARD'
+    switch (type) {
+      case 'STANDARD':
+        return 'Standard'
+      case 'JOURNALIERE':
+        return 'Journalière'
+      case 'LIBRE':
+        return 'Libre'
+      default:
+        return type
+    }
+  }
+
+  // Fonction pour vérifier si le contrat a un PDF valide
+  const hasValidContractPdf = (contract: any) => {
+    const contractPdf = contract.contractPdf
+    if (!contractPdf || typeof contractPdf !== 'object') {
+      return false
+    }
+    
+    // Vérifier que toutes les propriétés requises sont présentes
+    const requiredProperties = ['fileSize', 'originalFileName', 'path', 'uploadedAt', 'url']
+    return requiredProperties.every(prop => contractPdf.hasOwnProperty(prop) && contractPdf[prop] !== null && contractPdf[prop] !== undefined)
+  }
+
   const getStatusColor = (status: string) => {
     const colors = {
       DRAFT: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -590,7 +715,20 @@ const ListContracts = () => {
   const endIndex = startIndex + itemsPerPage
   const currentContracts = filteredContracts.slice(startIndex, endIndex)
 
-  // Calcul des statistiques
+  // Récupérer les informations des membres pour les contrats individuels
+  const individualContractMemberIds = React.useMemo(() => {
+    return contractsData
+      ?.filter((contract: any) => contract.contractType === 'INDIVIDUAL' && contract.memberId)
+      .map((contract: any) => contract.memberId) || []
+  }, [contractsData])
+
+  const { data: membersDataFromHook } = useMembers(individualContractMemberIds)
+
+  // Créer un map des membres pour un accès rapide
+  const membersMap = React.useMemo(() => {
+    if (!membersDataFromHook) return new Map()
+    return new Map(membersDataFromHook.map((member: any) => [member.id, member]))
+  }, [membersDataFromHook])
   const stats = React.useMemo(() => {
     if (!contractsData) return null
 
@@ -602,6 +740,18 @@ const ListContracts = () => {
     ).length
     const group = contractsData.filter((c: any) => isGroupContract(c)).length
     const individual = total - group
+
+    // Statistiques des tontines closes par type
+    const closedContracts = contractsData.filter((c: any) => c.status === 'CLOSED')
+    const closedStats = closedContracts.reduce((acc: any, contract: any) => {
+      const type = contract.caisseType || 'STANDARD'
+      if (!acc[type]) {
+        acc[type] = { count: 0, totalNominal: 0 }
+      }
+      acc[type].count += 1
+      acc[type].totalNominal += contract.nominalPaid || 0
+      return acc
+    }, {})
 
     return {
       total,
@@ -615,6 +765,7 @@ const ListContracts = () => {
       latePercentage: total > 0 ? (late / total) * 100 : 0,
       individualPercentage: total > 0 ? (individual / total) * 100 : 0,
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
+      closedStats,
     }
   }, [contractsData])
 
@@ -800,9 +951,33 @@ const ListContracts = () => {
 
                     <div className="space-y-3 mb-4">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Nom:</span>
-                        <span className="font-medium text-gray-900">{getContractDisplayName(contract)}</span>
+                        <span className="text-gray-500">Type de contrat:</span>
+                        <span className="font-medium text-gray-900">{getContractTypeLabel(contract)}</span>
                       </div>
+
+                      {(() => {
+                        const memberName = getMemberName(contract)
+                        if (typeof memberName === 'object' && memberName.firstName && memberName.lastName) {
+                          return (
+                            <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Nom:</span>
+                                <span className="font-medium text-gray-900">{memberName.lastName}</span>
+                      </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-500">Prénom:</span>
+                                <span className="font-medium text-gray-900">{memberName.firstName}</span>
+                              </div>
+                            </>
+                          )
+                        }
+                        return (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Nom:</span>
+                            <span className="font-medium text-gray-900">{memberName}</span>
+                          </div>
+                        )
+                      })()}
 
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Mensuel:</span>
@@ -817,26 +992,81 @@ const ListContracts = () => {
                       </div>
 
                       <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Début d'échéance:</span>
+                        <div className="flex items-center gap-1 text-gray-700">
+                          <Calendar className="h-3 w-3" />
+                          {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Prochaine échéance:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <Calendar className="h-3 w-3" />
                           {contract.nextDueAt ? new Date(contract.nextDueAt).toLocaleDateString('fr-FR') : '—'}
                         </div>
                       </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Contrat PDF:</span>
+                        <div className="flex items-center gap-1">
+                          {hasValidContractPdf(contract) ? (
+                            <>
+                              <CheckCircle className="h-3 w-3 text-green-600" />
+                              <span className="text-green-600 font-medium">Disponible</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-3 w-3 text-orange-500" />
+                              <span className="text-orange-500 font-medium">À téléverser</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="pt-3 border-t border-gray-100 mt-auto">
                       <div className="text-xs text-gray-600 mb-2">
-                        <DollarSign className="h-3 w-3 inline mr-1" />
                         Versé: {(contract.nominalPaid || 0).toLocaleString('fr-FR')} FCFA
                       </div>
+                      <div className="space-y-2">
+                        {hasValidContractPdf(contract) ? (
+                          <>
                       <Button
                         onClick={() => router.push(`/caisse-speciale/contrats/${contract.id}`)}
-                        className="w-full inline-flex items-center bg-white cursor-pointer justify-center gap-2 px-3 py-2 text-sm font-medium text-[#224D62] border border-[#224D62] rounded-lg hover:bg-[#224D62] hover:text-white transition-all duration-200"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                       >
                         <Eye className="h-4 w-4" />
                         Ouvrir
+                            </Button>
+                            <Button
+                              onClick={() => handleViewUploadedContractPDF(contract)}
+                              variant="outline"
+                              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Voir contrat
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            onClick={() => handleUploadPDF(contract)}
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 hover:text-orange-800"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Téléverser le document PDF
+                          </Button>
+                        )}
+                        
+                        <Button
+                          onClick={() => handleViewContractPDF(contract)}
+                          variant="outline"
+                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Télécharger contrat
                       </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -917,6 +1147,36 @@ const ListContracts = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Modal PDF */}
+      {selectedContractForPDF && (
+        <CaisseSpecialePDFModal
+          isOpen={isPDFModalOpen}
+          onClose={handleClosePDFModal}
+          contractId={selectedContractForPDF.id}
+          contractData={selectedContractForPDF}
+        />
+      )}
+
+      {/* Modal Téléversement PDF */}
+      {selectedContractForUpload && (
+        <ContractPdfUploadModal
+          isOpen={isUploadModalOpen}
+          onClose={handleCloseUploadModal}
+          contractId={selectedContractForUpload.id}
+          contractName={`Contrat #${selectedContractForUpload.id.slice(-6)}`}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* Modal Contrat Uploadé */}
+      {selectedContractForViewUploaded && (
+        <ViewUploadedContractModal
+          isOpen={isViewUploadedModalOpen}
+          onClose={handleCloseViewUploadedModal}
+          contract={selectedContractForViewUploaded}
+        />
       )}
     </div>
   )

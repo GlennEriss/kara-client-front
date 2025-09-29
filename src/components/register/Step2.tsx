@@ -4,8 +4,8 @@ import React from 'react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import {
-  MapPin,
+import { 
+  MapPin, 
   Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'

@@ -4,7 +4,7 @@ import React from 'react'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
+import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download } from 'lucide-react'
 import { useContracts } from '@/hooks/useContracts'
 import { useContractPayments } from '@/hooks/useContractPayments'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,6 +12,8 @@ import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useAuth } from '@/hooks/useAuth'
 import { getAdminById } from '@/db/admin.db'
+import { Button } from '@/components/ui/button'
+import * as XLSX from 'xlsx'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -119,7 +121,78 @@ export default function ContractPaymentsPage() {
       return `${adminInfo.firstName} ${adminInfo.lastName}`
     }
     
-    return adminId // Fallback vers l'UID si pas d'info
+    // Si on n'est pas en train de charger mais qu'on n'a pas d'info, on reste sur "Chargement..."
+    // pour éviter l'effet de clignotement entre ID et nom
+    return 'Chargement...'
+  }
+
+  // Fonction pour exporter les versements en Excel
+  const exportToExcel = () => {
+    if (!payments.length) return
+
+    // Préparer les données pour l'export
+    const exportData = payments.map((payment, index) => {
+      const now = new Date()
+      const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
+      
+      let status = ''
+      if (payment.status === 'PAID') {
+        status = 'Payé'
+      } else if (dueDate && now > dueDate) {
+        status = 'En retard'
+      } else {
+        status = 'En attente'
+      }
+
+      return {
+        'N° Échéance': payment.dueMonthIndex,
+        'ID Versement': payment.id,
+        'Date d\'échéance': payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'Non définie',
+        'Montant': payment.amount || 0,
+        'Statut': status,
+        'Date de paiement': payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('fr-FR') : '',
+        'Heure de paiement': payment.time || '',
+        'Mode de paiement': payment.mode || '',
+        'Pénalité appliquée': payment.penaltyApplied || 0,
+        'Traité par': getAdminDisplayName(payment.updatedBy),
+        'Nombre de contributions': payment.contribs?.length || 0,
+        'Montant accumulé': payment.accumulatedAmount || payment.amount || 0,
+        'Montant cible': payment.targetAmount || payment.amount || 0,
+        'Preuve de paiement': payment.proofUrl ? 'Oui' : 'Non'
+      }
+    })
+
+    // Créer le workbook et la feuille
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Versements')
+
+    // Définir la largeur des colonnes
+    const colWidths = [
+      { wch: 12 }, // N° Échéance
+      { wch: 25 }, // ID Versement
+      { wch: 15 }, // Date d'échéance
+      { wch: 12 }, // Montant
+      { wch: 12 }, // Statut
+      { wch: 15 }, // Date de paiement
+      { wch: 15 }, // Heure de paiement
+      { wch: 15 }, // Mode de paiement
+      { wch: 18 }, // Pénalité appliquée
+      { wch: 20 }, // Traité par
+      { wch: 20 }, // Nombre de contributions
+      { wch: 18 }, // Montant accumulé
+      { wch: 15 }, // Montant cible
+      { wch: 18 }  // Preuve de paiement
+    ]
+    ws['!cols'] = colWidths
+
+    // Générer le nom du fichier avec la date
+    const now = new Date()
+    const dateStr = now.toISOString().split('T')[0]
+    const fileName = `versements_contrat_${contractId}_${dateStr}.xlsx`
+
+    // Télécharger le fichier
+    XLSX.writeFile(wb, fileName)
   }
 
   if (isLoadingContracts || isLoadingPayments) {
@@ -250,10 +323,23 @@ export default function ContractPaymentsPage() {
       {/* Historique des versements */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Historique des versements ({payments.length})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Historique des versements ({payments.length})
+            </CardTitle>
+            {payments.length > 0 && (
+              <Button
+                onClick={exportToExcel}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Exporter Excel
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {payments.length > 0 ? (
@@ -276,21 +362,21 @@ export default function ContractPaymentsPage() {
                 } else if (dueDate) {
                   // Si la date d'échéance est passée et pas payé = en retard
                   if (now > dueDate) {
-                    realStatus = 'OVERDUE'
-                    statusLabel = translatePaymentStatus('OVERDUE')
+                    realStatus = 'DUE'
+                    statusLabel = 'En retard'
                     statusColor = 'bg-red-100 text-red-800'
                     statusIcon = <AlertTriangle className="h-4 w-4 text-red-600" />
                   } else {
                     // Si la date d'échéance n'est pas encore arrivée = en attente
-                    realStatus = 'PENDING'
-                    statusLabel = translatePaymentStatus('PENDING')
+                    realStatus = 'DUE'
+                    statusLabel = 'En attente'
                     statusColor = 'bg-yellow-100 text-yellow-800'
                     statusIcon = <Clock className="h-4 w-4 text-yellow-600" />
                   }
                 } else {
                   // Pas de date d'échéance = en attente
-                  realStatus = 'PENDING'
-                  statusLabel = translatePaymentStatus('PENDING')
+                  realStatus = 'DUE'
+                  statusLabel = 'En attente'
                   statusColor = 'bg-yellow-100 text-yellow-800'
                   statusIcon = <Clock className="h-4 w-4 text-yellow-600" />
                 }
@@ -318,7 +404,6 @@ export default function ContractPaymentsPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-gray-500" />
                       <span className="text-gray-600">Montant:</span>
                       <span className="font-medium">{payment.amount?.toLocaleString()} FCFA</span>
                     </div>
@@ -360,9 +445,9 @@ export default function ContractPaymentsPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{contrib.amount?.toLocaleString()} FCFA</span>
                               <span className={`px-2 py-1 rounded-full text-xs ${
-                                contrib.status === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                contrib.paidAt ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                               }`}>
-                                {contrib.status === 'PAID' ? 'Payé' : 'En attente'}
+                                {contrib.paidAt ? 'Payé' : 'En attente'}
                               </span>
                             </div>
                           </div>

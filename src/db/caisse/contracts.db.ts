@@ -260,3 +260,49 @@ export async function removeRefundDocument(
   }
 }
 
+/**
+ * Update contract PDF document
+ * @param contractId - Contract ID
+ * @param contractPdf - PDF document data
+ * @param updatedBy - User ID who updated the contract
+ * @returns Promise<boolean>
+ */
+export async function updateContractPdf(
+  contractId: string,
+  contractPdf: {
+    fileSize: number
+    path: string
+    originalFileName: string
+    uploadedAt: Date
+    url: string
+  },
+  updatedBy: string
+): Promise<boolean> {
+  try {
+    const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+    const contractRef = doc(db, firebaseCollectionNames.caisseContracts, contractId)
+    
+    // Update the contract with PDF document and updatedBy
+    await updateDoc(contractRef, {
+      contractPdf,
+      updatedBy,
+      updatedAt: serverTimestamp()
+    })
+    
+    console.log('✅ Contract PDF updated successfully:', {
+      contractId,
+      contractPdf: {
+        originalFileName: contractPdf.originalFileName,
+        fileSize: contractPdf.fileSize,
+        path: contractPdf.path
+      },
+      updatedBy
+    })
+    
+    return true
+  } catch (error: any) {
+    console.error('❌ Failed to update contract PDF:', error)
+    throw new Error(`Failed to update contract PDF: ${error.message}`)
+  }
+}
+

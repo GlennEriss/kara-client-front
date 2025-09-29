@@ -1,6 +1,6 @@
 'use client'
 
-import { useMembershipRequestByDossier } from '@/hooks/useMembers'
+import { useMembershipRequestByDossier } from '@/hooks/useMembershipRequests'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'

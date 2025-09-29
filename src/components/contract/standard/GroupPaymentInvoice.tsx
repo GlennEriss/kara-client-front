@@ -60,9 +60,28 @@ export default function GroupPaymentInvoice({
     return admin
   }, [user, admin, payment.updatedBy])
   
-  const formatDate = (date?: Date | string) => {
+  const formatDate = (date?: Date | string | any) => {
     if (!date) return "—"
-    const dateObj = typeof date === 'string' ? new Date(date) : date
+    
+    let dateObj: Date
+    
+    // Gérer différents types de dates (Firestore Timestamp, string, Date)
+    if (typeof date === 'string') {
+      dateObj = new Date(date)
+    } else if (date && typeof date.toDate === 'function') {
+      // Firestore Timestamp
+      dateObj = date.toDate()
+    } else if (date instanceof Date) {
+      dateObj = date
+    } else {
+      return "—"
+    }
+    
+    // Vérifier si la date est valide
+    if (!dateObj || isNaN(dateObj.getTime())) {
+      return "—"
+    }
+    
     return dateObj.toLocaleDateString("fr-FR", {
       year: 'numeric',
       month: 'long',

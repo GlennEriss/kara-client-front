@@ -519,6 +519,7 @@ export async function updateMembershipPayment(
         // Append atomiquement via arrayUnion (sans setter payments à undefined)
         await updateDoc(docRef, {
           isPaid: true,
+          updatedBy: payment.acceptedBy,
           payments: arrayUnion({
             date: payment.date,
             mode: payment.mode,
