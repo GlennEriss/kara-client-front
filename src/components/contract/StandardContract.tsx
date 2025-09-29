@@ -24,9 +24,12 @@ import {
   Trash2,
   CalendarDays,
   AlertTriangle,
+  Download,
+  X,
 } from "lucide-react"
 import PdfDocumentModal from "./PdfDocumentModal"
 import PdfViewerModal from "./PdfViewerModal"
+import RemboursementNormalPDFModal from "./RemboursementNormalPDFModal"
 import HeaderContractSection from "./standard/HeaderContractSection"
 import StandardEchanceForm from "./standard/StandardEchanceForm"
 import PaymentDateForm from "./standard/PaymentDateForm"
@@ -102,6 +105,8 @@ export default function StandardContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  
+
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
@@ -119,6 +124,7 @@ export default function StandardContract({ id }: Props) {
   const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
+  const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
@@ -302,7 +308,12 @@ export default function StandardContract({ id }: Props) {
       <Form {...(form as any)}>
         <form method="POST" onSubmit={form.handleSubmit(onPay)}>
           {/* Calendrier des échéances */}
-          <StandardEchanceForm payments={payments} isClosed={isClosed} contractData={data} />
+          <StandardEchanceForm 
+            payments={payments} 
+            isClosed={isClosed} 
+            contractData={data} 
+            isGroupContract={isGroupContract}
+          />
 
           {/* Paiement */}
           <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
@@ -441,6 +452,17 @@ export default function StandardContract({ id }: Props) {
                 >
                   Demander retrait anticipé
                 </button>
+                <button
+                  className={classNames(
+                    "rounded-lg border px-3 py-2 text-sm font-medium",
+                    brand.bgSoft,
+                    "hover:bg-slate-100"
+                  )}
+                  onClick={() => setShowRemboursementPdf(true)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  PDF Remboursement
+                </button>
               </div>
             )
           })()}
@@ -466,7 +488,7 @@ export default function StandardContract({ id }: Props) {
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {r.status === "PENDING" && (
-                  <>
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       className="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => setConfirmApproveId(r.id)}
@@ -475,7 +497,14 @@ export default function StandardContract({ id }: Props) {
                       Approuver
                     </button>
                     {(r.type === "FINAL" || r.type === "EARLY") && (
-                      <div className="flex gap-2">
+                      <>
+                        <button
+                          className="rounded-lg border px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
+                          onClick={() => setShowRemboursementPdf(true)}
+                        >
+                          <FileText className="h-4 w-4" />
+                          Document de remboursement
+                        </button>
                         {r.document ? (
                           <div className="flex gap-2">
                             <button
@@ -509,7 +538,7 @@ export default function StandardContract({ id }: Props) {
                             Ajouter PDF
                           </button>
                         )}
-                      </div>
+                      </>
                     )}
                     {r.type === "EARLY" && !r.document && (
                       <button
@@ -536,7 +565,7 @@ export default function StandardContract({ id }: Props) {
                         Annuler
                       </button>
                     )}
-                  </>
+                  </div>
                 )}
 
                 {r.status === "APPROVED" && (
@@ -782,6 +811,7 @@ export default function StandardContract({ id }: Props) {
         />
       )}
 
+
       {/* Modal de confirmation de suppression */}
       {confirmDeleteDocumentId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
@@ -807,6 +837,14 @@ export default function StandardContract({ id }: Props) {
           </div>
         </div>
       )}
+
+      {/* Modal PDF Remboursement */}
+      <RemboursementNormalPDFModal
+        isOpen={showRemboursementPdf}
+        onClose={() => setShowRemboursementPdf(false)}
+        contractId={id}
+        contractData={data}
+      />
     </div>
   )
 }

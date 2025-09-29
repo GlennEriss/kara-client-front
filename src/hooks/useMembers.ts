@@ -1,29 +1,73 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  getMembers, 
-  getMemberWithSubscription, 
-  getMemberSubscriptions, 
-  getMemberStats,
-  searchMembers,
-  getMembershipRequestByDossier,
-  getMembersByGroup,
-  PaginatedMembers,
-  MemberWithSubscription
-} from '@/db/member.db'
-import { getUserById } from '@/db/user.db'
-import { User, UserFilters, Subscription, UserStats, MembershipRequest } from '@/types/types'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getUserById, getAllUsers } from '@/db/user.db'
+import { getMembersByGroup, getMembershipRequestByDossier, getMemberStats, getMemberSubscriptions, getMemberWithSubscription, MemberWithSubscription, searchMembers } from '@/db/member.db'
+import { Subscription, User, UserFilters, UserStats } from '@/types/types'
 
-/**
- * Hook pour récupérer la liste des membres avec pagination et filtres
- */
-export function useMembers(
-  filters: UserFilters = {},
-  page: number = 1,
-  itemsPerPage: number = 10
-) {
-  return useQuery<PaginatedMembers>({
-    queryKey: ['members', filters, page, itemsPerPage],
-    queryFn: () => getMembers(filters, page, itemsPerPage),
+// Hook pour récupérer tous les membres avec pagination et filtres
+export function useAllMembers(filters: UserFilters = {}, page: number = 1, limit: number = 12) {
+  return useQuery({
+    queryKey: ['allMembers', filters, page, limit],
+    queryFn: async () => {
+      const result = await getAllUsers({
+        ...filters,
+        limit: limit,
+        // Note: getAllUsers ne semble pas supporter la pagination directement
+        // Il faudrait peut-être implémenter une logique de pagination côté client
+      })
+      
+      // Simulation de pagination côté client
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const paginatedUsers = result.users.slice(startIndex, endIndex)
+      
+      return {
+        data: paginatedUsers,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(result.total / limit),
+          totalItems: result.total,
+          itemsPerPage: limit,
+          hasNextPage: endIndex < result.total,
+          hasPrevPage: page > 1,
+          nextCursor: null,
+          prevCursor: null
+        }
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
+export function useMember(memberId?: string) {
+  return useQuery({
+    queryKey: ['member', memberId],
+    queryFn: () => getUserById(memberId!),
+    enabled: !!memberId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
+export function useMembers(memberIds: string[]) {
+  return useQuery({
+    queryKey: ['members', memberIds],
+    queryFn: async () => {
+      const { getUsersByIds } = await import('@/db/user.db')
+      return getUsersByIds(memberIds)
+    },
+    enabled: memberIds.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
+// Hook pour récupérer les membres d'un groupe
+export function useGroupMembers(groupId?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['groupMembers', groupId],
+    queryFn: () => getMembersByGroup(groupId!),
+    enabled: enabled && !!groupId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   })
@@ -33,7 +77,7 @@ export function useMembers(
  * Hook pour récupérer un membre avec sa dernière subscription
  */
 export function useMemberWithSubscription(userId: string) {
-  return useQuery<MemberWithSubscription | null>({
+  return useQuery<MemberWithSubscription   | null>({
     queryKey: ['member', userId, 'with-subscription'],
     queryFn: () => getMemberWithSubscription(userId),
     enabled: !!userId,
@@ -126,18 +170,3 @@ export function useInvalidateMembers() {
 export type UseMembersResult = ReturnType<typeof useMembers>
 export type UseMemberStatsResult = ReturnType<typeof useMemberStats>
 export type UseSearchMembersResult = ReturnType<typeof useSearchMembers>
-
-/**
- * Hook pour récupérer les membres d'un groupe spécifique
- */
-export function useGroupMembers(groupId: string, enabled: boolean = true) {
-  return useQuery<User[]>({
-    queryKey: ['group-members', groupId],
-    queryFn: () => getMembersByGroup(groupId),
-    enabled: enabled && !!groupId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  })
-}
-
-export type UseGroupMembersResult = ReturnType<typeof useGroupMembers>

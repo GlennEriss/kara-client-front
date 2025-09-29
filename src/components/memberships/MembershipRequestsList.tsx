@@ -1435,7 +1435,7 @@ export default function MembershipRequestsList() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in-0 duration-500">
+    <div className="space-y-8 animate-in fade-in-0 duration-500 p-6">
       {/* En-tête avec gradient */}
       <div className="space-y-2">
         <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">

@@ -198,21 +198,6 @@ export default function PdfDocumentModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Section Téléchargement */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Télécharger le document</Label>
-            <Button
-              variant="outline"
-              onClick={handleDownload}
-              className="w-full justify-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Télécharger le PDF
-            </Button>
-            <p className="text-xs text-gray-500">
-              Téléchargez d'abord le document PDF à remplir
-            </p>
-          </div>
 
           {/* Document existant */}
           {existingDocument && (

@@ -49,7 +49,7 @@ export const useLogin = () => {
       })
 
       // Vérifier le rôle et rediriger
-      const role = await JSON.parse(((auth?.currentUser as any)?.reloadUserInfo?.customAttributes))["role"]
+      const role = await JSON.parse(((auth?.currentUser as any)?.reloadUserInfo?.customAttributes))["role"] || ''
       const isAdmin = role && ADMIN_ROLES.includes(role)
       router.push(isAdmin ? routes.admin.dashboard : routes.member.home)
 

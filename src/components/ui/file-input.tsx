@@ -59,6 +59,10 @@ export default function FileInput({
         if (type.endsWith('/*')) {
           return file.type.startsWith(type.replace('/*', ''))
         }
+        if (type === '.pdf') {
+          // Accepter les différents types MIME pour PDF
+          return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+        }
         return file.type === type
       })
       
@@ -184,8 +188,10 @@ export default function FileInput({
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {displayFile.name}
+              <p className="text-sm font-medium text-gray-900 truncate" title={displayFile.name}>
+                {displayFile.name.length > 30 
+                  ? `${displayFile.name.slice(0, 27)}...` 
+                  : displayFile.name}
               </p>
               <p className="text-xs text-gray-500">
                 {formatFileSize(displayFile.size)}

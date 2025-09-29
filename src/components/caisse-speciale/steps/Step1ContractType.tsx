@@ -294,7 +294,7 @@ export function Step1ContractType() {
             </Button>
 
             {/* Contrat de groupe */}
-            <Button
+            {/* <Button
               variant={formData.contractType === 'GROUP' ? 'default' : 'outline'}
               onClick={() => handleContractTypeChange('GROUP')}
               className={cn(
@@ -307,7 +307,7 @@ export function Step1ContractType() {
               <Users className="w-6 h-6" />
               <span className="font-semibold">Contrat de Groupe</span>
               <span className="text-xs opacity-80">Pour plusieurs membres</span>
-            </Button>
+            </Button> */}
           </div>
         </CardContent>
       </Card>

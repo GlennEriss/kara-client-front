@@ -393,6 +393,7 @@ export interface User {
   lastName: string
   firstName: string
   birthDate: string
+  birthPlace?: string
   contacts: string[]
   gender: string
   email?: string
@@ -415,6 +416,10 @@ export interface User {
   // Photos
   photoURL?: string | null
   photoPath?: string | null
+
+  // Documents
+  identityDocument?: string
+  identityDocumentNumber?: string
 
   // Références
   subscriptions: string[] // Liste d'IDs de subscriptions

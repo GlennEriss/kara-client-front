@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, FileText, Calendar, DollarSign, Users } from 'lucide-react'
-import { useContracts } from '@/hooks/useContracts'
-import { useMembers } from '@/hooks/useMembers'
+import { useContractsByMember } from '@/hooks/useCaisseContracts'
+import { useMember } from '@/hooks/useMembers'
 import { Skeleton } from '@/components/ui/skeleton'
 import routes from '@/constantes/routes'
 import Link from 'next/link'
@@ -15,13 +15,11 @@ export default function ContractsHistoryDetailsPage() {
   const params = useParams()
   const memberId = params.id as string
 
-  // Récupérer les données du membre
-  const { data: membersData, isLoading: isLoadingMember } = useMembers({}, 1, 1000)
-  const member = membersData?.data.find(m => m.dossier === memberId)
+  // Récupérer les données du membre directement par son ID
+  const { data: member, isLoading: isLoadingMember } = useMember(memberId)
 
-  // Récupérer les contrats du membre
-  const { contracts, isLoading: isLoadingContracts, error } = useContracts()
-  const memberContracts = member ? contracts.filter(contract => contract.memberId === member.id) : []
+  // Récupérer les contrats du membre directement
+  const { data: memberContracts = [], isLoading: isLoadingContracts, error } = useContractsByMember(memberId)
 
   if (isLoadingMember || isLoadingContracts) {
     return (
@@ -56,7 +54,7 @@ export default function ContractsHistoryDetailsPage() {
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des contrats : {error}
+            Une erreur est survenue lors du chargement des contrats : {error?.message || 'Erreur inconnue'}
           </AlertDescription>
         </Alert>
       </div>
@@ -133,7 +131,7 @@ export default function ContractsHistoryDetailsPage() {
         <CardContent>
           {memberContracts.length > 0 ? (
             <div className="space-y-4">
-              {memberContracts.map((contract) => (
+              {memberContracts.map((contract: any) => (
                 <div key={contract.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                                      <div className="flex items-center justify-between mb-3">
                      <h3 className="font-semibold text-gray-900">
