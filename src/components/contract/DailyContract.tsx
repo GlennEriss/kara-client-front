@@ -11,10 +11,10 @@ import { useGroupMembers } from '@/hooks/useMembers'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
-import DownloadDocumentModal from './DownloadDocumentModal'
+import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import type { RefundDocument } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,8 @@ type Props = { id: string }
 
 export default function DailyContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
+  
+
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -58,7 +60,7 @@ export default function DailyContract({ id }: Props) {
   const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
-  const [showDownloadModal, setShowDownloadModal] = useState(false)
+  const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
@@ -887,6 +889,16 @@ export default function DailyContract({ id }: Props) {
                   <span className="hidden sm:inline">Versement en retard</span>
                   <span className="sm:hidden">En retard</span>
                 </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto border-green-300 text-green-700 hover:bg-green-50"
+                  onClick={() => setShowRemboursementPdf(true)}
+                >
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">PDF Remboursement</span>
+                  <span className="sm:hidden">PDF Remb.</span>
+                </Button>
               </>
             )
           })()}
@@ -934,11 +946,11 @@ export default function DailyContract({ id }: Props) {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setShowDownloadModal(true)}
-                                className="border-blue-300 text-blue-600 hover:bg-blue-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                                onClick={() => setShowRemboursementPdf(true)}
+                                className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
                               >
-                                <Download className="h-4 w-4" />
-                                Télécharger le document
+                                <FileText className="h-4 w-4" />
+                                Document de remboursement
                               </Button>
                               {r.document ? (
                                 <Button
@@ -2102,12 +2114,13 @@ export default function DailyContract({ id }: Props) {
         />
       )}
 
-      {/* Modal Download Document */}
-      <DownloadDocumentModal
-        isOpen={showDownloadModal}
-        onClose={() => setShowDownloadModal(false)}
-        title="Télécharger le document de remboursement"
-        description="Téléchargez le document PDF à remplir pour le remboursement"
+
+      {/* Modal PDF Remboursement */}
+      <RemboursementNormalPDFModal
+        isOpen={showRemboursementPdf}
+        onClose={() => setShowRemboursementPdf(false)}
+        contractId={id}
+        contractData={data}
       />
     </div>
   )

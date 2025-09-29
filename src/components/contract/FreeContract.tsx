@@ -38,13 +38,15 @@ import {
 } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
-import DownloadDocumentModal from './DownloadDocumentModal'
+import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import type { RefundDocument } from '@/types/types'
 
 type Props = { id: string }
 
 export default function FreeContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
+  
+
   const [amount, setAmount] = useState<number>(0)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [file, setFile] = useState<File | undefined>()
@@ -73,7 +75,7 @@ export default function FreeContract({ id }: Props) {
   const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
-  const [showDownloadModal, setShowDownloadModal] = useState(false)
+  const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
@@ -676,6 +678,14 @@ export default function FreeContract({ id }: Props) {
                 )}
                 Demander retrait anticipé
               </button>
+
+              <button 
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-green-300 text-green-700 rounded-xl hover:bg-green-50 transition-all duration-200 font-medium" 
+                onClick={() => setShowRemboursementPdf(true)}
+              >
+                <FileText className="h-5 w-5" />
+                PDF Remboursement
+              </button>
             </div>
             
             {/* Liste des remboursements */}
@@ -752,11 +762,11 @@ export default function FreeContract({ id }: Props) {
                           {(r.type === 'FINAL' || r.type === 'EARLY') && (
                             <>
                               <button 
-                                className="flex-1 px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-                                onClick={() => setShowDownloadModal(true)}
+                                className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                                onClick={() => setShowRemboursementPdf(true)}
                               >
-                                <Download className="h-4 w-4" />
-                                Télécharger le document
+                                <FileText className="h-4 w-4" />
+                                Document de remboursement
                               </button>
                               {r.document ? (
                                 <button 
@@ -1033,12 +1043,13 @@ export default function FreeContract({ id }: Props) {
           />
         )}
 
-        {/* Modal Download Document */}
-        <DownloadDocumentModal
-          isOpen={showDownloadModal}
-          onClose={() => setShowDownloadModal(false)}
-          title="Télécharger le document de remboursement"
-          description="Téléchargez le document PDF à remplir pour le remboursement"
+
+        {/* Modal PDF Remboursement */}
+        <RemboursementNormalPDFModal
+          isOpen={showRemboursementPdf}
+          onClose={() => setShowRemboursementPdf(false)}
+          contractId={id}
+          contractData={data}
         />
       </div>
     </div>
