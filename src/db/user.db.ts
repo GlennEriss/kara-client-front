@@ -10,7 +10,8 @@ import {
   orderBy, 
   limit as firestoreLimit, 
   Timestamp,
-  getCountFromServer
+  getCountFromServer,
+  startAfter
 } from 'firebase/firestore'
 import { db as firestore } from '@/firebase/firestore'
 import type { User, UserFilters, UserStats, UserRole } from '@/types/types'
@@ -417,6 +418,42 @@ export async function getAllUsers(filters: UserFilters = {}): Promise<{ users: U
     console.error('Erreur lors de la récupération des utilisateurs:', error)
     throw new Error('Impossible de récupérer les utilisateurs')
   }
+}
+
+/**
+ * Récupère une page d'utilisateurs avec pagination Firestore côté serveur
+ * La pagination est basée sur le champ createdAt décroissant.
+ * Retourne un curseur (ISO string) utilisable pour la page suivante.
+ */
+export async function getUsersPage(params: { limit?: number; cursorCreatedAt?: string }): Promise<{ users: User[]; nextCursorCreatedAt: string | null }> {
+  const { limit = 20, cursorCreatedAt } = params || {}
+  const usersRef = collection(firestore, FIREBASE_COLLECTION_NAMES.USERS)
+  let q = query(usersRef, orderBy('createdAt', 'desc'), firestoreLimit(limit))
+
+  if (cursorCreatedAt) {
+    try {
+      const ts = Timestamp.fromDate(new Date(cursorCreatedAt))
+      q = query(usersRef, orderBy('createdAt', 'desc'), startAfter(ts), firestoreLimit(limit))
+    } catch (e) {
+      // fallback: ignore invalid cursor
+    }
+  }
+
+  const snap = await getDocs(q)
+  const users: User[] = []
+  snap.docs.forEach((d) => {
+    const data = d.data() as any
+    users.push({
+      id: d.id,
+      ...data,
+      createdAt: toDateSafe(data.createdAt),
+      updatedAt: toDateSafe(data.updatedAt),
+    } as User)
+  })
+
+  const lastDoc = snap.docs[snap.docs.length - 1]
+  const nextCursorCreatedAt = lastDoc ? toDateSafe(lastDoc.data().createdAt).toISOString() : null
+  return { users, nextCursorCreatedAt }
 }
 
 /**

@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUserById, getAllUsers } from '@/db/user.db'
+import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
+import { getUserById, getAllUsers, getUsersPage } from '@/db/user.db'
 import { getMembersByGroup, getMembershipRequestByDossier, getMemberStats, getMemberSubscriptions, getMemberWithSubscription, MemberWithSubscription, searchMembers } from '@/db/member.db'
 import { Subscription, User, UserFilters, UserStats } from '@/types/types'
 
@@ -60,6 +60,25 @@ export function useMembers(memberIds: string[]) {
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   })
+}
+
+// Pagination côté serveur pour lister des utilisateurs (pour dialogues d'ajout groupe)
+export function useMembersPage(limit: number = 20) {
+  return useQuery({
+    queryKey: ['members', 'page', limit],
+    queryFn: () => getUsersPage({ limit }),
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useInfiniteMembers(limit: number = 20) {
+  return useInfiniteQuery({
+    queryKey: ['members', 'infinite', limit],
+    queryFn: ({ pageParam }: { pageParam: Date | undefined }) => getUsersPage({ limit, cursorCreatedAt: pageParam }),
+    getNextPageParam: (lastPage: { nextCursorCreatedAt: string | null }) => lastPage.nextCursorCreatedAt || undefined,
+    initialPageParam: undefined,
+    staleTime: 2 * 60 * 1000,
+  } as any)
 }
 
 // Hook pour récupérer les membres d'un groupe

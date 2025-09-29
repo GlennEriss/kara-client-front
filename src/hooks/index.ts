@@ -18,6 +18,9 @@ export * from './shared'
 // Contracts hooks
 export * from './contracts'
 
+// Members hooks
+export * from './useMembers'
+
 // TODO: Ajouter les autres domaines au fur et à mesure
 // export * from './admin'
 // export * from './companies'
