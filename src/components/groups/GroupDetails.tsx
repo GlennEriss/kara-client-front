@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, RefreshCw, Trash2, Users, Search, UserPlus, Calendar, Mail, IdCard, UserCheck, Filter, ArrowLeft, FileText, Download } from 'lucide-react'
 import type { Group, User } from '@/types/types'
 import { listGroups } from '@/db/group.db'
-import { useMembers } from '@/hooks/useMembers'
+import { useAllMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
 import { updateUser } from '@/db/user.db'
 import { updateGroup } from '@/db/group.db'
@@ -91,7 +91,7 @@ export default function GroupDetails({ groupId }: Props) {
     const [isLoading, setIsLoading] = React.useState(false)
     const [query, setQuery] = React.useState('')
 
-    const { data: membersData, refetch } = useMembers({} as any, 1, 500)
+    const { data: membersData, refetch } = useAllMembers({}, 1, 500)
     const members: User[] = (membersData?.data || []) as any
     const groupMembers = members.filter((m) => (m as any).groupIds?.includes(groupId))
     const [addOpen, setAddOpen] = React.useState(false)
