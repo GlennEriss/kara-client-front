@@ -11,9 +11,10 @@ import { useGroupMembers } from '@/hooks/useMembers'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
+import DownloadDocumentModal from './DownloadDocumentModal'
 import type { RefundDocument } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,7 @@ export default function DailyContract({ id }: Props) {
   const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
+  const [showDownloadModal, setShowDownloadModal] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
@@ -917,61 +919,70 @@ export default function DailyContract({ id }: Props) {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
-                  {r.status === 'PENDING' && (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={() => setConfirmApproveId(r.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
-                      >
-                        Approuver
-                      </Button>
-                      {(r.type === 'FINAL' || r.type === 'EARLY') && (
-                        <div className="flex gap-2">
-                          {r.document ? (
+                      {r.status === 'PENDING' && (
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => setConfirmApproveId(r.id)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
+                          >
+                            Approuver
+                          </Button>
+                          {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShowDownloadModal(true)}
+                                className="border-blue-300 text-blue-600 hover:bg-blue-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                              >
+                                <Download className="h-4 w-4" />
+                                Télécharger le document
+                              </Button>
+                              {r.document ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleViewDocument(r.id, r.document)}
+                                  className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Voir PDF
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenPdfModal(r.id)}
+                                  className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  Ajouter PDF
+                                </Button>
+                              )}
+                            </>
+                          )}
+                          {r.type === 'EARLY' && !r.document && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleViewDocument(r.id, r.document)}
-                              className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                              className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto"
+                              onClick={async () => {
+                                try {
+                                  await cancelEarlyRefund(id, r.id)
+                                  await refetch()
+                                  toast.success('Demande anticipée annulée')
+                                } catch (e: any) {
+                                  toast.error(e?.message || 'Annulation impossible')
+                                }
+                              }}
                             >
-                              <Eye className="h-4 w-4" />
-                              Voir PDF
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenPdfModal(r.id)}
-                              className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
-                            >
-                              <FileText className="h-4 w-4" />
-                              Ajouter PDF
+                              Annuler
                             </Button>
                           )}
                         </div>
                       )}
-                      {r.type === 'EARLY' && !r.document && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto"
-                          onClick={async () => {
-                            try {
-                              await cancelEarlyRefund(id, r.id)
-                              await refetch()
-                              toast.success('Demande anticipée annulée')
-                            } catch (e: any) {
-                              toast.error(e?.message || 'Annulation impossible')
-                            }
-                          }}
-                        >
-                          Annuler
-                        </Button>
-                      )}
-                    </>
-                  )}
 
                   {r.status === 'APPROVED' && (
                     <>
@@ -2090,6 +2101,14 @@ export default function DailyContract({ id }: Props) {
           title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
         />
       )}
+
+      {/* Modal Download Document */}
+      <DownloadDocumentModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        title="Télécharger le document de remboursement"
+        description="Téléchargez le document PDF à remplir pour le remboursement"
+      />
     </div>
   )
 }
