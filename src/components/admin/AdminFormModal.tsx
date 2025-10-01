@@ -15,9 +15,10 @@ import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/li
 import { Camera, CheckCircle, Loader2 } from 'lucide-react'
 import { createFile } from '@/db/upload-image.db'
 import { generateMatricule } from '@/db/user.db'
-import { createAdminWithId } from '@/db/admin.db'
-import type { UserRole } from '@/types/types'
+import { createAdminWithId, updateAdmin } from '@/db/admin.db'
 import type { AdminUser } from '@/db/admin.db'
+import { useAuth } from '@/hooks/useAuth'
+import { toast } from 'sonner'
 
 interface AdminFormModalProps {
   isOpen: boolean
@@ -28,6 +29,7 @@ interface AdminFormModalProps {
 }
 
 export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'create', initialValues }: AdminFormModalProps) {
+  const { user } = useAuth()
   // Schéma dynamique pour le téléphone selon l'environnement
   const phoneSchema = process.env.NODE_ENV === 'production'
     ? z.string().regex(/^\d{9}$/, 'Le numéro gabonais doit contenir exactement 9 chiffres')
@@ -37,6 +39,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
     // Autoriser l'email vide ('') en plus d'un email valide
     email: z.string().email('Format d\'email invalide').min(1, 'L\'email est obligatoire'),
     contacts: z.array(phoneSchema).length(1, 'Un seul numéro de téléphone est requis'),
+    uid: z.string().optional(), // Champ caché pour l'UID en mode édition
   })
 
   type AdminFormValues = z.infer<typeof schema>
@@ -52,6 +55,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
     roles: ['Admin'],
     photoURL: null,
     photoPath: null,
+    uid: undefined,
   }
 
   const form = useForm<AdminFormValues>({
@@ -69,6 +73,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
   useEffect(() => {
     if (mode === 'edit' && initialValues && isOpen) {
       form.reset({
+        uid: initialValues.id || '',
         civility: (initialValues.civility as any) ?? 'Monsieur',
         lastName: initialValues.lastName ?? '',
         firstName: initialValues.firstName ?? '',
@@ -133,7 +138,57 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
     try {
       if (mode === 'edit') {
         // Mode édition: pas de création Auth/Firestore ici. On délègue au parent.
+        if (!values.uid) {
+          toast.error('UID manquant pour la mise à jour')
+          return
+        }
+
+        const response = await fetch('/api/auth/update-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              uid: values.uid,
+              email: values.email,
+              role: values.roles?.[0] || 'Admin',
+              civility: values.civility,
+              birthDate: values.birthDate,
+              photoURL: values.photoURL,
+              firstName: values.firstName,
+              lastName: values.lastName,
+              phoneNumber: values.contacts?.[0],
+            }),
+          })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          toast.error(`Erreur Firebase Auth: ${errorData.error || 'Mise à jour échouée'}`)
+          return
+        }
+
+        // Mise à jour de la collection admins
+        let phone = (values.contacts?.[0] || '').trim()
+        if (phone && !phone.startsWith('+')) {
+          phone = `+241${phone.replace(/[^\d]/g, '').replace(/^0+/, '')}`
+        }
+
+        await updateAdmin(values.uid, {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          birthDate: values.birthDate,
+          civility: values.civility as any,
+          gender: values.gender as any,
+          email: values.email?.trim() ? values.email.trim() : undefined,
+          contacts: phone ? [phone] : [],
+          roles: values.roles as any,
+          photoURL: values.photoURL,
+          photoPath: values.photoPath,
+        })
+
+        // Notifier le parent du succès
         await onSubmit(values as AdminCreateFormData)
+        
+        toast.success('Administrateur mis à jour avec succès')
+        
         // Nettoyage des champs après update
         form.reset(emptyDefaults)
         setPhotoPreview(null)
@@ -195,6 +250,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         photoURL: uploadedPhotoURL,
         photoPath: uploadedPhotoPath,
         isActive: true,
+        createdBy: user?.uid || 'SuperAdmin'
       })
 
       await onSubmit({ ...values, contacts: [phone], photoURL: uploadedPhotoURL, photoPath: uploadedPhotoPath } as AdminCreateFormData)
