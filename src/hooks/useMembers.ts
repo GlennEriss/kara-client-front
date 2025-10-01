@@ -74,7 +74,7 @@ export function useMembersPage(limit: number = 20) {
 export function useInfiniteMembers(limit: number = 20) {
   return useInfiniteQuery({
     queryKey: ['members', 'infinite', limit],
-    queryFn: ({ pageParam }: { pageParam: Date | undefined }) => getUsersPage({ limit, cursorCreatedAt: pageParam }),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => getUsersPage({ limit, cursorCreatedAt: pageParam }),
     getNextPageParam: (lastPage: { nextCursorCreatedAt: string | null }) => lastPage.nextCursorCreatedAt || undefined,
     initialPageParam: undefined,
     staleTime: 2 * 60 * 1000,
