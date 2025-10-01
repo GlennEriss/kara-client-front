@@ -18,6 +18,7 @@ import { ADMIN_ROLE_LABELS, AdminRole, AdminUser } from '@/db/admin.db'
 import AdminFormModal from '@/components/admin/AdminFormModal'
 import { AdminCreateFormData } from '@/schemas/schemas'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useAuth } from '@/hooks/useAuth'
 
 type ViewMode = 'grid' | 'list'
 
@@ -78,6 +79,7 @@ const COLORS = {
 }
 
 export default function AdminDashboard() {
+  const { user } = useAuth()
   const [filters, setFilters] = useState<AdminFiltersUI>({})
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
@@ -171,7 +173,7 @@ export default function AdminDashboard() {
     setIsEditOpen(true)
   }
 
-  const handleSubmitEdit = async (values: AdminCreateFormData) => {
+  const handleSubmitEdit = async (values: any) => {
     if (!adminToEdit) return
     try {
       const updates: Partial<AdminUser> = {
@@ -185,6 +187,7 @@ export default function AdminDashboard() {
         roles: values.roles as any,
         photoURL: values.photoURL ?? null,
         photoPath: values.photoPath ?? null,
+        updatedBy: user?.uid || 'SuperAdmin'
       }
       await updateAdminDeep(adminToEdit.id, {
         ...updates,

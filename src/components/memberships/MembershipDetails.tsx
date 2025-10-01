@@ -9,8 +9,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useUser } from '@/hooks/useMembers'
 import routes from '@/constantes/routes'
-import Link from 'next/link'
-import { Wallet } from 'lucide-react'
 import { listContractsByMember } from '@/db/caisse/contracts.db'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
@@ -89,7 +87,7 @@ export default function MembershipDetails() {
                     >
                         <ExternalLink className="w-4 h-4 mr-2" /> Voir le dossier
                     </Button>
-                    {(() => {
+                    {/* {(() => {
                         const activeStatuses = ['ACTIVE','LATE_NO_PENALTY','LATE_WITH_PENALTY','FINAL_REFUND_PENDING','EARLY_REFUND_PENDING']
                         const hasActive = caisseContracts.some((c:any) => activeStatuses.includes(c.status))
                         return hasActive ? (
@@ -105,13 +103,13 @@ export default function MembershipDetails() {
                                 }}
                             />
                         )
-                    })()}
+                    })()} */}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 <div className="lg:col-span-2 space-y-6 lg:space-y-8">
-                    <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
+                    <Card className="group bg-gradient-to-br from-blue-50/30 to-blue-100/20 border-0 shadow-lg">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
                                 <User className="w-5 h-5 text-blue-600" /> Informations personnelles
@@ -136,7 +134,7 @@ export default function MembershipDetails() {
                         </CardContent>
                     </Card>
 
-                    <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
+                    <Card className="group bg-gradient-to-br from-emerald-50/30 to-emerald-100/20 border-0 shadow-lg">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
                                 <Phone className="w-5 h-5 text-green-600" /> Contacts
@@ -156,10 +154,10 @@ export default function MembershipDetails() {
                         </CardContent>
                     </Card>
 
-                    <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
+                    <Card className="group bg-gradient-to-br from-amber-50/30 to-yellow-100/20 border-0 shadow-lg">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                                <Briefcase className="w-5 h-5 text-purple-600" /> Profession
+                                <Briefcase className="w-5 h-5 text-amber-600" /> Profession
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="pt-0 space-y-3">
@@ -176,10 +174,10 @@ export default function MembershipDetails() {
                 </div>
 
                 <div className="space-y-6 lg:space-y-8">
-                    <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
+                    <Card className="group bg-gradient-to-br from-indigo-50/30 to-indigo-100/20 border-0 shadow-lg">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                                <User className="w-5 h-5 text-cyan-600" /> Photo du membre
+                                <User className="w-5 h-5 text-indigo-600" /> Photo du membre
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="pt-0">
@@ -196,53 +194,11 @@ export default function MembershipDetails() {
                         </CardContent>
                     </Card>
 
-                    <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                                <Wallet className="w-5 h-5 text-emerald-600" /> Caisse Spéciale
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0 space-y-3">
-                            {/* Helpers inline pour badge et libellé statut */}
-                            {(() => {
-                                if (caisseContracts.length === 0) {
-                                    return <div className="text-sm text-gray-600">Aucun contrat</div>
-                                }
-                                const activeStatuses = ['ACTIVE','LATE_NO_PENALTY','LATE_WITH_PENALTY','FINAL_REFUND_PENDING','EARLY_REFUND_PENDING']
-                                const latest = caisseContracts[0]
-                                const hasActive = caisseContracts.some((c:any) => activeStatuses.includes(c.status))
-                                return (
-                                    <>
-                                      <div className="text-sm">Dernier contrat: <b>#{String(latest.id).slice(-6)}</b> — <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[latest.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'En cours', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[latest.status] || latest.status })()}</span></div>
-                                      <ul className="space-y-2">
-                                        {caisseContracts.map((c:any) => (
-                                          <li key={c.id} className="flex items-center justify-between text-sm">
-                                            <div className="flex items-center gap-2">
-                                              <span className="font-medium">Contrat #{String(c.id).slice(-6)}</span>
-                                              <span className={`text-xs px-2 py-0.5 rounded ${(() => { const m: Record<string,string> = { DRAFT:'bg-slate-100 text-slate-700', ACTIVE:'bg-green-100 text-green-700', LATE_NO_PENALTY:'bg-yellow-100 text-yellow-700', LATE_WITH_PENALTY:'bg-orange-100 text-orange-700', DEFAULTED_AFTER_J12:'bg-red-100 text-red-700', EARLY_WITHDRAW_REQUESTED:'bg-blue-100 text-blue-700', FINAL_REFUND_PENDING:'bg-indigo-100 text-indigo-700', EARLY_REFUND_PENDING:'bg-blue-100 text-blue-700', RESCINDED:'bg-red-100 text-red-700', CLOSED:'bg-gray-200 text-gray-700' }; return m[c.status] || 'bg-gray-100 text-gray-700' })()}`}>{(() => { const m: Record<string,string> = { DRAFT:'En cours', ACTIVE:'Actif', LATE_NO_PENALTY:'Retard (J+0..3)', LATE_WITH_PENALTY:'Retard (J+4..12)', DEFAULTED_AFTER_J12:'Résilié (>J+12)', EARLY_WITHDRAW_REQUESTED:'Retrait anticipé demandé', FINAL_REFUND_PENDING:'Remboursement final en attente', EARLY_REFUND_PENDING:'Remboursement anticipé en attente', RESCINDED:'Résilié', CLOSED:'Clos' }; return m[c.status] || c.status })()}</span>
-                                            </div>
-                                            <Link href={routes.admin.caisseSpecialeContractDetails(c.id)} className="underline">Ouvrir</Link>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                      <div className="pt-2">
-                                        <Link href={routes.admin.caisseSpeciale} className="text-xs underline">Voir l’historique des contrats</Link>
-                                      </div>
-                                      {/* Désactiver la création si un contrat actif existe */}
-                                      {!hasActive ? null : (
-                                        <div className="text-xs text-red-600">Un contrat est en cours. La création d’un nouveau contrat est désactivée.</div>
-                                      )}
-                                    </>
-                                )
-                            })()}
-                        </CardContent>
-                    </Card>
-
                     {user.address && (
-                        <Card className="group bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg">
+                        <Card className="group bg-gradient-to-br from-rose-50/30 to-pink-100/20 border-0 shadow-lg">
                             <CardHeader className="pb-3">
                                 <CardTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                                    <MapPin className="w-5 h-5 text-red-600" /> Adresse
+                                    <MapPin className="w-5 h-5 text-rose-600" /> Adresse
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-0 space-y-3">

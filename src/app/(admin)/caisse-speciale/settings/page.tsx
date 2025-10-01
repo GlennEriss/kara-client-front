@@ -2,10 +2,12 @@
 
 import React from 'react'
 import { useActiveCaisseSettings, useCaisseSettingsList, useCaisseSettingsMutations } from '@/hooks/useCaisseSettings'
+import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 import { Plus, Edit3, Power, Trash2, Calendar, Settings, DollarSign, TrendingUp, AlertTriangle, Check, X, Loader2, Download } from 'lucide-react'
 
 export default function AdminCaisseSettingsPage() {
+  const { user } = useAuth()
   const active = useActiveCaisseSettings()
   const list = useCaisseSettingsList()
   const { create, update, activate, remove } = useCaisseSettingsMutations()
@@ -32,14 +34,37 @@ export default function AdminCaisseSettingsPage() {
   const [useSteps, setUseSteps] = React.useState(false)
   const [steps, setSteps] = React.useState<Array<{ from: number; to: number; rate: number }>>([])
 
+  // Fonction pour générer l'ID personnalisé
+  const generateCustomId = (caisseType: string) => {
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    
+    return `MK_VERSION_${caisseType}_${day}${month}${year}_${hours}${minutes}`
+  }
+
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!user?.uid) {
+      toast.error('Utilisateur non authentifié')
+      return
+    }
+
+    // Générer l'ID personnalisé
+    const customId = generateCustomId(caisseType)
+    
     const payload: any = {
+      id: customId,
       isActive: false,
       bonusTable: createBonusTable,
       penaltyRules: { day4To12: { perDay: Number(perDay) } },
       businessTexts: {},
       caisseType,
+      createdBy: user.uid,
     }
     if (effectiveAt) {
       const d = new Date(effectiveAt)
@@ -56,7 +81,7 @@ export default function AdminCaisseSettingsPage() {
         return reset
       })
       setPerDay(0)
-      toast.success('Version créée')
+      toast.success(`Version créée avec l'ID: ${customId}`)
     } catch (err) {
       console.error('Erreur de création des paramètres:', err)
       toast.error('Erreur lors de la création')
