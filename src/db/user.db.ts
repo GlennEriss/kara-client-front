@@ -87,8 +87,11 @@ export async function generateMatricule(): Promise<string> {
         firebaseCollectionNames.users || "users", 
         matricule
       )
-      
-      if (isUniqueInMembershipRequests && isUniqueInUsers) {
+      const isUniqueInAdmins = await checkMatriculeUniquenessInCollection(
+        firebaseCollectionNames.admins || "admins", 
+        matricule
+      )
+      if (isUniqueInMembershipRequests && isUniqueInUsers && isUniqueInAdmins) {
         isUnique = true
       } else {
         attempts++

@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/lib/utils'
 import { Camera, CheckCircle, Loader2 } from 'lucide-react'
 import { createFile } from '@/db/upload-image.db'
-import { generateMatricule, createUserRawWithMatricule } from '@/db/user.db'
+import { generateMatricule } from '@/db/user.db'
 import { createAdminWithId } from '@/db/admin.db'
 import type { UserRole } from '@/types/types'
 import type { AdminUser } from '@/db/admin.db'
@@ -35,7 +35,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
 
   const schema = adminCreateSchema.extend({
     // Autoriser l'email vide ('') en plus d'un email valide
-    email: z.string().email('Format d\'email invalide').or(z.literal('')).optional(),
+    email: z.string().email('Format d\'email invalide').min(1, 'L\'email est obligatoire'),
     contacts: z.array(phoneSchema).length(1, 'Un seul numéro de téléphone est requis'),
   })
 
@@ -152,12 +152,8 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
       }
 
       const displayName = `${values.firstName} ${values.lastName}`.trim()
-      await fetch('/api/firebase/auth/create-user/by-phone-number', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: matricule, phoneNumber: phone, displayName, requestId: 'admin' }),
-      })
 
+      //upload photo admin
       let uploadedPhotoURL: string | null = values.photoURL ?? null
       let uploadedPhotoPath: string | null = values.photoPath ?? null
       if (photoPreview) {
@@ -169,26 +165,22 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
         form.setValue('photoPath', path)
       }
 
-      const primaryRole = (values.roles?.[0] || 'Admin') as UserRole
-      await fetch('/api/firebase/auth/set-custom-claims', {
+      await fetch('/api/auth/create-admin/by-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uuid: matricule, claims: { role: primaryRole, photoURL: uploadedPhotoURL } }),
+        body: JSON.stringify({
+          uid: matricule,
+          email: values.email,
+          password: matricule,
+          role: values.roles?.[0] || 'Admin',
+          civility: values.civility,
+          birthDate: values.birthDate,
+          photoURL: uploadedPhotoURL,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          phoneNumber: phone,
+        }),
       })
-
-      const userData = {
-        lastName: values.lastName,
-        firstName: values.firstName,
-        birthDate: values.birthDate,
-        contacts: [phone],
-        gender: values.gender,
-        email: values.email || undefined,
-        nationality: 'GA',
-        photoURL: uploadedPhotoURL,
-        photoPath: uploadedPhotoPath,
-        roles: values.roles as unknown as UserRole[],
-      }
-      await createUserRawWithMatricule(userData as any, matricule)
 
       // Créer l'admin dans la collection admins avec l'ID = matricule
       await createAdminWithId(matricule, {
@@ -369,7 +361,7 @@ export default function AdminFormModal({ isOpen, onClose, onSubmit, mode = 'crea
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email (optionnel)</FormLabel>
+                  <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input placeholder="ex: admin@kara.com" {...field} />
                   </FormControl>
