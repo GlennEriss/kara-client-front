@@ -43,6 +43,8 @@ export interface AdminUser {
   createdAt: Date
   updatedAt: Date
   permissions?: string[]
+  createdBy?: string
+  updatedBy?: string
 }
 
 export interface AdminFilters {
@@ -110,6 +112,8 @@ function mapAdmin(docSnap: any): AdminUser {
     createdAt: toDate(data.createdAt),
     updatedAt: toDate(data.updatedAt),
     permissions: Array.isArray(data.permissions) ? data.permissions : undefined,
+    createdBy: data.createdBy || 'SuperAdmin',
+    updatedBy: data.updatedBy || 'SuperAdmin',
   }
 }
 
@@ -220,6 +224,8 @@ export interface CreateAdminInput {
   photoURL?: string | null
   photoPath?: string | null
   isActive?: boolean
+  createdBy?: string
+  updatedBy?: string
 }
 
 export async function createAdmin(input: CreateAdminInput): Promise<string> {
@@ -229,6 +235,8 @@ export async function createAdmin(input: CreateAdminInput): Promise<string> {
     isActive: input.isActive ?? true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+    createdBy: input.createdBy || 'SuperAdmin',
+    updatedBy: input.updatedBy || 'SuperAdmin',
   })
   const docRef = await addDoc(adminsRef, payload)
   return docRef.id

@@ -800,7 +800,21 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 // Rôles considérés comme administrateurs
 export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary']
 
-
+export type Admin = {
+  firstName: string
+  lastName: string
+  birthDate: string
+  civility: 'Monsieur' | 'Madame' | 'Mademoiselle'
+  gender: 'Homme' | 'Femme'
+  email?: string
+  contacts: string[] 
+  roles: UserRole[] 
+  photoURL?: string | null
+  photoPath?: string | null
+  isActive?: boolean
+  createdBy?: string
+  updatedBy?: string
+}
 export interface PhotonResult {
   properties: {
     name: string

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, CheckCircle, Clock, Eye, FileText, IdCard, Mail, MapPin, Phone, User, XCircle, Building2, Briefcase, CarFront, Heart, AlertCircle, Download, Copy, ExternalLink, UserCheck, Zap } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle, Clock, Eye, FileText, IdCard, Mail, MapPin, Phone, User, XCircle, Building2, Briefcase, CarFront, Heart, AlertCircle, Download, Copy, ExternalLink, UserCheck, Zap, Users } from 'lucide-react'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { useMembershipRequest } from '@/hooks/useMembershipRequests'
+import { useIntermediary } from '@/hooks/useIntermediary'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import type { MembershipRequestStatus } from '@/types/types'
 import { toast } from 'sonner'
@@ -87,6 +88,30 @@ const formatDate = (timestamp: any) => {
     })
   } catch (error) {
     return 'Date invalide'
+  }
+}
+
+// Fonction pour vérifier si une date est expirée
+const isDateExpired = (timestamp: any) => {
+  if (!timestamp) return false
+
+  try {
+    let date
+    if (timestamp.toDate) {
+      date = timestamp.toDate()
+    } else if (timestamp instanceof Date) {
+      date = timestamp
+    } else {
+      date = new Date(timestamp)
+    }
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset time to start of day
+    date.setHours(0, 0, 0, 0)
+    
+    return date < today
+  } catch (error) {
+    return false
   }
 }
 
@@ -230,6 +255,9 @@ export default function MembershipRequestDetails() {
   const [isLoadingProcessedBy, setIsLoadingProcessedBy] = useState(false)
 
   const { data: request, isLoading, isError, error } = useMembershipRequest(requestId)
+  
+  // Récupérer les informations du parrain/intermédiaire
+  const { data: intermediaryInfo, isLoading: isLoadingIntermediary } = useIntermediary(request?.identity?.intermediaryCode)
 
   // Récupérer les informations de l'administrateur qui a traité la demande
   useEffect(() => {
@@ -330,7 +358,7 @@ export default function MembershipRequestDetails() {
         <div className="lg:col-span-2 space-y-6 lg:space-y-8">
 
           {/* Informations personnelles */}
-          <ModernCard title="Informations personnelles" icon={User} iconColor="text-blue-600">
+          <ModernCard title="Informations personnelles" icon={User} iconColor="text-blue-600" className="bg-gradient-to-br from-blue-50/30 to-blue-100/20">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
               <InfoField label="Civilité" value={request.identity.civility} icon={User} color="text-blue-600" />
               <InfoField label="Genre" value={request.identity.gender} icon={User} color="text-blue-600" />
@@ -361,6 +389,34 @@ export default function MembershipRequestDetails() {
 
             <div className="mt-4 lg:mt-6 pt-4 lg:pt-6 border-t border-gray-100">
               <InfoField label="Lieu de prière" value={request.identity.prayerPlace} icon={Building2} color="text-indigo-600" />
+              
+              {/* Affichage du parrain/intermédiaire */}
+              {request.identity.intermediaryCode && (
+                <div className="mt-3 lg:mt-4">
+                  <InfoField 
+                    label="Parrain" 
+                    value={
+                      isLoadingIntermediary ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-orange-500 border-t-transparent"></div>
+                          <span>Chargement...</span>
+                        </div>
+                      ) : intermediaryInfo ? (
+                        <div className="flex items-center gap-2">
+                          <span>{intermediaryInfo.firstName} {intermediaryInfo.lastName}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {intermediaryInfo.type === 'admin' ? 'Administrateur' : 'Membre'}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">Code: {request.identity.intermediaryCode}</span>
+                      )
+                    } 
+                    icon={Users} 
+                    color="text-orange-600" 
+                  />
+                </div>
+              )}
             </div>
 
             <div className="mt-3 lg:mt-4">
@@ -377,7 +433,7 @@ export default function MembershipRequestDetails() {
           </ModernCard>
 
           {/* Informations de contact */}
-          <ModernCard title="Informations de contact" icon={Phone} iconColor="text-green-600">
+          <ModernCard title="Informations de contact" icon={Phone} iconColor="text-green-600" className="bg-gradient-to-br from-green-50/30 to-green-100/20">
             <div className="space-y-4">
               <InfoField
                 label="Adresse email"
@@ -420,7 +476,7 @@ export default function MembershipRequestDetails() {
           </ModernCard>
 
           {/* Adresse */}
-          <ModernCard title="Adresse de résidence" icon={MapPin} iconColor="text-red-600">
+          <ModernCard title="Adresse de résidence" icon={MapPin} iconColor="text-red-600" className="bg-gradient-to-br from-red-50/30 to-red-100/20">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
               <InfoField label="Province" value={request.address.province} icon={MapPin} color="text-red-600" />
               <InfoField label="Ville" value={request.address.city} icon={MapPin} color="text-red-600" />
@@ -441,7 +497,7 @@ export default function MembershipRequestDetails() {
           </ModernCard>
 
           {/* Informations professionnelles */}
-          <ModernCard title="Informations professionnelles" icon={Briefcase} iconColor="text-purple-600">
+          <ModernCard title="Informations professionnelles" icon={Briefcase} iconColor="text-purple-600" className="bg-gradient-to-br from-purple-50/30 to-purple-100/20">
             <div className="space-y-4">
               <div className={`inline-flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl transition-all duration-300 ${request.company.isEmployed
                   ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200'
@@ -493,13 +549,28 @@ export default function MembershipRequestDetails() {
           </ModernCard>
 
           {/* Documents d'identité */}
-          <ModernCard title="Documents d'identité" icon={IdCard} iconColor="text-indigo-600">
+          <ModernCard title="Documents d'identité" icon={IdCard} iconColor="text-indigo-600" className="bg-gradient-to-br from-indigo-50/30 to-indigo-100/20">
             <div className="space-y-4 lg:space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
                 <InfoField label="Type de document" value={request.documents.identityDocument} icon={IdCard} color="text-indigo-600" />
                 <InfoField label="Numéro" value={request.documents.identityDocumentNumber} icon={IdCard} color="text-indigo-600" copyable />
                 <InfoField label="Date d'émission" value={formatDate(request.documents.issuingDate)} icon={Calendar} color="text-green-600" />
-                <InfoField label="Date d'expiration" value={formatDate(request.documents.expirationDate)} icon={Calendar} color="text-red-600" />
+                <InfoField 
+                  label="Date d'expiration" 
+                  value={
+                    <div className="flex items-center gap-2">
+                      <span>{formatDate(request.documents.expirationDate)}</span>
+                      {isDateExpired(request.documents.expirationDate) && (
+                        <Badge variant="destructive" className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Expirée
+                        </Badge>
+                      )}
+                    </div>
+                  } 
+                  icon={Calendar} 
+                  color="text-red-600" 
+                />
               </div>
               <InfoField label="Lieu d'émission" value={request.documents.issuingPlace} icon={MapPin} color="text-purple-600" />
 
@@ -601,7 +672,7 @@ export default function MembershipRequestDetails() {
         <div className="space-y-6 lg:space-y-8">
 
           {/* Photo du demandeur */}
-          <ModernCard title="Photo du demandeur" icon={User} iconColor="text-cyan-600">
+          <ModernCard title="Photo du demandeur" icon={User} iconColor="text-cyan-600" className="bg-gradient-to-br from-cyan-50/30 to-cyan-100/20">
             <div className="space-y-4">
               {request.identity.photoURL ? (
                 <div className="relative group">
@@ -648,7 +719,7 @@ export default function MembershipRequestDetails() {
           </ModernCard>
 
           {/* Métadonnées */}
-          <ModernCard title="Informations sur la demande" icon={FileText} iconColor="text-orange-600">
+          <ModernCard title="Informations sur la demande" icon={FileText} iconColor="text-orange-600" className="bg-gradient-to-br from-orange-50/30 to-orange-100/20">
             <div className="space-y-4 lg:space-y-6">
               <div className="p-3 lg:p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">

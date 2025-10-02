@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUserById, getAllUsers } from '@/db/user.db'
-import { getMembersByGroup, getMembershipRequestByDossier, getMemberStats, getMemberSubscriptions, getMemberWithSubscription, MemberWithSubscription, searchMembers } from '@/db/member.db'
+import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
+import { getUserById, getAllUsers, getUsersPage } from '@/db/user.db'
+import { getMembersByGroup, getMembershipRequestByDossier, getMemberStats, getMemberSubscriptions, getMemberWithSubscription, MemberWithSubscription, searchMembers, getMembers } from '@/db/member.db'
 import { Subscription, User, UserFilters, UserStats } from '@/types/types'
 
 // Hook pour récupérer tous les membres avec pagination et filtres
@@ -8,31 +8,12 @@ export function useAllMembers(filters: UserFilters = {}, page: number = 1, limit
   return useQuery({
     queryKey: ['allMembers', filters, page, limit],
     queryFn: async () => {
-      const result = await getAllUsers({
-        ...filters,
-        limit: limit,
-        // Note: getAllUsers ne semble pas supporter la pagination directement
-        // Il faudrait peut-être implémenter une logique de pagination côté client
-      })
       
-      // Simulation de pagination côté client
-      const startIndex = (page - 1) * limit
-      const endIndex = startIndex + limit
-      const paginatedUsers = result.users.slice(startIndex, endIndex)
+      // Utiliser getMembers qui récupère les membres avec leurs abonnements
+      const result = await getMembers(filters, page, limit)
       
-      return {
-        data: paginatedUsers,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(result.total / limit),
-          totalItems: result.total,
-          itemsPerPage: limit,
-          hasNextPage: endIndex < result.total,
-          hasPrevPage: page > 1,
-          nextCursor: null,
-          prevCursor: null
-        }
-      }
+      
+      return result
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -60,6 +41,25 @@ export function useMembers(memberIds: string[]) {
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   })
+}
+
+// Pagination côté serveur pour lister des utilisateurs (pour dialogues d'ajout groupe)
+export function useMembersPage(limit: number = 20) {
+  return useQuery({
+    queryKey: ['members', 'page', limit],
+    queryFn: () => getUsersPage({ limit }),
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useInfiniteMembers(limit: number = 20) {
+  return useInfiniteQuery({
+    queryKey: ['members', 'infinite', limit],
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => getUsersPage({ limit, cursorCreatedAt: pageParam }),
+    getNextPageParam: (lastPage: { nextCursorCreatedAt: string | null }) => lastPage.nextCursorCreatedAt || undefined,
+    initialPageParam: undefined,
+    staleTime: 2 * 60 * 1000,
+  } as any)
 }
 
 // Hook pour récupérer les membres d'un groupe

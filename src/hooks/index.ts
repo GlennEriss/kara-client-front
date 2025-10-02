@@ -15,8 +15,16 @@ export * from './register'
 // Shared hooks
 export * from './shared'
 
+// Contracts hooks
+export * from './contracts'
+
+// Members hooks
+export * from './useMembers'
+
+// Intermediary hooks
+export * from './useIntermediary'
+
 // TODO: Ajouter les autres domaines au fur et à mesure
 // export * from './admin'
-// export * from './contracts'
 // export * from './companies'
 // export * from './groups'

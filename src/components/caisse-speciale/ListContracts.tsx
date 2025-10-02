@@ -32,6 +32,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
 import { useContracts } from '@/hooks/useContracts'
+import { useClosedNominalSum } from '@/hooks'
 import { useMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
@@ -201,7 +202,7 @@ const StatsCard = ({
 }
 
 // Composant Carrousel des statistiques avec drag/swipe
-const StatsCarousel = ({ stats }: { stats: any }) => {
+const StatsCarousel = ({ stats, closedNominalSum }: { stats: any; closedNominalSum: number }) => {
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
@@ -211,39 +212,37 @@ const StatsCarousel = ({ stats }: { stats: any }) => {
 
   const statsData = [
     { title: 'Total', value: stats.total, percentage: 100, color: '#6b7280', icon: FileText },
+    { title: 'Montant Total', value: new Intl.NumberFormat('fr-FR').format(closedNominalSum || 0), percentage: 100, color: '#0ea5e9', icon: DollarSign, trend: 'up' as const },
     { title: 'En cours', value: stats.draft, percentage: stats.draftPercentage, color: '#9ca3af', icon: FileText, trend: 'neutral' as const },
     { title: 'Actifs', value: stats.active, percentage: stats.activePercentage, color: '#10b981', icon: CheckCircle, trend: 'up' as const },
     { title: 'En Retard', value: stats.late, percentage: stats.latePercentage, color: '#ef4444', icon: Clock, trend: stats.latePercentage > 20 ? 'up' as const : 'neutral' as const },
     { title: 'Individuels', value: stats.individual, percentage: stats.individualPercentage, color: '#3b82f6', icon: User, trend: 'neutral' as const },
     { title: 'Groupes', value: stats.group, percentage: stats.groupPercentage, color: '#8b5cf6', icon: GroupIcon, trend: 'neutral' as const },
-    // Statistiques des tontines closes
-    ...(stats.closedStats?.STANDARD ? [{
+    // Statistiques des tontines closes (toujours affichées même à 0)
+    {
       title: 'Standard Closes',
-      value: `${stats.closedStats.STANDARD.count}`,
-      subtitle: formatAmount(stats.closedStats.STANDARD.totalNominal),
+      value: `${stats.closedStats?.STANDARD?.count || 0}`,
       percentage: 100,
       color: '#059669',
       icon: DollarSign,
       trend: 'up' as const
-    }] : []),
-    ...(stats.closedStats?.JOURNALIERE ? [{
+    },
+    {
       title: 'Journalière Closes',
-      value: `${stats.closedStats.JOURNALIERE.count}`,
-      subtitle: formatAmount(stats.closedStats.JOURNALIERE.totalNominal),
+      value: `${stats.closedStats?.JOURNALIERE?.count || 0}`,
       percentage: 100,
       color: '#dc2626',
       icon: Calendar,
       trend: 'up' as const
-    }] : []),
-    ...(stats.closedStats?.LIBRE ? [{
+    },
+    {
       title: 'Libre Closes',
-      value: `${stats.closedStats.LIBRE.count}`,
-      subtitle: formatAmount(stats.closedStats.LIBRE.totalNominal),
+      value: `${stats.closedStats?.LIBRE?.count || 0}`,
       percentage: 100,
       color: '#7c3aed',
       icon: BarChart3,
       trend: 'up' as const
-    }] : []),
+    },
   ]
 
   const [itemsPerView, setItemsPerView] = useState(1)
@@ -769,6 +768,9 @@ const ListContracts = () => {
     }
   }, [contractsData])
 
+  // Somme des nominalPaid pour les contrats clos
+  const { sum: closedNominalSum } = useClosedNominalSum(contractsData)
+
   // Gestion des erreurs
   if (error) {
     return (
@@ -793,7 +795,7 @@ const ListContracts = () => {
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Carrousel de statistiques */}
-      {stats && <StatsCarousel stats={stats} />}
+      {stats && <StatsCarousel stats={stats} closedNominalSum={closedNominalSum || 0} />}
 
       {/* Filtres */}
       <ContractFilters
