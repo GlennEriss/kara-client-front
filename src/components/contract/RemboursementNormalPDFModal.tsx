@@ -31,21 +31,21 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
   // Fonction pour calculer l'âge à partir de la date de naissance
   const calculateAge = (birthDate: string | Date) => {
     if (!birthDate) return '—'
-    
+
     try {
       const birth = new Date(birthDate)
       const today = new Date()
-      
+
       if (isNaN(birth.getTime())) {
         return '—'
       }
-      
+
       let age = today.getFullYear() - birth.getFullYear()
       const monthDiff = today.getMonth() - birth.getMonth()
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
         age--
       }
-      
+
       return age.toString()
     } catch {
       return '—'
@@ -55,15 +55,30 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
   // Créer un objet contract enrichi avec les données du membre
   const enrichedContract = React.useMemo(() => {
     if (!contractData) return null
-    
+
     const memberWithAge = memberData ? {
       ...memberData,
       age: calculateAge(memberData.birthDate)
     } : memberData
-    
+
+    // Calculer la dernière date de paiement
+    let lastPaymentDate = null
+    if (contractData.firstPaymentDate && contractData.monthsPlanned) {
+      try {
+        const firstDate = new Date(contractData.firstPaymentDate)
+        const lastDate = new Date(firstDate)
+        // Le dernier paiement est monthsPlanned mois après le premier
+        lastDate.setMonth(lastDate.getMonth() + contractData.monthsPlanned)
+        lastPaymentDate = lastDate
+      } catch (error) {
+        console.error('Erreur lors du calcul de la dernière date de paiement:', error)
+      }
+    }
+
     return {
       ...contractData,
-      member: memberWithAge
+      member: memberWithAge,
+      lastPaymentDate
     }
   }, [contractData, memberData])
 
@@ -72,10 +87,10 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     const checkDevice = () => {
       setIsMobile(window.innerWidth < 1024) // lg breakpoint
     }
-    
+
     checkDevice()
     window.addEventListener('resize', checkDevice)
-    
+
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
@@ -121,7 +136,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
               </div>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
-                  📄 Document de Remboursement
+                  Document de Remboursement
                 </DialogTitle>
                 <p className="text-sm lg:text-base text-gray-600 truncate">
                   Contrat #{contractId.slice(-6)}
@@ -217,7 +232,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                             Ouvrir dans le navigateur
                           </a>
                         </Button>
-                        
+
                         <Button
                           onClick={handleDownloadPDF}
                           disabled={isExporting}
@@ -245,7 +260,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                     <div className="flex items-start gap-2">
                       <Monitor className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-blue-700 leading-relaxed">
-                        <strong>Astuce:</strong> Pour une meilleure expérience de visualisation, 
+                        <strong>Astuce:</strong> Pour une meilleure expérience de visualisation,
                         utilisez un ordinateur ou une tablette.
                       </p>
                     </div>
@@ -255,8 +270,8 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
 
               {/* Version desktop */}
               <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-                <PDFViewer style={{ 
-                  width: '100%', 
+                <PDFViewer style={{
+                  width: '100%',
                   height: '100%',
                   border: 'none',
                   borderRadius: '0.75rem'

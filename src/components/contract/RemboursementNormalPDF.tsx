@@ -371,7 +371,7 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
             <>
               <Text style={styles.articleText}>• L'arrivée du terme du contrat</Text>
               <Text style={styles.articleText}>
-                Ce remboursement a été réalisé <Text style={styles.bold}>{contract?.refundDelayDays || '—'}</Text> jours après la notification de la demande.
+                Ce remboursement a été réalisé <Text style={styles.bold}>{contract?.refundDelayDays || '.......'}</Text> jours après la notification de la demande.
               </Text>
             </>
           )}
