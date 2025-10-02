@@ -22,9 +22,16 @@ import { FIREBASE_COLLECTION_NAMES } from '@/constantes/firebase-collection-name
  */
 export async function createSubscription(subscriptionData: Omit<Subscription, 'id' | 'createdAt' | 'updatedAt'>): Promise<Subscription> {
   try {
-    // Générer un ID unique pour la souscription
-    const subscriptionRef = doc(collection(db, FIREBASE_COLLECTION_NAMES.SUBSCRIPTIONS))
-    const subscriptionId = subscriptionRef.id
+    // Générer un ID personnalisé au format MK_SUB_DDMMYY_HHMM
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    
+    const subscriptionId = `MK_SUB_${day}${month}${year}_${hours}${minutes}`
+    const subscriptionRef = doc(db, FIREBASE_COLLECTION_NAMES.SUBSCRIPTIONS, subscriptionId)
     
     // Calculer isValid basé sur la date de fin
     const isValid = subscriptionData.dateEnd > new Date()

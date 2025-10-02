@@ -21,6 +21,9 @@ export * from './contracts'
 // Members hooks
 export * from './useMembers'
 
+// Intermediary hooks
+export * from './useIntermediary'
+
 // TODO: Ajouter les autres domaines au fur et à mesure
 // export * from './admin'
 // export * from './companies'

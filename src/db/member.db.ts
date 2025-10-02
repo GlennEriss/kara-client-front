@@ -1,11 +1,11 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  startAfter, 
-  getDocs, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  startAfter,
+  getDocs,
   getDoc,
   doc,
   DocumentSnapshot,
@@ -87,7 +87,7 @@ export async function removeMemberFromGroup(userId: string, groupId: string, upd
     const userDoc = await getDoc(userRef)
     const currentGroupIds = userDoc.data()?.groupIds || []
     const newGroupIds = currentGroupIds.filter((id: string) => id !== groupId)
-    
+
     await updateDoc(userRef, {
       groupIds: newGroupIds,
       updatedBy,
@@ -143,10 +143,10 @@ export async function getMembers(
 ): Promise<PaginatedMembers> {
   try {
     const membersRef = collection(db, 'users')
-    
+
     // Construction des contraintes de requête
     const constraints: QueryConstraint[] = []
-    
+
     // Filtrer par rôles (seulement les membres, pas les admins)
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
     if (filters.roles && filters.roles.length > 0) {
@@ -157,54 +157,54 @@ export async function getMembers(
     } else {
       constraints.push(where('roles', 'array-contains-any', memberRoles))
     }
-    
+
     // Filtrer par type de membership
     if (filters.membershipType && filters.membershipType.length > 0) {
       constraints.push(where('membershipType', 'in', filters.membershipType))
     }
-    
+
     // Filtrer par nationalité
     if (filters.nationality && filters.nationality.length > 0) {
       constraints.push(where('nationality', 'in', filters.nationality))
     }
-    
+
     // Filtrer par possession de voiture
     if (filters.hasCar !== undefined) {
       constraints.push(where('hasCar', '==', filters.hasCar))
     }
-    
+
     // Filtrer par statut actif
     if (filters.isActive !== undefined) {
       constraints.push(where('isActive', '==', filters.isActive))
     }
-    
+
     // Tri
     const orderField = filters.orderByField || 'createdAt'
     const orderDirection = filters.orderByDirection || 'desc'
     constraints.push(orderBy(orderField, orderDirection))
-    
+
     // Pagination avec curseur
     if (cursor) {
       constraints.push(startAfter(cursor))
     }
-    
+
     // Limite
     constraints.push(limit(itemsPerPage + 1)) // +1 pour savoir s'il y a une page suivante
-    
+
     const q = query(membersRef, ...constraints)
     const querySnapshot = await getDocs(q)
-    
+
     const members: MemberWithSubscription[] = []
     let hasNextPage = false
-    
+
     // Traitement séquentiel pour éviter de surcharger Firebase
     for (let index = 0; index < querySnapshot.docs.length; index++) {
       if (index < itemsPerPage) {
         const doc = querySnapshot.docs[index]
-        
+
         // Récupérer chaque membre avec ses subscriptions
         const memberWithSubscription = await getMemberWithSubscription(doc.id)
-        
+
         if (memberWithSubscription) {
           members.push(memberWithSubscription)
         }
@@ -213,59 +213,59 @@ export async function getMembers(
         break
       }
     }
-    
+
     // Appliquer les filtres côté client
     let filteredMembers = members
-    
+
     // Filtre de recherche textuelle
     if (filters.searchQuery) {
       const searchLower = filters.searchQuery.toLowerCase()
-      filteredMembers = filteredMembers.filter(member => 
+      filteredMembers = filteredMembers.filter(member =>
         member.firstName.toLowerCase().includes(searchLower) ||
         member.lastName.toLowerCase().includes(searchLower) ||
         member.matricule.toLowerCase().includes(searchLower) ||
         member.email?.toLowerCase().includes(searchLower)
       )
     }
-    
+
     // Filtres d'adresse
     if (filters.province) {
-      filteredMembers = filteredMembers.filter(member => 
+      filteredMembers = filteredMembers.filter(member =>
         member.address?.province === filters.province
       )
     }
-    
+
     if (filters.city) {
-      filteredMembers = filteredMembers.filter(member => 
+      filteredMembers = filteredMembers.filter(member =>
         member.address?.city === filters.city
       )
     }
-    
+
     if (filters.arrondissement) {
-      filteredMembers = filteredMembers.filter(member => 
+      filteredMembers = filteredMembers.filter(member =>
         member.address?.arrondissement === filters.arrondissement
       )
     }
-    
+
     if (filters.district) {
-      filteredMembers = filteredMembers.filter(member => 
+      filteredMembers = filteredMembers.filter(member =>
         member.address?.district === filters.district
       )
     }
-    
+
     // Filtres professionnels
     if (filters.companyName) {
-      filteredMembers = filteredMembers.filter(member => 
+      filteredMembers = filteredMembers.filter(member =>
         member.companyName === filters.companyName
       )
     }
-    
+
     if (filters.profession) {
-      filteredMembers = filteredMembers.filter(member => 
+      filteredMembers = filteredMembers.filter(member =>
         member.profession === filters.profession
       )
     }
-    
+
     // Log du résultat final en mode debug
     if (process.env.NODE_ENV === 'development') {
       const activeFilters = Object.entries(filters)
@@ -276,12 +276,12 @@ export async function getMembers(
         })
         .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
         .join(', ')
-      
+
       console.log(`🎯 [getMembers] Processed ${filteredMembers.length} members${activeFilters ? ` with filters: ${activeFilters}` : ''}`)
     }
-    
+
     const nextCursor = members.length > 0 ? querySnapshot.docs[Math.min(itemsPerPage - 1, querySnapshot.docs.length - 1)] : null
-    
+
     return {
       data: filteredMembers,
       pagination: {
@@ -311,7 +311,7 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
     if (!userDoc.exists()) {
       return null
     }
-    
+
     const userData = userDoc.data() as User
     const member: User = {
       ...userData,
@@ -319,24 +319,24 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
       createdAt: convertFirestoreDate(userData.createdAt) || new Date(),
       updatedAt: convertFirestoreDate(userData.updatedAt) || new Date()
     }
-    
+
     // Récupérer les subscriptions directement via requête sur la collection
     let lastSubscription: Subscription | null = null
     let isSubscriptionValid = false
-    
+
     try {
       // Requête pour récupérer toutes les subscriptions de cet utilisateur
       const subscriptionsQuery = query(
         collection(db, 'subscriptions'),
         where('userId', '==', userId)
       )
-      
+
       const subscriptionsSnapshot = await getDocs(subscriptionsQuery)
-      
+
       if (!subscriptionsSnapshot.empty) {
         // Récupérer toutes les subscriptions et les trier côté client
         const subscriptions: Subscription[] = []
-        
+
         subscriptionsSnapshot.docs.forEach(doc => {
           const subData = doc.data()
           subscriptions.push({
@@ -348,17 +348,20 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
             updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
           } as Subscription)
         })
-        
+
         // Trier par date de fin décroissante et prendre la plus récente
         subscriptions.sort((a, b) => b.dateEnd.getTime() - a.dateEnd.getTime())
         lastSubscription = subscriptions[0]
-        
+
         // Vérifier si la subscription est valide (date de fin > maintenant)
-        isSubscriptionValid = lastSubscription.dateEnd > new Date()
+        const now = new Date()
+        isSubscriptionValid = lastSubscription.dateEnd > now
+
+
       }
     } catch (queryError) {
       console.error(`Error querying subscriptions for user ${userId}:`, queryError)
-      
+
       // Fallback: essayer avec l'ancienne méthode si la requête échoue
       if (member.subscriptions && member.subscriptions.length > 0) {
         const subscriptionPromises = member.subscriptions.map(async (subId) => {
@@ -376,9 +379,9 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
           }
           return null
         })
-        
+
         const subscriptions = (await Promise.all(subscriptionPromises)).filter(Boolean) as Subscription[]
-        
+
         if (subscriptions.length > 0) {
           subscriptions.sort((a, b) => b.dateEnd.getTime() - a.dateEnd.getTime())
           lastSubscription = subscriptions[0]
@@ -386,7 +389,7 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
         }
       }
     }
-    
+
     return {
       ...member,
       lastSubscription,
@@ -409,11 +412,11 @@ export async function getMemberSubscriptions(userId: string): Promise<Subscripti
       where('userId', '==', userId),
       orderBy('createdAt', 'desc')
     )
-    
+
     const subscriptionsSnapshot = await getDocs(subscriptionsQuery)
-    
+
     const subscriptions: Subscription[] = []
-    
+
     subscriptionsSnapshot.docs.forEach(doc => {
       const subData = doc.data()
       subscriptions.push({
@@ -425,7 +428,7 @@ export async function getMemberSubscriptions(userId: string): Promise<Subscripti
         updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
       } as Subscription)
     })
-    
+
     return subscriptions
   } catch (error) {
     console.error('Erreur lors de la récupération des subscriptions:', error)
@@ -440,14 +443,14 @@ export async function getMemberStats(): Promise<UserStats> {
   try {
     const membersRef = collection(db, 'users')
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
-    
+
     // Requête pour tous les membres
     const allMembersQuery = query(
       membersRef,
       where('roles', 'array-contains-any', memberRoles)
     )
     const allMembersSnapshot = await getDocs(allMembersQuery)
-    
+
     let total = 0
     let active = 0
     let inactive = 0
@@ -455,40 +458,40 @@ export async function getMemberStats(): Promise<UserStats> {
     let withoutCar = 0
     let newThisMonth = 0
     let newThisYear = 0
-    
+
     const byMembershipType = {
       adherant: 0,
       bienfaiteur: 0,
       sympathisant: 0
     }
-    
+
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const startOfYear = new Date(now.getFullYear(), 0, 1)
-    
+
     allMembersSnapshot.docs.forEach(doc => {
       const data = doc.data() as User
       total++
-      
+
       // Statut actif/inactif
       if (data.isActive) {
         active++
       } else {
         inactive++
       }
-      
+
       // Possession de voiture
       if (data.hasCar) {
         withCar++
       } else {
         withoutCar++
       }
-      
+
       // Type de membership
       if (data.membershipType && byMembershipType.hasOwnProperty(data.membershipType)) {
         byMembershipType[data.membershipType]++
       }
-      
+
       // Nouveaux membres ce mois et cette année
       const createdAt = convertFirestoreDate(data.createdAt) || new Date()
       if (createdAt >= startOfMonth) {
@@ -498,7 +501,7 @@ export async function getMemberStats(): Promise<UserStats> {
         newThisYear++
       }
     })
-    
+
     return {
       total,
       active,
@@ -521,18 +524,18 @@ export async function getMemberStats(): Promise<UserStats> {
 export async function getMembersByGroup(groupId: string): Promise<User[]> {
   try {
     const membersRef = collection(db, 'users')
-    
+
     // Firebase ne permet qu'une seule clause array-contains par requête
     // On utilise d'abord groupIds puis on filtre côté client pour les rôles
     const q = query(
-      membersRef, 
+      membersRef,
       where('groupIds', 'array-contains', groupId)
     )
-    
+
     const querySnapshot = await getDocs(q)
     const members: User[] = []
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
-    
+
     querySnapshot.docs.forEach(doc => {
       const data = doc.data()
       const user = {
@@ -541,7 +544,7 @@ export async function getMembersByGroup(groupId: string): Promise<User[]> {
         createdAt: convertFirestoreDate(data.createdAt) || new Date(),
         updatedAt: convertFirestoreDate(data.updatedAt) || new Date(),
       } as User
-      
+
       // Filtrer côté client pour les rôles de membre
       if (user.roles && Array.isArray(user.roles)) {
         const hasMemberRole = user.roles.some(role => memberRoles.includes(role))
@@ -550,14 +553,14 @@ export async function getMembersByGroup(groupId: string): Promise<User[]> {
         }
       }
     })
-    
+
     // Trier par nom de famille puis prénom
     members.sort((a, b) => {
       const lastNameComparison = (a.lastName || '').localeCompare(b.lastName || '')
       if (lastNameComparison !== 0) return lastNameComparison
       return (a.firstName || '').localeCompare(b.firstName || '')
     })
-    
+
     return members
   } catch (error) {
     console.error('Erreur lors de la récupération des membres du groupe:', error)
@@ -574,9 +577,9 @@ export async function getMembershipRequestByDossier(dossierId: string) {
     if (!dossierDoc.exists()) {
       return null
     }
-    
+
     const data = dossierDoc.data()
-    
+
     return {
       ...data,
       id: dossierDoc.id,
@@ -608,7 +611,7 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
   try {
     const membersRef = collection(db, 'users')
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
-    
+
     // Pour une recherche simple, on récupère tous les membres et on filtre côté client
     // Dans un vrai système, on utiliserait un service de recherche comme Algolia
     const q = query(
@@ -616,12 +619,12 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
       where('roles', 'array-contains-any', memberRoles),
       orderBy('createdAt', 'desc')
     )
-    
+
     const querySnapshot = await getDocs(q)
     const members: User[] = []
-    
+
     const searchLower = searchTerm.toLowerCase()
-    
+
     querySnapshot.docs.forEach(doc => {
       const data = doc.data()
       const member: User = {
@@ -630,7 +633,7 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
         createdAt: convertFirestoreDate(data.createdAt) || new Date(),
         updatedAt: convertFirestoreDate(data.updatedAt) || new Date()
       } as User
-      
+
       // Filtrer par terme de recherche
       if (
         member.firstName.toLowerCase().includes(searchLower) ||
@@ -641,7 +644,7 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
         members.push(member)
       }
     })
-    
+
     return members.slice(0, limit)
   } catch (error) {
     console.error('Erreur lors de la recherche des membres:', error)
