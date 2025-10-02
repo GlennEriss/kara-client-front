@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, CheckCircle, Clock, Eye, FileText, IdCard, Mail, MapPin, Phone, User, XCircle, Building2, Briefcase, CarFront, Heart, AlertCircle, Download, Copy, ExternalLink, UserCheck, Zap } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle, Clock, Eye, FileText, IdCard, Mail, MapPin, Phone, User, XCircle, Building2, Briefcase, CarFront, Heart, AlertCircle, Download, Copy, ExternalLink, UserCheck, Zap, Users } from 'lucide-react'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { useMembershipRequest } from '@/hooks/useMembershipRequests'
+import { useIntermediary } from '@/hooks/useIntermediary'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import type { MembershipRequestStatus } from '@/types/types'
 import { toast } from 'sonner'
@@ -254,6 +255,9 @@ export default function MembershipRequestDetails() {
   const [isLoadingProcessedBy, setIsLoadingProcessedBy] = useState(false)
 
   const { data: request, isLoading, isError, error } = useMembershipRequest(requestId)
+  
+  // Récupérer les informations du parrain/intermédiaire
+  const { data: intermediaryInfo, isLoading: isLoadingIntermediary } = useIntermediary(request?.identity?.intermediaryCode)
 
   // Récupérer les informations de l'administrateur qui a traité la demande
   useEffect(() => {
@@ -385,6 +389,34 @@ export default function MembershipRequestDetails() {
 
             <div className="mt-4 lg:mt-6 pt-4 lg:pt-6 border-t border-gray-100">
               <InfoField label="Lieu de prière" value={request.identity.prayerPlace} icon={Building2} color="text-indigo-600" />
+              
+              {/* Affichage du parrain/intermédiaire */}
+              {request.identity.intermediaryCode && (
+                <div className="mt-3 lg:mt-4">
+                  <InfoField 
+                    label="Parrain" 
+                    value={
+                      isLoadingIntermediary ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 animate-spin rounded-full border-2 border-orange-500 border-t-transparent"></div>
+                          <span>Chargement...</span>
+                        </div>
+                      ) : intermediaryInfo ? (
+                        <div className="flex items-center gap-2">
+                          <span>{intermediaryInfo.firstName} {intermediaryInfo.lastName}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {intermediaryInfo.type === 'admin' ? 'Administrateur' : 'Membre'}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">Code: {request.identity.intermediaryCode}</span>
+                      )
+                    } 
+                    icon={Users} 
+                    color="text-orange-600" 
+                  />
+                </div>
+              )}
             </div>
 
             <div className="mt-3 lg:mt-4">
