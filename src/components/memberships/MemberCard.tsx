@@ -293,13 +293,6 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
               <Calendar className="h-4 w-4 mr-2" />
               Voir abonnements
             </Button>
-            <CreateCaisseContractButton
-              memberId={member.id}
-              onCreated={() => {
-                // Optionnel : rafraîchir les données si nécessaire
-                toast.success('Contrat créé avec succès')
-              }}
-            />
           </div>
 
           

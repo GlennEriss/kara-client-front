@@ -1085,20 +1085,20 @@ export default function DailyContract({ id }: Props) {
                                   <FormControl>
                                     <Input
                                       type="file"
-                                      accept="image/*"
+                                      accept="application/pdf"
                                       onChange={async (e) => {
                                         const file = e.target.files?.[0]
                                         if (!file) {
                                           onChange(undefined)
                                           return
                                         }
-                                        if (!file.type.startsWith('image/')) {
-                                          toast.error('La preuve doit être une image')
+                                        if (file.type !== 'application/pdf') {
+                                          toast.error('La preuve doit être un fichier PDF')
                                           onChange(undefined)
                                           return
                                         }
                                         onChange(file)
-                                        toast.success('Preuve sélectionnée')
+                                        toast.success('Preuve PDF sélectionnée')
                                       }}
                                       className="w-full text-xs"
                                       {...field}

@@ -3,9 +3,8 @@
 import React, { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileText, Download, Upload, Eye, X, Trash2 } from 'lucide-react'
+import { FileText, Upload, Eye, X, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { uploadContractDocument, deleteContractDocument } from '@/db/upload-file.db'
 import { updateRefund } from '@/db/caisse/refunds.db'
@@ -186,7 +185,7 @@ export default function PdfDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl min-w-[60vw]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-red-600" />
@@ -209,8 +208,8 @@ export default function PdfDocumentModal({
                     <div className="bg-green-100 rounded-lg p-2">
                       <FileText className="h-5 w-5 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-green-900">
+                    <div className="min-w-0 flex-1 max-w-md">
+                      <p className="text-sm font-medium text-green-900 truncate" title={existingDocument.originalFileName}>
                         {existingDocument.originalFileName}
                       </p>
                       <p className="text-xs text-green-700">
@@ -295,8 +294,8 @@ export default function PdfDocumentModal({
                     <div className="bg-red-100 rounded-lg p-2">
                       <FileText className="h-5 w-5 text-red-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
+                    <div className="min-w-0 flex-1 max-w-md">
+                      <p className="text-sm font-medium text-gray-900 truncate" title={selectedFile.name}>
                         {selectedFile.name}
                       </p>
                       <p className="text-xs text-gray-500">

@@ -31,26 +31,26 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   // Fonction pour calculer l'âge à partir de la date de naissance
   const calculateAge = (birthDate: string | Date) => {
     if (!birthDate) return '—'
-    
+
     try {
       // Créer un objet Date à partir de la date de naissance
       const birth = new Date(birthDate)
       const today = new Date()
-      
+
       // Vérifier que la date est valide
       if (isNaN(birth.getTime())) {
         return '—'
       }
-      
+
       // Calculer l'âge
       let age = today.getFullYear() - birth.getFullYear()
-      
+
       // Vérifier si l'anniversaire n'est pas encore passé cette année
       const monthDiff = today.getMonth() - birth.getMonth()
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
         age--
       }
-      
+
       return age.toString()
     } catch {
       return '—'
@@ -60,26 +60,27 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   // Créer un objet contract enrichi avec les données du membre
   const enrichedContract = React.useMemo(() => {
     if (!contractData) return null
-    
+
     // Calculer l'âge si on a les données du membre
     const memberWithAge = memberData ? {
       ...memberData,
       age: calculateAge(memberData.birthDate)
     } : memberData
-    
+
     // Calculer la dernière date de paiement
     let lastPaymentDate = null
     if (contractData.firstPaymentDate && contractData.monthsPlanned) {
       try {
         const firstDate = new Date(contractData.firstPaymentDate)
         const lastDate = new Date(firstDate)
+        // Le dernier paiement est monthsPlanned mois après le premier
         lastDate.setMonth(lastDate.getMonth() + contractData.monthsPlanned)
         lastPaymentDate = lastDate
       } catch (error) {
         console.error('Erreur lors du calcul de la dernière date de paiement:', error)
       }
     }
-    
+
     return {
       ...contractData,
       member: memberWithAge,
@@ -92,10 +93,10 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
     const checkDevice = () => {
       setIsMobile(window.innerWidth < 1024) // lg breakpoint
     }
-    
+
     checkDevice()
     window.addEventListener('resize', checkDevice)
-    
+
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
@@ -191,99 +192,99 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
             <>
               {/* Version mobile */}
               <div className="lg:hidden h-full">
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 p-4">
-              {/* Icône et titre mobile */}
-              <div className="space-y-3">
-                <div className="mx-auto w-14 h-14 bg-gradient-to-br from-[#234D65] to-[#2c5a73] rounded-full flex items-center justify-center shadow-lg">
-                  <Smartphone className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">
-                    Prévisualisation mobile
-                  </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    Le contrat PDF est prêt ! Ouvrez-le dans votre navigateur ou téléchargez-le.
-                  </p>
-                </div>
-              </div>
-
-              {/* Informations du document mobile */}
-              <div className="bg-gray-50 rounded-lg p-3 w-full space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Document:</span>
-                  <span className="font-medium text-gray-900">Contrat Caisse Spéciale</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Contrat:</span>
-                  <span className="font-medium text-gray-900">#{contractId.slice(-6)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Pages:</span>
-                  <span className="font-medium text-gray-900">4 pages</span>
-                </div>
-              </div>
-
-              {/* Boutons d'action mobile */}
-              <BlobProvider document={<CaisseSpecialePDF contract={enrichedContract} />}>
-                {({ url, loading }) => (
-                  <div className="w-full space-y-2">
-                    <Button
-                      asChild
-                      disabled={loading || !url}
-                      className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
-                        <FileText className="w-4 h-4 mr-2" />
-                        Ouvrir dans le navigateur
-                      </a>
-                    </Button>
-                    
-                    <Button
-                      onClick={handleDownloadPDF}
-                      disabled={isExporting}
-                      variant="outline"
-                      className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
-                    >
-                      {isExporting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Téléchargement...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2" />
-                          Télécharger PDF
-                        </>
-                      )}
-                    </Button>
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-4 p-4">
+                  {/* Icône et titre mobile */}
+                  <div className="space-y-3">
+                    <div className="mx-auto w-14 h-14 bg-gradient-to-br from-[#234D65] to-[#2c5a73] rounded-full flex items-center justify-center shadow-lg">
+                      <Smartphone className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">
+                        Prévisualisation mobile
+                      </h3>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        Le contrat PDF est prêt ! Ouvrez-le dans votre navigateur ou téléchargez-le.
+                      </p>
+                    </div>
                   </div>
-                )}
-              </BlobProvider>
 
-              {/* Aide mobile */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
-                <div className="flex items-start gap-2">
-                  <Monitor className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    <strong>Astuce:</strong> Pour une meilleure expérience de visualisation, 
-                    utilisez un ordinateur ou une tablette.
-                  </p>
+                  {/* Informations du document mobile */}
+                  <div className="bg-gray-50 rounded-lg p-3 w-full space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Document:</span>
+                      <span className="font-medium text-gray-900">Contrat Caisse Spéciale</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Contrat:</span>
+                      <span className="font-medium text-gray-900">#{contractId.slice(-6)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Pages:</span>
+                      <span className="font-medium text-gray-900">4 pages</span>
+                    </div>
+                  </div>
+
+                  {/* Boutons d'action mobile */}
+                  <BlobProvider document={<CaisseSpecialePDF contract={enrichedContract} />}>
+                    {({ url, loading }) => (
+                      <div className="w-full space-y-2">
+                        <Button
+                          asChild
+                          disabled={loading || !url}
+                          className="w-full h-11 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <a href={url ?? '#'} target="_blank" rel="noopener noreferrer">
+                            <FileText className="w-4 h-4 mr-2" />
+                            Ouvrir dans le navigateur
+                          </a>
+                        </Button>
+
+                        <Button
+                          onClick={handleDownloadPDF}
+                          disabled={isExporting}
+                          variant="outline"
+                          className="w-full h-11 border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300"
+                        >
+                          {isExporting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Téléchargement...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 mr-2" />
+                              Télécharger PDF
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </BlobProvider>
+
+                  {/* Aide mobile */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
+                    <div className="flex items-start gap-2">
+                      <Monitor className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-blue-700 leading-relaxed">
+                        <strong>Astuce:</strong> Pour une meilleure expérience de visualisation,
+                        utilisez un ordinateur ou une tablette.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Version desktop */}
-          <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
-            <PDFViewer style={{ 
-              width: '100%', 
-              height: '100%',
-              border: 'none',
-              borderRadius: '0.75rem'
-            }}>
-              <CaisseSpecialePDF contract={enrichedContract} />
-            </PDFViewer>
-          </div>
+              {/* Version desktop */}
+              <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
+                <PDFViewer style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  borderRadius: '0.75rem'
+                }}>
+                  <CaisseSpecialePDF contract={enrichedContract} />
+                </PDFViewer>
+              </div>
             </>
           )}
         </div>
