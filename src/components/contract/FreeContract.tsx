@@ -847,24 +847,13 @@ export default function FreeContract({ id }: Props) {
                             <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
                             <input
                               type="file"
-                              accept="image/*"
+                              accept="application/pdf"
                               onChange={async (e) => {
                                 const f = e.target.files?.[0]
                                 if (!f) { setRefundFile(undefined); return }
-                                if (!f.type.startsWith('image/')) { toast.error('La preuve doit être une image'); setRefundFile(undefined); return }
-                                try {
-                                  const mod = await import('@/lib/utils')
-                                  const dataUrl = await mod.compressImage(f, mod.IMAGE_COMPRESSION_PRESETS.document)
-                                  const res = await fetch(dataUrl)
-                                  const blob = await res.blob()
-                                  const webpFile = new File([blob], 'refund-proof.webp', { type: 'image/webp' })
-                                  setRefundFile(webpFile)
-                                  toast.success('Preuve compressée (WebP) prête')
-                                } catch (err) {
-                                  console.error(err)
-                                  toast.error('Échec de la compression de l\'image')
-                                  setRefundFile(undefined)
-                                }
+                                if (f.type !== 'application/pdf') { toast.error('La preuve doit être un fichier PDF'); setRefundFile(undefined); return }
+                                setRefundFile(f)
+                                toast.success('Preuve PDF sélectionnée')
                               }}
                               className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
                             />

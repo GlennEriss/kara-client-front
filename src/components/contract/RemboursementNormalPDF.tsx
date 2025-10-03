@@ -330,11 +330,19 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>ABANDON :</Text>
-              <Text style={styles.cell}>{contract?.status === 'RESCINDED' || contract?.status === 'EARLY_WITHDRAW_REQUESTED' ? 'OUI' : 'NON'}</Text>
+              <Text style={styles.cell}>
+                {contract?.status === 'RESCINDED' || 
+                 contract?.status === 'EARLY_WITHDRAW_REQUESTED' || 
+                 contract?.status === 'EARLY_REFUND_PENDING' ? 'OUI' : 'NON'}
+              </Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>DATE / ABAN :</Text>
-              <Text style={styles.cell}>{contract?.rescindedAt ? formatDate(contract.rescindedAt) : '—'}</Text>
+              <Text style={styles.cell}>
+                {contract?.rescindedAt ? formatDate(contract.rescindedAt) : 
+                 (contract?.status === 'EARLY_WITHDRAW_REQUESTED' || 
+                  contract?.status === 'EARLY_REFUND_PENDING') ? formatDate(new Date()) : '—'}
+              </Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>N. VERSEMENT :</Text>

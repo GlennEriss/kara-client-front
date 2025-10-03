@@ -606,30 +606,20 @@ export default function StandardContract({ id }: Props) {
                         <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="application/pdf"
                           onChange={async (e) => {
                             const f = e.target.files?.[0]
                             if (!f) {
                               setRefundFile(undefined)
                               return
                             }
-                            if (!f.type.startsWith("image/")) {
-                              toast.error("La preuve doit être une image")
+                            if (f.type !== "application/pdf") {
+                              toast.error("La preuve doit être un fichier PDF")
                               setRefundFile(undefined)
                               return
                             }
-                            try {
-                              const dataUrl = await compressImage(f, IMAGE_COMPRESSION_PRESETS.document)
-                              const res = await fetch(dataUrl)
-                              const blob = await res.blob()
-                              const webpFile = new File([blob], "refund-proof.webp", { type: "image/webp" })
-                              setRefundFile(webpFile)
-                              toast.success("Preuve compressée (WebP) prête")
-                            } catch (err) {
-                              console.error(err)
-                              toast.error("Échec de la compression de l'image")
-                              setRefundFile(undefined)
-                            }
+                            setRefundFile(f)
+                            toast.success("Preuve PDF sélectionnée")
                           }}
                           className="w-full rounded-lg border p-2 text-xs"
                           required
