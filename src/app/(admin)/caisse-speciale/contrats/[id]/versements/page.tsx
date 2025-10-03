@@ -416,9 +416,23 @@ export default function ContractPaymentsPage() {
 
                   {payment.paidAt && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                      <div className="flex items-center gap-2 text-sm text-green-700">
-                        <CheckCircle className="h-4 w-4" />
-                        <span>Payé le {new Date(payment.paidAt).toLocaleDateString('fr-FR')}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Payé le {new Date(payment.paidAt).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        {payment.time && (
+                          <div className="flex items-center gap-2 text-green-700">
+                            <Clock className="h-4 w-4" />
+                            <span>Heure: {payment.time}</span>
+                          </div>
+                        )}
+                        {payment.mode && (
+                          <div className="flex items-center gap-2 text-green-700">
+                            <DollarSign className="h-4 w-4" />
+                            <span>Mode: {payment.mode}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -438,23 +452,70 @@ export default function ContractPaymentsPage() {
                   {payment.contribs && payment.contribs.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Détail des contributions:</h4>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {payment.contribs.map((contrib, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
-                            <span className="text-gray-600">Membre {contrib.memberId}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{contrib.amount?.toLocaleString()} FCFA</span>
-                              <span className={`px-2 py-1 rounded-full text-xs ${
+                          <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-900">Membre {contrib.memberId}</span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 contrib.paidAt ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                               }`}>
                                 {contrib.paidAt ? 'Payé' : 'En attente'}
                               </span>
                             </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-3 w-3" />
+                                <span>Montant: {contrib.amount?.toLocaleString()} FCFA</span>
+                              </div>
+                              
+                              {contrib.paidAt && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>Payé le {(() => {
+                                    try {
+                                      // Gérer les Timestamps Firestore
+                                      const date = contrib.paidAt?.toDate ? contrib.paidAt.toDate() : new Date(contrib.paidAt)
+                                      return date.toLocaleDateString('fr-FR')
+                                    } catch (error) {
+                                      return 'Date invalide'
+                                    }
+                                  })()}</span>
+                                </div>
+                              )}
+                              
+                              {contrib.time && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3" />
+                                  <span>Heure: {contrib.time}</span>
+                                </div>
+                              )}
+                              
+                              {contrib.mode && (
+                                <div className="flex items-center gap-2">
+                                  <span>Mode: {contrib.mode}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {contrib.proofUrl && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                <a 
+                                  href={contrib.proofUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                >
+                                  Voir la preuve de paiement
+                                </a>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
-                                         </div>
-                   )}
+                    </div>
+                  )}
                  </div>
                )
                })}
