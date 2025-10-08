@@ -140,7 +140,7 @@ export default function FreeContract({ id }: Props) {
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   // Calculer les jours de retard et les pénalités
-  const calculateLatePaymentInfo = () => {
+  const calculateLatePaymentInfo = (): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
     if (!paymentDate || !data) return null
 
     const selectedPaymentDate = new Date(paymentDate)

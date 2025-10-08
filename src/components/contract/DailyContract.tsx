@@ -8,10 +8,11 @@ import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useGroupMembers } from '@/hooks/useMembers'
+import { useAuth } from '@/hooks/useAuth'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2 } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
@@ -33,7 +34,7 @@ type Props = { id: string }
 
 export default function DailyContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
-  
+  const { user } = useAuth()
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -67,24 +68,27 @@ export default function DailyContract({ id }: Props) {
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
+  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+
+  // Fonction pour recharger les remboursements
+  const reloadRefunds = React.useCallback(async () => {
+    if (id) {
+      try {
+        const refundsData = await listRefunds(id)
+        setRefunds(refundsData)
+      } catch (error) {
+        console.error('Error loading refunds:', error)
+      }
+    }
+  }, [id])
 
   // Load refunds from subcollection
   useEffect(() => {
-    const loadRefunds = async () => {
-      if (id) {
-        try {
-          const refundsData = await listRefunds(id)
-          setRefunds(refundsData)
-        } catch (error) {
-          console.error('Error loading refunds:', error)
-        }
-      }
-    }
-    loadRefunds()
-  }, [id])
+    reloadRefunds()
+  }, [reloadRefunds])
 
   // Calculer les jours de retard et les pénalités
-  const calculateLatePaymentInfo = (selectedDate: Date | null) => {
+  const calculateLatePaymentInfo = (selectedDate: Date | null): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
     if (!selectedDate || !data) return null
 
     const paymentDate = new Date(selectedDate)
@@ -381,11 +385,12 @@ export default function DailyContract({ id }: Props) {
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
-  const handlePdfUpload = (document: RefundDocument) => {
+  const handlePdfUpload = async (document: RefundDocument) => {
     // Le document est maintenant persisté dans la base de données
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
-    refetch()
+    await refetch()
+    await reloadRefunds() // Rafraîchir la liste des remboursements
   }
 
   const handleViewDocument = (refundId: string, document: RefundDocument) => {
@@ -401,6 +406,26 @@ export default function DailyContract({ id }: Props) {
   const handleOpenPdfModal = (refundId: string) => {
     setCurrentRefundId(refundId)
     setShowPdfModal(true)
+  }
+
+  const handleDeleteDocument = async (refundId: string) => {
+    try {
+      const { updateRefund } = await import('@/db/caisse/refunds.db')
+
+      await updateRefund(id, refundId, {
+        document: null,
+        updatedBy: user?.uid,
+        documentDeletedAt: new Date()
+      })
+
+      await reloadRefunds() // Rafraîchir la liste des remboursements
+      toast.success("Document supprimé avec succès")
+    } catch (error: any) {
+      console.error('Error deleting document:', error)
+      toast.error(error?.message || "Erreur lors de la suppression du document")
+    } finally {
+      setConfirmDeleteDocumentId(null)
+    }
   }
 
   const onDateClick = async (date: Date) => {
@@ -1003,15 +1028,35 @@ export default function DailyContract({ id }: Props) {
                                 Document de remboursement
                               </Button>
                               {r.document ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleViewDocument(r.id, r.document)}
-                                  className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Voir PDF
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleViewDocument(r.id, r.document)}
+                                    className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    Voir PDF
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOpenPdfModal(r.id)}
+                                    className="border-blue-300 text-blue-600 hover:bg-blue-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    Remplacer PDF
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setConfirmDeleteDocumentId(r.id)}
+                                    className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Supprimer
+                                  </Button>
+                                </>
                               ) : (
                                 <Button
                                   size="sm"
@@ -1034,6 +1079,7 @@ export default function DailyContract({ id }: Props) {
                                 try {
                                   await cancelEarlyRefund(id, r.id)
                                   await refetch()
+                                  await reloadRefunds() // Rafraîchir la liste des remboursements
                                   toast.success('Demande anticipée annulée')
                                 } catch (e: any) {
                                   toast.error(e?.message || 'Annulation impossible')
@@ -1069,6 +1115,7 @@ export default function DailyContract({ id }: Props) {
                             earlyRefundForm.reset(earlyRefundDefaultValues)
                             setConfirmPaidId(null)
                             await refetch()
+                            await reloadRefunds() // Rafraîchir la liste des remboursements
                             toast.success('Remboursement marqué payé')
                           } catch (error: any) {
                             toast.error(error?.message || 'Erreur lors du marquage')
@@ -2170,6 +2217,7 @@ export default function DailyContract({ id }: Props) {
                   await approveRefund(id, confirmApproveId)
                   setConfirmApproveId(null)
                   await refetch()
+                  await reloadRefunds() // Rafraîchir la liste des remboursements
                   toast.success('Remboursement approuvé')
                 }}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -2237,6 +2285,7 @@ export default function DailyContract({ id }: Props) {
                     }
 
                     await refetch()
+                    await reloadRefunds() // Rafraîchir la liste des remboursements
                     
                     setShowReasonModal(false)
                     setRefundType(null)
@@ -2280,6 +2329,30 @@ export default function DailyContract({ id }: Props) {
         />
       )}
 
+      {/* Modal de confirmation de suppression */}
+      {confirmDeleteDocumentId && (
+        <Dialog open={!!confirmDeleteDocumentId} onOpenChange={() => setConfirmDeleteDocumentId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression</DialogTitle>
+              <DialogDescription>
+                Voulez-vous vraiment supprimer ce document PDF ? Cette action est irréversible.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmDeleteDocumentId(null)}>
+                Annuler
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => handleDeleteDocument(confirmDeleteDocumentId)}
+              >
+                Supprimer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Modal PDF Remboursement */}
       <RemboursementNormalPDFModal

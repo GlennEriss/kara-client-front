@@ -132,20 +132,22 @@ export default function StandardContract({ id }: Props) {
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
 
-  // Load refunds from subcollection
-  useEffect(() => {
-    const loadRefunds = async () => {
-      if (id) {
-        try {
-          const refundsData = await listRefunds(id)
-          setRefunds(refundsData)
-        } catch (error) {
-          console.error('Error loading refunds:', error)
-        }
+  // Fonction pour recharger les remboursements
+  const reloadRefunds = React.useCallback(async () => {
+    if (id) {
+      try {
+        const refundsData = await listRefunds(id)
+        setRefunds(refundsData)
+      } catch (error) {
+        console.error('Error loading refunds:', error)
       }
     }
-    loadRefunds()
   }, [id])
+
+  // Load refunds from subcollection
+  useEffect(() => {
+    reloadRefunds()
+  }, [reloadRefunds])
 
   function paymentStatusLabel(s: string): string {
     const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }
@@ -212,7 +214,7 @@ export default function StandardContract({ id }: Props) {
   const nextDueMonthIndex = getNextDueMonthIndex()
 
   // Calculer les jours de retard et les pénalités
-  const calculateLatePaymentInfo = () => {
+  const calculateLatePaymentInfo = (): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
     const selectedDate = watchedValues.paymentDate
     if (!selectedDate) return null
 
@@ -261,14 +263,7 @@ export default function StandardContract({ id }: Props) {
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
     await refetch()
-
-    // Rafraîchir explicitement la liste des remboursements
-    try {
-      const refundsData = await listRefunds(id)
-      setRefunds(refundsData)
-    } catch (error) {
-      console.error('Error refreshing refunds after PDF upload:', error)
-    }
+    await reloadRefunds() // Rafraîchir la liste des remboursements
   }
 
   const handleViewDocument = async (refundId: string, document: RefundDocument) => {
@@ -296,14 +291,7 @@ export default function StandardContract({ id }: Props) {
         documentDeletedAt: new Date()
       })
 
-      // Rafraîchir explicitement la liste des remboursements
-      try {
-        const refundsData = await listRefunds(id)
-        setRefunds(refundsData)
-      } catch (error) {
-        console.error('Error refreshing refunds after document deletion:', error)
-      }
-
+      await reloadRefunds() // Rafraîchir la liste des remboursements
       toast.success("Document supprimé avec succès")
     } catch (error: any) {
       console.error('Error deleting document:', error)
@@ -359,13 +347,7 @@ export default function StandardContract({ id }: Props) {
         contractData={data}
         onPaymentSuccess={async () => {
           await refetch()
-          // Rafraîchir la liste des remboursements
-          try {
-            const refundsData = await listRefunds(id)
-            setRefunds(refundsData)
-          } catch (error) {
-            console.error('Error refreshing refunds:', error)
-          }
+          await reloadRefunds() // Rafraîchir la liste des remboursements
         }}
       />
       <Form {...(form as any)}>
@@ -641,15 +623,7 @@ export default function StandardContract({ id }: Props) {
                           try {
                             await cancelEarlyRefund(id, r.id)
                             await refetch()
-
-                            // Rafraîchir explicitement la liste des remboursements
-                            try {
-                              const refundsData = await listRefunds(id)
-                              setRefunds(refundsData)
-                            } catch (error) {
-                              console.error('Error refreshing refunds:', error)
-                            }
-
+                            await reloadRefunds() // Rafraîchir la liste des remboursements
                             toast.success("Demande anticipée annulée")
                           } catch (e: any) {
                             toast.error(e?.message || "Annulation impossible")
@@ -761,15 +735,7 @@ export default function StandardContract({ id }: Props) {
                           setRefundFile(undefined)
                           setConfirmPaidId(null)
                           await refetch()
-
-                          // Rafraîchir explicitement la liste des remboursements
-                          try {
-                            const refundsData = await listRefunds(id)
-                            setRefunds(refundsData)
-                          } catch (error) {
-                            console.error('Error refreshing refunds:', error)
-                          }
-
+                          await reloadRefunds() // Rafraîchir la liste des remboursements
                           toast.success("Remboursement marqué payé")
                         } catch (error: any) {
                           toast.error(error?.message || "Erreur lors du marquage")
@@ -846,14 +812,7 @@ export default function StandardContract({ id }: Props) {
                     }
 
                     await refetch()
-
-                    // Rafraîchir la liste des remboursements
-                    try {
-                      const refundsData = await listRefunds(id)
-                      setRefunds(refundsData)
-                    } catch (error) {
-                      console.error('Error refreshing refunds:', error)
-                    }
+                    await reloadRefunds() // Rafraîchir la liste des remboursements
 
                     setShowReasonModal(false)
                     setRefundType(null)
@@ -890,15 +849,7 @@ export default function StandardContract({ id }: Props) {
                   await approveRefund(id, confirmApproveId)
                   setConfirmApproveId(null)
                   await refetch()
-
-                  // Rafraîchir explicitement la liste des remboursements
-                  try {
-                    const refundsData = await listRefunds(id)
-                    setRefunds(refundsData)
-                  } catch (error) {
-                    console.error('Error refreshing refunds:', error)
-                  }
-
+                  await reloadRefunds() // Rafraîchir la liste des remboursements
                   toast.success("Remboursement approuvé")
                 }}
               >
