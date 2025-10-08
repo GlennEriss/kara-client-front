@@ -221,6 +221,9 @@ export default function StandardContract({ id }: Props) {
     today.setHours(0, 0, 0, 0)
     paymentDate.setHours(0, 0, 0, 0)
 
+    // Si le versement est enregistré pour une date future, pas de pénalité
+    if (paymentDate > today) return null
+
     // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
     let referenceDate: Date
     if (data.nextDueAt) {

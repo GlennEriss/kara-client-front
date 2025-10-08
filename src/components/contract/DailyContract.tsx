@@ -90,13 +90,19 @@ export default function DailyContract({ id }: Props) {
     const paymentDate = new Date(selectedDate)
     paymentDate.setHours(0, 0, 0, 0)
 
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    // Si le versement est enregistré pour une date future, pas de pénalité
+    if (paymentDate > today) return null
+
     // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
     let referenceDate: Date
     if (data.nextDueAt) {
       referenceDate = new Date(data.nextDueAt)
     } else {
       // Premier versement : utiliser contractStartAt
-      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : new Date()
+      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : today
     }
     referenceDate.setHours(0, 0, 0, 0)
 

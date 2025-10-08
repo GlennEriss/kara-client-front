@@ -194,9 +194,24 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   if (!payment) throw new Error('Échéance introuvable')
 
   const now = input.paidAt ? new Date(input.paidAt) : new Date()
+  const actualToday = new Date() // Date actuelle réelle
+  actualToday.setHours(0, 0, 0, 0)
+  now.setHours(0, 0, 0, 0)
+  
   // Si pas de dueAt (premier paiement avant start), considérer dueAt = now pour éviter pénalité
   const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
-  const { window, delayDays } = computeDueWindow(dueAt, now)
+  
+  // Ne calculer les pénalités que si le versement n'est pas pour une date future
+  let window: 'LATE_NO_PENALTY' | 'LATE_WITH_PENALTY' | 'DEFAULTED_AFTER_J12' = 'LATE_NO_PENALTY'
+  let delayDays = 0
+  
+  if (now <= actualToday) {
+    // Le versement est pour aujourd'hui ou dans le passé : calculer les pénalités normalement
+    const result = computeDueWindow(dueAt, now)
+    window = result.window
+    delayDays = result.delayDays
+  }
+  // Sinon (versement futur), pas de pénalités : window reste 'LATE_NO_PENALTY' et delayDays reste 0
 
   if (delayDays > 12) {
     // Refus et résiliation
@@ -670,8 +685,23 @@ export async function payGroup(input: {
   if (!payment) throw new Error('Échéance introuvable')
 
   const now = input.paidAt ? new Date(input.paidAt) : new Date()
+  const actualToday = new Date() // Date actuelle réelle
+  actualToday.setHours(0, 0, 0, 0)
+  now.setHours(0, 0, 0, 0)
+  
   const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
-  const { window, delayDays } = computeDueWindow(dueAt, now)
+  
+  // Ne calculer les pénalités que si le versement n'est pas pour une date future
+  let window: 'LATE_NO_PENALTY' | 'LATE_WITH_PENALTY' | 'DEFAULTED_AFTER_J12' = 'LATE_NO_PENALTY'
+  let delayDays = 0
+  
+  if (now <= actualToday) {
+    // Le versement est pour aujourd'hui ou dans le passé : calculer les pénalités normalement
+    const result = computeDueWindow(dueAt, now)
+    window = result.window
+    delayDays = result.delayDays
+  }
+  // Sinon (versement futur), pas de pénalités : window reste 'LATE_NO_PENALTY' et delayDays reste 0
 
   if (delayDays > 12) {
     // Refus et résiliation
