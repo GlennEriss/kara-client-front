@@ -294,10 +294,11 @@ export const earlyRefundSchema = z.object({
   ])
     .refine((file) => {
       if (!file) return false
-      if (!file.type.startsWith('image/')) return false
-      if (file.size > 5 * 1024 * 1024) return false // 5MB max
+      // Accepter les images et les PDFs
+      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') return false
+      if (file.size > 20 * 1024 * 1024) return false // 20MB max
       return true
-    }, 'Une preuve image est requise (JPEG, PNG, WebP, max 5MB)')
+    }, 'Une preuve est requise (JPEG, PNG, WebP, PDF, max 20MB)')
 })
 
 export type EarlyRefundFormData = z.infer<typeof earlyRefundSchema>

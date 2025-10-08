@@ -1200,7 +1200,12 @@ export default function DailyContract({ id }: Props) {
                             type="submit"
                             size="sm"
                             className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                            disabled={!earlyRefundForm.formState.isValid || earlyRefundForm.formState.isSubmitting}
+                            disabled={
+                              earlyRefundForm.formState.isSubmitting ||
+                              !earlyRefundForm.watch('withdrawalDate') ||
+                              !earlyRefundForm.watch('withdrawalTime') ||
+                              !earlyRefundForm.watch('proof')
+                            }
                           >
                             {earlyRefundForm.formState.isSubmitting ? 'Traitement...' : 'Marquer payé'}
                           </Button>
@@ -1359,11 +1364,22 @@ export default function DailyContract({ id }: Props) {
               <Input
                 id="proof"
                 type="file"
-                accept="image/*"
-                onChange={(e) => setPaymentFile(e.target.files?.[0])}
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file && file.size > 20 * 1024 * 1024) {
+                    toast.error('Le fichier ne doit pas dépasser 20 MB')
+                    e.target.value = ''
+                    return
+                  }
+                  setPaymentFile(file)
+                }}
                 required
                 className="w-full"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Formats acceptés : JPEG, PNG, WebP, PDF (max 20 MB)
+              </p>
             </div>
 
             {/* Indicateur de retard et pénalités */}
@@ -1816,10 +1832,21 @@ export default function DailyContract({ id }: Props) {
                 <Input
                   id="edit-proof"
                   type="file"
-                  accept="image/*"
-                  onChange={(e) => setPaymentFile(e.target.files?.[0])}
+                  accept="image/*,application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file && file.size > 20 * 1024 * 1024) {
+                      toast.error('Le fichier ne doit pas dépasser 20 MB')
+                      e.target.value = ''
+                      return
+                    }
+                    setPaymentFile(file)
+                  }}
                   className="w-full mt-1"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Formats acceptés : JPEG, PNG, WebP, PDF (max 20 MB)
+                </p>
                 {editingContribution?.proofUrl && (
                   <p className="text-xs text-gray-500 mt-1">
                     Preuve actuelle conservée si aucune nouvelle n'est fournie
@@ -2008,13 +2035,21 @@ export default function DailyContract({ id }: Props) {
                 <Input
                   id="late-proof"
                   type="file"
-                  accept="image/*"
-                  onChange={(e) => setPaymentFile(e.target.files?.[0])}
+                  accept="image/*,application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file && file.size > 20 * 1024 * 1024) {
+                      toast.error('Le fichier ne doit pas dépasser 20 MB')
+                      e.target.value = ''
+                      return
+                    }
+                    setPaymentFile(file)
+                  }}
                   required
                   className="w-full mt-1"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Capture d'écran ou photo de la transaction
+                  Formats acceptés : JPEG, PNG, WebP, PDF (max 20 MB)
                 </p>
               </div>
 
