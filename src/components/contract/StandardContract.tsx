@@ -42,6 +42,7 @@ import { StandardContractMediator } from "@/mediators/StandardContractMediator"
 import { useStandardContractForm } from "@/hooks/contract/standard"
 import type { RefundDocument } from "@/types/types"
 import { Form } from "../ui/form"
+import TestPaymentTools from "./TestPaymentTools"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -171,7 +172,7 @@ export default function StandardContract({ id }: Props) {
     )
   if (!data) return <div className="p-6">Contrat introuvable</div>
 
-  const isClosed = data.status === "CLOSED"
+  const isClosed = data.status === "CLOSED" || data.status === "RESCINDED"
 
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
@@ -209,6 +210,48 @@ export default function StandardContract({ id }: Props) {
   }
 
   const nextDueMonthIndex = getNextDueMonthIndex()
+
+  // Calculer les jours de retard et les pénalités
+  const calculateLatePaymentInfo = () => {
+    const selectedDate = watchedValues.paymentDate
+    if (!selectedDate) return null
+
+    const paymentDate = new Date(selectedDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    paymentDate.setHours(0, 0, 0, 0)
+
+    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
+    let referenceDate: Date
+    if (data.nextDueAt) {
+      referenceDate = new Date(data.nextDueAt)
+    } else {
+      // Premier versement : utiliser contractStartAt
+      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : today
+    }
+    referenceDate.setHours(0, 0, 0, 0)
+
+    // Calculer le nombre de jours de retard
+    const diffTime = paymentDate.getTime() - referenceDate.getTime()
+    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (daysLate <= 0) return null
+
+    // Calculer les pénalités (à partir du 4ème jour)
+    let penalty = 0
+    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
+      const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
+      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
+    }
+
+    return {
+      daysLate,
+      penalty,
+      hasPenalty: daysLate >= 4
+    }
+  }
+
+  const latePaymentInfo = calculateLatePaymentInfo()
 
   const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
@@ -306,6 +349,22 @@ export default function StandardContract({ id }: Props) {
         <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${(data.penaltiesTotal || 0).toLocaleString("fr-FR")} FCFA`} accent="red" />
         <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
       </div>
+
+      {/* Outils de test (DEV uniquement) */}
+      <TestPaymentTools 
+        contractId={id}
+        contractData={data}
+        onPaymentSuccess={async () => {
+          await refetch()
+          // Rafraîchir la liste des remboursements
+          try {
+            const refundsData = await listRefunds(id)
+            setRefunds(refundsData)
+          } catch (error) {
+            console.error('Error refreshing refunds:', error)
+          }
+        }}
+      />
       <Form {...(form as any)}>
         <form method="POST" onSubmit={form.handleSubmit(onPay)}>
           {/* Calendrier des échéances */}
@@ -347,6 +406,49 @@ export default function StandardContract({ id }: Props) {
                  <AmountForm />
                )}
             </div>
+
+               {/* Indicateur de retard et pénalités */}
+               {latePaymentInfo && (
+                 <div className={`rounded-xl p-4 border-2 ${
+                   latePaymentInfo.hasPenalty 
+                     ? 'bg-red-50 border-red-300' 
+                     : 'bg-orange-50 border-orange-300'
+                 }`}>
+                   <div className="flex items-start gap-3">
+                     <AlertTriangle className={`h-5 w-5 mt-0.5 ${
+                       latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                     }`} />
+                     <div className="flex-1">
+                       <h4 className={`font-semibold ${
+                         latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                       }`}>
+                         Paiement en retard
+                       </h4>
+                       <p className={`text-sm mt-1 ${
+                         latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                       }`}>
+                         Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
+                       </p>
+                       {latePaymentInfo.hasPenalty && (
+                         <div className="mt-2 p-3 bg-red-100 rounded-lg border border-red-200">
+                           <p className="text-sm font-bold text-red-900">
+                             Pénalités à payer : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
+                           </p>
+                           <p className="text-xs text-red-700 mt-1">
+                             Les pénalités sont automatiquement appliquées à partir du 4ème jour
+                           </p>
+                         </div>
+                       )}
+                       {!latePaymentInfo.hasPenalty && (
+                         <p className="text-xs text-orange-700 mt-2">
+                           ⚠️ Période de tolérance (jours 1-3). Aucune pénalité appliquée.
+                         </p>
+                       )}
+                     </div>
+                   </div>
+                 </div>
+               )}
+
                {/* Preuve */}
                <ProofFileForm 
                  disabled={isClosed}

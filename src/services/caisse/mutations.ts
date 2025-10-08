@@ -243,6 +243,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Construire updates du paiement
   const paymentUpdates: any = {
     penaltyApplied: penalty || 0,
+    penaltyDays: delayDays > 0 ? delayDays : 0, // Nombre de jours de retard
     proofUrl: proofUrl || payment.proofUrl,
     updatedAt: new Date(),
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
@@ -260,6 +261,8 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       time: input.time,
       mode: input.mode,
       memberId: input.memberId, // Ajouter l'ID du membre du groupe
+      penalty: penalty || 0, // Montant de la pénalité pour cette contribution
+      penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
       createdAt: new Date()
     }
     const existing = Array.isArray(payment.contribs) ? payment.contribs : []
@@ -677,6 +680,13 @@ export async function payGroup(input: {
     return { status: 'RESCINDED' }
   }
 
+  // Calculer les pénalités pour cette contribution
+  const settings = await getActiveSettings((contract as any).caisseType)
+  let penalty = 0
+  if (window === 'LATE_WITH_PENALTY') {
+    penalty = computePenalty(contract.monthlyAmount, delayDays, settings as any)
+  }
+
   let proofUrl: string | undefined
   if (input.file) {
     const location = `caisse/${input.contractId}/payments/${payment.id}/contributions`
@@ -702,6 +712,8 @@ export async function payGroup(input: {
     time: input.time,
     mode: input.mode,
     proofUrl,
+    penalty: penalty || 0, // Montant de la pénalité pour cette contribution
+    penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
     createdAt: now,
     updatedAt: now
   }
@@ -718,6 +730,8 @@ export async function payGroup(input: {
     isGroupPayment: true,
     groupContributions: updatedContributions,
     accumulatedAmount: newTotalAmount,
+    penaltyApplied: (payment.penaltyApplied || 0) + penalty, // Cumuler les pénalités
+    penaltyDays: delayDays > 0 ? delayDays : (payment.penaltyDays || 0), // Garder le plus récent
     updatedAt: new Date(),
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
     // Enregistrer les informations de paiement (du dernier contributeur)

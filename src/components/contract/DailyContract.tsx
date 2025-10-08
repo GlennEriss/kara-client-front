@@ -17,6 +17,7 @@ import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import type { RefundDocument } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
+import TestPaymentTools from './TestPaymentTools'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -82,6 +83,45 @@ export default function DailyContract({ id }: Props) {
     loadRefunds()
   }, [id])
 
+  // Calculer les jours de retard et les pénalités
+  const calculateLatePaymentInfo = (selectedDate: Date | null) => {
+    if (!selectedDate || !data) return null
+
+    const paymentDate = new Date(selectedDate)
+    paymentDate.setHours(0, 0, 0, 0)
+
+    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
+    let referenceDate: Date
+    if (data.nextDueAt) {
+      referenceDate = new Date(data.nextDueAt)
+    } else {
+      // Premier versement : utiliser contractStartAt
+      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : new Date()
+    }
+    referenceDate.setHours(0, 0, 0, 0)
+
+    // Calculer le nombre de jours de retard
+    const diffTime = paymentDate.getTime() - referenceDate.getTime()
+    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (daysLate <= 0) return null
+
+    // Calculer les pénalités (à partir du 4ème jour)
+    let penalty = 0
+    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
+      const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
+      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
+    }
+
+    return {
+      daysLate,
+      penalty,
+      hasPenalty: daysLate >= 4
+    }
+  }
+
+  const latePaymentInfo = calculateLatePaymentInfo(selectedDate)
+
   // Synchroniser les valeurs existantes quand les données sont chargées
   useEffect(() => {
     if (data && refunds.length > 0) {
@@ -121,7 +161,7 @@ export default function DailyContract({ id }: Props) {
   if (isError) return <div className="p-4 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
   if (!data) return <div className="p-4">Contrat introuvable</div>
 
-  const isClosed = data.status === 'CLOSED'
+  const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   // Récupérer les membres du groupe si c'est un contrat de groupe
@@ -586,6 +626,15 @@ export default function DailyContract({ id }: Props) {
             </Link>
           </div>
         </div>
+
+        {/* Outils de test (DEV uniquement) */}
+        <TestPaymentTools 
+          contractId={id}
+          contractData={data}
+          onPaymentSuccess={async () => {
+            await refetch()
+          }}
+        />
       </div>
 
       {/* Navigation du calendrier */}
@@ -1263,6 +1312,48 @@ export default function DailyContract({ id }: Props) {
                 className="w-full"
               />
             </div>
+
+            {/* Indicateur de retard et pénalités */}
+            {latePaymentInfo && (
+              <div className={`rounded-lg p-3 border-2 ${
+                latePaymentInfo.hasPenalty 
+                  ? 'bg-red-50 border-red-300' 
+                  : 'bg-orange-50 border-orange-300'
+              }`}>
+                <div className="flex items-start gap-2">
+                  <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
+                    latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                  }`} />
+                  <div className="flex-1">
+                    <h4 className={`font-semibold text-sm ${
+                      latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                    }`}>
+                      Paiement en retard
+                    </h4>
+                    <p className={`text-xs mt-1 ${
+                      latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                    }`}>
+                      Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
+                    </p>
+                    {latePaymentInfo.hasPenalty && (
+                      <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
+                        <p className="text-xs font-bold text-red-900">
+                          Pénalités : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
+                        </p>
+                        <p className="text-xs text-red-700 mt-0.5">
+                          Appliquées à partir du 4ème jour
+                        </p>
+                      </div>
+                    )}
+                    {!latePaymentInfo.hasPenalty && (
+                      <p className="text-xs text-orange-700 mt-1">
+                        ⚠️ Période de tolérance (jours 1-3)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
@@ -1873,6 +1964,51 @@ export default function DailyContract({ id }: Props) {
                   Capture d'écran ou photo de la transaction
                 </p>
               </div>
+
+              {/* Indicateur de retard et pénalités pour versement en retard */}
+              {(() => {
+                const lateInfo = calculateLatePaymentInfo(selectedDate)
+                return lateInfo ? (
+                  <div className={`rounded-lg p-3 border-2 ${
+                    lateInfo.hasPenalty 
+                      ? 'bg-red-50 border-red-300' 
+                      : 'bg-orange-50 border-orange-300'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
+                        lateInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                      }`} />
+                      <div className="flex-1">
+                        <h4 className={`font-semibold text-sm ${
+                          lateInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                        }`}>
+                          Paiement en retard
+                        </h4>
+                        <p className={`text-xs mt-1 ${
+                          lateInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                        }`}>
+                          Ce paiement est effectué avec <strong>{lateInfo.daysLate} jour(s) de retard</strong>
+                        </p>
+                        {lateInfo.hasPenalty && (
+                          <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
+                            <p className="text-xs font-bold text-red-900">
+                              Pénalités : {lateInfo.penalty.toLocaleString('fr-FR')} FCFA
+                            </p>
+                            <p className="text-xs text-red-700 mt-0.5">
+                              Appliquées à partir du 4ème jour
+                            </p>
+                          </div>
+                        )}
+                        {!lateInfo.hasPenalty && (
+                          <p className="text-xs text-orange-700 mt-1">
+                            ⚠️ Période de tolérance (jours 1-3)
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : null
+              })()}
 
               {/* Informations supplémentaires */}
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">

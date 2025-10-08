@@ -40,6 +40,7 @@ import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import type { RefundDocument } from '@/types/types'
+import TestPaymentTools from './TestPaymentTools'
 
 type Props = { id: string }
 
@@ -96,6 +97,45 @@ export default function FreeContract({ id }: Props) {
     loadRefunds()
   }, [id])
 
+  // Calculer les jours de retard et les pénalités
+  const calculateLatePaymentInfo = () => {
+    if (!paymentDate || !data) return null
+
+    const selectedPaymentDate = new Date(paymentDate)
+    selectedPaymentDate.setHours(0, 0, 0, 0)
+
+    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
+    let referenceDate: Date
+    if (data.nextDueAt) {
+      referenceDate = new Date(data.nextDueAt)
+    } else {
+      // Premier versement : utiliser contractStartAt
+      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : new Date()
+    }
+    referenceDate.setHours(0, 0, 0, 0)
+
+    // Calculer le nombre de jours de retard
+    const diffTime = selectedPaymentDate.getTime() - referenceDate.getTime()
+    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (daysLate <= 0) return null
+
+    // Calculer les pénalités (à partir du 4ème jour)
+    let penalty = 0
+    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
+      const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
+      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
+    }
+
+    return {
+      daysLate,
+      penalty,
+      hasPenalty: daysLate >= 4
+    }
+  }
+
+  const latePaymentInfo = calculateLatePaymentInfo()
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -130,7 +170,7 @@ export default function FreeContract({ id }: Props) {
     )
   }
 
-  const isClosed = data.status === 'CLOSED'
+  const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   function paymentStatusLabel(s: string): string {
@@ -330,6 +370,15 @@ export default function FreeContract({ id }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Outils de test (DEV uniquement) */}
+        <TestPaymentTools 
+          contractId={id}
+          contractData={data}
+          onPaymentSuccess={async () => {
+            await refetch()
+          }}
+        />
 
         {/* Échéances de paiement */}
         <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
@@ -568,6 +617,48 @@ export default function FreeContract({ id }: Props) {
                   </div>
                 </div>
                 
+                {/* Indicateur de retard et pénalités */}
+                {latePaymentInfo && (
+                  <div className={`rounded-xl p-4 border-2 ${
+                    latePaymentInfo.hasPenalty 
+                      ? 'bg-red-50 border-red-300' 
+                      : 'bg-orange-50 border-orange-300'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
+                        latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                      }`} />
+                      <div className="flex-1">
+                        <h4 className={`font-semibold ${
+                          latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                        }`}>
+                          Paiement en retard
+                        </h4>
+                        <p className={`text-sm mt-1 ${
+                          latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                        }`}>
+                          Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
+                        </p>
+                        {latePaymentInfo.hasPenalty && (
+                          <div className="mt-3 p-3 bg-red-100 rounded-lg border border-red-200">
+                            <p className="text-sm font-bold text-red-900">
+                              Pénalités à payer : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
+                            </p>
+                            <p className="text-xs text-red-700 mt-1">
+                              Les pénalités sont automatiquement appliquées à partir du 4ème jour
+                            </p>
+                          </div>
+                        )}
+                        {!latePaymentInfo.hasPenalty && (
+                          <p className="text-xs text-orange-700 mt-2">
+                            ⚠️ Période de tolérance (jours 1-3). Aucune pénalité appliquée.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Preuve de paiement */}
                 <div>
                   <FileInput
@@ -669,7 +760,7 @@ export default function FreeContract({ id }: Props) {
                   setShowReasonModal(true)
                 }}
               >
-                <Download className="h-5 w-5" />
+                  <Download className="h-5 w-5" />
                 Demander retrait anticipé
               </button>
 
@@ -809,7 +900,7 @@ export default function FreeContract({ id }: Props) {
                               <p className="text-sm text-blue-900">{r.reason}</p>
                             </div>
                           )}
-
+                            
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-3">
                               <div>
@@ -1004,7 +1095,7 @@ export default function FreeContract({ id }: Props) {
                 <p className="text-gray-600 mb-6">Voulez-vous approuver ce remboursement ? Cette action permettra de procéder au paiement.</p>
                 <div className="flex gap-3">
                   <button 
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium" 
                     onClick={() => setConfirmApproveId(null)}
                   >
                     Annuler
@@ -1014,7 +1105,7 @@ export default function FreeContract({ id }: Props) {
                     onClick={async () => {
                       await approveRefund(id, confirmApproveId); 
                       setConfirmApproveId(null); 
-                      await refetch(); 
+                        await refetch(); 
                       toast.success('Remboursement approuvé')
                     }}
                   >
