@@ -146,12 +146,36 @@ export default function ContractsHistoryDetailsPage() {
                         }`}>
                           {contract.status}
                         </span>
-                        <Link
-                          href={routes.admin.caisseSpecialeContractDetails(contract.id)}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full hover:bg-blue-200 transition-colors"
-                        >
-                          Voir le contrat
-                        </Link>
+                        {(() => {
+                          // Vérifier si le contrat a un PDF valide
+                          const hasValidContractPdf = (contract: any) => {
+                            const contractPdf = contract.contractPdf
+                            if (!contractPdf || typeof contractPdf !== 'object') {
+                              return false
+                            }
+                            
+                            // Vérifier que toutes les propriétés requises sont présentes
+                            const requiredProperties = ['fileSize', 'originalFileName', 'path', 'uploadedAt', 'url']
+                            return requiredProperties.every(prop => contractPdf.hasOwnProperty(prop) && contractPdf[prop] !== null && contractPdf[prop] !== undefined)
+                          }
+
+                          if (hasValidContractPdf(contract)) {
+                            return (
+                              <Link
+                                href={routes.admin.caisseSpecialeContractDetails(contract.id)}
+                                className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full hover:bg-blue-200 transition-colors"
+                              >
+                                Voir le contrat
+                              </Link>
+                            )
+                          } else {
+                            return (
+                              <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full cursor-not-allowed">
+                                PDF requis
+                              </span>
+                            )
+                          }
+                        })()}
                         <Link
                           href={routes.admin.caisseSpecialeContractPayments(contract.id)}
                           className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full hover:bg-green-200 transition-colors"

@@ -14,10 +14,22 @@ export async function getActiveSettings(type?: CaisseType) {
 }
 
 export async function createSettings(input: any) {
-  const { db, collection, addDoc, serverTimestamp } = await getFirestore() as any
+  const { db, collection, doc, setDoc, serverTimestamp } = await getFirestore() as any
   const colRef = collection(db, firebaseCollectionNames.caisseSettings)
-  const ref = await addDoc(colRef, { ...input, createdAt: serverTimestamp() })
-  return ref.id
+  
+  // Si un ID personnalisé est fourni, l'utiliser comme ID du document
+  if (input.id) {
+    const customId = input.id
+    const docRef = doc(colRef, customId)
+    const { id, ...dataWithoutId } = input
+    await setDoc(docRef, { ...dataWithoutId, createdAt: serverTimestamp() })
+    return customId
+  } else {
+    // Méthode originale avec addDoc pour générer un ID automatique
+    const { addDoc } = await getFirestore() as any
+    const ref = await addDoc(colRef, { ...input, createdAt: serverTimestamp() })
+    return ref.id
+  }
 }
 
 export async function listSettings() {
@@ -40,16 +52,52 @@ export async function updateSettings(id: string, updates: any) {
 }
 
 export async function activateSettings(id: string) {
-  const { db, collection, getDocs, query, doc, writeBatch, getDoc, where } = await getFirestore() as any
+  const { db, collection, getDocs, query, doc, writeBatch, getDoc, where, serverTimestamp } = await getFirestore() as any
   const colRef = collection(db, firebaseCollectionNames.caisseSettings)
+  
+  console.log(`🔍 [activateSettings] Début de l'activation pour ID: ${id}`)
+  
   const current = await getDoc(doc(db, firebaseCollectionNames.caisseSettings, id))
-  const type = current.exists() ? (current.data()?.caisseType || null) : null
-  const snap = await getDocs(type ? query(colRef, where('caisseType', '==', type)) : query(colRef))
-  const batch = writeBatch(db)
-  snap.docs.forEach((d: any) => {
-    batch.update(doc(db, firebaseCollectionNames.caisseSettings, d.id), { isActive: d.id === id })
+  
+  if (!current.exists()) {
+    console.error(`❌ [activateSettings] Version ${id} introuvable dans Firestore`)
+    throw new Error(`Version ${id} introuvable`)
+  }
+  
+  const currentData = current.data()
+  const type = currentData?.caisseType || 'STANDARD'
+  
+  console.log(`📋 [activateSettings] Version trouvée:`, {
+    id,
+    caisseType: type,
+    isActive: currentData?.isActive,
+    effectiveAt: currentData?.effectiveAt
   })
+  
+  // Ne récupérer QUE les versions du même type de caisse
+  const snap = await getDocs(query(colRef, where('caisseType', '==', type)))
+  
+  console.log(`📊 [activateSettings] ${snap.docs.length} version(s) trouvée(s) pour le type ${type}:`)
+  snap.docs.forEach((d: any) => {
+    console.log(`  - ${d.id}: isActive=${d.data().isActive}`)
+  })
+  
+  const batch = writeBatch(db)
+  
+  // Désactiver toutes les versions du même type, activer uniquement celle sélectionnée
+  snap.docs.forEach((d: any) => {
+    const newStatus = d.id === id
+    console.log(`  ${newStatus ? '✅' : '❌'} ${d.id} -> isActive: ${newStatus}`)
+    batch.update(doc(db, firebaseCollectionNames.caisseSettings, d.id), { 
+      isActive: newStatus,
+      updatedAt: serverTimestamp()
+    })
+  })
+  
   await batch.commit()
+  
+  console.log(`✅ [activateSettings] Version ${id} activée pour le type ${type}. ${snap.docs.length - 1} autre(s) version(s) désactivée(s).`)
+  
   return true
 }
 

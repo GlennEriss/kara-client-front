@@ -194,9 +194,24 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   if (!payment) throw new Error('Échéance introuvable')
 
   const now = input.paidAt ? new Date(input.paidAt) : new Date()
+  const actualToday = new Date() // Date actuelle réelle
+  actualToday.setHours(0, 0, 0, 0)
+  now.setHours(0, 0, 0, 0)
+  
   // Si pas de dueAt (premier paiement avant start), considérer dueAt = now pour éviter pénalité
   const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
-  const { window, delayDays } = computeDueWindow(dueAt, now)
+  
+  // Ne calculer les pénalités que si le versement n'est pas pour une date future
+  let window: 'LATE_NO_PENALTY' | 'LATE_WITH_PENALTY' | 'DEFAULTED_AFTER_J12' = 'LATE_NO_PENALTY'
+  let delayDays = 0
+  
+  if (now <= actualToday) {
+    // Le versement est pour aujourd'hui ou dans le passé : calculer les pénalités normalement
+    const result = computeDueWindow(dueAt, now)
+    window = result.window
+    delayDays = result.delayDays
+  }
+  // Sinon (versement futur), pas de pénalités : window reste 'LATE_NO_PENALTY' et delayDays reste 0
 
   if (delayDays > 12) {
     // Refus et résiliation
@@ -243,6 +258,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Construire updates du paiement
   const paymentUpdates: any = {
     penaltyApplied: penalty || 0,
+    penaltyDays: delayDays > 0 ? delayDays : 0, // Nombre de jours de retard
     proofUrl: proofUrl || payment.proofUrl,
     updatedAt: new Date(),
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
@@ -260,6 +276,8 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       time: input.time,
       mode: input.mode,
       memberId: input.memberId, // Ajouter l'ID du membre du groupe
+      penalty: penalty || 0, // Montant de la pénalité pour cette contribution
+      penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
       createdAt: new Date()
     }
     const existing = Array.isArray(payment.contribs) ? payment.contribs : []
@@ -322,7 +340,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   return { status, penalty, bonus, nextDueAt }
 }
 
-export async function requestFinalRefund(contractId: string) {
+export async function requestFinalRefund(contractId: string, reason?: string) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
   // Vérifier que tout est payé
@@ -351,7 +369,7 @@ export async function requestFinalRefund(contractId: string) {
     amountBonus = (amountNominal || 0) * (Number(bonusRate) / 100)
   }
   const deadlineAt = c.contractEndAt ? new Date(new Date(c.contractEndAt).getTime() + 30*86400000) : new Date()
-  await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING' })
+  await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING', reason: reason || '' })
   return true
 }
 
@@ -667,14 +685,36 @@ export async function payGroup(input: {
   if (!payment) throw new Error('Échéance introuvable')
 
   const now = input.paidAt ? new Date(input.paidAt) : new Date()
+  const actualToday = new Date() // Date actuelle réelle
+  actualToday.setHours(0, 0, 0, 0)
+  now.setHours(0, 0, 0, 0)
+  
   const dueAt = payment.dueAt ? (typeof (payment.dueAt as any)?.toDate === 'function' ? (payment.dueAt as any).toDate() : new Date(payment.dueAt)) : now
-  const { window, delayDays } = computeDueWindow(dueAt, now)
+  
+  // Ne calculer les pénalités que si le versement n'est pas pour une date future
+  let window: 'LATE_NO_PENALTY' | 'LATE_WITH_PENALTY' | 'DEFAULTED_AFTER_J12' = 'LATE_NO_PENALTY'
+  let delayDays = 0
+  
+  if (now <= actualToday) {
+    // Le versement est pour aujourd'hui ou dans le passé : calculer les pénalités normalement
+    const result = computeDueWindow(dueAt, now)
+    window = result.window
+    delayDays = result.delayDays
+  }
+  // Sinon (versement futur), pas de pénalités : window reste 'LATE_NO_PENALTY' et delayDays reste 0
 
   if (delayDays > 12) {
     // Refus et résiliation
     await updatePayment(input.contractId, payment.id, { status: 'REFUSED' })
     await updateContract(input.contractId, { status: 'RESCINDED' })
     return { status: 'RESCINDED' }
+  }
+
+  // Calculer les pénalités pour cette contribution
+  const settings = await getActiveSettings((contract as any).caisseType)
+  let penalty = 0
+  if (window === 'LATE_WITH_PENALTY') {
+    penalty = computePenalty(contract.monthlyAmount, delayDays, settings as any)
   }
 
   let proofUrl: string | undefined
@@ -702,6 +742,8 @@ export async function payGroup(input: {
     time: input.time,
     mode: input.mode,
     proofUrl,
+    penalty: penalty || 0, // Montant de la pénalité pour cette contribution
+    penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
     createdAt: now,
     updatedAt: now
   }
@@ -718,6 +760,8 @@ export async function payGroup(input: {
     isGroupPayment: true,
     groupContributions: updatedContributions,
     accumulatedAmount: newTotalAmount,
+    penaltyApplied: (payment.penaltyApplied || 0) + penalty, // Cumuler les pénalités
+    penaltyDays: delayDays > 0 ? delayDays : (payment.penaltyDays || 0), // Garder le plus récent
     updatedAt: new Date(),
     updatedBy: (auth?.currentUser?.uid) || input.memberId,
     // Enregistrer les informations de paiement (du dernier contributeur)

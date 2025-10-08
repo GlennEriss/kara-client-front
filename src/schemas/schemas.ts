@@ -273,11 +273,8 @@ export const defaultValues = {
 }
 
 // ================== EARLY REFUND SCHEMA ==================
+// Schema pour le formulaire de marquage comme payé (sans la cause qui est saisie à la création)
 export const earlyRefundSchema = z.object({
-  reason: z.string()
-    .min(10, 'La cause du retrait doit contenir au moins 10 caractères')
-    .max(500, 'La cause du retrait ne peut pas dépasser 500 caractères'),
-
   withdrawalDate: z.string()
     .min(1, 'La date du retrait est requise')
     .refine((date) => {
@@ -297,16 +294,16 @@ export const earlyRefundSchema = z.object({
   ])
     .refine((file) => {
       if (!file) return false
-      if (!file.type.startsWith('image/')) return false
-      if (file.size > 5 * 1024 * 1024) return false // 5MB max
+      // Accepter les images et les PDFs
+      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') return false
+      if (file.size > 20 * 1024 * 1024) return false // 20MB max
       return true
-    }, 'Une preuve image est requise (JPEG, PNG, WebP, max 5MB)')
+    }, 'Une preuve est requise (JPEG, PNG, WebP, PDF, max 20MB)')
 })
 
 export type EarlyRefundFormData = z.infer<typeof earlyRefundSchema>
 
 export const earlyRefundDefaultValues: EarlyRefundFormData = {
-  reason: '',
   withdrawalDate: new Date().toISOString().split('T')[0],
   withdrawalTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
   proof: undefined

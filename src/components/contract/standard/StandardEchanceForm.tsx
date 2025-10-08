@@ -179,7 +179,7 @@ export default function StandardEchanceForm({ payments, isClosed, contractData, 
                         <div>Échéance: {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}</div>
                         <div>Payé le: {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}</div>
                         {p.penaltyApplied ? (
-                          <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied}</div>
+                          <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied} FCFA</div>
                         ) : null}
                         
                         {/* Affichage du montant restant pour les contrats de groupe */}
