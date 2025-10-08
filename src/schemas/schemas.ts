@@ -273,11 +273,8 @@ export const defaultValues = {
 }
 
 // ================== EARLY REFUND SCHEMA ==================
+// Schema pour le formulaire de marquage comme payé (sans la cause qui est saisie à la création)
 export const earlyRefundSchema = z.object({
-  reason: z.string()
-    .min(10, 'La cause du retrait doit contenir au moins 10 caractères')
-    .max(500, 'La cause du retrait ne peut pas dépasser 500 caractères'),
-
   withdrawalDate: z.string()
     .min(1, 'La date du retrait est requise')
     .refine((date) => {
@@ -306,7 +303,6 @@ export const earlyRefundSchema = z.object({
 export type EarlyRefundFormData = z.infer<typeof earlyRefundSchema>
 
 export const earlyRefundDefaultValues: EarlyRefundFormData = {
-  reason: '',
   withdrawalDate: new Date().toISOString().split('T')[0],
   withdrawalTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
   proof: undefined

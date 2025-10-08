@@ -110,7 +110,6 @@ export default function StandardContract({ id }: Props) {
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
-  const [refundReason, setRefundReason] = useState("")
   const [refundDate, setRefundDate] = useState(() => new Date().toISOString().split("T")[0])
   const [refundTime, setRefundTime] = useState(() => {
     const now = new Date()
@@ -121,7 +120,6 @@ export default function StandardContract({ id }: Props) {
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
-  const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
@@ -129,6 +127,9 @@ export default function StandardContract({ id }: Props) {
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+  const [showReasonModal, setShowReasonModal] = useState(false)
+  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundReasonInput, setRefundReasonInput] = useState('')
 
   // Load refunds from subcollection
   useEffect(() => {
@@ -417,7 +418,11 @@ export default function StandardContract({ id }: Props) {
                     "hover:bg-slate-100 disabled:opacity-50"
                   )}
                   disabled={isRefunding || !allPaid || hasFinalRefund}
-                  onClick={() => setConfirmFinal(true)}
+                  onClick={() => {
+                    setRefundType('FINAL')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
+                  }}
                 >
                   Demander remboursement final
                 </button>
@@ -428,26 +433,10 @@ export default function StandardContract({ id }: Props) {
                     "hover:bg-slate-100 disabled:opacity-50"
                   )}
                   disabled={isRefunding || !canEarly || hasEarlyRefund}
-                  onClick={async () => {
-                    try {
-                      setIsRefunding(true)
-                      await requestEarlyRefund(id)
-                      await refetch()
-
-                      // Rafraîchir explicitement la liste des remboursements
-                      try {
-                        const refundsData = await listRefunds(id)
-                        setRefunds(refundsData)
-                      } catch (error) {
-                        console.error('Error refreshing refunds:', error)
-                      }
-
-                      toast.success("Retrait anticipé demandé")
-                    } catch (e: any) {
-                      toast.error(e?.message || "Action impossible")
-                    } finally {
-                      setIsRefunding(false)
-                    }
+                  onClick={() => {
+                    setRefundType('EARLY')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
                   }}
                 >
                   Demander retrait anticipé
@@ -570,18 +559,15 @@ export default function StandardContract({ id }: Props) {
 
                 {r.status === "APPROVED" && (
                   <div className="mt-2 w-full space-y-3 rounded-xl border bg-slate-50 p-3">
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Cause du retrait *</label>
-                        <textarea
-                          placeholder="Raison du retrait..."
-                          className="w-full resize-none rounded-lg border p-2 text-xs"
-                          rows={2}
-                          value={refundReason || r.reason || ""}
-                          onChange={(e) => setRefundReason(e.target.value)}
-                          required
-                        />
+                    {/* Affichage de la cause (non modifiable) */}
+                    {r.reason && (
+                      <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                        <p className="text-sm text-blue-900">{r.reason}</p>
                       </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       <div>
                         <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
                         <input
@@ -635,10 +621,9 @@ export default function StandardContract({ id }: Props) {
                       )}
                       disabled={(() => {
                         const hasFile = !!refundFile
-                        const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
                         const hasDate = refundDate || r.withdrawalDate
                         const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
-                        return !hasFile || !hasReason || !hasDate || !hasTime
+                        return !hasFile || !hasDate || !hasTime
                       })()}
                       onClick={async () => {
                         try {
@@ -662,11 +647,10 @@ export default function StandardContract({ id }: Props) {
                           }
 
                           await markRefundPaid(id, r.id, refundFile!, {
-                            reason: refundReason || r.reason,
+                            reason: r.reason,
                             withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
                             withdrawalTime: refundTime || r.withdrawalTime,
                           })
-                          setRefundReason("")
                           setRefundDate("")
                           setRefundTime("")
                           setRefundFile(undefined)
@@ -702,6 +686,90 @@ export default function StandardContract({ id }: Props) {
       </div>
 
       {/* Modales */}
+      {/* Modale de saisie de la cause du retrait */}
+      {showReasonModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border bg-white p-5 shadow-xl">
+            <div className="text-base font-semibold mb-4">
+              {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Cause du retrait *</label>
+                <textarea
+                  placeholder="Expliquez la raison du retrait..."
+                  className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65]"
+                  rows={4}
+                  value={refundReasonInput}
+                  onChange={(e) => setRefundReasonInput(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Cette information sera incluse dans le document de remboursement
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button 
+                className="rounded-lg border px-4 py-2 text-sm" 
+                onClick={() => {
+                  setShowReasonModal(false)
+                  setRefundType(null)
+                  setRefundReasonInput('')
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                className={classNames(
+                  "rounded-lg px-4 py-2 text-sm text-white",
+                  brand.bg,
+                  brand.hover,
+                  "disabled:opacity-50"
+                )}
+                disabled={!refundReasonInput.trim() || isRefunding}
+                onClick={async () => {
+                  try {
+                    setIsRefunding(true)
+                    
+                    if (refundType === 'FINAL') {
+                      await requestFinalRefund(id, refundReasonInput)
+                      toast.success('Remboursement final demandé')
+                    } else {
+                      await requestEarlyRefund(id, { reason: refundReasonInput })
+                      toast.success('Retrait anticipé demandé')
+                    }
+
+                    await refetch()
+
+                    // Rafraîchir la liste des remboursements
+                    try {
+                      const refundsData = await listRefunds(id)
+                      setRefunds(refundsData)
+                    } catch (error) {
+                      console.error('Error refreshing refunds:', error)
+                    }
+
+                    setShowReasonModal(false)
+                    setRefundType(null)
+                    setRefundReasonInput('')
+                    
+                    // Afficher le PDF de remboursement
+                    setShowRemboursementPdf(true)
+                  } catch (e: any) {
+                    toast.error(e?.message || "Action impossible")
+                  } finally {
+                    setIsRefunding(false)
+                  }
+                }}
+              >
+                {isRefunding ? 'Traitement...' : 'Confirmer et voir le PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmApproveId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
@@ -736,48 +804,6 @@ export default function StandardContract({ id }: Props) {
         </div>
       )}
 
-      {confirmFinal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
-            <div className="text-base font-semibold">Confirmer la demande</div>
-            <p className="mt-1 text-sm text-slate-600">
-              Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button className="rounded-lg border px-3 py-2 text-sm" onClick={() => setConfirmFinal(false)} disabled={isRefunding}>
-                Annuler
-              </button>
-              <button
-                className={classNames("rounded-lg px-3 py-2 text-sm text-white", brand.bg, brand.hover)}
-                onClick={async () => {
-                  try {
-                    setIsRefunding(true)
-                    await requestFinalRefund(id)
-                    await refetch()
-
-                    // Rafraîchir explicitement la liste des remboursements
-                    try {
-                      const refundsData = await listRefunds(id)
-                      setRefunds(refundsData)
-                    } catch (error) {
-                      console.error('Error refreshing refunds:', error)
-                    }
-
-                    toast.success("Remboursement final demandé")
-                  } catch (e: any) {
-                    toast.error(e?.message || "Action impossible")
-                  } finally {
-                    setIsRefunding(false)
-                    setConfirmFinal(false)
-                  }
-                }}
-              >
-                Confirmer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal PDF Document */}
       <PdfDocumentModal

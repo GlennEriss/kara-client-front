@@ -322,7 +322,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   return { status, penalty, bonus, nextDueAt }
 }
 
-export async function requestFinalRefund(contractId: string) {
+export async function requestFinalRefund(contractId: string, reason?: string) {
   const c = await getContract(contractId)
   if (!c) throw new Error('Contrat introuvable')
   // Vérifier que tout est payé
@@ -351,7 +351,7 @@ export async function requestFinalRefund(contractId: string) {
     amountBonus = (amountNominal || 0) * (Number(bonusRate) / 100)
   }
   const deadlineAt = c.contractEndAt ? new Date(new Date(c.contractEndAt).getTime() + 30*86400000) : new Date()
-  await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING' })
+  await addRefund(contractId, { type: 'FINAL', amountNominal, amountBonus, deadlineAt, status: 'PENDING', reason: reason || '' })
   return true
 }
 

@@ -62,7 +62,6 @@ export default function FreeContract({ id }: Props) {
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
-  const [refundReason, setRefundReason] = useState('')
   const [refundDate, setRefundDate] = useState(() => {
     return new Date().toISOString().split('T')[0]
   })
@@ -72,13 +71,15 @@ export default function FreeContract({ id }: Props) {
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
-  const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
+  const [showReasonModal, setShowReasonModal] = useState(false)
+  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundReasonInput, setRefundReasonInput] = useState('')
 
   // Load refunds from subcollection
   useEffect(() => {
@@ -649,7 +650,11 @@ export default function FreeContract({ id }: Props) {
               <button 
                 className="flex items-center justify-center gap-2 px-6 py-3 border border-indigo-300 text-indigo-700 rounded-xl hover:bg-indigo-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
                 disabled={isRefunding || !allPaid || hasFinalRefund} 
-                onClick={() => setConfirmFinal(true)}
+                onClick={() => {
+                  setRefundType('FINAL')
+                  setRefundReasonInput('')
+                  setShowReasonModal(true)
+                }}
               >
                 <TrendingUp className="h-5 w-5" />
                 Demander remboursement final
@@ -658,24 +663,13 @@ export default function FreeContract({ id }: Props) {
               <button 
                 className="flex items-center justify-center gap-2 px-6 py-3 border border-orange-300 text-orange-700 rounded-xl hover:bg-orange-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
                 disabled={isRefunding || !canEarly || hasEarlyRefund} 
-                onClick={async () => {
-                  try { 
-                    setIsRefunding(true); 
-                    await requestEarlyRefund(id); 
-                    await refetch(); 
-                    toast.success('Retrait anticipé demandé'); 
-                  } catch(e: any) { 
-                    toast.error(e?.message || 'Action impossible') 
-                  } finally { 
-                    setIsRefunding(false)
-                  }
+                onClick={() => {
+                  setRefundType('EARLY')
+                  setRefundReasonInput('')
+                  setShowReasonModal(true)
                 }}
               >
-                {isRefunding ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Download className="h-5 w-5" />
-                )}
+                <Download className="h-5 w-5" />
                 Demander retrait anticipé
               </button>
 
@@ -808,18 +802,15 @@ export default function FreeContract({ id }: Props) {
 
                       {r.status === 'APPROVED' && (
                         <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">Cause du retrait *</label>
-                              <textarea
-                                placeholder="Raison du retrait..."
-                                className="w-full p-3 text-sm border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
-                                rows={3}
-                                value={refundReason || r.reason || ''}
-                                onChange={(e) => setRefundReason(e.target.value)}
-                              />
+                          {/* Affichage de la cause (non modifiable) */}
+                          {r.reason && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                              <p className="text-sm text-blue-900">{r.reason}</p>
                             </div>
-                            
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-3">
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">Date du retrait *</label>
@@ -863,10 +854,9 @@ export default function FreeContract({ id }: Props) {
                             className="w-full px-4 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-lg hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" 
                             disabled={(() => {
                               const hasFile = !!refundFile
-                              const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
                               const hasDate = refundDate || r.withdrawalDate
                               const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== '--:--')
-                              return !hasFile || !hasReason || !hasDate || !hasTime
+                              return !hasFile || !hasDate || !hasTime
                             })()}
                             onClick={async () => { 
                               try {
@@ -890,11 +880,10 @@ export default function FreeContract({ id }: Props) {
                                 }
                                 
                                 await markRefundPaid(id, r.id, refundFile, {
-                                  reason: refundReason || r.reason,
+                                  reason: r.reason,
                                   withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
                                   withdrawalTime: refundTime || r.withdrawalTime
                                 })
-                                setRefundReason('')
                                 setRefundDate('')
                                 setRefundTime('')
                                 setRefundFile(undefined)
@@ -920,6 +909,86 @@ export default function FreeContract({ id }: Props) {
         </div>
 
         {/* Modales de confirmation */}
+        {/* Modale de saisie de la cause du retrait */}
+        {showReasonModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="bg-blue-50 border-b border-blue-100 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100 rounded-full p-2">
+                    <FileText className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-blue-900">
+                    {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+                  </h3>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Cause du retrait *</label>
+                    <textarea
+                      placeholder="Expliquez la raison du retrait..."
+                      className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65]"
+                      rows={4}
+                      value={refundReasonInput}
+                      onChange={(e) => setRefundReasonInput(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cette information sera incluse dans le document de remboursement
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button 
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium"
+                    onClick={() => {
+                      setShowReasonModal(false)
+                      setRefundType(null)
+                      setRefundReasonInput('')
+                    }}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-xl hover:shadow-lg transition-all duration-200 font-medium disabled:opacity-50"
+                    disabled={!refundReasonInput.trim() || isRefunding}
+                    onClick={async () => {
+                      try {
+                        setIsRefunding(true)
+                        
+                        if (refundType === 'FINAL') {
+                          await requestFinalRefund(id, refundReasonInput)
+                          toast.success('Remboursement final demandé')
+                        } else {
+                          await requestEarlyRefund(id, { reason: refundReasonInput })
+                          toast.success('Retrait anticipé demandé')
+                        }
+
+                        await refetch()
+                        
+                        setShowReasonModal(false)
+                        setRefundType(null)
+                        setRefundReasonInput('')
+                        
+                        // Afficher le PDF de remboursement
+                        setShowRemboursementPdf(true)
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Action impossible')
+                      } finally {
+                        setIsRefunding(false)
+                      }
+                    }}
+                  >
+                    {isRefunding ? 'Traitement...' : 'Confirmer et voir le PDF'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {confirmApproveId && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -957,58 +1026,6 @@ export default function FreeContract({ id }: Props) {
           </div>
         )}
 
-        {confirmFinal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-              <div className="bg-blue-50 border-b border-blue-100 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-100 rounded-full p-2">
-                    <TrendingUp className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-blue-900">Confirmer la demande</h3>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-600 mb-6">
-                  Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.
-                </p>
-                <div className="flex gap-3">
-                  <button 
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium" 
-                    onClick={() => setConfirmFinal(false)} 
-                    disabled={isRefunding}
-                  >
-                    Annuler
-                  </button>
-                  <button 
-                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium flex items-center justify-center gap-2" 
-                    onClick={async () => {
-                      try { 
-                        setIsRefunding(true); 
-                        await requestFinalRefund(id); 
-                        await refetch(); 
-                        toast.success('Remboursement final demandé'); 
-                      } catch(e: any) { 
-                        toast.error(e?.message || 'Action impossible') 
-                      } finally { 
-                        setIsRefunding(false); 
-                        setConfirmFinal(false)
-                      }
-                    }}
-                    disabled={isRefunding}
-                  >
-                    {isRefunding ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4" />
-                    )}
-                    Confirmer
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Modal PDF Document */}
         <PdfDocumentModal

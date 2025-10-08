@@ -350,7 +350,7 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>CAUSE :</Text>
-              <Text style={styles.cell}>{contract?.rescindedReason || '—'}</Text>
+              <Text style={styles.cell}>{contract?.refundReason || contract?.rescindedReason || '—'}</Text>
             </View>
           </View>
         </View>
