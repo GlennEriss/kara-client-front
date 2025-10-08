@@ -4,7 +4,7 @@ import React from 'react'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download } from 'lucide-react'
+import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download, TrendingUp } from 'lucide-react'
 import { useContracts } from '@/hooks/useContracts'
 import { useContractPayments } from '@/hooks/useContractPayments'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { getAdminById } from '@/db/admin.db'
 import { Button } from '@/components/ui/button'
 import * as XLSX from 'xlsx'
+import { getDoc, doc } from 'firebase/firestore'
+import { db } from '@/firebase/firestore'
+import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -57,6 +60,10 @@ export default function ContractPaymentsPage() {
   // État pour stocker les informations des administrateurs
   const [adminInfos, setAdminInfos] = React.useState<Record<string, { firstName: string; lastName: string }>>({})
   const [loadingAdmins, setLoadingAdmins] = React.useState<Set<string>>(new Set())
+  
+  // État pour stocker les informations du setting
+  const [contractSettings, setContractSettings] = React.useState<any>(null)
+  const [loadingSettings, setLoadingSettings] = React.useState(false)
 
   // Fonction pour récupérer les informations d'un administrateur
   const fetchAdminInfo = React.useCallback(async (adminId: string) => {
@@ -108,6 +115,29 @@ export default function ContractPaymentsPage() {
     })
   }, [payments, fetchAdminInfo])
 
+  // Charger les informations du setting du contrat
+  React.useEffect(() => {
+    const fetchContractSettings = async () => {
+      const settingsVersion = (contract as any)?.settingsVersion
+      if (!settingsVersion || contractSettings) return
+      
+      setLoadingSettings(true)
+      try {
+        const settingsDoc = await getDoc(doc(db, firebaseCollectionNames.caisseSettings, settingsVersion))
+        if (settingsDoc.exists()) {
+          setContractSettings({ id: settingsDoc.id, ...settingsDoc.data() })
+          console.log('📋 [Settings] Paramètres récupérés:', settingsDoc.data())
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des paramètres:', error)
+      } finally {
+        setLoadingSettings(false)
+      }
+    }
+
+    fetchContractSettings()
+  }, [(contract as any)?.settingsVersion, contractSettings])
+
   // Fonction pour obtenir le nom de l'administrateur
   const getAdminDisplayName = (adminId?: string) => {
     if (!adminId) return 'Non renseigné'
@@ -124,6 +154,28 @@ export default function ContractPaymentsPage() {
     // Si on n'est pas en train de charger mais qu'on n'a pas d'info, on reste sur "Chargement..."
     // pour éviter l'effet de clignotement entre ID et nom
     return 'Chargement...'
+  }
+
+  // Fonction pour calculer le pourcentage de bonus applicable pour un versement donné
+  const getBonusPercentageForPayment = (monthIndex: number, monthsPlanned: number) => {
+    // Mois 1-3 : pas de bonus
+    if (monthIndex < 3) {
+      return null
+    }
+
+    // Si c'est le dernier mois, utiliser le pourcentage de ce mois
+    if (monthIndex + 1 === monthsPlanned) {
+      const bonusKey = `M${monthIndex + 1}`
+      return contractSettings?.bonusTable?.[bonusKey] || null
+    }
+
+    // Pour les autres mois (à partir du mois 4), utiliser le pourcentage du mois précédent
+    if (monthIndex >= 3) {
+      const bonusKey = `M${monthIndex}` // Mois précédent
+      return contractSettings?.bonusTable?.[bonusKey] || null
+    }
+
+    return null
   }
 
   // Fonction pour exporter les versements en Excel
@@ -317,6 +369,52 @@ export default function ContractPaymentsPage() {
               </p>
             </div>
           </div>
+
+          {/* Informations sur les bonus et pénalités */}
+          {contractSettings && !loadingSettings && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Barème des bonus et pénalités</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Bonus */}
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <p className="text-sm font-medium text-blue-900">Bonus par mois</p>
+                  </div>
+                  <div className="space-y-1 text-xs text-blue-800">
+                    <p>• Mois 1-3: <span className="font-semibold">0%</span></p>
+                    {contractSettings.bonusTable && Object.keys(contractSettings.bonusTable).sort().map((key: string) => {
+                      const monthNum = key.replace('M', '')
+                      return (
+                        <p key={key}>• Mois {monthNum}: <span className="font-semibold">{contractSettings.bonusTable[key]}%</span></p>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Pénalités */}
+                <div className="bg-red-50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <p className="text-sm font-medium text-red-900">Pénalités de retard</p>
+                  </div>
+                  <div className="space-y-1 text-xs text-red-800">
+                    <p>• Jours 1-3: <span className="font-semibold">0%</span></p>
+                    {contractSettings.penaltyRules?.day4To12?.perDay !== undefined && (
+                      <p>• Jours 4-12: <span className="font-semibold">{contractSettings.penaltyRules.day4To12.perDay}% par jour</span></p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {loadingSettings && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500 animate-pulse">Chargement des paramètres...</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -385,7 +483,7 @@ export default function ContractPaymentsPage() {
                 <div key={payment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-gray-900">
-                      Versement #{payment.id} - Mois {payment.dueMonthIndex}
+                      Versement #{payment.id} - Mois {payment.dueMonthIndex + 1}
                     </h3>
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
@@ -411,6 +509,88 @@ export default function ContractPaymentsPage() {
                       <Users className="h-4 w-4 text-gray-500" />
                       <span className="text-gray-600">Contributions:</span>
                       <span className="font-medium">{payment.contribs?.length || 0}</span>
+                    </div>
+                  </div>
+
+                  {/* Affichage des bonus et pénalités */}
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Bonus */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <TrendingUp className="h-4 w-4 text-blue-600" />
+                      <span className="text-gray-600">Bonus:</span>
+                      {(() => {
+                        const bonusPercentage = contract?.monthsPlanned && payment.dueMonthIndex !== undefined 
+                          ? getBonusPercentageForPayment(payment.dueMonthIndex, contract.monthsPlanned)
+                          : null
+                        
+                        const bonusApplied = (payment as any).bonusApplied
+                        const isPaid = payment.status === 'PAID' || payment.paidAt
+
+                        if (bonusApplied && bonusApplied > 0) {
+                          return (
+                            <span className="font-medium text-green-700">
+                              {bonusApplied.toLocaleString()} FCFA
+                              {bonusPercentage && (
+                                <span className="ml-1 text-xs">({bonusPercentage}%)</span>
+                              )}
+                            </span>
+                          )
+                        } else if (bonusPercentage && bonusPercentage > 0 && contract?.monthlyAmount && payment.dueMonthIndex !== undefined) {
+                          // Calculer le montant total prévu jusqu'à ce mois
+                          const totalAmountUpToThisMonth = contract.monthlyAmount * (payment.dueMonthIndex + 1)
+                          // Calculer le bonus sur ce montant total
+                          const expectedBonusAmount = Math.round((totalAmountUpToThisMonth * bonusPercentage) / 100)
+                          
+                          // Si le versement est payé, afficher en vert sans "Attendu"
+                          if (isPaid) {
+                            return (
+                              <span className="font-medium text-green-700">
+                                {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
+                              </span>
+                            )
+                          }
+                          
+                          // Sinon, afficher comme bonus attendu
+                          return (
+                            <span className="font-medium text-blue-600">
+                              Attendu: {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
+                            </span>
+                          )
+                        } else if (bonusPercentage && bonusPercentage > 0) {
+                          // Si pas de nominalPaid, afficher juste le pourcentage
+                          const prefix = isPaid ? '' : 'Attendu: '
+                          const colorClass = isPaid ? 'text-green-700' : 'text-gray-500'
+                          return (
+                            <span className={`font-medium ${colorClass}`}>
+                              {prefix}{bonusPercentage}%
+                            </span>
+                          )
+                        } else {
+                          return <span className="font-medium text-gray-500">Non</span>
+                        }
+                      })()}
+                    </div>
+
+                    {/* Pénalités */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <span className="text-gray-600">Pénalité:</span>
+                      {(() => {
+                        const penaltyApplied = (payment as any).penaltyApplied
+                        
+                        if (penaltyApplied && penaltyApplied > 0) {
+                          return (
+                            <span className="font-medium text-red-700">
+                              {penaltyApplied.toLocaleString()} FCFA
+                              {contractSettings?.penaltyRules?.day4To12?.perDay && (
+                                <span className="ml-1 text-xs">({contractSettings.penaltyRules.day4To12.perDay}%/jour)</span>
+                              )}
+                            </span>
+                          )
+                        } else {
+                          return <span className="font-medium text-gray-500">Non</span>
+                        }
+                      })()}
                     </div>
                   </div>
 
@@ -476,7 +656,8 @@ export default function ContractPaymentsPage() {
                                   <span>Payé le {(() => {
                                     try {
                                       // Gérer les Timestamps Firestore
-                                      const date = contrib.paidAt?.toDate ? contrib.paidAt.toDate() : new Date(contrib.paidAt)
+                                      const paidAtAny = contrib.paidAt as any
+                                      const date = paidAtAny?.toDate ? paidAtAny.toDate() : new Date(contrib.paidAt)
                                       return date.toLocaleDateString('fr-FR')
                                     } catch (error) {
                                       return 'Date invalide'
