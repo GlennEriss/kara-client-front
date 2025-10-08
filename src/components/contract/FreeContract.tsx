@@ -143,16 +143,12 @@ export default function FreeContract({ id }: Props) {
   const calculateLatePaymentInfo = (): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
     if (!paymentDate || !data) return null
 
-    const selectedPaymentDate = new Date(paymentDate)
-    selectedPaymentDate.setHours(0, 0, 0, 0)
-
+    const selectedPaymentDate = new Date(paymentDate + 'T00:00:00')
+    
+    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-
-    // Si le versement est enregistré pour une date future, pas de pénalité
-    if (selectedPaymentDate > today) return null
-
-    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
+    
     let referenceDate: Date
     if (data.nextDueAt) {
       referenceDate = new Date(data.nextDueAt)
@@ -162,10 +158,11 @@ export default function FreeContract({ id }: Props) {
     }
     referenceDate.setHours(0, 0, 0, 0)
 
-    // Calculer le nombre de jours de retard
+    // Calculer le nombre de jours de retard par rapport à la date d'échéance
     const diffTime = selectedPaymentDate.getTime() - referenceDate.getTime()
     const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
 
+    // Pas de retard si paiement avant ou à la date d'échéance
     if (daysLate <= 0) return null
 
     // Calculer les pénalités (à partir du 4ème jour)
