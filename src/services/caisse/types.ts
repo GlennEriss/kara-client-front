@@ -60,6 +60,7 @@ export interface CaissePayment {
   paidAt?: Date
   amount: number
   penaltyApplied?: number
+  penaltyDays?: number // Nombre de jours de retard
   status: CaissePaymentStatus
   proofUrl?: string
   createdAt: Date
@@ -92,6 +93,8 @@ export interface GroupPaymentContribution {
   time: string
   mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
   proofUrl?: string
+  penalty?: number // Montant de la pénalité pour cette contribution
+  penaltyDays?: number // Nombre de jours de retard pour cette contribution
   createdAt: Date
   updatedAt?: Date
 }
@@ -107,6 +110,8 @@ export interface IndividualPaymentContribution {
   memberId?: string
   memberName?: string
   memberPhotoURL?: string
+  penalty?: number // Montant de la pénalité pour cette contribution
+  penaltyDays?: number // Nombre de jours de retard pour cette contribution
 }
 
 export interface CaisseRefund {

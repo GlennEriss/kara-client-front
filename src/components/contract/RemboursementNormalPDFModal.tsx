@@ -8,6 +8,7 @@ import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
 import RemboursementNormalPDF from './RemboursementNormalPDF'
+import { listRefunds } from '@/db/caisse/refunds.db'
 
 interface RemboursementNormalPDFModalProps {
   isOpen: boolean
@@ -24,9 +25,25 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
 }) => {
   const [isExporting, setIsExporting] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [refunds, setRefunds] = useState<any[]>([])
 
   // Récupérer les informations du membre
   const { data: memberData, isLoading: memberLoading } = useMember(contractData?.memberId)
+
+  // Charger les refunds pour récupérer la cause
+  React.useEffect(() => {
+    const loadRefunds = async () => {
+      if (contractId) {
+        try {
+          const refundsData = await listRefunds(contractId)
+          setRefunds(refundsData)
+        } catch (error) {
+          console.error('Error loading refunds:', error)
+        }
+      }
+    }
+    loadRefunds()
+  }, [contractId, isOpen])
 
   // Fonction pour calculer l'âge à partir de la date de naissance
   const calculateAge = (birthDate: string | Date) => {
@@ -75,12 +92,19 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
       }
     }
 
+    // Trouver le refund actif pour récupérer la cause
+    const activeRefund = refunds.find((r: any) => 
+      (r.type === 'FINAL' || r.type === 'EARLY') && 
+      (r.status === 'PENDING' || r.status === 'APPROVED' || r.status === 'PAID')
+    )
+
     return {
       ...contractData,
       member: memberWithAge,
-      lastPaymentDate
+      lastPaymentDate,
+      refundReason: activeRefund?.reason || ''
     }
-  }, [contractData, memberData])
+  }, [contractData, memberData, refunds])
 
   // Détecter si on est sur mobile
   React.useEffect(() => {

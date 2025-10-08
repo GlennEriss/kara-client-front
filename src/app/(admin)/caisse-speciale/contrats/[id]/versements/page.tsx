@@ -4,7 +4,7 @@ import React from 'react'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download } from 'lucide-react'
+import { AlertCircle, FileText, Calendar, DollarSign, Users, ArrowLeft, CheckCircle, Clock, AlertTriangle, Download, TrendingUp } from 'lucide-react'
 import { useContracts } from '@/hooks/useContracts'
 import { useContractPayments } from '@/hooks/useContractPayments'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { getAdminById } from '@/db/admin.db'
 import { Button } from '@/components/ui/button'
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { getDoc, doc } from 'firebase/firestore'
+import { db } from '@/firebase/firestore'
+import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 
 // Fonction de traduction des statuts de contrat
 const translateContractStatus = (status: string): string => {
@@ -57,6 +62,10 @@ export default function ContractPaymentsPage() {
   // État pour stocker les informations des administrateurs
   const [adminInfos, setAdminInfos] = React.useState<Record<string, { firstName: string; lastName: string }>>({})
   const [loadingAdmins, setLoadingAdmins] = React.useState<Set<string>>(new Set())
+  
+  // État pour stocker les informations du setting
+  const [contractSettings, setContractSettings] = React.useState<any>(null)
+  const [loadingSettings, setLoadingSettings] = React.useState(false)
 
   // Fonction pour récupérer les informations d'un administrateur
   const fetchAdminInfo = React.useCallback(async (adminId: string) => {
@@ -108,6 +117,29 @@ export default function ContractPaymentsPage() {
     })
   }, [payments, fetchAdminInfo])
 
+  // Charger les informations du setting du contrat
+  React.useEffect(() => {
+    const fetchContractSettings = async () => {
+      const settingsVersion = (contract as any)?.settingsVersion
+      if (!settingsVersion || contractSettings) return
+      
+      setLoadingSettings(true)
+      try {
+        const settingsDoc = await getDoc(doc(db, firebaseCollectionNames.caisseSettings, settingsVersion))
+        if (settingsDoc.exists()) {
+          setContractSettings({ id: settingsDoc.id, ...settingsDoc.data() })
+          console.log('📋 [Settings] Paramètres récupérés:', settingsDoc.data())
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des paramètres:', error)
+      } finally {
+        setLoadingSettings(false)
+      }
+    }
+
+    fetchContractSettings()
+  }, [(contract as any)?.settingsVersion, contractSettings])
+
   // Fonction pour obtenir le nom de l'administrateur
   const getAdminDisplayName = (adminId?: string) => {
     if (!adminId) return 'Non renseigné'
@@ -124,6 +156,28 @@ export default function ContractPaymentsPage() {
     // Si on n'est pas en train de charger mais qu'on n'a pas d'info, on reste sur "Chargement..."
     // pour éviter l'effet de clignotement entre ID et nom
     return 'Chargement...'
+  }
+
+  // Fonction pour calculer le pourcentage de bonus applicable pour un versement donné
+  const getBonusPercentageForPayment = (monthIndex: number, monthsPlanned: number) => {
+    // Mois 1-3 : pas de bonus
+    if (monthIndex < 3) {
+      return null
+    }
+
+    // Si c'est le dernier mois, utiliser le pourcentage de ce mois
+    if (monthIndex + 1 === monthsPlanned) {
+      const bonusKey = `M${monthIndex + 1}`
+      return contractSettings?.bonusTable?.[bonusKey] || null
+    }
+
+    // Pour les autres mois (à partir du mois 4), utiliser le pourcentage du mois précédent
+    if (monthIndex >= 3) {
+      const bonusKey = `M${monthIndex}` // Mois précédent
+      return contractSettings?.bonusTable?.[bonusKey] || null
+    }
+
+    return null
   }
 
   // Fonction pour exporter les versements en Excel
@@ -154,6 +208,7 @@ export default function ContractPaymentsPage() {
         'Heure de paiement': payment.time || '',
         'Mode de paiement': payment.mode || '',
         'Pénalité appliquée': payment.penaltyApplied || 0,
+        'Jours de retard': (payment as any).penaltyDays || 0,
         'Traité par': getAdminDisplayName(payment.updatedBy),
         'Nombre de contributions': payment.contribs?.length || 0,
         'Montant accumulé': payment.accumulatedAmount || payment.amount || 0,
@@ -178,6 +233,7 @@ export default function ContractPaymentsPage() {
       { wch: 15 }, // Heure de paiement
       { wch: 15 }, // Mode de paiement
       { wch: 18 }, // Pénalité appliquée
+      { wch: 15 }, // Jours de retard
       { wch: 20 }, // Traité par
       { wch: 20 }, // Nombre de contributions
       { wch: 18 }, // Montant accumulé
@@ -193,6 +249,124 @@ export default function ContractPaymentsPage() {
 
     // Télécharger le fichier
     XLSX.writeFile(wb, fileName)
+  }
+
+  // Fonction pour exporter les versements en PDF
+  const exportToPDF = () => {
+    if (!payments.length) return
+
+    const doc = new jsPDF('l', 'mm', 'a4') // Orientation paysage pour plus d'espace
+
+    // En-tête du document
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Historique des Versements', 14, 15)
+    
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Contrat #${contractId}`, 14, 22)
+    
+    // Informations du contrat
+    doc.setFontSize(9)
+    doc.text(`Type: ${contract?.contractType || 'N/A'}`, 14, 28)
+    doc.text(`Montant mensuel: ${contract?.monthlyAmount?.toLocaleString('fr-FR') || 0} FCFA`, 80, 28)
+    doc.text(`Durée: ${contract?.monthsPlanned || 0} mois`, 160, 28)
+    doc.text(`Statut: ${translateContractStatus(contract?.status || '')}`, 14, 33)
+    doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 160, 33)
+
+    // Préparer les données du tableau
+    const tableData = payments.map((payment) => {
+      const now = new Date()
+      const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
+      
+      let status = ''
+      if (payment.status === 'PAID') {
+        status = 'Payé'
+      } else if (dueDate && now > dueDate) {
+        status = 'En retard'
+      } else {
+        status = 'En attente'
+      }
+
+      const penaltyDays = (payment as any).penaltyDays || 0
+      const penaltyDisplay = payment.penaltyApplied 
+        ? `${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA${penaltyDays > 0 ? ` (${penaltyDays}j)` : ''}` 
+        : penaltyDays > 0 && penaltyDays <= 3 
+          ? `Tolérance (${penaltyDays}j)` 
+          : 'Non'
+
+      return [
+        `M${payment.dueMonthIndex + 1}`,
+        payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'N/A',
+        status,
+        `${payment.amount?.toLocaleString('fr-FR') || 0} FCFA`,
+        payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('fr-FR') : '',
+        payment.time || '',
+        payment.mode || '',
+        penaltyDisplay,
+        payment.contribs?.length || (payment as any).groupContributions?.length || 0,
+        getAdminDisplayName(payment.updatedBy)
+      ]
+    })
+
+    // Créer le tableau
+    autoTable(doc, {
+      head: [[
+        'Mois',
+        'Échéance',
+        'Statut',
+        'Montant',
+        'Date paiement',
+        'Heure',
+        'Mode',
+        'Pénalité',
+        'Contribs',
+        'Traité par'
+      ]],
+      body: tableData,
+      startY: 38,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [35, 77, 101], // Couleur de la marque
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 15 }, // Mois
+        1: { halign: 'center', cellWidth: 25 }, // Échéance
+        2: { halign: 'center', cellWidth: 20 }, // Statut
+        3: { halign: 'right', cellWidth: 28 }, // Montant
+        4: { halign: 'center', cellWidth: 25 }, // Date paiement
+        5: { halign: 'center', cellWidth: 18 }, // Heure
+        6: { halign: 'center', cellWidth: 25 }, // Mode
+        7: { halign: 'right', cellWidth: 35 }, // Pénalité
+        8: { halign: 'center', cellWidth: 15 }, // Contribs
+        9: { halign: 'left', cellWidth: 40 }, // Traité par
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250]
+      },
+      didDrawPage: (data) => {
+        // Pied de page avec numéro de page
+        const pageCount = (doc as any).internal.getNumberOfPages()
+        doc.setFontSize(8)
+        doc.text(
+          `Page ${data.pageNumber} sur ${pageCount}`,
+          doc.internal.pageSize.getWidth() / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: 'center' }
+        )
+      }
+    })
+
+    // Télécharger le PDF
+    const dateStr = new Date().toISOString().split('T')[0]
+    const fileName = `versements_contrat_${contractId}_${dateStr}.pdf`
+    doc.save(fileName)
   }
 
   if (isLoadingContracts || isLoadingPayments) {
@@ -317,6 +491,52 @@ export default function ContractPaymentsPage() {
               </p>
             </div>
           </div>
+
+          {/* Informations sur les bonus et pénalités */}
+          {contractSettings && !loadingSettings && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Barème des bonus et pénalités</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Bonus */}
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <p className="text-sm font-medium text-blue-900">Bonus par mois</p>
+                  </div>
+                  <div className="space-y-1 text-xs text-blue-800">
+                    <p>• Mois 1-3: <span className="font-semibold">0%</span></p>
+                    {contractSettings.bonusTable && Object.keys(contractSettings.bonusTable).sort().map((key: string) => {
+                      const monthNum = key.replace('M', '')
+                      return (
+                        <p key={key}>• Mois {monthNum}: <span className="font-semibold">{contractSettings.bonusTable[key]}%</span></p>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Pénalités */}
+                <div className="bg-red-50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    <p className="text-sm font-medium text-red-900">Pénalités de retard</p>
+                  </div>
+                  <div className="space-y-1 text-xs text-red-800">
+                    <p>• Jours 1-3: <span className="font-semibold">0%</span></p>
+                    {contractSettings.penaltyRules?.day4To12?.perDay !== undefined && (
+                      <p>• Jours 4-12: <span className="font-semibold">{contractSettings.penaltyRules.day4To12.perDay}% par jour</span></p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {loadingSettings && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500 animate-pulse">Chargement des paramètres...</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -329,15 +549,26 @@ export default function ContractPaymentsPage() {
               Historique des versements ({payments.length})
             </CardTitle>
             {payments.length > 0 && (
-              <Button
-                onClick={exportToExcel}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Exporter Excel
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={exportToPDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-50"
+                >
+                  <FileText className="h-4 w-4" />
+                  Exporter PDF
+                </Button>
+                <Button
+                  onClick={exportToExcel}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Exporter Excel
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -385,7 +616,7 @@ export default function ContractPaymentsPage() {
                 <div key={payment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-gray-900">
-                      Versement #{payment.id} - Mois {payment.dueMonthIndex}
+                      Versement #{payment.id} - Mois {payment.dueMonthIndex + 1}
                     </h3>
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
@@ -407,18 +638,127 @@ export default function ContractPaymentsPage() {
                       <span className="text-gray-600">Montant:</span>
                       <span className="font-medium">{payment.amount?.toLocaleString()} FCFA</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-gray-500" />
-                      <span className="text-gray-600">Contributions:</span>
-                      <span className="font-medium">{payment.contribs?.length || 0}</span>
+                  </div>
+
+                  {/* Affichage des bonus et pénalités */}
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Bonus */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <TrendingUp className="h-4 w-4 text-blue-600" />
+                      <span className="text-gray-600">Bonus:</span>
+                      {(() => {
+                        const bonusPercentage = contract?.monthsPlanned && payment.dueMonthIndex !== undefined 
+                          ? getBonusPercentageForPayment(payment.dueMonthIndex, contract.monthsPlanned)
+                          : null
+                        
+                        const bonusApplied = (payment as any).bonusApplied
+                        const isPaid = payment.status === 'PAID' || payment.paidAt
+
+                        if (bonusApplied && bonusApplied > 0) {
+                          return (
+                            <span className="font-medium text-green-700">
+                              {bonusApplied.toLocaleString()} FCFA
+                              {bonusPercentage && (
+                                <span className="ml-1 text-xs">({bonusPercentage}%)</span>
+                              )}
+                            </span>
+                          )
+                        } else if (bonusPercentage && bonusPercentage > 0 && contract?.monthlyAmount && payment.dueMonthIndex !== undefined) {
+                          // Calculer le montant total prévu jusqu'à ce mois
+                          const totalAmountUpToThisMonth = contract.monthlyAmount * (payment.dueMonthIndex + 1)
+                          // Calculer le bonus sur ce montant total
+                          const expectedBonusAmount = Math.round((totalAmountUpToThisMonth * bonusPercentage) / 100)
+                          
+                          // Si le versement est payé, afficher en vert sans "Attendu"
+                          if (isPaid) {
+                            return (
+                              <span className="font-medium text-green-700">
+                                {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
+                              </span>
+                            )
+                          }
+                          
+                          // Sinon, afficher comme bonus attendu
+                          return (
+                            <span className="font-medium text-blue-600">
+                              Attendu: {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
+                            </span>
+                          )
+                        } else if (bonusPercentage && bonusPercentage > 0) {
+                          // Si pas de nominalPaid, afficher juste le pourcentage
+                          const prefix = isPaid ? '' : 'Attendu: '
+                          const colorClass = isPaid ? 'text-green-700' : 'text-gray-500'
+                          return (
+                            <span className={`font-medium ${colorClass}`}>
+                              {prefix}{bonusPercentage}%
+                            </span>
+                          )
+                        } else {
+                          return <span className="font-medium text-gray-500">Non</span>
+                        }
+                      })()}
+                    </div>
+
+                    {/* Pénalités */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <span className="text-gray-600">Pénalité:</span>
+                      {(() => {
+                        const penaltyApplied = (payment as any).penaltyApplied
+                        const penaltyDays = (payment as any).penaltyDays
+                        
+                        if (penaltyApplied && penaltyApplied > 0) {
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <span className="font-medium text-red-700">
+                                {penaltyApplied.toLocaleString()} FCFA
+                                {contractSettings?.penaltyRules?.day4To12?.perDay && (
+                                  <span className="ml-1 text-xs">({contractSettings.penaltyRules.day4To12.perDay}%/jour)</span>
+                                )}
+                              </span>
+                              {penaltyDays && penaltyDays > 0 && (
+                                <span className="text-xs text-red-600">
+                                  {penaltyDays} jour{penaltyDays > 1 ? 's' : ''} de retard
+                                </span>
+                              )}
+                            </div>
+                          )
+                        } else if (penaltyDays && penaltyDays > 0 && penaltyDays <= 3) {
+                          // Période de tolérance : retard mais pas de pénalité
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <span className="font-medium text-orange-700">Tolérance</span>
+                              <span className="text-xs text-orange-600">
+                                {penaltyDays} jour{penaltyDays > 1 ? 's' : ''} de retard
+                              </span>
+                            </div>
+                          )
+                        } else {
+                          return <span className="font-medium text-gray-500">Non</span>
+                        }
+                      })()}
                     </div>
                   </div>
 
                   {payment.paidAt && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                      <div className="flex items-center gap-2 text-sm text-green-700">
-                        <CheckCircle className="h-4 w-4" />
-                        <span>Payé le {new Date(payment.paidAt).toLocaleDateString('fr-FR')}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Payé le {new Date(payment.paidAt).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        {payment.time && (
+                          <div className="flex items-center gap-2 text-green-700">
+                            <Clock className="h-4 w-4" />
+                            <span>Heure: {payment.time}</span>
+                          </div>
+                        )}
+                        {payment.mode && (
+                          <div className="flex items-center gap-2 text-green-700">
+                            <DollarSign className="h-4 w-4" />
+                            <span>Mode: {payment.mode}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -435,26 +775,186 @@ export default function ContractPaymentsPage() {
                     </div>
                   )}
 
+                  {/* Contributions de groupe */}
+                  {(payment as any).groupContributions && (payment as any).groupContributions.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Contributions de groupe ({(payment as any).groupContributions.length}):</h4>
+                      <div className="space-y-3">
+                        {(payment as any).groupContributions.map((contrib: any, index: number) => (
+                          <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-900">
+                                  {contrib.memberFirstName} {contrib.memberLastName}
+                                </span>
+                                <span className="text-xs text-gray-500">({contrib.memberMatricule})</span>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-3 w-3" />
+                                <span>Montant: {contrib.amount?.toLocaleString()} FCFA</span>
+                              </div>
+                              
+                              {contrib.createdAt && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>Versé le {(() => {
+                                    try {
+                                      const createdAtAny = contrib.createdAt as any
+                                      const date = createdAtAny?.toDate ? createdAtAny.toDate() : new Date(contrib.createdAt)
+                                      return date.toLocaleDateString('fr-FR')
+                                    } catch (error) {
+                                      return 'Date invalide'
+                                    }
+                                  })()}</span>
+                                </div>
+                              )}
+                              
+                              {contrib.time && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3" />
+                                  <span>Heure: {contrib.time}</span>
+                                </div>
+                              )}
+                              
+                              {contrib.mode && (
+                                <div className="flex items-center gap-2">
+                                  <span>Mode: {contrib.mode}</span>
+                                </div>
+                              )}
+
+                              {/* Pénalités pour cette contribution de groupe */}
+                              {contrib.penalty && contrib.penalty > 0 && (
+                                <div className="flex items-center gap-2 text-red-600">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  <span>Pénalité: {contrib.penalty.toLocaleString()} FCFA</span>
+                                </div>
+                              )}
+
+                              {contrib.penaltyDays && contrib.penaltyDays > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <span className={
+                                    contrib.penaltyDays <= 3 
+                                      ? 'text-orange-600' 
+                                      : 'text-red-600'
+                                  }>
+                                    {contrib.penaltyDays} jour{contrib.penaltyDays > 1 ? 's' : ''} de retard
+                                    {contrib.penaltyDays <= 3 && ' (tolérance)'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {contrib.proofUrl && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                <a 
+                                  href={contrib.proofUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                >
+                                  Voir la preuve de paiement
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contributions individuelles */}
                   {payment.contribs && payment.contribs.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Détail des contributions:</h4>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {payment.contribs.map((contrib, index) => (
-                          <div key={index} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
-                            <span className="text-gray-600">Membre {contrib.memberId}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{contrib.amount?.toLocaleString()} FCFA</span>
-                              <span className={`px-2 py-1 rounded-full text-xs ${
+                          <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-900">Membre {contrib.memberId}</span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 contrib.paidAt ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                               }`}>
                                 {contrib.paidAt ? 'Payé' : 'En attente'}
                               </span>
                             </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-3 w-3" />
+                                <span>Montant: {contrib.amount?.toLocaleString()} FCFA</span>
+                              </div>
+                              
+                              {contrib.paidAt && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>Payé le {(() => {
+                                    try {
+                                      // Gérer les Timestamps Firestore
+                                      const paidAtAny = contrib.paidAt as any
+                                      const date = paidAtAny?.toDate ? paidAtAny.toDate() : new Date(contrib.paidAt)
+                                      return date.toLocaleDateString('fr-FR')
+                                    } catch (error) {
+                                      return 'Date invalide'
+                                    }
+                                  })()}</span>
+                                </div>
+                              )}
+                              
+                              {contrib.time && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3" />
+                                  <span>Heure: {contrib.time}</span>
+                                </div>
+                              )}
+                              
+                              {contrib.mode && (
+                                <div className="flex items-center gap-2">
+                                  <span>Mode: {contrib.mode}</span>
+                                </div>
+                              )}
+
+                              {/* Affichage des pénalités pour cette contribution */}
+                              {((contrib as any).penalty && (contrib as any).penalty > 0) && (
+                                <div className="flex items-center gap-2 text-red-600">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  <span>Pénalité: {(contrib as any).penalty.toLocaleString()} FCFA</span>
+                                </div>
+                              )}
+
+                              {((contrib as any).penaltyDays && (contrib as any).penaltyDays > 0) && (
+                                <div className="flex items-center gap-2">
+                                  <span className={
+                                    (contrib as any).penaltyDays <= 3 
+                                      ? 'text-orange-600' 
+                                      : 'text-red-600'
+                                  }>
+                                    {(contrib as any).penaltyDays} jour{(contrib as any).penaltyDays > 1 ? 's' : ''} de retard
+                                    {(contrib as any).penaltyDays <= 3 && ' (tolérance)'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {contrib.proofUrl && (
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                <a 
+                                  href={contrib.proofUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                >
+                                  Voir la preuve de paiement
+                                </a>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
-                                         </div>
-                   )}
+                    </div>
+                  )}
                  </div>
                )
                })}

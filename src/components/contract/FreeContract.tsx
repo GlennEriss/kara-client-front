@@ -5,6 +5,7 @@ import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
+import { useAuth } from '@/hooks/useAuth'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
@@ -34,18 +35,20 @@ import {
   FileText,
   User,
   Shield,
-  Building2
+  Building2,
+  Trash2
 } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import type { RefundDocument } from '@/types/types'
+import TestPaymentTools from './TestPaymentTools'
 
 type Props = { id: string }
 
 export default function FreeContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
-  
+  const { user } = useAuth()
 
   const [amount, setAmount] = useState<number>(0)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
@@ -62,7 +65,6 @@ export default function FreeContract({ id }: Props) {
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
-  const [refundReason, setRefundReason] = useState('')
   const [refundDate, setRefundDate] = useState(() => {
     return new Date().toISOString().split('T')[0]
   })
@@ -72,28 +74,33 @@ export default function FreeContract({ id }: Props) {
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
-  const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
+  const [showReasonModal, setShowReasonModal] = useState(false)
+  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundReasonInput, setRefundReasonInput] = useState('')
+  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+
+  // Fonction pour recharger les remboursements
+  const reloadRefunds = React.useCallback(async () => {
+    if (id) {
+      try {
+        const refundsData = await listRefunds(id)
+        setRefunds(refundsData)
+      } catch (error) {
+        console.error('Error loading refunds:', error)
+      }
+    }
+  }, [id])
 
   // Load refunds from subcollection
   useEffect(() => {
-    const loadRefunds = async () => {
-      if (id) {
-        try {
-          const refundsData = await listRefunds(id)
-          setRefunds(refundsData)
-        } catch (error) {
-          console.error('Error loading refunds:', error)
-        }
-      }
-    }
-    loadRefunds()
-  }, [id])
+    reloadRefunds()
+  }, [reloadRefunds])
 
   if (isLoading) {
     return (
@@ -129,8 +136,53 @@ export default function FreeContract({ id }: Props) {
     )
   }
 
-  const isClosed = data.status === 'CLOSED'
+  const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
+
+  // Calculer les jours de retard et les pénalités
+  const calculateLatePaymentInfo = (): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
+    if (!paymentDate || !data) return null
+
+    const selectedPaymentDate = new Date(paymentDate)
+    selectedPaymentDate.setHours(0, 0, 0, 0)
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    // Si le versement est enregistré pour une date future, pas de pénalité
+    if (selectedPaymentDate > today) return null
+
+    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
+    let referenceDate: Date
+    if (data.nextDueAt) {
+      referenceDate = new Date(data.nextDueAt)
+    } else {
+      // Premier versement : utiliser contractStartAt
+      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : today
+    }
+    referenceDate.setHours(0, 0, 0, 0)
+
+    // Calculer le nombre de jours de retard
+    const diffTime = selectedPaymentDate.getTime() - referenceDate.getTime()
+    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (daysLate <= 0) return null
+
+    // Calculer les pénalités (à partir du 4ème jour)
+    let penalty = 0
+    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
+      const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
+      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
+    }
+
+    return {
+      daysLate,
+      penalty,
+      hasPenalty: daysLate >= 4
+    }
+  }
+
+  const latePaymentInfo = calculateLatePaymentInfo()
 
   function paymentStatusLabel(s: string): string {
     const map: Record<string, string> = {
@@ -189,11 +241,12 @@ export default function FreeContract({ id }: Props) {
     }
   }
 
-  const handlePdfUpload = (document: RefundDocument) => {
+  const handlePdfUpload = async (document: RefundDocument) => {
     // Le document est maintenant persisté dans la base de données
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
-    refetch()
+    await refetch()
+    await reloadRefunds() // Rafraîchir la liste des remboursements
   }
 
   const handleViewDocument = (refundId: string, document: RefundDocument) => {
@@ -209,6 +262,26 @@ export default function FreeContract({ id }: Props) {
   const handleOpenPdfModal = (refundId: string) => {
     setCurrentRefundId(refundId)
     setShowPdfModal(true)
+  }
+
+  const handleDeleteDocument = async (refundId: string) => {
+    try {
+      const { updateRefund } = await import('@/db/caisse/refunds.db')
+
+      await updateRefund(id, refundId, {
+        document: null,
+        updatedBy: user?.uid,
+        documentDeletedAt: new Date()
+      })
+
+      await reloadRefunds() // Rafraîchir la liste des remboursements
+      toast.success("Document supprimé avec succès")
+    } catch (error: any) {
+      console.error('Error deleting document:', error)
+      toast.error(error?.message || "Erreur lors de la suppression du document")
+    } finally {
+      setConfirmDeleteDocumentId(null)
+    }
   }
 
   const onPay = async () => {
@@ -329,6 +402,15 @@ export default function FreeContract({ id }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Outils de test (DEV uniquement) */}
+        <TestPaymentTools 
+          contractId={id}
+          contractData={data}
+          onPaymentSuccess={async () => {
+            await refetch()
+          }}
+        />
 
         {/* Échéances de paiement */}
         <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
@@ -567,6 +649,48 @@ export default function FreeContract({ id }: Props) {
                   </div>
                 </div>
                 
+                {/* Indicateur de retard et pénalités */}
+                {latePaymentInfo && (
+                  <div className={`rounded-xl p-4 border-2 ${
+                    latePaymentInfo.hasPenalty 
+                      ? 'bg-red-50 border-red-300' 
+                      : 'bg-orange-50 border-orange-300'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
+                        latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                      }`} />
+                      <div className="flex-1">
+                        <h4 className={`font-semibold ${
+                          latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                        }`}>
+                          Paiement en retard
+                        </h4>
+                        <p className={`text-sm mt-1 ${
+                          latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                        }`}>
+                          Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
+                        </p>
+                        {latePaymentInfo.hasPenalty && (
+                          <div className="mt-3 p-3 bg-red-100 rounded-lg border border-red-200">
+                            <p className="text-sm font-bold text-red-900">
+                              Pénalités à payer : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
+                            </p>
+                            <p className="text-xs text-red-700 mt-1">
+                              Les pénalités sont automatiquement appliquées à partir du 4ème jour
+                            </p>
+                          </div>
+                        )}
+                        {!latePaymentInfo.hasPenalty && (
+                          <p className="text-xs text-orange-700 mt-2">
+                            ⚠️ Période de tolérance (jours 1-3). Aucune pénalité appliquée.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Preuve de paiement */}
                 <div>
                   <FileInput
@@ -649,7 +773,11 @@ export default function FreeContract({ id }: Props) {
               <button 
                 className="flex items-center justify-center gap-2 px-6 py-3 border border-indigo-300 text-indigo-700 rounded-xl hover:bg-indigo-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
                 disabled={isRefunding || !allPaid || hasFinalRefund} 
-                onClick={() => setConfirmFinal(true)}
+                onClick={() => {
+                  setRefundType('FINAL')
+                  setRefundReasonInput('')
+                  setShowReasonModal(true)
+                }}
               >
                 <TrendingUp className="h-5 w-5" />
                 Demander remboursement final
@@ -658,24 +786,13 @@ export default function FreeContract({ id }: Props) {
               <button 
                 className="flex items-center justify-center gap-2 px-6 py-3 border border-orange-300 text-orange-700 rounded-xl hover:bg-orange-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
                 disabled={isRefunding || !canEarly || hasEarlyRefund} 
-                onClick={async () => {
-                  try { 
-                    setIsRefunding(true); 
-                    await requestEarlyRefund(id); 
-                    await refetch(); 
-                    toast.success('Retrait anticipé demandé'); 
-                  } catch(e: any) { 
-                    toast.error(e?.message || 'Action impossible') 
-                  } finally { 
-                    setIsRefunding(false)
-                  }
+                onClick={() => {
+                  setRefundType('EARLY')
+                  setRefundReasonInput('')
+                  setShowReasonModal(true)
                 }}
               >
-                {isRefunding ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
                   <Download className="h-5 w-5" />
-                )}
                 Demander retrait anticipé
               </button>
 
@@ -689,9 +806,9 @@ export default function FreeContract({ id }: Props) {
             </div>
             
             {/* Liste des remboursements */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               {refunds.length === 0 ? (
-                <div className="lg:col-span-2 text-center py-12">
+                <div className="text-center py-12">
                   <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
                     <RefreshCw className="h-12 w-12 text-gray-400" />
                   </div>
@@ -751,16 +868,17 @@ export default function FreeContract({ id }: Props) {
                       </div>
 
                       {r.status === 'PENDING' && (
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <button 
-                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => setConfirmApproveId(r.id)}
-                            disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
-                          >
-                            Approuver
-                          </button>
-                          {(r.type === 'FINAL' || r.type === 'EARLY') && (
-                            <>
+                        <div className="space-y-2">
+                          {/* Première ligne : Approbation et Document de remboursement */}
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <button 
+                              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() => setConfirmApproveId(r.id)}
+                              disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
+                            >
+                              Approuver
+                            </button>
+                            {(r.type === 'FINAL' || r.type === 'EARLY') && (
                               <button 
                                 className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
                                 onClick={() => setShowRemboursementPdf(true)}
@@ -768,14 +886,36 @@ export default function FreeContract({ id }: Props) {
                                 <FileText className="h-4 w-4" />
                                 Document de remboursement
                               </button>
+                            )}
+                          </div>
+
+                          {/* Deuxième ligne : Actions sur le PDF */}
+                          {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                            <div className="flex flex-col sm:flex-row gap-2">
                               {r.document ? (
-                                <button 
-                                  className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-                                  onClick={() => handleViewDocument(r.id, r.document)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Voir PDF
-                                </button>
+                                <>
+                                  <button 
+                                    className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                                    onClick={() => handleViewDocument(r.id, r.document)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    Voir PDF
+                                  </button>
+                                  <button 
+                                    className="flex-1 px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                                    onClick={() => handleOpenPdfModal(r.id)}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    Remplacer PDF
+                                  </button>
+                                  <button 
+                                    className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                                    onClick={() => setConfirmDeleteDocumentId(r.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Supprimer
+                                  </button>
+                                </>
                               ) : (
                                 <button 
                                   className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
@@ -785,22 +925,25 @@ export default function FreeContract({ id }: Props) {
                                   Ajouter PDF
                                 </button>
                               )}
-                            </>
+                            </div>
                           )}
+
+                          {/* Troisième ligne : Annulation (si applicable) */}
                           {r.type === 'EARLY' && !r.document && (
                             <button 
-                              className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium"
+                              className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium"
                               onClick={async () => {
                                 try { 
                                   await cancelEarlyRefund(id, r.id); 
-                                  await refetch(); 
+                                  await refetch();
+                                  await reloadRefunds(); // Rafraîchir la liste des remboursements
                                   toast.success('Demande anticipée annulée') 
                                 } catch(e: any) { 
                                   toast.error(e?.message || 'Annulation impossible') 
                                 }
                               }}
                             >
-                              Annuler
+                              Annuler la demande
                             </button>
                           )}
                         </div>
@@ -808,18 +951,15 @@ export default function FreeContract({ id }: Props) {
 
                       {r.status === 'APPROVED' && (
                         <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">Cause du retrait *</label>
-                              <textarea
-                                placeholder="Raison du retrait..."
-                                className="w-full p-3 text-sm border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
-                                rows={3}
-                                value={refundReason || r.reason || ''}
-                                onChange={(e) => setRefundReason(e.target.value)}
-                              />
+                          {/* Affichage de la cause (non modifiable) */}
+                          {r.reason && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                              <p className="text-sm text-blue-900">{r.reason}</p>
                             </div>
+                          )}
                             
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-3">
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">Date du retrait *</label>
@@ -863,10 +1003,9 @@ export default function FreeContract({ id }: Props) {
                             className="w-full px-4 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-lg hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" 
                             disabled={(() => {
                               const hasFile = !!refundFile
-                              const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
                               const hasDate = refundDate || r.withdrawalDate
                               const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== '--:--')
-                              return !hasFile || !hasReason || !hasDate || !hasTime
+                              return !hasFile || !hasDate || !hasTime
                             })()}
                             onClick={async () => { 
                               try {
@@ -890,16 +1029,16 @@ export default function FreeContract({ id }: Props) {
                                 }
                                 
                                 await markRefundPaid(id, r.id, refundFile, {
-                                  reason: refundReason || r.reason,
+                                  reason: r.reason,
                                   withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
                                   withdrawalTime: refundTime || r.withdrawalTime
                                 })
-                                setRefundReason('')
                                 setRefundDate('')
                                 setRefundTime('')
                                 setRefundFile(undefined)
                                 setConfirmPaidId(null)
                                 await refetch()
+                                await reloadRefunds() // Rafraîchir la liste des remboursements
                                 toast.success('Remboursement marqué payé')
                               } catch (error: any) {
                                 toast.error(error?.message || 'Erreur lors du marquage')
@@ -920,6 +1059,87 @@ export default function FreeContract({ id }: Props) {
         </div>
 
         {/* Modales de confirmation */}
+        {/* Modale de saisie de la cause du retrait */}
+        {showReasonModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="bg-blue-50 border-b border-blue-100 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-100 rounded-full p-2">
+                    <FileText className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-blue-900">
+                    {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+                  </h3>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Cause du retrait *</label>
+                    <textarea
+                      placeholder="Expliquez la raison du retrait..."
+                      className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65]"
+                      rows={4}
+                      value={refundReasonInput}
+                      onChange={(e) => setRefundReasonInput(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cette information sera incluse dans le document de remboursement
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button 
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium"
+                    onClick={() => {
+                      setShowReasonModal(false)
+                      setRefundType(null)
+                      setRefundReasonInput('')
+                    }}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-xl hover:shadow-lg transition-all duration-200 font-medium disabled:opacity-50"
+                    disabled={!refundReasonInput.trim() || isRefunding}
+                    onClick={async () => {
+                      try {
+                        setIsRefunding(true)
+                        
+                        if (refundType === 'FINAL') {
+                          await requestFinalRefund(id, refundReasonInput)
+                          toast.success('Remboursement final demandé')
+                        } else {
+                          await requestEarlyRefund(id, { reason: refundReasonInput })
+                          toast.success('Retrait anticipé demandé')
+                        }
+
+                        await refetch()
+                        await reloadRefunds() // Rafraîchir la liste des remboursements
+                        
+                        setShowReasonModal(false)
+                        setRefundType(null)
+                        setRefundReasonInput('')
+                        
+                        // Afficher le PDF de remboursement
+                        setShowRemboursementPdf(true)
+                      } catch (e: any) {
+                        toast.error(e?.message || 'Action impossible')
+                      } finally {
+                        setIsRefunding(false)
+                      }
+                    }}
+                  >
+                    {isRefunding ? 'Traitement...' : 'Confirmer et voir le PDF'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {confirmApproveId && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -935,7 +1155,7 @@ export default function FreeContract({ id }: Props) {
                 <p className="text-gray-600 mb-6">Voulez-vous approuver ce remboursement ? Cette action permettra de procéder au paiement.</p>
                 <div className="flex gap-3">
                   <button 
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium" 
                     onClick={() => setConfirmApproveId(null)}
                   >
                     Annuler
@@ -945,7 +1165,8 @@ export default function FreeContract({ id }: Props) {
                     onClick={async () => {
                       await approveRefund(id, confirmApproveId); 
                       setConfirmApproveId(null); 
-                      await refetch(); 
+                      await refetch();
+                      await reloadRefunds(); // Rafraîchir la liste des remboursements
                       toast.success('Remboursement approuvé')
                     }}
                   >
@@ -957,58 +1178,6 @@ export default function FreeContract({ id }: Props) {
           </div>
         )}
 
-        {confirmFinal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-              <div className="bg-blue-50 border-b border-blue-100 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-100 rounded-full p-2">
-                    <TrendingUp className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-blue-900">Confirmer la demande</h3>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-600 mb-6">
-                  Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.
-                </p>
-                <div className="flex gap-3">
-                  <button 
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium" 
-                    onClick={() => setConfirmFinal(false)} 
-                    disabled={isRefunding}
-                  >
-                    Annuler
-                  </button>
-                  <button 
-                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium flex items-center justify-center gap-2" 
-                    onClick={async () => {
-                      try { 
-                        setIsRefunding(true); 
-                        await requestFinalRefund(id); 
-                        await refetch(); 
-                        toast.success('Remboursement final demandé'); 
-                      } catch(e: any) { 
-                        toast.error(e?.message || 'Action impossible') 
-                      } finally { 
-                        setIsRefunding(false); 
-                        setConfirmFinal(false)
-                      }
-                    }}
-                    disabled={isRefunding}
-                  >
-                    {isRefunding ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4" />
-                    )}
-                    Confirmer
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Modal PDF Document */}
         <PdfDocumentModal
@@ -1032,6 +1201,40 @@ export default function FreeContract({ id }: Props) {
           />
         )}
 
+        {/* Modal de confirmation de suppression */}
+        {confirmDeleteDocumentId && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="bg-red-50 border-b border-red-100 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-red-100 rounded-full p-2">
+                    <Trash2 className="h-6 w-6 text-red-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-red-900">Confirmer la suppression</h3>
+                </div>
+              </div>
+              <div className="p-6">
+                <p className="text-gray-600 mb-6">
+                  Voulez-vous vraiment supprimer ce document PDF ? Cette action est irréversible.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all duration-200 font-medium" 
+                    onClick={() => setConfirmDeleteDocumentId(null)}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 font-medium"
+                    onClick={() => handleDeleteDocument(confirmDeleteDocumentId)}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal PDF Remboursement */}
         <RemboursementNormalPDFModal

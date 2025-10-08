@@ -42,6 +42,7 @@ import { StandardContractMediator } from "@/mediators/StandardContractMediator"
 import { useStandardContractForm } from "@/hooks/contract/standard"
 import type { RefundDocument } from "@/types/types"
 import { Form } from "../ui/form"
+import TestPaymentTools from "./TestPaymentTools"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -110,7 +111,6 @@ export default function StandardContract({ id }: Props) {
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
-  const [refundReason, setRefundReason] = useState("")
   const [refundDate, setRefundDate] = useState(() => new Date().toISOString().split("T")[0])
   const [refundTime, setRefundTime] = useState(() => {
     const now = new Date()
@@ -121,7 +121,6 @@ export default function StandardContract({ id }: Props) {
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
-  const [confirmFinal, setConfirmFinal] = useState(false)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
@@ -129,21 +128,26 @@ export default function StandardContract({ id }: Props) {
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+  const [showReasonModal, setShowReasonModal] = useState(false)
+  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
+  const [refundReasonInput, setRefundReasonInput] = useState('')
+
+  // Fonction pour recharger les remboursements
+  const reloadRefunds = React.useCallback(async () => {
+    if (id) {
+      try {
+        const refundsData = await listRefunds(id)
+        setRefunds(refundsData)
+      } catch (error) {
+        console.error('Error loading refunds:', error)
+      }
+    }
+  }, [id])
 
   // Load refunds from subcollection
   useEffect(() => {
-    const loadRefunds = async () => {
-      if (id) {
-        try {
-          const refundsData = await listRefunds(id)
-          setRefunds(refundsData)
-        } catch (error) {
-          console.error('Error loading refunds:', error)
-        }
-      }
-    }
-    loadRefunds()
-  }, [id])
+    reloadRefunds()
+  }, [reloadRefunds])
 
   function paymentStatusLabel(s: string): string {
     const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }
@@ -170,7 +174,7 @@ export default function StandardContract({ id }: Props) {
     )
   if (!data) return <div className="p-6">Contrat introuvable</div>
 
-  const isClosed = data.status === "CLOSED"
+  const isClosed = data.status === "CLOSED" || data.status === "RESCINDED"
 
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
@@ -209,19 +213,57 @@ export default function StandardContract({ id }: Props) {
 
   const nextDueMonthIndex = getNextDueMonthIndex()
 
+  // Calculer les jours de retard et les pénalités
+  const calculateLatePaymentInfo = (): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
+    const selectedDate = watchedValues.paymentDate
+    if (!selectedDate) return null
+
+    const paymentDate = new Date(selectedDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    paymentDate.setHours(0, 0, 0, 0)
+
+    // Si le versement est enregistré pour une date future, pas de pénalité
+    if (paymentDate > today) return null
+
+    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
+    let referenceDate: Date
+    if (data.nextDueAt) {
+      referenceDate = new Date(data.nextDueAt)
+    } else {
+      // Premier versement : utiliser contractStartAt
+      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : today
+    }
+    referenceDate.setHours(0, 0, 0, 0)
+
+    // Calculer le nombre de jours de retard
+    const diffTime = paymentDate.getTime() - referenceDate.getTime()
+    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (daysLate <= 0) return null
+
+    // Calculer les pénalités (à partir du 4ème jour)
+    let penalty = 0
+    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
+      const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
+      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
+    }
+
+    return {
+      daysLate,
+      penalty,
+      hasPenalty: daysLate >= 4
+    }
+  }
+
+  const latePaymentInfo = calculateLatePaymentInfo()
+
   const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
     await refetch()
-
-    // Rafraîchir explicitement la liste des remboursements
-    try {
-      const refundsData = await listRefunds(id)
-      setRefunds(refundsData)
-    } catch (error) {
-      console.error('Error refreshing refunds after PDF upload:', error)
-    }
+    await reloadRefunds() // Rafraîchir la liste des remboursements
   }
 
   const handleViewDocument = async (refundId: string, document: RefundDocument) => {
@@ -249,14 +291,7 @@ export default function StandardContract({ id }: Props) {
         documentDeletedAt: new Date()
       })
 
-      // Rafraîchir explicitement la liste des remboursements
-      try {
-        const refundsData = await listRefunds(id)
-        setRefunds(refundsData)
-      } catch (error) {
-        console.error('Error refreshing refunds after document deletion:', error)
-      }
-
+      await reloadRefunds() // Rafraîchir la liste des remboursements
       toast.success("Document supprimé avec succès")
     } catch (error: any) {
       console.error('Error deleting document:', error)
@@ -305,6 +340,16 @@ export default function StandardContract({ id }: Props) {
         <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${(data.penaltiesTotal || 0).toLocaleString("fr-FR")} FCFA`} accent="red" />
         <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
       </div>
+
+      {/* Outils de test (DEV uniquement) */}
+      <TestPaymentTools 
+        contractId={id}
+        contractData={data}
+        onPaymentSuccess={async () => {
+          await refetch()
+          await reloadRefunds() // Rafraîchir la liste des remboursements
+        }}
+      />
       <Form {...(form as any)}>
         <form method="POST" onSubmit={form.handleSubmit(onPay)}>
           {/* Calendrier des échéances */}
@@ -346,6 +391,49 @@ export default function StandardContract({ id }: Props) {
                  <AmountForm />
                )}
             </div>
+
+               {/* Indicateur de retard et pénalités */}
+               {latePaymentInfo && (
+                 <div className={`rounded-xl p-4 border-2 ${
+                   latePaymentInfo.hasPenalty 
+                     ? 'bg-red-50 border-red-300' 
+                     : 'bg-orange-50 border-orange-300'
+                 }`}>
+                   <div className="flex items-start gap-3">
+                     <AlertTriangle className={`h-5 w-5 mt-0.5 ${
+                       latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                     }`} />
+                     <div className="flex-1">
+                       <h4 className={`font-semibold ${
+                         latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                       }`}>
+                         Paiement en retard
+                       </h4>
+                       <p className={`text-sm mt-1 ${
+                         latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                       }`}>
+                         Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
+                       </p>
+                       {latePaymentInfo.hasPenalty && (
+                         <div className="mt-2 p-3 bg-red-100 rounded-lg border border-red-200">
+                           <p className="text-sm font-bold text-red-900">
+                             Pénalités à payer : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
+                           </p>
+                           <p className="text-xs text-red-700 mt-1">
+                             Les pénalités sont automatiquement appliquées à partir du 4ème jour
+                           </p>
+                         </div>
+                       )}
+                       {!latePaymentInfo.hasPenalty && (
+                         <p className="text-xs text-orange-700 mt-2">
+                           ⚠️ Période de tolérance (jours 1-3). Aucune pénalité appliquée.
+                         </p>
+                       )}
+                     </div>
+                   </div>
+                 </div>
+               )}
+
                {/* Preuve */}
                <ProofFileForm 
                  disabled={isClosed}
@@ -417,7 +505,11 @@ export default function StandardContract({ id }: Props) {
                     "hover:bg-slate-100 disabled:opacity-50"
                   )}
                   disabled={isRefunding || !allPaid || hasFinalRefund}
-                  onClick={() => setConfirmFinal(true)}
+                  onClick={() => {
+                    setRefundType('FINAL')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
+                  }}
                 >
                   Demander remboursement final
                 </button>
@@ -428,26 +520,10 @@ export default function StandardContract({ id }: Props) {
                     "hover:bg-slate-100 disabled:opacity-50"
                   )}
                   disabled={isRefunding || !canEarly || hasEarlyRefund}
-                  onClick={async () => {
-                    try {
-                      setIsRefunding(true)
-                      await requestEarlyRefund(id)
-                      await refetch()
-
-                      // Rafraîchir explicitement la liste des remboursements
-                      try {
-                        const refundsData = await listRefunds(id)
-                        setRefunds(refundsData)
-                      } catch (error) {
-                        console.error('Error refreshing refunds:', error)
-                      }
-
-                      toast.success("Retrait anticipé demandé")
-                    } catch (e: any) {
-                      toast.error(e?.message || "Action impossible")
-                    } finally {
-                      setIsRefunding(false)
-                    }
+                  onClick={() => {
+                    setRefundType('EARLY')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
                   }}
                 >
                   Demander retrait anticipé
@@ -547,15 +623,7 @@ export default function StandardContract({ id }: Props) {
                           try {
                             await cancelEarlyRefund(id, r.id)
                             await refetch()
-
-                            // Rafraîchir explicitement la liste des remboursements
-                            try {
-                              const refundsData = await listRefunds(id)
-                              setRefunds(refundsData)
-                            } catch (error) {
-                              console.error('Error refreshing refunds:', error)
-                            }
-
+                            await reloadRefunds() // Rafraîchir la liste des remboursements
                             toast.success("Demande anticipée annulée")
                           } catch (e: any) {
                             toast.error(e?.message || "Annulation impossible")
@@ -570,18 +638,15 @@ export default function StandardContract({ id }: Props) {
 
                 {r.status === "APPROVED" && (
                   <div className="mt-2 w-full space-y-3 rounded-xl border bg-slate-50 p-3">
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Cause du retrait *</label>
-                        <textarea
-                          placeholder="Raison du retrait..."
-                          className="w-full resize-none rounded-lg border p-2 text-xs"
-                          rows={2}
-                          value={refundReason || r.reason || ""}
-                          onChange={(e) => setRefundReason(e.target.value)}
-                          required
-                        />
+                    {/* Affichage de la cause (non modifiable) */}
+                    {r.reason && (
+                      <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                        <p className="text-sm text-blue-900">{r.reason}</p>
                       </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       <div>
                         <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
                         <input
@@ -635,10 +700,9 @@ export default function StandardContract({ id }: Props) {
                       )}
                       disabled={(() => {
                         const hasFile = !!refundFile
-                        const hasReason = (refundReason && refundReason.trim()) || (r.reason && r.reason.trim())
                         const hasDate = refundDate || r.withdrawalDate
                         const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
-                        return !hasFile || !hasReason || !hasDate || !hasTime
+                        return !hasFile || !hasDate || !hasTime
                       })()}
                       onClick={async () => {
                         try {
@@ -662,25 +726,16 @@ export default function StandardContract({ id }: Props) {
                           }
 
                           await markRefundPaid(id, r.id, refundFile!, {
-                            reason: refundReason || r.reason,
+                            reason: r.reason,
                             withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
                             withdrawalTime: refundTime || r.withdrawalTime,
                           })
-                          setRefundReason("")
                           setRefundDate("")
                           setRefundTime("")
                           setRefundFile(undefined)
                           setConfirmPaidId(null)
                           await refetch()
-
-                          // Rafraîchir explicitement la liste des remboursements
-                          try {
-                            const refundsData = await listRefunds(id)
-                            setRefunds(refundsData)
-                          } catch (error) {
-                            console.error('Error refreshing refunds:', error)
-                          }
-
+                          await reloadRefunds() // Rafraîchir la liste des remboursements
                           toast.success("Remboursement marqué payé")
                         } catch (error: any) {
                           toast.error(error?.message || "Erreur lors du marquage")
@@ -702,6 +757,83 @@ export default function StandardContract({ id }: Props) {
       </div>
 
       {/* Modales */}
+      {/* Modale de saisie de la cause du retrait */}
+      {showReasonModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border bg-white p-5 shadow-xl">
+            <div className="text-base font-semibold mb-4">
+              {refundType === 'FINAL' ? 'Demande de remboursement final' : 'Demande de retrait anticipé'}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Cause du retrait *</label>
+                <textarea
+                  placeholder="Expliquez la raison du retrait..."
+                  className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65]"
+                  rows={4}
+                  value={refundReasonInput}
+                  onChange={(e) => setRefundReasonInput(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Cette information sera incluse dans le document de remboursement
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button 
+                className="rounded-lg border px-4 py-2 text-sm" 
+                onClick={() => {
+                  setShowReasonModal(false)
+                  setRefundType(null)
+                  setRefundReasonInput('')
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                className={classNames(
+                  "rounded-lg px-4 py-2 text-sm text-white",
+                  brand.bg,
+                  brand.hover,
+                  "disabled:opacity-50"
+                )}
+                disabled={!refundReasonInput.trim() || isRefunding}
+                onClick={async () => {
+                  try {
+                    setIsRefunding(true)
+                    
+                    if (refundType === 'FINAL') {
+                      await requestFinalRefund(id, refundReasonInput)
+                      toast.success('Remboursement final demandé')
+                    } else {
+                      await requestEarlyRefund(id, { reason: refundReasonInput })
+                      toast.success('Retrait anticipé demandé')
+                    }
+
+                    await refetch()
+                    await reloadRefunds() // Rafraîchir la liste des remboursements
+
+                    setShowReasonModal(false)
+                    setRefundType(null)
+                    setRefundReasonInput('')
+                    
+                    // Afficher le PDF de remboursement
+                    setShowRemboursementPdf(true)
+                  } catch (e: any) {
+                    toast.error(e?.message || "Action impossible")
+                  } finally {
+                    setIsRefunding(false)
+                  }
+                }}
+              >
+                {isRefunding ? 'Traitement...' : 'Confirmer et voir le PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmApproveId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
@@ -717,15 +849,7 @@ export default function StandardContract({ id }: Props) {
                   await approveRefund(id, confirmApproveId)
                   setConfirmApproveId(null)
                   await refetch()
-
-                  // Rafraîchir explicitement la liste des remboursements
-                  try {
-                    const refundsData = await listRefunds(id)
-                    setRefunds(refundsData)
-                  } catch (error) {
-                    console.error('Error refreshing refunds:', error)
-                  }
-
+                  await reloadRefunds() // Rafraîchir la liste des remboursements
                   toast.success("Remboursement approuvé")
                 }}
               >
@@ -736,48 +860,6 @@ export default function StandardContract({ id }: Props) {
         </div>
       )}
 
-      {confirmFinal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
-            <div className="text-base font-semibold">Confirmer la demande</div>
-            <p className="mt-1 text-sm text-slate-600">
-              Voulez-vous demander le remboursement final ? Toutes les échéances doivent être payées. Cette action est irréversible.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button className="rounded-lg border px-3 py-2 text-sm" onClick={() => setConfirmFinal(false)} disabled={isRefunding}>
-                Annuler
-              </button>
-              <button
-                className={classNames("rounded-lg px-3 py-2 text-sm text-white", brand.bg, brand.hover)}
-                onClick={async () => {
-                  try {
-                    setIsRefunding(true)
-                    await requestFinalRefund(id)
-                    await refetch()
-
-                    // Rafraîchir explicitement la liste des remboursements
-                    try {
-                      const refundsData = await listRefunds(id)
-                      setRefunds(refundsData)
-                    } catch (error) {
-                      console.error('Error refreshing refunds:', error)
-                    }
-
-                    toast.success("Remboursement final demandé")
-                  } catch (e: any) {
-                    toast.error(e?.message || "Action impossible")
-                  } finally {
-                    setIsRefunding(false)
-                    setConfirmFinal(false)
-                  }
-                }}
-              >
-                Confirmer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal PDF Document */}
       <PdfDocumentModal
