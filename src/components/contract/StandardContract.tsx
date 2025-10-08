@@ -218,15 +218,12 @@ export default function StandardContract({ id }: Props) {
     const selectedDate = watchedValues.paymentDate
     if (!selectedDate) return null
 
-    const paymentDate = new Date(selectedDate)
+    const paymentDate = new Date(selectedDate + 'T00:00:00')
+    
+    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    paymentDate.setHours(0, 0, 0, 0)
-
-    // Si le versement est enregistré pour une date future, pas de pénalité
-    if (paymentDate > today) return null
-
-    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
+    
     let referenceDate: Date
     if (data.nextDueAt) {
       referenceDate = new Date(data.nextDueAt)
@@ -236,10 +233,11 @@ export default function StandardContract({ id }: Props) {
     }
     referenceDate.setHours(0, 0, 0, 0)
 
-    // Calculer le nombre de jours de retard
+    // Calculer le nombre de jours de retard par rapport à la date d'échéance
     const diffTime = paymentDate.getTime() - referenceDate.getTime()
     const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
 
+    // Pas de retard si paiement avant ou à la date d'échéance
     if (daysLate <= 0) return null
 
     // Calculer les pénalités (à partir du 4ème jour)
