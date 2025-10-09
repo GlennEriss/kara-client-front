@@ -911,7 +911,17 @@ export default function DailyContract({ id }: Props) {
             const payments = data.payments || []
             const paidCount = payments.filter((x: any) => x.status === 'PAID').length
             const allPaid = payments.length > 0 && paidCount === payments.length
-            const canEarly = paidCount >= 1 && !allPaid
+            
+            // Pour DailyContract : vérifier s'il y a au moins 1 versement (contribution)
+            const hasAtLeastOneContribution = payments.some((p: any) => {
+              if (isGroupContract) {
+                return p.groupContributions && p.groupContributions.length > 0
+              } else {
+                return p.contribs && p.contribs.length > 0
+              }
+            })
+            
+            const canEarly = hasAtLeastOneContribution && !allPaid
             const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
             const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
 
