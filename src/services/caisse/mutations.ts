@@ -222,15 +222,32 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
 
   let proofUrl: string | undefined
   if (input.file) {
+    console.log('🔍 [pay] Début upload image:', {
+      fileName: input.file.name,
+      fileSize: input.file.size,
+      fileType: input.file.type
+    })
+    
     const location = `caisse/${input.contractId}/payments/${payment.id}`
+    console.log('📁 [pay] Location:', location)
+    
     // compresser en WebP
     const dataUrl = await compressImage(input.file, IMAGE_COMPRESSION_PRESETS.document)
     // convertir dataUrl -> File
     const res = await fetch(dataUrl)
     const blob = await res.blob()
-    const webpFile = new File([blob], `proof.webp`, { type: 'image/webp' })
+    // Générer un nom de fichier unique avec timestamp
+    const uniqueFileName = `${Date.now()}_proof.webp`
+    console.log('📝 [pay] Nom de fichier généré:', uniqueFileName)
+    
+    const webpFile = new File([blob], uniqueFileName, { type: 'image/webp' })
     const uploaded = await createFile(webpFile as any, input.memberId, location)
     proofUrl = uploaded.url
+    console.log('✅ [pay] Image uploadée avec succès:', {
+      fileName: uniqueFileName,
+      url: proofUrl,
+      paymentId: payment.id
+    })
   }
 
   // Gestion des montants selon type
@@ -280,8 +297,15 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
       createdAt: new Date()
     }
+    console.log('💾 [pay] Contribution créée:', {
+      id: contrib.id,
+      proofUrl: contrib.proofUrl,
+      amount: contrib.amount,
+      hasProof: !!contrib.proofUrl
+    })
     const existing = Array.isArray(payment.contribs) ? payment.contribs : []
     paymentUpdates.contribs = [...existing, contrib]
+    console.log('📦 [pay] Total contribs après ajout:', paymentUpdates.contribs.length)
   }
   // Statut payé si objectif atteint
   const reached = newAccumulated >= targetForMonth || type === 'STANDARD'
@@ -290,6 +314,12 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     paymentUpdates.paidAt = now
   }
   await updatePayment(input.contractId, payment.id, paymentUpdates)
+  console.log('✅ [pay] Payment mis à jour dans Firestore:', {
+    contractId: input.contractId,
+    paymentId: payment.id,
+    contribsCount: paymentUpdates.contribs?.length || 0,
+    status: paymentUpdates.status
+  })
 
   const isFirstPayment = !contract.contractStartAt
   const contractStartAt = isFirstPayment ? now : contract.contractStartAt
@@ -552,9 +582,12 @@ export async function updatePaymentContribution(input: {
     const dataUrl = await compressImage(updates.proofFile, IMAGE_COMPRESSION_PRESETS.document)
     const res = await fetch(dataUrl)
     const blob = await res.blob()
-    const webpFile = new File([blob], `proof.webp`, { type: 'image/webp' })
+    // Générer un nom de fichier unique avec timestamp
+    const uniqueFileName = `${Date.now()}_proof.webp`
+    const webpFile = new File([blob], uniqueFileName, { type: 'image/webp' })
     const uploaded = await createFile(webpFile as any, contractId, location)
     newProofUrl = uploaded.url
+    console.log('📸 Image modifiée uploadée:', uniqueFileName, '→', newProofUrl)
   }
   
   // Calculer la différence de montant pour ajuster le total accumulé
@@ -719,13 +752,31 @@ export async function payGroup(input: {
 
   let proofUrl: string | undefined
   if (input.file) {
+    console.log('🔍 [payGroup] Début upload image:', {
+      fileName: input.file.name,
+      fileSize: input.file.size,
+      fileType: input.file.type,
+      memberId: input.memberId
+    })
+    
     const location = `caisse/${input.contractId}/payments/${payment.id}/contributions`
+    console.log('📁 [payGroup] Location:', location)
+    
     const dataUrl = await compressImage(input.file, IMAGE_COMPRESSION_PRESETS.document)
     const res = await fetch(dataUrl)
     const blob = await res.blob()
-    const webpFile = new File([blob], `proof.webp`, { type: 'image/webp' })
+    // Générer un nom de fichier unique avec timestamp
+    const uniqueFileName = `${Date.now()}_proof.webp`
+    console.log('📝 [payGroup] Nom de fichier généré:', uniqueFileName)
+    
+    const webpFile = new File([blob], uniqueFileName, { type: 'image/webp' })
     const uploaded = await createFile(webpFile as any, input.memberId, location)
     proofUrl = uploaded.url
+    console.log('✅ [payGroup] Image uploadée avec succès:', {
+      fileName: uniqueFileName,
+      url: proofUrl,
+      paymentId: payment.id
+    })
   }
 
   // Créer la nouvelle contribution
@@ -747,6 +798,14 @@ export async function payGroup(input: {
     createdAt: now,
     updatedAt: now
   }
+  
+  console.log('💾 [payGroup] Contribution créée:', {
+    id: newContribution.id,
+    proofUrl: newContribution.proofUrl,
+    amount: newContribution.amount,
+    memberName: newContribution.memberName,
+    hasProof: !!newContribution.proofUrl
+  })
 
   // Récupérer les contributions existantes ou créer un nouveau tableau
   const existingContributions = payment.groupContributions || []
@@ -779,6 +838,12 @@ export async function payGroup(input: {
   }
 
   await updatePayment(input.contractId, payment.id, paymentUpdates)
+  console.log('✅ [payGroup] Payment mis à jour dans Firestore:', {
+    contractId: input.contractId,
+    paymentId: payment.id,
+    groupContributionsCount: paymentUpdates.groupContributions?.length || 0,
+    status: paymentUpdates.status
+  })
 
   // Mettre à jour le contrat
   const isFirstPayment = !contract.contractStartAt

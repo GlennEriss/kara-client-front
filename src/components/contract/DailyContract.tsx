@@ -74,14 +74,14 @@ export default function DailyContract({ id }: Props) {
 
   // Fonction pour recharger les remboursements
   const reloadRefunds = React.useCallback(async () => {
-    if (id) {
-      try {
-        const refundsData = await listRefunds(id)
-        setRefunds(refundsData)
-      } catch (error) {
-        console.error('Error loading refunds:', error)
+      if (id) {
+        try {
+          const refundsData = await listRefunds(id)
+          setRefunds(refundsData)
+        } catch (error) {
+          console.error('Error loading refunds:', error)
+        }
       }
-    }
   }, [id])
 
   // Load refunds from subcollection
@@ -429,13 +429,15 @@ export default function DailyContract({ id }: Props) {
   }
 
   // Fonction pour exporter les détails du versement en PDF
-  const exportPaymentDetailsToPDF = () => {
+  const exportPaymentDetailsToPDF = async () => {
     if (!selectedDate || !paymentDetails) {
       toast.error('Aucun détail de versement à exporter')
       return
     }
 
-    const doc = new jsPDF('p', 'mm', 'a4')
+    try {
+      toast.info('Génération du PDF en cours...')
+      const doc = new jsPDF('p', 'mm', 'a4')
 
     // En-tête du document
     doc.setFontSize(18)
@@ -448,154 +450,338 @@ export default function DailyContract({ id }: Props) {
     doc.text(`Date du versement : ${selectedDate.toLocaleDateString('fr-FR')}`, 14, 28)
     doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
 
-    const payment = paymentDetails
-    const yStart = 42
+      const payment = paymentDetails
+      const yStart = 42
 
-    // Informations générales du versement
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Informations générales', 14, yStart)
-    
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    let yPos = yStart + 6
-    doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
-    yPos += 6
-    doc.text(`Total du mois : ${(payment.accumulatedAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
-    yPos += 6
-    doc.text(`Objectif mensuel : ${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
-    yPos += 6
-    
-    // Afficher les pénalités si elles existent
-    if (payment.penaltyApplied && payment.penaltyApplied > 0) {
-      doc.setTextColor(220, 38, 38) // Rouge
-      doc.text(`Pénalités appliquées : ${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
-      yPos += 6
-      if (payment.penaltyDays && payment.penaltyDays > 0) {
-        doc.text(`Jours de retard : ${payment.penaltyDays}`, 14, yPos)
-        yPos += 6
-      }
-      doc.setTextColor(0, 0, 0) // Revenir au noir
-    }
-    yPos += 4
-
-    // Détails des contributions
-    if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
-      // Contributions de groupe
+      // Informations générales du versement
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Contributions des membres (${payment.groupContributions.length})`, 14, yPos)
-      yPos += 8
-
-      const tableData = payment.groupContributions.map((contrib: any) => {
-        const row = [
-          `${contrib.memberFirstName} ${contrib.memberLastName}`,
-          contrib.memberMatricule,
-          `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
-          contrib.time || '',
-          contrib.mode === 'airtel_money' ? 'Airtel Money' :
-            contrib.mode === 'mobicash' ? 'Mobicash' :
-            contrib.mode === 'cash' ? 'Espèce' :
-            contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
-        ]
-        
-        // Ajouter les pénalités si présentes
-        if (contrib.penalty && contrib.penalty > 0) {
-          row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
-        } else {
-          row.push('-')
-        }
-        
-        return row
-      })
-
-      // Vérifier si au moins une contribution a des pénalités
-      const hasPenalties = payment.groupContributions.some((c: any) => c.penalty && c.penalty > 0)
-
-      autoTable(doc, {
-        head: [hasPenalties 
-          ? ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode', 'Pénalité']
-          : ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode']
-        ],
-        body: tableData,
-        startY: yPos,
-        styles: {
-          fontSize: 9,
-          cellPadding: 2,
-        },
-        headStyles: {
-          fillColor: [35, 77, 101],
-          textColor: 255,
-          fontStyle: 'bold',
-        },
-        columnStyles: hasPenalties ? {
-          0: { cellWidth: 40 },
-          1: { cellWidth: 25 },
-          2: { cellWidth: 30, halign: 'right' },
-          3: { cellWidth: 18, halign: 'center' },
-          4: { cellWidth: 30 },
-          5: { cellWidth: 27, halign: 'right' },
-        } : {
-          0: { cellWidth: 50 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 35, halign: 'right' },
-          3: { cellWidth: 20, halign: 'center' },
-          4: { cellWidth: 35 },
-        },
-      })
-    } else if (payment.contribs && payment.contribs.length > 0) {
-      // Contribution individuelle
-      const contrib = payment.contribs[0]
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Détail de la contribution', 14, yPos)
-      yPos += 8
-
+      doc.text('Informations générales', 14, yStart)
+      
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Montant : ${(contrib.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      let yPos = yStart + 6
+      doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
       yPos += 6
-      if (contrib.time) {
-        doc.text(`Heure : ${contrib.time}`, 14, yPos)
-        yPos += 6
-      }
-      if (contrib.mode) {
-        const modeLabel = contrib.mode === 'airtel_money' ? 'Airtel Money' :
-          contrib.mode === 'mobicash' ? 'Mobicash' :
-          contrib.mode === 'cash' ? 'Espèce' :
-          contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
-        doc.text(`Mode : ${modeLabel}`, 14, yPos)
-        yPos += 6
-      }
+      doc.text(`Total du mois : ${(payment.accumulatedAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      yPos += 6
+      doc.text(`Objectif mensuel : ${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      yPos += 6
       
-      // Afficher les pénalités de la contribution si présentes
-      if (contrib.penalty && contrib.penalty > 0) {
+      // Afficher les pénalités si elles existent
+      if (payment.penaltyApplied && payment.penaltyApplied > 0) {
         doc.setTextColor(220, 38, 38) // Rouge
-        doc.text(`Pénalité : ${contrib.penalty.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        doc.text(`Pénalités appliquées : ${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
         yPos += 6
-        if (contrib.penaltyDays && contrib.penaltyDays > 0) {
-          doc.text(`Jours de retard : ${contrib.penaltyDays}`, 14, yPos)
+        if (payment.penaltyDays && payment.penaltyDays > 0) {
+          doc.text(`Jours de retard : ${payment.penaltyDays}`, 14, yPos)
+          yPos += 6
         }
         doc.setTextColor(0, 0, 0) // Revenir au noir
       }
+      yPos += 4
+
+      // Détails des contributions
+      if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
+        // Contributions de groupe
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text(`Contributions des membres (${payment.groupContributions.length})`, 14, yPos)
+        yPos += 8
+
+        const tableData = payment.groupContributions.map((contrib: any) => {
+          const row = [
+            `${contrib.memberFirstName} ${contrib.memberLastName}`,
+            contrib.memberMatricule,
+            `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
+            contrib.time || '',
+            contrib.mode === 'airtel_money' ? 'Airtel Money' :
+              contrib.mode === 'mobicash' ? 'Mobicash' :
+              contrib.mode === 'cash' ? 'Espèce' :
+              contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
+          ]
+          
+          // Ajouter les pénalités si présentes
+          if (contrib.penalty && contrib.penalty > 0) {
+            row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
+          } else {
+            row.push('-')
+          }
+          
+          return row
+        })
+
+        // Vérifier si au moins une contribution a des pénalités
+        const hasPenalties = payment.groupContributions.some((c: any) => c.penalty && c.penalty > 0)
+
+        autoTable(doc, {
+          head: [hasPenalties 
+            ? ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode', 'Pénalité']
+            : ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode']
+          ],
+          body: tableData,
+          startY: yPos,
+          styles: {
+            fontSize: 9,
+            cellPadding: 2,
+          },
+          headStyles: {
+            fillColor: [35, 77, 101],
+            textColor: 255,
+            fontStyle: 'bold',
+          },
+          columnStyles: hasPenalties ? {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 30, halign: 'right' },
+            3: { cellWidth: 18, halign: 'center' },
+            4: { cellWidth: 30 },
+            5: { cellWidth: 27, halign: 'right' },
+          } : {
+            0: { cellWidth: 50 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 35, halign: 'right' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 35 },
+          },
+        })
+        
+        // Mettre à jour yPos après le tableau
+        yPos = (doc as any).lastAutoTable.finalY + 10
+        
+        // Ajouter les preuves de versement pour chaque membre (si disponibles)
+        const contribsWithProof = payment.groupContributions.filter((c: any) => c.proofUrl)
+        if (contribsWithProof.length > 0) {
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.text('Preuves de versement', 14, yPos)
+          yPos += 8
+          
+          for (const contrib of contribsWithProof) {
+            // Vérifier si on doit ajouter une nouvelle page
+            if (yPos > doc.internal.pageSize.getHeight() - 80) {
+              doc.addPage()
+              yPos = 20
+            }
+            
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'bold')
+            doc.text(`${contrib.memberFirstName} ${contrib.memberLastName} (${contrib.memberMatricule})`, 14, yPos)
+            yPos += 6
+            
+            try {
+              const imgData = await loadImageAsBase64(contrib.proofUrl)
+              const imgWidth = 80
+              const imgHeight = 60
+              
+              // Vérifier à nouveau après avoir chargé l'image
+              if (yPos + imgHeight > doc.internal.pageSize.getHeight() - 20) {
+                doc.addPage()
+                yPos = 20
+                // Répéter le nom du membre sur la nouvelle page
+                doc.setFontSize(10)
+                doc.setFont('helvetica', 'bold')
+                doc.text(`${contrib.memberFirstName} ${contrib.memberLastName} (${contrib.memberMatricule})`, 14, yPos)
+                yPos += 6
+              }
+              
+              doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
+              yPos += imgHeight + 8
+            } catch (error) {
+              console.error('Erreur lors du chargement de l\'image:', error)
+              doc.setFontSize(9)
+              doc.setFont('helvetica', 'italic')
+              doc.setTextColor(128, 128, 128)
+              doc.text('(Image non disponible)', 14, yPos)
+              yPos += 8
+              doc.setTextColor(0, 0, 0)
+            }
+          }
+        }
+      } else if (payment.contribs && payment.contribs.length > 0) {
+        // Contribution individuelle - trouver celle correspondant à la date sélectionnée
+        const contrib = payment.contribs.find((c: any) => {
+          if (!c.paidAt) return false
+          const contribDate = typeof c.paidAt.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
+          contribDate.setHours(0, 0, 0, 0)
+          const selected = new Date(selectedDate!)
+          selected.setHours(0, 0, 0, 0)
+          return contribDate.getTime() === selected.getTime()
+        }) || payment.contribs[0] // Fallback sur la première si aucune correspondance
+        
+        console.log('📄 Export PDF - Contribution utilisée:', {
+          contributionId: contrib?.id,
+          proofUrl: contrib?.proofUrl,
+          amount: contrib?.amount
+        })
+        
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Détail de la contribution', 14, yPos)
+        yPos += 8
+
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Montant : ${(contrib.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        yPos += 6
+        if (contrib.time) {
+          doc.text(`Heure : ${contrib.time}`, 14, yPos)
+          yPos += 6
+        }
+        if (contrib.mode) {
+          const modeLabel = contrib.mode === 'airtel_money' ? 'Airtel Money' :
+            contrib.mode === 'mobicash' ? 'Mobicash' :
+            contrib.mode === 'cash' ? 'Espèce' :
+            contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
+          doc.text(`Mode : ${modeLabel}`, 14, yPos)
+          yPos += 6
+        }
+        
+        // Afficher les pénalités de la contribution si présentes
+        if (contrib.penalty && contrib.penalty > 0) {
+          doc.setTextColor(220, 38, 38) // Rouge
+          doc.text(`Pénalité : ${contrib.penalty.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+          yPos += 6
+          if (contrib.penaltyDays && contrib.penaltyDays > 0) {
+            doc.text(`Jours de retard : ${contrib.penaltyDays}`, 14, yPos)
+            yPos += 6
+          }
+          doc.setTextColor(0, 0, 0) // Revenir au noir
+        }
+        
+        // Ajouter la preuve de versement si disponible
+        if (contrib.proofUrl) {
+          yPos += 4
+          doc.setFontSize(11)
+          doc.setFont('helvetica', 'bold')
+          doc.text('Preuve de versement :', 14, yPos)
+          yPos += 6
+          
+          try {
+            // Charger l'image et l'ajouter au PDF
+            const imgData = await loadImageAsBase64(contrib.proofUrl)
+            const imgWidth = 80 // Largeur de l'image en mm
+            const imgHeight = 60 // Hauteur de l'image en mm
+            
+            // Vérifier si on doit ajouter une nouvelle page
+            if (yPos + imgHeight > doc.internal.pageSize.getHeight() - 20) {
+              doc.addPage()
+              yPos = 20
+            }
+            
+            doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
+            yPos += imgHeight + 5
+          } catch (error) {
+            console.error('Erreur lors du chargement de l\'image:', error)
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'italic')
+            doc.setTextColor(128, 128, 128)
+            doc.text('(Image non disponible)', 14, yPos)
+            yPos += 6
+            doc.setTextColor(0, 0, 0)
+          }
+        }
+      }
+
+      // Pied de page
+      const pageHeight = doc.internal.pageSize.getHeight()
+      doc.setFontSize(8)
+      doc.setTextColor(128, 128, 128)
+      doc.text(
+        `Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+        doc.internal.pageSize.getWidth() / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      )
+
+      // Télécharger le PDF
+      const dateStr = selectedDate.toISOString().split('T')[0]
+      const fileName = `versement_${id}_${dateStr}.pdf`
+      doc.save(fileName)
+      toast.success('PDF téléchargé avec succès')
+    } catch (error: any) {
+      console.error('Erreur lors de la génération du PDF:', error)
+      toast.error('Erreur lors de la génération du PDF')
     }
+  }
 
-    // Pied de page
-    const pageHeight = doc.internal.pageSize.getHeight()
-    doc.setFontSize(8)
-    doc.setTextColor(128, 128, 128)
-    doc.text(
-      `Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
-      doc.internal.pageSize.getWidth() / 2,
-      pageHeight - 10,
-      { align: 'center' }
-    )
+  // Fonction helper pour charger une image en base64
+  const loadImageAsBase64 = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // Si l'URL est déjà en base64, la retourner directement
+      if (url.startsWith('data:')) {
+        resolve(url)
+        return
+      }
 
-    // Télécharger le PDF
-    const dateStr = selectedDate.toISOString().split('T')[0]
-    const fileName = `versement_${id}_${dateStr}.pdf`
-    doc.save(fileName)
-    toast.success('PDF téléchargé avec succès')
+      // Pour les images Firebase Storage, on doit d'abord les charger via fetch
+      // car elles nécessitent des tokens d'authentification
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          return response.blob()
+        })
+        .then(blob => {
+          const reader = new FileReader()
+          
+          reader.onloadend = () => {
+            const result = reader.result as string
+            
+            // Créer une image pour la redimensionner si nécessaire
+            const img = new Image()
+            
+            img.onload = () => {
+              try {
+                const canvas = document.createElement('canvas')
+                
+                // Redimensionner si l'image est trop grande (max 1200px de largeur)
+                const maxWidth = 1200
+                let width = img.width
+                let height = img.height
+                
+                if (width > maxWidth) {
+                  height = (height * maxWidth) / width
+                  width = maxWidth
+                }
+                
+                canvas.width = width
+                canvas.height = height
+                
+                const ctx = canvas.getContext('2d')
+                if (!ctx) {
+                  reject(new Error('Impossible de créer le contexte canvas'))
+                  return
+                }
+                
+                ctx.drawImage(img, 0, 0, width, height)
+                const dataURL = canvas.toDataURL('image/jpeg', 0.85)
+                resolve(dataURL)
+              } catch (error) {
+                console.error('Erreur lors du traitement de l\'image:', error)
+                reject(error)
+              }
+            }
+            
+            img.onerror = () => {
+              reject(new Error('Erreur lors du chargement de l\'image'))
+            }
+            
+            img.src = result
+          }
+          
+          reader.onerror = () => {
+            reject(new Error('Erreur lors de la lecture du blob'))
+          }
+          
+          reader.readAsDataURL(blob)
+        })
+        .catch(error => {
+          console.error('Erreur lors du chargement de l\'image depuis Firebase:', error)
+          reject(error)
+        })
+    })
   }
 
   const onDateClick = async (date: Date) => {
@@ -642,7 +828,26 @@ export default function DailyContract({ id }: Props) {
   }
 
   const onPaymentSubmit = async () => {
+    console.log('💰 Soumission du versement...')
+    console.log('📋 Données du formulaire:', {
+      selectedDate,
+      paymentAmount,
+      paymentTime,
+      paymentFile: paymentFile ? {
+        name: paymentFile.name,
+        type: paymentFile.type,
+        size: paymentFile.size
+      } : 'undefined',
+      paymentMode
+    })
+
     if (!selectedDate || !paymentAmount || !paymentTime || !paymentFile) {
+      console.error('❌ Champs manquants:', {
+        selectedDate: !!selectedDate,
+        paymentAmount: !!paymentAmount,
+        paymentTime: !!paymentTime,
+        paymentFile: !!paymentFile
+      })
       toast.error('Veuillez remplir tous les champs')
       return
     }
@@ -655,6 +860,7 @@ export default function DailyContract({ id }: Props) {
 
     try {
       setIsPaying(true)
+      console.log('🚀 Envoi du versement à la base de données...')
 
       // Trouver le mois correspondant à la date sélectionnée
       const monthIndex = selectedDate.getMonth() - (data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth())
@@ -668,6 +874,7 @@ export default function DailyContract({ id }: Props) {
         }
 
         const { payGroup } = await import('@/services/caisse/mutations')
+        console.log('📤 Envoi payGroup avec file:', paymentFile?.name)
         await payGroup({
           contractId: id,
           dueMonthIndex: monthIndex,
@@ -683,10 +890,12 @@ export default function DailyContract({ id }: Props) {
           mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
         })
 
+        console.log('✅ payGroup terminé avec succès')
         toast.success('Contribution ajoutée au versement collectif')
       } else {
         // Utiliser la fonction pay normale pour les contrats individuels
         const { pay } = await import('@/services/caisse/mutations')
+        console.log('📤 Envoi pay avec file:', paymentFile?.name)
         await pay({
           contractId: id,
           dueMonthIndex: monthIndex,
@@ -698,6 +907,7 @@ export default function DailyContract({ id }: Props) {
           mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
         })
 
+        console.log('✅ pay terminé avec succès')
         toast.success('Versement enregistré')
       }
 
@@ -1200,15 +1410,15 @@ export default function DailyContract({ id }: Props) {
                               </Button>
                               {r.document ? (
                                 <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleViewDocument(r.id, r.document)}
-                                    className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                    Voir PDF
-                                  </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleViewDocument(r.id, r.document)}
+                                  className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Voir PDF
+                                </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -1535,22 +1745,44 @@ export default function DailyContract({ id }: Props) {
               <Input
                 id="proof"
                 type="file"
-                accept="image/*,application/pdf"
+                accept="image/*"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (file && file.size > 20 * 1024 * 1024) {
-                    toast.error('Le fichier ne doit pas dépasser 20 MB')
-                    e.target.value = ''
+                  console.log('📎 Fichier sélectionné:', file)
+                  if (!file) {
+                    console.log('❌ Aucun fichier sélectionné')
+                    setPaymentFile(undefined)
                     return
                   }
+                  if (file.size > 5 * 1024 * 1024) {
+                    console.log('❌ Fichier trop volumineux:', file.size, 'bytes')
+                    toast.error('Le fichier ne doit pas dépasser 5 MB')
+                    e.target.value = ''
+                    setPaymentFile(undefined)
+                    return
+                  }
+                  console.log('✅ Fichier accepté:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    lastModified: new Date(file.lastModified).toLocaleString()
+                  })
                   setPaymentFile(file)
+                  toast.success(`Image "${file.name}" sélectionnée`)
                 }}
                 required
                 className="w-full"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Formats acceptés : JPEG, PNG, WebP, PDF (max 20 MB)
+                Formats acceptés : JPEG, PNG, WebP (max 5 MB)
               </p>
+              {paymentFile && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-xs text-green-700">
+                    ✅ Fichier prêt : <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB)
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Indicateur de retard et pénalités */}
@@ -1624,10 +1856,10 @@ export default function DailyContract({ id }: Props) {
           <DialogHeader className="flex-shrink-0">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <DialogTitle className="text-lg lg:text-xl">Détails du versement</DialogTitle>
-                <DialogDescription className="text-sm lg:text-base">
-                  Versement du {selectedDate?.toLocaleDateString('fr-FR')}
-                </DialogDescription>
+            <DialogTitle className="text-lg lg:text-xl">Détails du versement</DialogTitle>
+            <DialogDescription className="text-sm lg:text-base">
+              Versement du {selectedDate?.toLocaleDateString('fr-FR')}
+            </DialogDescription>
               </div>
               <Button
                 variant="outline"
@@ -1650,6 +1882,13 @@ export default function DailyContract({ id }: Props) {
               // paymentDetails est déjà l'objet paiement, pas besoin de destructurer
               const payment = paymentDetails
               const isGroupContract = data.contractType === 'GROUP' || !!(data as any).groupeId
+              
+              // Debug: afficher les données pour vérifier
+              console.log('🔍 Payment Details:', payment)
+              console.log('🔍 Payment contribs:', payment.contribs)
+              if (payment.contribs && payment.contribs.length > 0) {
+                console.log('🔍 First contrib proofUrl:', payment.contribs[0].proofUrl)
+              }
 
               if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
                 // Affichage pour les contrats de groupe
@@ -1758,7 +1997,22 @@ export default function DailyContract({ id }: Props) {
                 )
               } else if (payment.contribs && payment.contribs.length > 0) {
                 // Affichage pour les contrats individuels
-                const contribution = payment.contribs[0] // Prendre la première contribution
+                // Pour les contrats journaliers, trouver la contribution correspondant à la date sélectionnée
+                const contribution = payment.contribs.find((c: any) => {
+                  if (!c.paidAt) return false
+                  const contribDate = typeof c.paidAt.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
+                  contribDate.setHours(0, 0, 0, 0)
+                  const selected = new Date(selectedDate!)
+                  selected.setHours(0, 0, 0, 0)
+                  return contribDate.getTime() === selected.getTime()
+                }) || payment.contribs[0] // Fallback sur la première si aucune correspondance
+                
+                console.log('🎯 Contribution trouvée pour la date:', selectedDate?.toLocaleDateString('fr-FR'), {
+                  contributionId: contribution?.id,
+                  proofUrl: contribution?.proofUrl,
+                  amount: contribution?.amount,
+                  totalContribs: payment.contribs.length
+                })
                 return (
                   <div className="space-y-2 lg:space-y-3 p-1">
                     {/* Date du versement */}
@@ -1797,18 +2051,48 @@ export default function DailyContract({ id }: Props) {
                     )}
 
                     {/* Preuve */}
-                    {contribution?.proofUrl && (
-                      <div className="space-y-1 lg:space-y-2">
-                        <span className="font-medium text-gray-700 text-xs lg:text-sm">Preuve de versement:</span>
-                        <div className="p-2 lg:p-3 bg-gray-50 rounded-lg">
-                          <img
-                            src={contribution.proofUrl}
-                            alt="Preuve de versement"
-                            className="w-full h-20 lg:h-28 object-cover rounded-md"
-                          />
+                    <div className="space-y-1 lg:space-y-2">
+                      <span className="font-medium text-gray-700 text-xs lg:text-sm">Preuve de versement:</span>
+                      {contribution?.proofUrl ? (
+                        <div className="space-y-2">
+                          <div className="p-2 lg:p-3 bg-gray-50 rounded-lg">
+                            <img
+                              src={contribution.proofUrl}
+                              alt="Preuve de versement"
+                              className="w-full h-auto max-h-60 object-contain rounded-md border border-gray-200"
+                              onLoad={() => {
+                                console.log('✅ Image chargée avec succès:', contribution.proofUrl)
+                              }}
+                              onError={(e) => {
+                                console.error('❌ Erreur chargement image:', contribution.proofUrl)
+                                const target = e.currentTarget as HTMLImageElement
+                                target.style.display = 'none'
+                                const errorDiv = document.createElement('div')
+                                errorDiv.className = 'p-4 bg-red-50 border border-red-200 rounded text-center'
+                                errorDiv.innerHTML = `
+                                  <p class="text-sm text-red-700 font-medium mb-2">❌ Impossible de charger l'image</p>
+                                  <p class="text-xs text-red-600">L'image n'est plus accessible sur Firebase Storage</p>
+                                  <a href="${contribution.proofUrl}" target="_blank" class="text-xs text-blue-600 hover:underline mt-2 inline-block">Essayer d'ouvrir dans un nouvel onglet</a>
+                                `
+                                target.parentElement?.appendChild(errorDiv)
+                              }}
+                            />
+                          </div>
+                          {/* Debug info */}
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-gray-600 hover:text-gray-800">🔍 Détails techniques</summary>
+                            <div className="mt-2 p-2 bg-gray-100 rounded text-xs font-mono break-all">
+                              <p className="text-gray-700">URL: {contribution.proofUrl}</p>
+                            </div>
+                          </details>
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="p-2 lg:p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-xs text-yellow-700 italic">⚠️ Aucune preuve disponible pour cette contribution</p>
+                          <p className="text-xs text-gray-500 mt-1">Le versement a été enregistré sans preuve d'image</p>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Statut du mois */}
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-blue-50 rounded-lg gap-1 lg:gap-2">
@@ -1862,22 +2146,35 @@ export default function DailyContract({ id }: Props) {
             )}
 
             {/* Bouton pour modifier le versement (contrats individuels uniquement) */}
-            {!isGroupContract && paymentDetails?.contribution && (
-              <Button
-                onClick={() => {
-                  setEditingContribution(paymentDetails.contribution)
-                  setPaymentAmount(paymentDetails.contribution.amount?.toString() || '')
-                  setPaymentTime(paymentDetails.contribution.time || '')
-                  setPaymentMode(paymentDetails.contribution.mode || 'airtel_money')
-                  setPaymentFile(undefined)
-                  setShowEditPaymentModal(true)
-                  setShowPaymentDetailsModal(false)
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
-              >
-                Modifier le versement
-              </Button>
-            )}
+            {!isGroupContract && paymentDetails?.payment?.contribs?.length > 0 && (() => {
+              // Trouver la contribution correspondant à la date sélectionnée
+              const payment = paymentDetails.payment
+              const contribution = payment.contribs.find((c: any) => {
+                if (!c.paidAt) return false
+                const contribDate = typeof c.paidAt.toDate === 'function' ? c.paidAt.toDate() : new Date(c.paidAt)
+                contribDate.setHours(0, 0, 0, 0)
+                const selected = new Date(selectedDate!)
+                selected.setHours(0, 0, 0, 0)
+                return contribDate.getTime() === selected.getTime()
+              }) || payment.contribs[0]
+              
+              return (
+                <Button
+                  onClick={() => {
+                    setEditingContribution(contribution)
+                    setPaymentAmount(contribution.amount?.toString() || '')
+                    setPaymentTime(contribution.time || '')
+                    setPaymentMode(contribution.mode || 'airtel_money')
+                    setPaymentFile(undefined)
+                    setShowEditPaymentModal(true)
+                    setShowPaymentDetailsModal(false)
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
+                >
+                  Modifier le versement
+                </Button>
+              )
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2016,11 +2313,11 @@ export default function DailyContract({ id }: Props) {
                 <Input
                   id="edit-proof"
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
-                    if (file && file.size > 20 * 1024 * 1024) {
-                      toast.error('Le fichier ne doit pas dépasser 20 MB')
+                    if (file && file.size > 5 * 1024 * 1024) {
+                      toast.error('Le fichier ne doit pas dépasser 5 MB')
                       e.target.value = ''
                       return
                     }
@@ -2029,7 +2326,7 @@ export default function DailyContract({ id }: Props) {
                   className="w-full mt-1"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Formats acceptés : JPEG, PNG, WebP, PDF (max 20 MB)
+                  Formats acceptés : JPEG, PNG, WebP (max 5 MB)
                 </p>
                 {editingContribution?.proofUrl && (
                   <p className="text-xs text-gray-500 mt-1">
@@ -2219,22 +2516,43 @@ export default function DailyContract({ id }: Props) {
                 <Input
                   id="late-proof"
                   type="file"
-                  accept="image/*,application/pdf"
+                  accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
-                    if (file && file.size > 20 * 1024 * 1024) {
-                      toast.error('Le fichier ne doit pas dépasser 20 MB')
-                      e.target.value = ''
+                    console.log('📎 [Versement retard] Fichier sélectionné:', file)
+                    if (!file) {
+                      console.log('❌ Aucun fichier sélectionné')
+                      setPaymentFile(undefined)
                       return
                     }
+                    if (file.size > 5 * 1024 * 1024) {
+                      console.log('❌ Fichier trop volumineux:', file.size, 'bytes')
+                      toast.error('Le fichier ne doit pas dépasser 5 MB')
+                      e.target.value = ''
+                      setPaymentFile(undefined)
+                      return
+                    }
+                    console.log('✅ Fichier accepté:', {
+                      name: file.name,
+                      type: file.type,
+                      size: file.size
+                    })
                     setPaymentFile(file)
+                    toast.success(`Image "${file.name}" sélectionnée`)
                   }}
                   required
                   className="w-full mt-1"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Formats acceptés : JPEG, PNG, WebP, PDF (max 20 MB)
+                  Formats acceptés : JPEG, PNG, WebP (max 5 MB)
                 </p>
+                {paymentFile && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-xs text-green-700">
+                      ✅ Fichier prêt : <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB)
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Indicateur de retard et pénalités pour versement en retard */}
