@@ -128,7 +128,6 @@ export default function ContractPaymentsPage() {
         const settingsDoc = await getDoc(doc(db, firebaseCollectionNames.caisseSettings, settingsVersion))
         if (settingsDoc.exists()) {
           setContractSettings({ id: settingsDoc.id, ...settingsDoc.data() })
-          console.log('📋 [Settings] Paramètres récupérés:', settingsDoc.data())
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des paramètres:', error)
@@ -826,22 +825,27 @@ export default function ContractPaymentsPage() {
                               )}
 
                               {/* Pénalités pour cette contribution de groupe */}
-                              {contrib.penalty && contrib.penalty > 0 && (
+                              {(contrib.penalty !== undefined && 
+                                contrib.penalty !== null && 
+                                Number(contrib.penalty) > 0) && (
                                 <div className="flex items-center gap-2 text-red-600">
                                   <AlertTriangle className="h-3 w-3" />
-                                  <span>Pénalité: {contrib.penalty.toLocaleString()} FCFA</span>
+                                  <span>Pénalité: {Number(contrib.penalty).toLocaleString('fr-FR')} FCFA</span>
                                 </div>
                               )}
 
-                              {contrib.penaltyDays && contrib.penaltyDays > 0 && (
+                              {(contrib.penaltyDays !== undefined && 
+                                contrib.penaltyDays !== null && 
+                                Number(contrib.penaltyDays) > 0) && (
                                 <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3 text-gray-500" />
                                   <span className={
-                                    contrib.penaltyDays <= 3 
+                                    Number(contrib.penaltyDays) <= 3 
                                       ? 'text-orange-600' 
                                       : 'text-red-600'
                                   }>
-                                    {contrib.penaltyDays} jour{contrib.penaltyDays > 1 ? 's' : ''} de retard
-                                    {contrib.penaltyDays <= 3 && ' (tolérance)'}
+                                    Retard: {Number(contrib.penaltyDays)} jour{Number(contrib.penaltyDays) > 1 ? 's' : ''}
+                                    {Number(contrib.penaltyDays) <= 3 && ' (tolérance)'}
                                   </span>
                                 </div>
                               )}
@@ -917,22 +921,26 @@ export default function ContractPaymentsPage() {
                               )}
 
                               {/* Affichage des pénalités pour cette contribution */}
-                              {((contrib as any).penalty && (contrib as any).penalty > 0) && (
+                              {((contrib as any).penalty !== undefined && 
+                                (contrib as any).penalty !== null && 
+                                Number((contrib as any).penalty) > 0) && (
                                 <div className="flex items-center gap-2 text-red-600">
                                   <AlertTriangle className="h-3 w-3" />
-                                  <span>Pénalité: {(contrib as any).penalty.toLocaleString()} FCFA</span>
+                                  <span>Pénalité: {Number((contrib as any).penalty).toLocaleString('fr-FR')} FCFA</span>
                                 </div>
                               )}
-
-                              {((contrib as any).penaltyDays && (contrib as any).penaltyDays > 0) && (
+                              {((contrib as any).penaltyDays !== undefined && 
+                                (contrib as any).penaltyDays !== null && 
+                                Number((contrib as any).penaltyDays) > 0) && (
                                 <div className="flex items-center gap-2">
+                                  <Clock className="h-3 w-3 text-gray-500" />
                                   <span className={
-                                    (contrib as any).penaltyDays <= 3 
+                                    Number((contrib as any).penaltyDays) <= 3 
                                       ? 'text-orange-600' 
                                       : 'text-red-600'
                                   }>
-                                    {(contrib as any).penaltyDays} jour{(contrib as any).penaltyDays > 1 ? 's' : ''} de retard
-                                    {(contrib as any).penaltyDays <= 3 && ' (tolérance)'}
+                                    Retard: {Number((contrib as any).penaltyDays)} jour{Number((contrib as any).penaltyDays) > 1 ? 's' : ''}
+                                    {Number((contrib as any).penaltyDays) <= 3 && ' (tolérance)'}
                                   </span>
                                 </div>
                               )}
