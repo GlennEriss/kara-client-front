@@ -440,15 +440,6 @@ export default function DailyContract({ id }: Props) {
       return
     }
 
-    // Vérifier si la date est dans le futur (bloqué en production uniquement)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    if (selectedDateStart > today && process.env.NODE_ENV === 'production') {
-      toast.error('Impossible de verser sur une date future')
-      return
-    }
-
     setSelectedDate(date)
 
     // Utiliser les données locales au lieu d'appeler Firestore
