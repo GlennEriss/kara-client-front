@@ -29,6 +29,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData } from '@/schemas/schemas'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 type Props = { id: string }
 
@@ -424,6 +426,176 @@ export default function DailyContract({ id }: Props) {
     } finally {
       setConfirmDeleteDocumentId(null)
     }
+  }
+
+  // Fonction pour exporter les détails du versement en PDF
+  const exportPaymentDetailsToPDF = () => {
+    if (!selectedDate || !paymentDetails) {
+      toast.error('Aucun détail de versement à exporter')
+      return
+    }
+
+    const doc = new jsPDF('p', 'mm', 'a4')
+
+    // En-tête du document
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Détails du Versement', 14, 15)
+    
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Contrat #${id}`, 14, 22)
+    doc.text(`Date du versement : ${selectedDate.toLocaleDateString('fr-FR')}`, 14, 28)
+    doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
+
+    const payment = paymentDetails
+    const yStart = 42
+
+    // Informations générales du versement
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Informations générales', 14, yStart)
+    
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    let yPos = yStart + 6
+    doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
+    yPos += 6
+    doc.text(`Total du mois : ${(payment.accumulatedAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+    yPos += 6
+    doc.text(`Objectif mensuel : ${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+    yPos += 6
+    
+    // Afficher les pénalités si elles existent
+    if (payment.penaltyApplied && payment.penaltyApplied > 0) {
+      doc.setTextColor(220, 38, 38) // Rouge
+      doc.text(`Pénalités appliquées : ${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      yPos += 6
+      if (payment.penaltyDays && payment.penaltyDays > 0) {
+        doc.text(`Jours de retard : ${payment.penaltyDays}`, 14, yPos)
+        yPos += 6
+      }
+      doc.setTextColor(0, 0, 0) // Revenir au noir
+    }
+    yPos += 4
+
+    // Détails des contributions
+    if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
+      // Contributions de groupe
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Contributions des membres (${payment.groupContributions.length})`, 14, yPos)
+      yPos += 8
+
+      const tableData = payment.groupContributions.map((contrib: any) => {
+        const row = [
+          `${contrib.memberFirstName} ${contrib.memberLastName}`,
+          contrib.memberMatricule,
+          `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
+          contrib.time || '',
+          contrib.mode === 'airtel_money' ? 'Airtel Money' :
+            contrib.mode === 'mobicash' ? 'Mobicash' :
+            contrib.mode === 'cash' ? 'Espèce' :
+            contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
+        ]
+        
+        // Ajouter les pénalités si présentes
+        if (contrib.penalty && contrib.penalty > 0) {
+          row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
+        } else {
+          row.push('-')
+        }
+        
+        return row
+      })
+
+      // Vérifier si au moins une contribution a des pénalités
+      const hasPenalties = payment.groupContributions.some((c: any) => c.penalty && c.penalty > 0)
+
+      autoTable(doc, {
+        head: [hasPenalties 
+          ? ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode', 'Pénalité']
+          : ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode']
+        ],
+        body: tableData,
+        startY: yPos,
+        styles: {
+          fontSize: 9,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        columnStyles: hasPenalties ? {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 25 },
+          2: { cellWidth: 30, halign: 'right' },
+          3: { cellWidth: 18, halign: 'center' },
+          4: { cellWidth: 30 },
+          5: { cellWidth: 27, halign: 'right' },
+        } : {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 35, halign: 'right' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 35 },
+        },
+      })
+    } else if (payment.contribs && payment.contribs.length > 0) {
+      // Contribution individuelle
+      const contrib = payment.contribs[0]
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Détail de la contribution', 14, yPos)
+      yPos += 8
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Montant : ${(contrib.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      yPos += 6
+      if (contrib.time) {
+        doc.text(`Heure : ${contrib.time}`, 14, yPos)
+        yPos += 6
+      }
+      if (contrib.mode) {
+        const modeLabel = contrib.mode === 'airtel_money' ? 'Airtel Money' :
+          contrib.mode === 'mobicash' ? 'Mobicash' :
+          contrib.mode === 'cash' ? 'Espèce' :
+          contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
+        doc.text(`Mode : ${modeLabel}`, 14, yPos)
+        yPos += 6
+      }
+      
+      // Afficher les pénalités de la contribution si présentes
+      if (contrib.penalty && contrib.penalty > 0) {
+        doc.setTextColor(220, 38, 38) // Rouge
+        doc.text(`Pénalité : ${contrib.penalty.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        yPos += 6
+        if (contrib.penaltyDays && contrib.penaltyDays > 0) {
+          doc.text(`Jours de retard : ${contrib.penaltyDays}`, 14, yPos)
+        }
+        doc.setTextColor(0, 0, 0) // Revenir au noir
+      }
+    }
+
+    // Pied de page
+    const pageHeight = doc.internal.pageSize.getHeight()
+    doc.setFontSize(8)
+    doc.setTextColor(128, 128, 128)
+    doc.text(
+      `Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+      doc.internal.pageSize.getWidth() / 2,
+      pageHeight - 10,
+      { align: 'center' }
+    )
+
+    // Télécharger le PDF
+    const dateStr = selectedDate.toISOString().split('T')[0]
+    const fileName = `versement_${id}_${dateStr}.pdf`
+    doc.save(fileName)
+    toast.success('PDF téléchargé avec succès')
   }
 
   const onDateClick = async (date: Date) => {
@@ -1450,10 +1622,23 @@ export default function DailyContract({ id }: Props) {
       <Dialog open={showPaymentDetailsModal} onOpenChange={setShowPaymentDetailsModal}>
         <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-lg lg:text-xl">Détails du versement</DialogTitle>
-            <DialogDescription className="text-sm lg:text-base">
-              Versement du {selectedDate?.toLocaleDateString('fr-FR')}
-            </DialogDescription>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <DialogTitle className="text-lg lg:text-xl">Détails du versement</DialogTitle>
+                <DialogDescription className="text-sm lg:text-base">
+                  Versement du {selectedDate?.toLocaleDateString('fr-FR')}
+                </DialogDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportPaymentDetailsToPDF}
+                className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">PDF</span>
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto min-h-0">
