@@ -57,7 +57,7 @@ export default function ContactsIdentityForm() {
                           onChange={(value) => {
                             mediator.updateContact(index, value)
                           }}
-                          placeholder={`Ex: +24162671734 (Liberté/Airtel)`}
+                          placeholder={`Ex: +24165671734 (Libertis/Moov/Airtel)`}
                           icon={Phone}
                           type="tel"
                         />
@@ -89,7 +89,8 @@ export default function ContactsIdentityForm() {
 
             <div className="text-xs text-gray-600 mt-2">
               <strong>Opérateurs valides au Gabon :</strong>
-              <br />• Liberté : +24162... ou +24166...
+              <br />• Libertis : +24162... ou +24166...
+              <br />• Moov : +24165...
               <br />• Airtel : +24174... ou +24177...
             </div>
             

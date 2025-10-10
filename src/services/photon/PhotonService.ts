@@ -8,8 +8,8 @@ interface PhotonSearchOptions {
 
 export class PhotonService {
   private static readonly BASE_URL = 'https://photon.komoot.io/api'
-  private static readonly GABON_BBOX = '8.5,0.0,14.5,4.0' // [minLon, minLat, maxLon, maxLat]
-  private static readonly DEFAULT_LIMIT = 10
+  private static readonly GABON_BBOX = '8.5,-4.0,14.8,2.3' // [minLon, minLat, maxLon, maxLat] - Coordonnées ajustées pour couvrir tout le Gabon
+  private static readonly DEFAULT_LIMIT = 12
   private static readonly DEFAULT_LANG = 'fr'
 
   /**
@@ -59,10 +59,9 @@ export class PhotonService {
     const results = await this.search(query)
     
     // Filtrer pour ne garder que les résultats du Gabon
+    // Note: On fait confiance à l'API Photon pour la pertinence, on filtre uniquement par pays
     return results.filter((feature: PhotonResult) => 
-      feature.properties.country === 'Gabon' &&
-      (feature.properties.name.toLowerCase().includes(query.toLowerCase()) ||
-       feature.properties.city?.toLowerCase().includes(query.toLowerCase()))
+      feature.properties.country === 'Gabon' || feature.properties.country === 'GA'
     )
   }
 

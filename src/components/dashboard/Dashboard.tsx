@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { MembershipRequest, InsurancePolicy, DashboardStats } from '@/types/types'
+import { getNationalityName } from '@/constantes/nationality'
 
 // Fausses données typées pour le dashboard
 const statsData = [
@@ -372,7 +373,7 @@ export default function Dashboard() {
                       {request.identity?.firstName} {request.identity?.lastName}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {request.identity?.email} • {request.identity?.nationality}
+                      {request.identity?.email} • {getNationalityName(request.identity?.nationality)}
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">

@@ -15,6 +15,7 @@ import { updateGroup } from '@/db/group.db'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useRouter } from 'next/navigation'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
+import { getNationalityName } from '@/constantes/nationality'
 
 interface Props { groupId: string }
 
@@ -152,7 +153,7 @@ export default function GroupDetails({ groupId }: Props) {
                     'Nom': member?.lastName || '',
                     'Email': member?.email || '',
                     'Sexe': member?.gender || '',
-                    'Nationalité': member?.nationality || '',
+                    'Nationalité': getNationalityName(member?.nationality),
                     'Profession': member?.profession || '',
                     'Province': member?.address?.province || '',
                     'Ville': member?.address?.city || '',

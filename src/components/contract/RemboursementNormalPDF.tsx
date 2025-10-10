@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { getNationalityName } from '@/constantes/nationality'
 
 // Styles
 const styles = StyleSheet.create({
@@ -245,7 +246,7 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>NATIONALITÉ :</Text>
-              <Text style={styles.cell}>{contract?.member?.nationality || '—'}</Text>
+              <Text style={styles.cell}>{getNationalityName(contract?.member?.nationality)}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>N°CNI / PASS / CS :</Text>
@@ -403,11 +404,17 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
             Elle est établie pour faire valoir ce que de droit.
           </Text>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 40 }}>
-            <Text style={styles.bold}>Signature du Secrétaire exécutif</Text>
-            <Text style={styles.bold}>
-              Signature de l'épargnant (précédée de la mention "Lu et approuvé")
-            </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 50, minHeight: 100, border: '1px solid black', padding: 15 }}>
+            <View style={{ width: '48%', justifyContent: 'space-between' }}>
+              <Text style={styles.bold}>Signature du Secrétaire exécutif</Text>
+              <Text style={{ fontSize: 10, marginTop: 60 }}>Date : ____/____/________</Text>
+            </View>
+            <View style={{ width: '48%', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <Text style={styles.bold}>
+                Signature de l'épargnant (précédée de la mention "Lu et approuvé")
+              </Text>
+              <Text style={{ fontSize: 10, marginTop: 60 }}>Date : ____/____/________</Text>
+            </View>
           </View>
         </View>
       </Page>
