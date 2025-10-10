@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import type { MembershipRequest } from '@/types/types'
 import { PDFViewer, Document, Page, Text, View, StyleSheet, pdf, Image, BlobProvider } from '@react-pdf/renderer'
 import { toast } from 'sonner'
+import { getNationalityName } from '@/constantes/nationality'
 
 // Hook pour détecter le mobile uniquement
 const useIsMobile = () => {
@@ -180,12 +181,12 @@ const styles = StyleSheet.create({
   },
   signatureRow: {
     flexDirection: 'row',
-    height: 80,
+    height: 150,
   },
   signatureCell: {
     flex: 1,
     border: '1px solid black',
-    padding: 8,
+    padding: 12,
     justifyContent: 'space-between',
   },
   italic: {
@@ -366,7 +367,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
             </View>
             <View style={styles.stripedRow}>
               <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Nationalité:</Text> {request.identity?.nationality?.toUpperCase() || 'Non renseigné'}</Text>
+                <Text><Text style={styles.boldText}>Nationalité:</Text> {getNationalityName(request.identity?.nationality)}</Text>
               </View>
               <View style={styles.stripedCell}>
                 <Text><Text style={styles.boldText}>N°CNI/PASS/CS:</Text> {request.documents?.identityDocumentNumber || 'Non renseigné'}</Text>

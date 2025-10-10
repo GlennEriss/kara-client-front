@@ -166,10 +166,11 @@ export default function FreeContract({ id }: Props) {
     if (daysLate <= 0) return null
 
     // Calculer les pénalités (à partir du 4ème jour)
+    // Pour le contrat LIBRE, utiliser le montant saisi dans le formulaire
     let penalty = 0
-    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
+    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay && amount > 0) {
       const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
-      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
+      penalty = penaltyRate * amount * daysLate
     }
 
     return {

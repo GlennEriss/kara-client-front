@@ -39,6 +39,7 @@ import routes from '@/constantes/routes'
 import CaisseSpecialePDFModal from './CaisseSpecialePDFModal'
 import ContractPdfUploadModal from './ContractPdfUploadModal'
 import ViewUploadedContractModal from './ViewUploadedContractModal'
+import { listRefunds } from '@/db/caisse/refunds.db'
 
 type ViewMode = 'grid' | 'list'
 
@@ -408,6 +409,7 @@ const ListContracts = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [selectedContractForViewUploaded, setSelectedContractForViewUploaded] = useState<any>(null)
   const [isViewUploadedModalOpen, setIsViewUploadedModalOpen] = useState(false)
+  const [contractRefunds, setContractRefunds] = useState<Record<string, any>>({})
 
   // Hook pour récupérer les contrats depuis Firestore
   const { contracts: contractsData, isLoading, error, refetch } = useContracts()
@@ -420,6 +422,32 @@ const ListContracts = () => {
   useEffect(() => {
     setCurrentPage(1)
   }, [filters])
+
+  // Charger les refunds pour chaque contrat
+  useEffect(() => {
+    const loadRefunds = async () => {
+      if (!contractsData || contractsData.length === 0) return
+      
+      const refundsMap: Record<string, any> = {}
+      
+      for (const contract of contractsData) {
+        try {
+          const refunds = await listRefunds(contract.id)
+          // Récupérer le refund avec un document (EARLY ou FINAL)
+          const refundWithDoc = refunds.find((r: any) => r.document && r.document.url)
+          if (refundWithDoc) {
+            refundsMap[contract.id] = refundWithDoc
+          }
+        } catch (error) {
+          console.error(`Erreur lors du chargement des refunds pour ${contract.id}:`, error)
+        }
+      }
+      
+      setContractRefunds(refundsMap)
+    }
+    
+    loadRefunds()
+  }, [contractsData])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: any) => {
@@ -469,6 +497,16 @@ const ListContracts = () => {
   const handleViewUploadedContractPDF = (contract: any) => {
     setSelectedContractForViewUploaded(contract)
     setIsViewUploadedModalOpen(true)
+  }
+
+  const handleViewRefundPDF = (contract: any) => {
+    const refund = contractRefunds[contract.id]
+    if (refund && refund.document && refund.document.url) {
+      // Ouvrir le PDF dans un nouvel onglet
+      window.open(refund.document.url, '_blank')
+    } else {
+      toast.error('Document non disponible')
+    }
   }
 
   const handleCloseViewUploadedModal = () => {
@@ -1047,8 +1085,22 @@ const ListContracts = () => {
                               className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                             >
                               <FileText className="h-4 w-4" />
-                              Voir contrat
+                              Contrat d'inscription
                             </Button>
+                            
+                            {/* Bouton Contrat de remboursement ou résiliation */}
+                            {contractRefunds[contract.id] && (
+                              <Button
+                                onClick={() => handleViewRefundPDF(contract)}
+                                variant="outline"
+                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400"
+                              >
+                                <FileText className="h-4 w-4" />
+                                {contractRefunds[contract.id].type === 'EARLY' 
+                                  ? 'Contrat de résiliation' 
+                                  : 'Contrat de remboursement'}
+                              </Button>
+                            )}
                           </>
                         ) : (
                           <Button

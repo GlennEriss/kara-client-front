@@ -13,6 +13,7 @@ import { listContractsByMember } from '@/db/caisse/contracts.db'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
+import { getNationalityName } from '@/constantes/nationality'
 
 export default function MembershipDetails() {
     const params = useParams()
@@ -122,7 +123,7 @@ export default function MembershipDetails() {
                             </div>
                             <div className="space-y-1">
                                 <div className="text-xs text-gray-500">Nationalité</div>
-                                <div className="font-medium">{user.nationality}</div>
+                                <div className="font-medium">{getNationalityName(user.nationality)}</div>
                             </div>
                             <div className="space-y-1">
                                 <div className="text-xs text-gray-500">Véhicule</div>

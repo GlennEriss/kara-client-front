@@ -72,12 +72,12 @@ export const emergencyContactSchema = z.object({
   phone1: z.string()
     .min(1, 'Le numéro de téléphone principal est obligatoire')
     .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(62|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)'),
+    .regex(/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)'),
   
   // Téléphone 2 optionnel
   phone2: z.string()
     .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(62|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)')
+    .regex(/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)')
     .optional()
     .or(z.literal('')),
   
