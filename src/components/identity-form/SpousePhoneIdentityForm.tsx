@@ -25,7 +25,7 @@ export default function SpousePhoneIdentityForm() {
                     onChange={(value) => {
                       mediator.updateSpousePhone(value)
                     }}
-                    placeholder="Ex: +24162671734"
+                    placeholder="Ex: +24165671734"
                     icon={Phone}
                     type="tel"
                   />
@@ -36,7 +36,7 @@ export default function SpousePhoneIdentityForm() {
               </FormControl>
               
               <div className="text-xs text-gray-600 mt-1">
-                Format gabonais: +241 + 8 chiffres (Liberté: 62/66, Airtel: 74/77)
+                Format gabonais: +241 + 8 chiffres (Libertis: 62/66, Moov: 65, Airtel: 74/77)
               </div>
               
               <FormMessage className="animate-in slide-in-from-left-2 duration-300 break-words text-xs" />

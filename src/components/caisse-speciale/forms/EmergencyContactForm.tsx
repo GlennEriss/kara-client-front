@@ -110,8 +110,8 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
           newErrors.phone1 = 'Le numéro de téléphone principal est obligatoire'
         } else if (value.length > 12) {
           newErrors.phone1 = 'Le numéro de téléphone ne peut pas dépasser 12 caractères'
-        } else if (!/^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
-          newErrors.phone1 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)'
+        } else if (!/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
+          newErrors.phone1 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)'
         } else {
           delete newErrors.phone1
         }
@@ -120,8 +120,8 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
       case 'phone2':
         if (value && value.length > 12) {
           newErrors.phone2 = 'Le numéro de téléphone ne peut pas dépasser 12 caractères'
-        } else if (value && !/^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
-          newErrors.phone2 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 66, 74 ou 77 (ex: +241 62 34 56 78)'
+        } else if (value && !/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
+          newErrors.phone2 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)'
         } else {
           delete newErrors.phone2
         }
@@ -162,8 +162,8 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                      Object.keys(errors).length === 0 &&
                      (!phone1 || phone1.length <= 12) &&
                      (!phone2 || phone2.length <= 12) &&
-                     (!phone1 || /^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(phone1.replace(/\s/g, ''))) &&
-                     (!phone2 || phone2 === '' || /^(\+241|241)?(62|66|74|77)[0-9]{6}$/.test(phone2.replace(/\s/g, '')))
+                     (!phone1 || /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(phone1.replace(/\s/g, ''))) &&
+                     (!phone2 || phone2 === '' || /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(phone2.replace(/\s/g, '')))
 
   return (
     <Card className={`border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 ${
@@ -255,7 +255,7 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
               <Input
                 value={phone1}
                 onChange={(e) => handleChange('phone1', e.target.value)}
-                placeholder="+241 62 34 56 78"
+                placeholder="+241 65 34 56 78"
                 maxLength={12}
                 pattern="[0-9+\s]*"
                 inputMode="tel"
