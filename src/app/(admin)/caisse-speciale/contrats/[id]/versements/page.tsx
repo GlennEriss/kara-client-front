@@ -250,6 +250,430 @@ export default function ContractPaymentsPage() {
     XLSX.writeFile(wb, fileName)
   }
 
+  // Fonction pour exporter les contributions d'un versement en PDF (tableau d'échéance)
+  const exportPaymentContributionsToPDF = (payment: any) => {
+    const doc = new jsPDF('l', 'mm', 'a4')
+
+    // En-tête du document
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Tableau d\'Échéance des Contributions', 14, 15)
+    
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Contrat #${contractId}`, 14, 22)
+    doc.text(`Versement - Mois ${payment.dueMonthIndex + 1}`, 14, 28)
+    doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
+
+    let yPos = 40
+
+    // Informations du versement
+    doc.setFontSize(10)
+    doc.text(`Date d'échéance : ${payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'Non définie'}`, 14, yPos)
+    yPos += 5
+    doc.text(`Montant total : ${(payment.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+    yPos += 5
+    doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
+    yPos += 10
+
+    // Tableau des contributions de groupe
+    if ((payment as any).groupContributions && (payment as any).groupContributions.length > 0) {
+      const tableData = (payment as any).groupContributions.map((contrib: any, index: number) => {
+        const createdDate = contrib.createdAt ? (() => {
+          try {
+            const createdAtAny = contrib.createdAt as any
+            return createdAtAny?.toDate ? createdAtAny.toDate().toLocaleDateString('fr-FR') : new Date(contrib.createdAt).toLocaleDateString('fr-FR')
+          } catch {
+            return 'N/A'
+          }
+        })() : 'N/A'
+
+        return [
+          (index + 1).toString(),
+          `${contrib.memberFirstName} ${contrib.memberLastName}`,
+          contrib.memberMatricule || '',
+          `${contrib.amount?.toLocaleString('fr-FR')} FCFA`,
+          createdDate,
+          contrib.time || '',
+          contrib.mode === 'airtel_money' ? 'Airtel Money' :
+            contrib.mode === 'mobicash' ? 'Mobicash' :
+            contrib.mode === 'cash' ? 'Espèce' :
+            contrib.mode === 'bank_transfer' ? 'Virement' : contrib.mode || '',
+          contrib.penalty && contrib.penalty > 0 ? `${contrib.penalty.toLocaleString('fr-FR')} FCFA` : '-',
+          contrib.penaltyDays && contrib.penaltyDays > 0 ? `${contrib.penaltyDays}j` : '-'
+        ]
+      })
+
+      autoTable(doc, {
+        head: [[
+          'N°',
+          'Membre',
+          'Matricule',
+          'Montant',
+          'Date',
+          'Heure',
+          'Mode',
+          'Pénalité',
+          'Retard'
+        ]],
+        body: tableData,
+        startY: yPos,
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          1: { halign: 'left', cellWidth: 50 },
+          2: { halign: 'center', cellWidth: 25 },
+          3: { halign: 'right', cellWidth: 30 },
+          4: { halign: 'center', cellWidth: 25 },
+          5: { halign: 'center', cellWidth: 20 },
+          6: { halign: 'center', cellWidth: 30 },
+          7: { halign: 'right', cellWidth: 30 },
+          8: { halign: 'center', cellWidth: 20 },
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250]
+        }
+      })
+
+      // Totaux
+      yPos = (doc as any).lastAutoTable.finalY + 10
+      const totalAmount = (payment as any).groupContributions.reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+      const totalPenalty = (payment as any).groupContributions.reduce((sum: number, c: any) => sum + (c.penalty || 0), 0)
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Total des contributions : ${totalAmount.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      if (totalPenalty > 0) {
+        doc.setTextColor(220, 38, 38)
+        doc.text(`Total des pénalités : ${totalPenalty.toLocaleString('fr-FR')} FCFA`, 14, yPos + 6)
+        doc.setTextColor(0, 0, 0)
+      }
+    } 
+    // Tableau des contributions individuelles
+    else if (payment.contribs && payment.contribs.length > 0) {
+      const tableData = payment.contribs.map((contrib: any, index: number) => {
+        const paidDate = contrib.paidAt ? (() => {
+          try {
+            const paidAtAny = contrib.paidAt as any
+            return paidAtAny?.toDate ? paidAtAny.toDate().toLocaleDateString('fr-FR') : new Date(contrib.paidAt).toLocaleDateString('fr-FR')
+          } catch {
+            return 'N/A'
+          }
+        })() : 'N/A'
+
+        return [
+          (index + 1).toString(),
+          contrib.memberId || '',
+          `${contrib.amount?.toLocaleString('fr-FR')} FCFA`,
+          paidDate,
+          contrib.time || '',
+          contrib.mode || '',
+          (contrib as any).penalty && (contrib as any).penalty > 0 ? `${(contrib as any).penalty.toLocaleString('fr-FR')} FCFA` : '-',
+          (contrib as any).penaltyDays && (contrib as any).penaltyDays > 0 ? `${(contrib as any).penaltyDays}j` : '-',
+          contrib.paidAt ? 'Oui' : 'Non'
+        ]
+      })
+
+      autoTable(doc, {
+        head: [[
+          'N°',
+          'Membre',
+          'Montant',
+          'Date',
+          'Heure',
+          'Mode',
+          'Pénalité',
+          'Retard',
+          'Statut'
+        ]],
+        body: tableData,
+        startY: yPos,
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+        },
+        headStyles: {
+          fillColor: [35, 77, 101],
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 15 },
+          1: { halign: 'left', cellWidth: 40 },
+          2: { halign: 'right', cellWidth: 35 },
+          3: { halign: 'center', cellWidth: 30 },
+          4: { halign: 'center', cellWidth: 25 },
+          5: { halign: 'center', cellWidth: 35 },
+          6: { halign: 'right', cellWidth: 35 },
+          7: { halign: 'center', cellWidth: 25 },
+          8: { halign: 'center', cellWidth: 25 },
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 250]
+        }
+      })
+
+      // Totaux
+      yPos = (doc as any).lastAutoTable.finalY + 10
+      const totalAmount = payment.contribs.reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+      const totalPenalty = payment.contribs.reduce((sum: number, c: any) => sum + ((c as any).penalty || 0), 0)
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Total des contributions : ${totalAmount.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      if (totalPenalty > 0) {
+        doc.setTextColor(220, 38, 38)
+        doc.text(`Total des pénalités : ${totalPenalty.toLocaleString('fr-FR')} FCFA`, 14, yPos + 6)
+        doc.setTextColor(0, 0, 0)
+      }
+    }
+
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setTextColor(128, 128, 128)
+      doc.text(
+        `Page ${i} sur ${pageCount} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+        14,
+        doc.internal.pageSize.getHeight() - 10
+      )
+    }
+
+    // Télécharger le PDF
+    const dateStr = new Date().toISOString().split('T')[0]
+    const fileName = `contributions_${contractId}_M${payment.dueMonthIndex + 1}_${dateStr}.pdf`
+    doc.save(fileName)
+  }
+
+  // Fonction pour exporter un versement individuel en PDF
+  const exportSinglePaymentToPDF = async (payment: any) => {
+    const doc = new jsPDF('p', 'mm', 'a4')
+
+    // En-tête du document
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Facture de Versement', 14, 15)
+    
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Contrat #${contractId}`, 14, 22)
+    doc.text(`Échéance M${payment.dueMonthIndex + 1}`, 14, 28)
+    doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
+
+    let yPos = 42
+
+    // Informations du versement
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Informations du versement', 14, yPos)
+    
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    yPos += 6
+    
+    const now = new Date()
+    const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
+    let status = ''
+    if (payment.status === 'PAID') {
+      status = 'Payé'
+    } else if (dueDate && now > dueDate) {
+      status = 'En retard'
+    } else {
+      status = 'En attente'
+    }
+    
+    doc.text(`Statut : ${status}`, 14, yPos)
+    yPos += 6
+    
+    if (payment.dueAt) {
+      doc.text(`Date d'échéance : ${new Date(payment.dueAt).toLocaleDateString('fr-FR')}`, 14, yPos)
+      yPos += 6
+    }
+    
+    if (payment.paidAt) {
+      doc.text(`Date de paiement : ${new Date(payment.paidAt).toLocaleDateString('fr-FR')}`, 14, yPos)
+      yPos += 6
+      if (payment.time) {
+        doc.text(`Heure : ${payment.time}`, 14, yPos)
+        yPos += 6
+      }
+    }
+    
+    doc.text(`Montant : ${(payment.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+    yPos += 6
+    
+    if (payment.mode) {
+      const modeLabel = payment.mode === 'airtel_money' ? 'Airtel Money' :
+        payment.mode === 'mobicash' ? 'Mobicash' :
+        payment.mode === 'cash' ? 'Espèce' :
+        payment.mode === 'bank_transfer' ? 'Virement bancaire' : payment.mode
+      doc.text(`Mode de paiement : ${modeLabel}`, 14, yPos)
+      yPos += 6
+    }
+    
+    // Afficher les pénalités si présentes
+    const penaltyApplied = (payment as any).penaltyApplied
+    const penaltyDays = (payment as any).penaltyDays
+    
+    if (penaltyApplied && penaltyApplied > 0) {
+      doc.setTextColor(220, 38, 38) // Rouge
+      doc.text(`Pénalités appliquées : ${penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      yPos += 6
+      if (penaltyDays && penaltyDays > 0) {
+        doc.text(`Jours de retard : ${penaltyDays}`, 14, yPos)
+        yPos += 6
+      }
+      doc.setTextColor(0, 0, 0) // Revenir au noir
+    } else if (penaltyDays && penaltyDays > 0 && penaltyDays <= 3) {
+      doc.setTextColor(255, 140, 0) // Orange
+      doc.text(`Période de tolérance : ${penaltyDays} jour(s) de retard`, 14, yPos)
+      yPos += 6
+      doc.setTextColor(0, 0, 0)
+    }
+    
+    // Afficher le bonus si présent
+    const bonusApplied = (payment as any).bonusApplied
+    if (bonusApplied && bonusApplied > 0) {
+      doc.setTextColor(34, 139, 34) // Vert
+      doc.text(`Bonus appliqué : ${bonusApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      yPos += 6
+      doc.setTextColor(0, 0, 0)
+    }
+    
+    if (payment.updatedBy) {
+      doc.text(`Traité par : ${getAdminDisplayName(payment.updatedBy)}`, 14, yPos)
+      yPos += 6
+    }
+    
+    yPos += 4
+
+    // Détails des contributions
+    if ((payment as any).groupContributions && (payment as any).groupContributions.length > 0) {
+      // Contributions de groupe
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Contributions des membres (${(payment as any).groupContributions.length})`, 14, yPos)
+      yPos += 8
+
+      const tableData = (payment as any).groupContributions.map((contrib: any) => {
+        const row = [
+          `${contrib.memberFirstName} ${contrib.memberLastName}`,
+          contrib.memberMatricule,
+          `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
+          contrib.time || '',
+          contrib.mode === 'airtel_money' ? 'Airtel Money' :
+            contrib.mode === 'mobicash' ? 'Mobicash' :
+            contrib.mode === 'cash' ? 'Espèce' :
+            contrib.mode === 'bank_transfer' ? 'Virement' : contrib.mode || ''
+        ]
+        
+        if (contrib.penalty && contrib.penalty > 0) {
+          row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
+        } else {
+          row.push('-')
+        }
+        
+        return row
+      })
+
+      const hasPenalties = (payment as any).groupContributions.some((c: any) => c.penalty && c.penalty > 0)
+
+      autoTable(doc, {
+        head: [hasPenalties 
+          ? ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode', 'Pénalité']
+          : ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode']
+        ],
+        body: tableData,
+        startY: yPos,
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+      })
+      
+      yPos = (doc as any).lastAutoTable.finalY + 10
+    } else if (payment.contribs && payment.contribs.length > 0) {
+      // Contributions individuelles
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Détail des contributions', 14, yPos)
+      yPos += 8
+
+      for (const contrib of payment.contribs) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        
+        doc.text(`• Montant : ${(contrib.amount || 0).toLocaleString('fr-FR')} FCFA`, 20, yPos)
+        yPos += 6
+        
+        if (contrib.paidAt) {
+          try {
+            const paidAtAny = contrib.paidAt as any
+            const date = paidAtAny?.toDate ? paidAtAny.toDate() : new Date(contrib.paidAt)
+            doc.text(`  Payé le ${date.toLocaleDateString('fr-FR')}`, 20, yPos)
+            yPos += 6
+          } catch (error) {
+            // Ignorer l'erreur de date
+          }
+        }
+        
+        if (contrib.time) {
+          doc.text(`  Heure : ${contrib.time}`, 20, yPos)
+          yPos += 6
+        }
+        
+        if (contrib.mode) {
+          doc.text(`  Mode : ${contrib.mode}`, 20, yPos)
+          yPos += 6
+        }
+        
+        const contribPenalty = (contrib as any).penalty
+        const contribPenaltyDays = (contrib as any).penaltyDays
+        
+        if (contribPenalty && contribPenalty > 0) {
+          doc.setTextColor(220, 38, 38)
+          doc.text(`  Pénalité : ${contribPenalty.toLocaleString('fr-FR')} FCFA`, 20, yPos)
+          yPos += 6
+          if (contribPenaltyDays && contribPenaltyDays > 0) {
+            doc.text(`  Retard : ${contribPenaltyDays} jour(s)`, 20, yPos)
+            yPos += 6
+          }
+          doc.setTextColor(0, 0, 0)
+        }
+        
+        yPos += 3
+      }
+    }
+
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setTextColor(128, 128, 128)
+      doc.text(
+        `Page ${i} sur ${pageCount} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+        14,
+        doc.internal.pageSize.getHeight() - 10
+      )
+    }
+
+    // Télécharger le PDF
+    const dateStr = new Date().toISOString().split('T')[0]
+    const fileName = `versement_${contractId}_M${payment.dueMonthIndex + 1}_${dateStr}.pdf`
+    doc.save(fileName)
+  }
+
   // Fonction pour exporter les versements en PDF
   const exportToPDF = () => {
     if (!payments.length) return
@@ -558,15 +982,15 @@ export default function ContractPaymentsPage() {
                   <FileText className="h-4 w-4" />
                   Exporter PDF
                 </Button>
-                <Button
-                  onClick={exportToExcel}
-                  variant="outline"
-                  size="sm"
+              <Button
+                onClick={exportToExcel}
+                variant="outline"
+                size="sm"
                   className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-                >
-                  <Download className="h-4 w-4" />
-                  Exporter Excel
-                </Button>
+              >
+                <Download className="h-4 w-4" />
+                Exporter Excel
+              </Button>
               </div>
             )}
           </div>
@@ -618,6 +1042,15 @@ export default function ContractPaymentsPage() {
                       Versement #{payment.id} - Mois {payment.dueMonthIndex + 1}
                     </h3>
                     <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => exportSinglePaymentToPDF(payment)}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1 border-blue-300 text-blue-700 hover:bg-blue-50 h-8 px-2"
+                      >
+                        <Download className="h-3 w-3" />
+                        <span className="hidden sm:inline">PDF</span>
+                      </Button>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
                         {statusLabel}
                       </span>
@@ -709,12 +1142,12 @@ export default function ContractPaymentsPage() {
                         if (penaltyApplied && penaltyApplied > 0) {
                           return (
                             <div className="flex flex-col gap-1">
-                              <span className="font-medium text-red-700">
-                                {penaltyApplied.toLocaleString()} FCFA
-                                {contractSettings?.penaltyRules?.day4To12?.perDay && (
-                                  <span className="ml-1 text-xs">({contractSettings.penaltyRules.day4To12.perDay}%/jour)</span>
-                                )}
-                              </span>
+                            <span className="font-medium text-red-700">
+                              {penaltyApplied.toLocaleString()} FCFA
+                              {contractSettings?.penaltyRules?.day4To12?.perDay && (
+                                <span className="ml-1 text-xs">({contractSettings.penaltyRules.day4To12.perDay}%/jour)</span>
+                              )}
+                            </span>
                               {penaltyDays && penaltyDays > 0 && (
                                 <span className="text-xs text-red-600">
                                   {penaltyDays} jour{penaltyDays > 1 ? 's' : ''} de retard
@@ -777,7 +1210,18 @@ export default function ContractPaymentsPage() {
                   {/* Contributions de groupe */}
                   {(payment as any).groupContributions && (payment as any).groupContributions.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Contributions de groupe ({(payment as any).groupContributions.length}):</h4>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-gray-700">Contributions de groupe ({(payment as any).groupContributions.length}):</h4>
+                        <Button
+                          onClick={() => exportPaymentContributionsToPDF(payment)}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-1 border-purple-300 text-purple-700 hover:bg-purple-50 h-7 px-2 text-xs"
+                        >
+                          <FileText className="h-3 w-3" />
+                          Tableau PDF
+                        </Button>
+                      </div>
                       <div className="space-y-3">
                         {(payment as any).groupContributions.map((contrib: any, index: number) => (
                           <div key={index} className="bg-gray-50 p-3 rounded-lg">
@@ -872,7 +1316,18 @@ export default function ContractPaymentsPage() {
                   {/* Contributions individuelles */}
                   {payment.contribs && payment.contribs.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Détail des contributions:</h4>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-gray-700">Détail des contributions:</h4>
+                        <Button
+                          onClick={() => exportPaymentContributionsToPDF(payment)}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-1 border-purple-300 text-purple-700 hover:bg-purple-50 h-7 px-2 text-xs"
+                        >
+                          <FileText className="h-3 w-3" />
+                          Tableau PDF
+                        </Button>
+                      </div>
                       <div className="space-y-3">
                         {payment.contribs.map((contrib, index) => (
                           <div key={index} className="bg-gray-50 p-3 rounded-lg">

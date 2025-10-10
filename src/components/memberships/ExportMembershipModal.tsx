@@ -11,6 +11,7 @@ import type { MemberWithSubscription } from '@/db/member.db'
 import { getMembers } from '@/db/member.db'
 import { getMembershipRequestById } from '@/db/membership.db'
 import { Loader2 } from 'lucide-react'
+import { getNationalityName } from '@/constantes/nationality'
 
 interface ExportMembershipModalProps {
   isOpen: boolean
@@ -183,7 +184,7 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
       'Téléphones': contacts,
       'Email': identity.email ?? member?.email ?? '',
       'Sexe': identity.gender ?? member?.gender ?? '',
-      'Nationalité': identity.nationality ?? member?.nationality ?? '',
+      'Nationalité': getNationalityName(identity.nationality ?? member?.nationality),
       'État civil': identity.maritalStatus ?? '',
       "Nom de l'épouse/époux": identity.spouseLastName ?? '',
       "Prénom de l'époux/épouse": identity.spouseFirstName ?? '',

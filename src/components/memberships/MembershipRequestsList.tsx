@@ -28,6 +28,7 @@ import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecuri
 import type { MembershipRequest, MembershipRequestStatus, TypePayment } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
+import { getNationalityName } from '@/constantes/nationality'
 import MemberDetailsModal from './MemberDetailsModal'
 import MemberIdentityModal from './MemberIdentityModal'
 import { useAuth } from '@/hooks/useAuth'
@@ -639,7 +640,7 @@ const MembershipRequestCard = ({
                   {request.identity.firstName} {request.identity.lastName}
                 </h3>
                 <p className="text-sm text-gray-600 font-medium">
-                  {request.identity.nationality} • {request.identity.civility}
+                  {getNationalityName(request.identity.nationality)} • {request.identity.civility}
                 </p>
               </div>
             </div>
@@ -709,7 +710,7 @@ const MembershipRequestCard = ({
               {request.identity.firstName} {request.identity.lastName}
             </h3>
             <p className="text-sm text-gray-600 font-medium">
-              {request.identity.nationality} • {request.identity.civility}
+              {getNationalityName(request.identity.nationality)} • {request.identity.civility}
             </p>
           </div>
 

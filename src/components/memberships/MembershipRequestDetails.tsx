@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import { getAdminById } from '@/db/admin.db'
 import { useState, useEffect } from 'react'
+import { getNationalityName } from '@/constantes/nationality'
 
 // Fonction utilitaire pour obtenir le badge de statut avec animations
 const getStatusBadge = (status: MembershipRequestStatus) => {
@@ -366,7 +367,7 @@ export default function MembershipRequestDetails() {
               <InfoField label="Nom" value={request.identity.lastName} icon={User} color="text-blue-600" />
               <InfoField label="Date de naissance" value={formatDate(request.identity.birthDate)} icon={Calendar} color="text-purple-600" />
               <InfoField label="Lieu de naissance" value={request.identity.birthPlace} icon={MapPin} color="text-red-600" />
-              <InfoField label="Nationalité" value={request.identity.nationality} icon={User} color="text-green-600" />
+              <InfoField label="Nationalité" value={getNationalityName(request.identity.nationality)} icon={User} color="text-green-600" />
               <InfoField label="Statut matrimonial" value={request.identity.maritalStatus} icon={Heart} color="text-pink-600" />
 
               {request.identity.spouseFirstName && (

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getNationalityName } from '@/constantes/nationality'
 import {
   User,
   Users,
@@ -252,7 +253,7 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
 
           <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
             <MapPin className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-            <span className="truncate">{member.nationality}</span>
+            <span className="truncate">{getNationalityName(member.nationality)}</span>
           </div>
 
           {member.hasCar && (

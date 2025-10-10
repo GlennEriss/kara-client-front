@@ -187,4 +187,10 @@ const NATIONALITY_NAMES: Record<string, string> = {
     'KR': 'Sud-coréenne'
 }
 
+// Fonction helper pour obtenir le nom de la nationalité à partir du code
+export const getNationalityName = (code: string | undefined | null): string => {
+    if (!code) return 'Non renseignée'
+    return NATIONALITY_NAMES[code.toUpperCase()] || code
+}
+
 export default NATIONALITY_NAMES;
