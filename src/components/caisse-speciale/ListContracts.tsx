@@ -349,17 +349,14 @@ const ContractFilters = ({
               onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
             >
               <option value="all">Tous les statuts</option>
-              <option value="DRAFT">En cours</option>
               <option value="ACTIVE">Actif</option>
               <option value="LATE_NO_PENALTY">Retard (J+0..3)</option>
               <option value="LATE_WITH_PENALTY">Retard (J+4..12)</option>
-              <option value="DEFAULTED_AFTER_J12">Résilié (&gt;J+12)</option>
-              <option value="FINAL_REFUND_PENDING">Remboursement final</option>
-              <option value="RESCINDED">Résilié en urgence</option>
-              <option value="CLOSED">Clos</option>
+              <option value="RESCINDED">Cloture en urgence</option>
+              <option value="CLOSED">Cloture finale</option>
             </select>
 
-            <select
+           {/*  <select
               className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.type || 'all'}
               onChange={(e) => onFiltersChange({ ...filters, type: e.target.value })}
@@ -367,7 +364,7 @@ const ContractFilters = ({
               <option value="all">Tous les types</option>
               <option value="INDIVIDUAL">Individuels</option>
               <option value="GROUP">Groupes</option>
-            </select>
+            </select> */}
 
             <Button
               variant="outline"
@@ -1087,20 +1084,6 @@ const ListContracts = () => {
                               <FileText className="h-4 w-4" />
                               Contrat d'inscription
                             </Button>
-                            
-                            {/* Bouton Contrat de remboursement ou résiliation */}
-                            {contractRefunds[contract.id] && (
-                              <Button
-                                onClick={() => handleViewRefundPDF(contract)}
-                                variant="outline"
-                                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400"
-                              >
-                                <FileText className="h-4 w-4" />
-                                {contractRefunds[contract.id].type === 'EARLY' 
-                                  ? 'Contrat de résiliation' 
-                                  : 'Contrat de remboursement'}
-                              </Button>
-                            )}
                           </>
                         ) : (
                           <Button
