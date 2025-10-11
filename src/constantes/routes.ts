@@ -26,6 +26,7 @@ const routes = {
         contractsHistoryDetails: (id: string) => `/contracts-history/${id}`,
         // Caisse Spéciale (Espace Admin)
         caisseSpeciale: '/caisse-speciale',
+        caisseImprevue: '/caisse-imprevue',
         caisseSpecialeContractDetails: (id: string) => `/caisse-speciale/contrats/${id}`,
         caisseSpecialeContractPayments: (id: string) => `/caisse-speciale/contrats/${id}/versements`,
         caisseSpecialeCreateContract: '/caisse-speciale/create',

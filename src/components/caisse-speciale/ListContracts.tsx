@@ -356,6 +356,17 @@ const ContractFilters = ({
               <option value="CLOSED">Cloture finale</option>
             </select>
 
+            <select
+              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+              value={filters.caisseType || 'all'}
+              onChange={(e) => onFiltersChange({ ...filters, caisseType: e.target.value })}
+            >
+              <option value="all">Tous les types de contrat</option>
+              <option value="STANDARD">Standard</option>
+              <option value="JOURNALIERE">Journalière</option>
+              <option value="LIBRE">Libre</option>
+            </select>
+
            {/*  <select
               className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.type || 'all'}
@@ -394,7 +405,8 @@ const ListContracts = () => {
   const [filters, setFilters] = useState({
     search: '',
     status: 'all',
-    type: 'all'
+    type: 'all',
+    caisseType: 'all'
   })
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
@@ -453,7 +465,7 @@ const ListContracts = () => {
   }
 
   const handleResetFilters = () => {
-    setFilters({ search: '', status: 'all', type: 'all' })
+    setFilters({ search: '', status: 'all', type: 'all', caisseType: 'all' })
     setCurrentPage(1)
   }
 
@@ -730,6 +742,10 @@ const ListContracts = () => {
 
     if (filters.status !== 'all') {
       contracts = contracts.filter((c: any) => c.status === filters.status)
+    }
+
+    if (filters.caisseType !== 'all') {
+      contracts = contracts.filter((c: any) => c.caisseType === filters.caisseType)
     }
 
     if (filters.type !== 'all') {
