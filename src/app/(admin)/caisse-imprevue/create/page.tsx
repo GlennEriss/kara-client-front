@@ -1,7 +1,11 @@
+import FormCaisseImprevue from '@/components/caisse-imprevue/FormCaisseImprevue'
+import { FormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
 import React from 'react'
 
-export default function page() {
+export default function CreateCaisseImprevuePage() {
   return (
-    <div>page</div>
+    <FormCaisseImprevueProvider>
+      <FormCaisseImprevue />
+    </FormCaisseImprevueProvider>
   )
 }

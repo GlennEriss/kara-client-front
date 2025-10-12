@@ -3,6 +3,8 @@ import { CompanySuggestionsService } from '@/services/suggestions/CompanySuggest
 import { IFilleulService } from '@/services/filleuls/IFilleulService'
 import { FilleulService } from '@/services/filleuls/FilleulService'
 import { RepositoryFactory } from './RepositoryFactory'
+import { ICaisseImprevueService } from '@/services/caisse-imprevue/ICaisseImprevueService'
+import { CaisseImprevueService } from '@/services/caisse-imprevue/CaisseImprevueService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -34,6 +36,20 @@ export class ServiceFactory {
       this.services.set(key, new FilleulService(memberRepository))
     }
     
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des caisse imprevue
+  /**
+   * Obtient le service de gestion des caisse imprevue
+   */
+  static getCaisseImprevueService(): ICaisseImprevueService {
+    const key = 'CaisseImprevueService'
+    if (!this.services.has(key)) {
+      const memberRepository = RepositoryFactory.getMemberRepository()
+      this.services.set(key, new CaisseImprevueService(memberRepository))
+    }
     return this.services.get(key)
   }
 
