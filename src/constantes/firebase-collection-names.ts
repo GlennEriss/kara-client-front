@@ -17,6 +17,8 @@ export const firebaseCollectionNames = {
     caisseContracts: "caisseContracts",
     caisseSettings: "caisseSettings",
     caisseAdminNotes: "caisseAdminNotes",
+    // Caisse Imprévue
+    subscriptionsCI: "subscriptionsCI",
 }
 
 // Export également en majuscules pour compatibilité

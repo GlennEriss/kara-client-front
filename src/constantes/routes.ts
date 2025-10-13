@@ -31,6 +31,7 @@ const routes = {
         caisseSpecialeContractPayments: (id: string) => `/caisse-speciale/contrats/${id}/versements`,
         caisseSpecialeCreateContract: '/caisse-speciale/create',
         caisseSpecialeSettings: '/caisse-speciale/settings',
+        caisseImprevueSettings: '/caisse-imprevue/settings',
     },
     member: {
         home: '/',

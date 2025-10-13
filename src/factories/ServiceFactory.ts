@@ -17,11 +17,11 @@ export class ServiceFactory {
    */
   static getCompanySuggestionsService(): ICompanySuggestionsService {
     const key = 'CompanySuggestionsService'
-    
+
     if (!this.services.has(key)) {
       this.services.set(key, new CompanySuggestionsService())
     }
-    
+
     return this.services.get(key)
   }
 
@@ -30,17 +30,15 @@ export class ServiceFactory {
    */
   static getFilleulService(): IFilleulService {
     const key = 'FilleulService'
-    
+
     if (!this.services.has(key)) {
       const memberRepository = RepositoryFactory.getMemberRepository()
       this.services.set(key, new FilleulService(memberRepository))
     }
-    
+
     return this.services.get(key)
   }
 
-  /**
-   * Obtient le service de gestion des caisse imprevue
   /**
    * Obtient le service de gestion des caisse imprevue
    */
@@ -48,7 +46,8 @@ export class ServiceFactory {
     const key = 'CaisseImprevueService'
     if (!this.services.has(key)) {
       const memberRepository = RepositoryFactory.getMemberRepository()
-      this.services.set(key, new CaisseImprevueService(memberRepository))
+      const subscriptionCIRepository = RepositoryFactory.getSubscriptionCIRepository()
+      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository))
     }
     return this.services.get(key)
   }

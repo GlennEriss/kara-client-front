@@ -11,30 +11,14 @@ export const caisseImprevueStep1Schema = z.object({
 
 // Schéma pour Step 2 : Forfait et type de remboursement
 export const caisseImprevueStep2Schema = z.object({
-  forfaitType: z.enum(['HOSPITALISATION', 'DECES', 'INVALIDITE', 'AUTRE'], {
-    message: 'Le type de forfait est requis',
+  // Code du forfait sélectionné (A à E)
+  planCode: z.enum(['A', 'B', 'C', 'D', 'E'], {
+    message: 'Le forfait est requis',
   }),
-  forfaitAmount: z
-    .number({
-      message: 'Le montant du forfait est requis',
-    })
-    .positive('Le montant doit être positif'),
-  remboursementType: z.enum(['JOURNALIER', 'MENSUEL'], {
-    message: 'Le type de remboursement est requis',
+  // Fréquence de paiement: quotidien (au fil des jours) ou mensuel (une fois par mois)
+  paymentFrequency: z.enum(['DAILY', 'MONTHLY'], {
+    message: 'Le type de paiement est requis',
   }),
-  remboursementDuration: z
-    .number({
-      message: 'La durée de remboursement est requise',
-    })
-    .int('La durée doit être un nombre entier')
-    .positive('La durée doit être positive'),
-  remboursementAmount: z
-    .number({
-      message: 'Le montant de remboursement est requis',
-    })
-    .positive('Le montant doit être positif'),
-  description: z.string().optional(),
-  motif: z.string().min(10, 'Le motif doit contenir au moins 10 caractères'),
 })
 
 // Schéma pour Step 3 : Contact d'urgence
@@ -84,13 +68,8 @@ export const defaultCaisseImprevueStep1Values: Partial<CaisseImprevueStep1FormDa
 }
 
 export const defaultCaisseImprevueStep2Values: Partial<CaisseImprevueStep2FormData> = {
-  forfaitType: undefined,
-  forfaitAmount: undefined,
-  remboursementType: undefined,
-  remboursementDuration: undefined,
-  remboursementAmount: undefined,
-  description: '',
-  motif: '',
+  planCode: 'A',
+  paymentFrequency: 'MONTHLY',
 }
 
 export const defaultCaisseImprevueStep3Values: Partial<CaisseImprevueStep3FormData> = {
@@ -105,5 +84,108 @@ export const defaultCaisseImprevueGlobalValues: Partial<CaisseImprevueGlobalForm
   step1: defaultCaisseImprevueStep1Values as CaisseImprevueStep1FormData,
   step2: defaultCaisseImprevueStep2Values as CaisseImprevueStep2FormData,
   step3: defaultCaisseImprevueStep3Values as CaisseImprevueStep3FormData,
+}
+
+// ========== SCHÉMA POUR LA GESTION DES FORFAITS (SUBSCRIPTIONCI) ==========
+
+// Schéma pour la création/modification d'un forfait
+export const subscriptionCISchema = z.object({
+  // Référence vers le membre (requis lors de la création)
+  memberId: z.string().min(1, 'Le membre est requis'),
+
+  // Code du forfait sélectionné (A à E)
+  code: z.enum(['A', 'B', 'C', 'D', 'E'], {
+    message: 'Le code du forfait est requis',
+  }),
+
+  // Montant mensuel à cotiser (en FCFA)
+  amountPerMonth: z
+    .number({
+      message: 'Le montant mensuel est requis',
+    })
+    .positive('Le montant doit être positif')
+    .int('Le montant doit être un nombre entier'),
+
+  // Somme nominale à atteindre en 12 mois (en FCFA)
+  nominal: z
+    .number({
+      message: 'Le nominal est requis',
+    })
+    .positive('Le nominal doit être positif')
+    .int('Le nominal doit être un nombre entier'),
+
+  // Durée du contrat en mois
+  durationInMonths: z
+    .number({
+      message: 'La durée est requise',
+    })
+    .int('La durée doit être un nombre entier')
+    .positive('La durée doit être positive')
+    .max(24, 'La durée ne peut pas dépasser 24 mois'),
+
+  // Taux de pénalité en pourcentage
+  penaltyRate: z
+    .number({
+      message: 'Le taux de pénalité est requis',
+    })
+    .min(0, 'Le taux de pénalité ne peut pas être négatif')
+    .max(100, 'Le taux de pénalité ne peut pas dépasser 100%'),
+
+  // Nombre de jours de délai avant application des pénalités
+  penaltyDelayDays: z
+    .number({
+      message: 'Le délai de pénalité est requis',
+    })
+    .int('Le délai doit être un nombre entier')
+    .min(0, 'Le délai ne peut pas être négatif')
+    .max(30, 'Le délai ne peut pas dépasser 30 jours'),
+
+  // Montant minimum d'appui (en FCFA)
+  supportMin: z
+    .number({
+      message: 'Le montant minimum d\'appui est requis',
+    })
+    .min(0, 'Le montant minimum ne peut pas être négatif')
+    .int('Le montant doit être un nombre entier'),
+
+  // Montant maximum d'appui (en FCFA)
+  supportMax: z
+    .number({
+      message: 'Le montant maximum d\'appui est requis',
+    })
+    .positive('Le montant maximum doit être positif')
+    .int('Le montant doit être un nombre entier'),
+
+  // Fréquence de paiement
+  paymentFrequency: z.enum(['DAILY', 'MONTHLY'], {
+    message: 'La fréquence de paiement est requise',
+  }),
+
+  // Statut du contrat (optionnel, défini par défaut à ACTIVE)
+  status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED', 'SUSPENDED']).optional(),
+}).refine(
+  (data) => data.supportMax >= data.supportMin,
+  {
+    message: 'Le montant maximum d\'appui doit être supérieur ou égal au montant minimum',
+    path: ['supportMax'],
+  }
+)
+
+// Type dérivé du schéma
+export type SubscriptionCIFormData = z.infer<typeof subscriptionCISchema>
+
+// Valeurs par défaut pour un nouveau forfait
+export const defaultSubscriptionCIValues: Partial<SubscriptionCIFormData> = {
+  memberId: '',
+  code: 'A',
+  amountPerMonth: 10000,
+  nominal: 120000,
+  durationInMonths: 12,
+  penaltyRate: 0.5,
+  penaltyDelayDays: 3,
+  supportMin: 0,
+  supportMax: 30000,
+  paymentFrequency: 'MONTHLY',
+  status: 'ACTIVE',
 }
 

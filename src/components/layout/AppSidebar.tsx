@@ -92,6 +92,11 @@ const systemMenuItems: any[] = [
         url: routes.admin.caisseSpecialeSettings,
         icon: Settings,
     },
+    {
+        title: "Paramètres Caisse Imprvue",
+        url: routes.admin.caisseImprevueSettings,
+        icon: HeartHandshake,
+    }
     /* {
         title: "Paramètres",
         url: routes.admin.settings,

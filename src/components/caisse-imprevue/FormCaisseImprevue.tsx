@@ -11,6 +11,7 @@ import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevuePro
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const Step1 = React.lazy(() => import('./Step1'))
 const Step2 = React.lazy(() => import('./Step2'))
@@ -23,7 +24,7 @@ export default function FormCaisseImprevue() {
     useEffect(() => {
         mediator.setNavigationContext(currentStep, steps.length, goToNextStep)
     }, [currentStep, steps.length, goToNextStep, mediator])
-    
+
     const getCurrentStepComponent = () => {
         switch (currentStep) {
             case 1:
@@ -58,12 +59,12 @@ export default function FormCaisseImprevue() {
                 <div className="mx-auto max-w-4xl space-y-6">
                     <Stepper value={currentStep}>
                         {steps.map((stepData) => (
-                            <StepperItem 
-                                key={stepData.step} 
-                                step={stepData.step} 
+                            <StepperItem
+                                key={stepData.step}
+                                step={stepData.step}
                                 className="not-last:flex-1"
                             >
-                                <StepperTrigger 
+                                <StepperTrigger
                                     onClick={() => setStep(stepData.step)}
                                     className="cursor-pointer"
                                 >
@@ -125,24 +126,17 @@ export default function FormCaisseImprevue() {
                 <div className="text-sm text-muted-foreground">
                     Étape {currentStep} sur {steps.length}
                 </div>
-
-                {currentStep < steps.length ? (
-                    <Button
-                        type="submit"
-                        className="gap-2 bg-[#224D62] hover:bg-[#2c5a73]"
-                    >
-                        Suivant
-                        <ChevronRight className="w-4 h-4" />
-                    </Button>
-                ) : (
-                    <Button
-                        type="submit"
-                        className="gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                        Soumettre la demande
-                        <ChevronRight className="w-4 h-4" />
-                    </Button>
-                )}
+                <Button
+                    type="submit"
+                    className={cn("gap-2",
+                        currentStep < steps.length ?
+                            "bg-[#224D62] hover:bg-[#2c5a73]" :
+                            "bg-green-600 hover:bg-green-700"
+                    )}
+                >
+                    {currentStep < steps.length ? "Suivant" : "Soumettre la demande"}
+                    {currentStep < steps.length ? <ChevronRight className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </Button>
             </div>
         </div>
     )
