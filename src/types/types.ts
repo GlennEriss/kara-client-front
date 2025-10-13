@@ -441,6 +441,55 @@ export interface User {
   caisseContractIds?: string[]
 }
 
+// ================== TYPES CAISSE IMPREVUE ==================
+
+export type CaisseImprevuePaymentFrequency = 'DAILY' | 'MONTHLY'
+
+/**
+ * Type pour un contrat de Caisse Imprévue (souscription)
+ * Stocké dans Firestore dans la collection 'caisse-imprevue-contracts'
+ */
+export interface SubscriptionCI {
+  // Identifiant unique du forfait
+  id: string
+
+  // label du forfait
+  label?: string
+
+  // Code du forfait sélectionné (A à E)
+  code: string
+
+  // Montant mensuel à cotiser (en FCFA)
+  amountPerMonth: number
+
+  // Somme nominale à atteindre en 12 mois (en FCFA)
+  nominal: number
+
+  // Durée du forfait en mois (généralement 12)
+  durationInMonths: number
+
+  // Taux de pénalité en pourcentage (ex: 0.5 pour 0.5%)
+  penaltyRate: number
+
+  // Nombre de jours de délai avant application des pénalités (ex: 3 jours)
+  penaltyDelayDays: number
+
+  // Montant minimum d'appui/aide possible (en FCFA)
+  supportMin: number
+
+  // Montant maximum d'appui/aide possible (en FCFA)
+  supportMax: number
+
+  // Statut du forfait
+  status: 'ACTIVE' | 'INACTIVE'
+
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
 // ================== TYPES POUR LES GROUPES ==================
 
 export interface Group {
