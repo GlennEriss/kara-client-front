@@ -1,6 +1,8 @@
+import { ISubscriptionCIRepository } from '@/repositories/caisse-imprevu/ISubscriptionCIRepository'
 import { IRepository } from '@/repositories/IRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { MemberRepository } from '@/repositories/members/MemberRepository'
+import { SubscriptionCIRepository } from '@/repositories/caisse-imprevu/SubscriptionCIRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -13,12 +15,24 @@ export class RepositoryFactory {
    */
   static getMemberRepository(): IMemberRepository {
     const key = 'MemberRepository'
-    
+
     if (!this.repositories.has(key)) {
       this.repositories.set(key, new MemberRepository())
     }
-    
+
     return this.repositories.get(key) as IMemberRepository
+  }
+
+
+  /**
+   * Obtient le repository des souscriptions de la caisse imprevue
+   */
+  static getSubscriptionCIRepository(): ISubscriptionCIRepository {
+    const key = 'SubscriptionCIRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new SubscriptionCIRepository())
+    }
+    return this.repositories.get(key) as ISubscriptionCIRepository
   }
 
   /**

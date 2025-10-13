@@ -4,4 +4,5 @@ import { IRepository } from "../IRepository";
 export interface IMemberRepository extends IRepository {
     getFilleulsByIntermediaryCode(intermediaryCode: string): Promise<Filleul[]>;
     getMemberById(memberId: string): Promise<User | null>;
+    searchMembers(searchQuery: string): Promise<User[]>;
 }

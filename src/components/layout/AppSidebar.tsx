@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet } from "lucide-react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -43,6 +43,11 @@ const adminMenuItems = [
         title: "Caisse Spéciale",
         url: routes.admin.caisseSpeciale,
         icon: Wallet,
+    },
+    {
+        title: "Caisse imprévue",
+        url: routes.admin.caisseImprevue,
+        icon: HeartHandshake,
     },
     /*{
         title: "Assurance",
@@ -87,6 +92,11 @@ const systemMenuItems: any[] = [
         url: routes.admin.caisseSpecialeSettings,
         icon: Settings,
     },
+    {
+        title: "Paramètres Caisse Imprvue",
+        url: routes.admin.caisseImprevueSettings,
+        icon: HeartHandshake,
+    }
     /* {
         title: "Paramètres",
         url: routes.admin.settings,
@@ -118,6 +128,12 @@ export function AppSidebar() {
         if (url === routes.admin.caisseSpecialeSettings) {
             return pathname === url || pathname.startsWith(url + '/')
         }
+        if (url === routes.admin.caisseImprevue) {
+            return pathname === routes.admin.caisseImprevue
+        }
+        if (url === routes.admin.caisseImprevueSettings) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
         // Comportement par défaut: actif si égalité ou sous-chemin
         return pathname === url || pathname.startsWith(url + '/')
     }
@@ -127,7 +143,7 @@ export function AppSidebar() {
             <SidebarHeader className="flex justify-center h-20 border-b border-[#2c5a73]/50 bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
                 <div className="flex items-center gap-3 p-4 transition-all duration-300 hover:scale-105">
                     <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:rotate-3">
-                        <Logo 
+                        <Logo
                             size="sm"
                             variant="with-bg"
                             className="h-10 w-10 object-contain transition-transform duration-300 hover:scale-110"
@@ -154,8 +170,8 @@ export function AppSidebar() {
                                 return (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton asChild>
-                                            <Link 
-                                                href={item.url} 
+                                            <Link
+                                                href={item.url}
                                                 className={cn(
                                                     "flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm",
                                                     isActive && "text-white bg-white/15 shadow-lg translate-x-1"
@@ -172,7 +188,7 @@ export function AppSidebar() {
                                                     "font-medium transition-all duration-300 group-hover:font-semibold",
                                                     isActive && "font-semibold"
                                                 )}>{item.title}</span>
-                                                
+
                                             </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
@@ -194,8 +210,8 @@ export function AppSidebar() {
                                     return (
                                         <SidebarMenuItem key={item.title}>
                                             <SidebarMenuButton asChild>
-                                                <Link 
-                                                    href={item.url} 
+                                                <Link
+                                                    href={item.url}
                                                     className={cn(
                                                         "flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm",
                                                         isActive && "text-white bg-white/15 shadow-lg translate-x-1"
