@@ -16,7 +16,9 @@ export default function Step1() {
   const { form } = useFormCaisseImprevueProvider()
   const [searchQuery, setSearchQuery] = useState('')
   const [shouldSearch, setShouldSearch] = useState(false)
-  const [selectedMember, setSelectedMember] = useState<User | null>(null)
+  // Deriver l'utilisateur sélectionné depuis le formulaire pour persister entre les étapes
+  const step1Values = form.watch('step1')
+  const selectedMemberId = step1Values?.memberId
 
   // Callbacks mémorisés avec useCallback pour éviter les re-renders inutiles
   const handleSearchSuccess = useCallback((data: User[]) => {
@@ -52,8 +54,6 @@ export default function Step1() {
 
   // Sélectionner un membre
   const handleSelectMember = (member: User) => {
-    setSelectedMember(member)
-    
     // ✅ Définir les valeurs avec validation et sans marquer comme touched
     form.setValue('step1.memberId', member.id, { 
       shouldValidate: true,  // Valider immédiatement
@@ -156,7 +156,7 @@ export default function Step1() {
                   <Card
                     key={member.id}
                     className={`cursor-pointer transition-all hover:shadow-md ${
-                      selectedMember?.id === member.id
+                      selectedMemberId === member.id
                         ? 'border-[#224D62] bg-[#224D62]/5'
                         : ''
                     }`}
@@ -169,7 +169,7 @@ export default function Step1() {
                             <p className="font-medium">
                               {member.firstName} {member.lastName}
                             </p>
-                            {selectedMember?.id === member.id && (
+                            {selectedMemberId === member.id && (
                               <CheckCircle2 className="w-5 h-5 text-[#224D62]" />
                             )}
                           </div>
@@ -201,7 +201,7 @@ export default function Step1() {
       </Card>
 
       {/* Section de sélection du membre */}
-      {selectedMember && (
+      {selectedMemberId && (
         <Card>
           <CardHeader>
             <CardTitle>Membre sélectionné</CardTitle>
@@ -292,11 +292,11 @@ export default function Step1() {
               <div className="flex items-center gap-2 text-green-700">
                 <CheckCircle2 className="w-5 h-5" />
                 <p className="font-medium">
-                  Membre confirmé : {selectedMember.firstName} {selectedMember.lastName}
+                    Membre confirmé : {step1Values?.memberFirstName} {step1Values?.memberLastName}
                 </p>
               </div>
               <p className="text-sm text-green-600 mt-1">
-                Matricule : {selectedMember.matricule}
+                  Matricule : {step1Values?.memberId}
               </p>
             </div>
           </CardContent>

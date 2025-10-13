@@ -1,15 +1,19 @@
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react'
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef } from 'react'
 import { useForm, UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { CaisseImprevuFormMediator } from '@/mediators/CaisseImprevuFormMediator'
 import {
   caisseImprevueGlobalSchema,
+  caisseImprevueStep1Schema,
+  caisseImprevueStep2Schema,
+  caisseImprevueStep3Schema,
   defaultCaisseImprevueGlobalValues,
   type CaisseImprevueGlobalFormData,
 } from '@/schemas/caisse-imprevue.schema'
+import { z } from 'zod'
 
 // Interface pour une étape
 interface Step {
@@ -42,6 +46,12 @@ interface FormCaisseImprevueProviderProps {
 // Provider
 export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProviderProps) {
   const [currentStep, setCurrentStep] = useState(1)
+  const currentStepRef = useRef(currentStep)
+
+  // Mettre à jour la ref quand currentStep change
+  useEffect(() => {
+    currentStepRef.current = currentStep
+  }, [currentStep])
 
   // Initialisation du médiateur (singleton)
   const mediator = useMemo(() => {
@@ -50,16 +60,32 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
 
   // Initialisation du formulaire global avec keepValues pour préserver les données
   const form = useForm<CaisseImprevueGlobalFormData>({
-    resolver: zodResolver(caisseImprevueGlobalSchema),
+    resolver: async (values, context, options) => {
+      const step = currentStepRef.current
+      
+      // @ts-ignore - Typage complexe, mais fonctionnel
+      const schemaToUse = step === 1
+        ? z.object({ step1: caisseImprevueStep1Schema, step2: z.any().optional(), step3: z.any().optional() })
+        : step === 2
+        ? z.object({ step1: caisseImprevueStep1Schema, step2: caisseImprevueStep2Schema, step3: z.any().optional() })
+        : caisseImprevueGlobalSchema
+
+      // @ts-ignore
+      return zodResolver(schemaToUse)(values, context, options)
+    },
     defaultValues: defaultCaisseImprevueGlobalValues,
-    mode: 'onChange',
-    shouldUnregister: false, // ✅ Garde les valeurs même quand les champs sont démontés
-    criteriaMode: 'all', // Affiche toutes les erreurs
+    mode: 'onSubmit',
+    shouldUnregister: false,
+    criteriaMode: 'all',
   })
 
-  // Nettoyer les erreurs quand on change d'étape
+  // Nettoyer les erreurs quand on change d'étape ET préserver les valeurs
   useEffect(() => {
     form.clearErrors()
+    
+    // Debug : afficher les valeurs actuelles du formulaire
+    const formValues = form.getValues()
+    console.log('📝 Valeurs du formulaire à l\'étape', currentStep, ':', formValues)
   }, [currentStep, form])
 
   // Définition des étapes
