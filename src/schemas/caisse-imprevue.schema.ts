@@ -90,13 +90,11 @@ export const defaultCaisseImprevueGlobalValues: Partial<CaisseImprevueGlobalForm
 
 // Schéma pour la création/modification d'un forfait
 export const subscriptionCISchema = z.object({
-  // Référence vers le membre (requis lors de la création)
-  memberId: z.string().min(1, 'Le membre est requis'),
+  // Label/nom descriptif du forfait (optionnel)
+  label: z.string().optional().or(z.literal('')),
 
-  // Code du forfait sélectionné (A à E)
-  code: z.enum(['A', 'B', 'C', 'D', 'E'], {
-    message: 'Le code du forfait est requis',
-  }),
+  // Code du forfait (A à E ou personnalisé)
+  code: z.string().min(1, 'Le code du forfait est requis'),
 
   // Montant mensuel à cotiser (en FCFA)
   amountPerMonth: z
@@ -156,13 +154,10 @@ export const subscriptionCISchema = z.object({
     .positive('Le montant maximum doit être positif')
     .int('Le montant doit être un nombre entier'),
 
-  // Fréquence de paiement
-  paymentFrequency: z.enum(['DAILY', 'MONTHLY'], {
-    message: 'La fréquence de paiement est requise',
+  // Statut du forfait (ACTIVE ou INACTIVE)
+  status: z.enum(['ACTIVE', 'INACTIVE'], {
+    message: 'Le statut est requis',
   }),
-
-  // Statut du contrat (optionnel, défini par défaut à ACTIVE)
-  status: z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED', 'SUSPENDED']).optional(),
 }).refine(
   (data) => data.supportMax >= data.supportMin,
   {
@@ -176,7 +171,7 @@ export type SubscriptionCIFormData = z.infer<typeof subscriptionCISchema>
 
 // Valeurs par défaut pour un nouveau forfait
 export const defaultSubscriptionCIValues: Partial<SubscriptionCIFormData> = {
-  memberId: '',
+  label: '',
   code: 'A',
   amountPerMonth: 10000,
   nominal: 120000,
@@ -185,7 +180,6 @@ export const defaultSubscriptionCIValues: Partial<SubscriptionCIFormData> = {
   penaltyDelayDays: 3,
   supportMin: 0,
   supportMax: 30000,
-  paymentFrequency: 'MONTHLY',
   status: 'ACTIVE',
 }
 

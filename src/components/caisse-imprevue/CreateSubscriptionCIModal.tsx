@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect } from 'react'
+import React from 'react'
 import {
   Dialog,
   DialogContent,
@@ -13,14 +13,12 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { subscriptionCISchema, defaultSubscriptionCIValues, type SubscriptionCIFormData } from '@/schemas/caisse-imprevue.schema'
-import { CAISSE_IMPREVUE_PLANS } from '@/types/types'
 import { useSubscriptionCI } from './SubscriptionCIContext'
-import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 interface CreateSubscriptionCIModalProps {
   open: boolean
@@ -28,57 +26,32 @@ interface CreateSubscriptionCIModalProps {
 }
 
 export default function CreateSubscriptionCIModal({ open, onOpenChange }: CreateSubscriptionCIModalProps) {
-  const { dispatch } = useSubscriptionCI()
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-
+  const { createSubscription } = useSubscriptionCI()
+  const { user } = useAuth()
+  
   const form = useForm<SubscriptionCIFormData>({
     resolver: zodResolver(subscriptionCISchema),
     defaultValues: defaultSubscriptionCIValues,
   })
 
-  const selectedPlanCode = form.watch('code')
-  const selectedPlan = selectedPlanCode ? CAISSE_IMPREVUE_PLANS[selectedPlanCode] : null
-
-  // Mettre à jour automatiquement les montants quand le forfait change
-  useEffect(() => {
-    if (selectedPlan) {
-      form.setValue('amountPerMonth', selectedPlan.monthlyAmount)
-      form.setValue('nominal', selectedPlan.nominalTarget)
-      form.setValue('supportMin', selectedPlan.supportMin)
-      form.setValue('supportMax', selectedPlan.supportMax)
-    }
-  }, [selectedPlan, form])
-
   const onSubmit = async (data: SubscriptionCIFormData) => {
-    setIsSubmitting(true)
-    
-    try {
-      // TODO: Appeler le service pour créer la souscription dans Firestore
-      // const newSubscription = await createSubscriptionCI(data)
-      
-      // Simulation
-      const newSubscription = {
-        ...data,
-        id: `CI_${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        createdBy: 'admin',
-      }
-
-      dispatch({ type: 'ADD_SUBSCRIPTION', payload: newSubscription as any })
-      toast.success('Forfait créé avec succès')
-      form.reset()
-      onOpenChange(false)
-    } catch (error) {
-      console.error('Erreur lors de la création:', error)
-      toast.error('Erreur lors de la création du forfait')
-    } finally {
-      setIsSubmitting(false)
+    // Préparer les données pour la création
+    const subscriptionData = {
+      ...data,
+      createdBy: user?.uid || '',
+      updatedBy: user?.uid,
+      status: data.status as 'ACTIVE' | 'INACTIVE',
     }
-  }
 
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+    // Utiliser la mutation de React Query
+    createSubscription.mutate(subscriptionData, {
+      onSuccess: () => {
+        form.reset()
+        onOpenChange(false)
+        // Toast géré par le hook de mutation
+      },
+      // Erreur gérée par le hook de mutation
+    })
   }
 
   return (
@@ -95,22 +68,39 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Section 1: Sélection du membre */}
+            {/* Section 1: Identification du forfait */}
             <Card>
               <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Informations du membre</h3>
+                <h3 className="font-semibold text-lg">Identification du forfait</h3>
                 
                 <FormField
                   control={form.control}
-                  name="memberId"
+                  name="label"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>ID du membre *</FormLabel>
+                      <FormLabel>Libellé du forfait</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: 2663.MK.260925" {...field} />
+                        <Input placeholder="Ex: Forfait Hospitalisation, Forfait Décès..." {...field} />
                       </FormControl>
                       <FormDescription>
-                        Identifiant unique du membre
+                        Nom descriptif pour identifier ce forfait (optionnel)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Code du forfait *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ex: A, B, C, HOSP1, etc." {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Code unique pour identifier ce forfait
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -119,125 +109,102 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
               </CardContent>
             </Card>
 
-            {/* Section 2: Sélection du forfait */}
+            {/* Section 2: Configuration financière */}
             <Card>
               <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Choix du forfait</h3>
+                <h3 className="font-semibold text-lg">Configuration financière</h3>
                 
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Forfait *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="amountPerMonth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Montant mensuel (FCFA) *</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionnez un forfait" />
-                          </SelectTrigger>
+                          <Input
+                            type="number"
+                            placeholder="Ex: 10000"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
                         </FormControl>
-                        <SelectContent>
-                          {Object.values(CAISSE_IMPREVUE_PLANS).map((plan) => (
-                            <SelectItem key={plan.code} value={plan.code}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold">Forfait {plan.code}</span>
-                                <span className="text-muted-foreground">
-                                  - {formatAmount(plan.monthlyAmount)}/mois
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Choisissez le forfait adapté aux besoins du membre
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormDescription>
+                          Montant à cotiser chaque mois
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                {/* Aperçu du forfait sélectionné */}
-                {selectedPlan && (
-                  <div className="p-4 bg-[#224D62]/5 border border-[#224D62]/20 rounded-lg space-y-2">
-                    <p className="font-semibold text-[#224D62]">
-                      Détails du forfait {selectedPlan.code}
-                    </p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Mensuel</p>
-                        <p className="font-semibold">{formatAmount(selectedPlan.monthlyAmount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Nominal</p>
-                        <p className="font-semibold">{formatAmount(selectedPlan.nominalTarget)}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-muted-foreground">Plage d'appui</p>
-                        <p className="font-semibold text-green-600">
-                          {formatAmount(selectedPlan.supportMin)} - {formatAmount(selectedPlan.supportMax)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  <FormField
+                    control={form.control}
+                    name="nominal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nominal (FCFA) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Ex: 120000"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Somme nominale à atteindre
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="paymentFrequency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fréquence de paiement *</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="grid grid-cols-2 gap-4"
-                        >
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <Card className="w-full cursor-pointer hover:shadow-md transition-shadow">
-                              <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                  <FormControl>
-                                    <RadioGroupItem value="MONTHLY" />
-                                  </FormControl>
-                                  <div className="flex-1">
-                                    <FormLabel className="font-semibold cursor-pointer">
-                                      Mensuel
-                                    </FormLabel>
-                                    <p className="text-xs text-muted-foreground">
-                                      Versement complet une fois par mois
-                                    </p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <Card className="w-full cursor-pointer hover:shadow-md transition-shadow">
-                              <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                  <FormControl>
-                                    <RadioGroupItem value="DAILY" />
-                                  </FormControl>
-                                  <div className="flex-1">
-                                    <FormLabel className="font-semibold cursor-pointer">
-                                      Journalier
-                                    </FormLabel>
-                                    <p className="text-xs text-muted-foreground">
-                                      Versements progressifs au fil des jours
-                                    </p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </FormItem>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="supportMin"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Appui minimum (FCFA) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Ex: 0"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Montant minimum d'aide possible
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="supportMax"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Appui maximum (FCFA) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Ex: 30000"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Montant maximum d'aide possible
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -273,7 +240,7 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Statut</FormLabel>
+                        <FormLabel>Statut *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -282,11 +249,12 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="ACTIVE">Actif</SelectItem>
-                            <SelectItem value="SUSPENDED">Suspendu</SelectItem>
-                            <SelectItem value="CANCELLED">Annulé</SelectItem>
-                            <SelectItem value="COMPLETED">Terminé</SelectItem>
+                            <SelectItem value="INACTIVE">Inactif</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Les forfaits actifs sont disponibles pour les souscriptions
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -345,16 +313,16 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
+                disabled={createSubscription.isPending}
               >
                 Annuler
               </Button>
               <Button
                 type="submit"
                 className="bg-[#224D62] hover:bg-[#2c5a73]"
-                disabled={isSubmitting}
+                disabled={createSubscription.isPending}
               >
-                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {createSubscription.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Créer le forfait
               </Button>
             </DialogFooter>

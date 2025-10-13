@@ -1,14 +1,15 @@
 'use client'
 import React, { createContext, useContext, useReducer, ReactNode } from 'react'
 import { SubscriptionCI } from '@/types/types'
+import { useSubscriptionsCI } from '@/hooks/caisse-imprevue/useSubscriptionsCI'
+import {
+  useCreateSubscriptionCI,
+  useUpdateSubscriptionCI,
+  useDeleteSubscriptionCI,
+} from '@/hooks/caisse-imprevue/useSubscriptionCIMutations'
 
-// Types d'actions
+// Types d'actions (uniquement pour l'UI maintenant, React Query gère les données)
 type SubscriptionCIAction =
-  | { type: 'SET_SUBSCRIPTIONS'; payload: SubscriptionCI[] }
-  | { type: 'ADD_SUBSCRIPTION'; payload: SubscriptionCI }
-  | { type: 'UPDATE_SUBSCRIPTION'; payload: SubscriptionCI }
-  | { type: 'DELETE_SUBSCRIPTION'; payload: string } // ID de la subscription
-  | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_SELECTED'; payload: SubscriptionCI | null }
   | { type: 'OPEN_CREATE_MODAL' }
   | { type: 'CLOSE_CREATE_MODAL' }
@@ -19,10 +20,8 @@ type SubscriptionCIAction =
   | { type: 'OPEN_DELETE_DIALOG'; payload: SubscriptionCI }
   | { type: 'CLOSE_DELETE_DIALOG' }
 
-// État du contexte
+// État du contexte (simplifié - uniquement l'état UI)
 interface SubscriptionCIState {
-  subscriptions: SubscriptionCI[]
-  isLoading: boolean
   selectedSubscription: SubscriptionCI | null
   showCreateModal: boolean
   showEditModal: boolean
@@ -33,8 +32,6 @@ interface SubscriptionCIState {
 
 // État initial
 const initialState: SubscriptionCIState = {
-  subscriptions: [],
-  isLoading: false,
   selectedSubscription: null,
   showCreateModal: false,
   showEditModal: false,
@@ -43,43 +40,12 @@ const initialState: SubscriptionCIState = {
   subscriptionToDelete: null,
 }
 
-// Reducer
+// Reducer (simplifié - gère uniquement l'UI)
 function subscriptionCIReducer(
   state: SubscriptionCIState,
   action: SubscriptionCIAction
 ): SubscriptionCIState {
   switch (action.type) {
-    case 'SET_SUBSCRIPTIONS':
-      return { ...state, subscriptions: action.payload, isLoading: false }
-
-    case 'ADD_SUBSCRIPTION':
-      return {
-        ...state,
-        subscriptions: [action.payload, ...state.subscriptions],
-        showCreateModal: false,
-      }
-
-    case 'UPDATE_SUBSCRIPTION':
-      return {
-        ...state,
-        subscriptions: state.subscriptions.map((sub) =>
-          sub.id === action.payload.id ? action.payload : sub
-        ),
-        showEditModal: false,
-        selectedSubscription: null,
-      }
-
-    case 'DELETE_SUBSCRIPTION':
-      return {
-        ...state,
-        subscriptions: state.subscriptions.filter((sub) => sub.id !== action.payload),
-        showDeleteDialog: false,
-        subscriptionToDelete: null,
-      }
-
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload }
-
     case 'SET_SELECTED':
       return { ...state, selectedSubscription: action.payload }
 
@@ -138,8 +104,19 @@ function subscriptionCIReducer(
 
 // Contexte
 interface SubscriptionCIContextType {
+  // État UI
   state: SubscriptionCIState
   dispatch: React.Dispatch<SubscriptionCIAction>
+  
+  // Données (de React Query)
+  subscriptions: SubscriptionCI[]
+  isLoading: boolean
+  isError: boolean
+  
+  // Mutations (de React Query)
+  createSubscription: ReturnType<typeof useCreateSubscriptionCI>
+  updateSubscription: ReturnType<typeof useUpdateSubscriptionCI>
+  deleteSubscription: ReturnType<typeof useDeleteSubscriptionCI>
 }
 
 const SubscriptionCIContext = createContext<SubscriptionCIContextType | undefined>(undefined)
@@ -152,8 +129,27 @@ interface SubscriptionCIProviderProps {
 export function SubscriptionCIProvider({ children }: SubscriptionCIProviderProps) {
   const [state, dispatch] = useReducer(subscriptionCIReducer, initialState)
 
+  // React Query: récupération des données
+  const { data: subscriptions = [], isLoading, isError } = useSubscriptionsCI()
+
+  // React Query: mutations
+  const createSubscription = useCreateSubscriptionCI()
+  const updateSubscription = useUpdateSubscriptionCI()
+  const deleteSubscription = useDeleteSubscriptionCI()
+
   return (
-    <SubscriptionCIContext.Provider value={{ state, dispatch }}>
+    <SubscriptionCIContext.Provider
+      value={{
+        state,
+        dispatch,
+        subscriptions,
+        isLoading,
+        isError,
+        createSubscription,
+        updateSubscription,
+        deleteSubscription,
+      }}
+    >
       {children}
     </SubscriptionCIContext.Provider>
   )
@@ -169,4 +165,3 @@ export function useSubscriptionCI() {
 
   return context
 }
-

@@ -128,6 +128,12 @@ export function AppSidebar() {
         if (url === routes.admin.caisseSpecialeSettings) {
             return pathname === url || pathname.startsWith(url + '/')
         }
+        if (url === routes.admin.caisseImprevue) {
+            return pathname === routes.admin.caisseImprevue
+        }
+        if (url === routes.admin.caisseImprevueSettings) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
         // Comportement par défaut: actif si égalité ou sous-chemin
         return pathname === url || pathname.startsWith(url + '/')
     }

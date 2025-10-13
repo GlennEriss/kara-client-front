@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SubscriptionCI, CAISSE_IMPREVUE_PLANS } from '@/types/types'
+import { SubscriptionCI } from '@/types/types'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -39,16 +39,12 @@ export default function ViewSubscriptionCIModal({
 
   const statusColors = {
     ACTIVE: 'bg-green-100 text-green-800',
-    COMPLETED: 'bg-blue-100 text-blue-800',
-    CANCELLED: 'bg-red-100 text-red-800',
-    SUSPENDED: 'bg-orange-100 text-orange-800',
+    INACTIVE: 'bg-gray-100 text-gray-800',
   }
 
   const statusLabels = {
     ACTIVE: 'Actif',
-    COMPLETED: 'Terminé',
-    CANCELLED: 'Annulé',
-    SUSPENDED: 'Suspendu',
+    INACTIVE: 'Inactif',
   }
 
   return (
@@ -74,16 +70,24 @@ export default function ViewSubscriptionCIModal({
           {/* Informations du forfait */}
           <Card>
             <CardContent className="pt-6 space-y-4">
+              {subscription.label && (
+                <>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Libellé</p>
+                    <p className="font-semibold text-lg">{subscription.label}</p>
+                  </div>
+                  <Separator />
+                </>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Code forfait</p>
                   <p className="font-semibold text-lg">{subscription.code}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Fréquence de paiement</p>
-                  <Badge variant="outline">
-                    {subscription.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'}
-                  </Badge>
+                  <p className="text-sm text-muted-foreground">Durée</p>
+                  <p className="font-semibold">{subscription.durationInMonths} mois</p>
                 </div>
               </div>
 
@@ -95,7 +99,7 @@ export default function ViewSubscriptionCIModal({
                   <p className="font-semibold">{formatAmount(subscription.amountPerMonth)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Nominal (12 mois)</p>
+                  <p className="text-sm text-muted-foreground">Nominal</p>
                   <p className="font-semibold">{formatAmount(subscription.nominal)}</p>
                 </div>
               </div>
@@ -115,62 +119,16 @@ export default function ViewSubscriptionCIModal({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Durée</p>
-                  <p className="font-semibold">{subscription.durationInMonths} mois</p>
+                  <p className="text-sm text-muted-foreground">Taux de pénalité</p>
+                  <p className="font-semibold">{subscription.penaltyRate}%</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Pénalités</p>
-                  <p className="font-semibold">{subscription.penaltyRate}% après {subscription.penaltyDelayDays} jours</p>
+                  <p className="text-sm text-muted-foreground">Délai avant pénalités</p>
+                  <p className="font-semibold">{subscription.penaltyDelayDays} jours</p>
                 </div>
               </div>
-
-              {subscription.totalPaid !== undefined && (
-                <>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total versé</p>
-                      <p className="font-semibold text-blue-600">{formatAmount(subscription.totalPaid)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Mois payés</p>
-                      <p className="font-semibold">{subscription.monthsPaid || 0} / {subscription.durationInMonths}</p>
-                    </div>
-                  </div>
-                </>
-              )}
             </CardContent>
           </Card>
-
-          {/* Contact d'urgence */}
-          {subscription.emergencyContact && (
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Contact d'urgence</h3>
-                <Separator />
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Nom</p>
-                    <p className="font-medium">{subscription.emergencyContact.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Relation</p>
-                    <p className="font-medium">{subscription.emergencyContact.relationship}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Téléphone</p>
-                    <p className="font-medium">{subscription.emergencyContact.phone}</p>
-                  </div>
-                  {subscription.emergencyContact.email && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p className="font-medium">{subscription.emergencyContact.email}</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Métadonnées */}
           <Card>
@@ -192,4 +150,5 @@ export default function ViewSubscriptionCIModal({
     </Dialog>
   )
 }
+
 

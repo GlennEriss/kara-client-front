@@ -11,7 +11,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { SubscriptionCI } from '@/types/types'
-import { toast } from 'sonner'
 import { useSubscriptionCI } from './SubscriptionCIContext'
 
 interface DeleteSubscriptionCIDialogProps {
@@ -25,22 +24,19 @@ export default function DeleteSubscriptionCIDialog({
   onOpenChange,
   subscription,
 }: DeleteSubscriptionCIDialogProps) {
-  const { dispatch } = useSubscriptionCI()
+  const { deleteSubscription } = useSubscriptionCI()
 
   const handleDelete = async () => {
     if (!subscription) return
 
-    try {
-      // TODO: Implémenter la suppression dans Firestore
-      // await deleteSubscriptionCI(subscription.id)
-
-      dispatch({ type: 'DELETE_SUBSCRIPTION', payload: subscription.id })
-      toast.success('Forfait supprimé avec succès')
-      onOpenChange(false)
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error)
-      toast.error('Erreur lors de la suppression du forfait')
-    }
+    // Utiliser la mutation de React Query
+    deleteSubscription.mutate(subscription.id, {
+      onSuccess: () => {
+        onOpenChange(false)
+        // Toast géré par le hook de mutation
+      },
+      // Erreur gérée par le hook de mutation
+    })
   }
 
   if (!subscription) return null
@@ -56,10 +52,13 @@ export default function DeleteSubscriptionCIDialog({
             </p>
             <div className="p-3 bg-gray-50 rounded-md text-sm">
               <p className="font-semibold text-gray-900">
-                Forfait {subscription.code} - Membre: {subscription.memberId}
+                {subscription.label || `Forfait ${subscription.code}`}
               </p>
               <p className="text-gray-600 mt-1">
                 Montant mensuel: {new Intl.NumberFormat('fr-FR').format(subscription.amountPerMonth)} FCFA
+              </p>
+              <p className="text-gray-600">
+                Nominal: {new Intl.NumberFormat('fr-FR').format(subscription.nominal)} FCFA
               </p>
             </div>
             <p className="text-red-600 font-medium">
@@ -68,12 +67,15 @@ export default function DeleteSubscriptionCIDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleteSubscription.isPending}>
+            Annuler
+          </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             className="bg-red-600 hover:bg-red-700"
+            disabled={deleteSubscription.isPending}
           >
-            Supprimer
+            {deleteSubscription.isPending ? 'Suppression...' : 'Supprimer'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -19,4 +19,24 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     async getAllSubscriptions(): Promise<SubscriptionCI[]> {
         return await this.subscriptionCIRepository.getAllSubscriptions()
     }
+
+    async getSubscriptionById(id: string): Promise<SubscriptionCI | null> {
+        return await this.subscriptionCIRepository.getSubscriptionById(id)
+    }
+
+    async createSubscription(data: Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
+        return await this.subscriptionCIRepository.createSubscription(data)
+    }
+
+    async updateSubscription(id: string, data: Partial<SubscriptionCI>): Promise<SubscriptionCI> {
+        const result = await this.subscriptionCIRepository.updateSubscription(id, data)
+        if (!result) {
+            throw new Error(`Forfait avec l'ID ${id} introuvable`)
+        }
+        return result
+    }
+
+    async deleteSubscription(id: string): Promise<void> {
+        return await this.subscriptionCIRepository.deleteSubscription(id)
+    }
 }

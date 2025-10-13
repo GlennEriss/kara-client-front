@@ -443,24 +443,6 @@ export interface User {
 
 // ================== TYPES CAISSE IMPREVUE ==================
 
-export type CaisseImprevuePlanCode = 'A' | 'B' | 'C' | 'D' | 'E'
-
-export interface CaisseImprevuePlan {
-  code: CaisseImprevuePlanCode
-  monthlyAmount: number // montant à cotiser par mois
-  nominalTarget: number // nominal à atteindre en 12 mois
-  supportMin: number // minimum d'appui possible
-  supportMax: number // maximum d'appui possible
-}
-
-export const CAISSE_IMPREVUE_PLANS: Record<CaisseImprevuePlanCode, CaisseImprevuePlan> = {
-  A: { code: 'A', monthlyAmount: 10000, nominalTarget: 120000, supportMin: 0, supportMax: 30000 },
-  B: { code: 'B', monthlyAmount: 20000, nominalTarget: 240000, supportMin: 0, supportMax: 60000 },
-  C: { code: 'C', monthlyAmount: 30000, nominalTarget: 360000, supportMin: 0, supportMax: 90000 },
-  D: { code: 'D', monthlyAmount: 40000, nominalTarget: 480000, supportMin: 0, supportMax: 120000 },
-  E: { code: 'E', monthlyAmount: 50000, nominalTarget: 600000, supportMin: 0, supportMax: 150000 },
-}
-
 export type CaisseImprevuePaymentFrequency = 'DAILY' | 'MONTHLY'
 
 /**
@@ -468,14 +450,14 @@ export type CaisseImprevuePaymentFrequency = 'DAILY' | 'MONTHLY'
  * Stocké dans Firestore dans la collection 'caisse-imprevue-contracts'
  */
 export interface SubscriptionCI {
-  // Identifiant unique du contrat
+  // Identifiant unique du forfait
   id: string
 
-  // Référence vers le membre
-  memberId: string
+  // label du forfait
+  label?: string
 
   // Code du forfait sélectionné (A à E)
-  code: CaisseImprevuePlanCode
+  code: string
 
   // Montant mensuel à cotiser (en FCFA)
   amountPerMonth: number
@@ -483,7 +465,7 @@ export interface SubscriptionCI {
   // Somme nominale à atteindre en 12 mois (en FCFA)
   nominal: number
 
-  // Durée du contrat en mois (généralement 12)
+  // Durée du forfait en mois (généralement 12)
   durationInMonths: number
 
   // Taux de pénalité en pourcentage (ex: 0.5 pour 0.5%)
@@ -498,17 +480,8 @@ export interface SubscriptionCI {
   // Montant maximum d'appui/aide possible (en FCFA)
   supportMax: number
 
-  // Fréquence de paiement: quotidien ou mensuel
-  paymentFrequency: CaisseImprevuePaymentFrequency
-
-  // Statut du contrat
-  status?: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'SUSPENDED'
-
-  // Montant total déjà versé
-  totalPaid?: number
-
-  // Nombre de mois payés
-  monthsPaid?: number
+  // Statut du forfait
+  status: 'ACTIVE' | 'INACTIVE'
 
   // Métadonnées
   createdAt: Date
