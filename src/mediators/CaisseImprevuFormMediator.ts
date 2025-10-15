@@ -46,6 +46,23 @@ export class CaisseImprevuFormMediator {
     }
 
     /**
+     * Récupère tous les forfaits de Caisse Imprévue
+     * @returns Liste de tous les forfaits
+     */
+    async getSubscriptionsCI() {
+        return this.service.getAllSubscriptions()
+    }
+
+    /**
+     * Récupère uniquement les forfaits actifs de Caisse Imprévue
+     * Filtre et tri effectués directement dans Firestore
+     * @returns Liste des forfaits actifs triés par code alphabétique
+     */
+    async getActiveSubscriptionsCI() {
+        return this.service.getActiveSubscriptions()
+    }
+
+    /**
      * Callback appelé lors de la soumission valide du formulaire
      * @param data - Les données validées du formulaire
      */

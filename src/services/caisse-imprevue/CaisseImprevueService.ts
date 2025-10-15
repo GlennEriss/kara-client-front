@@ -26,6 +26,10 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         return await this.subscriptionCIRepository.getAllSubscriptions()
     }
 
+    async getActiveSubscriptions(): Promise<SubscriptionCI[]> {
+        return await this.subscriptionCIRepository.getActiveSubscriptions()
+    }
+
     async getSubscriptionById(id: string): Promise<SubscriptionCI | null> {
         return await this.subscriptionCIRepository.getSubscriptionById(id)
     }
