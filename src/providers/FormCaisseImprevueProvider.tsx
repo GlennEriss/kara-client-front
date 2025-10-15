@@ -14,6 +14,8 @@ import {
   type CaisseImprevueGlobalFormData,
 } from '@/schemas/caisse-imprevue.schema'
 import { z } from 'zod'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 // Interface pour une étape
 interface Step {
@@ -47,6 +49,8 @@ interface FormCaisseImprevueProviderProps {
 export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProviderProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const currentStepRef = useRef(currentStep)
+  const router = useRouter()
+  const { user } = useAuth()
 
   // Mettre à jour la ref quand currentStep change
   useEffect(() => {
@@ -55,20 +59,29 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
 
   // Initialisation du médiateur (singleton)
   const mediator = useMemo(() => {
-    return CaisseImprevuFormMediator.getInstance()
-  }, [])
+    const mediator = CaisseImprevuFormMediator.getInstance()
+    mediator.setRouter(router)
+    return mediator
+  }, [router])
+
+  // Définir le userId dans le médiateur quand l'utilisateur change
+  useEffect(() => {
+    if (user?.uid) {
+      mediator.setUserId(user.uid)
+    }
+  }, [user, mediator])
 
   // Initialisation du formulaire global avec keepValues pour préserver les données
   const form = useForm<CaisseImprevueGlobalFormData>({
     resolver: async (values, context, options) => {
       const step = currentStepRef.current
-      
+
       // @ts-ignore - Typage complexe, mais fonctionnel
       const schemaToUse = step === 1
         ? z.object({ step1: caisseImprevueStep1Schema, step2: z.any().optional(), step3: z.any().optional() })
         : step === 2
-        ? z.object({ step1: caisseImprevueStep1Schema, step2: caisseImprevueStep2Schema, step3: z.any().optional() })
-        : caisseImprevueGlobalSchema
+          ? z.object({ step1: caisseImprevueStep1Schema, step2: caisseImprevueStep2Schema, step3: z.any().optional() })
+          : caisseImprevueGlobalSchema
 
       // @ts-ignore
       return zodResolver(schemaToUse)(values, context, options)
@@ -82,7 +95,7 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
   // Nettoyer les erreurs quand on change d'étape ET préserver les valeurs
   useEffect(() => {
     form.clearErrors()
-    
+
     // Debug : afficher les valeurs actuelles du formulaire
     const formValues = form.getValues()
     console.log('📝 Valeurs du formulaire à l\'étape', currentStep, ':', formValues)
@@ -147,8 +160,8 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
   return (
     <FormCaisseImprevueContext.Provider value={value}>
       <Form {...form}>
-        <form 
-          method="post" 
+        <form
+          method="post"
           onSubmit={form.handleSubmit(mediator.onSubmit, mediator.onInvalid)}
           className="w-full"
         >
@@ -162,11 +175,11 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
 // Hook personnalisé pour utiliser le contexte
 export function useFormCaisseImprevueProvider() {
   const context = useContext(FormCaisseImprevueContext)
-  
+
   if (context === undefined) {
     throw new Error('useFormCaisseImprevueProvider doit être utilisé à l\'intérieur de FormCaisseImprevueProvider')
   }
-  
+
   return context
 }
 

@@ -1,5 +1,5 @@
 import { IService } from "../interfaces/IService";
-import { SubscriptionCI, User, Admin } from "@/types/types";
+import { SubscriptionCI, User, Admin, ContractCI } from "@/types/types";
 
 export interface ICaisseImprevueService extends IService{
     searchMembers(searchQuery: string): Promise<User[]>
@@ -9,5 +9,6 @@ export interface ICaisseImprevueService extends IService{
     createSubscription(data: Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI>
     updateSubscription(id: string, data: Partial<SubscriptionCI>): Promise<SubscriptionCI>
     deleteSubscription(id: string): Promise<void>
+    createContractCI(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI>
     getAdminById(id: string): Promise<Admin | null>
 }

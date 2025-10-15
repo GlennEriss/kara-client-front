@@ -47,8 +47,9 @@ export class ServiceFactory {
     if (!this.services.has(key)) {
       const memberRepository = RepositoryFactory.getMemberRepository()
       const subscriptionCIRepository = RepositoryFactory.getSubscriptionCIRepository()
+      const contractCIRepository = RepositoryFactory.getContractCIRepository()
       const adminRepository = RepositoryFactory.getAdminRepository()
-      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, adminRepository))
+      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository))
     }
     return this.services.get(key)
   }

@@ -1,8 +1,9 @@
-import { User, Admin } from "@/types/types";
+import { User, Admin, ContractCI } from "@/types/types";
 import { ICaisseImprevueService } from "./ICaisseImprevueService";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
 import { ISubscriptionCIRepository } from "@/repositories/caisse-imprevu/ISubscriptionCIRepository";
+import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IAdminRepository } from "@/repositories/admins/IAdminRepository";
 
 export class CaisseImprevueService implements ICaisseImprevueService {
@@ -11,10 +12,12 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     constructor(
         private memberRepository: IMemberRepository, 
         private subscriptionCIRepository: ISubscriptionCIRepository,
+        private contractCIRepository: IContractCIRepository,
         private adminRepository: IAdminRepository
     ) {
         this.memberRepository = memberRepository
         this.subscriptionCIRepository = subscriptionCIRepository
+        this.contractCIRepository = contractCIRepository
         this.adminRepository = adminRepository
     }
 
@@ -48,6 +51,10 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     async deleteSubscription(id: string): Promise<void> {
         return await this.subscriptionCIRepository.deleteSubscription(id)
+    }
+
+    async createContractCI(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI> {
+        return await this.contractCIRepository.createContract(data)
     }
 
     async getAdminById(id: string): Promise<Admin | null> {

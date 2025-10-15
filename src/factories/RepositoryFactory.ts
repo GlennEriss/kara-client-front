@@ -1,8 +1,10 @@
 import { ISubscriptionCIRepository } from '@/repositories/caisse-imprevu/ISubscriptionCIRepository'
+import { IContractCIRepository } from '@/repositories/caisse-imprevu/IContractCIRepository'
 import { IRepository } from '@/repositories/IRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { MemberRepository } from '@/repositories/members/MemberRepository'
 import { SubscriptionCIRepository } from '@/repositories/caisse-imprevu/SubscriptionCIRepository'
+import { ContractCIRepository } from '@/repositories/caisse-imprevu/ContractCIRepository'
 import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
 
@@ -35,6 +37,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new SubscriptionCIRepository())
     }
     return this.repositories.get(key) as ISubscriptionCIRepository
+  }
+
+  /**
+   * Obtient le repository des contrats de la caisse imprevue
+   */
+  static getContractCIRepository(): IContractCIRepository {
+    const key = 'ContractCIRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new ContractCIRepository())
+    }
+    return this.repositories.get(key) as IContractCIRepository
   }
 
   /**

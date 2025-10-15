@@ -444,6 +444,58 @@ export interface User {
 // ================== TYPES CAISSE IMPREVUE ==================
 
 export type CaisseImprevuePaymentFrequency = 'DAILY' | 'MONTHLY'
+export type ContractCIStatus = 'ACTIVE'
+
+/**
+ * Type pour le contact d'urgence d'un contrat CI
+ */
+export interface EmergencyContactCI {
+  lastName: string
+  firstName?: string
+  phone1: string
+  phone2?: string
+  relationship: string
+}
+
+/**
+ * Type pour un contrat de Caisse Imprévue
+ * Stocké dans Firestore dans la collection 'contractsCI'
+ */
+export interface ContractCI {
+  // Identifiant unique
+  id: string
+
+  // Informations du membre (Step 1)
+  memberId: string
+  memberFirstName: string
+  memberLastName: string
+  memberContacts: string[]
+  memberEmail?: string
+
+  // Informations du forfait (Step 2)
+  subscriptionCIID: string
+  subscriptionCICode: string
+  subscriptionCILabel?: string
+  subscriptionCIAmountPerMonth: number
+  subscriptionCINominal: number
+  subscriptionCIDuration: number
+  subscriptionCISupportMin: number
+  subscriptionCISupportMax: number
+  paymentFrequency: CaisseImprevuePaymentFrequency
+  firstPaymentDate: string
+
+  // Contact d'urgence (Step 3)
+  emergencyContact: EmergencyContactCI
+
+  // Statut du contrat
+  status: ContractCIStatus
+
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy: string
+}
 
 /**
  * Type pour un contrat de Caisse Imprévue (souscription)
