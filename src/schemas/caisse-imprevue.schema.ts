@@ -27,6 +27,9 @@ export const caisseImprevueStep2Schema = z.object({
   paymentFrequency: z.enum(['DAILY', 'MONTHLY'], {
     message: 'Le type de paiement est requis',
   }),
+  
+  // Date du premier versement
+  firstPaymentDate: z.string().min(1, 'La date du premier versement est requise'),
 })
 
 // Schéma pour Step 3 : Contact d'urgence
@@ -99,6 +102,7 @@ export const defaultCaisseImprevueStep2Values: Partial<CaisseImprevueStep2FormDa
   subscriptionCISupportMin: 0,
   subscriptionCISupportMax: 0,
   paymentFrequency: 'MONTHLY',
+  firstPaymentDate: '',
 }
 
 export const defaultCaisseImprevueStep3Values: Partial<CaisseImprevueStep3FormData> = {

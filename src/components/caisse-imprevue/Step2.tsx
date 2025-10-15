@@ -5,7 +5,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescripti
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Wallet, Loader2, CheckCircle2, AlertCircle, Package } from 'lucide-react'
+import { Wallet, Loader2, CheckCircle2, AlertCircle, Package, Calendar, Clock } from 'lucide-react'
 import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
 import { SubscriptionCI } from '@/types/types'
 import { toast } from 'sonner'
@@ -384,6 +384,62 @@ export default function Step2() {
               </FormItem>
             )}
           />
+        </CardContent>
+      </Card>
+
+      {/* Date du premier versement */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-[#224D62]" />
+            Date du premier versement
+          </CardTitle>
+          <CardDescription>
+            Sélectionnez la date du premier versement pour ce contrat
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <FormField
+            control={form.control}
+            name="step2.firstPaymentDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date du premier versement *</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#224D62]/40" />
+                    <Input
+                      type="date"
+                      {...field}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="pl-10 border-[#224D62]/30 focus:border-[#224D62] focus:ring-[#224D62]/20"
+                    />
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  La date doit être aujourd'hui ou dans le futur
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Affichage de la date sélectionnée */}
+          {step2Values?.firstPaymentDate && (
+            <div className="p-4 bg-[#224D62]/5 rounded-lg border border-[#224D62]/20">
+              <div className="flex items-center gap-2 text-[#224D62]">
+                <Clock className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  Premier versement prévu le : {new Date(step2Values.firstPaymentDate).toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
