@@ -79,22 +79,25 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
     }
 
     /**
-     * Crée une nouvelle souscription
-     * @param {Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>} data - Données de la souscription
+     * Crée une nouvelle souscription avec un ID personnalisé
+     * @param {Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>} data - Données de la souscription (incluant l'ID personnalisé)
      * @returns {Promise<SubscriptionCI>} - La souscription créée
      */
-    async createSubscription(data: Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
+    async createSubscription(data: Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
         try {
-            const { collection, db, addDoc, serverTimestamp } = await getFirestore();
+            const { doc, setDoc, db, serverTimestamp } = await getFirestore();
 
-            const docRef = await addDoc(collection(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI"), {
+            // Utiliser l'ID fourni dans data
+            const subscriptionRef = doc(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI", data.id);
+
+            await setDoc(subscriptionRef, {
                 ...data,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
 
             // Récupérer la souscription créée
-            const createdSubscription = await this.getSubscriptionById(docRef.id);
+            const createdSubscription = await this.getSubscriptionById(data.id);
             
             if (!createdSubscription) {
                 throw new Error("Erreur lors de la récupération de la souscription créée");

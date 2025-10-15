@@ -176,9 +176,9 @@ export const defaultSubscriptionCIValues: Partial<SubscriptionCIFormData> = {
   amountPerMonth: 10000,
   nominal: 120000,
   durationInMonths: 12,
-  penaltyRate: 0.5,
+  penaltyRate: 0,
   penaltyDelayDays: 3,
-  supportMin: 0,
+  supportMin: 500,
   supportMax: 30000,
   status: 'ACTIVE',
 }

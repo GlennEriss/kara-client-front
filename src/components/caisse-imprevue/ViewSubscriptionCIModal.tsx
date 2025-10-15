@@ -11,6 +11,9 @@ import { SubscriptionCI } from '@/types/types'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAdmin } from '@/hooks/caisse-imprevue/useAdmin'
+import { User, UserCheck } from 'lucide-react'
 
 interface ViewSubscriptionCIModalProps {
   open: boolean
@@ -23,6 +26,10 @@ export default function ViewSubscriptionCIModal({
   onOpenChange, 
   subscription 
 }: ViewSubscriptionCIModalProps) {
+  // Récupération des informations des admins
+  const { data: createdByAdmin, isLoading: isLoadingCreatedBy } = useAdmin(subscription?.createdBy)
+  const { data: updatedByAdmin, isLoading: isLoadingUpdatedBy } = useAdmin(subscription?.updatedBy)
+
   if (!subscription) return null
 
   const formatAmount = (amount: number) => {
@@ -35,6 +42,21 @@ export default function ViewSubscriptionCIModal({
       month: '2-digit',
       year: 'numeric',
     }).format(date)
+  }
+
+  const formatDateTime = (date: Date) => {
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  const formatAdminName = (admin: typeof createdByAdmin) => {
+    if (!admin) return 'Inconnu'
+    return `${admin.firstName} ${admin.lastName}`.trim() || 'Administrateur'
   }
 
   const statusColors = {
@@ -130,21 +152,61 @@ export default function ViewSubscriptionCIModal({
             </CardContent>
           </Card>
 
-          {/* Métadonnées */}
+          {/* Créé par */}
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Date de création</p>
-                  <p className="font-medium">{formatDate(subscription.createdAt)}</p>
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
+                  <User className="w-5 h-5" />
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Dernière mise à jour</p>
-                  <p className="font-medium">{formatDate(subscription.updatedAt)}</p>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-muted-foreground mb-1">Créé par</p>
+                  {isLoadingCreatedBy ? (
+                    <Skeleton className="h-5 w-48" />
+                  ) : (
+                    <p className="font-semibold text-lg text-[#224D62]">
+                      {formatAdminName(createdByAdmin)}
+                    </p>
+                  )}
+                  {createdByAdmin?.email && (
+                    <p className="text-sm text-muted-foreground mt-1">{createdByAdmin.email}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {formatDateTime(subscription.createdAt)}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Modifié par */}
+          {subscription.updatedBy && subscription.updatedBy !== subscription.createdBy && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-green-600">
+                    <UserCheck className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-muted-foreground mb-1">Dernière modification par</p>
+                    {isLoadingUpdatedBy ? (
+                      <Skeleton className="h-5 w-48" />
+                    ) : (
+                      <p className="font-semibold text-lg text-[#224D62]">
+                        {formatAdminName(updatedByAdmin)}
+                      </p>
+                    )}
+                    {updatedByAdmin?.email && (
+                      <p className="text-sm text-muted-foreground mt-1">{updatedByAdmin.email}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {formatDateTime(subscription.updatedAt)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DialogContent>
     </Dialog>

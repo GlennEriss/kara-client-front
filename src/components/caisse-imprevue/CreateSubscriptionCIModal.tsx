@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -34,10 +34,30 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
     defaultValues: defaultSubscriptionCIValues,
   })
 
+  // Calculer automatiquement le nominal en fonction du montant mensuel et de la durée
+  const amountPerMonth = form.watch('amountPerMonth')
+  const durationInMonths = form.watch('durationInMonths')
+
+  useEffect(() => {
+    const calculatedNominal = (amountPerMonth || 0) * (durationInMonths || 0)
+    form.setValue('nominal', calculatedNominal)
+  }, [amountPerMonth, durationInMonths, form])
+
   const onSubmit = async (data: SubscriptionCIFormData) => {
+    // Générer l'ID personnalisé: MK_CI_FORFAIT_{CODE}_{DATE}_{HEURE}
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    
+    const customId = `MK_CI_FORFAIT_${data.code}_${day}${month}${year}_${hours}${minutes}`
+    
     // Préparer les données pour la création
     const subscriptionData = {
       ...data,
+      id: customId,
       createdBy: user?.uid || '',
       updatedBy: user?.uid,
       status: data.status as 'ACTIVE' | 'INACTIVE',
@@ -148,7 +168,8 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
                             type="number"
                             placeholder="Ex: 120000"
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                            disabled
+                            className="bg-gray-100 cursor-not-allowed"
                           />
                         </FormControl>
                         <FormDescription>
