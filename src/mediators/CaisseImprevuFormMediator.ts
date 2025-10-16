@@ -4,6 +4,7 @@ import { User, ContractCI, EmergencyContactCI } from "@/types/types";
 import { CaisseImprevueGlobalFormData } from "@/schemas/caisse-imprevue.schema";
 import { toast } from "sonner";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import routes from "@/constantes/routes";
 
 export class CaisseImprevuFormMediator {
     public static instance: CaisseImprevuFormMediator | null = null
@@ -147,7 +148,7 @@ export class CaisseImprevuFormMediator {
             // Redirection après succès
             if (this.router) {
                 setTimeout(() => {
-                    this.router?.push('/admin/caisse-imprevue')
+                    this.router?.push(routes.admin.caisseImprevue)
                 }, 2000)
             }
         } catch (error) {
