@@ -49,7 +49,8 @@ export class ServiceFactory {
       const subscriptionCIRepository = RepositoryFactory.getSubscriptionCIRepository()
       const contractCIRepository = RepositoryFactory.getContractCIRepository()
       const adminRepository = RepositoryFactory.getAdminRepository()
-      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository))
+      const documentRepository = RepositoryFactory.getDocumentRepository()
+      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository, documentRepository))
     }
     return this.services.get(key)
   }

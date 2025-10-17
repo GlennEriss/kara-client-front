@@ -1,10 +1,11 @@
-import { User, Admin, ContractCI } from "@/types/types";
+import { User, Admin, ContractCI, Document } from "@/types/types";
 import { ICaisseImprevueService } from "./ICaisseImprevueService";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
 import { ISubscriptionCIRepository } from "@/repositories/caisse-imprevu/ISubscriptionCIRepository";
 import { IContractCIRepository, ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IAdminRepository } from "@/repositories/admins/IAdminRepository";
+import { IDocumentRepository } from "@/repositories/documents/IDocumentRepository";
 
 export class CaisseImprevueService implements ICaisseImprevueService {
     readonly name = "CaisseImprevueService"
@@ -13,12 +14,14 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         private memberRepository: IMemberRepository, 
         private subscriptionCIRepository: ISubscriptionCIRepository,
         private contractCIRepository: IContractCIRepository,
-        private adminRepository: IAdminRepository
+        private adminRepository: IAdminRepository,
+        private documentRepository: IDocumentRepository
     ) {
         this.memberRepository = memberRepository
         this.subscriptionCIRepository = subscriptionCIRepository
         this.contractCIRepository = contractCIRepository
         this.adminRepository = adminRepository
+        this.documentRepository = documentRepository
     }
 
     async searchMembers(searchQuery: string): Promise<User[]> {
@@ -67,5 +70,49 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     async getContractsCIStats(): Promise<ContractsCIStats> {
         return await this.contractCIRepository.getContractsStats()
+    }
+
+    async uploadContractDocument(file: File, contractId: string, memberId: string, userId: string): Promise<{ documentId: string; contract: ContractCI }> {
+        // 1. Upload du fichier vers Firebase Storage
+        const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, memberId, 'ADHESION_CI')
+
+        // 2. Créer l'enregistrement du document dans Firestore
+        const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {
+            type: 'ADHESION_CI',
+            format: 'pdf',
+            libelle: `Contrat CI - ${memberId}`,
+            path: path,
+            url: url,
+            size: size,
+            memberId: memberId,
+            contractId: contractId,
+            createdBy: userId,
+            updatedBy: userId,
+        }
+
+        const document = await this.documentRepository.createDocument(documentData)
+
+        if (!document || !document.id) {
+            throw new Error('Erreur lors de la création du document')
+        }
+
+        // 3. Mettre à jour le contrat avec l'ID du document
+        const updatedContract = await this.contractCIRepository.updateContract(contractId, {
+            contractStartId: document.id,
+            updatedBy: userId,
+        })
+
+        if (!updatedContract) {
+            throw new Error(`Contrat ${contractId} introuvable`)
+        }
+
+        return {
+            documentId: document.id,
+            contract: updatedContract
+        }
+    }
+
+    async getDocumentById(documentId: string): Promise<Document | null> {
+        return await this.documentRepository.getDocumentById(documentId)
     }
 }
