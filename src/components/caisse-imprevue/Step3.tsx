@@ -2,7 +2,7 @@
 import React from 'react'
 import { Phone, CheckCircle2 } from 'lucide-react'
 import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
-import EmergencyContactForm from '@/components/caisse-speciale/forms/EmergencyContactForm'
+import EmergencyContactCIForm from './EmergencyContactCIForm'
 
 export default function Step3() {
   const { form } = useFormCaisseImprevueProvider()
@@ -30,13 +30,15 @@ export default function Step3() {
       </div>
 
       {/* Formulaire de contact d'urgence */}
-      <EmergencyContactForm 
+      <EmergencyContactCIForm 
         emergencyContact={{
           lastName: step3Values?.lastName || '',
           firstName: step3Values?.firstName || '',
           phone1: step3Values?.phone1 || '',
           phone2: step3Values?.phone2 || '',
-          relationship: (step3Values?.relationship || 'Autre') as any
+          relationship: step3Values?.relationship || '',
+          idNumber: step3Values?.idNumber || '',
+          typeId: step3Values?.typeId || '',
         }}
         onUpdate={handleUpdateField}
       />
@@ -47,7 +49,7 @@ export default function Step3() {
           <div className="flex items-center gap-2 text-green-700">
             <CheckCircle2 className="w-5 h-5" />
             <p className="font-medium">
-              Contact d'urgence confirmé : {step3Values.lastName}
+              Contact d&apos;urgence confirmé : {step3Values.lastName}
               {step3Values.firstName && ` ${step3Values.firstName}`}
             </p>
           </div>
@@ -58,6 +60,11 @@ export default function Step3() {
           <p className="text-sm text-green-600">
             Lien : {step3Values.relationship}
           </p>
+          {step3Values.typeId && step3Values.idNumber && (
+            <p className="text-sm text-green-600">
+              Document : {step3Values.typeId} - {step3Values.idNumber}
+            </p>
+          )}
         </div>
       )}
     </div>

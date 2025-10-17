@@ -455,6 +455,8 @@ export interface EmergencyContactCI {
   phone1: string
   phone2?: string
   relationship: string
+  idNumber?: string // Numéro CNI/PASS/CS
+  typeId?: string // Type de document (CNI, PASS, Carte Étudiant, Carte Étranger, Carte Consulaire)
 }
 
 /**
@@ -471,6 +473,12 @@ export interface ContractCI {
   memberLastName: string
   memberContacts: string[]
   memberEmail?: string
+  memberGender?: string
+  memberBirthDate?: string
+  memberNationality?: string
+  memberAddress?: string
+  memberProfession?: string
+  memberPhotoUrl?: string
 
   // Informations du forfait (Step 2)
   subscriptionCIID: string
@@ -489,6 +497,11 @@ export interface ContractCI {
 
   // Statut du contrat
   status: ContractCIStatus
+
+  // Documents du contrat
+  contractStartId?: string
+  contractCanceledId?: string
+  contractFinishedId?: string
 
   // Métadonnées
   createdAt: Date
