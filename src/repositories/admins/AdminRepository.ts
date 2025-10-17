@@ -30,8 +30,19 @@ export class AdminRepository implements IAdminRepository {
                 id: docSnap.id,
                 lastName: data.lastName || data.name || 'Inconnu',
                 firstName: data.firstName || data.prenom || '',
+                birthDate: data.birthDate || '',
+                civility: data.civility || 'Monsieur',
+                gender: data.gender || 'Homme',
                 email: data.email || '',
-                role: data.role || 'Admin',
+                contacts: data.contacts || [],
+                roles: data.roles || (data.role ? [data.role] : ['Admin']),
+                photoURL: data.photoURL || null,
+                photoPath: data.photoPath || null,
+                isActive: data.isActive !== undefined ? data.isActive : true,
+                createdBy: data.createdBy,
+                updatedBy: data.updatedBy,
+                createdAt: data.createdAt?.toDate?.() || undefined,
+                updatedAt: data.updatedAt?.toDate?.() || undefined,
             };
             
             return admin;

@@ -909,6 +909,7 @@ export const CONTRACT_CI_STATUS_LABELS: Record<ContractCIStatus, string> = {
 }
 
 export type Admin = {
+  id?: string
   firstName: string
   lastName: string
   birthDate: string
@@ -922,6 +923,8 @@ export type Admin = {
   isActive?: boolean
   createdBy?: string
   updatedBy?: string
+  createdAt?: Date
+  updatedAt?: Date
 }
 export interface PhotonResult {
   properties: {
