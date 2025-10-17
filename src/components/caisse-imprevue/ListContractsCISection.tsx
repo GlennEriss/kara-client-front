@@ -24,6 +24,9 @@ import { useContractsCI, ContractsCIFilters } from '@/hooks/caisse-imprevue/useC
 import StatisticsCI from './StatisticsCI'
 import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
+import DownloadContractCIModal from './DownloadContractCIModal'
+import UploadContractCIModal from './UploadContractCIModal'
+import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
 
 const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
@@ -66,6 +69,14 @@ export default function ListContractsCISection() {
   })
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 14
+  
+  // États pour les modals
+  const [selectedContractForPDF, setSelectedContractForPDF] = useState<ContractCI | null>(null)
+  const [isPDFModalOpen, setIsPDFModalOpen] = useState(false)
+  const [selectedContractForUpload, setSelectedContractForUpload] = useState<ContractCI | null>(null)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [selectedContractForView, setSelectedContractForView] = useState<ContractCI | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
 
   // Hook pour récupérer les contrats
   const { data: contracts, isLoading, error, refetch } = useContractsCI(filters)
@@ -101,6 +112,40 @@ export default function ListContractsCISection() {
 
   const handleCreateContract = () => {
     router.push(routes.admin.caisseImprevueCreateContract)
+  }
+
+  const handleDownloadContract = (contract: ContractCI) => {
+    setSelectedContractForPDF(contract)
+    setIsPDFModalOpen(true)
+  }
+
+  const handleUploadContract = (contract: ContractCI) => {
+    setSelectedContractForUpload(contract)
+    setIsUploadModalOpen(true)
+  }
+
+  const handleViewUploadedContract = (contract: ContractCI) => {
+    setSelectedContractForView(contract)
+    setIsViewModalOpen(true)
+  }
+
+  const handleClosePDFModal = () => {
+    setIsPDFModalOpen(false)
+    setSelectedContractForPDF(null)
+  }
+
+  const handleCloseUploadModal = () => {
+    setIsUploadModalOpen(false)
+    setSelectedContractForUpload(null)
+  }
+
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false)
+    setSelectedContractForView(null)
+  }
+
+  const handleUploadSuccess = () => {
+    refetch()
   }
 
   // Pagination
@@ -176,7 +221,7 @@ export default function ListContractsCISection() {
               <Button
                 size="sm"
                 onClick={handleCreateContract}
-                className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="cursor-pointer h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Nouveau Contrat
@@ -283,11 +328,41 @@ export default function ListContractsCISection() {
                       <div className="space-y-2">
                         <Button
                           onClick={() => handleViewContract(contract.id)}
-                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
+                          disabled={!contract.contractStartId}
+                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#224D62]"
                         >
                           <Eye className="h-4 w-4" />
                           Ouvrir
                         </Button>
+                        
+                        <Button
+                          onClick={() => handleDownloadContract(contract)}
+                          variant="outline"
+                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Télécharger contrat
+                        </Button>
+
+                        {contract.contractStartId ? (
+                          <Button
+                            onClick={() => handleViewUploadedContract(contract)}
+                            variant="outline"
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Voir contrat
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleUploadContract(contract)}
+                            variant="outline"
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Téléverser contrat
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -341,7 +416,7 @@ export default function ListContractsCISection() {
               <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
                 <FileText className="h-10 w-10 text-gray-400" />
               </div>
-              <div>
+    <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   Aucun contrat trouvé
                 </h3>
@@ -367,6 +442,32 @@ export default function ListContractsCISection() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Modals */}
+      {selectedContractForPDF && (
+        <DownloadContractCIModal
+          isOpen={isPDFModalOpen}
+          onClose={handleClosePDFModal}
+          contract={selectedContractForPDF}
+        />
+      )}
+
+      {selectedContractForUpload && (
+        <UploadContractCIModal
+          isOpen={isUploadModalOpen}
+          onClose={handleCloseUploadModal}
+          contract={selectedContractForUpload}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {selectedContractForView && (
+        <ViewUploadedContractCIModal
+          isOpen={isViewModalOpen}
+          onClose={handleCloseViewModal}
+          contract={selectedContractForView}
+        />
       )}
     </div>
   )

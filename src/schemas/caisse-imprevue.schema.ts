@@ -7,6 +7,12 @@ export const caisseImprevueStep1Schema = z.object({
   memberLastName: z.string().min(1, 'Le nom est requis'),
   memberContacts: z.array(z.string()).min(1, 'Au moins un contact est requis'),
   memberEmail: z.string().email('Email invalide').optional().or(z.literal('')),
+  memberGender: z.string().optional().or(z.literal('')),
+  memberBirthDate: z.string().optional().or(z.literal('')),
+  memberNationality: z.string().optional().or(z.literal('')),
+  memberAddress: z.string().optional().or(z.literal('')),
+  memberProfession: z.string().optional().or(z.literal('')),
+  memberPhotoUrl: z.string().optional().or(z.literal('')),
 })
 
 // Schéma pour Step 2 : Forfait et type de remboursement
@@ -68,6 +74,19 @@ export const caisseImprevueStep3Schema = z.object({
   relationship: z
     .string()
     .min(1, 'Le lien de parenté est obligatoire'),
+  
+  // Numéro de document optionnel
+  idNumber: z
+    .string()
+    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères')
+    .optional()
+    .or(z.literal('')),
+  
+  // Type de document optionnel
+  typeId: z
+    .string()
+    .optional()
+    .or(z.literal('')),
 })
 
 // Schéma global combinant les 3 étapes
@@ -90,6 +109,12 @@ export const defaultCaisseImprevueStep1Values: Partial<CaisseImprevueStep1FormDa
   memberLastName: '',
   memberContacts: [],
   memberEmail: '',
+  memberGender: '',
+  memberBirthDate: '',
+  memberNationality: '',
+  memberAddress: '',
+  memberProfession: '',
+  memberPhotoUrl: '',
 }
 
 export const defaultCaisseImprevueStep2Values: Partial<CaisseImprevueStep2FormData> = {
@@ -111,6 +136,8 @@ export const defaultCaisseImprevueStep3Values: Partial<CaisseImprevueStep3FormDa
   phone1: '',
   phone2: '',
   relationship: '',
+  idNumber: '',
+  typeId: '',
 }
 
 export const defaultCaisseImprevueGlobalValues: Partial<CaisseImprevueGlobalFormData> = {

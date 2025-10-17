@@ -106,6 +106,8 @@ export class CaisseImprevuFormMediator {
                 phone1: data.step3.phone1,
                 phone2: data.step3.phone2,
                 relationship: data.step3.relationship,
+                idNumber: data.step3.idNumber,
+                typeId: data.step3.typeId,
             }
 
             // Préparer les données du contrat
@@ -117,6 +119,12 @@ export class CaisseImprevuFormMediator {
                 memberLastName: data.step1.memberLastName,
                 memberContacts: data.step1.memberContacts,
                 memberEmail: data.step1.memberEmail,
+                memberGender: data.step1.memberGender,
+                memberBirthDate: data.step1.memberBirthDate,
+                memberNationality: data.step1.memberNationality,
+                memberAddress: data.step1.memberAddress,
+                memberProfession: data.step1.memberProfession,
+                memberPhotoUrl: data.step1.memberPhotoUrl,
                 // Step 2 - Forfait
                 subscriptionCIID: data.step2.subscriptionCIID,
                 subscriptionCICode: data.step2.subscriptionCICode,

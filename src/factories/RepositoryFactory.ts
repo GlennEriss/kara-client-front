@@ -7,6 +7,8 @@ import { SubscriptionCIRepository } from '@/repositories/caisse-imprevu/Subscrip
 import { ContractCIRepository } from '@/repositories/caisse-imprevu/ContractCIRepository'
 import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
+import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
+import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -59,6 +61,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new AdminRepository())
     }
     return this.repositories.get(key) as IAdminRepository
+  }
+
+  /**
+   * Obtient le repository des documents
+   */
+  static getDocumentRepository(): IDocumentRepository {
+    const key = 'DocumentRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new DocumentRepository())
+    }
+    return this.repositories.get(key) as IDocumentRepository
   }
 
   /**
