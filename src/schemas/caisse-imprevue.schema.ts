@@ -11,38 +11,63 @@ export const caisseImprevueStep1Schema = z.object({
 
 // Schéma pour Step 2 : Forfait et type de remboursement
 export const caisseImprevueStep2Schema = z.object({
-  // Code du forfait sélectionné (A à E)
-  planCode: z.enum(['A', 'B', 'C', 'D', 'E'], {
-    message: 'Le forfait est requis',
-  }),
+  // ID du forfait sélectionné
+  subscriptionCIID: z.string().min(1, 'Le forfait est requis'),
+  
+  // Informations du forfait (copiées lors de la sélection)
+  subscriptionCICode: z.string().min(1, 'Le code du forfait est requis'),
+  subscriptionCILabel: z.string().optional().or(z.literal('')),
+  subscriptionCIAmountPerMonth: z.number().positive('Le montant doit être positif'),
+  subscriptionCINominal: z.number().positive('Le nominal doit être positif'),
+  subscriptionCIDuration: z.number().int().positive('La durée doit être positive'),
+  subscriptionCISupportMin: z.number().min(0, 'Le support minimum ne peut pas être négatif'),
+  subscriptionCISupportMax: z.number().positive('Le support maximum doit être positif'),
+  
   // Fréquence de paiement: quotidien (au fil des jours) ou mensuel (une fois par mois)
   paymentFrequency: z.enum(['DAILY', 'MONTHLY'], {
     message: 'Le type de paiement est requis',
   }),
+  
+  // Date du premier versement
+  firstPaymentDate: z.string().min(1, 'La date du premier versement est requise'),
 })
 
 // Schéma pour Step 3 : Contact d'urgence
 export const caisseImprevueStep3Schema = z.object({
-  emergencyContactName: z
+  // Nom obligatoire
+  lastName: z
     .string()
-    .min(2, 'Le nom doit contenir au moins 2 caractères')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
-  emergencyContactRelationship: z
+    .min(1, 'Le nom du contact d\'urgence est obligatoire')
+    .max(50, 'Le nom ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes'),
+  
+  // Prénom optionnel
+  firstName: z
     .string()
-    .min(2, 'La relation doit contenir au moins 2 caractères')
-    .max(50, 'La relation ne peut pas dépasser 50 caractères'),
-  emergencyContactPhone: z
-    .string()
-    .regex(
-      /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/,
-      'Numéro invalide. Format: +241 XX XX XX XX (Libertis: 62/66, Moov: 65, Airtel: 74/77)'
-    ),
-  emergencyContactEmail: z
-    .string()
-    .email('Email invalide')
+    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
     .optional()
     .or(z.literal('')),
-  emergencyContactAddress: z.string().optional(),
+  
+  // Téléphone 1 obligatoire
+  phone1: z
+    .string()
+    .min(1, 'Le numéro de téléphone principal est obligatoire')
+    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
+    .regex(/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77'),
+  
+  // Téléphone 2 optionnel
+  phone2: z
+    .string()
+    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
+    .regex(/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide')
+    .optional()
+    .or(z.literal('')),
+  
+  // Lien de parenté obligatoire
+  relationship: z
+    .string()
+    .min(1, 'Le lien de parenté est obligatoire'),
 })
 
 // Schéma global combinant les 3 étapes
@@ -68,16 +93,24 @@ export const defaultCaisseImprevueStep1Values: Partial<CaisseImprevueStep1FormDa
 }
 
 export const defaultCaisseImprevueStep2Values: Partial<CaisseImprevueStep2FormData> = {
-  planCode: 'A',
+  subscriptionCIID: '',
+  subscriptionCICode: '',
+  subscriptionCILabel: '',
+  subscriptionCIAmountPerMonth: 0,
+  subscriptionCINominal: 0,
+  subscriptionCIDuration: 0,
+  subscriptionCISupportMin: 0,
+  subscriptionCISupportMax: 0,
   paymentFrequency: 'MONTHLY',
+  firstPaymentDate: '',
 }
 
 export const defaultCaisseImprevueStep3Values: Partial<CaisseImprevueStep3FormData> = {
-  emergencyContactName: '',
-  emergencyContactRelationship: '',
-  emergencyContactPhone: '',
-  emergencyContactEmail: '',
-  emergencyContactAddress: '',
+  lastName: '',
+  firstName: '',
+  phone1: '',
+  phone2: '',
+  relationship: '',
 }
 
 export const defaultCaisseImprevueGlobalValues: Partial<CaisseImprevueGlobalFormData> = {
@@ -176,9 +209,9 @@ export const defaultSubscriptionCIValues: Partial<SubscriptionCIFormData> = {
   amountPerMonth: 10000,
   nominal: 120000,
   durationInMonths: 12,
-  penaltyRate: 0.5,
+  penaltyRate: 0,
   penaltyDelayDays: 3,
-  supportMin: 0,
+  supportMin: 500,
   supportMax: 30000,
   status: 'ACTIVE',
 }

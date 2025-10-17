@@ -13,7 +13,7 @@ export function useCreateSubscriptionCI() {
   const caisseImprevueService = ServiceFactory.getCaisseImprevueService()
 
   return useMutation({
-    mutationFn: async (data: Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>) => {
+    mutationFn: async (data: Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>) => {
       return await caisseImprevueService.createSubscription(data)
     },
     onSuccess: (newSubscription) => {
