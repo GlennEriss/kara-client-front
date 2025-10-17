@@ -1,15 +1,24 @@
-import { User } from "@/types/types";
+import { User, Admin, ContractCI } from "@/types/types";
 import { ICaisseImprevueService } from "./ICaisseImprevueService";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
 import { ISubscriptionCIRepository } from "@/repositories/caisse-imprevu/ISubscriptionCIRepository";
+import { IContractCIRepository, ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
+import { IAdminRepository } from "@/repositories/admins/IAdminRepository";
 
 export class CaisseImprevueService implements ICaisseImprevueService {
     readonly name = "CaisseImprevueService"
 
-    constructor(private memberRepository: IMemberRepository, private subscriptionCIRepository: ISubscriptionCIRepository) {
+    constructor(
+        private memberRepository: IMemberRepository, 
+        private subscriptionCIRepository: ISubscriptionCIRepository,
+        private contractCIRepository: IContractCIRepository,
+        private adminRepository: IAdminRepository
+    ) {
         this.memberRepository = memberRepository
         this.subscriptionCIRepository = subscriptionCIRepository
+        this.contractCIRepository = contractCIRepository
+        this.adminRepository = adminRepository
     }
 
     async searchMembers(searchQuery: string): Promise<User[]> {
@@ -20,11 +29,15 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         return await this.subscriptionCIRepository.getAllSubscriptions()
     }
 
+    async getActiveSubscriptions(): Promise<SubscriptionCI[]> {
+        return await this.subscriptionCIRepository.getActiveSubscriptions()
+    }
+
     async getSubscriptionById(id: string): Promise<SubscriptionCI | null> {
         return await this.subscriptionCIRepository.getSubscriptionById(id)
     }
 
-    async createSubscription(data: Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
+    async createSubscription(data: Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
         return await this.subscriptionCIRepository.createSubscription(data)
     }
 
@@ -38,5 +51,21 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     async deleteSubscription(id: string): Promise<void> {
         return await this.subscriptionCIRepository.deleteSubscription(id)
+    }
+
+    async createContractCI(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI> {
+        return await this.contractCIRepository.createContract(data)
+    }
+
+    async getAdminById(id: string): Promise<Admin | null> {
+        return await this.adminRepository.getAdminById(id)
+    }
+
+    async getContractsCIPaginated(filters?: ContractsCIFilters): Promise<ContractCI[]> {
+        return await this.contractCIRepository.getContractsWithFilters(filters)
+    }
+
+    async getContractsCIStats(): Promise<ContractsCIStats> {
+        return await this.contractCIRepository.getContractsStats()
     }
 }

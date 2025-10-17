@@ -45,6 +45,45 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
     }
 
     /**
+     * Récupère uniquement les souscriptions actives de la Caisse Imprévue
+     * Filtre directement dans Firestore et trie par code alphabétique
+     * @returns {Promise<SubscriptionCI[]>} - Liste des souscriptions actives triées par code
+     */
+    async getActiveSubscriptions(): Promise<SubscriptionCI[]> {
+        try {
+            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+
+            // Requête pour récupérer uniquement les souscriptions actives, triées par code
+            const q = query(
+                collection(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI"),
+                where("status", "==", "ACTIVE"),
+                orderBy("code", "asc")
+            );
+
+            const querySnapshot = await getDocs(q);
+            const subscriptions: SubscriptionCI[] = [];
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const subscription: SubscriptionCI = {
+                    id: doc.id,
+                    ...(data as any),
+                    createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
+                    updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                };
+
+                subscriptions.push(subscription);
+            });
+
+            return subscriptions;
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération des souscriptions actives CI:", error);
+            return [];
+        }
+    }
+
+    /**
      * Récupère une souscription par son ID
      * @param {string} id - L'ID de la souscription
      * @returns {Promise<SubscriptionCI | null>} - La souscription trouvée ou null
@@ -79,22 +118,25 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
     }
 
     /**
-     * Crée une nouvelle souscription
-     * @param {Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>} data - Données de la souscription
+     * Crée une nouvelle souscription avec un ID personnalisé
+     * @param {Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>} data - Données de la souscription (incluant l'ID personnalisé)
      * @returns {Promise<SubscriptionCI>} - La souscription créée
      */
-    async createSubscription(data: Omit<SubscriptionCI, 'id' | 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
+    async createSubscription(data: Omit<SubscriptionCI, 'createdAt' | 'updatedAt'>): Promise<SubscriptionCI> {
         try {
-            const { collection, db, addDoc, serverTimestamp } = await getFirestore();
+            const { doc, setDoc, db, serverTimestamp } = await getFirestore();
 
-            const docRef = await addDoc(collection(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI"), {
+            // Utiliser l'ID fourni dans data
+            const subscriptionRef = doc(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI", data.id);
+
+            await setDoc(subscriptionRef, {
                 ...data,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
 
             // Récupérer la souscription créée
-            const createdSubscription = await this.getSubscriptionById(docRef.id);
+            const createdSubscription = await this.getSubscriptionById(data.id);
             
             if (!createdSubscription) {
                 throw new Error("Erreur lors de la récupération de la souscription créée");

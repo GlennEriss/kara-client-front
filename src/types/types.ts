@@ -444,6 +444,58 @@ export interface User {
 // ================== TYPES CAISSE IMPREVUE ==================
 
 export type CaisseImprevuePaymentFrequency = 'DAILY' | 'MONTHLY'
+export type ContractCIStatus = 'ACTIVE' | 'FINISHED' | 'CANCELED'
+
+/**
+ * Type pour le contact d'urgence d'un contrat CI
+ */
+export interface EmergencyContactCI {
+  lastName: string
+  firstName?: string
+  phone1: string
+  phone2?: string
+  relationship: string
+}
+
+/**
+ * Type pour un contrat de Caisse Imprévue
+ * Stocké dans Firestore dans la collection 'contractsCI'
+ */
+export interface ContractCI {
+  // Identifiant unique
+  id: string
+
+  // Informations du membre (Step 1)
+  memberId: string
+  memberFirstName: string
+  memberLastName: string
+  memberContacts: string[]
+  memberEmail?: string
+
+  // Informations du forfait (Step 2)
+  subscriptionCIID: string
+  subscriptionCICode: string
+  subscriptionCILabel?: string
+  subscriptionCIAmountPerMonth: number
+  subscriptionCINominal: number
+  subscriptionCIDuration: number
+  subscriptionCISupportMin: number
+  subscriptionCISupportMax: number
+  paymentFrequency: CaisseImprevuePaymentFrequency
+  firstPaymentDate: string
+
+  // Contact d'urgence (Step 3)
+  emergencyContact: EmergencyContactCI
+
+  // Statut du contrat
+  status: ContractCIStatus
+
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy: string
+}
 
 /**
  * Type pour un contrat de Caisse Imprévue (souscription)
@@ -849,7 +901,15 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 // Rôles considérés comme administrateurs
 export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary']
 
+// Labels pour les statuts de contrats Caisse Imprévue
+export const CONTRACT_CI_STATUS_LABELS: Record<ContractCIStatus, string> = {
+  ACTIVE: 'En cours',
+  FINISHED: 'Terminé',
+  CANCELED: 'Résilié'
+}
+
 export type Admin = {
+  id?: string
   firstName: string
   lastName: string
   birthDate: string
@@ -863,6 +923,8 @@ export type Admin = {
   isActive?: boolean
   createdBy?: string
   updatedBy?: string
+  createdAt?: Date
+  updatedAt?: Date
 }
 export interface PhotonResult {
   properties: {
