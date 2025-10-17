@@ -1,0 +1,259 @@
+import { IDocumentRepository } from "./IDocumentRepository";
+import { Document } from "@/types/types";
+import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorageInstance } from '@/firebase/storage';
+
+const getFirestore = () => import("@/firebase/firestore");
+
+export class DocumentRepository implements IDocumentRepository {
+    readonly name = "DocumentRepository";
+
+    /**
+     * Téléverse un fichier PDF vers Firebase Storage
+     * @param {File} file - Le fichier à téléverser
+     * @param {string} memberId - ID du membre
+     * @param {string} documentType - Type de document
+     * @returns {Promise<{url: string, path: string, size: number}>}
+     */
+    async uploadDocumentFile(file: File, memberId: string, documentType: string): Promise<{ url: string; path: string; size: number }> {
+        try {
+            const storage = getStorageInstance();
+            
+            const timestamp = Date.now();
+            const fileName = `${timestamp}_${documentType}_${file.name}`;
+            const filePath = `contracts-ci/${memberId}/${fileName}`;
+
+            const storageRef = ref(storage, filePath);
+            
+            // Métadonnées du fichier
+            const metadata = {
+                contentType: file.type,
+                customMetadata: {
+                    memberId: memberId,
+                    documentType: documentType,
+                    uploadedAt: new Date().toISOString()
+                }
+            };
+
+            // Upload du fichier
+            const snapshot = await uploadBytes(storageRef, file, metadata);
+
+            // Récupérer l'URL de téléchargement
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            
+            return {
+                url: downloadURL,
+                path: filePath,
+                size: file.size
+            };
+        } catch (error: any) {
+            console.error('❌ Upload failed:', error);
+            
+            // Gestion des erreurs d'autorisation
+            if (error.code === 'storage/unauthorized') {
+                console.log('🔄 Unauthorized error, retrying...');
+                
+                try {
+                    const storage = getStorageInstance();
+                    const timestamp = Date.now();
+                    const fileName = `${timestamp}_${documentType}_${file.name}`;
+                    const filePath = `contracts-ci/${memberId}/${fileName}`;
+                    const storageRef = ref(storage, filePath);
+                    
+                    const snapshot = await uploadBytes(storageRef, file);
+                    const downloadURL = await getDownloadURL(snapshot.ref);
+                    
+                    console.log('✅ Retry successful!');
+                    return {
+                        url: downloadURL,
+                        path: filePath,
+                        size: file.size
+                    };
+                } catch (retryError: any) {
+                    throw new Error(`Failed to upload document: ${retryError.message}`);
+                }
+            }
+            
+            throw new Error(`Failed to upload document: ${error.message}`);
+        }
+    }
+
+    /**
+     * Crée un nouveau document avec un ID personnalisé
+     * @param {Omit<Document, 'id' | 'createdAt' | 'updatedAt'>} data - Données du document
+     * @returns {Promise<Document>}
+     */
+    async createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document> {
+        try {
+            const { doc, setDoc, db, serverTimestamp } = await getFirestore();
+
+            // Générer l'ID personnalisé : MK_{documentType}_{memberId}_{ddMMyy}_{HHmm}
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = String(now.getFullYear()).slice(-2);
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            const documentId = `MK_${data.type}_${data.memberId}_${day}${month}${year}_${hours}${minutes}`;
+
+
+            const documentRef = doc(db, firebaseCollectionNames.documents || "documents", documentId);
+
+            await setDoc(documentRef, {
+                ...data,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+
+            // Récupérer le document créé
+            const createdDoc = await this.getDocumentById(documentId);
+            
+            if (!createdDoc) {
+                throw new Error("Erreur lors de la récupération du document créé");
+            }
+
+            return createdDoc;
+
+        } catch (error) {
+            console.error("Erreur lors de la création du document:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Récupère un document par son ID
+     * @param {string} id - L'ID du document
+     * @returns {Promise<Document | null>}
+     */
+    async getDocumentById(id: string): Promise<Document | null> {
+        try {
+            const { doc, getDoc, db } = await getFirestore();
+            
+            const documentRef = doc(db, firebaseCollectionNames.documents || "documents", id);
+            const docSnap = await getDoc(documentRef);
+            
+            if (!docSnap.exists()) {
+                return null;
+            }
+            
+            const data = docSnap.data();
+            
+            return {
+                id: docSnap.id,
+                ...(data as any),
+                createdAt: data.createdAt?.toDate() || new Date(),
+                updatedAt: data.updatedAt?.toDate() || new Date(),
+            } as Document;
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération du document:", error);
+            return null;
+        }
+    }
+
+    /**
+     * Récupère tous les documents d'un contrat
+     * @param {string} contractId - L'ID du contrat
+     * @returns {Promise<Document[]>}
+     */
+    async getDocumentsByContractId(contractId: string): Promise<Document[]> {
+        try {
+            const { collection, query, where, getDocs, db } = await getFirestore();
+
+            const q = query(
+                collection(db, firebaseCollectionNames.documents || "documents"),
+                where("contractId", "==", contractId)
+            );
+
+            const snapshot = await getDocs(q);
+            
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+            })) as Document[];
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération des documents du contrat:", error);
+            return [];
+        }
+    }
+
+    /**
+     * Récupère tous les documents d'un membre
+     * @param {string} memberId - L'ID du membre
+     * @returns {Promise<Document[]>}
+     */
+    async getDocumentsByMemberId(memberId: string): Promise<Document[]> {
+        try {
+            const { collection, query, where, getDocs, db } = await getFirestore();
+
+            const q = query(
+                collection(db, firebaseCollectionNames.documents || "documents"),
+                where("memberId", "==", memberId)
+            );
+
+            const snapshot = await getDocs(q);
+            
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+            })) as Document[];
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération des documents du membre:", error);
+            return [];
+        }
+    }
+
+    /**
+     * Met à jour un document
+     * @param {string} id - L'ID du document
+     * @param {Partial<Omit<Document, 'id' | 'createdAt'>>} data - Données à mettre à jour
+     * @returns {Promise<Document | null>}
+     */
+    async updateDocument(id: string, data: Partial<Omit<Document, 'id' | 'createdAt'>>): Promise<Document | null> {
+        try {
+            const { doc, updateDoc, db, serverTimestamp } = await getFirestore();
+
+            const documentRef = doc(db, firebaseCollectionNames.documents || "documents", id);
+
+            await updateDoc(documentRef, {
+                ...data,
+                updatedAt: serverTimestamp(),
+            });
+
+            return await this.getDocumentById(id);
+
+        } catch (error) {
+            console.error("Erreur lors de la mise à jour du document:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Supprime un document
+     * @param {string} id - L'ID du document
+     * @returns {Promise<void>}
+     */
+    async deleteDocument(id: string): Promise<void> {
+        try {
+            const { doc, deleteDoc, db } = await getFirestore();
+
+            const documentRef = doc(db, firebaseCollectionNames.documents || "documents", id);
+            await deleteDoc(documentRef);
+
+            console.log(`Document ${id} supprimé avec succès`);
+
+        } catch (error) {
+            console.error("Erreur lors de la suppression du document:", error);
+            throw error;
+        }
+    }
+}
+

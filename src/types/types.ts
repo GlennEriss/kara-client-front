@@ -833,7 +833,7 @@ export interface RefundWithDocument {
  * Interface pour les contrats de caisse avec documents
  */
 export interface CaisseContract {
-  id: string
+  id?: string
   memberId: string
   groupeId?: string
   contractType: 'INDIVIDUAL' | 'GROUP'
@@ -859,6 +859,49 @@ export interface CaisseContract {
     fileSize: number
   }
   emergencyContact?: EmergencyContact
+  createdAt: Date
+  updatedAt: Date
+}
+
+// ================== TYPES POUR LES DOCUMENTS ==================
+
+/**
+ * Types de documents possibles
+ */
+export type DocumentType = 
+  | 'ADHESION_CS'      // Contrat d'adhésion Caisse Spéciale
+  | 'ADHESION_CI'      // Contrat d'adhésion Caisse Imprévue
+  | 'ADHESION'         // Contrat d'adhésion général
+  | 'CANCELED_CS'      // Contrat d'annulation Caisse Spéciale
+  | 'CANCELED_CI'      // Contrat d'annulation Caisse Imprévue
+  | 'FINISHED_CS'      // Contrat de fin Caisse Spéciale
+  | 'FINISHED_CI'      // Contrat de fin Caisse Imprévue
+
+/**
+ * Formats de documents possibles
+ */
+export type DocumentFormat = 
+  | 'pdf'
+  | 'word'
+  | 'excel'
+  | 'image'
+  | 'text'
+
+/**
+ * Interface pour un document
+ */
+export interface Document {
+  id?: string
+  type: DocumentType
+  format: DocumentFormat
+  libelle: string
+  path: string
+  url: string
+  size: number
+  memberId: string
+  contractId?: string
+  createdBy: string
+  updatedBy: string
   createdAt: Date
   updatedAt: Date
 }

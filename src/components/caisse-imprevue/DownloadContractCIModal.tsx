@@ -276,7 +276,8 @@ export default function DownloadContractCIModal({
       }
 
       // Télécharger le PDF
-      doc.save(`Contrat_CI_${contract.id}_${Date.now()}.pdf`)
+      const fileName = `MK_CI_${contract.memberFirstName}_${contract.memberLastName}.pdf`
+      doc.save(fileName)
       
       setTimeout(() => {
         setIsGenerating(false)
