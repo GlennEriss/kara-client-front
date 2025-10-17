@@ -74,14 +74,14 @@ export default function DailyContract({ id }: Props) {
 
   // Fonction pour recharger les remboursements
   const reloadRefunds = React.useCallback(async () => {
-      if (id) {
-        try {
-          const refundsData = await listRefunds(id)
-          setRefunds(refundsData)
-        } catch (error) {
-          console.error('Error loading refunds:', error)
-        }
+    if (id) {
+      try {
+        const refundsData = await listRefunds(id)
+        setRefunds(refundsData)
+      } catch (error) {
+        console.error('Error loading refunds:', error)
       }
+    }
   }, [id])
 
   // Load refunds from subcollection
@@ -99,7 +99,7 @@ export default function DailyContract({ id }: Props) {
     // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    
+
     let referenceDate: Date
     if (data.nextDueAt) {
       referenceDate = new Date(data.nextDueAt)
@@ -179,18 +179,6 @@ export default function DailyContract({ id }: Props) {
   const isGroupContract = data.contractType === 'GROUP' || !!groupeId
   const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
 
-  // Debug: afficher les informations du contrat
-  console.log('DailyContract Debug:', {
-    contractId: id,
-    contractType: data.contractType,
-    groupeId: groupeId,
-    memberId: (data as any).memberId,
-    isGroupContract,
-    hasGroupMembers: !!groupMembers,
-    groupMembersCount: groupMembers?.length,
-    isLoadingGroupMembers
-  })
-
   // Fonctions utilitaires pour le calendrier
   const getMonthDays = (date: Date) => {
     const year = date.getFullYear()
@@ -214,17 +202,12 @@ export default function DailyContract({ id }: Props) {
   const getPaymentForDate = (date: Date) => {
     if (!data.payments) return null
 
-    console.log('🔍 getPaymentForDate - Recherche pour la date:', date.toDateString())
-    console.log('🔍 isGroupContract:', isGroupContract)
-
     // Pour les contrats de groupe, chercher par jour spécifique
     if (isGroupContract) {
       // Calculer l'index du mois pour cette date
       const contractStartMonth = data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth()
       const targetMonth = date.getMonth()
       const monthIndex = targetMonth - contractStartMonth
-
-      console.log('🔍 Recherche par mois - monthIndex:', monthIndex, 'targetMonth:', targetMonth, 'contractStartMonth:', contractStartMonth)
 
       // Chercher le paiement pour ce mois
       const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
@@ -253,20 +236,14 @@ export default function DailyContract({ id }: Props) {
         })
 
         if (hasContributionsOnDate) {
-          console.log('✅ Paiement de groupe trouvé pour la date spécifique:', date.toDateString())
           return payment
         } else {
-          console.log('❌ Pas de contribution pour cette date spécifique:', date.toDateString())
           return null
         }
       }
 
-      console.log('❌ Aucun paiement de groupe trouvé pour le mois:', monthIndex)
       return null
     }
-
-    // Pour les contrats individuels, logique existante
-    console.log('🔍 Recherche par jour pour contrat individuel')
 
     // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
     for (const payment of data.payments) {
@@ -299,13 +276,10 @@ export default function DailyContract({ id }: Props) {
         })
 
         if (hasContributionOnDate) {
-          console.log('✅ Paiement individuel trouvé pour la date:', date.toDateString())
           return payment
         }
       }
     }
-
-    console.log('❌ Aucun paiement trouvé pour la date:', date.toDateString())
     return null
   }
 
@@ -439,16 +413,16 @@ export default function DailyContract({ id }: Props) {
       toast.info('Génération du PDF en cours...')
       const doc = new jsPDF('p', 'mm', 'a4')
 
-    // En-tête du document
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Détails du Versement', 14, 15)
-    
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Contrat #${id}`, 14, 22)
-    doc.text(`Date du versement : ${selectedDate.toLocaleDateString('fr-FR')}`, 14, 28)
-    doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
+      // En-tête du document
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Détails du Versement', 14, 15)
+
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Contrat #${id}`, 14, 22)
+      doc.text(`Date du versement : ${selectedDate.toLocaleDateString('fr-FR')}`, 14, 28)
+      doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 14, 34)
 
       const payment = paymentDetails
       const yStart = 42
@@ -457,7 +431,7 @@ export default function DailyContract({ id }: Props) {
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
       doc.text('Informations générales', 14, yStart)
-      
+
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       let yPos = yStart + 6
@@ -467,7 +441,7 @@ export default function DailyContract({ id }: Props) {
       yPos += 6
       doc.text(`Objectif mensuel : ${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
       yPos += 6
-      
+
       // Afficher les pénalités si elles existent
       if (payment.penaltyApplied && payment.penaltyApplied > 0) {
         doc.setTextColor(220, 38, 38) // Rouge
@@ -497,17 +471,17 @@ export default function DailyContract({ id }: Props) {
             contrib.time || '',
             contrib.mode === 'airtel_money' ? 'Airtel Money' :
               contrib.mode === 'mobicash' ? 'Mobicash' :
-              contrib.mode === 'cash' ? 'Espèce' :
-              contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
+                contrib.mode === 'cash' ? 'Espèce' :
+                  contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
           ]
-          
+
           // Ajouter les pénalités si présentes
           if (contrib.penalty && contrib.penalty > 0) {
             row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
           } else {
             row.push('-')
           }
-          
+
           return row
         })
 
@@ -515,7 +489,7 @@ export default function DailyContract({ id }: Props) {
         const hasPenalties = payment.groupContributions.some((c: any) => c.penalty && c.penalty > 0)
 
         autoTable(doc, {
-          head: [hasPenalties 
+          head: [hasPenalties
             ? ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode', 'Pénalité']
             : ['Membre', 'Matricule', 'Montant', 'Heure', 'Mode']
           ],
@@ -545,10 +519,10 @@ export default function DailyContract({ id }: Props) {
             4: { cellWidth: 35 },
           },
         })
-        
+
         // Mettre à jour yPos après le tableau
         yPos = (doc as any).lastAutoTable.finalY + 10
-        
+
         // Ajouter les preuves de versement pour chaque membre (si disponibles)
         const contribsWithProof = payment.groupContributions.filter((c: any) => c.proofUrl)
         if (contribsWithProof.length > 0) {
@@ -556,24 +530,24 @@ export default function DailyContract({ id }: Props) {
           doc.setFont('helvetica', 'bold')
           doc.text('Preuves de versement', 14, yPos)
           yPos += 8
-          
+
           for (const contrib of contribsWithProof) {
             // Vérifier si on doit ajouter une nouvelle page
             if (yPos > doc.internal.pageSize.getHeight() - 80) {
               doc.addPage()
               yPos = 20
             }
-            
+
             doc.setFontSize(10)
             doc.setFont('helvetica', 'bold')
             doc.text(`${contrib.memberFirstName} ${contrib.memberLastName} (${contrib.memberMatricule})`, 14, yPos)
             yPos += 6
-            
+
             try {
               const imgData = await loadImageAsBase64(contrib.proofUrl)
               const imgWidth = 80
               const imgHeight = 60
-              
+
               // Vérifier à nouveau après avoir chargé l'image
               if (yPos + imgHeight > doc.internal.pageSize.getHeight() - 20) {
                 doc.addPage()
@@ -584,7 +558,7 @@ export default function DailyContract({ id }: Props) {
                 doc.text(`${contrib.memberFirstName} ${contrib.memberLastName} (${contrib.memberMatricule})`, 14, yPos)
                 yPos += 6
               }
-              
+
               doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
               yPos += imgHeight + 8
             } catch (error) {
@@ -608,13 +582,13 @@ export default function DailyContract({ id }: Props) {
           selected.setHours(0, 0, 0, 0)
           return contribDate.getTime() === selected.getTime()
         }) || payment.contribs[0] // Fallback sur la première si aucune correspondance
-        
+
         console.log('📄 Export PDF - Contribution utilisée:', {
           contributionId: contrib?.id,
           proofUrl: contrib?.proofUrl,
           amount: contrib?.amount
         })
-        
+
         doc.setFontSize(12)
         doc.setFont('helvetica', 'bold')
         doc.text('Détail de la contribution', 14, yPos)
@@ -631,12 +605,12 @@ export default function DailyContract({ id }: Props) {
         if (contrib.mode) {
           const modeLabel = contrib.mode === 'airtel_money' ? 'Airtel Money' :
             contrib.mode === 'mobicash' ? 'Mobicash' :
-            contrib.mode === 'cash' ? 'Espèce' :
-            contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
+              contrib.mode === 'cash' ? 'Espèce' :
+                contrib.mode === 'bank_transfer' ? 'Virement bancaire' : 'Inconnu'
           doc.text(`Mode : ${modeLabel}`, 14, yPos)
           yPos += 6
         }
-        
+
         // Afficher les pénalités de la contribution si présentes
         if (contrib.penalty && contrib.penalty > 0) {
           doc.setTextColor(220, 38, 38) // Rouge
@@ -648,7 +622,7 @@ export default function DailyContract({ id }: Props) {
           }
           doc.setTextColor(0, 0, 0) // Revenir au noir
         }
-        
+
         // Ajouter la preuve de versement si disponible
         if (contrib.proofUrl) {
           yPos += 4
@@ -656,19 +630,19 @@ export default function DailyContract({ id }: Props) {
           doc.setFont('helvetica', 'bold')
           doc.text('Preuve de versement :', 14, yPos)
           yPos += 6
-          
+
           try {
             // Charger l'image et l'ajouter au PDF
             const imgData = await loadImageAsBase64(contrib.proofUrl)
             const imgWidth = 80 // Largeur de l'image en mm
             const imgHeight = 60 // Hauteur de l'image en mm
-            
+
             // Vérifier si on doit ajouter une nouvelle page
             if (yPos + imgHeight > doc.internal.pageSize.getHeight() - 20) {
               doc.addPage()
               yPos = 20
             }
-            
+
             doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
             yPos += imgHeight + 5
           } catch (error) {
@@ -725,36 +699,36 @@ export default function DailyContract({ id }: Props) {
         })
         .then(blob => {
           const reader = new FileReader()
-          
+
           reader.onloadend = () => {
             const result = reader.result as string
-            
+
             // Créer une image pour la redimensionner si nécessaire
             const img = new Image()
-            
+
             img.onload = () => {
               try {
                 const canvas = document.createElement('canvas')
-                
+
                 // Redimensionner si l'image est trop grande (max 1200px de largeur)
                 const maxWidth = 1200
                 let width = img.width
                 let height = img.height
-                
+
                 if (width > maxWidth) {
                   height = (height * maxWidth) / width
                   width = maxWidth
                 }
-                
+
                 canvas.width = width
                 canvas.height = height
-                
+
                 const ctx = canvas.getContext('2d')
                 if (!ctx) {
                   reject(new Error('Impossible de créer le contexte canvas'))
                   return
                 }
-                
+
                 ctx.drawImage(img, 0, 0, width, height)
                 const dataURL = canvas.toDataURL('image/jpeg', 0.85)
                 resolve(dataURL)
@@ -763,18 +737,18 @@ export default function DailyContract({ id }: Props) {
                 reject(error)
               }
             }
-            
+
             img.onerror = () => {
               reject(new Error('Erreur lors du chargement de l\'image'))
             }
-            
+
             img.src = result
           }
-          
+
           reader.onerror = () => {
             reject(new Error('Erreur lors de la lecture du blob'))
           }
-          
+
           reader.readAsDataURL(blob)
         })
         .catch(error => {
@@ -1030,7 +1004,7 @@ export default function DailyContract({ id }: Props) {
         </div>
 
         {/* Outils de test (DEV uniquement) */}
-        <TestPaymentTools 
+        <TestPaymentTools
           contractId={id}
           contractData={data}
           onPaymentSuccess={async () => {
@@ -1293,7 +1267,7 @@ export default function DailyContract({ id }: Props) {
             const payments = data.payments || []
             const paidCount = payments.filter((x: any) => x.status === 'PAID').length
             const allPaid = payments.length > 0 && paidCount === payments.length
-            
+
             // Pour DailyContract : vérifier s'il y a au moins 1 versement (contribution)
             const hasAtLeastOneContribution = payments.some((p: any) => {
               if (isGroupContract) {
@@ -1302,7 +1276,7 @@ export default function DailyContract({ id }: Props) {
                 return p.contribs && p.contribs.length > 0
               }
             })
-            
+
             const canEarly = hasAtLeastOneContribution && !allPaid
             const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
             const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
@@ -1387,91 +1361,91 @@ export default function DailyContract({ id }: Props) {
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
-                      {r.status === 'PENDING' && (
-                        <div className="flex flex-col sm:flex-row gap-2">
+                  {r.status === 'PENDING' && (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => setConfirmApproveId(r.id)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
+                      >
+                        Approuver
+                      </Button>
+                      {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                        <>
                           <Button
                             size="sm"
-                            onClick={() => setConfirmApproveId(r.id)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
+                            variant="outline"
+                            onClick={() => setShowRemboursementPdf(true)}
+                            className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
                           >
-                            Approuver
+                            <FileText className="h-4 w-4" />
+                            Document de remboursement
                           </Button>
-                          {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                          {r.document ? (
                             <>
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setShowRemboursementPdf(true)}
+                                onClick={() => handleViewDocument(r.id, r.document)}
                                 className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
                               >
-                                <FileText className="h-4 w-4" />
-                                Document de remboursement
+                                <Eye className="h-4 w-4" />
+                                Voir PDF
                               </Button>
-                              {r.document ? (
-                                <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleViewDocument(r.id, r.document)}
-                                  className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Voir PDF
-                                </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenPdfModal(r.id)}
-                                    className="border-blue-300 text-blue-600 hover:bg-blue-50 w-full sm:w-auto flex items-center justify-center gap-2"
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    Remplacer PDF
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setConfirmDeleteDocumentId(r.id)}
-                                    className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    Supprimer
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleOpenPdfModal(r.id)}
-                                  className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  Ajouter PDF
-                                </Button>
-                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenPdfModal(r.id)}
+                                className="border-blue-300 text-blue-600 hover:bg-blue-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Remplacer PDF
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setConfirmDeleteDocumentId(r.id)}
+                                className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Supprimer
+                              </Button>
                             </>
-                          )}
-                          {r.type === 'EARLY' && !r.document && (
+                          ) : (
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto"
-                              onClick={async () => {
-                                try {
-                                  await cancelEarlyRefund(id, r.id)
-                                  await refetch()
-                                  await reloadRefunds() // Rafraîchir la liste des remboursements
-                                  toast.success('Demande anticipée annulée')
-                                } catch (e: any) {
-                                  toast.error(e?.message || 'Annulation impossible')
-                                }
-                              }}
+                              onClick={() => handleOpenPdfModal(r.id)}
+                              className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
                             >
-                              Annuler
+                              <FileText className="h-4 w-4" />
+                              Ajouter PDF
                             </Button>
                           )}
-                        </div>
+                        </>
                       )}
+                      {r.type === 'EARLY' && !r.document && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto"
+                          onClick={async () => {
+                            try {
+                              await cancelEarlyRefund(id, r.id)
+                              await refetch()
+                              await reloadRefunds() // Rafraîchir la liste des remboursements
+                              toast.success('Demande anticipée annulée')
+                            } catch (e: any) {
+                              toast.error(e?.message || 'Annulation impossible')
+                            }
+                          }}
+                        >
+                          Annuler
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   {r.status === 'APPROVED' && (
                     <>
@@ -1787,24 +1761,20 @@ export default function DailyContract({ id }: Props) {
 
             {/* Indicateur de retard et pénalités */}
             {latePaymentInfo && (
-              <div className={`rounded-lg p-3 border-2 ${
-                latePaymentInfo.hasPenalty 
-                  ? 'bg-red-50 border-red-300' 
+              <div className={`rounded-lg p-3 border-2 ${latePaymentInfo.hasPenalty
+                  ? 'bg-red-50 border-red-300'
                   : 'bg-orange-50 border-orange-300'
-              }`}>
+                }`}>
                 <div className="flex items-start gap-2">
-                  <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
-                    latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
-                  }`} />
+                  <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                    }`} />
                   <div className="flex-1">
-                    <h4 className={`font-semibold text-sm ${
-                      latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
-                    }`}>
+                    <h4 className={`font-semibold text-sm ${latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                      }`}>
                       Paiement en retard
                     </h4>
-                    <p className={`text-xs mt-1 ${
-                      latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
-                    }`}>
+                    <p className={`text-xs mt-1 ${latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                      }`}>
                       Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
                     </p>
                     {latePaymentInfo.hasPenalty && (
@@ -1856,10 +1826,10 @@ export default function DailyContract({ id }: Props) {
           <DialogHeader className="flex-shrink-0">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-            <DialogTitle className="text-lg lg:text-xl">Détails du versement</DialogTitle>
-            <DialogDescription className="text-sm lg:text-base">
-              Versement du {selectedDate?.toLocaleDateString('fr-FR')}
-            </DialogDescription>
+                <DialogTitle className="text-lg lg:text-xl">Détails du versement</DialogTitle>
+                <DialogDescription className="text-sm lg:text-base">
+                  Versement du {selectedDate?.toLocaleDateString('fr-FR')}
+                </DialogDescription>
               </div>
               <Button
                 variant="outline"
@@ -1882,7 +1852,7 @@ export default function DailyContract({ id }: Props) {
               // paymentDetails est déjà l'objet paiement, pas besoin de destructurer
               const payment = paymentDetails
               const isGroupContract = data.contractType === 'GROUP' || !!(data as any).groupeId
-              
+
               // Debug: afficher les données pour vérifier
               console.log('🔍 Payment Details:', payment)
               console.log('🔍 Payment contribs:', payment.contribs)
@@ -2006,7 +1976,7 @@ export default function DailyContract({ id }: Props) {
                   selected.setHours(0, 0, 0, 0)
                   return contribDate.getTime() === selected.getTime()
                 }) || payment.contribs[0] // Fallback sur la première si aucune correspondance
-                
+
                 console.log('🎯 Contribution trouvée pour la date:', selectedDate?.toLocaleDateString('fr-FR'), {
                   contributionId: contribution?.id,
                   proofUrl: contribution?.proofUrl,
@@ -2157,7 +2127,7 @@ export default function DailyContract({ id }: Props) {
                 selected.setHours(0, 0, 0, 0)
                 return contribDate.getTime() === selected.getTime()
               }) || payment.contribs[0]
-              
+
               return (
                 <Button
                   onClick={() => {
@@ -2559,24 +2529,20 @@ export default function DailyContract({ id }: Props) {
               {(() => {
                 const lateInfo = calculateLatePaymentInfo(selectedDate)
                 return lateInfo ? (
-                  <div className={`rounded-lg p-3 border-2 ${
-                    lateInfo.hasPenalty 
-                      ? 'bg-red-50 border-red-300' 
+                  <div className={`rounded-lg p-3 border-2 ${lateInfo.hasPenalty
+                      ? 'bg-red-50 border-red-300'
                       : 'bg-orange-50 border-orange-300'
-                  }`}>
+                    }`}>
                     <div className="flex items-start gap-2">
-                      <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
-                        lateInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
-                      }`} />
+                      <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${lateInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
+                        }`} />
                       <div className="flex-1">
-                        <h4 className={`font-semibold text-sm ${
-                          lateInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
-                        }`}>
+                        <h4 className={`font-semibold text-sm ${lateInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
+                          }`}>
                           Paiement en retard
                         </h4>
-                        <p className={`text-xs mt-1 ${
-                          lateInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
-                        }`}>
+                        <p className={`text-xs mt-1 ${lateInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
+                          }`}>
                           Ce paiement est effectué avec <strong>{lateInfo.daysLate} jour(s) de retard</strong>
                         </p>
                         {lateInfo.hasPenalty && (
@@ -2796,8 +2762,8 @@ export default function DailyContract({ id }: Props) {
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowReasonModal(false)
                   setRefundType(null)
@@ -2812,7 +2778,7 @@ export default function DailyContract({ id }: Props) {
                 onClick={async () => {
                   try {
                     setIsRefunding(true)
-                    
+
                     if (refundType === 'FINAL') {
                       await requestFinalRefund(id, refundReasonInput)
                       toast.success('Remboursement final demandé')
@@ -2823,11 +2789,11 @@ export default function DailyContract({ id }: Props) {
 
                     await refetch()
                     await reloadRefunds() // Rafraîchir la liste des remboursements
-                    
+
                     setShowReasonModal(false)
                     setRefundType(null)
                     setRefundReasonInput('')
-                    
+
                     // Afficher le PDF de remboursement
                     setShowRemboursementPdf(true)
                   } catch (e: any) {

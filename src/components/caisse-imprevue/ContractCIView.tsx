@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import Image from 'next/image'
 import { ContractCI } from '@/types/types'
 import { getDocumentTypeLabel } from '@/constantes/document-types'
 import { getNationalityName } from '@/constantes/nationality'
@@ -28,12 +27,12 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
       {/* ===== LOGO + EN-TÊTE ===== */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
         <div style={{ marginBottom: '10px' }}>
-          <Image 
+          <img 
             src="/Logo-Kara.webp" 
             alt="Logo KARA" 
             width={80} 
             height={80}
-            style={{ margin: '0 auto' }}
+            style={{ margin: '0 auto', display: 'block' }}
           />
         </div>
         <h2 style={{ color: '#234D65', marginBottom: '4px', fontSize: '20px', fontWeight: 'bold' }}>
@@ -49,7 +48,7 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
         {/* Photo du membre si disponible */}
         {contract.memberPhotoUrl && (
           <div style={{ flexShrink: 0 }}>
-            <Image 
+            <img 
               src={contract.memberPhotoUrl} 
               alt="Photo du membre" 
               width={100} 
@@ -57,7 +56,8 @@ export default function ContractCIView({ contract }: ContractCIViewProps) {
               style={{ 
                 border: '2px solid #234D65', 
                 borderRadius: '8px',
-                objectFit: 'cover'
+                objectFit: 'cover',
+                display: 'block'
               }}
             />
           </div>
