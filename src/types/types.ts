@@ -444,7 +444,7 @@ export interface User {
 // ================== TYPES CAISSE IMPREVUE ==================
 
 export type CaisseImprevuePaymentFrequency = 'DAILY' | 'MONTHLY'
-export type ContractCIStatus = 'ACTIVE'
+export type ContractCIStatus = 'ACTIVE' | 'FINISHED' | 'CANCELED'
 
 /**
  * Type pour le contact d'urgence d'un contrat CI
@@ -900,6 +900,13 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 
 // Rôles considérés comme administrateurs
 export const ADMIN_ROLES: UserRole[] = ['Admin', 'SuperAdmin', 'Secretary']
+
+// Labels pour les statuts de contrats Caisse Imprévue
+export const CONTRACT_CI_STATUS_LABELS: Record<ContractCIStatus, string> = {
+  ACTIVE: 'En cours',
+  FINISHED: 'Terminé',
+  CANCELED: 'Résilié'
+}
 
 export type Admin = {
   firstName: string

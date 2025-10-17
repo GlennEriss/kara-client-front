@@ -3,7 +3,7 @@ import { ICaisseImprevueService } from "./ICaisseImprevueService";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
 import { ISubscriptionCIRepository } from "@/repositories/caisse-imprevu/ISubscriptionCIRepository";
-import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
+import { IContractCIRepository, ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IAdminRepository } from "@/repositories/admins/IAdminRepository";
 
 export class CaisseImprevueService implements ICaisseImprevueService {
@@ -59,5 +59,13 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
     async getAdminById(id: string): Promise<Admin | null> {
         return await this.adminRepository.getAdminById(id)
+    }
+
+    async getContractsCIPaginated(filters?: ContractsCIFilters): Promise<ContractCI[]> {
+        return await this.contractCIRepository.getContractsWithFilters(filters)
+    }
+
+    async getContractsCIStats(): Promise<ContractsCIStats> {
+        return await this.contractCIRepository.getContractsStats()
     }
 }

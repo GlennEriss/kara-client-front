@@ -1,5 +1,6 @@
 import { IService } from "../interfaces/IService";
 import { SubscriptionCI, User, Admin, ContractCI } from "@/types/types";
+import { ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
 
 export interface ICaisseImprevueService extends IService{
     searchMembers(searchQuery: string): Promise<User[]>
@@ -11,4 +12,6 @@ export interface ICaisseImprevueService extends IService{
     deleteSubscription(id: string): Promise<void>
     createContractCI(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI>
     getAdminById(id: string): Promise<Admin | null>
+    getContractsCIPaginated(filters?: ContractsCIFilters): Promise<ContractCI[]>
+    getContractsCIStats(): Promise<ContractsCIStats>
 }
