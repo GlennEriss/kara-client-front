@@ -9,5 +9,6 @@ export interface IDocumentRepository extends IRepository {
     updateDocument(id: string, data: Partial<Omit<Document, 'id' | 'createdAt'>>): Promise<Document | null>;
     deleteDocument(id: string): Promise<void>;
     uploadDocumentFile(file: File, memberId: string, documentType: string): Promise<{ url: string; path: string; size: number }>;
+    uploadImage(imageUrl: string, memberId: string, contractId: string, imageType: string): Promise<{ url: string; path: string }>;
 }
 

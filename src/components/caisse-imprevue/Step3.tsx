@@ -39,12 +39,18 @@ export default function Step3() {
           relationship: step3Values?.relationship || '',
           idNumber: step3Values?.idNumber || '',
           typeId: step3Values?.typeId || '',
+          documentPhotoUrl: step3Values?.documentPhotoUrl || '',
         }}
         onUpdate={handleUpdateField}
       />
 
       {/* Récapitulatif visuel si le formulaire est valide */}
-      {step3Values?.lastName && step3Values?.phone1 && step3Values?.relationship && (
+      {step3Values?.lastName && 
+       step3Values?.phone1 && 
+       step3Values?.relationship && 
+       step3Values?.typeId && 
+       step3Values?.idNumber && 
+       step3Values?.documentPhotoUrl && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center gap-2 text-green-700">
             <CheckCircle2 className="w-5 h-5" />
@@ -60,11 +66,13 @@ export default function Step3() {
           <p className="text-sm text-green-600">
             Lien : {step3Values.relationship}
           </p>
-          {step3Values.typeId && step3Values.idNumber && (
-            <p className="text-sm text-green-600">
-              Document : {step3Values.typeId} - {step3Values.idNumber}
-            </p>
-          )}
+          <p className="text-sm text-green-600">
+            Document : {step3Values.typeId} - {step3Values.idNumber}
+          </p>
+          <p className="text-sm text-green-600 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" />
+            Photo du document uploadée
+          </p>
         </div>
       )}
     </div>

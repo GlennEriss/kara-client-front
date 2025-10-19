@@ -75,18 +75,22 @@ export const caisseImprevueStep3Schema = z.object({
     .string()
     .min(1, 'Le lien de parenté est obligatoire'),
   
-  // Numéro de document optionnel
+  // Numéro de document obligatoire
   idNumber: z
     .string()
-    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères')
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Le numéro de document est obligatoire')
+    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
   
-  // Type de document optionnel
+  // Type de document obligatoire
   typeId: z
     .string()
-    .optional()
-    .or(z.literal('')),
+    .min(1, 'Le type de document est obligatoire'),
+  
+  // Photo du document obligatoire
+  documentPhotoUrl: z
+    .string()
+    .min(1, 'La photo du document est obligatoire')
+    .url('L\'URL de la photo doit être valide'),
 })
 
 // Schéma global combinant les 3 étapes
@@ -138,6 +142,7 @@ export const defaultCaisseImprevueStep3Values: Partial<CaisseImprevueStep3FormDa
   relationship: '',
   idNumber: '',
   typeId: '',
+  documentPhotoUrl: '',
 }
 
 export const defaultCaisseImprevueGlobalValues: Partial<CaisseImprevueGlobalFormData> = {
