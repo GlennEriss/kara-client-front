@@ -20,6 +20,8 @@ import { SubscriptionCI } from '@/types/types'
 import { useSubscriptionCI } from './SubscriptionCIContext'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import SelectApp from '@/components/forms/SelectApp'
+import { SUBSCRIPTION_CODE_OPTIONS } from '@/constantes/subscription-codes'
 
 interface EditSubscriptionCIModalProps {
   open: boolean
@@ -139,10 +141,16 @@ export default function EditSubscriptionCIModal({
                     <FormItem>
                       <FormLabel>Code du forfait *</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <SelectApp
+                          options={SUBSCRIPTION_CODE_OPTIONS}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Sélectionner un code (A-Z)"
+                          disabled
+                        />
                       </FormControl>
                       <FormDescription>
-                        Code unique du forfait
+                        Le code ne peut pas être modifié après la création
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

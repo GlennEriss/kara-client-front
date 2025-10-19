@@ -80,6 +80,68 @@ export class DocumentRepository implements IDocumentRepository {
     }
 
     /**
+     * Télécharge une image depuis une URL et la re-upload vers Firebase Storage
+     * Utile pour réorganiser les images uploadées temporairement
+     * @param {string} imageUrl - URL de l'image à télécharger
+     * @param {string} memberId - ID du membre
+     * @param {string} contractId - ID du contrat
+     * @param {string} imageType - Type d'image (ex: 'emergency-contact-document')
+     * @returns {Promise<{url: string, path: string}>}
+     */
+    async uploadImage(imageUrl: string, memberId: string, contractId: string, imageType: string): Promise<{ url: string; path: string }> {
+        try {
+            console.log('📥 Téléchargement de l\'image depuis:', imageUrl)
+            
+            // Télécharger l'image depuis l'URL
+            const response = await fetch(imageUrl)
+            if (!response.ok) {
+                throw new Error(`Échec du téléchargement de l'image: ${response.statusText}`)
+            }
+            
+            const blob = await response.blob()
+            const file = new File([blob], `${imageType}.jpg`, { type: blob.type })
+            
+            console.log('📤 Upload de l\'image vers Firebase Storage...')
+            
+            const storage = getStorageInstance()
+            const timestamp = Date.now()
+            const fileName = `${timestamp}_${imageType}_${memberId}.jpg`
+            const filePath = `contracts-ci/${memberId}/${contractId}/${fileName}`
+            
+            const storageRef = ref(storage, filePath)
+            
+            // Métadonnées du fichier
+            const metadata = {
+                contentType: blob.type,
+                customMetadata: {
+                    memberId: memberId,
+                    contractId: contractId,
+                    imageType: imageType,
+                    uploadedAt: new Date().toISOString()
+                }
+            }
+            
+            // Upload du fichier
+            const snapshot = await uploadBytes(storageRef, file, metadata)
+            
+            // Récupérer l'URL de téléchargement
+            const downloadURL = await getDownloadURL(snapshot.ref)
+            
+            console.log('✅ Image uploadée avec succès!')
+            console.log('📍 Path:', filePath)
+            console.log('🔗 URL:', downloadURL)
+            
+            return {
+                url: downloadURL,
+                path: filePath
+            }
+        } catch (error: any) {
+            console.error('❌ Erreur lors de l\'upload de l\'image:', error)
+            throw new Error(`Failed to upload image: ${error.message}`)
+        }
+    }
+
+    /**
      * Crée un nouveau document avec un ID personnalisé
      * @param {Omit<Document, 'id' | 'createdAt' | 'updatedAt'>} data - Données du document
      * @returns {Promise<Document>}

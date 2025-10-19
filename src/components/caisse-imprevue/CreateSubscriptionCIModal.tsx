@@ -19,6 +19,8 @@ import { subscriptionCISchema, defaultSubscriptionCIValues, type SubscriptionCIF
 import { useSubscriptionCI } from './SubscriptionCIContext'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import SelectApp from '@/components/forms/SelectApp'
+import { SUBSCRIPTION_CODE_OPTIONS } from '@/constantes/subscription-codes'
 
 interface CreateSubscriptionCIModalProps {
   open: boolean
@@ -26,7 +28,7 @@ interface CreateSubscriptionCIModalProps {
 }
 
 export default function CreateSubscriptionCIModal({ open, onOpenChange }: CreateSubscriptionCIModalProps) {
-  const { createSubscription } = useSubscriptionCI()
+  const { createSubscription, subscriptions } = useSubscriptionCI()
   const { user } = useAuth()
   
   const form = useForm<SubscriptionCIFormData>({
@@ -42,6 +44,12 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
     const calculatedNominal = (amountPerMonth || 0) * (durationInMonths || 0)
     form.setValue('nominal', calculatedNominal)
   }, [amountPerMonth, durationInMonths, form])
+
+  // Filtrer les codes déjà utilisés
+  const usedCodes = subscriptions.map(sub => sub.code)
+  const availableCodeOptions = SUBSCRIPTION_CODE_OPTIONS.filter(
+    option => !usedCodes.includes(option.value)
+  )
 
   const onSubmit = async (data: SubscriptionCIFormData) => {
     // Générer l'ID personnalisé: MK_CI_FORFAIT_{CODE}_{DATE}_{HEURE}
@@ -117,10 +125,31 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
                     <FormItem>
                       <FormLabel>Code du forfait *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: A, B, C, HOSP1, etc." {...field} />
+                        <SelectApp
+                          options={availableCodeOptions}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder={
+                            availableCodeOptions.length === 0
+                              ? "Tous les codes sont utilisés"
+                              : "Sélectionner un code (A-Z)"
+                          }
+                          disabled={availableCodeOptions.length === 0}
+                        />
                       </FormControl>
                       <FormDescription>
-                        Code unique pour identifier ce forfait
+                        {availableCodeOptions.length === 0 ? (
+                          <span className="text-red-600 font-medium">
+                            Tous les codes alphabétiques sont déjà utilisés. Veuillez supprimer un forfait existant pour libérer un code.
+                          </span>
+                        ) : (
+                          <>
+                            Code alphabétique unique pour identifier ce forfait 
+                            <span className="text-green-600 font-medium ml-1">
+                              ({availableCodeOptions.length} code{availableCodeOptions.length > 1 ? 's' : ''} disponible{availableCodeOptions.length > 1 ? 's' : ''})
+                            </span>
+                          </>
+                        )}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -341,7 +370,7 @@ export default function CreateSubscriptionCIModal({ open, onOpenChange }: Create
               <Button
                 type="submit"
                 className="bg-[#224D62] hover:bg-[#2c5a73]"
-                disabled={createSubscription.isPending}
+                disabled={createSubscription.isPending || availableCodeOptions.length === 0}
               >
                 {createSubscription.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Créer le forfait
