@@ -38,6 +38,7 @@
     "@tabler/icons-react": "^3.34.1",
     "@tanstack/react-query": "^5.84.1",
     "@types/xlsx": "^0.0.35",
+    "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

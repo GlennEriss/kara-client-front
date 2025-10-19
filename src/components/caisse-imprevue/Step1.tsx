@@ -1,11 +1,10 @@
 'use client'
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { UserCircle, Search, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { UserCircle, Loader2, CheckCircle2, AlertCircle, Search } from 'lucide-react'
 import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
 import { User } from '@/types/types'
 import { Badge } from '@/components/ui/badge'
@@ -13,46 +12,49 @@ import { toast } from 'sonner'
 import { useSearchMembers } from '@/hooks/caisse-imprevue/useSearchMembers'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { getNationalityName } from '@/constantes/nationality'
+import { useDebounce } from '@/hooks/useDebounce'
 
 export default function Step1() {
   const { form } = useFormCaisseImprevueProvider()
   const [searchQuery, setSearchQuery] = useState('')
-  const [shouldSearch, setShouldSearch] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  
+  // Debounce de 500ms pour la recherche automatique
+  const debouncedSearchQuery = useDebounce(searchQuery, 500)
+  
   // Deriver l'utilisateur sélectionné depuis le formulaire pour persister entre les étapes
   const step1Values = form.watch('step1')
   const selectedMemberId = step1Values?.memberId
 
   // Callbacks mémorisés avec useCallback pour éviter les re-renders inutiles
   const handleSearchSuccess = useCallback((data: User[]) => {
-    // Actions supplémentaires après succès (optionnel)
-    setShouldSearch(false)
+    setIsSearching(false)
   }, [])
 
   const handleSearchError = useCallback((error: Error) => {
-    // Actions supplémentaires après erreur (optionnel)
-    setShouldSearch(false)
+    setIsSearching(false)
   }, [])
 
-  // Utilisation de React Query avec callbacks mémorisés
+  // Utilisation de React Query avec la valeur debouncée
   const { 
     data: searchResults, 
     isLoading, 
     isError, 
-  } = useSearchMembers(searchQuery, {
-    enabled: shouldSearch,
-    showNotifications: true, // Notifications automatiques gérées par le hook
+  } = useSearchMembers(debouncedSearchQuery, {
+    enabled: debouncedSearchQuery.trim().length >= 3, // Recherche automatique si au moins 3 caractères
+    showNotifications: false, // Désactiver les notifications automatiques pour éviter le spam
     onSuccess: handleSearchSuccess,
     onError: handleSearchError,
   })
 
-  // Fonction de recherche - simple et propre
-  const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      toast.error('Veuillez entrer un matricule, nom ou prénom')
-      return
+  // Effet pour gérer l'état de recherche
+  useEffect(() => {
+    if (searchQuery.trim().length >= 3 && searchQuery === debouncedSearchQuery) {
+      setIsSearching(false)
+    } else if (searchQuery.trim().length >= 3) {
+      setIsSearching(true)
     }
-    setShouldSearch(true)
-  }
+  }, [searchQuery, debouncedSearchQuery])
 
   // Sélectionner un membre
   const handleSelectMember = (member: User) => {
@@ -106,34 +108,25 @@ export default function Step1() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Champ de recherche */}
-          <div className="flex gap-2">
-            <div className="flex-1">
+          {/* Champ de recherche avec indicateur de chargement */}
+          <div className="relative">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Ex: 2663.MK.260925 ou Nom/Prénom"
+                placeholder="Ex: 2663.MK.260925 ou Nom/Prénom (min. 3 caractères)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleSearch()
-                  }
-                }}
+                className="pl-10 pr-10"
               />
-            </div>
-            <Button
-              type="button"
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="gap-2"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4" />
+              {(isSearching || isLoading) && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[#224D62]" />
               )}
-              Rechercher
-            </Button>
+            </div>
+            {searchQuery.trim().length > 0 && searchQuery.trim().length < 3 && (
+              <p className="text-xs text-muted-foreground mt-1 ml-1">
+                Saisissez au moins 3 caractères pour lancer la recherche
+              </p>
+            )}
           </div>
 
           {/* Affichage de l'erreur */}
@@ -147,11 +140,17 @@ export default function Step1() {
           )}
 
           {/* Résultats de recherche */}
-          {searchResults && searchResults.length > 0 && (
+          {debouncedSearchQuery.trim().length >= 3 && searchResults && searchResults.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium">
-                {searchResults.length} résultat(s) trouvé(s)
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-[#224D62]">
+                  {searchResults.length} résultat(s) trouvé(s)
+                </p>
+                <Badge variant="outline" className="text-xs">
+                  <Search className="w-3 h-3 mr-1" />
+                  Recherche automatique
+                </Badge>
+              </div>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {searchResults.map((member) => (
                   <Card
@@ -196,6 +195,16 @@ export default function Step1() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Message si aucun résultat */}
+          {debouncedSearchQuery.trim().length >= 3 && searchResults && searchResults.length === 0 && !isLoading && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Aucun membre trouvé pour &quot;{debouncedSearchQuery}&quot;. Essayez avec un autre nom, prénom ou matricule.
+              </AlertDescription>
+            </Alert>
           )}
 
         </CardContent>

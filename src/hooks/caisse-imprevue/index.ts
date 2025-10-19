@@ -1,9 +1,13 @@
 export * from './useActiveSubscriptionsCI'
 export * from './useAdmin'
+export * from './useContractCI'
 export * from './useContractsCI'
 export * from './useDocumentCI'
 export * from './useSearchMembers'
 export * from './useSubscriptionCIMutations'
 export * from './useSubscriptionsCI'
 export * from './useUploadContractDocument'
+export * from './usePaymentsCI'
+export * from './useCreateVersement'
+export * from './usePaymentsCIStats'
 

@@ -445,6 +445,7 @@ export interface User {
 
 export type CaisseImprevuePaymentFrequency = 'DAILY' | 'MONTHLY'
 export type ContractCIStatus = 'ACTIVE' | 'FINISHED' | 'CANCELED'
+export type PaymentCIStatus = 'DUE' | 'PAID' | 'PARTIAL'
 
 /**
  * Type pour le contact d'urgence d'un contrat CI
@@ -455,8 +456,55 @@ export interface EmergencyContactCI {
   phone1: string
   phone2?: string
   relationship: string
-  idNumber?: string // Numéro CNI/PASS/CS
-  typeId?: string // Type de document (CNI, PASS, Carte Étudiant, Carte Étranger, Carte Consulaire)
+  idNumber: string // Numéro CNI/PASS/CS (obligatoire)
+  typeId: string // Type de document (CNI, PASS, Carte Étudiant, Carte Étranger, Carte Consulaire) (obligatoire)
+  documentPhotoUrl: string // URL de la photo du document (obligatoire)
+}
+
+/**
+ * Type pour un versement individuel
+ */
+export interface VersementCI {
+  id: string // Ex: "v_20250119_1430"
+  date: string // Format: "2025-01-19"
+  time: string // Format: "14:30"
+  amount: number // Montant du versement
+  mode: PaymentMode // airtel_money | mobicash | cash | bank_transfer
+  
+  // Preuves
+  proofUrl: string // URL Firebase Storage
+  proofPath: string // Chemin Firebase Storage
+  
+  // Métadonnées
+  createdAt: Date
+  createdBy: string
+  
+  // Optionnel : Pénalités (si versement en retard)
+  penalty?: number
+  daysLate?: number
+}
+
+/**
+ * Type pour un paiement mensuel (document dans la sous-collection payments)
+ */
+export interface PaymentCI {
+  id: string // Ex: "month-0", "month-1", etc.
+  contractId: string
+  monthIndex: number // 0, 1, 2, ..., 11
+  status: PaymentCIStatus // 'DUE' | 'PAID' | 'PARTIAL'
+  
+  // Objectifs et cumuls
+  targetAmount: number // Montant objectif du mois
+  accumulatedAmount: number // Total versé ce mois
+  
+  // Versements du mois
+  versements: VersementCI[]
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy: string
 }
 
 /**

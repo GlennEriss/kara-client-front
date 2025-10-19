@@ -15,10 +15,10 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
         try {
             const { collection, db, getDocs, query, orderBy } = await getFirestore();
 
-            // Requête pour récupérer toutes les souscriptions, triées par date de création décroissante
+            // Requête pour récupérer toutes les souscriptions, triées par code alphabétique
             const q = query(
                 collection(db, firebaseCollectionNames.subscriptionsCI || "subscriptionsCI"),
-                orderBy("createdAt", "desc")
+                orderBy("code", "asc")
             );
 
             const querySnapshot = await getDocs(q);

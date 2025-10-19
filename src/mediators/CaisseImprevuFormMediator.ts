@@ -14,7 +14,7 @@ export class CaisseImprevuFormMediator {
     private goToNextStep: (() => void) | null = null
     private router: AppRouterInstance | null = null
     private userId: string | null = null
-    
+
     private constructor() {
         if (CaisseImprevuFormMediator.instance) {
             throw new Error("CaisseImprevuFormMediator is a singleton")
@@ -71,7 +71,6 @@ export class CaisseImprevuFormMediator {
      * @param data - Les données validées du formulaire
      */
     onSubmit = async (data: CaisseImprevueGlobalFormData) => {
-        console.log('✅ Formulaire validé pour l\'étape', this.currentStep, ':', data)
 
         // Si ce n'est pas la dernière étape, passer à la suivante
         if (this.currentStep < this.totalSteps) {
@@ -79,9 +78,6 @@ export class CaisseImprevuFormMediator {
             this.goToNextStep?.()
             return
         }
-
-        // Dernière étape : soumission finale
-        console.log('🚀 Soumission finale de la demande', data)
 
         try {
             if (!this.userId) {
@@ -96,8 +92,19 @@ export class CaisseImprevuFormMediator {
             const year = String(now.getFullYear()).slice(-2)
             const hours = String(now.getHours()).padStart(2, '0')
             const minutes = String(now.getMinutes()).padStart(2, '0')
-            
+
             const contractId = `MK_CI_CONTRACT_${data.step1.memberId}_${day}${month}${year}_${hours}${minutes}`
+
+            // Upload de la photo du document d'identité du contact d'urgence
+            toast.info('Upload de la photo du document en cours...', { duration: 2000 })
+
+            const { url: documentPhotoUrl } = await this.service.uploadEmergencyContactImage(
+                data.step3.documentPhotoUrl,
+                data.step1.memberId,
+                contractId
+            )
+
+            console.log('✅ Photo du document uploadée avec succès!')
 
             // Transformer emergencyContact du step3 en objet EmergencyContactCI
             const emergencyContact: EmergencyContactCI = {
@@ -108,6 +115,7 @@ export class CaisseImprevuFormMediator {
                 relationship: data.step3.relationship,
                 idNumber: data.step3.idNumber,
                 typeId: data.step3.typeId,
+                documentPhotoUrl: documentPhotoUrl, // URL finale après re-upload
             }
 
             // Préparer les données du contrat
@@ -152,12 +160,10 @@ export class CaisseImprevuFormMediator {
             toast.success('Contrat créé avec succès!', {
                 description: `Le contrat ${contractId} a été créé pour ${data.step1.memberFirstName} ${data.step1.memberLastName}`,
             })
-            
+
             // Redirection après succès
             if (this.router) {
-                setTimeout(() => {
-                    this.router?.push(routes.admin.caisseImprevue)
-                }, 2000)
+                this.router?.push(routes.admin.caisseImprevue)
             }
         } catch (error) {
             console.error('❌ Erreur lors de la soumission:', error)
