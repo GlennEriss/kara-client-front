@@ -358,7 +358,7 @@ export default function ContractsHistoryPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total</p>
-                <p className="font-bold text-lg text-gray-900">{documents.length}</p>
+                <p className="font-bold text-lg text-gray-900">{filteredDocuments.length}</p>
               </div>
             </div>
           </CardContent>
@@ -373,7 +373,7 @@ export default function ContractsHistoryPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Caisse Imprévue</p>
                 <p className="font-bold text-lg text-gray-900">
-                  {documents.filter(d => d.type.includes('CI')).length}
+                  {filteredDocuments.filter(d => d.type.includes('CI')).length}
                 </p>
               </div>
             </div>
@@ -389,7 +389,7 @@ export default function ContractsHistoryPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Caisse Spéciale</p>
                 <p className="font-bold text-lg text-gray-900">
-                  {documents.filter(d => d.type.includes('CS')).length}
+                  {filteredDocuments.filter(d => d.type.includes('CS')).length}
                 </p>
               </div>
             </div>
@@ -405,7 +405,7 @@ export default function ContractsHistoryPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Adhésions</p>
                 <p className="font-bold text-lg text-gray-900">
-                  {documents.filter(d => d.type === 'ADHESION').length}
+                  {filteredDocuments.filter(d => d.type === 'ADHESION').length}
                 </p>
               </div>
             </div>
@@ -515,7 +515,7 @@ export default function ContractsHistoryPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Documents ({documents.length})
+            Documents ({filteredDocuments.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -525,7 +525,7 @@ export default function ContractsHistoryPage() {
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : documents.length === 0 ? (
+          ) : filteredDocuments.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">Aucun document trouvé</p>
@@ -562,7 +562,7 @@ export default function ContractsHistoryPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {documents.map((document) => (
+                  {filteredDocuments.map((document) => (
                     <tr key={document.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
