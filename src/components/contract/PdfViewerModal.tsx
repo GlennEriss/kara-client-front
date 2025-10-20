@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { RefundDocument } from '@/types/types'
-import { PDFViewer, BlobProvider } from '@react-pdf/renderer'
 import { toast } from 'sonner'
 
 // Hook pour détecter le mobile uniquement
