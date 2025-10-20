@@ -124,6 +124,7 @@ const styles = StyleSheet.create({
   },
   stripedTable: {
     width: '100%',
+    border: '1px solid black',
   },
   stripedRow: {
     flexDirection: 'row',
@@ -148,10 +149,12 @@ const styles = StyleSheet.create({
   modeReglementRow: {
     flexDirection: 'row',
     height: 50,
+    
     border: '1px solid black',
   },
   modeReglementCell: {
     flex: 1,
+    
     borderRight: '1px solid black',
     padding: 8,
     justifyContent: 'space-around',
@@ -173,15 +176,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 5,
+    
   },
   signatureTable: {
     width: '100%',
     border: '1px solid black',
     marginBottom: 8,
   },
+   signatureTableB: {
+    width: '100%',
+    border: '1px solid black',
+    marginBottom: 8,
+  },
   signatureRow: {
     flexDirection: 'row',
-    height: 150,
+    height: 180,
+  },
+  signatureRowB: {
+    flexDirection: 'row',
+    height: 120,
   },
   signatureCell: {
     flex: 1,
@@ -211,10 +224,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   articleHeader: {
-    fontSize: 14, // Augmenté de 12 à 14
+   backgroundColor: '#224d62',
+    color: 'white',
+    textAlign: 'center',
+    padding: 5,
+    fontSize: 15, // Augmenté de 13 à 15
     fontWeight: 'bold',
-    marginBottom: 5,
-    marginTop: 8,
   },
   articleText: {
     marginBottom: 8,
@@ -410,6 +425,20 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
                   <View style={styles.rectangle}></View>
                   <Text>A</Text>
                 </View>
+                {/* test*/}
+
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+
+                {/* fin test */}
+            
                 <View style={styles.rectangleRow}>
                   <View style={styles.rectangle}></View>
                   <Text>B</Text>
@@ -420,6 +449,19 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
                   <View style={styles.rectangle}></View>
                   <Text>C</Text>
                 </View>
+                 {/* test*/}
+
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+
+                {/* fin test */}
                 <View style={styles.rectangleRow}>
                   <View style={styles.rectangle}></View>
                   <Text>D</Text>
@@ -443,7 +485,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
               <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11 }}>Signature et cachet du Secrétariat Exécutif</Text>
+              <Text style={{ fontSize: 11 ,textAlign:'center'}}>Signature et cachet du Secrétariat Exécutif</Text>
               <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
             </View>
           </View>
@@ -451,18 +493,18 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
         {/* Texte d'engagement */}
         <Text style={styles.italic}>
-          J'adhère contractuellement à la Mutuelle KARA conformément aux dispositions y afférentes,
+          J'adhère contractuellement à l'Association LE KARA conformément aux dispositions y afférentes,
           je m'engage à respecter l'intégralité des dispositions Règlementaires qui la structurent
           et pour lesquelles je confirme avoir pris connaissance avant d'apposer ma signature.
         </Text>
 
         {/* Pied de page */}
         <View style={styles.footer}>
-          <Text>Mutuelle KARA. <Text style={styles.boldText}>Intégrité - Solidarité - Dynamisme</Text></Text>
+          <Text>L'ASSOCIATION LE KARA. <Text style={styles.boldText}>Intégrité - Solidarité - Dynamisme</Text></Text>
           <Text>Siège : Awougou, Owendo</Text>
           <Text>R.D N°: 0650 /MIS/SG/DGELP/DPPALC/KMOG-</Text>
           <Text>Tél : 066-95-13-14 / 074-36-97-29</Text>
-          <Text>E-mail : mutuellekara@gmail.com</Text>
+          <Text>E-mail :</Text>
         </View>
       </Page>
 
@@ -472,7 +514,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
         <View style={styles.stripedTable}>
           <View style={styles.stripedRow}>
-            <Text>Entre LA MUTUELLE KARA</Text>
+            <Text >Entre L'ASSOCIATION LE KARA</Text>
           </View>
           <View style={styles.stripedRowEven}>
             <Text>ET</Text>
@@ -497,37 +539,42 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         </View>
 
         <Text style={styles.articleHeader}>Article 1</Text>
+        <Text style={styles.articleText}> </Text>
         <Text style={styles.articleText}>
-          Il est préalablement établi l'obligation de réserve d'un membre de la Mutuelle
+          Il est préalablement établi l'obligation de réserve d'un membre de KARA
           exerçant ou pas une fonction au sein du bureau et le respect des différents codes
           qui s'imposent à son statut.
         </Text>
 
         <Text style={styles.articleHeader}>Article 2</Text>
+         <Text style={styles.articleText}> </Text>
         <Text style={styles.articleText}>
           Le bénéficiaire des informations reconnaît que tous les droits relatifs à l'information
           obtenue existent et ne peuvent être divulgué et communiquer que par le donneur.
         </Text>
 
         <Text style={styles.articleHeader}>Article 3</Text>
+         <Text style={styles.articleText}> </Text>
         <Text style={styles.articleText}>
           Le bénéficiaire accepte les conditions de confidentialité des informations reçues
           et s'engage à les respecter.
         </Text>
 
         <Text style={styles.articleHeader}>Article 4</Text>
+         <Text style={styles.articleText}> </Text>
         <Text style={styles.articleText}>
           Cet engagement dans l'hypothèse d'une vulgarisation d'informations avérées ou à des fins
           diffamatoires faites par le receveur est passible d'une sanction pénale et vaut radiation
-          de la Mutuelle.
+          de KARA.
         </Text>
 
-        <Text style={styles.articleHeader}>Article 6</Text>
+        <Text style={styles.articleHeader}>Article 5</Text>
+         <Text style={styles.articleText}> </Text>
         <Text style={[styles.articleText, styles.redText]}>
-          Il est interdit à tout bénéficiaire des services de la Mutuelle Kara de contracter un service
+          Il est interdit à tout bénéficiaire des services de l'Association LE KARA de contracter un service
           supplémentaire qui ne lui est pas accessible par un prête-nom ou toute autre personne qui
           accepterait une telle manœuvre. Le coupable perdra son Épargne en cours, s'exposera à la
-          radiation au sein de la Mutuelle et s'exposera aux poursuites judiciaires.
+          radiation au sein de KARA et s'exposera aux poursuites judiciaires.
         </Text>
 
         <Text style={styles.contractSignatureDate}>
@@ -535,13 +582,13 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         </Text>
 
         {/* Table des signatures pour le contrat */}
-        <View style={styles.signatureTable}>
-          <View style={styles.signatureRow}>
+        <View style={styles.signatureTableB}>
+          <View style={styles.signatureRowB}>
             <View style={styles.signatureCell}>
               <Text style={{ fontSize: 11 }}>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11 }}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
+              <Text style={{ fontSize: 11 ,textAlign:'center'}}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
             </View>
           </View>
         </View>
