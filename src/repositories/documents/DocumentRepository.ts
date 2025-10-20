@@ -274,6 +274,74 @@ export class DocumentRepository implements IDocumentRepository {
     }
 
     /**
+     * Récupère tous les documents avec filtres optionnels
+     * @param {DocumentFilters} filters - Filtres optionnels
+     * @returns {Promise<Document[]>}
+     */
+    async getAllDocuments(filters?: any): Promise<Document[]> {
+        try {
+            const { collection, query, where, getDocs, db, orderBy } = await getFirestore();
+
+            let q = query(
+                collection(db, firebaseCollectionNames.documents || "documents"),
+                orderBy("createdAt", "desc")
+            );
+
+            // Appliquer les filtres si fournis
+            if (filters?.type) {
+                q = query(q, where("type", "==", filters.type));
+            }
+
+            if (filters?.format) {
+                q = query(q, where("format", "==", filters.format));
+            }
+
+            if (filters?.memberId) {
+                q = query(q, where("memberId", "==", filters.memberId));
+            }
+
+            const snapshot = await getDocs(q);
+            
+            let documents = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+            })) as Document[];
+
+            // Filtres côté client pour recherche et dates
+            if (filters?.searchQuery) {
+                const searchLower = filters.searchQuery.toLowerCase();
+                documents = documents.filter(doc => 
+                    doc.libelle?.toLowerCase().includes(searchLower) ||
+                    doc.id?.toLowerCase().includes(searchLower) ||
+                    doc.memberId?.toLowerCase().includes(searchLower)
+                );
+            }
+
+            if (filters?.startDate) {
+                documents = documents.filter(doc => 
+                    doc.createdAt >= filters.startDate
+                );
+            }
+
+            if (filters?.endDate) {
+                const endOfDay = new Date(filters.endDate);
+                endOfDay.setHours(23, 59, 59, 999);
+                documents = documents.filter(doc => 
+                    doc.createdAt <= endOfDay
+                );
+            }
+
+            return documents;
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération de tous les documents:", error);
+            return [];
+        }
+    }
+
+    /**
      * Met à jour un document
      * @param {string} id - L'ID du document
      * @param {Partial<Omit<Document, 'id' | 'createdAt'>>} data - Données à mettre à jour
