@@ -274,7 +274,7 @@ export class DocumentRepository implements IDocumentRepository {
     }
 
     /**
-     * Récupère tous les documents avec filtres optionnels
+     * Récupère tous les documents avec filtres optionnels (DÉPRÉCIÉ - Utiliser getPaginatedDocuments)
      * @param {DocumentFilters} filters - Filtres optionnels
      * @returns {Promise<Document[]>}
      */
@@ -338,6 +338,91 @@ export class DocumentRepository implements IDocumentRepository {
         } catch (error) {
             console.error("Erreur lors de la récupération de tous les documents:", error);
             return [];
+        }
+    }
+
+    /**
+     * Récupère les documents avec pagination
+     * @param {DocumentFilters} filters - Filtres et options de pagination
+     * @returns {Promise<PaginatedDocuments>}
+     */
+    async getPaginatedDocuments(filters?: any): Promise<any> {
+        try {
+            const { collection, query, where, getDocs, getCountFromServer, db, orderBy, limit, startAfter } = await getFirestore();
+
+            const pageSize = filters?.limit || 20;
+            const currentPage = filters?.page || 1;
+
+            // Construction de la requête de base
+            let baseQuery = query(
+                collection(db, firebaseCollectionNames.documents || "documents"),
+                orderBy("createdAt", "desc")
+            );
+
+            // Appliquer les filtres Firestore
+            if (filters?.type) {
+                baseQuery = query(baseQuery, where("type", "==", filters.type));
+            }
+
+            if (filters?.format) {
+                baseQuery = query(baseQuery, where("format", "==", filters.format));
+            }
+
+            if (filters?.memberId) {
+                baseQuery = query(baseQuery, where("memberId", "==", filters.memberId));
+            }
+
+            // Compter le total de documents (avec filtres)
+            const countSnapshot = await getCountFromServer(baseQuery);
+            const totalCount = countSnapshot.data().count;
+
+            // Pagination avec offset
+            const offset = (currentPage - 1) * pageSize;
+            
+            // Créer la requête paginée
+            let paginatedQuery = query(baseQuery, limit(pageSize));
+
+            // Si on n'est pas à la première page, on doit skip les documents précédents
+            if (offset > 0) {
+                // Récupérer les documents jusqu'à l'offset pour obtenir le dernier document
+                const offsetQuery = query(baseQuery, limit(offset));
+                const offsetSnapshot = await getDocs(offsetQuery);
+                
+                if (offsetSnapshot.docs.length > 0) {
+                    const lastDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1];
+                    paginatedQuery = query(baseQuery, startAfter(lastDoc), limit(pageSize));
+                }
+            }
+
+            // Exécuter la requête paginée
+            const snapshot = await getDocs(paginatedQuery);
+            
+            const documents = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+            })) as Document[];
+
+            const totalPages = Math.ceil(totalCount / pageSize);
+
+            return {
+                documents,
+                total: totalCount,
+                hasMore: currentPage < totalPages,
+                currentPage,
+                totalPages,
+            };
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération paginée des documents:", error);
+            return {
+                documents: [],
+                total: 0,
+                hasMore: false,
+                currentPage: 1,
+                totalPages: 0,
+            };
         }
     }
 

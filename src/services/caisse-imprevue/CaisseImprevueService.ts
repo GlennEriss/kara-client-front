@@ -67,6 +67,10 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         return await this.contractCIRepository.getContractById(id)
     }
 
+    async getContractsCIByMemberId(memberId: string): Promise<ContractCI[]> {
+        return await this.contractCIRepository.getContractsByMemberId(memberId)
+    }
+
     async getAdminById(id: string): Promise<Admin | null> {
         return await this.adminRepository.getAdminById(id)
     }

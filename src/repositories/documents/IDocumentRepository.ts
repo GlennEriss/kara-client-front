@@ -8,6 +8,16 @@ export interface DocumentFilters {
     searchQuery?: string
     startDate?: Date
     endDate?: Date
+    limit?: number
+    page?: number
+}
+
+export interface PaginatedDocuments {
+    documents: Document[]
+    total: number
+    hasMore: boolean
+    currentPage: number
+    totalPages: number
 }
 
 export interface IDocumentRepository extends IRepository {
@@ -16,6 +26,7 @@ export interface IDocumentRepository extends IRepository {
     getDocumentsByContractId(contractId: string): Promise<Document[]>;
     getDocumentsByMemberId(memberId: string): Promise<Document[]>;
     getAllDocuments(filters?: DocumentFilters): Promise<Document[]>;
+    getPaginatedDocuments(filters?: DocumentFilters): Promise<PaginatedDocuments>;
     updateDocument(id: string, data: Partial<Omit<Document, 'id' | 'createdAt'>>): Promise<Document | null>;
     deleteDocument(id: string): Promise<void>;
     uploadDocumentFile(file: File, memberId: string, documentType: string): Promise<{ url: string; path: string; size: number }>;

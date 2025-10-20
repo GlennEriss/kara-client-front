@@ -34,6 +34,8 @@ import {
   User,
   Package,
   TrendingUp,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useDocuments } from '@/hooks/documents'
 import { Document, DocumentType, DocumentFormat } from '@/types/types'
@@ -88,6 +90,10 @@ export default function ContractsHistoryPage() {
     endDate: '',
   })
 
+  // État de pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 20
+
   // État pour le modal de prévisualisation
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
@@ -96,21 +102,29 @@ export default function ContractsHistoryPage() {
   const [memberInfos, setMemberInfos] = useState<Record<string, { firstName: string; lastName: string }>>({})
   const [loadingMembers, setLoadingMembers] = useState<Set<string>>(new Set())
 
-  // Préparation des filtres pour la requête
+  // Préparation des filtres pour la requête (sans searchQuery car recherche côté client)
   const queryFilters = useMemo(() => {
-    const f: any = {}
+    const f: any = {
+      limit: pageSize,
+      page: currentPage,
+    }
     
     if (filters.type && filters.type !== 'all') f.type = filters.type
     if (filters.format && filters.format !== 'all') f.format = filters.format
-    if (filters.searchQuery) f.searchQuery = filters.searchQuery
+    // Note: searchQuery est géré côté client pour permettre la recherche par nom de membre
     if (filters.startDate) f.startDate = new Date(filters.startDate)
     if (filters.endDate) f.endDate = new Date(filters.endDate)
 
-    return Object.keys(f).length > 0 ? f : undefined
-  }, [filters])
+    return f
+  }, [filters, currentPage, pageSize])
 
-  // Récupération des documents
-  const { data: documents = [], isLoading, isError, error } = useDocuments(queryFilters)
+  // Récupération des documents paginés
+  const { data, isLoading, isError, error } = useDocuments(queryFilters)
+  
+  const documents = data?.documents || []
+  const totalDocuments = data?.total || 0
+  const totalPages = data?.totalPages || 0
+  const hasMore = data?.hasMore || false
 
   // Fonction pour récupérer les informations d'un membre
   const fetchMemberInfo = useCallback(async (memberId: string) => {
@@ -146,8 +160,8 @@ export default function ContractsHistoryPage() {
   useEffect(() => {
     if (!documents.length) return
 
-    const uniqueMemberIds = [...new Set(documents.map(doc => doc.memberId))]
-    uniqueMemberIds.forEach(memberId => {
+    const uniqueMemberIds = [...new Set(documents.map((doc: Document) => doc.memberId))]
+    uniqueMemberIds.forEach((memberId: string) => {
       if (memberId && !memberInfos[memberId]) {
         fetchMemberInfo(memberId)
       }
@@ -160,7 +174,7 @@ export default function ContractsHistoryPage() {
 
     const searchLower = filters.searchQuery.toLowerCase()
     
-    return documents.filter(doc => {
+    return documents.filter((doc: Document) => {
       // Recherche dans les champs du document
       const matchesDocument = 
         doc.libelle?.toLowerCase().includes(searchLower) ||
@@ -188,7 +202,13 @@ export default function ContractsHistoryPage() {
       startDate: '',
       endDate: '',
     })
+    setCurrentPage(1)
   }
+
+  // Réinitialiser la page lors du changement de filtres
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters.type, filters.format, filters.startDate, filters.endDate])
 
   // Fonction pour formater la taille du fichier
   const formatFileSize = (bytes: number): string => {
@@ -212,7 +232,7 @@ export default function ContractsHistoryPage() {
 
   // Export Excel
   const handleExportExcel = () => {
-    const data = filteredDocuments.map(doc => {
+    const exportData = filteredDocuments.map((doc: Document) => {
       const memberInfo = memberInfos[doc.memberId]
       const memberName = memberInfo 
         ? `${memberInfo.firstName} ${memberInfo.lastName}` 
@@ -231,7 +251,7 @@ export default function ContractsHistoryPage() {
       }
     })
 
-    const worksheet = XLSX.utils.json_to_sheet(data)
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Contrats')
 
@@ -254,7 +274,7 @@ export default function ContractsHistoryPage() {
     doc.text(`Total: ${filteredDocuments.length} document(s)`, 14, 27)
 
     // Table des documents
-    const tableData = filteredDocuments.map(document => {
+    const tableData = filteredDocuments.map((document: Document) => {
       const memberInfo = memberInfos[document.memberId]
       const memberName = memberInfo 
         ? `${memberInfo.firstName} ${memberInfo.lastName}` 
@@ -358,7 +378,12 @@ export default function ContractsHistoryPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total</p>
-                <p className="font-bold text-lg text-gray-900">{filteredDocuments.length}</p>
+                <p className="font-bold text-lg text-gray-900">
+                  {filters.searchQuery ? filteredDocuments.length : totalDocuments}
+                </p>
+                {filters.searchQuery && (
+                  <p className="text-xs text-gray-400">sur {totalDocuments}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -373,7 +398,7 @@ export default function ContractsHistoryPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Caisse Imprévue</p>
                 <p className="font-bold text-lg text-gray-900">
-                  {filteredDocuments.filter(d => d.type.includes('CI')).length}
+                  {filteredDocuments.filter((d: Document) => d.type.includes('CI')).length}
                 </p>
               </div>
             </div>
@@ -389,7 +414,7 @@ export default function ContractsHistoryPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Caisse Spéciale</p>
                 <p className="font-bold text-lg text-gray-900">
-                  {filteredDocuments.filter(d => d.type.includes('CS')).length}
+                  {filteredDocuments.filter((d: Document) => d.type.includes('CS')).length}
                 </p>
               </div>
             </div>
@@ -405,7 +430,7 @@ export default function ContractsHistoryPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Adhésions</p>
                 <p className="font-bold text-lg text-gray-900">
-                  {filteredDocuments.filter(d => d.type === 'ADHESION').length}
+                  {filteredDocuments.filter((d: Document) => d.type === 'ADHESION').length}
                 </p>
               </div>
             </div>
@@ -562,7 +587,7 @@ export default function ContractsHistoryPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredDocuments.map((document) => (
+                  {filteredDocuments.map((document: Document) => (
                     <tr key={document.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
@@ -641,6 +666,98 @@ export default function ContractsHistoryPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!isLoading && filteredDocuments.length > 0 && (
+            <div className="mt-6 flex items-center justify-between border-t pt-4">
+              <div className="text-sm text-gray-600">
+                Affichage de {((currentPage - 1) * pageSize) + 1} à {Math.min(currentPage * pageSize, totalDocuments)} sur {totalDocuments} documents
+                {filters.searchQuery && ` (${filteredDocuments.length} après filtrage)`}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1 || isLoading}
+                  className="gap-1"
+                >
+                  <Calendar className="h-4 w-4 rotate-180" />
+                  Précédent
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {/* Première page */}
+                  {currentPage > 3 && (
+                    <>
+                      <Button
+                        variant={currentPage === 1 ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(1)}
+                        className="w-10"
+                      >
+                        1
+                      </Button>
+                      {currentPage > 4 && (
+                        <span className="px-2 text-gray-400">...</span>
+                      )}
+                    </>
+                  )}
+
+                  {/* Pages autour de la page actuelle */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => 
+                      page === currentPage ||
+                      page === currentPage - 1 ||
+                      page === currentPage + 1 ||
+                      (currentPage <= 2 && page <= 3) ||
+                      (currentPage >= totalPages - 1 && page >= totalPages - 2)
+                    )
+                    .map(page => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        disabled={isLoading}
+                        className="w-10"
+                      >
+                        {page}
+                      </Button>
+                    ))}
+
+                  {/* Dernière page */}
+                  {currentPage < totalPages - 2 && (
+                    <>
+                      {currentPage < totalPages - 3 && (
+                        <span className="px-2 text-gray-400">...</span>
+                      )}
+                      <Button
+                        variant={currentPage === totalPages ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        className="w-10"
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages || isLoading || !hasMore}
+                  className="gap-1"
+                >
+                  Suivant
+                  <Calendar className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
