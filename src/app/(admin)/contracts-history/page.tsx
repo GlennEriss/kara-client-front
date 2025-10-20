@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -43,6 +43,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import PdfViewerModal from '@/components/contract/PdfViewerModal'
+import { RepositoryFactory } from '@/factories/RepositoryFactory'
 
 // Labels pour les types de documents
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
@@ -91,6 +92,10 @@ export default function ContractsHistoryPage() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
 
+  // États pour stocker les informations des membres
+  const [memberInfos, setMemberInfos] = useState<Record<string, { firstName: string; lastName: string }>>({})
+  const [loadingMembers, setLoadingMembers] = useState<Set<string>>(new Set())
+
   // Préparation des filtres pour la requête
   const queryFilters = useMemo(() => {
     const f: any = {}
@@ -106,6 +111,73 @@ export default function ContractsHistoryPage() {
 
   // Récupération des documents
   const { data: documents = [], isLoading, isError, error } = useDocuments(queryFilters)
+
+  // Fonction pour récupérer les informations d'un membre
+  const fetchMemberInfo = useCallback(async (memberId: string) => {
+    if (memberInfos[memberId] || loadingMembers.has(memberId)) return
+
+    setLoadingMembers(prev => new Set(prev).add(memberId))
+
+    try {
+      const memberRepository = RepositoryFactory.getMemberRepository()
+      const memberData = await memberRepository.getMemberById(memberId)
+      
+      if (memberData) {
+        setMemberInfos(prev => ({
+          ...prev,
+          [memberId]: {
+            firstName: memberData.firstName,
+            lastName: memberData.lastName
+          }
+        }))
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération du membre:', error)
+    } finally {
+      setLoadingMembers(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(memberId)
+        return newSet
+      })
+    }
+  }, [memberInfos, loadingMembers])
+
+  // Charger les informations des membres pour tous les documents
+  useEffect(() => {
+    if (!documents.length) return
+
+    const uniqueMemberIds = [...new Set(documents.map(doc => doc.memberId))]
+    uniqueMemberIds.forEach(memberId => {
+      if (memberId && !memberInfos[memberId]) {
+        fetchMemberInfo(memberId)
+      }
+    })
+  }, [documents, memberInfos, fetchMemberInfo])
+
+  // Filtrer les documents côté client pour inclure la recherche par nom de membre
+  const filteredDocuments = useMemo(() => {
+    if (!filters.searchQuery) return documents
+
+    const searchLower = filters.searchQuery.toLowerCase()
+    
+    return documents.filter(doc => {
+      // Recherche dans les champs du document
+      const matchesDocument = 
+        doc.libelle?.toLowerCase().includes(searchLower) ||
+        doc.id?.toLowerCase().includes(searchLower) ||
+        doc.memberId?.toLowerCase().includes(searchLower)
+
+      // Recherche dans le nom du membre
+      const memberInfo = memberInfos[doc.memberId]
+      const matchesMember = memberInfo && (
+        memberInfo.firstName?.toLowerCase().includes(searchLower) ||
+        memberInfo.lastName?.toLowerCase().includes(searchLower) ||
+        `${memberInfo.firstName} ${memberInfo.lastName}`.toLowerCase().includes(searchLower)
+      )
+
+      return matchesDocument || matchesMember
+    })
+  }, [documents, filters.searchQuery, memberInfos])
 
   // Fonction pour réinitialiser les filtres
   const resetFilters = () => {
@@ -140,17 +212,24 @@ export default function ContractsHistoryPage() {
 
   // Export Excel
   const handleExportExcel = () => {
-    const data = documents.map(doc => ({
-      'ID': doc.id,
-      'Type': DOCUMENT_TYPE_LABELS[doc.type],
-      'Format': DOCUMENT_FORMAT_LABELS[doc.format],
-      'Libellé': doc.libelle,
-      'Taille': formatFileSize(doc.size),
-      'Membre ID': doc.memberId,
-      'Contrat ID': doc.contractId || 'N/A',
-      'Date de création': format(doc.createdAt, 'dd/MM/yyyy HH:mm', { locale: fr }),
-      'Créé par': doc.createdBy,
-    }))
+    const data = filteredDocuments.map(doc => {
+      const memberInfo = memberInfos[doc.memberId]
+      const memberName = memberInfo 
+        ? `${memberInfo.firstName} ${memberInfo.lastName}` 
+        : doc.memberId
+
+      return {
+        'ID': doc.id,
+        'Type': DOCUMENT_TYPE_LABELS[doc.type],
+        'Format': DOCUMENT_FORMAT_LABELS[doc.format],
+        'Libellé': doc.libelle,
+        'Taille': formatFileSize(doc.size),
+        'Membre': memberName,
+        'Contrat ID': doc.contractId || 'N/A',
+        'Date de création': format(doc.createdAt, 'dd/MM/yyyy HH:mm', { locale: fr }),
+        'Créé par': doc.createdBy,
+      }
+    })
 
     const worksheet = XLSX.utils.json_to_sheet(data)
     const workbook = XLSX.utils.book_new()
@@ -172,18 +251,25 @@ export default function ContractsHistoryPage() {
     doc.setFontSize(10)
     doc.setTextColor(100, 100, 100)
     doc.text(`Exporté le ${format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr })}`, 14, 22)
-    doc.text(`Total: ${documents.length} document(s)`, 14, 27)
+    doc.text(`Total: ${filteredDocuments.length} document(s)`, 14, 27)
 
     // Table des documents
-    const tableData = documents.map(doc => [
-      doc.id?.substring(0, 20) || 'N/A',
-      DOCUMENT_TYPE_LABELS[doc.type],
-      DOCUMENT_FORMAT_LABELS[doc.format],
-      doc.libelle.substring(0, 30),
-      formatFileSize(doc.size),
-      doc.memberId.substring(0, 15),
-      format(doc.createdAt, 'dd/MM/yyyy', { locale: fr }),
-    ])
+    const tableData = filteredDocuments.map(document => {
+      const memberInfo = memberInfos[document.memberId]
+      const memberName = memberInfo 
+        ? `${memberInfo.firstName} ${memberInfo.lastName}` 
+        : document.memberId.substring(0, 15)
+
+      return [
+        document.id?.substring(0, 20) || 'N/A',
+        DOCUMENT_TYPE_LABELS[document.type],
+        DOCUMENT_FORMAT_LABELS[document.format],
+        document.libelle.substring(0, 30),
+        formatFileSize(document.size),
+        memberName.substring(0, 20),
+        format(document.createdAt, 'dd/MM/yyyy', { locale: fr }),
+      ]
+    })
 
     autoTable(doc, {
       startY: 32,
@@ -244,7 +330,7 @@ export default function ContractsHistoryPage() {
           <Button
             variant="outline"
             onClick={handleExportExcel}
-            disabled={documents.length === 0}
+            disabled={filteredDocuments.length === 0}
             className="gap-2"
           >
             <Download className="h-4 w-4" />
@@ -253,7 +339,7 @@ export default function ContractsHistoryPage() {
           <Button
             variant="outline"
             onClick={handleExportPDF}
-            disabled={documents.length === 0}
+            disabled={filteredDocuments.length === 0}
             className="gap-2"
           >
             <Download className="h-4 w-4" />
@@ -462,6 +548,9 @@ export default function ContractsHistoryPage() {
                       Format
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Membre
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Taille
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -499,6 +588,24 @@ export default function ContractsHistoryPage() {
                         <Badge variant="outline">
                           {DOCUMENT_FORMAT_LABELS[document.format]}
                         </Badge>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-orange-50 rounded-lg">
+                            <User className="h-3.5 w-3.5 text-orange-600" />
+                          </div>
+                          <div>
+                            {memberInfos[document.memberId] ? (
+                              <p className="text-sm font-medium text-gray-900">
+                                {memberInfos[document.memberId].firstName} {memberInfos[document.memberId].lastName}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-400">
+                                {loadingMembers.has(document.memberId) ? 'Chargement...' : document.memberId}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
                         {formatFileSize(document.size)}
