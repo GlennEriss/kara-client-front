@@ -112,6 +112,44 @@ export class ContractCIRepository implements IContractCIRepository {
     }
 
     /**
+     * Récupère tous les contrats d'un membre spécifique
+     * @param {string} memberId - L'ID du membre
+     * @returns {Promise<ContractCI[]>} - Liste des contrats du membre
+     */
+    async getContractsByMemberId(memberId: string): Promise<ContractCI[]> {
+        try {
+            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+
+            const q = query(
+                collection(db, firebaseCollectionNames.contractsCI || "contractsCI"),
+                where("memberId", "==", memberId),
+                orderBy("createdAt", "desc")
+            );
+
+            const querySnapshot = await getDocs(q);
+            const contracts: ContractCI[] = [];
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const contract: ContractCI = {
+                    id: doc.id,
+                    ...(data as any),
+                    createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
+                    updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                };
+
+                contracts.push(contract);
+            });
+
+            return contracts;
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération des contrats CI du membre:", error);
+            return [];
+        }
+    }
+
+    /**
      * Met à jour un contrat existant
      * @param {string} id - L'ID du contrat
      * @param {Partial<Omit<ContractCI, 'id' | 'createdAt'>>} data - Données à mettre à jour

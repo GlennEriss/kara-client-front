@@ -21,6 +21,7 @@ export interface IContractCIRepository extends IRepository {
     createContract(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI>;
     getContractById(id: string): Promise<ContractCI | null>;
     getAllContracts(): Promise<ContractCI[]>;
+    getContractsByMemberId(memberId: string): Promise<ContractCI[]>;
     getContractsWithFilters(filters?: ContractsCIFilters): Promise<ContractCI[]>;
     getContractsStats(): Promise<ContractsCIStats>;
     updateContract(id: string, data: Partial<Omit<ContractCI, 'id' | 'createdAt'>>): Promise<ContractCI | null>;

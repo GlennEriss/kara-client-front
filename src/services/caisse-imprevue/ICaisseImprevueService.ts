@@ -21,6 +21,7 @@ export interface ICaisseImprevueService extends IService{
     deleteSubscription(id: string): Promise<void>
     createContractCI(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI>
     getContractCIById(id: string): Promise<ContractCI | null>
+    getContractsCIByMemberId(memberId: string): Promise<ContractCI[]>
     getAdminById(id: string): Promise<Admin | null>
     getContractsCIPaginated(filters?: ContractsCIFilters): Promise<ContractCI[]>
     getContractsCIStats(): Promise<ContractsCIStats>
