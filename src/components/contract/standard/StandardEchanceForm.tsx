@@ -34,9 +34,10 @@ type Props = {
   isClosed: boolean
   contractData: CaisseContract
   isGroupContract?: boolean
+  onMonthClick?: (monthIndex: number) => void
 }
 
-export default function StandardEchanceForm({ payments, isClosed, contractData, isGroupContract = false }: Props) {
+export default function StandardEchanceForm({ payments, isClosed, contractData, isGroupContract = false, onMonthClick }: Props) {
   const { watch } = useFormContext<IndividualContractFormData | GroupContractFormData>()
   const selectedMonthIndex = watch("selectedMonthIndex")
   
@@ -234,14 +235,19 @@ export default function StandardEchanceForm({ payments, isClosed, contractData, 
                             "hover:border-[#234D65] hover:shadow-sm" :
                             "cursor-not-allowed opacity-60",
                           isSelected ? "bg-[#234D65] text-white border-[#234D65]" : "bg-white"
-                        )}>
+                        )}
+                        onClick={() => {
+                          if (isSelectable && onMonthClick) {
+                            onMonthClick(p.dueMonthIndex)
+                          }
+                        }}>
                           <RadioGroupItem
                             value={p.dueMonthIndex.toString()}
                             disabled={!isSelectable}
                             className="accent-[#234D65]"
                           />
                           <span className={isSelected ? "text-white" : ""}>
-                            {isSelectable ? "Sélectionner pour payer" : 
+                            {isSelectable ? "Cliquez pour payer" : 
                               p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" :
                                 "Non disponible"}
                           </span>

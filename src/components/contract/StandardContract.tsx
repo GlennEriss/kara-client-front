@@ -11,6 +11,7 @@ import {
   approveRefund,
   markRefundPaid,
   cancelEarlyRefund,
+  pay,
 } from "@/services/caisse/mutations"
 import { toast } from "sonner"
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from "@/lib/utils"
@@ -27,21 +28,15 @@ import {
   Download,
   X,
 } from "lucide-react"
+import { Badge as BadgeShadcn } from "@/components/ui/badge"
 import PdfDocumentModal from "./PdfDocumentModal"
 import PdfViewerModal from "./PdfViewerModal"
 import RemboursementNormalPDFModal from "./RemboursementNormalPDFModal"
+import PaymentCSModal, { PaymentCSFormData } from "./PaymentCSModal"
+import PaymentInvoiceModal from "./standard/PaymentInvoiceModal"
 import HeaderContractSection from "./standard/HeaderContractSection"
 import StandardEchanceForm from "./standard/StandardEchanceForm"
-import PaymentDateForm from "./standard/PaymentDateForm"
-import PaymentTimeForm from "./standard/PaymentTimeForm"
-import PaymentModeForm from "./standard/PaymentModeForm"
-import GroupMemberSelectForm from "./standard/GroupMemberSelectForm"
-import AmountForm from "./standard/AmountForm"
-import ProofFileForm from "./standard/ProofFileForm"
-import { StandardContractMediator } from "@/mediators/StandardContractMediator"
-import { useStandardContractForm } from "@/hooks/contract/standard"
 import type { RefundDocument } from "@/types/types"
-import { Form } from "../ui/form"
 import TestPaymentTools from "./TestPaymentTools"
 
 // ————————————————————————————————————————————————————————————
@@ -105,11 +100,13 @@ type Props = { id: string }
 export default function StandardContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
-  
 
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
+  const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundDate, setRefundDate] = useState(() => new Date().toISOString().split("T")[0])
   const [refundTime, setRefundTime] = useState(() => {
@@ -182,27 +179,24 @@ export default function StandardContract({ id }: Props) {
   const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
 
   const payments = data.payments || []
-  const paidCount = StandardContractMediator.calculatePaidCount(payments)
+  const paidCount = payments.filter((x: any) => x.status === 'PAID').length
   const totalMonths = data.monthsPlanned || 0
-  const progress = StandardContractMediator.calculateProgress(paidCount, totalMonths)
+  const progress = totalMonths > 0 ? (paidCount / totalMonths) * 100 : 0
 
   // Récupérer les paramètres de caisse pour le calcul du bonus
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
-  const currentBonus = StandardContractMediator.calculateCurrentBonus(
+  
+  // Calculer le bonus actuel
+  const calculateBonus = (monthIndex: number, nominalPaid: number) => {
+    if (!settings.data?.bonusRules) return 0
+    const bonusRate = settings.data.bonusRules.percentage / 100
+    return nominalPaid * bonusRate
+  }
+  
+  const currentBonus = calculateBonus(
     data.currentMonthIndex || 0,
-    data.nominalPaid || 0,
-    settings.data
+    data.nominalPaid || 0
   )
-
-  // Hook pour le formulaire de contrat standard
-  const form = useStandardContractForm(
-    id,
-    data.memberId,
-    groupeId
-  )
-
-  // Surveiller les valeurs du formulaire pour la validation du bouton
-  const watchedValues = form.watch()
 
   // Trouver la prochaine échéance à payer (paiement séquentiel)
   const getNextDueMonthIndex = () => {
@@ -212,49 +206,6 @@ export default function StandardContract({ id }: Props) {
   }
 
   const nextDueMonthIndex = getNextDueMonthIndex()
-
-  // Calculer les jours de retard et les pénalités
-  const calculateLatePaymentInfo = (): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
-    const selectedDate = watchedValues.paymentDate
-    if (!selectedDate) return null
-
-    const paymentDate = new Date(selectedDate + 'T00:00:00')
-    
-    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    let referenceDate: Date
-    if (data.nextDueAt) {
-      referenceDate = new Date(data.nextDueAt)
-    } else {
-      // Premier versement : utiliser contractStartAt
-      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : today
-    }
-    referenceDate.setHours(0, 0, 0, 0)
-
-    // Calculer le nombre de jours de retard par rapport à la date d'échéance
-    const diffTime = paymentDate.getTime() - referenceDate.getTime()
-    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-    // Pas de retard si paiement avant ou à la date d'échéance
-    if (daysLate <= 0) return null
-
-    // Calculer les pénalités (à partir du 4ème jour)
-    let penalty = 0
-    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay) {
-      const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
-      penalty = penaltyRate * (data.monthlyAmount || 0) * daysLate
-    }
-
-    return {
-      daysLate,
-      penalty,
-      hasPenalty: daysLate >= 4
-    }
-  }
-
-  const latePaymentInfo = calculateLatePaymentInfo()
 
   const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
@@ -299,19 +250,42 @@ export default function StandardContract({ id }: Props) {
     }
   }
 
-  const onPay = async (formData: any) => {
-    // Déléguer la logique au mediator avec le form
-    await StandardContractMediator.onPay({
-      form,
-      selectedMonthIndex: formData.selectedMonthIndex,
+  const handleMonthClick = (monthIndex: number, payment: any) => {
+    setSelectedMonthIndex(monthIndex)
+    
+    // Si le paiement est déjà effectué, afficher la facture
+    if (payment.status === 'PAID') {
+      setSelectedPayment(payment)
+      setShowInvoiceModal(true)
+    } else {
+      // Sinon, afficher le formulaire de paiement
+      setShowPaymentModal(true)
+    }
+  }
+
+  const handlePaymentSubmit = async (paymentData: PaymentCSFormData) => {
+    if (selectedMonthIndex === null) return
+
+    try {
+      await pay({ 
       contractId: id,
-      contractData: data,
-      isGroupContract,
-      groupMembers,
-      selectedGroupMemberId: formData.selectedGroupMemberId,
-      file: formData.proofFile,
-      refetch
-    })
+        dueMonthIndex: selectedMonthIndex, 
+        memberId: data.memberId, 
+        amount: paymentData.amount, 
+        file: paymentData.proofFile,
+        paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
+        time: paymentData.time,
+        mode: paymentData.mode
+      })
+      await refetch()
+      toast.success('Contribution enregistrée')
+      
+      setShowPaymentModal(false)
+      setSelectedMonthIndex(null)
+    } catch (error) {
+      console.error('Erreur lors du paiement:', error)
+      throw error
+    }
   }
 
   return (
@@ -348,137 +322,129 @@ export default function StandardContract({ id }: Props) {
           await reloadRefunds() // Rafraîchir la liste des remboursements
         }}
       />
-      <Form {...(form as any)}>
-        <form method="POST" onSubmit={form.handleSubmit(onPay)}>
           {/* Calendrier des échéances */}
-          <StandardEchanceForm 
-            payments={payments} 
-            isClosed={isClosed} 
-            contractData={data} 
-            isGroupContract={isGroupContract}
-          />
+      <div className="space-y-3 rounded-2xl border bg-white p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-900">Calendrier des échéances</h2>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {payments.map((p: any) => {
+            let badge: React.ReactNode = null
+            if (p.status === "DUE" && p.dueAt) {
+              const now = new Date()
+              const due = new Date(p.dueAt)
+              const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
+              if (days > 12) badge = <BadgeShadcn variant="destructive">{">"}J+12</BadgeShadcn>
+              else if (days >= 4) badge = <BadgeShadcn variant="secondary">J+4..J+12</BadgeShadcn>
+              else if (days >= 0) badge = <BadgeShadcn variant="secondary">J+0..J+3</BadgeShadcn>
+            }
 
-          {/* Paiement */}
-          <div className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
-            <SectionTitle>
-              {nextDueMonthIndex !== -1 ? 
-                `Payer l'échéance M${nextDueMonthIndex + 1}` : 
-                "Toutes les échéances sont payées"
+            const isSelectable = p.status === "DUE" && !isClosed && p.dueMonthIndex === nextDueMonthIndex
+            
+            let cardColors = ""
+            if (p.status === "PAID") {
+              cardColors = "border-green-200 bg-green-50"
+            } else if (p.status === "DUE") {
+              if (p.dueMonthIndex === nextDueMonthIndex) {
+                cardColors = "border-blue-200 bg-blue-50"
+              } else {
+                cardColors = "border-gray-200 bg-gray-50"
               }
-            </SectionTitle>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {/* Date */}
-              <PaymentDateForm />
+            } else if (p.status === "REFUSED") {
+              cardColors = "border-red-200 bg-red-50"
+            } else {
+              cardColors = "border-slate-200 bg-slate-50"
+            }
 
-              {/* Heure */}
-              <PaymentTimeForm />
-
-              {/* Mode */}
-              <PaymentModeForm />
-
-               {/* Sélection du membre du groupe (si contrat de groupe) */}
-               {isGroupContract && (
-                 <GroupMemberSelectForm 
-                   groupMembers={groupMembers} 
-                   isLoading={isLoadingGroupMembers}
-                 />
-               )}
-
-               {/* Montant à verser (si contrat de groupe) */}
-               {isGroupContract && (
-                 <AmountForm />
-               )}
+            return (
+              <div
+                key={p.id}
+                className={classNames(
+                  "rounded-2xl border p-4 shadow-sm transition-all cursor-pointer hover:shadow-md",
+                  cardColors,
+                  !isSelectable && p.status !== 'PAID' && "opacity-70"
+                )}
+                onClick={() => (isSelectable || p.status === 'PAID') && handleMonthClick(p.dueMonthIndex, p)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className={classNames(
+                    "font-medium text-lg",
+                    p.status === "PAID" ? "text-green-700" :
+                      p.status === "DUE" ? 
+                        (p.dueMonthIndex === nextDueMonthIndex ? "text-blue-700" : "text-gray-500") :
+                        p.status === "REFUSED" ? "text-red-700" :
+                          "text-slate-700"
+                  )}>
+                    M{p.dueMonthIndex + 1}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {badge}
+                    <BadgeShadcn variant={
+                      p.status === "PAID" ? "secondary" :
+                        p.status === "DUE" ? 
+                          (p.dueMonthIndex === nextDueMonthIndex ? "secondary" : "outline") :
+                          p.status === "REFUSED" ? "destructive" :
+                            "outline"
+                    } className={
+                      p.status === "PAID" ? "bg-green-100 text-green-800 border-green-200" :
+                        p.status === "DUE" && p.dueMonthIndex === nextDueMonthIndex ? "bg-blue-100 text-blue-800 border-blue-200" :
+                          p.status === "DUE" ? "bg-gray-100 text-gray-500 border-gray-200" : ""
+                    }>
+                      {p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" : 
+                        p.status === "DUE" ? "À payer" : 
+                        p.status === "PAID" ? "Payé" : 
+                        p.status === "REFUSED" ? "Refusé" : p.status}
+                    </BadgeShadcn>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  <div>Échéance: {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}</div>
+                  <div>Payé le: {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}</div>
+                  {p.penaltyApplied ? (
+                    <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied} FCFA</div>
+                  ) : null}
             </div>
 
-               {/* Indicateur de retard et pénalités */}
-               {latePaymentInfo && (
-                 <div className={`rounded-xl p-4 border-2 ${
-                   latePaymentInfo.hasPenalty 
-                     ? 'bg-red-50 border-red-300' 
-                     : 'bg-orange-50 border-orange-300'
-                 }`}>
-                   <div className="flex items-start gap-3">
-                     <AlertTriangle className={`h-5 w-5 mt-0.5 ${
-                       latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
-                     }`} />
-                     <div className="flex-1">
-                       <h4 className={`font-semibold ${
-                         latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
-                       }`}>
-                         Paiement en retard
-                       </h4>
-                       <p className={`text-sm mt-1 ${
-                         latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
-                       }`}>
-                         Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
-                       </p>
-                       {latePaymentInfo.hasPenalty && (
-                         <div className="mt-2 p-3 bg-red-100 rounded-lg border border-red-200">
-                           <p className="text-sm font-bold text-red-900">
-                             Pénalités à payer : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
-                           </p>
-                           <p className="text-xs text-red-700 mt-1">
-                             Les pénalités sont automatiquement appliquées à partir du 4ème jour
-                           </p>
+                {(isSelectable || p.status === 'PAID') && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
+                      {isSelectable ? (
+                        <span>Cliquez pour payer</span>
+                      ) : p.status === 'PAID' ? (
+                        <span>Cliquez pour voir la facture</span>
+                      ) : null}
+                    </div>
                          </div>
                        )}
-                       {!latePaymentInfo.hasPenalty && (
-                         <p className="text-xs text-orange-700 mt-2">
-                           ⚠️ Période de tolérance (jours 1-3). Aucune pénalité appliquée.
-                         </p>
-                       )}
                      </div>
+            )
+          })}
                    </div>
                  </div>
-               )}
 
-               {/* Preuve */}
-               <ProofFileForm 
-                 disabled={isClosed}
-               />
+        {/* Modal de paiement */}
+        <PaymentCSModal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setSelectedMonthIndex(null)
+          }}
+          onSubmit={handlePaymentSubmit}
+          title={`Versement pour le mois M${(selectedMonthIndex ?? 0) + 1}`}
+          description="Enregistrer le versement mensuel"
+          defaultAmount={data.monthlyAmount || 0}
+          isGroupContract={isGroupContract}
+        />
 
-             <div className="sticky bottom-3 mt-2 flex justify-center">
-               <button
-                 type="submit"
-                 disabled={
-                   form.formState.isSubmitting ||
-                   !(watchedValues as any).proofFile ||
-                   !watchedValues.paymentDate ||
-                   !watchedValues.paymentTime ||
-                   !watchedValues.paymentMode ||
-                   isClosed ||
-                   (isGroupContract && !(watchedValues as any).selectedGroupMemberId) ||
-                   (isGroupContract && !(watchedValues as any).amount) ||
-                   watchedValues.selectedMonthIndex !== nextDueMonthIndex
-                 }
-                 className={classNames(
-                   "inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white shadow",
-                   brand.bg,
-                   brand.hover,
-                   "disabled:cursor-not-allowed disabled:opacity-50"
-                 )}
-               >
-                 {form.formState.isSubmitting ? (
-                   <>
-                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                     Paiement en cours...
-                   </>
-                 ) : (
-                   <>
-                     <CreditCard className="h-4 w-4" />
-                     <span>
-                       {nextDueMonthIndex !== -1 ? 
-                         `Payer l'échéance M${nextDueMonthIndex + 1}` : 
-                         "Toutes les échéances sont payées"
-                       }
-                     </span>
-                   </>
-                 )}
-               </button>
-             </div>
-          </div>
-        </form>
-      </Form>
+        {/* Modal de facture */}
+        <PaymentInvoiceModal
+          isOpen={showInvoiceModal}
+          onClose={() => {
+            setShowInvoiceModal(false)
+            setSelectedPayment(null)
+            setSelectedMonthIndex(null)
+          }}
+          payment={selectedPayment}
+          contractData={data}
+        />
 
 
       {/* Remboursements */}
