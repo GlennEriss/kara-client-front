@@ -44,14 +44,89 @@ export default function SupportHistoryCIModal({
 }: SupportHistoryCIModalProps) {
   const { data: supports = [], isLoading, isError } = useSupportHistory(contractId)
 
+  // Export global en Excel
+  const handleExportExcel = () => {
+    if (supports.length === 0) {
+      toast.error('Aucun support à exporter')
+      return
+    }
+
+    try {
+      const exportData = supports.flatMap((support) => {
+        // Ligne principale du support
+        const supportRow = {
+          'Type': 'Support',
+          'Date': format(support.approvedAt, 'dd/MM/yyyy', { locale: fr }),
+          'Montant': support.amount,
+          'Statut': support.status === 'REPAID' ? 'Remboursé' : 'En cours',
+          'Montant Remboursé': support.amountRepaid,
+          'Montant Restant': support.amountRemaining,
+          'Approuvé par': support.approvedBy,
+          'Détail': 'Support accordé',
+        }
+
+        // Lignes des remboursements
+        const repaymentRows = support.repayments.map((repayment) => ({
+          'Type': 'Remboursement',
+          'Date': `${format(new Date(repayment.date), 'dd/MM/yyyy', { locale: fr })} ${repayment.time}`,
+          'Montant': repayment.amount,
+          'Statut': '',
+          'Montant Remboursé': '',
+          'Montant Restant': '',
+          'Approuvé par': '',
+          'Détail': `Mois M${repayment.monthIndex + 1}`,
+        }))
+
+        return [supportRow, ...repaymentRows]
+      })
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Historique Supports')
+
+      // Styles des colonnes
+      worksheet['!cols'] = [
+        { wch: 15 }, // Type
+        { wch: 18 }, // Date
+        { wch: 15 }, // Montant
+        { wch: 12 }, // Statut
+        { wch: 18 }, // Montant Remboursé
+        { wch: 18 }, // Montant Restant
+        { wch: 25 }, // Approuvé par
+        { wch: 30 }, // Détail
+      ]
+
+      const fileName = `Historique_Supports_${contractId}_${format(new Date(), 'ddMMyyyy')}.xlsx`
+      XLSX.writeFile(workbook, fileName)
+      
+      toast.success('Export Excel réussi !')
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel:', error)
+      toast.error('Erreur lors de l\'export Excel')
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <History className="h-6 w-6" />
-            Historique des aides financières
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
+              <History className="h-6 w-6" />
+              Historique des aides financières
+            </DialogTitle>
+            {supports.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Exporter tout (Excel)
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="py-4">
@@ -92,6 +167,159 @@ function SupportCard({ support }: { support: SupportCI }) {
   const isRepaid = support.status === 'REPAID'
   const progressPercentage = (support.amountRepaid / support.amount) * 100
 
+  // Export PDF individuel
+  const handleExportPDF = () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4')
+
+      // En-tête
+      doc.setFontSize(20)
+      doc.setTextColor(34, 77, 98)
+      doc.text('REÇU DE SUPPORT FINANCIER', 105, 20, { align: 'center' })
+
+      // Ligne de séparation
+      doc.setDrawColor(34, 77, 98)
+      doc.setLineWidth(0.5)
+      doc.line(20, 25, 190, 25)
+
+      // Informations du support
+      doc.setFontSize(12)
+      doc.setTextColor(0, 0, 0)
+      
+      let yPos = 40
+
+      // Montant du support
+      doc.setFont('helvetica', 'bold')
+      doc.text('Montant du support :', 20, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`${support.amount.toLocaleString('fr-FR')} FCFA`, 110, yPos)
+      yPos += 10
+
+      // Date d'approbation
+      doc.setFont('helvetica', 'bold')
+      doc.text('Date d\'approbation :', 20, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(format(support.approvedAt, 'dd MMMM yyyy à HH:mm', { locale: fr }), 110, yPos)
+      yPos += 10
+
+      // Approuvé par
+      doc.setFont('helvetica', 'bold')
+      doc.text('Approuvé par :', 20, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(admin ? `${admin.firstName} ${admin.lastName}` : support.approvedBy, 110, yPos)
+      yPos += 10
+
+      // Statut
+      doc.setFont('helvetica', 'bold')
+      doc.text('Statut :', 20, yPos)
+      doc.setFont('helvetica', 'normal')
+      if (isRepaid) {
+        doc.setTextColor(0, 128, 0)
+        doc.text('Entièrement remboursé', 110, yPos)
+      } else {
+        doc.setTextColor(255, 140, 0)
+        doc.text('En cours de remboursement', 110, yPos)
+      }
+      doc.setTextColor(0, 0, 0)
+      yPos += 15
+
+      // Section remboursement
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Détails du remboursement', 20, yPos)
+      yPos += 10
+
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Montant remboursé :', 20, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`${support.amountRepaid.toLocaleString('fr-FR')} FCFA`, 110, yPos)
+      yPos += 10
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Montant restant :', 20, yPos)
+      doc.setFont('helvetica', 'normal')
+      if (isRepaid) {
+        doc.setTextColor(0, 128, 0)
+      } else {
+        doc.setTextColor(255, 0, 0)
+      }
+      doc.text(`${support.amountRemaining.toLocaleString('fr-FR')} FCFA`, 110, yPos)
+      doc.setTextColor(0, 0, 0)
+      yPos += 10
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Progression :', 20, yPos)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`${progressPercentage.toFixed(1)}%`, 110, yPos)
+      yPos += 15
+
+      // Historique des remboursements
+      if (support.repayments.length > 0) {
+        doc.setFontSize(14)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Historique des remboursements', 20, yPos)
+        yPos += 10
+
+        // Table des remboursements
+        const repaymentData = support.repayments.map((repayment) => [
+          format(new Date(repayment.date), 'dd/MM/yyyy', { locale: fr }),
+          repayment.time,
+          `M${repayment.monthIndex + 1}`,
+          `${repayment.amount.toLocaleString('fr-FR')} FCFA`,
+        ])
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Date', 'Heure', 'Mois', 'Montant']],
+          body: repaymentData,
+          theme: 'striped',
+          headStyles: {
+            fillColor: [34, 77, 98],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+          },
+          styles: {
+            fontSize: 10,
+            cellPadding: 3,
+          },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 30 },
+            2: { cellWidth: 30 },
+            3: { cellWidth: 50, halign: 'right' },
+          },
+        })
+
+        yPos = (doc as any).lastAutoTable.finalY + 10
+      }
+
+      // Date de remboursement complet
+      if (isRepaid && support.repaidAt) {
+        yPos += 5
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 128, 0)
+        doc.text(`✓ Support remboursé intégralement le ${format(support.repaidAt, 'dd MMMM yyyy', { locale: fr })}`, 20, yPos)
+      }
+
+      // Pied de page
+      const pageHeight = doc.internal.pageSize.height
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, 105, pageHeight - 10, { align: 'center' })
+
+      // Sauvegarde
+      const fileName = `Support_${support.id}_${format(new Date(), 'ddMMyyyy')}.pdf`
+      doc.save(fileName)
+      
+      toast.success('Export PDF réussi !')
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error)
+      toast.error('Erreur lors de l\'export PDF')
+    }
+  }
+
   return (
     <div className={`border-2 rounded-xl p-4 ${
       isRepaid ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'
@@ -110,19 +338,30 @@ function SupportCard({ support }: { support: SupportCI }) {
             Accordé le {format(support.approvedAt, 'dd MMM yyyy à HH:mm', { locale: fr })}
           </div>
         </div>
-        <Badge className={isRepaid ? 'bg-green-600' : 'bg-orange-600'}>
-          {isRepaid ? (
-            <>
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Remboursé
-            </>
-          ) : (
-            <>
-              <Clock className="h-3 w-3 mr-1" />
-              En cours
-            </>
-          )}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportPDF}
+            className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            <Download className="h-3 w-3" />
+            PDF
+          </Button>
+          <Badge className={isRepaid ? 'bg-green-600' : 'bg-orange-600'}>
+            {isRepaid ? (
+              <>
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Remboursé
+              </>
+            ) : (
+              <>
+                <Clock className="h-3 w-3 mr-1" />
+                En cours
+              </>
+            )}
+          </Badge>
+        </div>
       </div>
 
       {/* Progression du remboursement */}
