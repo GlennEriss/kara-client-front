@@ -13,13 +13,17 @@ import {
   Clock,
   XCircle,
   History,
+  HandCoins,
+  AlertCircle,
 } from 'lucide-react'
 import { ContractCI, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 import routes from '@/constantes/routes'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
+import RequestSupportCIModal from './RequestSupportCIModal'
+import SupportHistoryCIModal from './SupportHistoryCIModal'
 import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement } from '@/hooks/caisse-imprevue'
+import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 
 interface MonthlyCIContractProps {
@@ -34,10 +38,16 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [showRequestSupportModal, setShowRequestSupportModal] = useState(false)
+  const [showSupportHistoryModal, setShowSupportHistoryModal] = useState(false)
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
+
+  // Récupérer le support actif et l'éligibilité
+  const { data: activeSupport } = useActiveSupport(contract.id)
+  const { data: isEligible } = useCheckEligibilityForSupport(contract.id)
 
   const getMonthStatus = (monthIndex: number) => {
     const payment = payments.find((p: any) => p.monthIndex === monthIndex)
@@ -125,7 +135,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
       <div className="max-w-5xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
               onClick={() => router.push(routes.admin.caisseImprevue)}
@@ -143,11 +153,43 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
               <History className="h-4 w-4" />
               Historique des versements
             </Button>
+
+            {/* Bouton Demander une aide */}
+            {isEligible && !activeSupport && (
+              <Button
+                variant="outline"
+                onClick={() => setShowRequestSupportModal(true)}
+                className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <HandCoins className="h-4 w-4" />
+                Demander une aide
+              </Button>
+            )}
+
+            {/* Bouton Historique des aides */}
+            <Button
+              variant="outline"
+              onClick={() => setShowSupportHistoryModal(true)}
+              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <History className="h-4 w-4" />
+              Historique des aides
+            </Button>
           </div>
           
-          <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-            {CONTRACT_CI_STATUS_LABELS[contract.status]}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {/* Badge Support Actif */}
+            {activeSupport && activeSupport.status === 'ACTIVE' && (
+              <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Support en cours
+              </Badge>
+            )}
+            
+            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+              {CONTRACT_CI_STATUS_LABELS[contract.status]}
+            </Badge>
+          </div>
         </div>
 
         {/* Titre principal */}
@@ -321,6 +363,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
           description={`Enregistrer le versement mensuel de ${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`}
           defaultAmount={contract.subscriptionCIAmountPerMonth}
           isMonthly={true}
+          contractId={contract.id}
         />
 
         {/* Modal de reçu */}
@@ -336,6 +379,20 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
             isMonthly={true}
           />
         )}
+
+        {/* Modal de demande de support */}
+        <RequestSupportCIModal
+          isOpen={showRequestSupportModal}
+          onClose={() => setShowRequestSupportModal(false)}
+          contract={contract}
+        />
+
+        {/* Modal d'historique des supports */}
+        <SupportHistoryCIModal
+          isOpen={showSupportHistoryModal}
+          onClose={() => setShowSupportHistoryModal(false)}
+          contractId={contract.id}
+        />
       </div>
     </div>
   )
