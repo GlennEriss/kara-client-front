@@ -48,8 +48,16 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const createVersementMutation = useCreateVersement()
 
   // Récupérer le support actif et l'éligibilité
-  const { data: activeSupport } = useActiveSupport(contract.id)
-  const { data: isEligible } = useCheckEligibilityForSupport(contract.id)
+  const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
+  const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
+
+  // Fermer automatiquement le modal de remboursement si le support n'est plus actif
+  React.useEffect(() => {
+    if (showRepaySupportModal && (!activeSupport || activeSupport.status !== 'ACTIVE')) {
+      setShowRepaySupportModal(false)
+      setSelectedMonthIndex(null)
+    }
+  }, [activeSupport, showRepaySupportModal])
 
   const getMonthStatus = (monthIndex: number) => {
     const payment = payments.find((p: any) => p.monthIndex === monthIndex)
@@ -134,6 +142,16 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
         userId: user.uid,
       })
 
+      // Fermer le modal immédiatement
+      setShowRepaySupportModal(false)
+      setSelectedMonthIndex(null)
+
+      // Forcer le refetch immédiat des données de support
+      await Promise.all([
+        refetchActiveSupport(),
+        refetchEligibility()
+      ])
+
       // Message personnalisé en fonction du remboursement
       if (isFullyRepaid) {
         toast.success('🎉 Support entièrement remboursé !', {
@@ -144,9 +162,6 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
       } else {
         toast.success('Remboursement partiel enregistré')
       }
-
-      setShowRepaySupportModal(false)
-      setSelectedMonthIndex(null)
     } catch (error) {
       console.error('Erreur lors du remboursement:', error)
       throw error

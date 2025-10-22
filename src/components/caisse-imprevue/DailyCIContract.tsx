@@ -52,8 +52,16 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const createVersementMutation = useCreateVersement()
 
   // Récupérer le support actif et l'éligibilité
-  const { data: activeSupport } = useActiveSupport(contract.id)
-  const { data: isEligible } = useCheckEligibilityForSupport(contract.id)
+  const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
+  const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
+
+  // Fermer automatiquement le modal de remboursement si le support n'est plus actif
+  React.useEffect(() => {
+    if (showRepaySupportModal && (!activeSupport || activeSupport.status !== 'ACTIVE')) {
+      setShowRepaySupportModal(false)
+      setSelectedDate(null)
+    }
+  }, [activeSupport, showRepaySupportModal])
 
   // Calculer l'index du mois actuel du calendrier par rapport à firstPaymentDate
   const currentMonthIndex = useMemo(() => {
@@ -194,6 +202,16 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
         userId: user.uid,
       })
 
+      // Fermer le modal immédiatement
+      setShowRepaySupportModal(false)
+      setSelectedDate(null)
+
+      // Forcer le refetch immédiat des données de support
+      await Promise.all([
+        refetchActiveSupport(),
+        refetchEligibility()
+      ])
+
       // Message personnalisé en fonction du remboursement
       if (isFullyRepaid) {
         toast.success('🎉 Support entièrement remboursé !', {
@@ -204,9 +222,6 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
       } else {
         toast.success('Remboursement partiel enregistré')
       }
-
-      setShowRepaySupportModal(false)
-      setSelectedDate(null)
     } catch (error) {
       console.error('Erreur lors du remboursement:', error)
       throw error
