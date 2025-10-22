@@ -13,13 +13,18 @@ import {
   Clock,
   XCircle,
   History,
+  HandCoins,
+  AlertCircle,
 } from 'lucide-react'
 import { ContractCI, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 import routes from '@/constantes/routes'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
+import RequestSupportCIModal from './RequestSupportCIModal'
+import SupportHistoryCIModal from './SupportHistoryCIModal'
+import RepaySupportCIModal from './RepaySupportCIModal'
 import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement } from '@/hooks/caisse-imprevue'
+import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 
 interface MonthlyCIContractProps {
@@ -34,10 +39,25 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [showRequestSupportModal, setShowRequestSupportModal] = useState(false)
+  const [showSupportHistoryModal, setShowSupportHistoryModal] = useState(false)
+  const [showRepaySupportModal, setShowRepaySupportModal] = useState(false)
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
+
+  // Récupérer le support actif et l'éligibilité
+  const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
+  const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
+
+  // Fermer automatiquement le modal de remboursement si le support n'est plus actif
+  React.useEffect(() => {
+    if (showRepaySupportModal && (!activeSupport || activeSupport.status !== 'ACTIVE')) {
+      setShowRepaySupportModal(false)
+      setSelectedMonthIndex(null)
+    }
+  }, [activeSupport, showRepaySupportModal])
 
   const getMonthStatus = (monthIndex: number) => {
     const payment = payments.find((p: any) => p.monthIndex === monthIndex)
@@ -55,10 +75,13 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
     setSelectedMonthIndex(monthIndex)
     
     if (status === 'PAID') {
-      // Ouvrir le modal de reçu pour consulter les détails
+      // 1. Si le mois est payé → Modal de reçu/facture
       setShowReceiptModal(true)
+    } else if (activeSupport && activeSupport.status === 'ACTIVE') {
+      // 2. Si support actif → Modal de remboursement du support (PRIORITAIRE)
+      setShowRepaySupportModal(true)
     } else {
-      // Ouvrir le modal de paiement
+      // 3. Sinon → Modal de versement normal
       setShowPaymentModal(true)
     }
   }
@@ -94,6 +117,57 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
     }
   }
 
+  const handleRepaySupportSubmit = async (data: {
+    date: string
+    time: string
+    amount: number
+    proofFile: File
+  }) => {
+    if (selectedMonthIndex === null || !user?.uid || !activeSupport) return
+
+    const isFullyRepaid = data.amount >= activeSupport.amountRemaining
+    const surplus = data.amount - activeSupport.amountRemaining
+
+    try {
+      await createVersementMutation.mutateAsync({
+        contractId: contract.id,
+        monthIndex: selectedMonthIndex,
+        versementData: {
+          date: data.date,
+          time: data.time,
+          amount: data.amount,
+          mode: 'airtel_money', // Par défaut pour le remboursement
+        },
+        proofFile: data.proofFile,
+        userId: user.uid,
+      })
+
+      // Fermer le modal immédiatement
+      setShowRepaySupportModal(false)
+      setSelectedMonthIndex(null)
+
+      // Forcer le refetch immédiat des données de support
+      await Promise.all([
+        refetchActiveSupport(),
+        refetchEligibility()
+      ])
+
+      // Message personnalisé en fonction du remboursement
+      if (isFullyRepaid) {
+        toast.success('🎉 Support entièrement remboursé !', {
+          description: surplus > 0 
+            ? `${activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA remboursés + ${surplus.toLocaleString('fr-FR')} FCFA versés pour le mois`
+            : `${activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA remboursés. Vous pouvez maintenant effectuer des versements normaux.`
+        })
+      } else {
+        toast.success('Remboursement partiel enregistré')
+      }
+    } catch (error) {
+      console.error('Erreur lors du remboursement:', error)
+      throw error
+    }
+  }
+
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'DUE':
@@ -125,7 +199,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
       <div className="max-w-5xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
               onClick={() => router.push(routes.admin.caisseImprevue)}
@@ -143,11 +217,43 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
               <History className="h-4 w-4" />
               Historique des versements
             </Button>
+
+            {/* Bouton Demander une aide */}
+            {isEligible && !activeSupport && (
+              <Button
+                variant="outline"
+                onClick={() => setShowRequestSupportModal(true)}
+                className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <HandCoins className="h-4 w-4" />
+                Demander une aide
+              </Button>
+            )}
+
+            {/* Bouton Historique des aides */}
+            <Button
+              variant="outline"
+              onClick={() => setShowSupportHistoryModal(true)}
+              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <History className="h-4 w-4" />
+              Historique des aides
+            </Button>
           </div>
           
-          <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-            {CONTRACT_CI_STATUS_LABELS[contract.status]}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {/* Badge Support Actif */}
+            {activeSupport && activeSupport.status === 'ACTIVE' && (
+              <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Support en cours
+              </Badge>
+            )}
+            
+            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+              {CONTRACT_CI_STATUS_LABELS[contract.status]}
+            </Badge>
+          </div>
         </div>
 
         {/* Titre principal */}
@@ -169,7 +275,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
         </Card>
 
         {/* Résumé du contrat */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-0 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -217,6 +323,25 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
               </div>
             </CardContent>
           </Card>
+
+          {/* Support à rembourser */}
+          {activeSupport && activeSupport.status === 'ACTIVE' && (
+            <Card className="border-0 shadow-lg border-2 border-orange-300 bg-orange-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <AlertCircle className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-orange-700 font-medium">Support à rembourser</p>
+                    <p className="font-bold text-lg text-orange-600">
+                      {activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Échéancier de Paiement Mensuel */}
@@ -321,6 +446,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
           description={`Enregistrer le versement mensuel de ${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`}
           defaultAmount={contract.subscriptionCIAmountPerMonth}
           isMonthly={true}
+          contractId={contract.id}
         />
 
         {/* Modal de reçu */}
@@ -334,6 +460,34 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
             contract={contract}
             payment={getSelectedPayment()!}
             isMonthly={true}
+          />
+        )}
+
+        {/* Modal de demande de support */}
+        <RequestSupportCIModal
+          isOpen={showRequestSupportModal}
+          onClose={() => setShowRequestSupportModal(false)}
+          contract={contract}
+        />
+
+        {/* Modal d'historique des supports */}
+        <SupportHistoryCIModal
+          isOpen={showSupportHistoryModal}
+          onClose={() => setShowSupportHistoryModal(false)}
+          contractId={contract.id}
+        />
+
+        {/* Modal de remboursement du support */}
+        {activeSupport && (
+          <RepaySupportCIModal
+            isOpen={showRepaySupportModal}
+            onClose={() => {
+              setShowRepaySupportModal(false)
+              setSelectedMonthIndex(null)
+            }}
+            onSubmit={handleRepaySupportSubmit}
+            activeSupport={activeSupport}
+            monthOrDayLabel={selectedMonthIndex !== null ? `Mois M${selectedMonthIndex + 1}` : ''}
           />
         )}
       </div>

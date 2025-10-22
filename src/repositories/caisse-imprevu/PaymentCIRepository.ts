@@ -147,10 +147,18 @@ export class PaymentCIRepository implements IPaymentCIRepository {
             );
 
             // Convertir la date createdAt en timestamp Firestore pour le stockage
-            const versementToStore = {
+            // Filtrer les valeurs undefined (Firestore n'accepte pas undefined dans arrayUnion)
+            const versementToStore: any = {
                 ...versement,
                 createdAt: new Date(versement.createdAt)
             };
+
+            // Supprimer les champs undefined
+            Object.keys(versementToStore).forEach(key => {
+                if (versementToStore[key] === undefined) {
+                    delete versementToStore[key];
+                }
+            });
 
             await updateDoc(paymentRef, {
                 versements: arrayUnion(versementToStore),

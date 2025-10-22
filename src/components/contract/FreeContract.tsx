@@ -41,6 +41,8 @@ import {
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
+import PaymentCSModal, { PaymentCSFormData } from './PaymentCSModal'
+import PaymentInvoiceModal from './standard/PaymentInvoiceModal'
 import type { RefundDocument } from '@/types/types'
 import TestPaymentTools from './TestPaymentTools'
 
@@ -50,19 +52,10 @@ export default function FreeContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
 
-  const [amount, setAmount] = useState<number>(0)
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
-  const [file, setFile] = useState<File | undefined>()
-  const [isPaying, setIsPaying] = useState(false)
-  const [paymentDate, setPaymentDate] = useState(() => {
-    return new Date().toISOString().split('T')[0]
-  })
-  const [paymentTime, setPaymentTime] = useState(() => {
-    const now = new Date()
-    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-  })
-  const [paymentMode, setPaymentMode] = useState<PaymentMode>('airtel_money')
-  const [fileInputResetKey, setFileInputResetKey] = useState(0)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [selectedPayment, setSelectedPayment] = useState<any>(null)
   const [isRefunding, setIsRefunding] = useState(false)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundDate, setRefundDate] = useState(() => {
@@ -139,48 +132,43 @@ export default function FreeContract({ id }: Props) {
   const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
-  // Calculer les jours de retard et les pénalités
-  const calculateLatePaymentInfo = (): { daysLate: number; penalty: number; hasPenalty: boolean } | null => {
-    if (!paymentDate || !data) return null
-
-    const selectedPaymentDate = new Date(paymentDate + 'T00:00:00')
+  const handleMonthClick = (monthIndex: number, payment: any) => {
+    setSelectedIdx(monthIndex)
     
-    // Déterminer la date de référence (nextDueAt ou contractStartAt pour le 1er versement)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    let referenceDate: Date
-    if (data.nextDueAt) {
-      referenceDate = new Date(data.nextDueAt)
+    // Si le paiement est déjà effectué, afficher la facture
+    if (payment.status === 'PAID') {
+      setSelectedPayment(payment)
+      setShowInvoiceModal(true)
     } else {
-      // Premier versement : utiliser contractStartAt
-      referenceDate = data.contractStartAt ? new Date(data.contractStartAt) : today
-    }
-    referenceDate.setHours(0, 0, 0, 0)
-
-    // Calculer le nombre de jours de retard par rapport à la date d'échéance
-    const diffTime = selectedPaymentDate.getTime() - referenceDate.getTime()
-    const daysLate = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-    // Pas de retard si paiement avant ou à la date d'échéance
-    if (daysLate <= 0) return null
-
-    // Calculer les pénalités (à partir du 4ème jour)
-    // Pour le contrat LIBRE, utiliser le montant saisi dans le formulaire
-    let penalty = 0
-    if (daysLate >= 4 && settings.data?.penaltyRules?.day4To12?.perDay && amount > 0) {
-      const penaltyRate = settings.data.penaltyRules.day4To12.perDay / 100
-      penalty = penaltyRate * amount * daysLate
-    }
-
-    return {
-      daysLate,
-      penalty,
-      hasPenalty: daysLate >= 4
+      // Sinon, afficher le formulaire de paiement
+      setShowPaymentModal(true)
     }
   }
 
-  const latePaymentInfo = calculateLatePaymentInfo()
+  const handlePaymentSubmit = async (paymentData: PaymentCSFormData) => {
+    if (selectedIdx === null) return
+
+    try {
+      await pay({ 
+        contractId: id, 
+        dueMonthIndex: selectedIdx, 
+        memberId: data.memberId, 
+        amount: paymentData.amount, 
+        file: paymentData.proofFile,
+        paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
+        time: paymentData.time,
+        mode: paymentData.mode
+      })
+      await refetch()
+      toast.success('Contribution enregistrée')
+      
+      setShowPaymentModal(false)
+      setSelectedIdx(null)
+    } catch (error) {
+      console.error('Erreur lors du paiement:', error)
+      throw error
+    }
+  }
 
   function paymentStatusLabel(s: string): string {
     const map: Record<string, string> = {
@@ -282,45 +270,6 @@ export default function FreeContract({ id }: Props) {
     }
   }
 
-  const onPay = async () => {
-    if (isClosed) { toast.error('Contrat clos: paiement impossible.'); return }
-    if (selectedIdx === null) { toast.error('Choisissez un mois.'); return }
-    if (!file) { toast.error('Téléversez une preuve.'); return }
-    if (!amount || amount <= 0) { toast.error('Saisissez un montant.'); return }
-    if (!paymentDate) { toast.error('Veuillez sélectionner la date de paiement.'); return }
-    if (!paymentTime) { toast.error('Veuillez sélectionner l\'heure de paiement.'); return }
-    if (!paymentMode) { toast.error('Veuillez sélectionner le mode de paiement.'); return }
-    
-    try {
-      setIsPaying(true)
-      await pay({ 
-        contractId: id, 
-        dueMonthIndex: selectedIdx, 
-        memberId: data.memberId, 
-        amount, 
-        file,
-        paidAt: new Date(`${paymentDate}T${paymentTime}`),
-        time: paymentTime,
-        mode: paymentMode
-      })
-      await refetch()
-      toast.success('Contribution enregistrée')
-      
-      setAmount(0)
-      setSelectedIdx(null)
-      setFile(undefined)
-      setPaymentDate(new Date().toISOString().split('T')[0])
-      setPaymentTime(() => {
-        const now = new Date()
-        return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-      })
-      setPaymentMode('airtel_money')
-      setFileInputResetKey(prev => prev + 1)
-      
-    } finally { 
-      setIsPaying(false) 
-    }
-  }
 
   const payments = data.payments || []
   const paidCount = payments.filter((x: any) => x.status === 'PAID').length
@@ -429,12 +378,14 @@ export default function FreeContract({ id }: Props) {
                 return (
                   <div 
                     key={p.id} 
-                    className={`border rounded-xl p-4 transition-all duration-200 cursor-pointer hover:shadow-md ${
+                    className={`border rounded-xl p-4 transition-all duration-200 ${
+                      (p.status === 'DUE' || p.status === 'PAID') && !isClosed ? 'cursor-pointer hover:shadow-md' : 'cursor-default'
+                    } ${
                       isSelected 
                         ? 'border-[#234D65] bg-blue-50 ring-2 ring-[#234D65]/20' 
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
-                    onClick={() => p.status === 'DUE' && !isClosed ? setSelectedIdx(p.dueMonthIndex) : null}
+                    onClick={() => (p.status === 'DUE' || p.status === 'PAID') && !isClosed ? handleMonthClick(p.dueMonthIndex, p) : null}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -469,17 +420,14 @@ export default function FreeContract({ id }: Props) {
                       </div>
                     </div>
                     
-                    {p.status === 'DUE' && !isClosed && (
+                    {!isClosed && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                          <input 
-                            type="radio" 
-                            name="m" 
-                            checked={isSelected}
-                            onChange={() => setSelectedIdx(p.dueMonthIndex)}
-                            className="text-[#234D65] focus:ring-[#234D65]"
-                          />
-                          <span>Sélectionner pour paiement</span>
+                          {p.status === 'DUE' ? (
+                            <span>Cliquez pour payer</span>
+                          ) : p.status === 'PAID' ? (
+                            <span>Cliquez pour voir la facture</span>
+                          ) : null}
                         </div>
                       </div>
                     )}
@@ -490,271 +438,30 @@ export default function FreeContract({ id }: Props) {
           </div>
         </div>
 
-        {/* Formulaire de paiement */}
-        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-500 to-green-600 p-6">
-            <div className="flex items-center gap-3">
-              <CreditCard className="h-6 w-6 text-white" />
-              <h2 className="text-xl font-bold text-white">Effectuer un versement</h2>
-            </div>
-          </div>
-          
-          <div className="p-6">
-            {selectedIdx !== null ? (
-              <div className="space-y-6">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="bg-blue-100 rounded-lg p-2">
-                      <Calendar className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-blue-900">Mois sélectionné</h3>
-                      <p className="text-blue-700">M{selectedIdx + 1}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Informations de paiement */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <DollarSign className="h-5 w-5" />
-                      Informations de paiement
-                    </h3>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Montant du versement *</label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input 
-                          type="number" 
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
-                          value={amount} 
-                          onChange={(e) => setAmount(Number(e.target.value))} 
-                          disabled={isClosed}
-                          placeholder="100000"
-                          min="100000"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Minimum: 100 000 FCFA</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Date de paiement *</label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input
-                            type="date"
-                            value={paymentDate}
-                            onChange={(e) => setPaymentDate(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Heure de paiement *</label>
-                        <div className="relative">
-                          <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                          <input
-                            type="time"
-                            value={paymentTime}
-                            onChange={(e) => setPaymentTime(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Mode de paiement */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <Smartphone className="h-5 w-5" />
-                      Mode de paiement
-                    </h3>
-                    
-                    <div className="space-y-3">
-                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
-                        <input
-                          type="radio"
-                          name="paymentMode"
-                          value="airtel_money"
-                          checked={paymentMode === 'airtel_money'}
-                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                          className="text-[#234D65] focus:ring-[#234D65]"
-                        />
-                        <div className="ml-3 flex items-center gap-3">
-                          <div className="bg-red-100 rounded-lg p-2">
-                            <Smartphone className="h-5 w-5 text-red-600" />
-                          </div>
-                          <span className="font-medium text-gray-900">Airtel Money</span>
-                        </div>
-                      </label>
-                      
-                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
-                        <input
-                          type="radio"
-                          name="paymentMode"
-                          value="mobicash"
-                          checked={paymentMode === 'mobicash'}
-                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                          className="text-[#234D65] focus:ring-[#234D65]"
-                        />
-                        <div className="ml-3 flex items-center gap-3">
-                          <div className="bg-blue-100 rounded-lg p-2">
-                            <Banknote className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <span className="font-medium text-gray-900">Mobicash</span>
-                        </div>
-                      </label>
+        {/* Modal de paiement */}
+        <PaymentCSModal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setSelectedIdx(null)
+          }}
+          onSubmit={handlePaymentSubmit}
+          title={`Versement pour le mois M${(selectedIdx ?? 0) + 1}`}
+          description="Enregistrer le versement mensuel"
+          defaultAmount={100000}
+        />
 
-                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
-                        <input
-                          type="radio"
-                          name="paymentMode"
-                          value="cash"
-                          checked={paymentMode === 'cash'}
-                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                          className="text-[#234D65] focus:ring-[#234D65]"
-                        />
-                        <div className="ml-3 flex items-center gap-3">
-                          <div className="bg-green-100 rounded-lg p-2">
-                            <DollarSign className="h-5 w-5 text-green-600" />
-                          </div>
-                          <span className="font-medium text-gray-900">Espèce</span>
-                        </div>
-                      </label>
-
-                      <label className="relative flex items-center p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200">
-                        <input
-                          type="radio"
-                          name="paymentMode"
-                          value="bank_transfer"
-                          checked={paymentMode === 'bank_transfer'}
-                          onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-                          className="text-[#234D65] focus:ring-[#234D65]"
-                        />
-                        <div className="ml-3 flex items-center gap-3">
-                          <div className="bg-purple-100 rounded-lg p-2">
-                            <Building2 className="h-5 w-5 text-purple-600" />
-                          </div>
-                          <span className="font-medium text-gray-900">Virement bancaire</span>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Indicateur de retard et pénalités */}
-                {latePaymentInfo && (
-                  <div className={`rounded-xl p-4 border-2 ${
-                    latePaymentInfo.hasPenalty 
-                      ? 'bg-red-50 border-red-300' 
-                      : 'bg-orange-50 border-orange-300'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
-                        latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
-                      }`} />
-                      <div className="flex-1">
-                        <h4 className={`font-semibold ${
-                          latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
-                        }`}>
-                          Paiement en retard
-                        </h4>
-                        <p className={`text-sm mt-1 ${
-                          latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
-                        }`}>
-                          Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
-                        </p>
-                        {latePaymentInfo.hasPenalty && (
-                          <div className="mt-3 p-3 bg-red-100 rounded-lg border border-red-200">
-                            <p className="text-sm font-bold text-red-900">
-                              Pénalités à payer : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
-                            </p>
-                            <p className="text-xs text-red-700 mt-1">
-                              Les pénalités sont automatiquement appliquées à partir du 4ème jour
-                            </p>
-                          </div>
-                        )}
-                        {!latePaymentInfo.hasPenalty && (
-                          <p className="text-xs text-orange-700 mt-2">
-                            ⚠️ Période de tolérance (jours 1-3). Aucune pénalité appliquée.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Preuve de paiement */}
-                <div>
-                  <FileInput
-                    accept="image/*"
-                    maxSize={5}
-                    onFileSelect={async (selectedFile) => {
-                      if (!selectedFile) { 
-                        setFile(undefined); 
-                        return 
-                      }
-                      
-                      try {
-                        const dataUrl = await compressImage(selectedFile, IMAGE_COMPRESSION_PRESETS.document)
-                        const res = await fetch(dataUrl)
-                        const blob = await res.blob()
-                        const webpFile = new File([blob], 'proof.webp', { type: 'image/webp' })
-                        setFile(webpFile)
-                        toast.success('Preuve compressée (WebP) prête')
-                      } catch (err) {
-                        console.error(err)
-                        toast.error('Échec de la compression de l\'image')
-                        setFile(undefined)
-                      }
-                    }}
-                    disabled={isClosed}
-                    label="Preuve de paiement *"
-                    placeholder="Glissez-déposez une image ou cliquez pour parcourir"
-                    currentFile={file}
-                    resetKey={fileInputResetKey}
-                    className="w-full"
-                  />
-                </div>
-                
-                {/* Bouton de paiement */}
-                <div className="border-t border-gray-200 pt-6">
-                  <button 
-                    className="w-full md:w-auto mx-auto flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isPaying || !file || selectedIdx === null || !amount || amount < 100000 || !paymentDate || !paymentTime || !paymentMode || isClosed}
-                    onClick={onPay}
-                  >
-                    {isPaying ? (
-                      <>
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Paiement en cours...
-                      </>
-                    ) : (
-                      <>
-                        <Receipt className="h-5 w-5" />
-                        Effectuer le versement M{selectedIdx + 1}
-                        <ArrowRight className="h-5 w-5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-                  <Calendar className="h-12 w-12 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Sélectionnez un mois</h3>
-                <p className="text-gray-600">Choisissez une échéance dans la liste ci-dessus pour effectuer un paiement</p>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Modal de facture */}
+        <PaymentInvoiceModal
+          isOpen={showInvoiceModal}
+          onClose={() => {
+            setShowInvoiceModal(false)
+            setSelectedPayment(null)
+            setSelectedIdx(null)
+          }}
+          payment={selectedPayment}
+          contractData={data}
+        />
 
         {/* Section Remboursements */}
         <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">

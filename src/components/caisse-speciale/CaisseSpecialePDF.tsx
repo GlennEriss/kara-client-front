@@ -28,8 +28,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   logo: {
-    width: 70,
-    height: 70,
+    width: 500,
+    height: 200,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -73,10 +73,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 8,
     marginBottom: 4,
+    textAlign: 'center',
+    border: '1px solid #265169',
+    backgroundColor: '#265169',
+    color: 'white',
   },
   articleText: {
+    fontSize: 12,
     marginBottom: 6,
-    textAlign: 'justify',
+    textAlign: 'center',
   },
   bulletList: {
     marginBottom: 6,
@@ -134,6 +139,7 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     border: '1px solid black',
+    borderRadius: 50,
     marginRight: 8,
     display: 'flex',
     alignItems: 'center',
@@ -141,6 +147,7 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     fontSize: 11,
+    textAlign: 'center',
   },
   blankLine: {
     borderBottom: '1px solid black',
@@ -150,6 +157,7 @@ const styles = StyleSheet.create({
   },
   formSection: {
     marginVertical: 10,
+    textAlign: 'center',
   },
   table: {
     width: '100%',
@@ -322,7 +330,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             <View style={styles.logo}>
               <Image
                 src={window.location.origin + '/Logo-Kara.jpg'}
-                style={{ width: 70, height: 70, objectFit: 'cover' }}
+                style={{ width: 200, height: 200, objectFit: 'cover' }}
                 cache={false}
               />
             </View>
@@ -349,16 +357,16 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
               <Text style={styles.cell}>{contract?.member?.firstName || '—'}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>LIEU / DATE DE NAISSANCE :</Text>
-              <Text style={styles.cell}>{contract?.member?.birthPlace || '—'} / {formatDate(contract?.member?.birthDate)}</Text>
+              <Text style={styles.cell}>DATE / LIEU DE NAISSANCE :</Text>
+              <Text style={styles.cell}>{formatDate(contract?.member?.birthDate)} A {contract?.member?.birthPlace || '—'}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>NATIONALITÉ :</Text>
               <Text style={styles.cell}>{getNationalityName(contract?.member?.nationality)}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>N°CNI / PASS / CS :</Text>
-              <Text style={styles.cell}>{contract?.member?.identityDocument + ' ' + contract?.member?.identityDocumentNumber || '—'}</Text>
+              <Text style={styles.cell}>{contract?.member?.identityDocument || '—'}</Text>
+              <Text style={styles.cell}>{contract?.member?.identityDocumentNumber || '—'}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
@@ -374,7 +382,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>ÂGE :</Text>
-              <Text style={styles.cell}>{contract?.member?.age || '—'}</Text>
+              <Text style={styles.cell}>{contract?.member?.age || '—'} ANS</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>QUARTIER :</Text>
@@ -389,19 +397,19 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           <Text style={styles.title}>Informations Concernant le Contact Urgent</Text>
           <View style={styles.section}>
             <View style={styles.row}>
-              <Text style={styles.cell}>NOM URGENT :</Text>
+              <Text style={styles.cell}>NOM  :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.lastName || '—'}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>PRÉNOM URGENT :</Text>
+              <Text style={styles.cell}>PRÉNOM  :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.firstName || '—'}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>LIEN :</Text>
+              <Text style={styles.cell}>LIENS :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.relationship || '—'}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE :</Text>
+              <Text style={styles.cell}>TÉLÉPHONE(S) :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.phone1 || '—'}</Text>
             </View>
           </View>
@@ -414,25 +422,25 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           <Text style={styles.title}>CAISSE SPÉCIALE</Text>
 
           <Text style={styles.articleText}>
-            Dans le cadre d'une démarche purement sociale, l'association LE KARA lance le volet « Caisse spéciale »,
+            Dans le cadre d'une démarche purement sociale, l'Association LE KARA lance le volet « Caisse spéciale »,
             qui est un contrat par lequel l'association permet aux membres épargnants de faire des épargnes,
             individuelles et volontaires sur un compte fermé, destinés à prévenir les différents aléas de leurs vies.
           </Text>
           <Text style={styles.articleText}>
-            L'association LE KARA s'engage en contrepartie des versements mensuels, à assurer la conservation et la mise
+            L'Association LE KARA s'engage en contrepartie des versements mensuels, à assurer la conservation et la mise
             à disposition de ces fonds aux épargnants en cas de besoin.
           </Text>
           <View style={styles.definitionList}>
             <View style={styles.definitionItem}>
               <Text style={styles.bulletSymbol}>•</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>L'épargnant :</Text> membre de l'association qui souscrit au volet Caisse spéciale.
+                <Text style={styles.bold}>L'épargnant :</Text> Dénomination donnée au Membre de l'association qui souscrit au volet Caisse spéciale.
               </Text>
             </View>
             <View style={styles.definitionItem}>
               <Text style={styles.bulletSymbol}>•</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>Le nominal :</Text> globalité des versements mensuels de l'épargnant.
+                <Text style={styles.bold}>Le nominal :</Text> Globalité des versements mensuels de l'épargnant.
               </Text>
             </View>
           </View>
@@ -512,7 +520,16 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           </View>
 
           <Text style={styles.articleText}>
-            Le remboursement du nominal suite à une demande de retrait intervenue avant terme, est réalisé dans un intervalle de quarante-cinq jours à compter de la demande.
+            Le remboursement du nominal suite à une demande de retrait intervenue avant terme, est réalisé dans un intervalle de <Text style={styles.bold}>quarante-cinq jours</Text> à compter de la demande.
+          </Text>
+          <Text style={styles.articleText}>
+          </Text>
+          <Text style={styles.articleText}>
+          </Text>
+          <Text style={{ fontSize: 12, textAlign: 'right' }}>
+            <Text style={styles.bold}>
+              [Signature de l'épargnant précédée de la mention "Lu et Approuvé"]
+            </Text>
           </Text>
         </View>
       </Page>
@@ -524,11 +541,14 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           <Text style={styles.title}>FICHE D'ADHÉSION</Text>
 
           <Text>Je soussigné(e),</Text>
-          <Text>{contract?.member?.firstName || '—'} {contract?.member?.lastName || '—'} membre de l'association KARA, domicilié à {contract?.member?.address?.district || '—'} et joignable au {contract?.member?.contacts?.[0] || '—'}</Text>
+          <Text>
+            <Text style={styles.bold}>{contract?.member?.lastName || '—'} {contract?.member?.firstName || '—'} </Text>
+            Membre de l'Association LE KARA, domicilié : {contract?.member?.address?.district || '—'} et 
+            joignable au {contract?.member?.contacts?.[0] || '—'}</Text>
 
           <Text style={styles.articleTitle}>Article 1 : Objet du contrat</Text>
           <Text style={styles.articleText}>
-            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'association KARA.
+            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'Association KARA.
           </Text>
 
           <Text style={styles.articleTitle}>Article 2 : Durée du contrat</Text>
@@ -547,11 +567,19 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
 
           <View style={styles.formSection}>
             <View style={styles.checkboxContainer}>
-              <View style={styles.checkbox}></View>
+              <View style={styles.checkbox}>
+                {contract?.caisseType === 'LIBRE' && (
+                  <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
+                )}
+              </View>
               <Text style={styles.checkboxText}>Changeable</Text>
             </View>
             <View style={styles.checkboxContainer}>
-              <View style={styles.checkbox}></View>
+              <View style={styles.checkbox}>
+                {contract?.caisseType !== 'LIBRE' && (
+                  <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
+                )}
+              </View>
               <Text style={styles.checkboxText}>Non Changeable</Text>
             </View>
           </View>
@@ -591,15 +619,9 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             CE DOCUMENT EST ÉTABLI POUR FAIRE VALOIR CE QUE DE DROIT
           </Text>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 50, minHeight: 100, border: '1px solid black', padding: 15 }}>
-            <View style={{ width: '48%', justifyContent: 'space-between' }}>
-              <Text style={styles.bold}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF :</Text>
-              <Text style={{ fontSize: 10, marginTop: 60 }}>Date : ____/____/________</Text>
-            </View>
-            <View style={{ width: '48%', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <Text style={styles.bold}>[Signature de l'épargnant précédée de la mention « lu et approuvé »]</Text>
-              <Text style={{ fontSize: 10, marginTop: 60 }}>Date : ____/____/________</Text>
-            </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 }}>
+            <Text style={[styles.bold, { width: '45%' }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF :</Text>
+            <Text style={[styles.bold, { width: '45%', textAlign: 'right' }]}>[Signature de l'épargnant précédée de la mention « lu et approuvé »]</Text>
           </View>
         </View>
       </Page>
@@ -610,7 +632,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           <Text style={styles.title}>RÉCAPITULATIF DES VERSEMENTS MENSUELS</Text>
 
           <Text style={styles.articleText}>
-            CE DOCUMENT PREND ACTE DES DIFFÉRENTS VERSEMENTS MENSUELS EFFECTUÉS PAR L’ÉPARGNANT.
+            CE DOCUMENT PREND ACTE DES DIFFÉRENTS VERSEMENTS MENSUELS EFFECTUÉS PAR L'ÉPARGNANT DANS LA CAISSE SPECIALE.
           </Text>
           <View style={styles.table}>
             <View style={styles.tableRow}>
