@@ -99,17 +99,25 @@ export default function PaymentCIModal({
       return {
         supportRepayment: 0,
         monthlyPayment: amount,
-        hasSupport: false
+        hasSupport: false,
+        isValid: true,
+        errorMessage: ''
       }
     }
 
-    const supportRepayment = Math.min(amount, activeSupport.amountRemaining)
-    const monthlyPayment = amount - supportRepayment
+    // Le support doit être remboursé intégralement AVANT tout nouveau versement
+    const isValid = amount >= activeSupport.amountRemaining
+    const supportRepayment = activeSupport.amountRemaining
+    const monthlyPayment = isValid ? amount - supportRepayment : 0
 
     return {
       supportRepayment,
       monthlyPayment,
-      hasSupport: true
+      hasSupport: true,
+      isValid,
+      errorMessage: isValid 
+        ? '' 
+        : `Montant insuffisant. Vous devez verser au minimum ${activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA pour rembourser le support.`
     }
   }, [paymentAmount, activeSupport])
 
@@ -285,19 +293,30 @@ export default function PaymentCIModal({
             </p>
           </div>
 
-          {/* Alerte Support Actif */}
-          {paymentBreakdown.hasSupport && activeSupport && (
-            <Alert className="border-orange-200 bg-orange-50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="text-orange-700">
-                <strong>Support actif :</strong> Un support de {activeSupport.amount.toLocaleString('fr-FR')} FCFA est en cours de remboursement.
-                Le paiement sera prioritairement affecté au remboursement du support.
-              </AlertDescription>
-            </Alert>
-          )}
+    {/* Alerte Support Actif */}
+    {paymentBreakdown.hasSupport && activeSupport && (
+      <Alert className="border-orange-200 bg-orange-50">
+        <AlertTriangle className="h-4 w-4 text-orange-600" />
+        <AlertDescription className="text-orange-700">
+          <strong>⚠️ Support actif :</strong> Un support de {activeSupport.amount.toLocaleString('fr-FR')} FCFA est en cours de remboursement.
+          <br />
+          <strong className="text-red-700">Vous devez rembourser intégralement le support ({activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA) avant de pouvoir effectuer un nouveau versement mensuel.</strong>
+        </AlertDescription>
+      </Alert>
+    )}
+
+    {/* Erreur si montant insuffisant */}
+    {paymentBreakdown.hasSupport && !paymentBreakdown.isValid && Number(paymentAmount) > 0 && (
+      <Alert variant="destructive" className="border-red-300 bg-red-50">
+        <AlertTriangle className="h-4 w-4 text-red-600" />
+        <AlertDescription className="text-red-700">
+          {paymentBreakdown.errorMessage}
+        </AlertDescription>
+      </Alert>
+    )}
 
           {/* Répartition du paiement */}
-          {paymentBreakdown.hasSupport && Number(paymentAmount) > 0 && (
+          {paymentBreakdown.hasSupport && Number(paymentAmount) > 0 && paymentBreakdown.isValid && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
               <p className="text-sm font-semibold text-blue-900 flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
@@ -332,10 +351,13 @@ export default function PaymentCIModal({
                   <div className="pt-2 border-t border-blue-300">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-blue-600">Restant à rembourser après ce versement :</span>
-                      <span className="font-semibold text-orange-600">
-                        {Math.max(0, activeSupport.amountRemaining - paymentBreakdown.supportRepayment).toLocaleString('fr-FR')} FCFA
+                      <span className="font-semibold text-green-600">
+                        0 FCFA ✅
                       </span>
                     </div>
+                    <p className="text-xs text-green-600 mt-1">
+                      ✅ Le support sera entièrement remboursé
+                    </p>
                   </div>
                 )}
               </div>
@@ -476,7 +498,8 @@ export default function PaymentCIModal({
               !paymentTime ||
               !paymentAmount ||
               Number(paymentAmount) <= 0 ||
-              !paymentFile
+              !paymentFile ||
+              (paymentBreakdown.hasSupport && !paymentBreakdown.isValid)
             }
             className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
           >

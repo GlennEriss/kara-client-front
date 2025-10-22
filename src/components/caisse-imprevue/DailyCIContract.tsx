@@ -23,6 +23,7 @@ import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
+import RepaySupportCIModal from './RepaySupportCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
@@ -42,6 +43,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showRequestSupportModal, setShowRequestSupportModal] = useState(false)
   const [showSupportHistoryModal, setShowSupportHistoryModal] = useState(false)
+  const [showRepaySupportModal, setShowRepaySupportModal] = useState(false)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -111,10 +113,13 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
     setSelectedDate(date)
     
     if (existingPayment) {
-      // Ouvrir le modal de reçu pour consulter les détails
+      // 1. Si le jour est payé → Modal de reçu/facture
       setShowReceiptModal(true)
+    } else if (activeSupport && activeSupport.status === 'ACTIVE') {
+      // 2. Si support actif → Modal de remboursement du support (PRIORITAIRE)
+      setShowRepaySupportModal(true)
     } else {
-      // Ouvrir le modal de paiement
+      // 3. Sinon → Modal de versement normal
       setShowPaymentModal(true)
     }
   }
@@ -160,6 +165,50 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
     } catch (error) {
       console.error('Erreur lors du paiement:', error)
       // L'erreur est déjà gérée par le hook
+      throw error
+    }
+  }
+
+  const handleRepaySupportSubmit = async (data: {
+    date: string
+    time: string
+    amount: number
+    proofFile: File
+  }) => {
+    if (!selectedDate || !user?.uid || !activeSupport) return
+
+    const isFullyRepaid = data.amount >= activeSupport.amountRemaining
+    const surplus = data.amount - activeSupport.amountRemaining
+
+    try {
+      await createVersementMutation.mutateAsync({
+        contractId: contract.id,
+        monthIndex: currentMonthIndex,
+        versementData: {
+          date: data.date,
+          time: data.time,
+          amount: data.amount,
+          mode: 'airtel_money', // Par défaut pour le remboursement
+        },
+        proofFile: data.proofFile,
+        userId: user.uid,
+      })
+
+      // Message personnalisé en fonction du remboursement
+      if (isFullyRepaid) {
+        toast.success('🎉 Support entièrement remboursé !', {
+          description: surplus > 0 
+            ? `${activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA remboursés + ${surplus.toLocaleString('fr-FR')} FCFA versés pour le jour`
+            : `${activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA remboursés. Vous pouvez maintenant effectuer des versements normaux.`
+        })
+      } else {
+        toast.success('Remboursement partiel enregistré')
+      }
+
+      setShowRepaySupportModal(false)
+      setSelectedDate(null)
+    } catch (error) {
+      console.error('Erreur lors du remboursement:', error)
       throw error
     }
   }
@@ -248,7 +297,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
         </Card>
 
         {/* Résumé du contrat */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-0 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -296,6 +345,25 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
               </div>
             </CardContent>
           </Card>
+
+          {/* Support à rembourser */}
+          {activeSupport && activeSupport.status === 'ACTIVE' && (
+            <Card className="border-0 shadow-lg border-2 border-orange-300 bg-orange-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <AlertCircle className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-orange-700 font-medium">Support à rembourser</p>
+                    <p className="font-bold text-lg text-orange-600">
+                      {activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Calendrier quotidien */}
@@ -500,6 +568,22 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
           onClose={() => setShowSupportHistoryModal(false)}
           contractId={contract.id}
         />
+
+        {/* Modal de remboursement du support */}
+        {activeSupport && selectedDate && (
+          <RepaySupportCIModal
+            isOpen={showRepaySupportModal}
+            onClose={() => {
+              setShowRepaySupportModal(false)
+              setSelectedDate(null)
+            }}
+            onSubmit={handleRepaySupportSubmit}
+            activeSupport={activeSupport}
+            defaultDate={selectedDate.toISOString().split('T')[0]}
+            isDateFixed={true}
+            monthOrDayLabel={`Jour du ${selectedDate.toLocaleDateString('fr-FR')}`}
+          />
+        )}
       </div>
     </div>
   )

@@ -154,14 +154,56 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 throw new Error(`Contrat ${contractId} introuvable`)
             }
 
-            // 2. Upload de la preuve de paiement dans Firebase Storage
+            // 2. Vérifier s'il y a un support actif
+            const activeSupport = await this.getActiveSupport(contractId)
+            let supportRepaymentAmount = 0
+            let supportRepaymentId: string | undefined = undefined
+
+            if (activeSupport && activeSupport.status === 'ACTIVE') {
+                // BLOQUER LE VERSEMENT : Le support doit être remboursé intégralement AVANT tout nouveau versement
+                if (versementData.amount < activeSupport.amountRemaining) {
+                    throw new Error(
+                        `Impossible d'effectuer un versement. Vous devez d'abord rembourser intégralement le support actif. ` +
+                        `Montant restant à rembourser : ${activeSupport.amountRemaining.toLocaleString('fr-FR')} FCFA. ` +
+                        `Veuillez verser au minimum ce montant pour rembourser le support.`
+                    )
+                }
+
+                // Si le montant couvre ou dépasse le support restant
+                supportRepaymentAmount = activeSupport.amountRemaining
+
+                // Générer un ID pour le remboursement
+                const now = new Date()
+                const repaymentId = `rep_${now.getTime()}`
+                supportRepaymentId = repaymentId
+
+                // Créer l'objet de remboursement
+                const repayment: Omit<SupportRepaymentCI, 'createdAt'> = {
+                    id: repaymentId,
+                    amount: supportRepaymentAmount,
+                    date: versementData.date,
+                    time: versementData.time,
+                    monthIndex,
+                    versementId: `v_${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getFullYear()).slice(-2)}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`,
+                    createdBy: userId,
+                }
+
+                // Enregistrer le remboursement (cela marque aussi le support comme REPAID)
+                await this.recordRepayment(contractId, activeSupport.id, monthIndex, repayment)
+
+                // Déduire le montant du support du versement
+                // Le montant restant après remboursement du support ira au versement mensuel
+                versementData.amount = versementData.amount - supportRepaymentAmount
+            }
+
+            // 3. Upload de la preuve de paiement dans Firebase Storage
             const { url: proofUrl, path: proofPath } = await this.documentRepository.uploadDocumentFile(
                 proofFile,
                 contract.memberId,
                 'PROOF_PAYMENT_CI'
             )
 
-            // 3. Générer l'ID du versement
+            // 4. Générer l'ID du versement
             const now = new Date()
             const day = String(now.getDate()).padStart(2, '0')
             const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -170,20 +212,22 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             const minutes = String(now.getMinutes()).padStart(2, '0')
             const versementId = `v_${day}${month}${year}_${hours}${minutes}`
 
-            // 4. Créer le versement complet
+            // 5. Créer le versement complet avec les infos de remboursement de support
             const versement: VersementCI = {
                 id: versementId,
                 ...versementData,
                 proofUrl,
                 proofPath,
+                supportRepaymentAmount,
+                supportRepaymentId,
                 createdAt: now,
                 createdBy: userId,
             }
 
-            // 5. Vérifier si le paiement du mois existe
+            // 6. Vérifier si le paiement du mois existe
             let payment = await this.paymentCIRepository.getPaymentByMonth(contractId, monthIndex)
 
-            // 6. Si le paiement n'existe pas, le créer
+            // 7. Si le paiement n'existe pas, le créer
             if (!payment) {
                 const paymentData: Omit<PaymentCI, 'id' | 'createdAt' | 'updatedAt'> = {
                     contractId,
@@ -191,6 +235,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                     status: 'DUE',
                     targetAmount: contract.subscriptionCIAmountPerMonth,
                     accumulatedAmount: 0,
+                    supportRepaymentAmount: 0,
                     versements: [],
                     createdBy: userId,
                     updatedBy: userId,
@@ -199,7 +244,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 payment = await this.paymentCIRepository.createPayment(contractId, paymentData)
             }
 
-            // 7. Ajouter le versement au paiement
+            // 8. Ajouter le versement au paiement
             const updatedPayment = await this.paymentCIRepository.addVersement(
                 contractId,
                 monthIndex,
