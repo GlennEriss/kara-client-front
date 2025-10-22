@@ -482,6 +482,10 @@ export interface VersementCI {
   // Optionnel : Pénalités (si versement en retard)
   penalty?: number
   daysLate?: number
+  
+  // Remboursement de support (si applicable)
+  supportRepaymentAmount?: number // Montant déduit pour rembourser le support
+  supportRepaymentId?: string // ID du remboursement de support lié
 }
 
 /**
@@ -500,10 +504,69 @@ export interface PaymentCI {
   // Versements du mois
   versements: VersementCI[]
   
+  // Remboursement de support
+  supportRepaymentAmount?: number // Montant total déduit pour rembourser le support dans ce mois
+  
   // Métadonnées
   createdAt: Date
   updatedAt: Date
   createdBy: string
+  updatedBy: string
+}
+
+/**
+ * Statut d'un support
+ */
+export type SupportCIStatus = 'ACTIVE' | 'REPAID'
+
+/**
+ * Type pour un remboursement de support
+ */
+export interface SupportRepaymentCI {
+  id: string // ID unique du remboursement
+  amount: number // Montant remboursé
+  date: string // Date du remboursement (format: "2025-01-19")
+  time: string // Heure du remboursement (format: "14:30")
+  monthIndex: number // Mois dans lequel le remboursement a été fait
+  versementId: string // ID du versement lié (pour traçabilité)
+  createdAt: Date
+  createdBy: string
+}
+
+/**
+ * Type pour un support/aide financière
+ * Stocké dans Firestore dans la sous-collection 'supports' de 'contractsCI'
+ */
+export interface SupportCI {
+  id: string // ID unique du support
+  contractId: string // Référence au contrat
+  
+  // Montant et statut
+  amount: number // Montant du support accordé
+  status: SupportCIStatus // Statut du remboursement
+  
+  // Remboursement
+  amountRepaid: number // Montant déjà remboursé
+  amountRemaining: number // Montant restant à rembourser
+  
+  // Déduction des 3 derniers mois
+  deductions: {
+    monthIndex: number
+    amount: number
+  }[] // Déductions appliquées aux 3 derniers mois
+  
+  // Historique des remboursements
+  repayments: SupportRepaymentCI[]
+  
+  // Métadonnées
+  requestedAt: Date // Date de la demande
+  approvedAt: Date // Date d'approbation
+  approvedBy: string // ID de l'admin qui a approuvé
+  repaidAt?: Date // Date de remboursement complet
+  
+  createdAt: Date
+  createdBy: string
+  updatedAt: Date
   updatedBy: string
 }
 
@@ -550,6 +613,12 @@ export interface ContractCI {
   contractStartId?: string
   contractCanceledId?: string
   contractFinishedId?: string
+
+  // Support/Aide
+  currentSupportId?: string // ID du support actif (null si aucun ou remboursé)
+  supportHistory: string[] // Liste des IDs de tous les supports (historique)
+  totalMonthsPaid: number // Nombre de mois complètement payés
+  isEligibleForSupport: boolean // Calculé : totalMonthsPaid >= 3 && !currentSupportId
 
   // Métadonnées
   createdAt: Date

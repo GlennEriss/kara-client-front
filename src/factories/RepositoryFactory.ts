@@ -1,12 +1,14 @@
 import { ISubscriptionCIRepository } from '@/repositories/caisse-imprevu/ISubscriptionCIRepository'
 import { IContractCIRepository } from '@/repositories/caisse-imprevu/IContractCIRepository'
 import { IPaymentCIRepository } from '@/repositories/caisse-imprevu/IPaymentCIRepository'
+import { ISupportCIRepository } from '@/repositories/caisse-imprevu/ISupportCIRepository'
 import { IRepository } from '@/repositories/IRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { MemberRepository } from '@/repositories/members/MemberRepository'
 import { SubscriptionCIRepository } from '@/repositories/caisse-imprevu/SubscriptionCIRepository'
 import { ContractCIRepository } from '@/repositories/caisse-imprevu/ContractCIRepository'
 import { PaymentCIRepository } from '@/repositories/caisse-imprevu/PaymentCIRepository'
+import { SupportCIRepository } from '@/repositories/caisse-imprevu/SupportCIRepository'
 import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
 import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
@@ -85,6 +87,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new PaymentCIRepository())
     }
     return this.repositories.get(key) as IPaymentCIRepository
+  }
+
+  /**
+   * Obtient le repository des supports de la caisse imprevue
+   */
+  static getSupportCIRepository(): ISupportCIRepository {
+    const key = 'SupportCIRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new SupportCIRepository())
+    }
+    return this.repositories.get(key) as unknown as ISupportCIRepository
   }
 
   /**
