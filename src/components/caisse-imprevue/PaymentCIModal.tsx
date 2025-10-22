@@ -38,6 +38,7 @@ interface PaymentCIModalProps {
   defaultDate?: string
   defaultAmount?: number
   isMonthly?: boolean
+  isDateFixed?: boolean
 }
 
 export interface PaymentFormData {
@@ -56,7 +57,8 @@ export default function PaymentCIModal({
   description,
   defaultDate,
   defaultAmount,
-  isMonthly = false
+  isMonthly = false,
+  isDateFixed = false
 }: PaymentCIModalProps) {
   const [paymentDate, setPaymentDate] = useState(defaultDate || new Date().toISOString().split('T')[0])
   const [paymentTime, setPaymentTime] = useState(() => {
@@ -75,6 +77,13 @@ export default function PaymentCIModal({
       setPaymentAmount(String(defaultAmount))
     }
   }, [defaultAmount])
+
+  // Mettre à jour la date si defaultDate change et que la date est fixe
+  useEffect(() => {
+    if (defaultDate && isDateFixed) {
+      setPaymentDate(defaultDate)
+    }
+  }, [defaultDate, isDateFixed])
 
   const handleSubmit = async () => {
     // Validation
@@ -190,14 +199,24 @@ export default function PaymentCIModal({
               <Label htmlFor="payment-date" className="flex items-center gap-2 mb-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 Date de paiement *
+                {isDateFixed && (
+                  <span className="text-xs text-muted-foreground">(fixe)</span>
+                )}
               </Label>
               <Input
                 id="payment-date"
                 type="date"
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
+                disabled={isDateFixed}
                 required
+                className={isDateFixed ? 'bg-gray-100 cursor-not-allowed' : ''}
               />
+              {isDateFixed && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  📅 La date correspond au jour sélectionné dans le calendrier
+                </p>
+              )}
             </div>
 
             <div>

@@ -428,6 +428,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
           description={selectedDate ? `Enregistrer le versement du ${selectedDate.toLocaleDateString('fr-FR')}` : ''}
           defaultDate={selectedDate?.toISOString().split('T')[0]}
           isMonthly={false}
+          isDateFixed={true}
         />
 
         {/* Modal de reçu */}

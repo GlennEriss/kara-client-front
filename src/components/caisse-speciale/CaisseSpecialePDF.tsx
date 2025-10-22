@@ -567,11 +567,19 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
 
           <View style={styles.formSection}>
             <View style={styles.checkboxContainer}>
-              <View style={styles.checkbox}></View>
+              <View style={styles.checkbox}>
+                {contract?.caisseType === 'LIBRE' && (
+                  <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
+                )}
+              </View>
               <Text style={styles.checkboxText}>Changeable</Text>
             </View>
             <View style={styles.checkboxContainer}>
-              <View style={styles.checkbox}></View>
+              <View style={styles.checkbox}>
+                {contract?.caisseType !== 'LIBRE' && (
+                  <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
+                )}
+              </View>
               <Text style={styles.checkboxText}>Non Changeable</Text>
             </View>
           </View>
