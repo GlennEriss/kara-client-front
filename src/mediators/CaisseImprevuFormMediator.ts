@@ -146,6 +146,11 @@ export class CaisseImprevuFormMediator {
                 firstPaymentDate: data.step2.firstPaymentDate,
                 // Step 3 - Contact d'urgence
                 emergencyContact,
+                // Support (initialisé vide pour nouveau contrat)
+                currentSupportId: undefined,
+                supportHistory: [],
+                totalMonthsPaid: 0,
+                isEligibleForSupport: false,
                 // Métadonnées
                 status: 'ACTIVE',
                 createdBy: this.userId,
