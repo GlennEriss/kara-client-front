@@ -27,6 +27,7 @@ import RepaySupportCIModal from './RepaySupportCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
+import { calculateMonthIndex, isDateInMonthIndex } from '@/utils/caisse-imprevue-utils'
 
 interface DailyCIContractProps {
   contract: ContractCI
@@ -64,11 +65,11 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   }, [activeSupport, showRepaySupportModal])
 
   // Calculer l'index du mois actuel du calendrier par rapport à firstPaymentDate
+  // Le mois est calculé en utilisant des cycles de 30 jours à partir de firstPaymentDate
   const currentMonthIndex = useMemo(() => {
-    const firstPaymentDate = new Date(contract.firstPaymentDate)
-    const yearDiff = currentMonth.getFullYear() - firstPaymentDate.getFullYear()
-    const monthDiff = currentMonth.getMonth() - firstPaymentDate.getMonth()
-    return yearDiff * 12 + monthDiff
+    // Calculer le monthIndex basé sur le premier jour du mois calendaire affiché
+    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+    return calculateMonthIndex(firstDayOfMonth, contract.firstPaymentDate)
   }, [currentMonth, contract.firstPaymentDate])
 
   // Fonctions utilitaires pour le calendrier
@@ -94,8 +95,11 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const monthDays = getMonthDays(currentMonth)
 
   const getPaymentForDate = (date: Date) => {
+    // Calculer le monthIndex correct pour cette date spécifique
+    const dateMonthIndex = calculateMonthIndex(date, contract.firstPaymentDate)
+    
     // Récupérer le paiement du mois correspondant
-    const payment = payments.find((p: any) => p.monthIndex === currentMonthIndex)
+    const payment = payments.find((p: any) => p.monthIndex === dateMonthIndex)
     if (!payment) return null
 
     // Chercher un versement pour cette date spécifique
@@ -135,7 +139,10 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const getSelectedPaymentWithVersement = (): PaymentCI | null => {
     if (!selectedDate) return null
     
-    const payment = payments.find((p: any) => p.monthIndex === currentMonthIndex)
+    // Calculer le monthIndex correct pour la date sélectionnée
+    const dateMonthIndex = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
+    
+    const payment = payments.find((p: any) => p.monthIndex === dateMonthIndex)
     if (!payment) return null
 
     // Créer une copie du paiement avec uniquement le versement de la date sélectionnée
@@ -154,10 +161,13 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const handlePaymentSubmit = async (paymentData: PaymentFormData) => {
     if (!selectedDate || !user?.uid) return
 
+    // Calculer le monthIndex correct pour la date sélectionnée
+    const dateMonthIndex = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
+
     try {
       await createVersementMutation.mutateAsync({
         contractId: contract.id,
-        monthIndex: currentMonthIndex,
+        monthIndex: dateMonthIndex,
         versementData: {
           date: paymentData.date,
           time: paymentData.time,
@@ -185,13 +195,16 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   }) => {
     if (!selectedDate || !user?.uid || !activeSupport) return
 
+    // Calculer le monthIndex correct pour la date sélectionnée
+    const dateMonthIndex = calculateMonthIndex(selectedDate, contract.firstPaymentDate)
+
     const isFullyRepaid = data.amount >= activeSupport.amountRemaining
     const surplus = data.amount - activeSupport.amountRemaining
 
     try {
       await createVersementMutation.mutateAsync({
         contractId: contract.id,
-        monthIndex: currentMonthIndex,
+        monthIndex: dateMonthIndex,
         versementData: {
           date: data.date,
           time: data.time,
