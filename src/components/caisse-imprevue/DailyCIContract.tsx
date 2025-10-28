@@ -16,6 +16,8 @@ import {
   AlertCircle,
   History,
   HandCoins,
+  FileSignature,
+  Download,
 } from 'lucide-react'
 import { ContractCI, CONTRACT_CI_STATUS_LABELS, PaymentCI } from '@/types/types'
 import routes from '@/constantes/routes'
@@ -25,9 +27,16 @@ import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport } from '@/hooks/caisse-imprevue'
+import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 import { calculateMonthIndex, isDateInMonthIndex } from '@/utils/caisse-imprevue-utils'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import dynamic from 'next/dynamic'
+
+const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDFModal'), {
+  ssr: false,
+})
 
 interface DailyCIContractProps {
   contract: ContractCI
@@ -45,6 +54,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const [showRequestSupportModal, setShowRequestSupportModal] = useState(false)
   const [showSupportHistoryModal, setShowSupportHistoryModal] = useState(false)
   const [showRepaySupportModal, setShowRepaySupportModal] = useState(false)
+  const [showRecognitionModal, setShowRecognitionModal] = useState(false)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -55,6 +65,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
   const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
+  const { data: supportsHistory = [] } = useSupportHistory(contract.id)
 
   // Fermer automatiquement le modal de remboursement si le support n'est plus actif
   React.useEffect(() => {
@@ -241,6 +252,19 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
     }
   }
 
+  // Fonction pour ouvrir le modal de reconnaissance
+  const handleGenerateRecognitionPDF = () => {
+    // Utiliser le support actif ou le dernier support de l'historique
+    const supportToUse = activeSupport || (supportsHistory.length > 0 ? supportsHistory[0] : null)
+    
+    if (!supportToUse) {
+      toast.error('Aucune information de support disponible pour générer la reconnaissance')
+      return
+    }
+
+    setShowRecognitionModal(true)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -285,6 +309,17 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
             >
               <History className="h-4 w-4" />
               Historique des aides
+            </Button>
+
+            {/* Bouton Reconnaissance */}
+            <Button
+              variant="outline"
+              onClick={handleGenerateRecognitionPDF}
+              className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+            >
+              <FileSignature className="h-4 w-4" />
+              <Download className="h-4 w-4" />
+              Reconnaissance
             </Button>
           </div>
           
@@ -612,6 +647,28 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
             monthOrDayLabel={`Jour du ${selectedDate.toLocaleDateString('fr-FR')}`}
           />
         )}
+
+        {/* Modal de reconnaissance de souscription */}
+        {showRecognitionModal && (() => {
+          const supportToUse = activeSupport || (supportsHistory.length > 0 ? supportsHistory[0] : null)
+          if (!supportToUse) return null
+          
+          return (
+            <SupportRecognitionPDFModal
+              isOpen={showRecognitionModal}
+              onClose={() => setShowRecognitionModal(false)}
+              contract={{
+                memberFirstName: contract.memberFirstName,
+                memberLastName: contract.memberLastName,
+                subscriptionCICode: contract.subscriptionCICode,
+                subscriptionCISupportMax: contract.subscriptionCISupportMax,
+              }}
+              support={{
+                approvedAt: supportToUse.approvedAt,
+              }}
+            />
+          )
+        })()}
       </div>
     </div>
   )
