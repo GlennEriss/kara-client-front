@@ -264,7 +264,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     /**
      * Demande un support financier pour un contrat
      */
-    async requestSupport(contractId: string, amount: number, adminId: string): Promise<SupportCI> {
+    async requestSupport(contractId: string, amount: number, adminId: string, documentFile: File): Promise<SupportCI> {
         try {
             // 1. Récupérer le contrat et les paiements
             const contract = await this.contractCIRepository.getContractById(contractId)
@@ -283,14 +283,40 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 throw new Error(`Le montant doit être entre ${contract.subscriptionCISupportMin} et ${contract.subscriptionCISupportMax} FCFA`)
             }
 
-            // 4. Récupérer les 3 derniers mois payés
+            // 4. Téléverser le document PDF dans Firebase Storage
+            const { url: documentUrl, path: documentPath, size } = await this.documentRepository.uploadDocumentFile(
+                documentFile,
+                contract.memberId,
+                'SUPPORT_CI'
+            )
+
+            // 5. Créer l'enregistrement du document dans Firestore
+            const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {
+                type: 'SUPPORT_CI',
+                format: 'pdf',
+                libelle: `Demande de support - ${contract.memberFirstName} ${contract.memberLastName} - Contrat ${contractId}`,
+                path: documentPath,
+                url: documentUrl,
+                size: size,
+                memberId: contract.memberId,
+                contractId: contractId,
+                createdBy: adminId,
+                updatedBy: adminId,
+            }
+
+            const document = await this.documentRepository.createDocument(documentData)
+            if (!document || !document.id) {
+                throw new Error('Erreur lors de la création du document')
+            }
+
+            // 6. Récupérer les 3 derniers mois payés
             const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
             const paidPayments = payments
                 .filter(p => p.status === 'PAID')
                 .sort((a, b) => a.monthIndex - b.monthIndex)
                 .slice(-3)
 
-            // 5. Calculer les déductions des 3 derniers mois
+            // 7. Calculer les déductions des 3 derniers mois
             const deductions: { monthIndex: number; amount: number }[] = []
             let remainingToDeduct = amount
 
@@ -308,12 +334,15 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 if (remainingToDeduct <= 0) break
             }
 
-            // 6. Créer le support
+            // 8. Créer le support avec les informations du document
             const now = new Date()
             const supportData: Omit<SupportCI, 'id' | 'createdAt' | 'updatedAt'> = {
                 contractId,
                 amount,
                 status: 'ACTIVE',
+                documentId: document.id,
+                documentUrl: documentUrl,
+                documentPath: documentPath,
                 amountRepaid: 0,
                 amountRemaining: amount,
                 deductions,

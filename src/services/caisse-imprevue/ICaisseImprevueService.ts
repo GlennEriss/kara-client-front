@@ -34,7 +34,7 @@ export interface ICaisseImprevueService extends IService{
     createVersement(contractId: string, monthIndex: number, versementData: VersementFormData, proofFile: File, userId: string): Promise<PaymentCI>
     
     // Méthodes de gestion des supports
-    requestSupport(contractId: string, amount: number, adminId: string): Promise<SupportCI>
+    requestSupport(contractId: string, amount: number, adminId: string, documentFile: File): Promise<SupportCI>
     getActiveSupport(contractId: string): Promise<SupportCI | null>
     getSupportHistory(contractId: string): Promise<SupportCI[]>
     calculateRepayment(contractId: string, paymentAmount: number): Promise<{ supportRepayment: number; remainingForMonth: number }>

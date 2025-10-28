@@ -545,6 +545,11 @@ export interface SupportCI {
   amount: number // Montant du support accordé
   status: SupportCIStatus // Statut du remboursement
   
+  // Document de demande signé
+  documentId?: string // ID du document dans la collection 'documents'
+  documentUrl?: string // URL du document dans Firebase Storage
+  documentPath?: string // Chemin du document dans Firebase Storage
+  
   // Remboursement
   amountRepaid: number // Montant déjà remboursé
   amountRemaining: number // Montant restant à rembourser
@@ -993,6 +998,7 @@ export type DocumentType =
   | 'CANCELED_CI'      // Contrat d'annulation Caisse Imprévue
   | 'FINISHED_CS'      // Contrat de fin Caisse Spéciale
   | 'FINISHED_CI'      // Contrat de fin Caisse Imprévue
+  | 'SUPPORT_CI'       // Document de demande de support Caisse Imprévue
 
 /**
  * Formats de documents possibles
