@@ -77,7 +77,7 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
             return {
                 id: docSnap.id,
                 contractId,
-                type: 'EARLY',
+                type: data.type || 'EARLY', // Utiliser le type stocké ou 'EARLY' par défaut
                 reason: data.reason,
                 withdrawalDate: data.withdrawalDate?.toDate ? data.withdrawalDate.toDate() : new Date(data.withdrawalDate),
                 withdrawalTime: data.withdrawalTime,
@@ -128,7 +128,7 @@ export class EarlyRefundCIRepository implements IEarlyRefundCIRepository {
                 return {
                     id: doc.id,
                     contractId,
-                    type: 'EARLY',
+                    type: data.type || 'EARLY', // Utiliser le type stocké ou 'EARLY' par défaut
                     reason: data.reason,
                     withdrawalDate: data.withdrawalDate?.toDate ? data.withdrawalDate.toDate() : new Date(data.withdrawalDate),
                     withdrawalTime: data.withdrawalTime,

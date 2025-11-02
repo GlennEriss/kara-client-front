@@ -31,6 +31,7 @@ import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import EarlyRefundCIModal from './EarlyRefundCIModal'
+import FinalRefundCIModal from './FinalRefundCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
@@ -293,6 +294,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const [isRefunding, setIsRefunding] = useState(false)
   const [refunds, setRefunds] = useState<any[]>([])
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
+  const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -390,6 +392,19 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
 
     // Vérifier si un paiement existe déjà pour cette date
     const existingPayment = getPaymentForDate(date)
+    
+    // Si le contrat est résilié ou terminé, bloquer les nouveaux versements mais permettre l'accès aux reçus
+    if (isContractTerminated) {
+      if (existingPayment) {
+        // Autoriser l'accès au reçu pour les jours payés
+        setSelectedDate(date)
+        setShowReceiptModal(true)
+      } else {
+        // Bloquer les versements sur les jours non payés
+        toast.error(`Ce contrat est ${isContractCanceled ? 'résilié' : 'terminé'}. Les nouveaux versements ne sont plus autorisés.`)
+      }
+      return
+    }
     
     setSelectedDate(date)
     
@@ -526,9 +541,13 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   // Calculer les conditions pour les remboursements
   const paidCount = payments.filter((p: any) => p.status === 'PAID').length
   const allPaid = payments.length > 0 && paidCount === payments.length
-  const canEarly = paidCount >= 1 && !allPaid
+  const canEarly = paidCount >= 1 && !allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
+  const canFinal = allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED')
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED')
+  const isContractCanceled = contract.status === 'CANCELED'
+  const isContractFinished = contract.status === 'FINISHED'
+  const isContractTerminated = isContractCanceled || isContractFinished
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
@@ -555,7 +574,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
             </Button>
 
             {/* Bouton Demander une aide */}
-            {isEligible && !activeSupport && (
+            {isEligible && !activeSupport && !isContractTerminated && (
               <Button
                 variant="outline"
                 onClick={() => setShowRequestSupportModal(true)}
@@ -626,6 +645,48 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
 
         {/* Statistiques de paiement - Carrousel */}
         <PaymentStatsCarousel contract={contract} paymentStats={paymentStats} />
+
+        {/* Banner d'alerte si contrat résilié */}
+        {isContractCanceled && (
+          <Card className="border-0 shadow-lg border-2 border-red-300 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-red-900 mb-1">Contrat résilié</p>
+                  <p className="text-sm text-red-700">
+                    Ce contrat a été résilié suite à une demande de retrait anticipé. 
+                    Les nouveaux versements ne sont plus autorisés. Vous pouvez toujours consulter 
+                    les reçus des versements déjà effectués.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Banner d'alerte si contrat terminé */}
+        {isContractFinished && (
+          <Card className="border-0 shadow-lg border-2 border-blue-300 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-blue-900 mb-1">Contrat terminé</p>
+                  <p className="text-sm text-blue-700">
+                    Ce contrat a été terminé suite à une demande de remboursement final. 
+                    Les nouveaux versements ne sont plus autorisés. Vous pouvez toujours consulter 
+                    les reçus des versements déjà effectués.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Support à rembourser */}
         {activeSupport && activeSupport.status === 'ACTIVE' && (
@@ -713,6 +774,9 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
                     // Vérifier si un paiement existe pour cette date
                     const hasPayment = !!getPaymentForDate(date)
 
+                    // Si contrat résilié ou terminé, désactiver les jours non payés
+                    const isDisabled = isContractTerminated && !hasPayment && isCurrentMonth && !isBeforeFirstPayment
+
                     // Déterminer le style
                     let dayStyle = ''
                     let dayContent = null
@@ -738,7 +802,15 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
                       today.setHours(0, 0, 0, 0)
                       const isPastDay = dateToCheck < today
 
-                      if (isPastDay) {
+                      if (isDisabled) {
+                        // Style désactivé pour les jours non payés si contrat résilié
+                        dayStyle = 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200 opacity-60'
+                        dayContent = (
+                          <div className="flex items-center justify-center gap-1 text-xs text-gray-400">
+                            <XCircle className="h-3 w-3" />
+                          </div>
+                        )
+                      } else if (isPastDay) {
                         dayStyle = 'bg-red-50 border-red-200 hover:bg-red-100 cursor-pointer'
                         dayContent = (
                           <div className="flex items-center justify-center gap-1 text-xs text-red-600">
@@ -755,7 +827,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
                       }
                     }
 
-                    if (isToday && isCurrentMonth && !isBeforeFirstPayment) {
+                    if (isToday && isCurrentMonth && !isBeforeFirstPayment && !isDisabled) {
                       if (hasPayment) {
                         dayStyle = 'bg-green-100 border-green-300 hover:bg-green-200 cursor-pointer ring-2 ring-blue-400'
                       } else {
@@ -767,7 +839,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
                       <div
                         key={index}
                         className={`p-2 min-h-[60px] border rounded-lg transition-all duration-200 ${dayStyle}`}
-                        onClick={() => isCurrentMonth && !isBeforeFirstPayment && onDateClick(date)}
+                        onClick={() => isCurrentMonth && !isBeforeFirstPayment && !isDisabled && onDateClick(date)}
                       >
                         <div className="text-xs font-medium mb-1">
                           {date.getDate()}
@@ -881,12 +953,8 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
               <Button
                 variant="outline"
                 className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                disabled={isRefunding || !allPaid || hasFinalRefund}
-                onClick={() => {
-                  setRefundType('FINAL')
-                  setRefundReasonInput('')
-                  setShowReasonModal(true)
-                }}
+                disabled={isRefunding || !canFinal || hasFinalRefund}
+                onClick={() => setShowFinalRefundModal(true)}
               >
                 <TrendingUp className="h-5 w-5" />
                 Demander remboursement final
@@ -1074,6 +1142,13 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
         <EarlyRefundCIModal
           isOpen={showEarlyRefundModal}
           onClose={() => setShowEarlyRefundModal(false)}
+          contract={contract}
+        />
+
+        {/* Modal de demande de remboursement final */}
+        <FinalRefundCIModal
+          isOpen={showFinalRefundModal}
+          onClose={() => setShowFinalRefundModal(false)}
           contract={contract}
         />
 

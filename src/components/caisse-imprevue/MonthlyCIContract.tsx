@@ -31,6 +31,7 @@ import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import EarlyRefundCIModal from './EarlyRefundCIModal'
+import FinalRefundCIModal from './FinalRefundCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
@@ -289,6 +290,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const [isRefunding, setIsRefunding] = useState(false)
   const [refunds, setRefunds] = useState<any[]>([])
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
+  const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsCI(contract.id)
@@ -339,6 +341,19 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
 
   const handleMonthClick = (monthIndex: number) => {
     const status = getMonthStatus(monthIndex)
+    
+    // Si le contrat est résilié ou terminé, bloquer les nouveaux versements mais permettre l'accès aux reçus
+    if (isContractTerminated) {
+      if (status === 'PAID') {
+        // Autoriser l'accès au reçu pour les mois payés
+        setSelectedMonthIndex(monthIndex)
+        setShowReceiptModal(true)
+      } else {
+        // Bloquer les versements sur les mois non payés
+        toast.error(`Ce contrat est ${isContractCanceled ? 'résilié' : 'terminé'}. Les nouveaux versements ne sont plus autorisés.`)
+      }
+      return
+    }
     
     setSelectedMonthIndex(monthIndex)
     
@@ -452,9 +467,13 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   // Calculer les conditions pour les remboursements
   const paidCount = payments.filter((p: any) => p.status === 'PAID').length
   const allPaid = payments.length > 0 && paidCount === payments.length
-  const canEarly = paidCount >= 1 && !allPaid
+  const canEarly = paidCount >= 1 && !allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
+  const canFinal = allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED')
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED')
+  const isContractCanceled = contract.status === 'CANCELED'
+  const isContractFinished = contract.status === 'FINISHED'
+  const isContractTerminated = isContractCanceled || isContractFinished
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -507,7 +526,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
             </Button>
 
             {/* Bouton Demander une aide */}
-            {isEligible && !activeSupport && (
+            {isEligible && !activeSupport && !isContractTerminated && (
               <Button
                 variant="outline"
                 onClick={() => setShowRequestSupportModal(true)}
@@ -576,6 +595,48 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
         {/* Statistiques de paiement - Carrousel */}
         <PaymentStatsCarousel contract={contract} paymentStats={paymentStats} />
 
+        {/* Banner d'alerte si contrat résilié */}
+        {isContractCanceled && (
+          <Card className="border-0 shadow-lg border-2 border-red-300 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-red-900 mb-1">Contrat résilié</p>
+                  <p className="text-sm text-red-700">
+                    Ce contrat a été résilié suite à une demande de retrait anticipé. 
+                    Les nouveaux versements ne sont plus autorisés. Vous pouvez toujours consulter 
+                    les reçus des versements déjà effectués.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Banner d'alerte si contrat terminé */}
+        {isContractFinished && (
+          <Card className="border-0 shadow-lg border-2 border-blue-300 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-blue-900 mb-1">Contrat terminé</p>
+                  <p className="text-sm text-blue-700">
+                    Ce contrat a été terminé suite à une demande de remboursement final. 
+                    Les nouveaux versements ne sont plus autorisés. Vous pouvez toujours consulter 
+                    les reçus des versements déjà effectués.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Support à rembourser */}
         {activeSupport && activeSupport.status === 'ACTIVE' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -615,15 +676,19 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
                     const statusConfig = getStatusConfig(status)
                     const StatusIcon = statusConfig.icon
 
+                    const isDisabled = isContractTerminated && status !== 'PAID'
+                    
                     return (
                       <Card
                         key={monthIndex}
-                        className={`cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-2 ${
-                          status === 'PAID' 
-                            ? 'border-green-200 bg-green-50/50' 
-                            : 'border-gray-200 hover:border-[#224D62]'
+                        className={`transition-all duration-300 border-2 ${
+                          isDisabled
+                            ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
+                            : status === 'PAID' 
+                            ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1' 
+                            : 'border-gray-200 hover:border-[#224D62] cursor-pointer hover:shadow-lg hover:-translate-y-1'
                         }`}
-                        onClick={() => handleMonthClick(monthIndex)}
+                        onClick={() => !isDisabled && handleMonthClick(monthIndex)}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between mb-3">
@@ -758,12 +823,8 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
               <Button
                 variant="outline"
                 className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                disabled={isRefunding || !allPaid || hasFinalRefund}
-                onClick={() => {
-                  setRefundType('FINAL')
-                  setRefundReasonInput('')
-                  setShowReasonModal(true)
-                }}
+                disabled={isRefunding || !canFinal || hasFinalRefund}
+                onClick={() => setShowFinalRefundModal(true)}
               >
                 <TrendingUp className="h-5 w-5" />
                 Demander remboursement final
@@ -951,6 +1012,13 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
         <EarlyRefundCIModal
           isOpen={showEarlyRefundModal}
           onClose={() => setShowEarlyRefundModal(false)}
+          contract={contract}
+        />
+
+        {/* Modal de demande de remboursement final */}
+        <FinalRefundCIModal
+          isOpen={showFinalRefundModal}
+          onClose={() => setShowFinalRefundModal(false)}
           contract={contract}
         />
 

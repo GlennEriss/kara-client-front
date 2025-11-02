@@ -17,4 +17,5 @@ export * from './useRequestSupport'
 export * from './useCheckEligibilityForSupport'
 export * from './useContractPaymentStats'
 export * from './useRequestEarlyRefundCI'
+export * from './useRequestFinalRefundCI'
 

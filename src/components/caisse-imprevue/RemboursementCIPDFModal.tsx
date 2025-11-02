@@ -78,12 +78,20 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
           contract={contractData} 
           refund={activeRefund}
           memberData={memberData}
+          totalAmountPaid={paymentStats?.totalAmountPaid}
         />
       ).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `remboursement-ci-${contractId}-${new Date().toISOString().split('T')[0]}.pdf`
+      
+      // Format: MK_CI_firstname_lastname
+      const firstName = contractData?.memberFirstName || memberData?.firstName || ''
+      const lastName = contractData?.memberLastName || memberData?.lastName || ''
+      const sanitizeName = (name: string) => name.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase()
+      const fileName = `MK_CI_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
+      
+      link.download = fileName
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)

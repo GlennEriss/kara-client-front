@@ -1,5 +1,5 @@
 import { IService } from "../interfaces/IService";
-import { SubscriptionCI, User, Admin, ContractCI, Document, PaymentCI, PaymentMode, SupportCI, SupportRepaymentCI, EarlyRefundCI } from "@/types/types";
+import { SubscriptionCI, User, Admin, ContractCI, Document, PaymentCI, PaymentMode, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI } from "@/types/types";
 import { ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
 
 export interface VersementFormData {
@@ -58,4 +58,18 @@ export interface ICaisseImprevueService extends IService{
             userId: string
         }
     ): Promise<EarlyRefundCI>
+
+    // Méthodes de remboursement final
+    requestFinalRefundCI(
+        contractId: string,
+        data: {
+            reason: string
+            withdrawalDate: string
+            withdrawalTime: string
+            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+            withdrawalProof: File
+            documentPdf: File
+            userId: string
+        }
+    ): Promise<FinalRefundCI>
 }
