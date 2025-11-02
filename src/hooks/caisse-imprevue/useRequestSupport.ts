@@ -7,6 +7,7 @@ interface RequestSupportParams {
   contractId: string
   amount: number
   adminId: string
+  documentFile: File // Document PDF signé de la demande
 }
 
 /**
@@ -17,8 +18,8 @@ export function useRequestSupport() {
   const service = ServiceFactory.getCaisseImprevueService()
 
   return useMutation<SupportCI, Error, RequestSupportParams>({
-    mutationFn: async ({ contractId, amount, adminId }) => {
-      return await service.requestSupport(contractId, amount, adminId)
+    mutationFn: async ({ contractId, amount, adminId, documentFile }) => {
+      return await service.requestSupport(contractId, amount, adminId, documentFile)
     },
     onSuccess: (_, variables) => {
       toast.success('Support accordé avec succès', {

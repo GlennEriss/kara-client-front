@@ -19,8 +19,16 @@ export class ContractCIRepository implements IContractCIRepository {
             // Utiliser l'ID fourni dans data
             const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", data.id);
 
+            // Nettoyer les valeurs undefined pour éviter les erreurs Firestore
+            const cleanData: any = { ...data }
+            Object.keys(cleanData).forEach((key) => {
+                if (cleanData[key] === undefined) {
+                    delete cleanData[key]
+                }
+            })
+
             await setDoc(contractRef, {
-                ...data,
+                ...cleanData,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
@@ -161,8 +169,16 @@ export class ContractCIRepository implements IContractCIRepository {
 
             const contractRef = doc(db, firebaseCollectionNames.contractsCI || "contractsCI", id);
 
+            // Nettoyer les valeurs undefined pour éviter les erreurs Firestore
+            const cleanData: any = { ...data }
+            Object.keys(cleanData).forEach((key) => {
+                if (cleanData[key] === undefined) {
+                    delete cleanData[key]
+                }
+            })
+
             await updateDoc(contractRef, {
-                ...data,
+                ...cleanData,
                 updatedAt: serverTimestamp(),
             });
 

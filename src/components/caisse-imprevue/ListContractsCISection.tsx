@@ -27,6 +27,7 @@ import routes from '@/constantes/routes'
 import DownloadContractCIModal from './DownloadContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
+import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
 
 const STATUS_COLORS: Record<ContractCIStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
@@ -77,6 +78,9 @@ export default function ListContractsCISection() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [selectedContractForView, setSelectedContractForView] = useState<ContractCI | null>(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [selectedContractForRefund, setSelectedContractForRefund] = useState<ContractCI | null>(null)
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
+  const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
 
   // Hook pour récupérer les contrats
   const { data: contracts, isLoading, error, refetch } = useContractsCI(filters)
@@ -142,6 +146,18 @@ export default function ListContractsCISection() {
   const handleCloseViewModal = () => {
     setIsViewModalOpen(false)
     setSelectedContractForView(null)
+  }
+
+  const handleViewRefundDocument = (contract: ContractCI, type: 'FINAL' | 'EARLY') => {
+    setSelectedContractForRefund(contract)
+    setRefundType(type)
+    setIsRefundModalOpen(true)
+  }
+
+  const handleCloseRefundModal = () => {
+    setIsRefundModalOpen(false)
+    setSelectedContractForRefund(null)
+    setRefundType(null)
   }
 
   const handleUploadSuccess = () => {
@@ -363,6 +379,29 @@ export default function ListContractsCISection() {
                             Téléverser contrat
                           </Button>
                         )}
+
+                        {/* Bouton pour voir le document de remboursement si le contrat est terminé ou résilié */}
+                        {contract.status === 'FINISHED' && contract.finalRefundDocumentId && (
+                          <Button
+                            onClick={() => handleViewRefundDocument(contract, 'FINAL')}
+                            variant="outline"
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                          >
+                            <Eye className="h-4 w-4" />
+                             Contrat de remboursement
+                          </Button>
+                        )}
+
+                        {contract.status === 'CANCELED' && contract.earlyRefundDocumentId && (
+                          <Button
+                            onClick={() => handleViewRefundDocument(contract, 'EARLY')}
+                            variant="outline"
+                            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Contrat de résiliation
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -467,6 +506,15 @@ export default function ListContractsCISection() {
           isOpen={isViewModalOpen}
           onClose={handleCloseViewModal}
           contract={selectedContractForView}
+        />
+      )}
+
+      {selectedContractForRefund && refundType && (
+        <ViewRefundDocumentCIModal
+          isOpen={isRefundModalOpen}
+          onClose={handleCloseRefundModal}
+          contract={selectedContractForRefund}
+          refundType={refundType}
         />
       )}
     </div>

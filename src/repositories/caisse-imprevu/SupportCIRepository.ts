@@ -17,6 +17,10 @@ export class SupportCIRepository implements ISupportCIRepository, IRepository {
       contractId: data.contractId,
       amount: data.amount,
       status: data.status,
+      // Champs du document
+      documentId: data.documentId,
+      documentUrl: data.documentUrl,
+      documentPath: data.documentPath,
       amountRepaid: data.amountRepaid,
       amountRemaining: data.amountRemaining,
       deductions: data.deductions || [],
