@@ -19,7 +19,10 @@ import {
   Download,
   RefreshCw,
   TrendingUp,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { ContractCI, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 import routes from '@/constantes/routes'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
@@ -28,7 +31,7 @@ import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import { toast } from 'sonner'
-import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory } from '@/hooks/caisse-imprevue'
+import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -45,6 +48,229 @@ interface MonthlyCIContractProps {
   contract: ContractCI
   document: any | null
   isLoadingDocument: boolean
+}
+
+// Hook personnalisé pour le carousel avec drag/swipe
+const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState(0)
+  const [translateX, setTranslateX] = useState(0)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  const maxIndex = Math.max(0, itemCount - itemsPerView)
+
+  const goTo = (index: number) => {
+    const clampedIndex = Math.max(0, Math.min(index, maxIndex))
+    setCurrentIndex(clampedIndex)
+    setTranslateX(-clampedIndex * (100 / itemsPerView))
+  }
+
+  const goNext = () => goTo(currentIndex + 1)
+  const goPrev = () => goTo(currentIndex - 1)
+
+  const handleStart = (clientX: number) => {
+    setIsDragging(true)
+    setStartPos(clientX)
+  }
+  const handleMove = (clientX: number) => {
+    if (!isDragging || !containerRef.current) return
+    const diff = clientX - startPos
+    const containerWidth = containerRef.current.offsetWidth
+    const percentage = (diff / containerWidth) * 100
+    const maxDrag = 30
+    const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
+    setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
+  }
+  const handleEnd = () => {
+    if (!isDragging || !containerRef.current) return
+    const dragDistance = translateX + currentIndex * (100 / itemsPerView)
+    const threshold = 15
+    if (dragDistance > threshold && currentIndex > 0) {
+      goPrev()
+    } else if (dragDistance < -threshold && currentIndex < maxIndex) {
+      goNext()
+    } else {
+      setTranslateX(-currentIndex * (100 / itemsPerView))
+    }
+    setIsDragging(false)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => { e.preventDefault(); handleStart(e.clientX) }
+  const handleMouseMove = (e: React.MouseEvent) => { handleMove(e.clientX) }
+  const handleMouseUp = () => { handleEnd() }
+  const handleTouchStart = (e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }
+  const handleTouchMove = (e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }
+  const handleTouchEnd = () => { handleEnd() }
+
+  React.useEffect(() => {
+    if (!isDragging) return
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
+    const handleGlobalMouseUp = () => handleEnd()
+    document.addEventListener('mousemove', handleGlobalMouseMove)
+    document.addEventListener('mouseup', handleGlobalMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+    }
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+
+  return {
+    currentIndex,
+    goTo,
+    goNext,
+    goPrev,
+    canGoPrev: currentIndex > 0,
+    canGoNext: currentIndex < maxIndex,
+    translateX,
+    containerRef,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    isDragging,
+  }
+}
+
+// Composant pour les statistiques modernes
+const StatsCard = ({
+  title,
+  value,
+  subtitle,
+  iconBgClass,
+  iconColorClass,
+  valueColorClass,
+  icon: Icon
+}: {
+  title: string
+  value: number | string
+  subtitle?: string
+  iconBgClass: string
+  iconColorClass: string
+  valueColorClass: string
+  icon: React.ComponentType<any>
+}) => {
+  return (
+    <Card className="border-0 shadow-lg h-full">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${iconBgClass}`}>
+            <Icon className={`h-5 w-5 ${iconColorClass}`} />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">{title}</p>
+            <p className={`font-bold text-lg ${valueColorClass}`}>
+              {value}
+            </p>
+            {subtitle && (
+              <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Composant Carrousel des statistiques avec drag/swipe
+const PaymentStatsCarousel = ({ contract, paymentStats }: { contract: ContractCI; paymentStats?: { totalAmountPaid: number; paymentCount: number; supportCount: number } }) => {
+  const totalTarget = contract.subscriptionCINominal || 0
+  const amountPaid = paymentStats?.totalAmountPaid || 0
+  const progressPercentage = totalTarget > 0 ? Math.min(100, (amountPaid / totalTarget) * 100) : 0
+
+  const statsData = [
+    {
+      title: 'Montant mensuel',
+      value: `${contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA`,
+      iconBgClass: 'bg-green-100',
+      iconColorClass: 'text-green-600',
+      valueColorClass: 'text-green-600',
+      icon: DollarSign
+    },
+    {
+      title: 'Durée du contrat',
+      value: `${contract.subscriptionCIDuration} mois`,
+      iconBgClass: 'bg-blue-100',
+      iconColorClass: 'text-blue-600',
+      valueColorClass: 'text-gray-900',
+      icon: Calendar
+    },
+    {
+      title: 'Nominal total',
+      value: `${contract.subscriptionCINominal.toLocaleString('fr-FR')} FCFA`,
+      iconBgClass: 'bg-purple-100',
+      iconColorClass: 'text-purple-600',
+      valueColorClass: 'text-purple-600',
+      icon: DollarSign
+    },
+    {
+      title: 'Versements effectués',
+      value: paymentStats?.paymentCount || 0,
+      iconBgClass: 'bg-indigo-100',
+      iconColorClass: 'text-indigo-600',
+      valueColorClass: 'text-indigo-600',
+      icon: CheckCircle
+    },
+    {
+      title: 'Montant actuel versé',
+      value: `${(paymentStats?.totalAmountPaid || 0).toLocaleString('fr-FR')} FCFA`,
+      iconBgClass: 'bg-teal-100',
+      iconColorClass: 'text-teal-600',
+      valueColorClass: 'text-teal-600',
+      icon: DollarSign,
+      subtitle: `${progressPercentage.toFixed(1)}% du total`
+    },
+    {
+      title: 'Aides reçues',
+      value: paymentStats?.supportCount || 0,
+      iconBgClass: 'bg-amber-100',
+      iconColorClass: 'text-amber-600',
+      valueColorClass: 'text-amber-600',
+      icon: HandCoins
+    },
+  ]
+
+  const [itemsPerView, setItemsPerView] = useState(1)
+  React.useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth
+      if (w >= 1280) setItemsPerView(4)
+      else if (w >= 1024) setItemsPerView(3)
+      else if (w >= 768) setItemsPerView(2)
+      else setItemsPerView(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+
+  return (
+    <div className="relative">
+      <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goPrev} disabled={!canGoPrev}>
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
+      </div>
+      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
+        <Button variant="outline" size="icon" className={cn('h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300', canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed')} onClick={goNext} disabled={!canGoNext}>
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      </div>
+      <div ref={containerRef} className="ml-8 overflow-hidden py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
+          {statsData.map((stat, index) => (
+            <div key={index} className="flex-shrink-0 h-full" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
+              <StatsCard {...stat} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function MonthlyCIContract({ contract, document, isLoadingDocument }: MonthlyCIContractProps) {
@@ -72,6 +298,9 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
   const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
   const { data: supportsHistory = [] } = useSupportHistory(contract.id)
+  
+  // Récupérer les statistiques de paiement
+  const { data: paymentStats } = useContractPaymentStats(contract.id)
 
   // Fonction pour recharger les remboursements
   const reloadRefunds = React.useCallback(async () => {
@@ -344,58 +573,12 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
           </CardHeader>
         </Card>
 
-        {/* Résumé du contrat */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Montant mensuel</p>
-                  <p className="font-bold text-lg text-green-600">
-                    {contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Statistiques de paiement - Carrousel */}
+        <PaymentStatsCarousel contract={contract} paymentStats={paymentStats} />
 
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Durée du contrat</p>
-                  <p className="font-bold text-lg text-gray-900">
-                    {contract.subscriptionCIDuration} mois
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Nominal total</p>
-                  <p className="font-bold text-lg text-purple-600">
-                    {contract.subscriptionCINominal.toLocaleString('fr-FR')} FCFA
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Support à rembourser */}
-          {activeSupport && activeSupport.status === 'ACTIVE' && (
+        {/* Support à rembourser */}
+        {activeSupport && activeSupport.status === 'ACTIVE' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-0 shadow-lg border-2 border-orange-300 bg-orange-50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -411,8 +594,8 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
                 </div>
               </CardContent>
             </Card>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Échéancier de Paiement Mensuel */}
         <Card className="border-0 shadow-xl">

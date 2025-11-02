@@ -40,4 +40,7 @@ export interface ICaisseImprevueService extends IService{
     calculateRepayment(contractId: string, paymentAmount: number): Promise<{ supportRepayment: number; remainingForMonth: number }>
     recordRepayment(contractId: string, supportId: string, monthIndex: number, repayment: Omit<SupportRepaymentCI, 'createdAt' | 'createdBy'>): Promise<void>
     checkEligibilityForSupport(contractId: string): Promise<boolean>
+    
+    // Méthodes de statistiques de paiement
+    getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; supportCount: number }>
 }

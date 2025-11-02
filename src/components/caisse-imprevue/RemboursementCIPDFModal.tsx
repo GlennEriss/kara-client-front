@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
+import { useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import RemboursementCIPDF from './RemboursementCIPDF'
 import { listRefunds } from '@/db/caisse/refunds.db'
 
@@ -29,6 +30,9 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
 
   // Récupérer les informations du membre si memberId est disponible
   const { data: memberData, isLoading: memberLoading } = useMember(contractData?.memberId || '')
+  
+  // Récupérer les statistiques de paiement pour obtenir le montant total versé
+  const { data: paymentStats } = useContractPaymentStats(contractId)
 
   // Charger les refunds pour récupérer le montant nominal
   React.useEffect(() => {
@@ -202,6 +206,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                         contract={contractData} 
                         refund={activeRefund}
                         memberData={memberData}
+                        totalAmountPaid={paymentStats?.totalAmountPaid}
                       />
                     }
                   >
@@ -265,6 +270,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
                     contract={contractData} 
                     refund={activeRefund}
                     memberData={memberData}
+                    totalAmountPaid={paymentStats?.totalAmountPaid}
                   />
                 </PDFViewer>
               </div>

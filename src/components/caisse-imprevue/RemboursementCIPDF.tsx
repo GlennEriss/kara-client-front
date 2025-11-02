@@ -98,24 +98,40 @@ const numberToWords = (num: number) => {
 
     if (n >= 20) {
       const tenDigit = Math.floor(n / 10)
+      const unitDigit = n % 10
+      
       if (tenDigit === 7) {
-        result += 'soixante'
-        n += 10
-      } else if (tenDigit === 9) {
-        result += 'quatre-vingt'
-        n += 10
-      } else {
-        result += tens[tenDigit]
-      }
-
-      if (n % 10 !== 0) {
-        if (tenDigit === 8 && n % 10 === 1) {
-          result += '-un'
+        // 70-79 : soixante-dix, soixante-et-onze, etc.
+        if (unitDigit === 0) {
+          result += 'soixante-dix'
+        } else if (unitDigit === 1) {
+          result += 'soixante-et-onze'
         } else {
-          result += '-' + ones[n % 10]
+          result += 'soixante-' + ones[10 + unitDigit]
         }
-      } else if (tenDigit === 8) {
-        result += 's'
+      } else if (tenDigit === 9) {
+        // 90-99 : quatre-vingt-dix, quatre-vingt-onze, etc.
+        if (unitDigit === 0) {
+          result += 'quatre-vingt-dix'
+        } else if (unitDigit === 1) {
+          result += 'quatre-vingt-onze'
+        } else {
+          result += 'quatre-vingt-' + ones[10 + unitDigit]
+        }
+      } else {
+        // 20-69, 80-89
+        result += tens[tenDigit]
+        if (unitDigit !== 0) {
+          if (tenDigit === 8 && unitDigit === 1) {
+            result += '-un'
+          } else if (tenDigit === 2 && unitDigit === 1) {
+            result += '-et-un'
+          } else {
+            result += '-' + ones[unitDigit]
+          }
+        } else if (tenDigit === 8) {
+          result += 's'
+        }
       }
     } else if (n > 0) {
       result += ones[n]
@@ -194,7 +210,7 @@ const calculateAge = (birthDate: string | Date | null | undefined) => {
   }
 }
 
-const RemboursementCIPDF = ({ contract, refund, memberData }: { contract?: any; refund?: any; memberData?: any }) => {
+const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: { contract?: any; refund?: any; memberData?: any; totalAmountPaid?: number }) => {
   // Fonctions utilitaires pour formater les données
   const formatDate = (date: any) => {
     if (!date) return '—'
@@ -207,7 +223,14 @@ const RemboursementCIPDF = ({ contract, refund, memberData }: { contract?: any; 
   }
 
   const formatAmount = (amount: number) => {
-    return amount ? amount.toLocaleString('fr-FR') : '0'
+    if (!amount) return '0'
+    // Convertir en string et ajouter des espaces tous les 3 chiffres
+    const numStr = Math.floor(amount).toString()
+    const parts = []
+    for (let i = numStr.length; i > 0; i -= 3) {
+      parts.unshift(numStr.slice(Math.max(0, i - 3), i))
+    }
+    return parts.join(' ')
   }
 
   // Utiliser les données du membre depuis memberData (complet depuis la DB) avec fallback sur le contrat
@@ -225,12 +248,13 @@ const RemboursementCIPDF = ({ contract, refund, memberData }: { contract?: any; 
     gender: memberData?.gender || contract?.memberGender || '—',
     address: memberData?.address || (contract?.memberAddress ? { district: contract.memberAddress } : null),
     profession: memberData?.profession || contract?.memberProfession || '—',
-    membershipType: memberData?.membershipType.toUpperCase() || contract?.memberMembershipType.toUpperCase() || '—',
+    membershipType: (memberData?.membershipType && typeof memberData.membershipType === 'string' ? memberData.membershipType.toUpperCase() : null) || '—',
   }
 
   const age = calculateAge(member.birthDate)
   const emergencyContact = contract?.emergencyContact || {}
-  const nominalAmount = refund?.amountNominal || contract?.nominalPaid || 0
+  // Utiliser le montant nominal du remboursement actif, sinon le montant total versé (somme des targetAmount)
+  const nominalAmount = refund?.amountNominal || totalAmountPaid || 0
   const membershipDate = contract?.createdAt || contract?.firstPaymentDate
 
   return (

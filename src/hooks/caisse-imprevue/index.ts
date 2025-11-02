@@ -15,4 +15,5 @@ export * from './useActiveSupport'
 export * from './useSupportHistory'
 export * from './useRequestSupport'
 export * from './useCheckEligibilityForSupport'
+export * from './useContractPaymentStats'
 
