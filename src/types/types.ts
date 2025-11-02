@@ -619,6 +619,9 @@ export interface ContractCI {
   contractCanceledId?: string
   contractFinishedId?: string
 
+  // Retrait anticipé
+  earlyRefundDocumentId?: string // ID du document PDF de retrait anticipé dans la collection 'documents'
+
   // Support/Aide
   currentSupportId?: string // ID du support actif (null si aucun ou remboursé)
   supportHistory: string[] // Liste des IDs de tous les supports (historique)
@@ -630,6 +633,63 @@ export interface ContractCI {
   updatedAt: Date
   createdBy: string
   updatedBy: string
+}
+
+/**
+ * Statut d'un retrait anticipé CI
+ */
+export type EarlyRefundCIStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED'
+
+/**
+ * Type pour une demande de retrait anticipé CI
+ * Stocké dans Firestore dans la sous-collection 'earlyRefunds' de 'contractsCI'
+ */
+export interface EarlyRefundCI {
+  // Identifiant unique
+  id: string
+
+  // Référence au contrat
+  contractId: string
+
+  // Type de remboursement (toujours 'EARLY' pour ce type)
+  type: 'EARLY'
+
+  // Informations du retrait
+  reason: string // Motif du retrait
+  withdrawalDate: Date // Date du retrait
+  withdrawalTime: string // Heure du retrait (HH:mm)
+  withdrawalAmount: number // Montant retiré
+  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' // Mode de retrait
+
+  // Preuve du retrait
+  proofUrl: string // URL Firebase Storage
+  proofPath: string // Chemin Firebase Storage
+
+  // Document PDF signé
+  documentId: string // ID du document dans la collection 'documents'
+
+  // Montants calculés
+  amountNominal: number // Montant nominal (somme des versements)
+  amountBonus: number // Montant bonus (si applicable)
+
+  // Statut
+  status: EarlyRefundCIStatus
+
+  // Échéance (45 jours après création)
+  deadlineAt: Date
+
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'admin qui a créé
+  updatedBy: string // ID de l'admin qui a mis à jour
+
+  // Approbation (optionnel)
+  approvedBy?: string // ID de l'admin qui a approuvé
+  approvedAt?: Date // Date d'approbation
+
+  // Paiement (optionnel)
+  paidAt?: Date // Date de paiement
 }
 
 /**
@@ -999,6 +1059,7 @@ export type DocumentType =
   | 'FINISHED_CS'      // Contrat de fin Caisse Spéciale
   | 'FINISHED_CI'      // Contrat de fin Caisse Imprévue
   | 'SUPPORT_CI'       // Document de demande de support Caisse Imprévue
+  | 'EARLY_REFUND_CI'  // Document de retrait anticipé Caisse Imprévue
 
 /**
  * Formats de documents possibles

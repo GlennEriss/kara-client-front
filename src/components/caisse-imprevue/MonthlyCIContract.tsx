@@ -30,11 +30,10 @@ import PaymentReceiptCIModal from './PaymentReceiptCIModal'
 import RequestSupportCIModal from './RequestSupportCIModal'
 import SupportHistoryCIModal from './SupportHistoryCIModal'
 import RepaySupportCIModal from './RepaySupportCIModal'
+import EarlyRefundCIModal from './EarlyRefundCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import dynamic from 'next/dynamic'
 import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
 import { listRefunds } from '@/db/caisse/refunds.db'
@@ -289,6 +288,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const [refundReasonInput, setRefundReasonInput] = useState('')
   const [isRefunding, setIsRefunding] = useState(false)
   const [refunds, setRefunds] = useState<any[]>([])
+  const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
 
   // Récupérer les paiements depuis Firestore
   const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsCI(contract.id)
@@ -773,11 +773,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
                 variant="outline"
                 className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
                 disabled={isRefunding || !canEarly || hasEarlyRefund}
-                onClick={() => {
-                  setRefundType('EARLY')
-                  setRefundReasonInput('')
-                  setShowReasonModal(true)
-                }}
+                onClick={() => setShowEarlyRefundModal(true)}
               >
                 <Download className="h-5 w-5" />
                 Demander retrait anticipé
@@ -949,6 +945,13 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
           onClose={() => setShowRemboursementPdf(false)}
           contractId={contract.id}
           contractData={contract}
+        />
+
+        {/* Modal de demande de retrait anticipé */}
+        <EarlyRefundCIModal
+          isOpen={showEarlyRefundModal}
+          onClose={() => setShowEarlyRefundModal(false)}
+          contract={contract}
         />
 
         {/* Modal de reconnaissance de souscription */}
