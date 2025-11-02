@@ -1,4 +1,4 @@
-import { User, Admin, ContractCI, Document, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI } from "@/types/types";
+import { User, Admin, ContractCI, Document, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI } from "@/types/types";
 import { ICaisseImprevueService, VersementFormData } from "./ICaisseImprevueService";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
@@ -8,6 +8,7 @@ import { IAdminRepository } from "@/repositories/admins/IAdminRepository";
 import { IDocumentRepository } from "@/repositories/documents/IDocumentRepository";
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { ISupportCIRepository } from "@/repositories/caisse-imprevu/ISupportCIRepository";
+import { IEarlyRefundCIRepository } from "@/repositories/caisse-imprevu/IEarlyRefundCIRepository";
 
 export class CaisseImprevueService implements ICaisseImprevueService {
     readonly name = "CaisseImprevueService"
@@ -19,7 +20,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         private adminRepository: IAdminRepository,
         private documentRepository: IDocumentRepository,
         private paymentCIRepository: IPaymentCIRepository,
-        private supportCIRepository: ISupportCIRepository
+        private supportCIRepository: ISupportCIRepository,
+        private earlyRefundCIRepository: IEarlyRefundCIRepository
     ) {
         this.memberRepository = memberRepository
         this.subscriptionCIRepository = subscriptionCIRepository
@@ -28,6 +30,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         this.documentRepository = documentRepository
         this.paymentCIRepository = paymentCIRepository
         this.supportCIRepository = supportCIRepository
+        this.earlyRefundCIRepository = earlyRefundCIRepository
     }
 
     async searchMembers(searchQuery: string): Promise<User[]> {
@@ -264,7 +267,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     /**
      * Demande un support financier pour un contrat
      */
-    async requestSupport(contractId: string, amount: number, adminId: string): Promise<SupportCI> {
+    async requestSupport(contractId: string, amount: number, adminId: string, documentFile: File): Promise<SupportCI> {
         try {
             // 1. Récupérer le contrat et les paiements
             const contract = await this.contractCIRepository.getContractById(contractId)
@@ -283,14 +286,40 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 throw new Error(`Le montant doit être entre ${contract.subscriptionCISupportMin} et ${contract.subscriptionCISupportMax} FCFA`)
             }
 
-            // 4. Récupérer les 3 derniers mois payés
+            // 4. Téléverser le document PDF dans Firebase Storage
+            const { url: documentUrl, path: documentPath, size } = await this.documentRepository.uploadDocumentFile(
+                documentFile,
+                contract.memberId,
+                'SUPPORT_CI'
+            )
+
+            // 5. Créer l'enregistrement du document dans Firestore
+            const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {
+                type: 'SUPPORT_CI',
+                format: 'pdf',
+                libelle: `Demande de support - ${contract.memberFirstName} ${contract.memberLastName} - Contrat ${contractId}`,
+                path: documentPath,
+                url: documentUrl,
+                size: size,
+                memberId: contract.memberId,
+                contractId: contractId,
+                createdBy: adminId,
+                updatedBy: adminId,
+            }
+
+            const document = await this.documentRepository.createDocument(documentData)
+            if (!document || !document.id) {
+                throw new Error('Erreur lors de la création du document')
+            }
+
+            // 6. Récupérer les 3 derniers mois payés
             const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
             const paidPayments = payments
                 .filter(p => p.status === 'PAID')
                 .sort((a, b) => a.monthIndex - b.monthIndex)
                 .slice(-3)
 
-            // 5. Calculer les déductions des 3 derniers mois
+            // 7. Calculer les déductions des 3 derniers mois
             const deductions: { monthIndex: number; amount: number }[] = []
             let remainingToDeduct = amount
 
@@ -308,12 +337,15 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 if (remainingToDeduct <= 0) break
             }
 
-            // 6. Créer le support
+            // 8. Créer le support avec les informations du document
             const now = new Date()
             const supportData: Omit<SupportCI, 'id' | 'createdAt' | 'updatedAt'> = {
                 contractId,
                 amount,
                 status: 'ACTIVE',
+                documentId: document.id,
+                documentUrl: documentUrl,
+                documentPath: documentPath,
                 amountRepaid: 0,
                 amountRemaining: amount,
                 deductions,
@@ -444,6 +476,302 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         } catch (error) {
             console.error('Erreur lors de la vérification de l\'éligibilité:', error)
             return false
+        }
+    }
+
+    /**
+     * Calcule les statistiques de paiement d'un contrat
+     * - totalAmountPaid: somme des targetAmount des paiements (montant total versé)
+     * - paymentCount: nombre de documents dans la collection payments
+     * - supportCount: nombre total d'aides reçues
+     */
+    async getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; supportCount: number }> {
+        try {
+            // 1. Récupérer tous les paiements
+            const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
+            
+            // 2. Calculer le montant total versé (somme des targetAmount)
+            const totalAmountPaid = payments.reduce((sum, payment) => sum + (payment.targetAmount || 0), 0)
+            
+            // 3. Nombre de versements (nombre de documents dans la collection payments)
+            const paymentCount = payments.length
+            
+            // 4. Nombre total d'aides reçues
+            const supports = await this.getSupportHistory(contractId)
+            const supportCount = supports.length
+
+            return {
+                totalAmountPaid,
+                paymentCount,
+                supportCount
+            }
+        } catch (error) {
+            console.error('Erreur lors du calcul des statistiques de paiement:', error)
+            return {
+                totalAmountPaid: 0,
+                paymentCount: 0,
+                supportCount: 0
+            }
+        }
+    }
+
+    // ================== MÉTHODES DE RETRAIT ANTICIPÉ ==================
+
+    /**
+     * Demande un retrait anticipé CI
+     * Cette méthode gère tout le processus en une seule étape :
+     * - Validation du contrat et des paiements
+     * - Upload de la preuve du retrait
+     * - Upload du document PDF signé
+     * - Création du document dans la collection documents
+     * - Création de la demande de retrait anticipé
+     */
+    async requestEarlyRefundCI(
+        contractId: string,
+        data: {
+            reason: string
+            withdrawalDate: string
+            withdrawalTime: string
+            withdrawalAmount: number
+            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+            withdrawalProof: File
+            documentPdf: File
+            userId: string
+        }
+    ): Promise<EarlyRefundCI> {
+        try {
+            // 1. Validation du contrat
+            const contract = await this.contractCIRepository.getContractById(contractId)
+            if (!contract) {
+                throw new Error('Contrat introuvable')
+            }
+            if (contract.status !== 'ACTIVE') {
+                throw new Error('Le contrat doit être actif pour effectuer un retrait anticipé')
+            }
+
+            // 2. Vérifier les paiements (au moins 1 versement effectué)
+            const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
+            const paidCount = payments.filter(p => p.status === 'PAID').length
+            if (paidCount < 1) {
+                throw new Error('Retrait anticipé indisponible : aucun versement effectué')
+            }
+
+            // 3. Vérifier qu'aucune demande active n'existe
+            const existingRefunds = await this.earlyRefundCIRepository.getEarlyRefundsByContractId(contractId)
+            const hasActiveEarly = existingRefunds.some(
+                r => r.status !== 'ARCHIVED'
+            )
+            if (hasActiveEarly) {
+                throw new Error('Une demande de retrait anticipé est déjà en cours pour ce contrat')
+            }
+
+            // 4. Calculer le montant nominal (somme des accumulatedAmount des paiements)
+            const totalAmountPaid = payments.reduce(
+                (sum, payment) => sum + (payment.accumulatedAmount || 0),
+                0
+            )
+
+            // 5. Calculer le montant bonus (pour l'instant à 0, peut être implémenté selon les règles métier)
+            const amountBonus = 0
+
+            // 6. Upload de la preuve du retrait (image ou PDF)
+            const { url: proofUrl, path: proofPath } = await this.documentRepository.uploadDocumentFile(
+                data.withdrawalProof,
+                contract.memberId,
+                'PROOF_EARLY_REFUND_CI'
+            )
+
+            // 7. Upload du document PDF signé et création dans la collection documents
+            const { url: documentUrl, path: documentPath, size } = await this.documentRepository.uploadDocumentFile(
+                data.documentPdf,
+                contract.memberId,
+                'EARLY_REFUND_DOCUMENT_CI'
+            )
+
+            // 8. Créer l'enregistrement du document dans Firestore
+            const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {
+                type: 'EARLY_REFUND_CI',
+                format: 'pdf',
+                libelle: `Document de retrait anticipé - ${contract.memberFirstName} ${contract.memberLastName} - Contrat ${contractId}`,
+                path: documentPath,
+                url: documentUrl,
+                size: size,
+                memberId: contract.memberId,
+                contractId: contractId,
+                createdBy: data.userId,
+                updatedBy: data.userId,
+            }
+
+            const document = await this.documentRepository.createDocument(documentData)
+            if (!document || !document.id) {
+                throw new Error('Erreur lors de la création du document')
+            }
+
+            // 9. Créer la demande de retrait anticipé
+            const withdrawalDate = new Date(data.withdrawalDate)
+            const deadlineAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // 45 jours après création
+
+            const earlyRefundData: Omit<EarlyRefundCI, 'id' | 'createdAt' | 'updatedAt'> = {
+                contractId,
+                type: 'EARLY',
+                reason: data.reason,
+                withdrawalDate,
+                withdrawalTime: data.withdrawalTime,
+                withdrawalAmount: data.withdrawalAmount,
+                withdrawalMode: data.withdrawalMode,
+                proofUrl,
+                proofPath,
+                documentId: document.id,
+                amountNominal: totalAmountPaid,
+                amountBonus,
+                status: 'PENDING',
+                deadlineAt,
+                createdBy: data.userId,
+                updatedBy: data.userId,
+            }
+
+            const earlyRefund = await this.earlyRefundCIRepository.createEarlyRefund(contractId, earlyRefundData)
+
+            // 10. Mettre à jour le contrat pour référencer le document et résilier le contrat
+            await this.contractCIRepository.updateContract(contractId, {
+                earlyRefundDocumentId: document.id,
+                status: 'CANCELED', // Résilier le contrat lors d'un retrait anticipé
+                updatedBy: data.userId,
+            })
+
+            return earlyRefund
+        } catch (error) {
+            console.error('Erreur lors de la demande de retrait anticipé:', error)
+            throw error
+        }
+    }
+
+    /**
+     * Crée une demande de remboursement final CI
+     */
+    async requestFinalRefundCI(
+        contractId: string,
+        data: {
+            reason: string
+            withdrawalDate: string
+            withdrawalTime: string
+            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+            withdrawalProof: File
+            documentPdf: File
+            userId: string
+        }
+    ): Promise<FinalRefundCI> {
+        try {
+            // 1. Validation du contrat
+            const contract = await this.contractCIRepository.getContractById(contractId)
+            if (!contract) {
+                throw new Error('Contrat introuvable')
+            }
+            if (contract.status !== 'ACTIVE') {
+                throw new Error('Le contrat doit être actif pour effectuer un remboursement final')
+            }
+
+            // 2. Vérifier que tous les mois/jours sont payés
+            const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
+            const paidCount = payments.filter(p => p.status === 'PAID').length
+            const allPaid = payments.length > 0 && paidCount === payments.length
+            
+            if (!allPaid) {
+                throw new Error('Remboursement final indisponible : toutes les échéances doivent être payées')
+            }
+
+            // 3. Vérifier qu'aucune demande de remboursement final n'existe déjà
+            const existingRefunds = await this.earlyRefundCIRepository.getEarlyRefundsByContractId(contractId)
+            const hasActiveFinal = existingRefunds.some(
+                (r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED'
+            )
+            if (hasActiveFinal) {
+                throw new Error('Une demande de remboursement final est déjà en cours pour ce contrat')
+            }
+
+            // 4. Calculer le montant total versé (non modifiable)
+            const totalAmountPaid = payments.reduce(
+                (sum, payment) => sum + (payment.accumulatedAmount || 0),
+                0
+            )
+
+            // 5. Calculer le montant bonus (pour l'instant à 0, peut être implémenté selon les règles métier)
+            const amountBonus = 0
+
+            // 6. Upload de la preuve du retrait (image uniquement)
+            const { url: proofUrl, path: proofPath } = await this.documentRepository.uploadDocumentFile(
+                data.withdrawalProof,
+                contract.memberId,
+                'PROOF_FINAL_REFUND_CI'
+            )
+
+            // 7. Upload du document PDF signé et création dans la collection documents
+            const { url: documentUrl, path: documentPath, size } = await this.documentRepository.uploadDocumentFile(
+                data.documentPdf,
+                contract.memberId,
+                'FINAL_REFUND_DOCUMENT_CI'
+            )
+
+            // 8. Créer l'enregistrement du document dans Firestore
+            const documentData: Omit<Document, 'id' | 'createdAt' | 'updatedAt'> = {
+                type: 'FINAL_REFUND_CI',
+                format: 'pdf',
+                libelle: `Document de remboursement final - ${contract.memberFirstName} ${contract.memberLastName} - Contrat ${contractId}`,
+                path: documentPath,
+                url: documentUrl,
+                size: size,
+                memberId: contract.memberId,
+                contractId: contractId,
+                createdBy: data.userId,
+                updatedBy: data.userId,
+            }
+
+            const document = await this.documentRepository.createDocument(documentData)
+            if (!document || !document.id) {
+                throw new Error('Erreur lors de la création du document')
+            }
+
+            // 9. Créer la demande de remboursement final
+            const withdrawalDate = new Date(data.withdrawalDate)
+            const deadlineAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000) // 45 jours après création
+
+            const finalRefundData: Omit<FinalRefundCI, 'id' | 'createdAt' | 'updatedAt'> = {
+                contractId,
+                type: 'FINAL',
+                reason: data.reason,
+                withdrawalDate,
+                withdrawalTime: data.withdrawalTime,
+                withdrawalAmount: totalAmountPaid, // Montant non modifiable, égal au total versé
+                withdrawalMode: data.withdrawalMode,
+                proofUrl,
+                proofPath,
+                documentId: document.id,
+                amountNominal: totalAmountPaid,
+                amountBonus,
+                status: 'PENDING',
+                deadlineAt,
+                createdBy: data.userId,
+                updatedBy: data.userId,
+            }
+
+            // Utiliser le repository pour créer le remboursement final (il accepte le type dans les données)
+            const createdRefund = await this.earlyRefundCIRepository.createEarlyRefund(contractId, finalRefundData as any)
+
+            // 10. Mettre à jour le contrat pour référencer le document et terminer le contrat
+            await this.contractCIRepository.updateContract(contractId, {
+                finalRefundDocumentId: document.id,
+                status: 'FINISHED', // Terminer le contrat lors d'un remboursement final
+                updatedBy: data.userId,
+            })
+
+            // Convertir le résultat en FinalRefundCI
+            return {
+                ...createdRefund,
+                type: 'FINAL' as const,
+            } as FinalRefundCI
+        } catch (error) {
+            console.error('Erreur lors de la demande de remboursement final:', error)
+            throw error
         }
     }
 }

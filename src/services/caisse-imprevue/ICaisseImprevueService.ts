@@ -1,5 +1,5 @@
 import { IService } from "../interfaces/IService";
-import { SubscriptionCI, User, Admin, ContractCI, Document, PaymentCI, PaymentMode, SupportCI, SupportRepaymentCI } from "@/types/types";
+import { SubscriptionCI, User, Admin, ContractCI, Document, PaymentCI, PaymentMode, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI } from "@/types/types";
 import { ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
 
 export interface VersementFormData {
@@ -34,10 +34,42 @@ export interface ICaisseImprevueService extends IService{
     createVersement(contractId: string, monthIndex: number, versementData: VersementFormData, proofFile: File, userId: string): Promise<PaymentCI>
     
     // Méthodes de gestion des supports
-    requestSupport(contractId: string, amount: number, adminId: string): Promise<SupportCI>
+    requestSupport(contractId: string, amount: number, adminId: string, documentFile: File): Promise<SupportCI>
     getActiveSupport(contractId: string): Promise<SupportCI | null>
     getSupportHistory(contractId: string): Promise<SupportCI[]>
     calculateRepayment(contractId: string, paymentAmount: number): Promise<{ supportRepayment: number; remainingForMonth: number }>
     recordRepayment(contractId: string, supportId: string, monthIndex: number, repayment: Omit<SupportRepaymentCI, 'createdAt' | 'createdBy'>): Promise<void>
     checkEligibilityForSupport(contractId: string): Promise<boolean>
+    
+    // Méthodes de statistiques de paiement
+    getContractPaymentStats(contractId: string): Promise<{ totalAmountPaid: number; paymentCount: number; supportCount: number }>
+    
+    // Méthodes de retrait anticipé
+    requestEarlyRefundCI(
+        contractId: string,
+        data: {
+            reason: string
+            withdrawalDate: string
+            withdrawalTime: string
+            withdrawalAmount: number
+            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+            withdrawalProof: File
+            documentPdf: File
+            userId: string
+        }
+    ): Promise<EarlyRefundCI>
+
+    // Méthodes de remboursement final
+    requestFinalRefundCI(
+        contractId: string,
+        data: {
+            reason: string
+            withdrawalDate: string
+            withdrawalTime: string
+            withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash'
+            withdrawalProof: File
+            documentPdf: File
+            userId: string
+        }
+    ): Promise<FinalRefundCI>
 }

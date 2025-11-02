@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   CheckCircle,
   InfoIcon,
+  FileText,
+  Upload,
 } from 'lucide-react'
 import { ContractCI } from '@/types/types'
 import { useRequestSupport } from '@/hooks/caisse-imprevue'
@@ -38,7 +40,24 @@ export default function RequestSupportCIModal({
 }: RequestSupportCIModalProps) {
   const { user } = useAuth()
   const [amount, setAmount] = useState('')
+  const [documentFile, setDocumentFile] = useState<File | null>(null)
   const requestSupportMutation = useRequestSupport()
+
+  // Gestion du changement de fichier
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error('Veuillez sélectionner un fichier PDF')
+        return
+      }
+      if (file.size > 10 * 1024 * 1024) { // 10 MB max
+        toast.error('Le fichier est trop volumineux (max 10 MB)')
+        return
+      }
+      setDocumentFile(file)
+    }
+  }
 
   const handleSubmit = async () => {
     if (!user?.uid) {
@@ -48,7 +67,7 @@ export default function RequestSupportCIModal({
 
     const amountNum = Number(amount)
 
-    // Validation
+    // Validation du montant
     if (!amount || amountNum <= 0) {
       toast.error('Veuillez saisir un montant valide')
       return
@@ -61,14 +80,22 @@ export default function RequestSupportCIModal({
       return
     }
 
+    // Validation du document
+    if (!documentFile) {
+      toast.error('Veuillez téléverser le document signé')
+      return
+    }
+
     try {
       await requestSupportMutation.mutateAsync({
         contractId: contract.id,
         amount: amountNum,
         adminId: user.uid,
+        documentFile: documentFile,
       })
 
       setAmount('')
+      setDocumentFile(null)
       onClose()
     } catch (error) {
       console.error('Erreur lors de la demande de support:', error)
@@ -133,6 +160,38 @@ export default function RequestSupportCIModal({
             </p>
           </div>
 
+          {/* Document signé */}
+          <div>
+            <Label htmlFor="support-document" className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              Document signé (PDF) *
+            </Label>
+            <div className="space-y-2">
+              <Input
+                id="support-document"
+                type="file"
+                accept=".pdf"
+                onChange={handleFileChange}
+                required
+                disabled={isLoading}
+                className="file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {documentFile && (
+                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-md">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-medium">Document sélectionné :</span>
+                  <span className="text-xs">{documentFile.name}</span>
+                  <span className="text-xs text-gray-500">
+                    ({(documentFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Téléversez le document de demande signé par le membre (format PDF uniquement, max 10 MB)
+            </p>
+          </div>
+
           {/* Avertissement */}
           <Alert className="border-orange-200 bg-orange-50">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
@@ -173,6 +232,7 @@ export default function RequestSupportCIModal({
             disabled={
               isLoading ||
               !amount ||
+              !documentFile ||
               Number(amount) <= 0 ||
               Number(amount) < contract.subscriptionCISupportMin ||
               Number(amount) > contract.subscriptionCISupportMax

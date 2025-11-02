@@ -545,6 +545,11 @@ export interface SupportCI {
   amount: number // Montant du support accordé
   status: SupportCIStatus // Statut du remboursement
   
+  // Document de demande signé
+  documentId?: string // ID du document dans la collection 'documents'
+  documentUrl?: string // URL du document dans Firebase Storage
+  documentPath?: string // Chemin du document dans Firebase Storage
+  
   // Remboursement
   amountRepaid: number // Montant déjà remboursé
   amountRemaining: number // Montant restant à rembourser
@@ -614,6 +619,12 @@ export interface ContractCI {
   contractCanceledId?: string
   contractFinishedId?: string
 
+  // Retrait anticipé
+  earlyRefundDocumentId?: string // ID du document PDF de retrait anticipé dans la collection 'documents'
+
+  // Remboursement final
+  finalRefundDocumentId?: string // ID du document PDF de remboursement final dans la collection 'documents'
+
   // Support/Aide
   currentSupportId?: string // ID du support actif (null si aucun ou remboursé)
   supportHistory: string[] // Liste des IDs de tous les supports (historique)
@@ -625,6 +636,121 @@ export interface ContractCI {
   updatedAt: Date
   createdBy: string
   updatedBy: string
+}
+
+/**
+ * Statut d'un retrait anticipé CI
+ */
+export type EarlyRefundCIStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED'
+
+/**
+ * Statut d'un remboursement final CI (même structure que EarlyRefundCIStatus)
+ */
+export type FinalRefundCIStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'ARCHIVED'
+
+/**
+ * Type pour une demande de retrait anticipé CI
+ * Stocké dans Firestore dans la sous-collection 'earlyRefunds' de 'contractsCI'
+ */
+export interface EarlyRefundCI {
+  // Identifiant unique
+  id: string
+
+  // Référence au contrat
+  contractId: string
+
+  // Type de remboursement (toujours 'EARLY' pour ce type)
+  type: 'EARLY'
+
+  // Informations du retrait
+  reason: string // Motif du retrait
+  withdrawalDate: Date // Date du retrait
+  withdrawalTime: string // Heure du retrait (HH:mm)
+  withdrawalAmount: number // Montant retiré
+  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' // Mode de retrait
+
+  // Preuve du retrait
+  proofUrl: string // URL Firebase Storage
+  proofPath: string // Chemin Firebase Storage
+
+  // Document PDF signé
+  documentId: string // ID du document dans la collection 'documents'
+
+  // Montants calculés
+  amountNominal: number // Montant nominal (somme des versements)
+  amountBonus: number // Montant bonus (si applicable)
+
+  // Statut
+  status: EarlyRefundCIStatus
+
+  // Échéance (45 jours après création)
+  deadlineAt: Date
+
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'admin qui a créé
+  updatedBy: string // ID de l'admin qui a mis à jour
+
+  // Approbation (optionnel)
+  approvedBy?: string // ID de l'admin qui a approuvé
+  approvedAt?: Date // Date d'approbation
+
+  // Paiement (optionnel)
+  paidAt?: Date // Date de paiement
+}
+
+/**
+ * Type pour une demande de remboursement final CI
+ * Stocké dans Firestore dans la sous-collection 'earlyRefunds' de 'contractsCI'
+ * (réutilise la même sous-collection mais avec type: 'FINAL')
+ */
+export interface FinalRefundCI {
+  // Identifiant unique
+  id: string
+
+  // Référence au contrat
+  contractId: string
+
+  // Type de remboursement (toujours 'FINAL' pour ce type)
+  type: 'FINAL'
+
+  // Informations du retrait
+  reason: string // Motif du retrait
+  withdrawalDate: Date // Date du retrait
+  withdrawalTime: string // Heure du retrait (HH:mm)
+  withdrawalAmount: number // Montant retiré (égal au montant total versé)
+  withdrawalMode: 'cash' | 'bank_transfer' | 'airtel_money' | 'mobicash' // Mode de retrait
+
+  // Preuve du retrait
+  proofUrl: string // URL Firebase Storage
+  proofPath: string // Chemin Firebase Storage
+
+  // Document PDF signé
+  documentId: string // ID du document dans la collection 'documents'
+
+  // Montants calculés
+  amountNominal: number // Montant nominal (somme des versements)
+  amountBonus: number // Montant bonus (si applicable)
+
+  // Statut
+  status: FinalRefundCIStatus
+
+  // Échéance (45 jours après création)
+  deadlineAt: Date
+
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'admin qui a créé
+  updatedBy: string // ID de l'admin qui a mis à jour
+
+  // Approbation (optionnel)
+  approvedBy?: string // ID de l'admin qui a approuvé
+  approvedAt?: Date // Date d'approbation
+
+  // Paiement (optionnel)
+  paidAt?: Date // Date de paiement
 }
 
 /**
@@ -993,6 +1119,9 @@ export type DocumentType =
   | 'CANCELED_CI'      // Contrat d'annulation Caisse Imprévue
   | 'FINISHED_CS'      // Contrat de fin Caisse Spéciale
   | 'FINISHED_CI'      // Contrat de fin Caisse Imprévue
+  | 'SUPPORT_CI'       // Document de demande de support Caisse Imprévue
+  | 'EARLY_REFUND_CI'  // Document de retrait anticipé Caisse Imprévue
+  | 'FINAL_REFUND_CI'  // Document de remboursement final Caisse Imprévue
 
 /**
  * Formats de documents possibles

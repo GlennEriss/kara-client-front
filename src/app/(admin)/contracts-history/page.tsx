@@ -56,6 +56,9 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   CANCELED_CI: 'Annulation Caisse Imprévue',
   FINISHED_CS: 'Fin Caisse Spéciale',
   FINISHED_CI: 'Fin Caisse Imprévue',
+  SUPPORT_CI: 'Document de demande de support Caisse Imprévue',
+  EARLY_REFUND_CI: 'Document de retrait anticipé Caisse Imprévue',
+  FINAL_REFUND_CI: 'Document de remboursement final Caisse Imprévue',
 }
 
 // Labels pour les formats

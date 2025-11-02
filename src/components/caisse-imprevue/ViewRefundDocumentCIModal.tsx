@@ -1,0 +1,247 @@
+'use client'
+
+import React, { useState } from 'react'
+import { Download, Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ContractCI } from '@/types/types'
+import { useDocumentCI } from '@/hooks/caisse-imprevue/useDocumentCI'
+import { toast } from 'sonner'
+
+// Hook pour détecter le mobile
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false)
+
+  React.useEffect(() => {
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    
+    checkDevice()
+    window.addEventListener('resize', checkDevice)
+    
+    return () => window.removeEventListener('resize', checkDevice)
+  }, [])
+
+  return isMobile
+}
+
+interface ViewRefundDocumentCIModalProps {
+  isOpen: boolean
+  onClose: () => void
+  contract: ContractCI | null
+  refundType: 'FINAL' | 'EARLY'
+}
+
+export default function ViewRefundDocumentCIModal({
+  isOpen,
+  onClose,
+  contract,
+  refundType
+}: ViewRefundDocumentCIModalProps) {
+  const isMobile = useIsMobile()
+  
+  // Déterminer quel documentId utiliser selon le type
+  const documentId = refundType === 'FINAL' 
+    ? contract?.finalRefundDocumentId 
+    : contract?.earlyRefundDocumentId
+  
+  // Récupérer le document via le hook
+  const { data: document, isLoading, error } = useDocumentCI(documentId)
+
+  // Déterminer le titre et la description selon le type
+  const title = refundType === 'FINAL' 
+    ? '📋 Contrat de Remboursement Final' 
+    : '📋 Contrat de Retrait Anticipé'
+  
+  const description = refundType === 'FINAL'
+    ? 'Document de remboursement final téléversé'
+    : 'Document de retrait anticipé téléversé'
+
+  const handleDownloadPDF = () => {
+    if (!document?.url) {
+      toast.error('URL du document non disponible')
+      return
+    }
+
+    try {
+      // Ouvrir le PDF dans un nouvel onglet
+      window.open(document.url, '_blank')
+      
+      toast.success('PDF ouvert', {
+        description: 'Le document s\'ouvre dans un nouvel onglet'
+      })
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture du PDF:', error)
+      toast.error('Erreur lors de l\'ouverture du document')
+    }
+  }
+
+  if (!contract) return null
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="!w-[95vw] !max-w-[1200px] max-h-[95vh] overflow-y-auto lg:overflow-hidden bg-gradient-to-br from-white to-gray-50 border-0 shadow-2xl">
+        {/* Header */}
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 lg:pb-6 border-b border-gray-200">
+          <div className="space-y-1 flex-1 min-w-0">
+            <div className="flex items-center gap-2 lg:gap-3">
+              <div className={`p-2 lg:p-3 rounded-xl shadow-lg flex-shrink-0 ${
+                refundType === 'FINAL' 
+                  ? 'bg-gradient-to-br from-blue-500 to-blue-600' 
+                  : 'bg-gradient-to-br from-orange-500 to-orange-600'
+              }`}>
+                <FileText className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className={`text-lg lg:text-2xl font-bold bg-clip-text text-transparent ${
+                  refundType === 'FINAL'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700'
+                    : 'bg-gradient-to-r from-orange-600 to-orange-700'
+                }`}>
+                  {title}
+                </DialogTitle>
+                <DialogDescription className="text-sm lg:text-base text-gray-600 truncate">
+                  {contract.memberFirstName} {contract.memberLastName} - Contrat #{contract.id.slice(-6)}
+                </DialogDescription>
+              </div>
+            </div>
+          </div>
+          <Button
+            onClick={handleDownloadPDF}
+            disabled={isLoading || !document}
+            className={`mr-2 lg:mr-10 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 lg:h-12 lg:px-6 flex-shrink-0 ${
+              refundType === 'FINAL'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-600'
+                : 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-600'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4" />
+              <span className="hidden lg:inline">Ouvrir le PDF</span>
+            </div>
+          </Button>
+        </DialogHeader>
+
+        {/* Contenu principal */}
+        <div className="flex-1 min-h-[600px] lg:h-[calc(95vh-150px)] overflow-hidden">
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center space-y-4">
+                <Loader2 className="w-12 h-12 animate-spin text-[#234D65] mx-auto" />
+                <p className="text-gray-600">Chargement du document...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <AlertDescription className="text-red-700 font-medium">
+                Erreur lors du chargement du document
+              </AlertDescription>
+            </Alert>
+          ) : !document ? (
+            <Alert className="border-0 bg-gradient-to-r from-orange-50 to-amber-50">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              <AlertDescription className="text-orange-700 font-medium">
+                {refundType === 'FINAL' 
+                  ? 'Document de remboursement final non trouvé'
+                  : 'Document de retrait anticipé non trouvé'}
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              {/* Version mobile */}
+              <div className="lg:hidden h-full">
+                <Card className="h-full bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg">
+                  <CardContent className="p-4 h-full flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="space-y-3">
+                      <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center shadow-lg ${
+                        refundType === 'FINAL'
+                          ? 'bg-gradient-to-br from-blue-500 to-blue-600'
+                          : 'bg-gradient-to-br from-orange-500 to-orange-600'
+                      }`}>
+                        <Smartphone className="h-7 w-7 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-1">
+                          {refundType === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé'}
+                        </h3>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          Le document PDF est prêt ! Ouvrez-le dans votre navigateur.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Informations du document */}
+                    <div className="bg-gray-50 rounded-lg p-3 w-full space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Document:</span>
+                        <span className="font-medium text-gray-900">{document.libelle}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Type:</span>
+                        <span className="font-medium text-gray-900">{document.type}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Taille:</span>
+                        <span className="font-medium text-gray-900">{(document.size / 1024).toFixed(2)} KB</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Format:</span>
+                        <span className="font-medium text-gray-900 uppercase">{document.format}</span>
+                      </div>
+                    </div>
+
+                    {/* Boutons d'action mobile */}
+                    <div className="w-full space-y-2">
+                      <Button
+                        onClick={handleDownloadPDF}
+                        className={`w-full h-11 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${
+                          refundType === 'FINAL'
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-600'
+                            : 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-600'
+                        }`}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ouvrir le PDF
+                      </Button>
+                    </div>
+
+                    {/* Aide mobile */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
+                      <div className="flex items-start gap-2">
+                        <Monitor className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-blue-700 leading-relaxed">
+                          <strong>Astuce:</strong> Pour une meilleure expérience de visualisation, 
+                          utilisez un ordinateur ou une tablette.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Version desktop - PDF Viewer */}
+              <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
+                <iframe
+                  src={document.url}
+                  className="w-full h-full border-none"
+                  title={refundType === 'FINAL' ? 'Remboursement Final PDF' : 'Retrait Anticipé PDF'}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+

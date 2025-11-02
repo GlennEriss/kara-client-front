@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Download,
   FileSpreadsheet,
+  Eye,
 } from 'lucide-react'
 import { useSupportHistory, useAdmin } from '@/hooks/caisse-imprevue'
 import { SupportCI } from '@/types/types'
@@ -166,6 +167,15 @@ function SupportCard({ support }: { support: SupportCI }) {
 
   const isRepaid = support.status === 'REPAID'
   const progressPercentage = (support.amountRepaid / support.amount) * 100
+
+  // Fonction pour ouvrir le document PDF dans un nouvel onglet
+  const handleViewDocument = () => {
+    if (support.documentUrl) {
+      window.open(support.documentUrl, '_blank', 'noopener,noreferrer')
+    } else {
+      toast.error('Document non disponible')
+    }
+  }
 
   // Export PDF individuel
   const handleExportPDF = () => {
@@ -339,6 +349,19 @@ function SupportCard({ support }: { support: SupportCI }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Bouton pour voir le document de demande */}
+          {support.documentUrl && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleViewDocument}
+              className="gap-1 border-purple-300 text-purple-700 hover:bg-purple-50"
+              title="Voir le contrat de support"
+            >
+              <Eye className="h-3 w-3" />
+              Voir contrat
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
