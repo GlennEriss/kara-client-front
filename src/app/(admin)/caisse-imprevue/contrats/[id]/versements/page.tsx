@@ -416,7 +416,7 @@ export default function ContractCIPaymentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* En-tête */}
         <div className="flex items-center justify-between">
@@ -578,8 +578,8 @@ export default function ContractCIPaymentsPage() {
         {/* Historique des paiements */}
         <Card className="border-0 shadow-lg">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-gray-900">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
                 Liste des Paiements ({payments.length} mois)
               </CardTitle>
@@ -589,19 +589,21 @@ export default function ContractCIPaymentsPage() {
                     onClick={exportToPDF}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-50"
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 border-red-300 text-red-700 hover:bg-red-50 h-9 px-2 sm:px-3 text-xs sm:text-sm"
                   >
-                    <FileText className="h-4 w-4" />
-                    Export PDF
+                    <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Export PDF</span>
+                    <span className="sm:hidden">PDF</span>
                   </Button>
                   <Button
                     onClick={exportToExcel}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 border-green-300 text-green-700 hover:bg-green-50 h-9 px-2 sm:px-3 text-xs sm:text-sm"
                   >
-                    <Download className="h-4 w-4" />
-                    Export Excel
+                    <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Export Excel</span>
+                    <span className="sm:hidden">Excel</span>
                   </Button>
                 </div>
               )}
