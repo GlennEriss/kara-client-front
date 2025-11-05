@@ -279,7 +279,7 @@ export default function FreeContract({ id }: Props) {
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* En-tête du contrat */}
@@ -290,9 +290,9 @@ export default function FreeContract({ id }: Props) {
                 <div className="bg-white/20 rounded-lg p-3">
                   <FileText className="h-8 w-8 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-white">Contrat Libre</h1>
-                  <p className="text-blue-100">#{id}</p>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl md:text-3xl font-bold text-white break-words">Contrat Libre</h1>
+                  <p className="text-blue-100 text-sm md:text-base break-all font-mono">#{id}</p>
                 </div>
               </div>
               {isClosed && (

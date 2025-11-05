@@ -289,7 +289,7 @@ export default function StandardContract({ id }: Props) {
   }
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
+    <div className="space-y-8 p-4 md:p-6 overflow-x-hidden">
       {/* Header */}
       <HeaderContractSection
         id={id}
