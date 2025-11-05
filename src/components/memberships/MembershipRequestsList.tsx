@@ -56,7 +56,7 @@ const COLORS = {
 
 // Fonction utilitaire pour obtenir le badge de statut avec animations
 const getStatusBadge = (status: MembershipRequestStatus) => {
-  const baseClasses = "transition-all duration-300 hover:scale-105 flex items-center gap-1.5 font-medium"
+  const baseClasses = "transition-all duration-300 hover:scale-105 flex items-center gap-1.5 font-medium break-words whitespace-normal max-w-full text-left"
   
   switch (status) {
     case 'pending':
@@ -646,8 +646,8 @@ const MembershipRequestCard = ({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center space-x-3">
-              {getStatusBadge(request.status)}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-3 max-w-full">
+              <div className="max-w-full">{getStatusBadge(request.status)}</div>
               {request.isPaid ? (
                 <Badge className="bg-green-100 text-green-700 border-green-200">Payé</Badge>
               ) : (
@@ -655,7 +655,7 @@ const MembershipRequestCard = ({
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110 self-start">
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
