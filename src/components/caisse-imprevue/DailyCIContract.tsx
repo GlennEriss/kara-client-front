@@ -550,7 +550,7 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const isContractTerminated = isContractCanceled || isContractFinished
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
         <div className="flex items-center justify-between">
@@ -623,20 +623,20 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
         </div>
 
         {/* Titre principal */}
-        <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73]">
-          <CardHeader>
-            <CardTitle className="text-2xl lg:text-3xl font-black text-white flex items-center gap-3">
-              <DollarSign className="h-7 w-7 lg:h-8 lg:w-8" />
-              Gestion des Versements - Paiement Quotidien
+        <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
+          <CardHeader className="overflow-hidden">
+            <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
+              <DollarSign className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
+              <span className="break-words">Gestion des Versements - Paiement Quotidien</span>
             </CardTitle>
-            <div className="space-y-1 text-blue-100">
-              <p className="text-base lg:text-lg">
-                Contrat #{contract.id}
+            <div className="space-y-1 text-blue-100 break-words">
+              <p className="text-sm sm:text-base lg:text-lg break-words">
+                Contrat <span className="font-mono text-xs sm:text-sm break-all">#{contract.id}</span>
               </p>
-              <p className="text-sm">
-                {contract.memberFirstName} {contract.memberLastName} - Forfait {contract.subscriptionCICode}
+              <p className="text-sm break-words">
+                {contract.memberFirstName} {contract.memberLastName} - Forfait <span className="font-mono text-xs break-all">{contract.subscriptionCICode}</span>
               </p>
-              <p className="text-sm">
+              <p className="text-sm break-words">
                 Objectif mensuel: {contract.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA
               </p>
             </div>
