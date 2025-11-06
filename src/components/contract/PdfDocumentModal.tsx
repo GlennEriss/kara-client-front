@@ -9,7 +9,8 @@ import { toast } from 'sonner'
 import { uploadContractDocument, deleteContractDocument } from '@/db/upload-file.db'
 import { updateRefund } from '@/db/caisse/refunds.db'
 import { useAuth } from '@/hooks/useAuth'
-import type { RefundDocument } from '@/types/types'
+import type { RefundDocument, DocumentType } from '@/types/types'
+import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 
 interface PdfDocumentModalProps {
   isOpen: boolean
@@ -20,6 +21,9 @@ interface PdfDocumentModalProps {
   existingDocument?: RefundDocument
   title?: string
   description?: string
+  documentType: DocumentType
+  memberId: string
+  documentLabel?: string
 }
 
 export default function PdfDocumentModal({
@@ -30,7 +34,10 @@ export default function PdfDocumentModal({
   refundId,
   existingDocument,
   title = "Document PDF",
-  description = "Téléchargez et téléversez le document PDF requis"
+  description = "Téléchargez et téléversez le document PDF requis",
+  documentType,
+  memberId,
+  documentLabel,
 }: PdfDocumentModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -120,6 +127,30 @@ export default function PdfDocumentModal({
         updatedBy: user?.uid,
         documentUpdatedAt: new Date()
       })
+      
+      // Store document in documents collection if possible
+      try {
+        if (memberId) {
+          const repository = new DocumentRepository()
+          await repository.createDocument({
+            type: documentType,
+            format: 'pdf',
+            libelle: documentLabel || `${title} - Contrat ${contractId}`,
+            path: uploadResult.path,
+            url: uploadResult.url,
+            size: selectedFile.size,
+            memberId,
+            contractId,
+            createdBy: user.uid,
+            updatedBy: user.uid
+          })
+        } else {
+          toast.warning('Document téléversé mais non associé à un membre. Veuillez vérifier le contrat.')
+        }
+      } catch (docError: any) {
+        console.error('Erreur lors de la sauvegarde du document dans la collection documents:', docError)
+        toast.warning('Document téléversé mais non enregistré dans la bibliothèque. Réessayez plus tard.')
+      }
       
       onDocumentUploaded(document)
       toast.success(existingDocument ? 'Document PDF remplacé avec succès' : 'Document PDF téléversé avec succès')

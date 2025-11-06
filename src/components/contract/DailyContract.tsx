@@ -359,7 +359,7 @@ export default function DailyContract({ id }: Props) {
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
-  const handlePdfUpload = async (document: RefundDocument) => {
+  const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
@@ -953,6 +953,16 @@ export default function DailyContract({ id }: Props) {
 
   const monthDays = getMonthDays(currentMonth)
 
+  const currentRefund = useMemo(() => {
+    return currentRefundId ? refunds.find((r: any) => r.id === currentRefundId) : null
+  }, [currentRefundId, refunds])
+
+  const documentMemberId = useMemo(() => {
+    if ((data as any).memberId) return (data as any).memberId
+    if ((data as any).groupeId) return `GROUP_${(data as any).groupeId}`
+    return ''
+  }, [data])
+
   return (
     <div className="min-h-screen p-6 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -1262,7 +1272,7 @@ export default function DailyContract({ id }: Props) {
           Remboursements
         </h2>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           {(() => {
             const payments = data.payments || []
             const paidCount = payments.filter((x: any) => x.status === 'PAID').length
@@ -1284,7 +1294,7 @@ export default function DailyContract({ id }: Props) {
             return (
               <>
                 <Button
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
                   disabled={isRefunding || !allPaid || hasFinalRefund}
                   onClick={() => {
                     setRefundType('FINAL')
@@ -1299,7 +1309,7 @@ export default function DailyContract({ id }: Props) {
                 <Button
                   variant="outline"
                   disabled={isRefunding || !canEarly || hasEarlyRefund}
-                  className="w-full sm:w-auto"
+                  className="w-full"
                   onClick={() => {
                     setRefundType('EARLY')
                     setRefundReasonInput('')
@@ -1313,7 +1323,7 @@ export default function DailyContract({ id }: Props) {
                 <Button
                   variant="outline"
                   disabled={isClosed}
-                  className="w-full sm:w-auto border-orange-300 text-orange-700 hover:bg-orange-50"
+                  className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
                   onClick={() => setShowLatePaymentModal(true)}
                 >
                   <span className="hidden sm:inline">Versement en retard</span>
@@ -1322,7 +1332,7 @@ export default function DailyContract({ id }: Props) {
 
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto border-green-300 text-green-700 hover:bg-green-50"
+                  className="w-full border-green-300 text-green-700 hover:bg-green-50"
                   onClick={() => setShowRemboursementPdf(true)}
                 >
                   <FileText className="h-4 w-4" />
@@ -2811,16 +2821,21 @@ export default function DailyContract({ id }: Props) {
       )}
 
       {/* Modal PDF Document */}
-      <PdfDocumentModal
-        isOpen={showPdfModal}
-        onClose={() => setShowPdfModal(false)}
-        onDocumentUploaded={handlePdfUpload}
-        contractId={id}
-        refundId={currentRefundId || ""}
-        existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
-        title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
-        description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
-      />
+      {currentRefund && (
+        <PdfDocumentModal
+          isOpen={showPdfModal}
+          onClose={() => setShowPdfModal(false)}
+          onDocumentUploaded={handlePdfUpload}
+          contractId={id}
+          refundId={currentRefundId || ""}
+          existingDocument={currentRefund.document}
+          title={currentRefund.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé'}
+          description={currentRefund.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.'}
+          documentType={currentRefund.type === 'FINAL' ? 'FINAL_REFUND_CS' : 'EARLY_REFUND_CS'}
+          memberId={documentMemberId}
+          documentLabel={`${currentRefund.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
+        />
+      )}
 
       {/* Modal PDF Viewer */}
       {currentDocument && (
