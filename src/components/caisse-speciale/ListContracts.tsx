@@ -873,9 +873,9 @@ const ListContracts = () => {
               </div>
             </div>
 
-            <div className="md:flex flex-wrap items-center gap-3 hidden">
+            <div className="flex flex-wrap items-center gap-3">
               {/* Boutons de vue modernes */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
+              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
@@ -908,7 +908,7 @@ const ListContracts = () => {
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-10 px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
@@ -919,7 +919,7 @@ const ListContracts = () => {
                 size="sm"
                 onClick={exportToExcel}
                 disabled={isExporting || filteredContracts.length === 0}
-                className="h-10 px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-green-300 hover:border-green-400 hover:bg-green-50 text-green-700 hover:text-green-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
               >
                 {isExporting ? (
                   <>
@@ -937,7 +937,7 @@ const ListContracts = () => {
               <Button
                 size="sm"
                 onClick={handleCreateContract}
-                className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Nouveau Contrat
@@ -1220,6 +1220,7 @@ const ListContracts = () => {
           contractId={selectedContractForUpload.id}
           contractName={`Contrat #${selectedContractForUpload.id.slice(-6)}`}
           onSuccess={handleUploadSuccess}
+          contract={selectedContractForUpload}
         />
       )}
 

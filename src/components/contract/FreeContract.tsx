@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
@@ -227,7 +227,7 @@ export default function FreeContract({ id }: Props) {
     }
   }
 
-  const handlePdfUpload = async (document: RefundDocument) => {
+  const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
@@ -249,6 +249,16 @@ export default function FreeContract({ id }: Props) {
     setCurrentRefundId(refundId)
     setShowPdfModal(true)
   }
+
+  const currentRefund = useMemo(() => {
+    return currentRefundId ? refunds.find((r: any) => r.id === currentRefundId) : null
+  }, [currentRefundId, refunds])
+
+  const documentMemberId = useMemo(() => {
+    if ((data as any).memberId) return (data as any).memberId
+    if ((data as any).groupeId) return `GROUP_${(data as any).groupeId}`
+    return ''
+  }, [data])
 
   const handleDeleteDocument = async (refundId: string) => {
     try {
@@ -474,9 +484,9 @@ export default function FreeContract({ id }: Props) {
           
           <div className="p-6">
             {/* Boutons d'action */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
               <button 
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-indigo-300 text-indigo-700 rounded-xl hover:bg-indigo-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-indigo-300 text-indigo-700 rounded-xl hover:bg-indigo-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full" 
                 disabled={isRefunding || !allPaid || hasFinalRefund} 
                 onClick={() => {
                   setRefundType('FINAL')
@@ -489,7 +499,7 @@ export default function FreeContract({ id }: Props) {
               </button>
               
               <button 
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-orange-300 text-orange-700 rounded-xl hover:bg-orange-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed" 
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-orange-300 text-orange-700 rounded-xl hover:bg-orange-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full" 
                 disabled={isRefunding || !canEarly || hasEarlyRefund} 
                 onClick={() => {
                   setRefundType('EARLY')
@@ -502,7 +512,7 @@ export default function FreeContract({ id }: Props) {
               </button>
 
               <button 
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-green-300 text-green-700 rounded-xl hover:bg-green-50 transition-all duration-200 font-medium" 
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-green-300 text-green-700 rounded-xl hover:bg-green-50 transition-all duration-200 font-medium w-full" 
                 onClick={() => setShowRemboursementPdf(true)}
               >
                 <FileText className="h-5 w-5" />
@@ -692,11 +702,18 @@ export default function FreeContract({ id }: Props) {
                             <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
                             <input
                               type="file"
-                              accept="application/pdf"
+                              accept="image/*"
                               onChange={async (e) => {
                                 const f = e.target.files?.[0]
-                                if (!f) { setRefundFile(undefined); return }
-                                if (f.type !== 'application/pdf') { toast.error('La preuve doit être un fichier PDF'); setRefundFile(undefined); return }
+                                if (!f) {
+                                  setRefundFile(undefined)
+                                  return
+                                }
+                                if (!f.type.startsWith('image/')) {
+                                  toast.error('La preuve doit être une image (JPG, PNG, WebP...)')
+                                  setRefundFile(undefined)
+                                  return
+                                }
                                 setRefundFile(f)
                                 toast.success('Preuve PDF sélectionnée')
                               }}
@@ -885,16 +902,21 @@ export default function FreeContract({ id }: Props) {
 
 
         {/* Modal PDF Document */}
-        <PdfDocumentModal
-          isOpen={showPdfModal}
-          onClose={() => setShowPdfModal(false)}
-          onDocumentUploaded={handlePdfUpload}
-          contractId={id}
-          refundId={currentRefundId || ""}
-          existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
-          title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
-          description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
-        />
+        {currentRefund && (
+          <PdfDocumentModal
+            isOpen={showPdfModal}
+            onClose={() => setShowPdfModal(false)}
+            onDocumentUploaded={handlePdfUpload}
+            contractId={id}
+            refundId={currentRefundId || ""}
+            existingDocument={currentRefund.document}
+            title={currentRefund.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé'}
+            description={currentRefund.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.'}
+            documentType={currentRefund.type === 'FINAL' ? 'FINAL_REFUND_CS' : 'EARLY_REFUND_CS'}
+            memberId={documentMemberId}
+            documentLabel={`${currentRefund.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
+          />
+        )}
 
         {/* Modal PDF Viewer */}
         {currentDocument && (

@@ -59,7 +59,7 @@ function ContractCreationContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="container mx-auto max-w-4xl">
         {/* En-tête avec progression */}
         <div className="mb-8">
@@ -73,8 +73,8 @@ function ContractCreationContent() {
           </div>
 
           {/* Indicateur de progression */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center space-x-4">
+          <div className="flex justify-center mb-8">
+            <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:space-x-4">
               {steps.map((step, index) => (
                 <React.Fragment key={step.id}>
                   <div className="flex flex-col items-center">
@@ -103,10 +103,16 @@ function ContractCreationContent() {
                     </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={cn(
-                      "w-16 h-1 rounded-full transition-all duration-500",
-                      step.isCompleted ? "bg-gradient-to-r from-[#234D65] to-blue-600" : "bg-gray-200"
-                    )} />
+                    <>
+                      <div className={cn(
+                        "sm:hidden w-0.5 h-6 mx-auto rounded-full transition-all duration-500",
+                        step.isCompleted ? "bg-gradient-to-b from-[#234D65] to-blue-600" : "bg-gray-200"
+                      )} />
+                      <div className={cn(
+                        "hidden sm:block w-16 h-1 rounded-full transition-all duration-500",
+                        step.isCompleted ? "bg-gradient-to-r from-[#234D65] to-blue-600" : "bg-gray-200"
+                      )} />
+                    </>
                   )}
                 </React.Fragment>
               ))}
@@ -115,21 +121,21 @@ function ContractCreationContent() {
         </div>
 
         {/* Contenu principal */}
-        <Card className="border-0 shadow-2xl bg-white/80 backdrop-blur-xl">
-          <CardContent className="p-6 sm:p-8">
+        <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-xl rounded-2xl">
+          <CardContent className="p-4 sm:p-8">
             {renderCurrentStep()}
           </CardContent>
         </Card>
 
         {/* Navigation entre les étapes */}
         {currentStep < 3 && (
-          <div className="flex justify-between mt-8">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:justify-between gap-3 mt-8">
             <Button
               variant="outline"
               onClick={prevStep}
               disabled={!canGoPrev()}
               className={cn(
-                "h-12 px-6 border-2 transition-all duration-300 rounded-xl",
+                "h-11 sm:h-12 w-full sm:w-auto px-6 border-2 transition-all duration-300 rounded-xl",
                 canGoPrev()
                   ? "border-gray-300 hover:border-[#234D65] hover:bg-[#234D65] hover:text-white"
                   : "border-gray-200 text-gray-400 cursor-not-allowed"
@@ -143,7 +149,7 @@ function ContractCreationContent() {
               onClick={nextStep}
               disabled={!canGoNext()}
               className={cn(
-                "h-12 px-6 transition-all duration-300 rounded-xl",
+                "h-11 sm:h-12 w-full sm:w-auto px-6 transition-all duration-300 rounded-xl",
                 canGoNext()
                   ? "bg-gradient-to-r from-[#234D65] to-blue-600 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg hover:shadow-xl"
                   : "bg-gray-400 text-gray-600 cursor-not-allowed"

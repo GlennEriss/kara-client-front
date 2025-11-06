@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
@@ -71,6 +71,52 @@ export default function DailyContract({ id }: Props) {
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+
+  const settings = useActiveCaisseSettingsByType((data as any)?.caisseType)
+
+  const contractStartDate = useMemo(() => {
+    if (!data?.firstPaymentDate) return null
+    try {
+      const start = new Date(data.firstPaymentDate)
+      if (isNaN(start.getTime())) return null
+      start.setHours(0, 0, 0, 0)
+      console.log('[DailyContract] contractStartDate:', start.toISOString())
+      return start
+    } catch {
+      return null
+    }
+  }, [data?.firstPaymentDate])
+
+  const getMonthIndexFromStart = useCallback((date: Date) => {
+    if (!contractStartDate) return null
+
+    const normalizedTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    if (normalizedTarget < contractStartDate) return null
+
+    let diffMonths = (normalizedTarget.getFullYear() - contractStartDate.getFullYear()) * 12 +
+      (normalizedTarget.getMonth() - contractStartDate.getMonth())
+
+    let boundaryStart = new Date(contractStartDate)
+    boundaryStart.setMonth(boundaryStart.getMonth() + diffMonths)
+
+    while (boundaryStart > normalizedTarget && diffMonths > 0) {
+      diffMonths -= 1
+      boundaryStart = new Date(contractStartDate)
+      boundaryStart.setMonth(boundaryStart.getMonth() + diffMonths)
+    }
+
+    let nextBoundary = new Date(boundaryStart)
+    nextBoundary.setMonth(nextBoundary.getMonth() + 1)
+
+    while (normalizedTarget >= nextBoundary) {
+      diffMonths += 1
+      boundaryStart = nextBoundary
+      nextBoundary = new Date(boundaryStart)
+      nextBoundary.setMonth(nextBoundary.getMonth() + 1)
+    }
+
+    return diffMonths
+  }, [contractStartDate])
 
   // Fonction pour recharger les remboursements
   const reloadRefunds = React.useCallback(async () => {
@@ -172,7 +218,6 @@ export default function DailyContract({ id }: Props) {
   if (!data) return <div className="p-4">Contrat introuvable</div>
 
   const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
-  const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
@@ -202,21 +247,17 @@ export default function DailyContract({ id }: Props) {
   const getPaymentForDate = (date: Date) => {
     if (!data.payments) return null
 
-    // Pour les contrats de groupe, chercher par jour spécifique
+    const monthIndex = getMonthIndexFromStart(date)
+    if (monthIndex === null || monthIndex < 0) return null
+
     if (isGroupContract) {
-      // Calculer l'index du mois pour cette date
-      const contractStartMonth = data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth()
-      const targetMonth = date.getMonth()
-      const monthIndex = targetMonth - contractStartMonth
-
-      // Chercher le paiement pour ce mois
       const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
+      if (!payment) return null
 
-      if (payment && payment.groupContributions && payment.groupContributions.length > 0) {
-        // Vérifier si cette date spécifique a des contributions
+      if (payment.groupContributions && payment.groupContributions.length > 0) {
+        const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
         const hasContributionsOnDate = payment.groupContributions.some((contrib: any) => {
           if (!contrib.createdAt) return false
-
           let contribDate: Date
           if (contrib.createdAt instanceof Date) {
             contribDate = contrib.createdAt
@@ -227,102 +268,112 @@ export default function DailyContract({ id }: Props) {
           } else {
             contribDate = new Date(contrib.createdAt)
           }
-
-          // Normaliser les dates pour la comparaison
           const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
-          const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-
           return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
         })
 
-        if (hasContributionsOnDate) {
-          return payment
-        } else {
-          return null
-        }
+        return hasContributionsOnDate ? payment : null
       }
 
       return null
     }
 
-    // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
-    for (const payment of data.payments) {
-      if (payment.contribs && Array.isArray(payment.contribs)) {
-        const hasContributionOnDate = payment.contribs.some((c: any) => {
-          if (!c.paidAt) return false
+    const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
+    if (!payment || !payment.contribs || !Array.isArray(payment.contribs)) return null
 
-          let contribDate: Date
+    const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const hasContributionOnDate = payment.contribs.some((c: any) => {
+      if (!c.paidAt) return false
 
-          // Gérer les différents types de date (Date, Timestamp, string)
-          if (c.paidAt instanceof Date) {
-            contribDate = c.paidAt
-          } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
-            // Firestore Timestamp
-            contribDate = c.paidAt.toDate()
-          } else if (typeof c.paidAt === 'string') {
-            contribDate = new Date(c.paidAt)
-          } else {
-            contribDate = new Date(c.paidAt)
-          }
-
-          // Vérifier que la date est valide
-          if (isNaN(contribDate.getTime())) return false
-
-          // Normaliser les dates pour la comparaison (ignorer l'heure)
-          const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
-          const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-
-          return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
-        })
-
-        if (hasContributionOnDate) {
-          return payment
-        }
+      let contribDate: Date
+      if (c.paidAt instanceof Date) {
+        contribDate = c.paidAt
+      } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
+        contribDate = c.paidAt.toDate()
+      } else if (typeof c.paidAt === 'string') {
+        contribDate = new Date(c.paidAt)
+      } else {
+        contribDate = new Date(c.paidAt)
       }
-    }
-    return null
+
+      if (isNaN(contribDate.getTime())) return false
+      const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
+      return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
+    })
+
+    return hasContributionOnDate ? payment : null
   }
 
   const getPaymentDetailsForDate = (date: Date) => {
     if (!data.payments) return null
 
-    // Rechercher dans tous les paiements pour trouver une contribution à cette date exacte
-    for (const payment of data.payments) {
-      if (payment.contribs && Array.isArray(payment.contribs)) {
-        const contribution = payment.contribs.find((c: any) => {
-          if (!c.paidAt) return false
+    const monthIndex = getMonthIndexFromStart(date)
+    if (monthIndex === null || monthIndex < 0) return null
 
-          let contribDate: Date
+    const payment = data.payments.find((p: any) => p.dueMonthIndex === monthIndex)
+    if (!payment) return null
 
-          // Gérer les différents types de date (Date, Timestamp, string)
-          if (c.paidAt instanceof Date) {
-            contribDate = c.paidAt
-          } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
-            // Firestore Timestamp
-            contribDate = c.paidAt.toDate()
-          } else if (typeof c.paidAt === 'string') {
-            contribDate = new Date(c.paidAt)
-          } else {
-            contribDate = new Date(c.paidAt)
-          }
+    if (payment.contribs && Array.isArray(payment.contribs)) {
+      const contribution = payment.contribs.find((c: any) => {
+        if (!c.paidAt) return false
 
-          // Vérifier que la date est valide
-          if (isNaN(contribDate.getTime())) return false
-
-          // Normaliser les dates pour la comparaison (ignorer l'heure)
-          const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
-          const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-
-          return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
-        })
-
-        if (contribution) {
-          return { payment, contribution }
+        let contribDate: Date
+        if (c.paidAt instanceof Date) {
+          contribDate = c.paidAt
+        } else if (c.paidAt && typeof c.paidAt.toDate === 'function') {
+          contribDate = c.paidAt.toDate()
+        } else if (typeof c.paidAt === 'string') {
+          contribDate = new Date(c.paidAt)
+        } else {
+          contribDate = new Date(c.paidAt)
         }
+
+        if (isNaN(contribDate.getTime())) return false
+        const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
+        const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+        return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
+      })
+
+      if (contribution) {
+        return { payment, contribution }
       }
     }
+
+    if (isGroupContract && payment.groupContributions && payment.groupContributions.length > 0) {
+      const normalizedTargetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      const hasContributionsOnDate = payment.groupContributions.some((contrib: any) => {
+        if (!contrib.createdAt) return false
+        let contribDate: Date
+        if (contrib.createdAt instanceof Date) {
+          contribDate = contrib.createdAt
+        } else if (contrib.createdAt && typeof contrib.createdAt.toDate === 'function') {
+          contribDate = contrib.createdAt.toDate()
+        } else if (typeof contrib.createdAt === 'string') {
+          contribDate = new Date(contrib.createdAt)
+        } else {
+          contribDate = new Date(contrib.createdAt)
+        }
+        const normalizedContribDate = new Date(contribDate.getFullYear(), contribDate.getMonth(), contribDate.getDate())
+        return normalizedContribDate.getTime() === normalizedTargetDate.getTime()
+      })
+
+      return hasContributionsOnDate ? { payment } : null
+    }
+
     return null
   }
+
+  const getMonthDateRange = useCallback((monthIndex: number) => {
+    if (!contractStartDate) return null
+
+    const start = new Date(contractStartDate)
+    start.setMonth(start.getMonth() + monthIndex)
+
+    const end = new Date(start)
+    end.setMonth(end.getMonth() + 1)
+
+    return { start, end }
+  }, [contractStartDate])
 
   const getTotalForMonth = (monthIndex: number) => {
     const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
@@ -359,7 +410,7 @@ export default function DailyContract({ id }: Props) {
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
-  const handlePdfUpload = async (document: RefundDocument) => {
+  const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
     // On peut fermer le modal et rafraîchir les données
     setShowPdfModal(false)
@@ -837,7 +888,12 @@ export default function DailyContract({ id }: Props) {
       console.log('🚀 Envoi du versement à la base de données...')
 
       // Trouver le mois correspondant à la date sélectionnée
-      const monthIndex = selectedDate.getMonth() - (data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth())
+      const monthIndex = getMonthIndexFromStart(selectedDate)
+      if (monthIndex === null || monthIndex < 0) {
+        toast.error('Date de versement invalide')
+        setIsPaying(false)
+        return
+      }
 
       if (isGroupContract && groupMembers) {
         // Utiliser la nouvelle fonction payGroup pour les contrats de groupe
@@ -952,6 +1008,22 @@ export default function DailyContract({ id }: Props) {
   }
 
   const monthDays = getMonthDays(currentMonth)
+
+  const currentRefund = useMemo(() => {
+    return currentRefundId ? refunds.find((r: any) => r.id === currentRefundId) : null
+  }, [currentRefundId, refunds])
+
+  const documentMemberId = useMemo(() => {
+    if ((data as any).memberId) return (data as any).memberId
+    if ((data as any).groupeId) return `GROUP_${(data as any).groupeId}`
+    return ''
+  }, [data])
+
+  useEffect(() => {
+    if (contractStartDate) {
+      setCurrentMonth(contractStartDate)
+    }
+  }, [contractStartDate])
 
   return (
     <div className="min-h-screen p-6 overflow-x-hidden">
@@ -1213,6 +1285,15 @@ export default function DailyContract({ id }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {(() => {
+                  const range = getMonthDateRange(monthIndex)
+                  if (!range) return null
+                  return (
+                    <div className="text-xs text-gray-500">
+                      {range.start.toLocaleDateString('fr-FR')} → {range.end.toLocaleDateString('fr-FR')}
+                    </div>
+                  )
+                })()}
                 <div className="flex items-center justify-between">
                   <span className="text-xs lg:text-sm text-gray-600">Objectif</span>
                   <span className="text-sm lg:text-base font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
@@ -1262,7 +1343,7 @@ export default function DailyContract({ id }: Props) {
           Remboursements
         </h2>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           {(() => {
             const payments = data.payments || []
             const paidCount = payments.filter((x: any) => x.status === 'PAID').length
@@ -1284,7 +1365,7 @@ export default function DailyContract({ id }: Props) {
             return (
               <>
                 <Button
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
                   disabled={isRefunding || !allPaid || hasFinalRefund}
                   onClick={() => {
                     setRefundType('FINAL')
@@ -1299,7 +1380,7 @@ export default function DailyContract({ id }: Props) {
                 <Button
                   variant="outline"
                   disabled={isRefunding || !canEarly || hasEarlyRefund}
-                  className="w-full sm:w-auto"
+                  className="w-full"
                   onClick={() => {
                     setRefundType('EARLY')
                     setRefundReasonInput('')
@@ -1313,7 +1394,7 @@ export default function DailyContract({ id }: Props) {
                 <Button
                   variant="outline"
                   disabled={isClosed}
-                  className="w-full sm:w-auto border-orange-300 text-orange-700 hover:bg-orange-50"
+                  className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
                   onClick={() => setShowLatePaymentModal(true)}
                 >
                   <span className="hidden sm:inline">Versement en retard</span>
@@ -1322,7 +1403,7 @@ export default function DailyContract({ id }: Props) {
 
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto border-green-300 text-green-700 hover:bg-green-50"
+                  className="w-full border-green-300 text-green-700 hover:bg-green-50"
                   onClick={() => setShowRemboursementPdf(true)}
                 >
                   <FileText className="h-4 w-4" />
@@ -1526,15 +1607,15 @@ export default function DailyContract({ id }: Props) {
                                   <FormControl>
                                     <Input
                                       type="file"
-                                      accept="application/pdf"
+                                      accept="image/*"
                                       onChange={async (e) => {
                                         const file = e.target.files?.[0]
                                         if (!file) {
                                           onChange(undefined)
                                           return
                                         }
-                                        if (file.type !== 'application/pdf') {
-                                          toast.error('La preuve doit être un fichier PDF')
+                                        if (!file.type.startsWith('image/')) {
+                                          toast.error('La preuve doit être une image (JPG, PNG, WebP...)')
                                           onChange(undefined)
                                           return
                                         }
@@ -2623,7 +2704,12 @@ export default function DailyContract({ id }: Props) {
                   setIsPaying(true)
 
                   // Trouver le mois correspondant à la date sélectionnée
-                  const monthIndex = selectedDate.getMonth() - (data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth())
+                  const monthIndex = getMonthIndexFromStart(selectedDate)
+                  if (monthIndex === null || monthIndex < 0) {
+                    toast.error('Date de versement invalide')
+                    setIsPaying(false)
+                    return
+                  }
 
                   if (isGroupContract && groupMembers) {
                     // Utiliser la nouvelle fonction payGroup pour les contrats de groupe
@@ -2811,16 +2897,21 @@ export default function DailyContract({ id }: Props) {
       )}
 
       {/* Modal PDF Document */}
-      <PdfDocumentModal
-        isOpen={showPdfModal}
-        onClose={() => setShowPdfModal(false)}
-        onDocumentUploaded={handlePdfUpload}
-        contractId={id}
-        refundId={currentRefundId || ""}
-        existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
-        title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
-        description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
-      />
+      {currentRefund && (
+        <PdfDocumentModal
+          isOpen={showPdfModal}
+          onClose={() => setShowPdfModal(false)}
+          onDocumentUploaded={handlePdfUpload}
+          contractId={id}
+          refundId={currentRefundId || ""}
+          existingDocument={currentRefund.document}
+          title={currentRefund.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé'}
+          description={currentRefund.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.'}
+          documentType={currentRefund.type === 'FINAL' ? 'FINAL_REFUND_CS' : 'EARLY_REFUND_CS'}
+          memberId={documentMemberId}
+          documentLabel={`${currentRefund.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
+        />
+      )}
 
       {/* Modal PDF Viewer */}
       {currentDocument && (
@@ -2828,44 +2919,8 @@ export default function DailyContract({ id }: Props) {
           isOpen={showPdfViewer}
           onClose={() => setShowPdfViewer(false)}
           document={currentDocument}
-          title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
         />
       )}
-
-      {/* Modal de confirmation de suppression */}
-      {confirmDeleteDocumentId && (
-        <Dialog open={!!confirmDeleteDocumentId} onOpenChange={() => setConfirmDeleteDocumentId(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirmer la suppression</DialogTitle>
-              <DialogDescription>
-                Voulez-vous vraiment supprimer ce document PDF ? Cette action est irréversible.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDeleteDocumentId(null)}>
-                Annuler
-              </Button>
-              <Button
-                className="bg-red-600 hover:bg-red-700 text-white"
-                onClick={() => handleDeleteDocument(confirmDeleteDocumentId)}
-              >
-                Supprimer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Modal PDF Remboursement */}
-      <RemboursementNormalPDFModal
-        isOpen={showRemboursementPdf}
-        onClose={() => setShowRemboursementPdf(false)}
-        contractId={id}
-        contractData={data}
-      />
     </div>
   )
 }
-
-
