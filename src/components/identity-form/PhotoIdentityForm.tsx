@@ -25,7 +25,7 @@ export default function PhotoIdentityForm() {
     <div className="lg:col-span-1 w-full min-w-0">
       <div className="text-center space-y-4 w-full">
         <FormField
-          name="photo"
+          name="identity.photo"
           render={({ field, fieldState }) => (
             <FormItem>
               <FormLabel className="text-sm sm:text-base font-bold text-[#224D62]">
