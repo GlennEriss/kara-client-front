@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getNationalityName } from '@/constantes/nationality'
+import Link from 'next/link'
 import {
   User,
   Users,
@@ -293,6 +294,17 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
             >
               <Calendar className="h-4 w-4 mr-2" />
               Voir abonnements
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="w-full text-[#234D65] border-[#234D65] hover:bg-[#234D65] hover:text-white"
+            >
+              <Link href={routes.admin.membershipDocuments(member.id!)}>
+                <FileText className="h-4 w-4 mr-2" />
+                Voir documents
+              </Link>
             </Button>
           </div>
 
