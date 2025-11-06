@@ -1,6 +1,31 @@
 import { Document } from "@/types/types";
 import { IRepository } from "../IRepository";
 
+export type DocumentSortField = 'type' | 'createdAt' | 'updatedAt'
+export type DocumentSortDirection = 'asc' | 'desc'
+
+export interface DocumentSortInput {
+    field: DocumentSortField
+    direction: DocumentSortDirection
+}
+
+export interface DocumentListQuery {
+    memberId: string
+    page?: number
+    pageSize?: number
+    type?: string
+    sort?: DocumentSortInput[]
+}
+
+export interface DocumentListResult {
+    documents: Document[]
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    availableTypes: string[]
+}
+
 export interface DocumentFilters {
     type?: string
     format?: string
@@ -27,6 +52,7 @@ export interface IDocumentRepository extends IRepository {
     getDocumentsByMemberId(memberId: string): Promise<Document[]>;
     getAllDocuments(filters?: DocumentFilters): Promise<Document[]>;
     getPaginatedDocuments(filters?: DocumentFilters): Promise<PaginatedDocuments>;
+    getDocuments(params: DocumentListQuery): Promise<DocumentListResult>;
     updateDocument(id: string, data: Partial<Omit<Document, 'id' | 'createdAt'>>): Promise<Document | null>;
     deleteDocument(id: string): Promise<void>;
     uploadDocumentFile(file: File, memberId: string, documentType: string): Promise<{ url: string; path: string; size: number }>;

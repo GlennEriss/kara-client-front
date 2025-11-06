@@ -1,4 +1,4 @@
-import { IDocumentRepository } from "./IDocumentRepository";
+import { IDocumentRepository, DocumentListQuery, DocumentListResult, DocumentSortInput } from "./IDocumentRepository";
 import { Document } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -8,6 +8,98 @@ const getFirestore = () => import("@/firebase/firestore");
 
 export class DocumentRepository implements IDocumentRepository {
     readonly name = "DocumentRepository";
+
+    async getDocuments(params: DocumentListQuery): Promise<DocumentListResult> {
+        const { memberId, type } = params;
+        const page = Math.max(1, params.page ?? 1);
+        const pageSize = Math.max(1, params.pageSize ?? 10);
+        const sort: DocumentSortInput[] = (params.sort && params.sort.length > 0)
+            ? params.sort
+            : [
+                { field: 'type', direction: 'asc' },
+                { field: 'createdAt', direction: 'desc' },
+            ];
+
+        try {
+            const {
+                collection,
+                query,
+                where,
+                orderBy,
+                limit,
+                startAfter,
+                getDocs,
+                getCountFromServer,
+                db
+            } = await getFirestore();
+
+            const collectionRef = collection(db, firebaseCollectionNames.documents || "documents");
+
+            const constraints: any[] = [
+                where("memberId", "==", memberId)
+            ];
+
+            if (type) {
+                constraints.push(where("type", "==", type));
+            }
+
+            const sortConstraints = sort.map(sortItem => orderBy(sortItem.field, sortItem.direction));
+
+            const baseQuery = query(collectionRef, ...constraints, ...sortConstraints);
+
+            const countSnapshot = await getCountFromServer(baseQuery);
+            const totalItems = countSnapshot.data().count;
+            const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+            let paginatedQuery = query(baseQuery, limit(pageSize));
+
+            if (page > 1) {
+                const offset = (page - 1) * pageSize;
+                const offsetQuery = query(baseQuery, limit(offset));
+                const offsetSnapshot = await getDocs(offsetQuery);
+                const lastDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1];
+                if (lastDoc) {
+                    paginatedQuery = query(baseQuery, startAfter(lastDoc), limit(pageSize));
+                }
+            }
+
+            const snapshot = await getDocs(paginatedQuery);
+
+            const documents = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...(doc.data() as any),
+                createdAt: doc.data().createdAt?.toDate() || new Date(),
+                updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+            })) as Document[];
+
+            const typesSnapshot = await getDocs(
+                query(
+                    collectionRef,
+                    where("memberId", "==", memberId)
+                )
+            );
+
+            const availableTypes = Array.from(
+                new Set(
+                    typesSnapshot.docs
+                        .map(doc => doc.data()?.type)
+                        .filter(Boolean) as string[]
+                )
+            ).sort((a, b) => a.localeCompare(b));
+
+            return {
+                documents,
+                page,
+                pageSize,
+                totalItems,
+                totalPages,
+                availableTypes,
+            };
+        } catch (error) {
+            console.error("Erreur lors de la récupération des documents:", error);
+            throw error;
+        }
+    }
 
     /**
      * Téléverse un fichier PDF vers Firebase Storage
