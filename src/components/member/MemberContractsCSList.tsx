@@ -86,11 +86,13 @@ export default function MemberContractsCSList({ memberId }: MemberContractsCSLis
         <div className="space-y-4">
           {paginatedContracts.map((contract: any) => (
             <div key={contract.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">
-                  Contrat #{contract.id}
-                </h3>
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm sm:text-base text-gray-900 break-words">
+                    Contrat <span className="text-xs font-mono text-gray-600 break-all">#{contract.id}</span>
+                  </h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     contract.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
                     contract.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' :
@@ -113,14 +115,14 @@ export default function MemberContractsCSList({ memberId }: MemberContractsCSLis
                       return (
                         <Link
                           href={routes.admin.caisseSpecialeContractDetails(contract.id)}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full hover:bg-blue-200 transition-colors"
+                          className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full hover:bg-blue-200 transition-colors whitespace-nowrap"
                         >
                           Voir le contrat
                         </Link>
                       )
                     } else {
                       return (
-                        <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full cursor-not-allowed">
+                        <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full cursor-not-allowed whitespace-nowrap">
                           PDF requis
                         </span>
                       )
@@ -128,7 +130,7 @@ export default function MemberContractsCSList({ memberId }: MemberContractsCSLis
                   })()}
                   <Link
                     href={routes.admin.caisseSpecialeContractPayments(contract.id)}
-                    className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full hover:bg-green-200 transition-colors"
+                    className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full hover:bg-green-200 transition-colors whitespace-nowrap"
                   >
                     Versements
                   </Link>

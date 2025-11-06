@@ -16,12 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
   AlertCircle,
   FileText,
   Download,
@@ -33,9 +27,6 @@ import {
   FileArchive,
   User,
   Package,
-  TrendingUp,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react'
 import { useDocuments } from '@/hooks/documents'
 import { Document, DocumentType, DocumentFormat } from '@/types/types'

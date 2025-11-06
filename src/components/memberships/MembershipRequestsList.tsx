@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
-import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight, Zap, Target, DollarSign } from 'lucide-react'
+import { Search, Filter, MoreHorizontal, Eye, CheckCircle, XCircle, Clock, User, Calendar, Mail, Phone, MapPin, FileText, IdCard, Building2, Briefcase, AlertCircle, RefreshCw, Loader2, Car, CarFront, TrendingUp, Users, UserCheck, UserX, FileX, ChevronLeft, ChevronRight, Zap, Target, DollarSign, Copy } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -56,7 +56,7 @@ const COLORS = {
 
 // Fonction utilitaire pour obtenir le badge de statut avec animations
 const getStatusBadge = (status: MembershipRequestStatus) => {
-  const baseClasses = "transition-all duration-300 hover:scale-105 flex items-center gap-1.5 font-medium"
+  const baseClasses = "transition-all duration-300 hover:scale-105 flex items-center gap-1.5 font-medium break-words whitespace-normal max-w-full text-left"
   
   switch (status) {
     case 'pending':
@@ -646,8 +646,8 @@ const MembershipRequestCard = ({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center space-x-3">
-              {getStatusBadge(request.status)}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-3 max-w-full">
+              <div className="max-w-full">{getStatusBadge(request.status)}</div>
               {request.isPaid ? (
                 <Badge className="bg-green-100 text-green-700 border-green-200">Payé</Badge>
               ) : (
@@ -655,7 +655,7 @@ const MembershipRequestCard = ({
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110 self-start">
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -809,28 +809,28 @@ const MembershipRequestCard = ({
           {/* Message de correction pour les demandes under_review */}
           {request.status === 'under_review' && (
             <div className="pt-4 border-t border-orange-200">
-              <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 shadow-sm">
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-3 md:p-4 shadow-sm overflow-hidden">
                 <div className="flex items-start space-x-3">
                   <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                  <div className="space-y-3 flex-1">
-                    <p className="text-sm font-bold text-orange-800">
+                  <div className="space-y-3 flex-1 min-w-0">
+                    <p className="text-sm font-bold text-orange-800 break-words">
                       {request.reviewNote ? 'Corrections demandées' : 'Demande en cours d\'examen'}
                     </p>
-                    <p className="text-sm text-orange-700">
+                    <p className="text-sm text-orange-700 break-words">
                       {request.reviewNote 
                         ? 'Des corrections ont été demandées. Envoyez le lien ci-dessous au demandeur pour les modifications.'
                         : 'Cette demande est en cours d\'examen. Vous pouvez partager le lien pour suivi.'
                       }
                     </p>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <Input
                         value={`${window.location.origin}/register?requestId=${request.id}`}
                         readOnly
-                        className="text-xs font-mono bg-white border-orange-300 focus:border-orange-500"
+                        className="text-xs font-mono bg-white border-orange-300 focus:border-orange-500 flex-1 min-w-0"
                       />
                       <Button
                         size="sm"
-                        className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                        className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 shrink-0"
                         onClick={() => {
                           navigator.clipboard.writeText(`${window.location.origin}/register?requestId=${request.id}`)
                           toast.success('Lien copié !', {
@@ -839,26 +839,27 @@ const MembershipRequestCard = ({
                           })
                         }}
                       >
-                        Copier
+                        <Copy className="w-4 h-4 sm:hidden" />
+                        <span className="hidden sm:inline">Copier</span>
                       </Button>
                     </div>
                     
                     {/* Code de sécurité */}
                     {request.reviewNote && request.securityCode && (
-                      <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg">
-                        <p className="text-xs font-medium text-orange-800 mb-2">
+                      <div className="mt-3 p-3 bg-orange-100 border border-orange-300 rounded-lg overflow-hidden">
+                        <p className="text-xs font-medium text-orange-800 mb-2 break-words">
                           🔐 Code de sécurité à envoyer au demandeur :
                           {request.securityCodeUsed && (
-                            <span className="ml-2 text-red-600 font-bold">
+                            <span className="ml-2 text-red-600 font-bold block sm:inline">
                               ⚠️ CODE DÉJÀ UTILISÉ
                             </span>
                           )}
                         </p>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                           <Input
                             value={request.securityCode}
                             readOnly
-                            className={`text-sm font-mono font-bold text-center ${
+                            className={`text-sm font-mono font-bold text-center flex-1 min-w-0 ${
                               request.securityCodeUsed 
                                 ? 'bg-gray-100 border-gray-400 text-gray-500' 
                                 : 'bg-white border-orange-400'
@@ -867,7 +868,7 @@ const MembershipRequestCard = ({
                           <Button
                             size="sm"
                             variant="outline"
-                            className={`${
+                            className={`shrink-0 ${
                               request.securityCodeUsed
                                 ? 'text-gray-500 border-gray-400 cursor-not-allowed'
                                 : 'text-orange-700 border-orange-400 hover:bg-orange-200'
@@ -883,17 +884,24 @@ const MembershipRequestCard = ({
                             }}
                             disabled={request.securityCodeUsed}
                           >
-                            {request.securityCodeUsed ? 'Utilisé' : 'Copier'}
+                            {request.securityCodeUsed ? (
+                              <span className="hidden sm:inline">Utilisé</span>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4 sm:hidden" />
+                                <span className="hidden sm:inline">Copier</span>
+                              </>
+                            )}
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-blue-700 border-blue-400 hover:bg-blue-200"
+                            className="text-blue-700 border-blue-400 hover:bg-blue-200 shrink-0"
                             onClick={() => renewSecurityCodeMutation.mutate(request.id!)}
                             disabled={renewSecurityCodeMutation.isPending}
                           >
-                            <RefreshCw className={`w-3 h-3 mr-1 ${renewSecurityCodeMutation.isPending ? 'animate-spin' : ''}`} />
-                            Renouveler
+                            <RefreshCw className={`w-3 h-3 sm:mr-1 ${renewSecurityCodeMutation.isPending ? 'animate-spin' : ''}`} />
+                            <span className="hidden sm:inline">Renouveler</span>
                           </Button>
                         </div>
                         
@@ -909,9 +917,9 @@ const MembershipRequestCard = ({
                               const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
                               
                               return (
-                                <div className={`flex items-center space-x-1 ${isExpired ? 'text-red-600' : 'text-orange-700'}`}>
-                                  <Clock className="w-3 h-3" />
-                                  <span>
+                                <div className={`flex items-center space-x-1 flex-wrap ${isExpired ? 'text-red-600' : 'text-orange-700'}`}>
+                                  <Clock className="w-3 h-3 flex-shrink-0" />
+                                  <span className="break-words">
                                     {isExpired 
                                       ? 'Code expiré' 
                                       : `Expire dans ${hoursLeft}h ${minutesLeft}m`
@@ -923,10 +931,10 @@ const MembershipRequestCard = ({
                           </div>
                         )}
                         
-                        <p className="text-xs text-orange-700 mt-2">
+                        <p className="text-xs text-orange-700 mt-2 break-words">
                           ⚠️ Le demandeur devra saisir ce code pour accéder à ses corrections
                           {request.securityCodeUsed && (
-                            <span className="block mt-1 text-red-600 font-medium">
+                            <span className="block mt-1 text-red-600 font-medium break-words">
                               🔒 Ce code a été utilisé et ne peut plus être utilisé pour accéder aux corrections
                             </span>
                           )}

@@ -579,7 +579,7 @@ export default function Step4({ form }: Step4Props) {
             <Input
               id="issuingPlace"
               {...register('documents.issuingPlace')}
-              placeholder="Ex: Libreville, France..."
+              placeholder="Ex: Libreville, Gabon..."
               className={cn(
                 "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
                 errors?.documents?.issuingPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
