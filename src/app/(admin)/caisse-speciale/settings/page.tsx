@@ -453,7 +453,7 @@ export default function AdminCaisseSettingsPage() {
                                   <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                                     {process.env.NODE_ENV === 'development' && (
                                       <button
-                                        className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200 h-9 w-9 flex items-center justify-center"
+                                        className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0"
                                         onClick={() => {
                                           setEditId(s.id)
                                           const bt = (s as any)?.bonusTable || {}
@@ -473,12 +473,12 @@ export default function AdminCaisseSettingsPage() {
                                         }}
                                         title="Éditer"
                                       >
-                                        <Edit3 className="h-4 w-4" />
+                                        <Edit3 className="h-4 w-4 sm:h-4 sm:w-4" />
                                       </button>
                                     )}
                                     {!s.isActive && (
                                       <button 
-                                        className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200 h-9 w-9 flex items-center justify-center" 
+                                        className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0" 
                                         onClick={async () => { 
                                           try {
                                             await activate.mutateAsync(s.id)
@@ -489,16 +489,16 @@ export default function AdminCaisseSettingsPage() {
                                         }}
                                         title={`Activer cette version (désactivera les autres versions du type ${(s as any).caisseType || 'STANDARD'})`}
                                       >
-                                        <Power className="h-4 w-4" />
+                                        <Power className="h-4 w-4 sm:h-4 sm:w-4" />
                                       </button>
                                     )}
                                     {process.env.NODE_ENV === 'development' && (
                                       <button 
-                                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 h-9 w-9 flex items-center justify-center" 
+                                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center shrink-0" 
                                         onClick={() => setConfirmDeleteId(s.id)}
                                         title="Supprimer"
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Trash2 className="h-4 w-4 sm:h-4 sm:w-4" />
                                       </button>
                                     )}
                                   </div>
@@ -558,18 +558,18 @@ export default function AdminCaisseSettingsPage() {
 
         {/* Modal d'édition */}
         {process.env.NODE_ENV === 'development' && editId && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white/20 rounded-lg p-2">
-                      <Edit3 className="h-5 w-5 text-white" />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden my-4 sm:my-0 flex flex-col">
+              <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-4 sm:p-6 shrink-0">
+                <div className="flex items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <div className="bg-white/20 rounded-lg p-2 shrink-0">
+                      <Edit3 className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </div>
-                    <h3 className="text-xl font-bold text-white">Éditer la version {editId}</h3>
+                    <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white break-words">Éditer la version <span className="font-mono text-xs sm:text-sm break-all">{editId}</span></h3>
                   </div>
                   <button 
-                    className="p-2 rounded-lg hover:bg-white/20 text-white transition-all duration-200"
+                    className="p-2 rounded-lg hover:bg-white/20 text-white transition-all duration-200 shrink-0"
                     onClick={() => setEditId(null)}
                     disabled={isSavingEdit}
                   >
@@ -578,23 +578,24 @@ export default function AdminCaisseSettingsPage() {
                 </div>
               </div>
               
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                <div className="space-y-6">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+                <div className="p-4 sm:p-6">
+                  <div className="space-y-4 sm:space-y-6">
                   <div>
-                    <div className="flex items-center gap-2 text-lg font-semibold text-gray-900 mb-4">
-                      <TrendingUp className="h-5 w-5" />
-                      Bonus par mois (à partir de M4)
+                    <div className="flex items-center gap-2 text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                      <span className="break-words">Bonus par mois (à partir de M4)</span>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                       {Array.from({ length: 9 }).map((_, i) => {
                         const m = i + 4
                         const key = `M${m}`
                         return (
-                          <div key={key} className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">{key} (%)</label>
+                          <div key={key} className="space-y-1 sm:space-y-2">
+                            <label className="block text-xs sm:text-sm font-medium text-gray-700">{key} (%)</label>
                             <input 
                               type="number" 
-                              className="w-full border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                              className="w-full border border-gray-200 rounded-lg p-2 sm:p-3 text-sm sm:text-base focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
                               value={editBonusTable[key] ?? 0} 
                               onChange={(e) => setEditBonusTable(prev => ({ ...prev, [key]: Number(e.target.value) }))} 
                             />
@@ -604,43 +605,43 @@ export default function AdminCaisseSettingsPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                       <input 
                         id="editUseSteps" 
                         type="checkbox" 
                         checked={editUseSteps} 
                         onChange={(e) => setEditUseSteps(e.target.checked)}
-                        className="w-4 h-4 text-[#234D65] border-gray-300 rounded focus:ring-[#234D65]/20"
+                        className="w-4 h-4 text-[#234D65] border-gray-300 rounded focus:ring-[#234D65]/20 shrink-0"
                       />
-                      <label htmlFor="editUseSteps" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <DollarSign className="h-4 w-4" />
-                        Utiliser des paliers de pénalité (J+4..J+12)
+                      <label htmlFor="editUseSteps" className="flex items-center gap-2 text-xs sm:text-sm font-medium text-gray-700 break-words">
+                        <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                        <span className="break-words">Utiliser des paliers de pénalité (J+4..J+12)</span>
                       </label>
                     </div>
 
                     {!editUseSteps ? (
                       <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Pénalité par jour (%)</label>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700">Pénalité par jour (%)</label>
                         <input 
                           type="number" 
-                          className="w-full max-w-xs border border-gray-200 rounded-lg p-3 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                          className="w-full sm:max-w-xs border border-gray-200 rounded-lg p-2 sm:p-3 text-sm sm:text-base focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
                           value={editPerDay} 
                           onChange={(e) => setEditPerDay(Number(e.target.value))} 
                         />
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="text-sm font-medium text-gray-700">Paliers de pénalité</div>
-                        <div className="space-y-3">
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="text-xs sm:text-sm font-medium text-gray-700">Paliers de pénalité</div>
+                        <div className="space-y-2 sm:space-y-3">
                           {editSteps.map((s, idx) => (
-                            <div key={idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-600">Jour</span>
+                            <div key={idx} className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <span className="text-xs sm:text-sm text-gray-600 shrink-0 whitespace-nowrap">Jour</span>
                                   <input 
                                     type="number" 
-                                    className="w-20 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                                    className="flex-1 sm:w-20 border border-gray-200 rounded-lg p-2 text-center text-sm sm:text-base focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
                                     value={s.from} 
                                     onChange={(e) => { 
                                       const v = Number(e.target.value); 
@@ -648,12 +649,12 @@ export default function AdminCaisseSettingsPage() {
                                     }} 
                                   />
                                 </div>
-                                <span className="text-gray-400">→</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-600">Jour</span>
+                                <span className="text-gray-400 text-center hidden sm:inline">→</span>
+                                <div className="flex items-center gap-2 flex-1">
+                                  <span className="text-xs sm:text-sm text-gray-600 shrink-0 whitespace-nowrap">Jour</span>
                                   <input 
                                     type="number" 
-                                    className="w-20 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                                    className="flex-1 sm:w-20 border border-gray-200 rounded-lg p-2 text-center text-sm sm:text-base focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
                                     value={s.to} 
                                     onChange={(e) => { 
                                       const v = Number(e.target.value); 
@@ -661,11 +662,11 @@ export default function AdminCaisseSettingsPage() {
                                     }} 
                                   />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-600">Taux/jour (%)</span>
+                                <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                                  <span className="text-xs sm:text-sm text-gray-600 shrink-0 whitespace-nowrap">Taux/jour (%)</span>
                                   <input 
                                     type="number" 
-                                    className="w-32 border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
+                                    className="flex-1 sm:w-32 border border-gray-200 rounded-lg p-2 text-sm sm:text-base focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200" 
                                     value={s.rate} 
                                     onChange={(e) => { 
                                       const v = Number(e.target.value); 
@@ -675,8 +676,9 @@ export default function AdminCaisseSettingsPage() {
                                 </div>
                                 <button 
                                   type="button" 
-                                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
+                                  className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 shrink-0 self-start sm:self-auto" 
                                   onClick={() => setEditSteps(prev => prev.filter((_, i) => i !== idx))}
+                                  title="Supprimer ce palier"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -686,29 +688,30 @@ export default function AdminCaisseSettingsPage() {
                         </div>
                         <button 
                           type="button" 
-                          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-gray-700"
+                          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-gray-700 text-xs sm:text-sm w-full sm:w-auto"
                           onClick={() => setEditSteps(prev => [...prev, { from: 1, to: 3, rate: 0 }])}
                         >
-                          <Plus className="h-4 w-4" />
+                          <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                           Ajouter un palier
                         </button>
                       </div>
                     )}
                   </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 p-6 bg-gray-50">
-                <div className="flex gap-3 justify-end">
+              <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
                   <button 
-                    className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-white transition-all duration-200 font-medium" 
+                    className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-white transition-all duration-200 font-medium text-sm sm:text-base" 
                     onClick={() => setEditId(null)} 
                     disabled={isSavingEdit}
                   >
                     Annuler
                   </button>
                   <button 
-                    className="px-6 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-xl hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                    className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-xl hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base" 
                     disabled={isSavingEdit} 
                     onClick={async () => {
                       try {
