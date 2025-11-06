@@ -99,23 +99,23 @@ export default function MemberContractsCIList({ memberId }: MemberContractsCILis
         <div className="space-y-4">
           {paginatedContracts.map((contract) => (
         <Card key={contract.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 space-y-3">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-1 space-y-3 min-w-0">
                 {/* En-tête */}
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg shrink-0">
                     <FileText className="h-5 w-5 text-purple-600" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-lg text-gray-900">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base sm:text-lg text-gray-900 break-words">
                       {contract.subscriptionCILabel}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      Forfait {contract.subscriptionCICode}
+                    <p className="text-sm text-gray-500 break-words">
+                      Forfait <span className="font-mono text-xs">{contract.subscriptionCICode}</span>
                     </p>
                   </div>
-                  <Badge className={STATUS_COLORS[contract.status] || 'bg-gray-100'}>
+                  <Badge className={`${STATUS_COLORS[contract.status] || 'bg-gray-100'} shrink-0 self-start sm:self-auto`}>
                     {CONTRACT_CI_STATUS_LABELS[contract.status]}
                   </Badge>
                 </div>
@@ -172,13 +172,13 @@ export default function MemberContractsCIList({ memberId }: MemberContractsCILis
               </div>
 
               {/* Actions */}
-              <div className="flex flex-col gap-2 ml-4">
+              <div className="flex flex-row sm:flex-col gap-2 sm:ml-4 shrink-0 w-full sm:w-auto">
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={!contract.contractStartId}
                   onClick={() => router.push(routes.admin.caisseImprevueContractDetails(contract.id))}
-                  className="gap-2 whitespace-nowrap"
+                  className="gap-2 whitespace-nowrap flex-1 sm:flex-none text-xs sm:text-sm"
                 >
                   <Eye className="h-4 w-4" />
                   Voir contrat
@@ -187,7 +187,7 @@ export default function MemberContractsCIList({ memberId }: MemberContractsCILis
                   size="sm"
                   variant="ghost"
                   onClick={() => router.push(routes.admin.caisseImprevueContractPayments(contract.id))}
-                  className="gap-2 whitespace-nowrap"
+                  className="gap-2 whitespace-nowrap flex-1 sm:flex-none text-xs sm:text-sm"
                 >
                   <History className="h-4 w-4" />
                   Versements

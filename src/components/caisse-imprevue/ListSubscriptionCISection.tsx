@@ -92,23 +92,23 @@ export default function ListSubscriptionCISection() {
                         <div className="grid gap-4">
                             {subscriptions.map((forfait) => (
                                 <Card key={forfait.id} className="border-2 hover:shadow-md transition-shadow">
-                                    <CardContent className="p-6">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1 space-y-3">
+                                    <CardContent className="p-4 sm:p-6">
+                                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                            <div className="flex-1 min-w-0 space-y-3">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#224D62] text-white font-bold text-xl">
+                                                    <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#224D62] text-white font-bold text-lg sm:text-xl shrink-0">
                                                         {forfait.code}
                                                     </div>
-                                                    <div className="flex-1">
+                                                    <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                            <h3 className="font-bold text-lg">
+                                                            <h3 className="font-bold text-base sm:text-lg break-words">
                                                                 {forfait.label || `Forfait ${forfait.code}`}
                                                             </h3>
-                                                            <Badge className={statusColors[forfait.status]}>
+                                                            <Badge className={`${statusColors[forfait.status]} shrink-0 text-xs sm:text-sm`}>
                                                                 {statusLabels[forfait.status]}
                                                             </Badge>
                                                         </div>
-                                                        <p className="text-sm text-muted-foreground mt-1">
+                                                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
                                                             Code: {forfait.code}
                                                         </p>
                                                     </div>
@@ -141,20 +141,21 @@ export default function ListSubscriptionCISection() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex gap-4 text-sm text-muted-foreground">
+                                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground break-words">
                                                     <span>Durée: <span className="font-medium text-gray-900">{forfait.durationInMonths} mois</span></span>
-                                                    <span>•</span>
+                                                    <span className="hidden sm:inline">•</span>
                                                     <span>Pénalité: <span className="font-medium text-gray-900">{forfait.penaltyRate}%</span> après <span className="font-medium text-gray-900">{forfait.penaltyDelayDays} jours</span></span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 shrink-0 self-start sm:self-auto">
                                                 <Suspense fallback={<Skeleton className="h-9 w-9" />}>
                                                     <Button
                                                         variant="outline"
                                                         size="icon"
                                                         onClick={() => dispatch({ type: 'OPEN_VIEW_MODAL', payload: forfait })}
                                                         title="Voir les détails"
+                                                        className="h-9 w-9"
                                                     >
                                                         <EyeIcon className="w-4 h-4" />
                                                     </Button>
@@ -165,6 +166,7 @@ export default function ListSubscriptionCISection() {
                                                         size="icon"
                                                         onClick={() => dispatch({ type: 'OPEN_EDIT_MODAL', payload: forfait })}
                                                         title="Modifier"
+                                                        className="h-9 w-9"
                                                     >
                                                         <PencilIcon className="w-4 h-4" />
                                                     </Button>
@@ -174,7 +176,7 @@ export default function ListSubscriptionCISection() {
                                                         variant="outline"
                                                         size="icon"
                                                         onClick={() => dispatch({ type: 'OPEN_DELETE_DIALOG', payload: forfait })}
-                                                        className="hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                                                        className="hover:bg-red-50 hover:text-red-600 hover:border-red-300 h-9 w-9"
                                                         title="Supprimer"
                                                     >
                                                         <TrashIcon className="w-4 h-4" />

@@ -109,22 +109,23 @@ export default function SupportHistoryCIModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-              <History className="h-6 w-6" />
-              Historique des aides financières
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <DialogTitle className="text-lg sm:text-xl lg:text-2xl font-bold text-[#224D62] flex items-center gap-2 break-words">
+              <History className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
+              <span className="break-words">Historique des aides financières</span>
             </DialogTitle>
             {supports.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportExcel}
-                className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 border-green-300 text-green-700 hover:bg-green-50 h-9 px-2 sm:px-3 text-xs sm:text-sm shrink-0"
               >
-                <FileSpreadsheet className="h-4 w-4" />
-                Exporter tout (Excel)
+                <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Exporter tout (Excel)</span>
+                <span className="sm:hidden">Excel</span>
               </Button>
             )}
           </div>
@@ -335,43 +336,44 @@ function SupportCard({ support }: { support: SupportCI }) {
       isRepaid ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'
     }`}>
       {/* En-tête */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="space-y-1">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+        <div className="space-y-1 flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-[#224D62]" />
-            <span className="font-bold text-lg text-[#224D62]">
+            <DollarSign className="h-5 w-5 text-[#224D62] shrink-0" />
+            <span className="font-bold text-base sm:text-lg text-[#224D62] break-words">
               {support.amount.toLocaleString('fr-FR')} FCFA
             </span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Calendar className="h-4 w-4" />
-            Accordé le {format(support.approvedAt, 'dd MMM yyyy à HH:mm', { locale: fr })}
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 break-words">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="break-words">Accordé le {format(support.approvedAt, 'dd MMM yyyy à HH:mm', { locale: fr })}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
           {/* Bouton pour voir le document de demande */}
           {support.documentUrl && (
             <Button
               size="sm"
               variant="outline"
               onClick={handleViewDocument}
-              className="gap-1 border-purple-300 text-purple-700 hover:bg-purple-50"
+              className="gap-1 border-purple-300 text-purple-700 hover:bg-purple-50 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3 whitespace-nowrap"
               title="Voir le contrat de support"
             >
-              <Eye className="h-3 w-3" />
-              Voir contrat
+              <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">Voir contrat</span>
+              <span className="sm:hidden">Voir</span>
             </Button>
           )}
           <Button
             size="sm"
             variant="outline"
             onClick={handleExportPDF}
-            className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+            className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3 whitespace-nowrap"
           >
-            <Download className="h-3 w-3" />
+            <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             PDF
           </Button>
-          <Badge className={isRepaid ? 'bg-green-600' : 'bg-orange-600'}>
+          <Badge className={`${isRepaid ? 'bg-green-600' : 'bg-orange-600'} text-xs sm:text-sm px-2 sm:px-3 py-1 whitespace-nowrap shrink-0`}>
             {isRepaid ? (
               <>
                 <CheckCircle className="h-3 w-3 mr-1" />

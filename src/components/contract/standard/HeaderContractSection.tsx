@@ -97,9 +97,9 @@ export default function HeaderContractSection({
           <div className={classNames("h-10 w-10 rounded-xl flex items-center justify-center", brand.bg, "text-white shadow")}>
             <Wallet className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="w-[200px] md:w-full overflow-hidden text-ellipsis text-xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-              Contrat Standard #{id}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent break-words">
+              Contrat Standard <span className="font-mono text-sm sm:text-base break-all">#{id}</span>
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
               <span className="text-sm text-gray-500">

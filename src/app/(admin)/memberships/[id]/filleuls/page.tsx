@@ -3,6 +3,8 @@ import FilleulsList from '@/components/filleuls/FilleulsList'
 
 export default function page() {
   return (
-    <FilleulsList />
+    <div className='p-3'>
+      <FilleulsList />
+    </div>
   )
 }

@@ -70,7 +70,7 @@ export default function AdminCaisseContractDetailsPage() {
 	}
 
 	return (
-		<div className="bg-gradient-to-br from-slate-50 to-blue-50">
+		<div className="bg-gradient-to-br from-slate-50 to-blue-50 overflow-x-hidden">
 			{component()}
 		</div>
 	)

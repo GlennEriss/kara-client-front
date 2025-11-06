@@ -852,7 +852,7 @@ export default function ContractPaymentsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6 overflow-x-hidden">
       {/* En-tête avec bouton retour */}
       <div className="space-y-2">
         <div className="flex items-center gap-4">
@@ -864,9 +864,9 @@ export default function ContractPaymentsPage() {
             Retour au contrat
           </Link>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">Historique des Versements</h1>
-        <p className="text-muted-foreground">
-          Versements du contrat #{contract.id}
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Historique des Versements</h1>
+        <p className="text-muted-foreground break-words">
+          Versements du contrat <span className="font-mono text-sm break-all">#{contract.id}</span>
         </p>
       </div>
 
@@ -966,8 +966,8 @@ export default function ContractPaymentsPage() {
       {/* Historique des versements */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
               Historique des versements ({payments.length})
             </CardTitle>
@@ -977,20 +977,22 @@ export default function ContractPaymentsPage() {
                   onClick={exportToPDF}
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-50"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 border-red-300 text-red-700 hover:bg-red-50 h-9 px-2 sm:px-3 text-xs sm:text-sm"
                 >
-                  <FileText className="h-4 w-4" />
-                  Exporter PDF
+                  <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Exporter PDF</span>
+                  <span className="sm:hidden">PDF</span>
                 </Button>
-              <Button
-                onClick={exportToExcel}
-                variant="outline"
-                size="sm"
-                  className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-              >
-                <Download className="h-4 w-4" />
-                Exporter Excel
-              </Button>
+                <Button
+                  onClick={exportToExcel}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 border-green-300 text-green-700 hover:bg-green-50 h-9 px-2 sm:px-3 text-xs sm:text-sm"
+                >
+                  <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Exporter Excel</span>
+                  <span className="sm:hidden">Excel</span>
+                </Button>
               </div>
             )}
           </div>
@@ -1037,11 +1039,13 @@ export default function ContractPaymentsPage() {
                 
                 return (
                 <div key={payment.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-900">
-                      Versement #{payment.id} - Mois {payment.dueMonthIndex + 1}
-                    </h3>
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm sm:text-base text-gray-900 break-words">
+                        Versement <span className="font-mono text-xs break-all">#{payment.id}</span> - Mois {payment.dueMonthIndex + 1}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
                       <Button
                         onClick={() => exportSinglePaymentToPDF(payment)}
                         variant="outline"
@@ -1051,7 +1055,7 @@ export default function ContractPaymentsPage() {
                         <Download className="h-3 w-3" />
                         <span className="hidden sm:inline">PDF</span>
                       </Button>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColor}`}>
                         {statusLabel}
                       </span>
                       {statusIcon}

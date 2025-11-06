@@ -954,7 +954,7 @@ export default function DailyContract({ id }: Props) {
   const monthDays = getMonthDays(currentMonth)
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-6 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-6">
@@ -971,9 +971,9 @@ export default function DailyContract({ id }: Props) {
             </div>
           )}
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                Contrat Journalier #{id}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent break-words">
+                Contrat Journalier <span className="font-mono text-sm sm:text-base break-all">#{id}</span>
               </h1>
               <p className="text-gray-600 mt-2">
                 Objectif mensuel: <span className="font-semibold">{(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</span>

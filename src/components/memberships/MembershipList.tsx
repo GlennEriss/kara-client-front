@@ -670,9 +670,9 @@ const MembershipList = () => {
               </div>
             </div>
 
-            <div className="md:flex flex-wrap items-center gap-3 hidden">
-              {/* Boutons de vue modernes */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+              {/* Boutons de vue modernes - Cachés sur mobile */}
+              <div className="hidden md:flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
@@ -707,30 +707,55 @@ const MembershipList = () => {
                 size="sm"
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="h-10 px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+                className="hidden md:flex h-10 px-4 bg-white border-2 border-[#234D65] text-[#234D65] hover:bg-[#234D65] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Actualiser
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                className="h-10 px-4 bg-white border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg"
-              >
-                <FileDown className="h-4 w-4 mr-2" />
-                Exporter
-              </Button>
+              {/* Boutons mobiles - Exporter et Nouveau seulement */}
+              <div className="flex md:hidden w-full gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  className="flex-1 h-12 bg-white border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg font-medium"
+                >
+                  <FileDown className="h-5 w-5 mr-2" />
+                  Exporter
+                </Button>
 
-              <Button
-                size="sm"
-                onClick={() => { window.location.href = routes.admin.membershipAdd }}
-                className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau Membre
-              </Button>
+                <Button
+                  size="sm"
+                  onClick={() => { window.location.href = routes.admin.membershipAdd }}
+                  className="flex-1 h-12 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 font-medium"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Nouveau
+                </Button>
+              </div>
+
+              {/* Boutons desktop - Tous les boutons */}
+              <div className="hidden md:flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  className="h-10 px-4 bg-white border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Exporter
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => { window.location.href = routes.admin.membershipAdd }}
+                  className="h-10 px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouveau Membre
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
