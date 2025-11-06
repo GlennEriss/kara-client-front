@@ -224,47 +224,49 @@ export default function AdminCaisseSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent break-words">
               Paramètres Caisse Spéciale
             </h1>
-            <p className="text-gray-600 text-lg">Configurez les bonus et pénalités par type de caisse</p>
+            <p className="text-gray-600 text-sm sm:text-base lg:text-lg mt-1 break-words">Configurez les bonus et pénalités par type de caisse</p>
           </div>
           <button
             onClick={exportToExcel}
             disabled={isExporting || list.isLoading || !list.data || list.data.length === 0}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-3 px-6 rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base shrink-0"
           >
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Export en cours...
+                <span className="hidden sm:inline">Export en cours...</span>
+                <span className="sm:hidden">Export...</span>
               </>
             ) : (
               <>
                 <Download className="h-4 w-4" />
-                Exporter Excel
+                <span className="hidden sm:inline">Exporter Excel</span>
+                <span className="sm:hidden">Excel</span>
               </>
             )}
           </button>
         </div>
 
         {/* Information sur l'activation */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <div className="bg-blue-100 rounded-full p-2 mt-0.5">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 sm:p-4">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <div className="bg-blue-100 rounded-full p-2 mt-0.5 shrink-0">
               <Settings className="h-4 w-4 text-blue-600" />
             </div>
-            <div className="text-sm text-blue-800">
-              <div className="font-medium mb-1">💡 Comment fonctionne l'activation ?</div>
-              <div className="space-y-1">
-                <div>• <strong>Une seule version active par type de caisse</strong> (STANDARD, JOURNALIERE, LIBRE)</div>
-                <div>• L'activation d'une version <strong>désactive automatiquement</strong> les autres versions du même type</div>
-                <div>• Les versions d'autres types de caisse <strong>ne sont pas affectées</strong></div>
-                <div>• Chaque type de caisse peut avoir ses propres paramètres actifs simultanément</div>
+            <div className="text-xs sm:text-sm text-blue-800 flex-1 min-w-0 break-words">
+              <div className="font-medium mb-1 sm:mb-2">💡 Comment fonctionne l'activation ?</div>
+              <div className="space-y-1 sm:space-y-1.5">
+                <div className="break-words">• <strong>Une seule version active par type de caisse</strong> (STANDARD, JOURNALIERE, LIBRE)</div>
+                <div className="break-words">• L'activation d'une version <strong>désactive automatiquement</strong> les autres versions du même type</div>
+                <div className="break-words">• Les versions d'autres types de caisse <strong>ne sont pas affectées</strong></div>
+                <div className="break-words">• Chaque type de caisse peut avoir ses propres paramètres actifs simultanément</div>
               </div>
             </div>
           </div>
@@ -376,16 +378,16 @@ export default function AdminCaisseSettingsPage() {
 
           {/* Section Versions existantes */}
           <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
-            <div className="bg-[#234D65] p-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 rounded-lg p-2">
-                  <Settings className="h-5 w-5 text-white" />
+            <div className="bg-[#234D65] p-4 sm:p-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="bg-white/20 rounded-lg p-2 shrink-0">
+                  <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-white">Versions existantes</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-white break-words">Versions existantes</h2>
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6 overflow-x-hidden">
               {list.isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="flex items-center gap-3 text-gray-500">
@@ -412,45 +414,46 @@ export default function AdminCaisseSettingsPage() {
 
                       return Object.entries(groupedVersions).map(([type, versions]: [string, any]) => (
                         <div key={type} className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full ${type === 'STANDARD' ? 'bg-blue-500' : type === 'JOURNALIERE' ? 'bg-green-500' : 'bg-purple-500'}`}></div>
-                            <h3 className="font-semibold text-gray-900 capitalize">{type.toLowerCase()}</h3>
-                            <span className="text-xs text-gray-500">({versions.length} version{versions.length > 1 ? 's' : ''})</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className={`w-3 h-3 rounded-full shrink-0 ${type === 'STANDARD' ? 'bg-blue-500' : type === 'JOURNALIERE' ? 'bg-green-500' : 'bg-purple-500'}`}></div>
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-900 capitalize break-words">{type.toLowerCase()}</h3>
+                            <span className="text-xs text-gray-500 shrink-0">({versions.length} version{versions.length > 1 ? 's' : ''})</span>
                           </div>
                           
                           <div className="space-y-3">
                             {versions.map((s: any) => (
-                              <div key={s.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:shadow-md transition-all duration-200">
-                                <div className="flex flex-col lg:flex-row items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex flex-col md:flex-row items-center gap-3 mb-2">
-                                      <span className="font-mono text-sm font-medium text-gray-900">{s.id}</span>
-                                      <span className={`text-xs px-3 py-1 rounded-full border font-medium ${getCaisseTypeColor((s as any).caisseType || 'STANDARD')}`}>
+                              <div key={s.id} className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-all duration-200">
+                                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                  <div className="flex-1 min-w-0 space-y-2">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-wrap">
+                                      <span className="font-mono text-xs sm:text-sm font-medium text-gray-900 break-all">{s.id}</span>
+                                      <span className={`text-xs px-2 sm:px-3 py-1 rounded-full border font-medium shrink-0 ${getCaisseTypeColor((s as any).caisseType || 'STANDARD')}`}>
                                         {(s as any).caisseType || 'STANDARD'}
                                       </span>
                                       {s.isActive && (
-                                        <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+                                        <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200 shrink-0">
                                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                           Active
                                         </span>
                                       )}
                                     </div>
-                                    <div className="flex items-center gap-4 text-xs text-gray-600">
-                                      <span className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 sm:gap-4 text-xs text-gray-600 break-words">
+                                      <span className="flex items-center gap-1 shrink-0">
                                         <Calendar className="h-3 w-3" />
-                                        Effet: {(() => {
+                                        <span className="hidden sm:inline">Effet:</span>
+                                        <span className="font-medium">{(() => {
                                           const v = (s as any).effectiveAt
                                           if (!v) return '—'
                                           const d = v && typeof v === 'object' && 'seconds' in v ? new Date(v.seconds * 1000) : new Date(v)
                                           return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
-                                        })()}
+                                        })()}</span>
                                       </span>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
                                     {process.env.NODE_ENV === 'development' && (
                                       <button
-                                        className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200"
+                                        className="p-2 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 hover:text-blue-600 transition-all duration-200 h-9 w-9 flex items-center justify-center"
                                         onClick={() => {
                                           setEditId(s.id)
                                           const bt = (s as any)?.bonusTable || {}
@@ -475,7 +478,7 @@ export default function AdminCaisseSettingsPage() {
                                     )}
                                     {!s.isActive && (
                                       <button 
-                                        className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200" 
+                                        className="p-2 rounded-lg border border-green-200 hover:bg-green-50 text-green-600 hover:text-green-700 transition-all duration-200 h-9 w-9 flex items-center justify-center" 
                                         onClick={async () => { 
                                           try {
                                             await activate.mutateAsync(s.id)
@@ -491,7 +494,7 @@ export default function AdminCaisseSettingsPage() {
                                     )}
                                     {process.env.NODE_ENV === 'development' && (
                                       <button 
-                                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200" 
+                                        className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 h-9 w-9 flex items-center justify-center" 
                                         onClick={() => setConfirmDeleteId(s.id)}
                                         title="Supprimer"
                                       >
