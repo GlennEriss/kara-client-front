@@ -14,6 +14,8 @@ import { createFile } from '@/db/upload-image.db'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react'
+import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { CaisseContract, DocumentType } from '@/types/types'
 
 interface ContractPdfUploadModalProps {
   isOpen: boolean
@@ -21,6 +23,7 @@ interface ContractPdfUploadModalProps {
   contractId: string
   contractName?: string
   onSuccess?: () => void
+  contract?: CaisseContract
 }
 
 const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
@@ -28,7 +31,8 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
   onClose,
   contractId,
   contractName,
-  onSuccess
+  onSuccess,
+  contract
 }) => {
   const { user } = useAuth()
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -75,6 +79,12 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
       return
     }
 
+    const memberIdForDocument = contract?.memberId || (contract?.groupeId ? `GROUP_${contract.groupeId}` : '')
+    if (!memberIdForDocument) {
+      toast.error('Impossible de déterminer le membre associé au contrat')
+      return
+    }
+
     setUploadError(null)
 
     try {
@@ -93,6 +103,29 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
 
       console.log('📄 Mise à jour du contrat avec:', contractPdfData)
       await updateContractPdf(contractId, contractPdfData, user.uid)
+
+      try {
+        const documentRepository = new DocumentRepository()
+        const documentLabel = contractName
+          ? `Contrat Caisse Spéciale - ${contractName}`
+          : `Contrat Caisse Spéciale #${contractId.slice(-6)}`
+
+        await documentRepository.createDocument({
+          type: 'ADHESION_CS' as DocumentType,
+          format: 'pdf',
+          libelle: documentLabel,
+          path: uploadResult.path,
+          url: uploadResult.url,
+          size: data.contractPdf.fileSize,
+          memberId: memberIdForDocument,
+          contractId,
+          createdBy: user.uid,
+          updatedBy: user.uid
+        })
+      } catch (docError: any) {
+        console.error('❌ Erreur lors de la sauvegarde du document dans Firestore:', docError)
+        throw new Error(docError?.message || 'Erreur lors de l\'enregistrement du document dans la collection documents')
+      }
 
       toast.success('Document PDF téléversé avec succès !')
       form.reset()

@@ -1220,6 +1220,7 @@ const ListContracts = () => {
           contractId={selectedContractForUpload.id}
           contractName={`Contrat #${selectedContractForUpload.id.slice(-6)}`}
           onSuccess={handleUploadSuccess}
+          contract={selectedContractForUpload}
         />
       )}
 
