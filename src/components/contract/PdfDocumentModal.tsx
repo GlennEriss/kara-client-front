@@ -216,7 +216,7 @@ export default function PdfDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl min-w-[60vw]">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[95vw] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-red-600" />
@@ -234,9 +234,52 @@ export default function PdfDocumentModal({
             <div className="space-y-2">
               <Label className="text-sm font-medium">Document actuel</Label>
               <div className="border border-green-200 rounded-lg p-4 bg-green-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-green-100 rounded-lg p-2">
+                {/* Mobile layout */}
+                <div className="flex flex-col gap-3 sm:hidden">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
+                      <FileText className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="text-sm text-green-900 break-words whitespace-normal">
+                      <p className="font-medium" title={existingDocument.originalFileName}>{existingDocument.originalFileName}</p>
+                      <p className="text-xs text-green-700 mt-1">
+                        Téléversé le {new Date(existingDocument.uploadedAt).toLocaleDateString('fr-FR')}
+                      </p>
+                      <p className="text-xs text-green-600">
+                        {(existingDocument.fileSize / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(existingDocument.url, '_blank')}
+                      className="h-9 text-green-600 border-green-200"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />Voir
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeleteExistingDocument}
+                      disabled={isDeleting}
+                      className="h-9 text-red-600 border-red-200"
+                    >
+                      {isDeleting ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent mr-2" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-2" />
+                      )}
+                      Supprimer
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Desktop layout */}
+                <div className="hidden sm:flex sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
                       <FileText className="h-5 w-5 text-green-600" />
                     </div>
                     <div className="min-w-0 flex-1 max-w-md">
@@ -320,9 +363,42 @@ export default function PdfDocumentModal({
               </div>
             ) : (
               <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-red-100 rounded-lg p-2">
+                {/* Mobile layout */}
+                <div className="flex flex-col gap-3 sm:hidden">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-red-100 rounded-lg p-2 flex-shrink-0">
+                      <FileText className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div className="text-sm text-gray-900 break-words whitespace-normal">
+                      <p className="text-xs text-gray-500 mt-1">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePreview}
+                      className="h-9 flex-1"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />Prévisualiser
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRemoveFile}
+                      className="h-9 flex-1 text-red-600 border-red-200"
+                    >
+                      <X className="h-4 w-4 mr-2" />Retirer
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Desktop layout */}
+                <div className="hidden sm:flex sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="bg-red-100 rounded-lg p-2 flex-shrink-0">
                       <FileText className="h-5 w-5 text-red-600" />
                     </div>
                     <div className="min-w-0 flex-1 max-w-md">
