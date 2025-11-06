@@ -645,15 +645,15 @@ export default function StandardContract({ id }: Props) {
                         <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
                         <input
                           type="file"
-                          accept="application/pdf"
+                          accept="image/*"
                           onChange={async (e) => {
                             const f = e.target.files?.[0]
                             if (!f) {
                               setRefundFile(undefined)
                               return
                             }
-                            if (f.type !== "application/pdf") {
-                              toast.error("La preuve doit être un fichier PDF")
+                            if (!f.type.startsWith("image/")) {
+                              toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
                               setRefundFile(undefined)
                               return
                             }

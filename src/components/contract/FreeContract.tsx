@@ -702,11 +702,18 @@ export default function FreeContract({ id }: Props) {
                             <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
                             <input
                               type="file"
-                              accept="application/pdf"
+                              accept="image/*"
                               onChange={async (e) => {
                                 const f = e.target.files?.[0]
-                                if (!f) { setRefundFile(undefined); return }
-                                if (f.type !== 'application/pdf') { toast.error('La preuve doit être un fichier PDF'); setRefundFile(undefined); return }
+                                if (!f) {
+                                  setRefundFile(undefined)
+                                  return
+                                }
+                                if (!f.type.startsWith('image/')) {
+                                  toast.error('La preuve doit être une image (JPG, PNG, WebP...)')
+                                  setRefundFile(undefined)
+                                  return
+                                }
                                 setRefundFile(f)
                                 toast.success('Preuve PDF sélectionnée')
                               }}
