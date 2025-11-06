@@ -1122,6 +1122,8 @@ export type DocumentType =
   | 'SUPPORT_CI'       // Document de demande de support Caisse Imprévue
   | 'EARLY_REFUND_CI'  // Document de retrait anticipé Caisse Imprévue
   | 'FINAL_REFUND_CI'  // Document de remboursement final Caisse Imprévue
+  | 'EARLY_REFUND_CS'  // Document de retrait anticipé Caisse Spéciale
+  | 'FINAL_REFUND_CS'  // Document de remboursement final Caisse Spéciale
 
 /**
  * Formats de documents possibles

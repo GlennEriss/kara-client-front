@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers } from "@/hooks/useMembers"
@@ -206,6 +206,16 @@ export default function StandardContract({ id }: Props) {
   }
 
   const nextDueMonthIndex = getNextDueMonthIndex()
+
+  const currentRefund = useMemo(() => {
+    return currentRefundId ? refunds.find((r: any) => r.id === currentRefundId) : null
+  }, [currentRefundId, refunds])
+
+  const documentMemberId = useMemo(() => {
+    if ((data as any).memberId) return (data as any).memberId
+    if ((data as any).groupeId) return `GROUP_${(data as any).groupeId}`
+    return ''
+  }, [data])
 
   const handlePdfUpload = async (document: RefundDocument | null) => {
     // Le document est maintenant persisté dans la base de données
@@ -449,7 +459,7 @@ export default function StandardContract({ id }: Props) {
 
       {/* Remboursements */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <SectionTitle>Remboursements</SectionTitle>
           {(() => {
             const paidCountLocal = payments.filter((x: any) => x.status === "PAID").length
@@ -461,10 +471,10 @@ export default function StandardContract({ id }: Props) {
             const hasEarlyRefund = refunds.some((r: any) => r.type === "EARLY" && r.status !== "ARCHIVED") ||
               data.status === "EARLY_REFUND_PENDING"
             return (
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full md:w-auto">
                 <button
                   className={classNames(
-                    "rounded-lg border px-3 py-2 text-sm font-medium",
+                    "rounded-lg border px-3 py-2 text-sm font-medium w-full text-center",
                     brand.bgSoft,
                     "hover:bg-slate-100 disabled:opacity-50"
                   )}
@@ -479,7 +489,7 @@ export default function StandardContract({ id }: Props) {
                 </button>
                 <button
                   className={classNames(
-                    "rounded-lg border px-3 py-2 text-sm font-medium",
+                    "rounded-lg border px-3 py-2 text-sm font-medium w-full text-center",
                     brand.bgSoft,
                     "hover:bg-slate-100 disabled:opacity-50"
                   )}
@@ -494,7 +504,7 @@ export default function StandardContract({ id }: Props) {
                 </button>
                 <button
                   className={classNames(
-                    "rounded-lg border px-3 py-2 text-sm font-medium",
+                    "rounded-lg border px-3 py-2 text-sm font-medium w-full text-center",
                     brand.bgSoft,
                     "hover:bg-slate-100"
                   )}
@@ -635,15 +645,15 @@ export default function StandardContract({ id }: Props) {
                         <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
                         <input
                           type="file"
-                          accept="application/pdf"
+                          accept="image/*"
                           onChange={async (e) => {
                             const f = e.target.files?.[0]
                             if (!f) {
                               setRefundFile(undefined)
                               return
                             }
-                            if (f.type !== "application/pdf") {
-                              toast.error("La preuve doit être un fichier PDF")
+                            if (!f.type.startsWith("image/")) {
+                              toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
                               setRefundFile(undefined)
                               return
                             }
@@ -826,16 +836,21 @@ export default function StandardContract({ id }: Props) {
 
 
       {/* Modal PDF Document */}
-      <PdfDocumentModal
-        isOpen={showPdfModal}
-        onClose={() => setShowPdfModal(false)}
-        onDocumentUploaded={handlePdfUpload}
-        contractId={id}
-        refundId={currentRefundId || ""}
-        existingDocument={currentRefundId ? refunds.find((r: any) => r.id === currentRefundId)?.document : undefined}
-        title={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé') : 'Document de Remboursement'}
-        description={currentRefundId ? (refunds.find((r: any) => r.id === currentRefundId)?.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.') : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement.'}
-      />
+      {currentRefund && (
+        <PdfDocumentModal
+          isOpen={showPdfModal}
+          onClose={() => setShowPdfModal(false)}
+          onDocumentUploaded={handlePdfUpload}
+          contractId={id}
+          refundId={currentRefundId || ""}
+          existingDocument={currentRefund.document}
+          title={currentRefund.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé'}
+          description={currentRefund.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.'}
+          documentType={currentRefund.type === 'FINAL' ? 'FINAL_REFUND_CS' : 'EARLY_REFUND_CS'}
+          memberId={documentMemberId}
+          documentLabel={`${currentRefund.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
+        />
+      )}
 
       {/* Modal PDF Viewer */}
       {currentDocument && (

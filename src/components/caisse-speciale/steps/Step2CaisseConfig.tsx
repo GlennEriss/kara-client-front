@@ -39,8 +39,19 @@ export function Step2CaisseConfig() {
   }
 
   const handleMonthsPlannedChange = (value: string) => {
-    const months = parseInt(value) || 0
-    updateFormData({ monthsPlanned: months })
+    if (value === '') {
+      updateFormData({ monthsPlanned: 0 })
+      return
+    }
+
+    const months = Number(value)
+    if (Number.isNaN(months)) {
+      return
+    }
+
+    const maxMonths = formData.caisseType === 'JOURNALIERE' ? 12 : 60
+    const sanitizedMonths = Math.max(0, Math.floor(months))
+    updateFormData({ monthsPlanned: Math.min(sanitizedMonths, maxMonths) })
   }
 
   // Calculs dérivés

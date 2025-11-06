@@ -58,12 +58,19 @@ export function Step2ContractConfiguration() {
 
   // Gestion du changement de durée
   const handleMonthsChange = (value: string) => {
-    const months = Number(value)
-    if (!isNaN(months) && months > 0) {
-      const maxMonths = formData.caisseType === 'JOURNALIERE' ? 12 : 60
-      const adjustedMonths = Math.min(months, maxMonths)
-      updateFormData({ monthsPlanned: adjustedMonths })
+    if (value === '') {
+      updateFormData({ monthsPlanned: 0 })
+      return
     }
+
+    const months = Number(value)
+    if (Number.isNaN(months)) {
+      return
+    }
+
+    const maxMonths = formData.caisseType === 'JOURNALIERE' ? 12 : 60
+    const sanitizedMonths = Math.max(0, Math.floor(months))
+    updateFormData({ monthsPlanned: Math.min(sanitizedMonths, maxMonths) })
   }
 
   const isDaily = formData.caisseType === 'JOURNALIERE'
@@ -227,7 +234,7 @@ export function Step2ContractConfiguration() {
                 type="number"
                 min={1}
                 max={isDaily ? 12 : 60}
-                value={formData.monthsPlanned}
+                value={formData.monthsPlanned || ''}
                 onChange={(e) => handleMonthsChange(e.target.value)}
                 className="h-11 border-2 border-gray-200 focus:border-[#234D65] focus:ring-2 focus:ring-[#234D65]/20"
                 placeholder="12"
