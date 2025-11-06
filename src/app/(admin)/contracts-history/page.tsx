@@ -49,7 +49,9 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   FINISHED_CI: 'Fin Caisse Imprévue',
   SUPPORT_CI: 'Document de demande de support Caisse Imprévue',
   EARLY_REFUND_CI: 'Document de retrait anticipé Caisse Imprévue',
+  EARLY_REFUND_CS: 'Document de retrait anticipé Caisse Spéciale',
   FINAL_REFUND_CI: 'Document de remboursement final Caisse Imprévue',
+  FINAL_REFUND_CS: 'Document de remboursement final Caisse Spéciale',
 }
 
 // Labels pour les formats
@@ -70,6 +72,10 @@ const DOCUMENT_TYPE_COLORS: Record<string, string> = {
   CANCELED_CI: 'bg-orange-100 text-orange-700',
   FINISHED_CS: 'bg-gray-100 text-gray-700',
   FINISHED_CI: 'bg-slate-100 text-slate-700',
+  EARLY_REFUND_CS: 'bg-teal-100 text-teal-700',
+  EARLY_REFUND_CI: 'bg-teal-100 text-teal-700',
+  FINAL_REFUND_CS: 'bg-amber-100 text-amber-700',
+  FINAL_REFUND_CI: 'bg-amber-100 text-amber-700',
 }
 
 export default function ContractsHistoryPage() {
