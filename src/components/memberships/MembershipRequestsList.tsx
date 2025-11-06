@@ -45,6 +45,7 @@ import {
   createTestMembershipRequestApproved, 
   createTestMembershipRequestWithFilters 
 } from '@/utils/test-data'
+import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 
 // Couleurs pour les graphiques
 const COLORS = {
@@ -551,12 +552,13 @@ const MembershipRequestCard = ({
     try {
       // Upload PDF si fourni
       let adhesionPdfURL: string | undefined = undefined
+      let adhesionPdfMeta: { url: string; path: string; size: number } | null = null
       if (approvalPdfFile) {
         try {
           const start = new Date()
           const end = new Date()
           end.setFullYear(end.getFullYear() + 1)
-          const safe = (s: string) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-\.]/g, '')
+          const safe = (s: string) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-.]/g, '')
           const first = safe(request.identity.firstName)
           const last = safe(request.identity.lastName)
           const fileName = `${first}_${last}_${start.getFullYear()}-${end.getFullYear()}.pdf`
@@ -564,6 +566,11 @@ const MembershipRequestCard = ({
           const { createFile } = await import('@/db/upload-image.db')
           const res = await createFile(namedPdf, request.id!, 'membership-adhesion-pdfs')
           adhesionPdfURL = res.url
+          adhesionPdfMeta = {
+            url: res.url,
+            path: res.path,
+            size: namedPdf.size,
+          }
         } catch (e) {
           console.warn('Erreur upload PDF adhésion:', e)
         }
@@ -587,6 +594,30 @@ const MembershipRequestCard = ({
       const data = await response.json()
 
       if (response.ok && data.success) {
+        const memberMatricule: string | undefined = data.matricule || request.matricule
+        if (adhesionPdfMeta && user?.uid && memberMatricule) {
+          try {
+            const documentRepository = new DocumentRepository()
+            await documentRepository.createDocument({
+              type: 'ADHESION',
+              format: 'pdf',
+              libelle: `Fiche d'adhésion - ${memberMatricule}`,
+              path: adhesionPdfMeta.path,
+              url: adhesionPdfMeta.url,
+              size: adhesionPdfMeta.size,
+              memberId: memberMatricule,
+              createdBy: user.uid,
+              updatedBy: user.uid,
+            })
+          } catch (docError) {
+            console.error("Erreur lors de l'enregistrement du document d'adhésion:", docError)
+            toast.warning('Document non archivé', {
+              description: 'La fiche a été approuvée mais son enregistrement dans les documents a échoué.',
+              duration: 5000,
+            })
+          }
+        }
+
         toast.success('✅ Demande approuvée avec succès', {
           description: `${getIdentityDisplayName(request)} est maintenant membre ${membershipType}. Matricule: ${data.matricule}, Email: ${data.email}, Mot de passe: ${data.password}`,
           duration: 5000,
