@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { 
-  Search, 
-  MapPin as MapPinIcon, 
-  Loader2, 
-  CheckCircle, 
+import {
+  Search,
+  MapPin as MapPinIcon,
+  Loader2,
+  CheckCircle,
   AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -25,14 +25,14 @@ interface DistrictSearchFormProps {
 
 export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
   const mediator = AddressFormMediatorFactory.create(form)
-  
+
   // État local pour les résultats
   const [localResults, setLocalResults] = useState<PhotonResult[]>([])
   const [localShowResults, setLocalShowResults] = useState(false)
-  
+
   // État local pour forcer le re-render
   const [localQuery, setLocalQuery] = useState('')
-  
+
   // Accès aux erreurs du formulaire
   const errors = form.formState.errors
 
@@ -51,7 +51,7 @@ export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
     const performSearch = async () => {
       if (debouncedQuery) {
         const results = await mediator.searchDistricts(debouncedQuery)
-        
+
         // Mettre à jour les états locaux
         setLocalResults(results)
         setLocalShowResults(true)
@@ -62,7 +62,7 @@ export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
         setLocalShowResults(false)
       }
     }
-    
+
     performSearch()
   }, [debouncedQuery, mediator])
 
@@ -76,9 +76,9 @@ export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
   return (
     <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
       <Label htmlFor="districtSearch" className="text-xs sm:text-sm font-medium text-[#224D62]">
-        Rechercher votre quartier <span className="text-red-500">*</span>
+        Point de repères de votre quartier <span className="text-red-500">*</span>
       </Label>
-      
+
       <div className="relative w-full min-w-0">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
         <Input
@@ -92,12 +92,12 @@ export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
             mediator.getSelectedLocation() && "border-[#CBB171] bg-[#CBB171]/5"
           )}
         />
-        
+
         {/* Loading spinner */}
         {mediator.getIsSearching() && (
           <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin z-10" />
         )}
-        
+
         {/* Success checkmark */}
         {mediator.getSelectedLocation() && !mediator.getIsSearching() && (
           <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
@@ -117,7 +117,7 @@ export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
                     onClick={() => {
                       // Sélectionner la localisation via le mediator
                       mediator.selectLocation(result)
-                      
+
                       // Mettre à jour les états locaux
                       setLocalQuery(result.properties.name)
                       setLocalShowResults(false)
@@ -153,7 +153,7 @@ export default function DistrictSearchForm({ form }: DistrictSearchFormProps) {
           </Card>
         )}
       </div>
-      
+
       {/* Message d'erreur */}
       {errors?.address?.district && (
         <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
