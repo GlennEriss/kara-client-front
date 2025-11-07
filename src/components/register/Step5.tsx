@@ -38,7 +38,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isCheckingStatus, setIsCheckingStatus] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<'airtel' | 'mobicash'>('airtel')
-  
+
   const { checkMembershipStatus, resetForm } = useRegister()
 
   // Fonction pour formater le message de félicitations avec civilité
@@ -74,7 +74,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
   const airtelNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_AIRTEL || "XX XX XX XX XX"
   const mobicashNumber = process.env.NEXT_PUBLIC_NUMBER_AGENT_MOBICASH || "XX XX XX XX XX"
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_AGENT || "XX XX XX XX XX"
-  
+
   // Numéro actuel selon le provider sélectionné
   const currentNumber = selectedProvider === 'airtel' ? airtelNumber : mobicashNumber
   const currentProvider = selectedProvider === 'airtel' ? 'Airtel Money' : 'Mobicash'
@@ -111,7 +111,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
     const confirmReset = window.confirm(
       "Êtes-vous sûr de vouloir faire une nouvelle demande ? Cela va effacer toutes les données temporaires et vous ramener au début du formulaire."
     )
-    
+
     if (confirmReset) {
       resetForm() // Réinitialise le formulaire et nettoie le localStorage
       window.location.href = routes.public.register // Rediriger vers le début du formulaire
@@ -143,7 +143,7 @@ export default function Step5({ userData, membershipId }: Step5Props) {
   ]
 
   return (
-    <div className="space-y-6 sm:space-y-8 w-full max-w-4xl mx-auto overflow-x-hidden">
+    <div className="space-y-6 sm:space-y-8 w-full max-w-4xl mx-auto overflow-x-hidden p-3">
       {/* Header avec animation de succès */}
       <div className="text-center space-y-4 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
         <div className="relative">
@@ -182,178 +182,136 @@ export default function Step5({ userData, membershipId }: Step5Props) {
             </div>
           </CardContent>
         </Card>
-
-        {/* Boutons d'actions principales */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700">
-          <Button
-            onClick={() => window.location.href = routes.public.homepage}
-            variant="outline"
-            className="border-2 border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white transition-all duration-300 px-8 py-3 text-base font-medium shadow-md hover:shadow-lg"
-          >
-            🏠 Retour à l'accueil
-          </Button>
-          
-          <Button
-            onClick={() => window.location.href = routes.public.login}
-            className="bg-gradient-to-r from-[#224D62] to-[#CBB171] hover:from-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3 text-base"
-          >
-            <LogIn className="w-5 h-5 mr-2" />
-            Se connecter
-          </Button>
-        </div>
-
-        {/* Action secondaire - Nouvelle demande */}
-        <Card className="border-2 border-[#CBB171]/40 bg-gradient-to-r from-[#CBB171]/10 to-[#224D62]/10 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800">
-          <CardContent className="p-6 text-center">
-            <div className="space-y-4">
-              <div className="flex items-center justify-center space-x-2 text-[#224D62] text-base font-medium">
-                <span className="text-2xl">👥</span>
-                <span>Vous souhaitez faire une demande pour une autre personne ?</span>
+        {/* Instructions principales */}
+        <Card className="border-2 border-[#224D62]/20 bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-600 shadow-lg">
+          <CardContent className="p-6 sm:p-8">
+            <div className="text-center space-y-4 mb-8">
+              <div className="inline-flex items-center space-x-2 px-4 py-2 bg-red-500 rounded-full">
+                <Clock className="w-5 h-5 text-white" />
+                <span className="text-white font-semibold text-sm sm:text-base">Finalisation requise</span>
               </div>
-              <Button
-                onClick={handleNewRequest}
-                variant="outline"
-                className="border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 px-8 py-3 text-base font-medium shadow-md hover:shadow-lg"
-              >
-                ✨ Nouvelle demande d'inscription
-              </Button>
-              <p className="text-xs text-[#224D62]/60">
-                Cette action effacera les données temporaires du formulaire actuel
+              <p className="text-[#224D62] text-lg sm:text-xl font-bold">
+                Pour activer votre mutuelle, veuillez suivre ces 3 étapes simples :
               </p>
+
+              {/* Sélecteur de provider */}
+              <div className="max-w-md mx-auto space-y-3">
+                <p className="text-[#224D62] font-medium">Choisissez votre moyen de paiement :</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSelectedProvider('airtel')}
+                    className={cn(
+                      "p-4 rounded-lg border-2 transition-all duration-300 flex flex-col items-center space-y-2",
+                      selectedProvider === 'airtel'
+                        ? "border-orange-400 bg-orange-50 shadow-md"
+                        : "border-gray-200 bg-white hover:border-orange-200"
+                    )}
+                  >
+                    <Phone className="w-6 h-6 text-orange-500" />
+                    <span className="font-medium text-sm">Airtel Money</span>
+                    {selectedProvider === 'airtel' && (
+                      <CheckCircle2 className="w-4 h-4 text-orange-500" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedProvider('mobicash')}
+                    className={cn(
+                      "p-4 rounded-lg border-2 transition-all duration-300 flex flex-col items-center space-y-2",
+                      selectedProvider === 'mobicash'
+                        ? "border-blue-400 bg-blue-50 shadow-md"
+                        : "border-gray-200 bg-white hover:border-blue-200"
+                    )}
+                  >
+                    <CreditCard className="w-6 h-6 text-blue-500" />
+                    <span className="font-medium text-sm">Mobicash</span>
+                    {selectedProvider === 'mobicash' && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Étapes */}
+            <div className="space-y-6">
+              {steps.map((step, index) => (
+                <div
+                  key={step.number}
+                  className={cn(
+                    "relative p-4 sm:p-6 rounded-xl border-2 transition-all duration-500 animate-in slide-in-from-left-4",
+                    currentStep === step.number
+                      ? "border-[#224D62] bg-[#224D62]/5 shadow-md"
+                      : currentStep > step.number
+                        ? "border-green-300 bg-green-50/50"
+                        : "border-gray-200 bg-gray-50/50"
+                  )}
+                  style={{ animationDelay: `${700 + index * 200}ms` }}
+                >
+                  <div className="flex items-start space-x-4">
+                    <div className={cn(
+                      "w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300",
+                      currentStep === step.number
+                        ? "bg-[#224D62] text-white"
+                        : currentStep > step.number
+                          ? "bg-green-500 text-white"
+                          : "bg-gray-200 text-gray-500"
+                    )}>
+                      {currentStep > step.number ? (
+                        <CheckCircle2 className="w-6 h-6" />
+                      ) : (
+                        <step.icon className="w-6 h-6" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <h3 className="text-lg font-bold text-[#224D62]">{step.title}</h3>
+                          <p className="text-gray-600">{step.description}</p>
+                        </div>
+
+                        {step.number === 1 && (
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCopyNumber}
+                              className="border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
+                            >
+                              {copiedNumber ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                                  Copié !
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Copier le numéro
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+
+                        {step.number === 3 && (
+                          <Button
+                            onClick={handleWhatsAppClick}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <MessageCircle className="w-4 h-4 mr-2" />
+                            Ouvrir WhatsApp
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Instructions principales */}
-      <Card className="border-2 border-[#224D62]/20 bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-600 shadow-lg">
-        <CardContent className="p-6 sm:p-8">
-          <div className="text-center space-y-4 mb-8">
-            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-[#224D62]/10 rounded-full">
-              <Clock className="w-5 h-5 text-[#224D62]" />
-              <span className="text-[#224D62] font-semibold text-sm sm:text-base">Finalisation requise</span>
-            </div>
-            <p className="text-[#224D62] text-lg sm:text-xl font-bold">
-              Pour activer votre mutuelle, veuillez suivre ces 3 étapes simples :
-            </p>
-            
-            {/* Sélecteur de provider */}
-            <div className="max-w-md mx-auto space-y-3">
-              <p className="text-[#224D62] font-medium">Choisissez votre moyen de paiement :</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setSelectedProvider('airtel')}
-                  className={cn(
-                    "p-4 rounded-lg border-2 transition-all duration-300 flex flex-col items-center space-y-2",
-                    selectedProvider === 'airtel'
-                      ? "border-orange-400 bg-orange-50 shadow-md"
-                      : "border-gray-200 bg-white hover:border-orange-200"
-                  )}
-                >
-                  <Phone className="w-6 h-6 text-orange-500" />
-                  <span className="font-medium text-sm">Airtel Money</span>
-                  {selectedProvider === 'airtel' && (
-                    <CheckCircle2 className="w-4 h-4 text-orange-500" />
-                  )}
-                </button>
-                
-                <button
-                  onClick={() => setSelectedProvider('mobicash')}
-                  className={cn(
-                    "p-4 rounded-lg border-2 transition-all duration-300 flex flex-col items-center space-y-2",
-                    selectedProvider === 'mobicash'
-                      ? "border-blue-400 bg-blue-50 shadow-md"
-                      : "border-gray-200 bg-white hover:border-blue-200"
-                  )}
-                >
-                  <CreditCard className="w-6 h-6 text-blue-500" />
-                  <span className="font-medium text-sm">Mobicash</span>
-                  {selectedProvider === 'mobicash' && (
-                    <CheckCircle2 className="w-4 h-4 text-blue-500" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Étapes */}
-          <div className="space-y-6">
-            {steps.map((step, index) => (
-              <div
-                key={step.number}
-                className={cn(
-                  "relative p-4 sm:p-6 rounded-xl border-2 transition-all duration-500 animate-in slide-in-from-left-4",
-                  currentStep === step.number
-                    ? "border-[#224D62] bg-[#224D62]/5 shadow-md"
-                    : currentStep > step.number
-                      ? "border-green-300 bg-green-50/50"
-                      : "border-gray-200 bg-gray-50/50"
-                )}
-                style={{ animationDelay: `${700 + index * 200}ms` }}
-              >
-                <div className="flex items-start space-x-4">
-                  <div className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300",
-                    currentStep === step.number
-                      ? "bg-[#224D62] text-white"
-                      : currentStep > step.number
-                        ? "bg-green-500 text-white"
-                        : "bg-gray-200 text-gray-500"
-                  )}>
-                    {currentStep > step.number ? (
-                      <CheckCircle2 className="w-6 h-6" />
-                    ) : (
-                      <step.icon className="w-6 h-6" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div>
-                        <h3 className="text-lg font-bold text-[#224D62]">{step.title}</h3>
-                        <p className="text-gray-600">{step.description}</p>
-                      </div>
-
-                      {step.number === 1 && (
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopyNumber}
-                            className="border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171]/10"
-                          >
-                            {copiedNumber ? (
-                              <>
-                                <CheckCircle2 className="w-4 h-4 mr-2" />
-                                Copié !
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-4 h-4 mr-2" />
-                                Copier le numéro
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      )}
-
-                      {step.number === 3 && (
-                        <Button
-                          onClick={handleWhatsAppClick}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          Ouvrir WhatsApp
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Détails du transfert */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -391,11 +349,11 @@ export default function Step5({ userData, membershipId }: Step5Props) {
 
                 <div className="flex justify-between items-center p-3 bg-[#CBB171]/10 rounded-lg">
                   <span className="text-sm font-medium text-[#224D62]">Opérateur :</span>
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={cn(
-                      selectedProvider === 'airtel' 
-                        ? "border-orange-400 text-orange-600" 
+                      selectedProvider === 'airtel'
+                        ? "border-orange-400 text-orange-600"
                         : "border-blue-400 text-blue-600"
                     )}
                   >
@@ -465,7 +423,27 @@ export default function Step5({ userData, membershipId }: Step5Props) {
           </div>
         </CardContent>
       </Card>
-
+      {/* Action secondaire - Nouvelle demande */}
+      <Card className="border-2 border-[#CBB171]/40 bg-gradient-to-r from-[#CBB171]/10 to-[#224D62]/10 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800">
+        <CardContent className="p-6 text-center">
+          <div className="space-y-4">
+            <div className="flex items-center justify-center space-x-2 text-[#224D62] text-base font-medium">
+              <span className="text-2xl">👥</span>
+              <span>Vous souhaitez faire une demande pour une autre personne ?</span>
+            </div>
+            <Button
+              onClick={handleNewRequest}
+              variant="outline"
+              className="border-2 border-[#CBB171] text-[#CBB171] hover:bg-[#CBB171] hover:text-white transition-all duration-300 px-8 py-3 text-base font-medium shadow-md hover:shadow-lg"
+            >
+              ✨ Nouvelle demande d'inscription
+            </Button>
+            <p className="text-xs text-[#224D62]/60">
+              Cette action effacera les données temporaires du formulaire actuel
+            </p>
+          </div>
+        </CardContent>
+      </Card>
       {/* Message de remerciement */}
       <div className="text-center p-6 sm:p-8 bg-gradient-to-r from-[#224D62]/10 via-[#CBB171]/10 to-[#224D62]/10 rounded-xl animate-in fade-in-0 zoom-in-95 duration-700 delay-1600">
         <div className="flex items-center justify-center space-x-3 mb-4">
@@ -490,6 +468,24 @@ export default function Step5({ userData, membershipId }: Step5Props) {
               <Shield className="w-4 h-4 mr-2" />
             )}
             {isCheckingStatus ? 'Vérification...' : 'Vérifier le statut de ma demande'}
+          </Button>
+        </div>
+        {/* Boutons d'actions principales */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700">
+          <Button
+            onClick={() => window.location.href = routes.public.homepage}
+            variant="outline"
+            className="border-2 border-[#224D62] text-[#224D62] hover:bg-[#224D62] hover:text-white transition-all duration-300 px-8 py-3 text-base font-medium shadow-md hover:shadow-lg"
+          >
+            🏠 Retour à l'accueil
+          </Button>
+
+          <Button
+            onClick={() => window.location.href = routes.public.login}
+            className="bg-gradient-to-r from-[#224D62] to-[#CBB171] hover:from-[#224D62]/90 hover:to-[#CBB171]/90 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 px-8 py-3 text-base"
+          >
+            <LogIn className="w-5 h-5 mr-2" />
+            Se connecter
           </Button>
         </div>
       </div>

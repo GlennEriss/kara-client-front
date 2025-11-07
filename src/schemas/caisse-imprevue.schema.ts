@@ -60,13 +60,13 @@ export const caisseImprevueStep3Schema = z.object({
     .string()
     .min(1, 'Le numéro de téléphone principal est obligatoire')
     .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77'),
+    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77'),
   
   // Téléphone 2 optionnel
   phone2: z
     .string()
     .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/, 'Format de téléphone invalide')
+    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide')
     .optional()
     .or(z.literal('')),
   
