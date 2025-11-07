@@ -104,7 +104,7 @@ export const identitySchema = z.object({
                     return
                 }
                 
-                // Vérifier le format gabonais: +241 + 8 chiffres (Libertis: 62/66, Moov: 65, Airtel: 74/77)
+                // Vérifier le format gabonais: +241 + 8 chiffres (Libertis: 60/62/66, Moov: 65, Airtel: 74/76/77)
                 if (!trimmed.startsWith('+241')) {
                     ctx.addIssue({
                         code: z.ZodIssueCode.custom,
@@ -138,18 +138,18 @@ export const identitySchema = z.object({
                 
                 // Vérifier spécifiquement les 2 premiers chiffres (opérateurs gabonais)
                 const operatorCode = phoneDigits.substring(0, 2)
-                if (!['62', '65', '66', '74', '77'].includes(operatorCode)) {
+                if (!['60', '62', '65', '66', '74', '76', '77'].includes(operatorCode)) {
                     let operatorName = 'inconnu'
                     let validOptions = ''
                     
                     if (operatorCode.startsWith('6')) {
                         operatorName = 'Libertis/Moov'
-                        validOptions = 'Pour Libertis, utilisez 62 ou 66. Pour Moov, utilisez 65'
+                        validOptions = 'Pour Libertis, utilisez 60, 62 ou 66. Pour Moov, utilisez 65'
                     } else if (operatorCode.startsWith('7')) {
                         operatorName = 'Airtel'
-                        validOptions = 'Pour Airtel, utilisez 74 ou 77'
+                        validOptions = 'Pour Airtel, utilisez 74, 76 ou 77'
                     } else {
-                        validOptions = 'Opérateurs valides : Libertis (62, 66), Moov (65) ou Airtel (74, 77)'
+                        validOptions = 'Opérateurs valides : Libertis (60, 62, 66), Moov (65) ou Airtel (74, 76, 77)'
                     }
                     
                     ctx.addIssue({
@@ -227,7 +227,7 @@ export const identitySchema = z.object({
             
             const trimmed = value.trim()
             
-            // Vérifier le format gabonais: +241 + 8 chiffres (Libertis: 62/66, Moov: 65, Airtel: 74/77)
+            // Vérifier le format gabonais: +241 + 8 chiffres (Libertis: 60/62/66, Moov: 65, Airtel: 74/76/77)
             if (!trimmed.startsWith('+241')) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
@@ -258,15 +258,15 @@ export const identitySchema = z.object({
             
             // Vérifier spécifiquement les 2 premiers chiffres (opérateurs gabonais)
             const operatorCode = phoneDigits.substring(0, 2)
-            if (!['62', '65', '66', '74', '77'].includes(operatorCode)) {
+            if (!['60', '62', '65', '66', '74', '76', '77'].includes(operatorCode)) {
                 let validOptions = ''
                 
                 if (operatorCode.startsWith('6')) {
-                    validOptions = 'Pour Libertis, utilisez 62 ou 66. Pour Moov, utilisez 65'
+                    validOptions = 'Pour Libertis, utilisez 60, 62 ou 66. Pour Moov, utilisez 65'
                 } else if (operatorCode.startsWith('7')) {
-                    validOptions = 'Pour Airtel, utilisez 74 ou 77'
+                    validOptions = 'Pour Airtel, utilisez 74, 76 ou 77'
                 } else {
-                    validOptions = 'Opérateurs valides : Libertis (62, 66), Moov (65) ou Airtel (74, 77)'
+                    validOptions = 'Opérateurs valides : Libertis (60, 62, 66), Moov (65) ou Airtel (74, 76, 77)'
                 }
                 
                 ctx.addIssue({
