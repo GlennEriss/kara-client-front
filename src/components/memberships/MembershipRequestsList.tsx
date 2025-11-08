@@ -712,7 +712,7 @@ const MembershipRequestCard = ({
                     <IdCard className="w-4 h-4 text-purple-600" />
                     <span>Voir la pièce d'identité</span>
                   </DropdownMenuItem>
-                  {!request.isPaid && (
+                  {!request.isPaid && request.status === 'pending' && (
                     <DropdownMenuItem
                       onClick={() => setPaymentOpen(true)}
                       className="flex items-center space-x-3 py-3 hover:bg-gray-50 transition-colors duration-200"
