@@ -588,14 +588,16 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             Par cet engagement, je prends la décision de mettre à la disposition de l'association la somme déterminée de :
           </Text>
 
-          <View style={{ marginVertical: 8 }}>
-            <Text style={styles.articleText}>
-              <Text style={styles.bold}>{numberToWords(contract?.monthlyAmount || 0)} francs CFA</Text> (Lettres)
-            </Text>
-            <Text style={styles.articleText}>
-              <Text style={styles.bold}>{formatAmount(contract?.monthlyAmount || 0)} FCFA</Text> (Chiffres)
-            </Text>
-          </View>
+          {contract?.caisseType !== 'LIBRE' && (
+            <View style={{ marginVertical: 8 }}>
+              <Text style={styles.articleText}>
+                <Text style={styles.bold}>{numberToWords(contract?.monthlyAmount || 0)} francs CFA</Text> (Lettres)
+              </Text>
+              <Text style={styles.articleText}>
+                <Text style={styles.bold}>{formatAmount(contract?.monthlyAmount || 0)} FCFA</Text> (Chiffres)
+              </Text>
+            </View>
+          )}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
             <Text style={styles.articleText}>A l'échéance prévue pour le </Text>
