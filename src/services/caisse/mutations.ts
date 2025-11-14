@@ -285,6 +285,14 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   }
   if (typeof input.amount === 'number' && input.amount > 0) {
     paymentUpdates.accumulatedAmount = newAccumulated
+    // Pour les contrats LIBRE, amount représente le montant total accumulé versé
+    // Pour les contrats STANDARD, amount reste égal au montant mensuel
+    if (type === 'LIBRE') {
+      paymentUpdates.amount = newAccumulated
+    } else {
+      // Pour STANDARD et JOURNALIERE, amount = montant mensuel (fixe)
+      paymentUpdates.amount = contract.monthlyAmount
+    }
     const contrib = { 
       id: generateContributionId(input.memberId, now), // ID personnalisé au format MK_CS_P_memberId_DATE_HEURE
       amount: input.amount, 

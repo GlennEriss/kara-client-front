@@ -138,7 +138,7 @@ export default function IndividualPaymentInvoice({
           </div>
           <div className="flex justify-between">
             <span className="text-slate-600">Montant :</span>
-            <span className="font-medium">{formatAmount(payment.amount)}</span>
+            <span className="font-medium">{formatAmount(payment.amount || payment.accumulatedAmount || contractData.monthlyAmount)}</span>
           </div>
           <div className="flex justify-between">
             <span className={payment.penaltyApplied && payment.penaltyApplied > 0 ? "text-red-600" : "text-slate-600"}>Pénalité :</span>

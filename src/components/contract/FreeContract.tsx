@@ -288,6 +288,15 @@ export default function FreeContract({ id }: Props) {
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
 
+  // Trouver le prochain mois à payer (paiement séquentiel)
+  const getNextDueMonthIndex = () => {
+    const sortedPayments = [...payments].sort((a: any, b: any) => a.dueMonthIndex - b.dueMonthIndex)
+    const nextDue = sortedPayments.find((p: any) => p.status === 'DUE')
+    return nextDue ? nextDue.dueMonthIndex : -1
+  }
+
+  const nextDueMonthIndex = getNextDueMonthIndex()
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -385,21 +394,36 @@ export default function FreeContract({ id }: Props) {
                 const StatusIcon = statusConfig.icon
                 const isSelected = selectedIdx === p.dueMonthIndex
                 
+                // Vérifier si ce mois est sélectionnable (seul le prochain mois à payer est cliquable)
+                const isSelectable = p.status === 'DUE' && !isClosed && p.dueMonthIndex === nextDueMonthIndex
+                
+                // Déterminer les classes CSS selon le statut
+                let cardClasses = 'border rounded-xl p-4 transition-all duration-200 '
+                if (isSelectable || p.status === 'PAID') {
+                  cardClasses += !isClosed ? 'cursor-pointer hover:shadow-md ' : 'cursor-default '
+                } else {
+                  cardClasses += 'cursor-default opacity-70 '
+                }
+                
+                if (isSelected) {
+                  cardClasses += 'border-[#234D65] bg-blue-50 ring-2 ring-[#234D65]/20 '
+                } else if (p.status === 'PAID') {
+                  cardClasses += 'border-green-200 bg-green-50 '
+                } else if (isSelectable) {
+                  cardClasses += 'border-blue-200 bg-blue-50 '
+                } else {
+                  cardClasses += 'border-gray-200 bg-gray-50 '
+                }
+                
                 return (
                   <div 
                     key={p.id} 
-                    className={`border rounded-xl p-4 transition-all duration-200 ${
-                      (p.status === 'DUE' || p.status === 'PAID') && !isClosed ? 'cursor-pointer hover:shadow-md' : 'cursor-default'
-                    } ${
-                      isSelected 
-                        ? 'border-[#234D65] bg-blue-50 ring-2 ring-[#234D65]/20' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => (p.status === 'DUE' || p.status === 'PAID') && !isClosed ? handleMonthClick(p.dueMonthIndex, p) : null}
+                    className={cardClasses}
+                    onClick={() => (isSelectable || p.status === 'PAID') && !isClosed ? handleMonthClick(p.dueMonthIndex, p) : null}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[#234D65] text-white rounded-lg px-3 py-1 text-sm font-bold">
+                        <div className={`${isSelectable ? 'bg-blue-600' : 'bg-[#234D65]'} text-white rounded-lg px-3 py-1 text-sm font-bold`}>
                           M{p.dueMonthIndex + 1}
                         </div>
                         {isSelected && (
@@ -410,7 +434,7 @@ export default function FreeContract({ id }: Props) {
                       </div>
                       <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
                         <StatusIcon className="h-3 w-3" />
-                        {paymentStatusLabel(p.status)}
+                        {p.status === 'DUE' && p.dueMonthIndex !== nextDueMonthIndex ? 'À venir' : paymentStatusLabel(p.status)}
                       </span>
                     </div>
                     
@@ -430,10 +454,10 @@ export default function FreeContract({ id }: Props) {
                       </div>
                     </div>
                     
-                    {!isClosed && (
+                    {!isClosed && (isSelectable || p.status === 'PAID') && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                          {p.status === 'DUE' ? (
+                          {isSelectable ? (
                             <span>Cliquez pour payer</span>
                           ) : p.status === 'PAID' ? (
                             <span>Cliquez pour voir la facture</span>
