@@ -36,7 +36,9 @@ import {
   User,
   Shield,
   Building2,
-  Trash2
+  Trash2,
+  CalendarDays,
+  CheckCircle2
 } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
@@ -47,6 +49,30 @@ import type { RefundDocument } from '@/types/types'
 import TestPaymentTools from './TestPaymentTools'
 
 type Props = { id: string }
+
+// Composant StatCard pour afficher les statistiques
+function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
+  const accents: Record<string, string> = {
+    slate: "from-slate-50 to-white",
+    emerald: "from-emerald-50 to-white",
+    red: "from-rose-50 to-white",
+    brand: "from-[#234D65]/10 to-white",
+  }
+  const brand = {
+    text: "text-[#234D65]",
+  }
+  return (
+    <div className={`rounded-2xl border bg-gradient-to-b ${accents[accent]} p-4 shadow-sm`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-slate-500">{label}</div>
+          <div className="mt-1 text-lg font-semibold text-slate-800">{value}</div>
+        </div>
+        {Icon ? <Icon className={`h-5 w-5 ${brand.text}`} /> : null}
+      </div>
+    </div>
+  )
+}
 
 export default function FreeContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
@@ -297,6 +323,18 @@ export default function FreeContract({ id }: Props) {
 
   const nextDueMonthIndex = getNextDueMonthIndex()
 
+  // Calculer le bonus actuel pour les contrats LIBRE
+  const calculateBonus = (monthIndex: number, nominalPaid: number) => {
+    if (!settings.data?.bonusRules) return 0
+    const bonusRate = settings.data.bonusRules.percentage / 100
+    return nominalPaid * bonusRate
+  }
+  
+  const currentBonus = calculateBonus(
+    data.currentMonthIndex || 0,
+    data.nominalPaid || 0
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -369,8 +407,45 @@ export default function FreeContract({ id }: Props) {
           </div>
         </div>
 
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <StatCard 
+            icon={CreditCard} 
+            label="Montant mensuel" 
+            value={`${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`} 
+            accent="brand" 
+          />
+          <StatCard 
+            icon={Clock} 
+            label="Durée (mois)" 
+            value={data.monthsPlanned || 0} 
+          />
+          <StatCard 
+            icon={CheckCircle2} 
+            label="Nominal payé" 
+            value={`${(data.nominalPaid || 0).toLocaleString('fr-FR')} FCFA`} 
+          />
+          <StatCard 
+            icon={TrendingUp} 
+            label="Bonus" 
+            value={`${currentBonus.toLocaleString('fr-FR')} FCFA`} 
+            accent="emerald" 
+          />
+          <StatCard 
+            icon={AlertTriangle} 
+            label="Pénalités cumulées" 
+            value={`${(data.penaltiesTotal || 0).toLocaleString('fr-FR')} FCFA`} 
+            accent="red" 
+          />
+          <StatCard 
+            icon={CalendarDays} 
+            label="Prochaine échéance" 
+            value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString('fr-FR') : '—'} 
+          />
+        </div>
+
         {/* Outils de test (DEV uniquement) */}
-        <TestPaymentTools 
+        <TestPaymentTools
           contractId={id}
           contractData={data}
           onPaymentSuccess={async () => {
