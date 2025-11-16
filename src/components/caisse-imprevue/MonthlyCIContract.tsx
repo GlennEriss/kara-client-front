@@ -39,6 +39,7 @@ import dynamic from 'next/dynamic'
 import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
+import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 
 const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDFModal'), {
   ssr: false,
@@ -557,6 +558,9 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
               <Download className="h-4 w-4" />
               Reconnaissance
             </Button>
+
+            {/* Bouton Contact d'urgence */}
+            <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} />
           </div>
           
           <div className="flex items-center gap-2">

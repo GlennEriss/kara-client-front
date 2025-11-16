@@ -1,8 +1,11 @@
 "use client"
 
 import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react'
-import { ContractFormData, EntitySearchResult } from '@/types/types'
-import { contractCreationDefaultValues } from '@/schemas/schemas'
+import { EntitySearchResult } from '@/types/types'
+import { contractCreationDefaultValues, type ContractCreationFormData } from '@/schemas/schemas'
+
+// Alias pour maintenir la compatibilité
+type ContractFormData = ContractCreationFormData
 
 // Types pour les actions du reducer
 type ContractFormAction =
@@ -167,6 +170,8 @@ export function ContractFormProvider({ children }: ContractFormProviderProps) {
   const goToStep = useCallback((step: number) => {
     if (step >= 1 && step <= state.steps.length) {
       dispatch({ type: 'SET_STEP', payload: step })
+      // Scroll vers le haut de la page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [state.steps.length])
 

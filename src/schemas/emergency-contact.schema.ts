@@ -82,7 +82,21 @@ export const emergencyContactSchema = z.object({
     .or(z.literal('')),
   
   // Lien de parenté obligatoire
-  relationship: RelationshipEnum
+  relationship: RelationshipEnum,
+  
+  // Type de document d'identité obligatoire
+  typeId: z.string()
+    .min(1, 'Le type de document est obligatoire'),
+  
+  // Numéro de document d'identité obligatoire
+  idNumber: z.string()
+    .min(1, 'Le numéro de document est obligatoire')
+    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
+  
+  // URL de la photo du document obligatoire
+  documentPhotoUrl: z.string()
+    .min(1, 'La photo du document est obligatoire')
+    .url('L\'URL de la photo doit être valide')
 })
 
 // Valeurs par défaut
@@ -91,7 +105,10 @@ export const emergencyContactDefaultValues = {
   firstName: '',
   phone1: '',
   phone2: '',
-  relationship: 'Autre' as const
+  relationship: 'Autre' as const,
+  typeId: '',
+  idNumber: '',
+  documentPhotoUrl: ''
 }
 
 // Type TypeScript

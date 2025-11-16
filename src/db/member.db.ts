@@ -229,28 +229,64 @@ export async function getMembers(
     }
 
     // Filtres d'adresse
+    const normalizeLocation = (value?: string | null) =>
+      typeof value === 'string' ? value.trim().toLowerCase() : undefined
+
     if (filters.province) {
       filteredMembers = filteredMembers.filter(member =>
-        member.address?.province === filters.province
+        normalizeLocation(member.address?.province) === normalizeLocation(filters.province)
       )
     }
 
     if (filters.city) {
       filteredMembers = filteredMembers.filter(member =>
-        member.address?.city === filters.city
+        normalizeLocation(member.address?.city) === normalizeLocation(filters.city)
       )
     }
 
     if (filters.arrondissement) {
-      filteredMembers = filteredMembers.filter(member =>
-        member.address?.arrondissement === filters.arrondissement
-      )
+      filteredMembers = filteredMembers.filter(member => {
+        const memberArrondissement = member.address?.arrondissement
+        const isMatch =
+          normalizeLocation(memberArrondissement) === normalizeLocation(filters.arrondissement)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(
+            '🧭 [getMembers] Arrondissement check:',
+            {
+              memberId: member.id,
+              memberName: `${member.firstName} ${member.lastName}`,
+              memberArrondissement,
+              filterArrondissement: filters.arrondissement,
+              normalizedMemberArrondissement: normalizeLocation(memberArrondissement),
+              normalizedFilterArrondissement: normalizeLocation(filters.arrondissement),
+              isMatch
+            }
+          )
+        }
+        return isMatch
+      })
     }
 
     if (filters.district) {
-      filteredMembers = filteredMembers.filter(member =>
-        member.address?.district === filters.district
-      )
+      filteredMembers = filteredMembers.filter(member => {
+        const memberDistrict = member.address?.district
+        const isMatch = normalizeLocation(memberDistrict) === normalizeLocation(filters.district)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(
+            '🧭 [getMembers] District check:',
+            {
+              memberId: member.id,
+              memberName: `${member.firstName} ${member.lastName}`,
+              memberDistrict,
+              filterDistrict: filters.district,
+              normalizedMemberDistrict: normalizeLocation(memberDistrict),
+              normalizedFilterDistrict: normalizeLocation(filters.district),
+              isMatch
+            }
+          )
+        }
+        return isMatch
+      })
     }
 
     // Filtres professionnels

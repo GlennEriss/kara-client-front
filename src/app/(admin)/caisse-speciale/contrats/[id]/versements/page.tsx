@@ -47,6 +47,12 @@ const translatePaymentStatus = (status: string): string => {
   return statusMap[status] || status
 }
 
+// Fonction pour formater les montants dans les PDFs (évite les problèmes avec jsPDF)
+const formatAmountForPDF = (amount: number | undefined | null): string => {
+  if (!amount && amount !== 0) return '0'
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 export default function ContractPaymentsPage() {
   const params = useParams()
   const contractId = params.id as string
@@ -271,7 +277,7 @@ export default function ContractPaymentsPage() {
     doc.setFontSize(10)
     doc.text(`Date d'échéance : ${payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'Non définie'}`, 14, yPos)
     yPos += 5
-    doc.text(`Montant total : ${(payment.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+    doc.text(`Montant total : ${formatAmountForPDF(payment.amount || 0)} FCFA`, 14, yPos)
     yPos += 5
     doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
     yPos += 10
@@ -292,14 +298,14 @@ export default function ContractPaymentsPage() {
           (index + 1).toString(),
           `${contrib.memberFirstName} ${contrib.memberLastName}`,
           contrib.memberMatricule || '',
-          `${contrib.amount?.toLocaleString('fr-FR')} FCFA`,
+          `${formatAmountForPDF(contrib.amount)} FCFA`,
           createdDate,
           contrib.time || '',
           contrib.mode === 'airtel_money' ? 'Airtel Money' :
             contrib.mode === 'mobicash' ? 'Mobicash' :
             contrib.mode === 'cash' ? 'Espèce' :
             contrib.mode === 'bank_transfer' ? 'Virement' : contrib.mode || '',
-          contrib.penalty && contrib.penalty > 0 ? `${contrib.penalty.toLocaleString('fr-FR')} FCFA` : '-',
+          contrib.penalty && contrib.penalty > 0 ? `${formatAmountForPDF(contrib.penalty)} FCFA` : '-',
           contrib.penaltyDays && contrib.penaltyDays > 0 ? `${contrib.penaltyDays}j` : '-'
         ]
       })
@@ -351,10 +357,10 @@ export default function ContractPaymentsPage() {
 
       doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Total des contributions : ${totalAmount.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Total des contributions : ${formatAmountForPDF(totalAmount)} FCFA`, 14, yPos)
       if (totalPenalty > 0) {
         doc.setTextColor(220, 38, 38)
-        doc.text(`Total des pénalités : ${totalPenalty.toLocaleString('fr-FR')} FCFA`, 14, yPos + 6)
+        doc.text(`Total des pénalités : ${formatAmountForPDF(totalPenalty)} FCFA`, 14, yPos + 6)
         doc.setTextColor(0, 0, 0)
       }
     } 
@@ -373,11 +379,11 @@ export default function ContractPaymentsPage() {
         return [
           (index + 1).toString(),
           contrib.memberId || '',
-          `${contrib.amount?.toLocaleString('fr-FR')} FCFA`,
+          `${formatAmountForPDF(contrib.amount)} FCFA`,
           paidDate,
           contrib.time || '',
           contrib.mode || '',
-          (contrib as any).penalty && (contrib as any).penalty > 0 ? `${(contrib as any).penalty.toLocaleString('fr-FR')} FCFA` : '-',
+          (contrib as any).penalty && (contrib as any).penalty > 0 ? `${formatAmountForPDF((contrib as any).penalty)} FCFA` : '-',
           (contrib as any).penaltyDays && (contrib as any).penaltyDays > 0 ? `${(contrib as any).penaltyDays}j` : '-',
           contrib.paidAt ? 'Oui' : 'Non'
         ]
@@ -430,10 +436,10 @@ export default function ContractPaymentsPage() {
 
       doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Total des contributions : ${totalAmount.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Total des contributions : ${formatAmountForPDF(totalAmount)} FCFA`, 14, yPos)
       if (totalPenalty > 0) {
         doc.setTextColor(220, 38, 38)
-        doc.text(`Total des pénalités : ${totalPenalty.toLocaleString('fr-FR')} FCFA`, 14, yPos + 6)
+        doc.text(`Total des pénalités : ${formatAmountForPDF(totalPenalty)} FCFA`, 14, yPos + 6)
         doc.setTextColor(0, 0, 0)
       }
     }
@@ -511,7 +517,7 @@ export default function ContractPaymentsPage() {
       }
     }
     
-    doc.text(`Montant : ${(payment.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+    doc.text(`Montant : ${formatAmountForPDF(payment.amount || 0)} FCFA`, 14, yPos)
     yPos += 6
     
     if (payment.mode) {
@@ -529,7 +535,7 @@ export default function ContractPaymentsPage() {
     
     if (penaltyApplied && penaltyApplied > 0) {
       doc.setTextColor(220, 38, 38) // Rouge
-      doc.text(`Pénalités appliquées : ${penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Pénalités appliquées : ${formatAmountForPDF(penaltyApplied)} FCFA`, 14, yPos)
       yPos += 6
       if (penaltyDays && penaltyDays > 0) {
         doc.text(`Jours de retard : ${penaltyDays}`, 14, yPos)
@@ -547,7 +553,7 @@ export default function ContractPaymentsPage() {
     const bonusApplied = (payment as any).bonusApplied
     if (bonusApplied && bonusApplied > 0) {
       doc.setTextColor(34, 139, 34) // Vert
-      doc.text(`Bonus appliqué : ${bonusApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Bonus appliqué : ${formatAmountForPDF(bonusApplied)} FCFA`, 14, yPos)
       yPos += 6
       doc.setTextColor(0, 0, 0)
     }
@@ -571,7 +577,7 @@ export default function ContractPaymentsPage() {
         const row = [
           `${contrib.memberFirstName} ${contrib.memberLastName}`,
           contrib.memberMatricule,
-          `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
+          `${formatAmountForPDF(contrib.amount)} FCFA`,
           contrib.time || '',
           contrib.mode === 'airtel_money' ? 'Airtel Money' :
             contrib.mode === 'mobicash' ? 'Mobicash' :
@@ -580,7 +586,7 @@ export default function ContractPaymentsPage() {
         ]
         
         if (contrib.penalty && contrib.penalty > 0) {
-          row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
+          row.push(`${formatAmountForPDF(contrib.penalty)} FCFA`)
         } else {
           row.push('-')
         }
@@ -613,7 +619,7 @@ export default function ContractPaymentsPage() {
         doc.setFontSize(10)
         doc.setFont('helvetica', 'normal')
         
-        doc.text(`• Montant : ${(contrib.amount || 0).toLocaleString('fr-FR')} FCFA`, 20, yPos)
+        doc.text(`• Montant : ${formatAmountForPDF(contrib.amount || 0)} FCFA`, 20, yPos)
         yPos += 6
         
         if (contrib.paidAt) {
@@ -642,7 +648,7 @@ export default function ContractPaymentsPage() {
         
         if (contribPenalty && contribPenalty > 0) {
           doc.setTextColor(220, 38, 38)
-          doc.text(`  Pénalité : ${contribPenalty.toLocaleString('fr-FR')} FCFA`, 20, yPos)
+          doc.text(`  Pénalité : ${formatAmountForPDF(contribPenalty)} FCFA`, 20, yPos)
           yPos += 6
           if (contribPenaltyDays && contribPenaltyDays > 0) {
             doc.text(`  Retard : ${contribPenaltyDays} jour(s)`, 20, yPos)
@@ -692,7 +698,7 @@ export default function ContractPaymentsPage() {
     // Informations du contrat
     doc.setFontSize(9)
     doc.text(`Type: ${contract?.contractType || 'N/A'}`, 14, 28)
-    doc.text(`Montant mensuel: ${contract?.monthlyAmount?.toLocaleString('fr-FR') || 0} FCFA`, 80, 28)
+    doc.text(`Montant mensuel: ${formatAmountForPDF(contract?.monthlyAmount) || 0} FCFA`, 80, 28)
     doc.text(`Durée: ${contract?.monthsPlanned || 0} mois`, 160, 28)
     doc.text(`Statut: ${translateContractStatus(contract?.status || '')}`, 14, 33)
     doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 160, 33)
@@ -713,7 +719,7 @@ export default function ContractPaymentsPage() {
 
       const penaltyDays = (payment as any).penaltyDays || 0
       const penaltyDisplay = payment.penaltyApplied 
-        ? `${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA${penaltyDays > 0 ? ` (${penaltyDays}j)` : ''}` 
+        ? `${formatAmountForPDF(payment.penaltyApplied)} FCFA${penaltyDays > 0 ? ` (${penaltyDays}j)` : ''}` 
         : penaltyDays > 0 && penaltyDays <= 3 
           ? `Tolérance (${penaltyDays}j)` 
           : 'Non'
@@ -722,7 +728,7 @@ export default function ContractPaymentsPage() {
         `M${payment.dueMonthIndex + 1}`,
         payment.dueAt ? new Date(payment.dueAt).toLocaleDateString('fr-FR') : 'N/A',
         status,
-        `${payment.amount?.toLocaleString('fr-FR') || 0} FCFA`,
+        `${formatAmountForPDF(payment.amount) || 0} FCFA`,
         payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('fr-FR') : '',
         payment.time || '',
         payment.mode || '',
@@ -1099,14 +1105,30 @@ export default function ContractPaymentsPage() {
                               )}
                             </span>
                           )
-                        } else if (bonusPercentage && bonusPercentage > 0 && contract?.monthlyAmount && payment.dueMonthIndex !== undefined) {
-                          // Calculer le montant total prévu jusqu'à ce mois
-                          const totalAmountUpToThisMonth = contract.monthlyAmount * (payment.dueMonthIndex + 1)
-                          // Calculer le bonus sur ce montant total
-                          const expectedBonusAmount = Math.round((totalAmountUpToThisMonth * bonusPercentage) / 100)
+                        } else if (bonusPercentage && bonusPercentage > 0 && payment.dueMonthIndex !== undefined) {
+                          // Pour LIBRE, utiliser accumulatedAmount (montant réel accumulé jusqu'au mois précédent)
+                          // Pour STANDARD et JOURNALIERE, utiliser monthlyAmount * (dueMonthIndex + 1)
+                          const caisseType = (contract as any)?.caisseType || 'STANDARD'
+                          // Pour LIBRE, le bonus est calculé sur le montant accumulé AVANT ce paiement
+                          // Pour STANDARD et JOURNALIERE, utiliser monthlyAmount * mois
+                          const baseForBonus = caisseType === 'LIBRE' 
+                            ? ((payment as any).accumulatedAmount || payment.amount || 0)
+                            : (contract?.monthlyAmount || 0) * (payment.dueMonthIndex + 1)
                           
-                          // Si le versement est payé, afficher en vert sans "Attendu"
+                          // Calculer le bonus sur le montant de base avec le pourcentage du mois précédent
+                          const expectedBonusAmount = Math.round((baseForBonus * bonusPercentage) / 100)
+                          
+                          // Si le versement est payé, utiliser bonusApplied si disponible, sinon calculer
                           if (isPaid) {
+                            // Si bonusApplied existe, l'utiliser (c'est le bonus réellement appliqué)
+                            if (bonusApplied && bonusApplied > 0) {
+                              return (
+                                <span className="font-medium text-green-700">
+                                  {bonusApplied.toLocaleString()} FCFA ({bonusPercentage}%)
+                                </span>
+                              )
+                            }
+                            // Sinon, calculer avec accumulatedAmount
                             return (
                               <span className="font-medium text-green-700">
                                 {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
@@ -1121,7 +1143,7 @@ export default function ContractPaymentsPage() {
                             </span>
                           )
                         } else if (bonusPercentage && bonusPercentage > 0) {
-                          // Si pas de nominalPaid, afficher juste le pourcentage
+                          // Si pas de montant, afficher juste le pourcentage
                           const prefix = isPaid ? '' : 'Attendu: '
                           const colorClass = isPaid ? 'text-green-700' : 'text-gray-500'
                           return (

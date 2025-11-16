@@ -380,7 +380,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 flex items-center">
                 <MapPin className="h-4 w-4 mr-1" />
-                District
+                Quartier
               </label>
               <Select
                 value={filters.district || 'all'}

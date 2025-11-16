@@ -5,12 +5,12 @@ import { useContractForm } from '@/providers/ContractFormProvider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2, 
-  FileText, 
-  Users, 
+import {
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  FileText,
+  Users,
   User,
   Calendar,
   DollarSign,
@@ -42,7 +42,7 @@ export function Step3ContractCreation() {
       firstPaymentDate: formData.firstPaymentDate,
       emergencyContact: formData.emergencyContact
     })
-    
+
     // Validation du contact d'urgence
     let isEmergencyContactValid = false
     if (formData.emergencyContact) {
@@ -54,14 +54,14 @@ export function Step3ContractCreation() {
         isEmergencyContactValid = false
       }
     }
-    
+
     const isValid = Boolean(
-      formData.firstPaymentDate && 
+      formData.firstPaymentDate &&
       formData.firstPaymentDate.trim() !== '' &&
       new Date(formData.firstPaymentDate) >= new Date() &&
       isEmergencyContactValid
     )
-    
+
     console.log('🔍 Étape valide:', isValid)
     validateCurrentStep(isValid)
   }, [formData.firstPaymentDate, formData.emergencyContact, validateCurrentStep])
@@ -138,29 +138,16 @@ export function Step3ContractCreation() {
         description: `Le contrat ${contractId} a été créé et enregistré dans la base de données.`,
         duration: 5000,
         action: {
-          label: 'Voir le contrat',
+          label: 'Voir les contrats',
           onClick: () => {
-            if (formData.contractType === 'INDIVIDUAL') {
-              router.push(routes.admin.contractsHistoryDetails(formData.memberId || ''))
-            } else {
-              router.push(routes.admin.caisseSpeciale)
-            }
+            router.push(routes.admin.caisseSpeciale)
           }
         }
       })
-
-      // Rediriger vers la page de gestion des contrats après un délai
-      setTimeout(() => {
-        if (formData.contractType === 'INDIVIDUAL') {
-          router.push(routes.admin.contractsHistoryDetails(formData.memberId || ''))
-        } else {
-          router.push(routes.admin.caisseSpeciale)
-        }
-      }, 3000)
-
+      router.push(routes.admin.caisseSpeciale)
     } catch (error: any) {
       console.error('❌ Erreur lors de la création du contrat:', error)
-      
+
       // Toast d'erreur avec Sonner
       toast.error('Erreur lors de la création du contrat', {
         description: error?.message || 'Une erreur inattendue s\'est produite. Veuillez réessayer.',
@@ -307,7 +294,7 @@ export function Step3ContractCreation() {
                 }) : 'Non définie'}
               </span>
             </div>
-            
+
             {/* Input pour modifier la date du premier versement */}
             <div className="mt-3">
               <label htmlFor="first-payment-date" className="block text-sm font-medium text-purple-700 mb-2">
@@ -376,18 +363,21 @@ export function Step3ContractCreation() {
       </Card>
 
       {/* Formulaire de contact d'urgence */}
-      <EmergencyContactForm 
+      <EmergencyContactForm
         emergencyContact={formData.emergencyContact}
         onUpdate={(field: string, value: any) => {
-          updateFormData({ 
-            emergencyContact: { 
+          updateFormData({
+            emergencyContact: {
               lastName: formData.emergencyContact?.lastName || '',
               firstName: formData.emergencyContact?.firstName || '',
               phone1: formData.emergencyContact?.phone1 || '',
               phone2: formData.emergencyContact?.phone2 || '',
               relationship: formData.emergencyContact?.relationship || 'Autre',
-              [field]: value 
-            } 
+              typeId: formData.emergencyContact?.typeId || '',
+              idNumber: formData.emergencyContact?.idNumber || '',
+              documentPhotoUrl: formData.emergencyContact?.documentPhotoUrl || '',
+              [field]: value
+            }
           })
         }}
       />
@@ -435,7 +425,7 @@ export function Step3ContractCreation() {
           <br />
           Le contrat sera immédiatement actif et les premiers versements seront planifiés.
         </p>
-        
+
       </div>
     </div>
   )

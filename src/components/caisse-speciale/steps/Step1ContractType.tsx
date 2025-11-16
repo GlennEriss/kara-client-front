@@ -269,7 +269,7 @@ export function Step1ContractType() {
       </div>
 
       {/* Sélection du type de contrat */}
-      <Card className="border-0 shadow-lg">
+      <Card className="border-0 shadow-lg hidden">
         <CardHeader>
           <CardTitle className="text-lg text-gray-900">
             Type de contrat

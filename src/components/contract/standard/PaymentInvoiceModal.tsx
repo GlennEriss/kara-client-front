@@ -131,7 +131,9 @@ export default function PaymentInvoiceModal({
         yPos += 6
       }
       
-      doc.text(`Montant : ${(contractData.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      // Utiliser le montant réellement versé (accumulatedAmount ou amount) pour les contrats LIBRE
+      const displayedAmount = payment.amount || payment.accumulatedAmount || contractData.monthlyAmount || 0
+      doc.text(`Montant : ${displayedAmount.toLocaleString('fr-FR')} FCFA`, 14, yPos)
       yPos += 6
       
       if (payment.penaltyApplied && payment.penaltyApplied > 0) {
