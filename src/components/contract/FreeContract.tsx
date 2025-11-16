@@ -45,6 +45,7 @@ import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import PaymentCSModal, { PaymentCSFormData } from './PaymentCSModal'
 import PaymentInvoiceModal from './standard/PaymentInvoiceModal'
+import EmergencyContact from './standard/EmergencyContact'
 import type { RefundDocument } from '@/types/types'
 import TestPaymentTools from './TestPaymentTools'
 
@@ -392,7 +393,7 @@ export default function FreeContract({ id }: Props) {
             </div>
             
             {/* Lien vers l'historique des versements */}
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href={routes.admin.caisseSpecialeContractPayments(id)}
                 className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors duration-200 shadow-md hover:shadow-lg"
@@ -400,6 +401,7 @@ export default function FreeContract({ id }: Props) {
                 <FileText className="h-4 w-4" />
                 Historique des versements
               </Link>
+              <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
             </div>
           </div>
         </div>
