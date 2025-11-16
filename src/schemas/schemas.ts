@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { RelationshipEnum, emergencyContactSchema, emergencyContactDefaultValues } from '@/schemas/emergency-contact.schema'
+import { RelationshipEnum, emergencyContactSchema } from '@/schemas/emergency-contact.schema'
 import { identitySchema, CivilityEnum, GenderEnum, identityDefaultValues } from './identity.schema'
 import { addressSchema, addressDefaultValues } from './address.schema'
 import { companySchema, companyCrudSchema, companyDefaultValues } from './company.schema'
