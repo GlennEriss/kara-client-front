@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { RelationshipEnum } from '@/schemas/emergency-contact.schema'
+import { RelationshipEnum, emergencyContactSchema, emergencyContactDefaultValues } from '@/schemas/emergency-contact.schema'
 import { identitySchema, CivilityEnum, GenderEnum, identityDefaultValues } from './identity.schema'
 import { addressSchema, addressDefaultValues } from './address.schema'
 import { companySchema, companyCrudSchema, companyDefaultValues } from './company.schema'
@@ -343,31 +343,8 @@ export const contractCreationSchema = z.object({
   // Étape 3: Document PDF du contrat signé
   contractPdf: z.instanceof(File).optional(),
 
-  // Étape 3: Contact d'urgence
-  emergencyContact: z.object({
-    lastName: z.string()
-      .min(1, 'Le nom du contact d\'urgence est obligatoire')
-      .max(50, 'Le nom ne peut pas dépasser 50 caractères')
-      .regex(/^[a-zA-ZÀ-ÿ\s\-']+$/, 'Le nom ne peut contenir que des lettres, espaces, tirets et apostrophes'),
-    
-    firstName: z.string()
-      .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
-      .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
-      .optional(),
-    
-    phone1: z.string()
-      .min(1, 'Le numéro de téléphone principal est obligatoire')
-      .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-      .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)'),
-    
-    phone2: z.string()
-      .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-      .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)')
-      .optional()
-      .or(z.literal('')),
-    
-    relationship: RelationshipEnum
-  }).optional(),
+  // Étape 3: Contact d'urgence (utilise le schéma depuis emergency-contact.schema.ts)
+  emergencyContact: emergencyContactSchema.optional(),
 
   // Métadonnées
   isValid: z.boolean(),
@@ -438,7 +415,7 @@ export const contractCreationDefaultValues: ContractCreationFormData = {
   monthsPlanned: 12,
   firstPaymentDate: new Date().toISOString().split('T')[0],
   contractPdf: undefined,
-  emergencyContact: undefined,
+  emergencyContact: undefined, // Sera rempli par l'utilisateur dans Step3
   isValid: false,
   currentStep: 1
 }
