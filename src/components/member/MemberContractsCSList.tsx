@@ -16,9 +16,44 @@ import {
 import { useContractsByMember } from '@/hooks/useCaisseContracts'
 import routes from '@/constantes/routes'
 import Link from 'next/link'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 interface MemberContractsCSListProps {
   memberId: string
+}
+
+// Fonction pour convertir et formater une date en toute sécurité
+const safeFormatDate = (dateValue: any, formatPattern: string = 'dd/MM/yyyy'): string => {
+  if (!dateValue) return 'N/A'
+  
+  let date: Date | null = null
+  
+  // Si c'est un Timestamp Firestore
+  if (dateValue && typeof dateValue.toDate === 'function') {
+    date = dateValue.toDate()
+  }
+  // Si c'est déjà une Date
+  else if (dateValue instanceof Date) {
+    date = dateValue
+  }
+  // Si c'est une string ou un number
+  else if (typeof dateValue === 'string' || typeof dateValue === 'number') {
+    date = new Date(dateValue)
+  }
+  
+  // Vérifier si la date est valide
+  if (!date || isNaN(date.getTime())) {
+    console.warn('Date invalide:', dateValue)
+    return 'Date invalide'
+  }
+  
+  try {
+    return format(date, formatPattern, { locale: fr })
+  } catch (error) {
+    console.error('Erreur lors du formatage de la date:', error, dateValue)
+    return 'Erreur de formatage'
+  }
 }
 
 export default function MemberContractsCSList({ memberId }: MemberContractsCSListProps) {
@@ -161,14 +196,14 @@ export default function MemberContractsCSList({ memberId }: MemberContractsCSLis
                     <div>
                       <span className="text-gray-600">Début:</span>
                       <span className="ml-2 font-medium">
-                        {new Date(contract.contractStartAt).toLocaleDateString('fr-FR')}
+                        {safeFormatDate(contract.contractStartAt, 'dd/MM/yyyy')}
                       </span>
                     </div>
                     {contract.contractEndAt && (
                       <div>
                         <span className="text-gray-600">Fin:</span>
                         <span className="ml-2 font-medium">
-                          {new Date(contract.contractEndAt).toLocaleDateString('fr-FR')}
+                          {safeFormatDate(contract.contractEndAt, 'dd/MM/yyyy')}
                         </span>
                       </div>
                     )}
