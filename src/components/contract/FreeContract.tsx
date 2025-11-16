@@ -329,17 +329,8 @@ export default function FreeContract({ id }: Props) {
 
   const nextDueMonthIndex = getNextDueMonthIndex()
 
-  // Calculer le bonus actuel pour les contrats LIBRE
-  const calculateBonus = (monthIndex: number, nominalPaid: number) => {
-    if (!settings.data?.bonusRules) return 0
-    const bonusRate = settings.data.bonusRules.percentage / 100
-    return nominalPaid * bonusRate
-  }
-  
-  const currentBonus = calculateBonus(
-    data.currentMonthIndex || 0,
-    data.nominalPaid || 0
-  )
+  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
+  const currentBonus = data.bonusAccrued || 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6 overflow-x-hidden">

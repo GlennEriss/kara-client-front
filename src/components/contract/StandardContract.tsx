@@ -183,20 +183,11 @@ export default function StandardContract({ id }: Props) {
   const totalMonths = data.monthsPlanned || 0
   const progress = totalMonths > 0 ? (paidCount / totalMonths) * 100 : 0
 
-  // Récupérer les paramètres de caisse pour le calcul du bonus
+  // Récupérer les paramètres de caisse
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
   
-  // Calculer le bonus actuel
-  const calculateBonus = (monthIndex: number, nominalPaid: number) => {
-    if (!settings.data?.bonusRules) return 0
-    const bonusRate = settings.data.bonusRules.percentage / 100
-    return nominalPaid * bonusRate
-  }
-  
-  const currentBonus = calculateBonus(
-    data.currentMonthIndex || 0,
-    data.nominalPaid || 0
-  )
+  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
+  const currentBonus = data.bonusAccrued || 0
 
   // Trouver la prochaine échéance à payer (paiement séquentiel)
   const getNextDueMonthIndex = () => {

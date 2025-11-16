@@ -264,13 +264,22 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   }
 
   // Bonus
+  // Pour LIBRE, utiliser le montant accumulé AVANT ce paiement (le montant du mois précédent)
+  // Pour STANDARD et JOURNALIERE, utiliser le montant mensuel
   const baseForBonus = type === 'STANDARD'
     ? contract.monthlyAmount
     : type === 'JOURNALIERE'
       ? Math.min(newAccumulated, contract.monthlyAmount)
-      : /* LIBRE */ newAccumulated
-  const bonusRate = computeBonus(payment.dueMonthIndex, settings as any)
-  const bonus = (bonusRate || 0) * (baseForBonus / (contract.monthlyAmount || 1))
+      : /* LIBRE */ (payment.accumulatedAmount || 0) // Utiliser le montant accumulé AVANT ce paiement
+  // Utiliser le taux du mois précédent (pour le mois 5, utiliser le taux du mois 4)
+  // Pour le mois 4 (index 3), on utilise déjà le taux du mois 4 (M4)
+  // Pour le mois 5 (index 4), on veut utiliser le taux du mois 4 (M4), donc monthIndex - 1
+  const bonusMonthIndex = payment.dueMonthIndex >= 3 ? Math.max(3, payment.dueMonthIndex - 1) : payment.dueMonthIndex
+  const bonusRate = computeBonus(bonusMonthIndex, settings as any)
+  // bonusRate est un pourcentage (ex: 5 pour 5%), donc diviser par 100
+  // Pour LIBRE, baseForBonus = accumulatedAmount (montant accumulé jusqu'au mois précédent)
+  // Pour STANDARD et JOURNALIERE, baseForBonus = monthlyAmount ou min(accumulated, monthlyAmount)
+  const bonus = (bonusRate || 0) / 100 * baseForBonus
 
   // Construire updates du paiement
   const paymentUpdates: any = {
@@ -320,6 +329,8 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   if (reached) {
     paymentUpdates.status = 'PAID'
     paymentUpdates.paidAt = now
+    // Stocker le bonus appliqué dans le paiement
+    paymentUpdates.bonusApplied = bonus || 0
   }
   await updatePayment(input.contractId, payment.id, paymentUpdates)
   console.log('✅ [pay] Payment mis à jour dans Firestore:', {

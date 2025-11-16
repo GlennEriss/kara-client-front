@@ -1105,14 +1105,30 @@ export default function ContractPaymentsPage() {
                               )}
                             </span>
                           )
-                        } else if (bonusPercentage && bonusPercentage > 0 && contract?.monthlyAmount && payment.dueMonthIndex !== undefined) {
-                          // Calculer le montant total prévu jusqu'à ce mois
-                          const totalAmountUpToThisMonth = contract.monthlyAmount * (payment.dueMonthIndex + 1)
-                          // Calculer le bonus sur ce montant total
-                          const expectedBonusAmount = Math.round((totalAmountUpToThisMonth * bonusPercentage) / 100)
+                        } else if (bonusPercentage && bonusPercentage > 0 && payment.dueMonthIndex !== undefined) {
+                          // Pour LIBRE, utiliser accumulatedAmount (montant réel accumulé jusqu'au mois précédent)
+                          // Pour STANDARD et JOURNALIERE, utiliser monthlyAmount * (dueMonthIndex + 1)
+                          const caisseType = (contract as any)?.caisseType || 'STANDARD'
+                          // Pour LIBRE, le bonus est calculé sur le montant accumulé AVANT ce paiement
+                          // Pour STANDARD et JOURNALIERE, utiliser monthlyAmount * mois
+                          const baseForBonus = caisseType === 'LIBRE' 
+                            ? ((payment as any).accumulatedAmount || payment.amount || 0)
+                            : (contract?.monthlyAmount || 0) * (payment.dueMonthIndex + 1)
                           
-                          // Si le versement est payé, afficher en vert sans "Attendu"
+                          // Calculer le bonus sur le montant de base avec le pourcentage du mois précédent
+                          const expectedBonusAmount = Math.round((baseForBonus * bonusPercentage) / 100)
+                          
+                          // Si le versement est payé, utiliser bonusApplied si disponible, sinon calculer
                           if (isPaid) {
+                            // Si bonusApplied existe, l'utiliser (c'est le bonus réellement appliqué)
+                            if (bonusApplied && bonusApplied > 0) {
+                              return (
+                                <span className="font-medium text-green-700">
+                                  {bonusApplied.toLocaleString()} FCFA ({bonusPercentage}%)
+                                </span>
+                              )
+                            }
+                            // Sinon, calculer avec accumulatedAmount
                             return (
                               <span className="font-medium text-green-700">
                                 {expectedBonusAmount.toLocaleString()} FCFA ({bonusPercentage}%)
@@ -1127,7 +1143,7 @@ export default function ContractPaymentsPage() {
                             </span>
                           )
                         } else if (bonusPercentage && bonusPercentage > 0) {
-                          // Si pas de nominalPaid, afficher juste le pourcentage
+                          // Si pas de montant, afficher juste le pourcentage
                           const prefix = isPaid ? '' : 'Attendu: '
                           const colorClass = isPaid ? 'text-green-700' : 'text-gray-500'
                           return (
