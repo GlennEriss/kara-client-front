@@ -36,17 +36,44 @@ import {
   User,
   Shield,
   Building2,
-  Trash2
+  Trash2,
+  CalendarDays,
+  CheckCircle2
 } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import PaymentCSModal, { PaymentCSFormData } from './PaymentCSModal'
 import PaymentInvoiceModal from './standard/PaymentInvoiceModal'
+import EmergencyContact from './standard/EmergencyContact'
 import type { RefundDocument } from '@/types/types'
 import TestPaymentTools from './TestPaymentTools'
 
 type Props = { id: string }
+
+// Composant StatCard pour afficher les statistiques
+function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
+  const accents: Record<string, string> = {
+    slate: "from-slate-50 to-white",
+    emerald: "from-emerald-50 to-white",
+    red: "from-rose-50 to-white",
+    brand: "from-[#234D65]/10 to-white",
+  }
+  const brand = {
+    text: "text-[#234D65]",
+  }
+  return (
+    <div className={`rounded-2xl border bg-gradient-to-b ${accents[accent]} p-4 shadow-sm`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-slate-500">{label}</div>
+          <div className="mt-1 text-lg font-semibold text-slate-800">{value}</div>
+        </div>
+        {Icon ? <Icon className={`h-5 w-5 ${brand.text}`} /> : null}
+      </div>
+    </div>
+  )
+}
 
 export default function FreeContract({ id }: Props) {
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
@@ -287,6 +314,24 @@ export default function FreeContract({ id }: Props) {
   const canEarly = paidCount >= 1 && !allPaid
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
+  
+  // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
+  const hasActiveRefund = refunds.some((r: any) => 
+    (r.type === 'EARLY' || r.type === 'FINAL') && 
+    (r.status === 'PENDING' || r.status === 'APPROVED')
+  )
+
+  // Trouver le prochain mois à payer (paiement séquentiel)
+  const getNextDueMonthIndex = () => {
+    const sortedPayments = [...payments].sort((a: any, b: any) => a.dueMonthIndex - b.dueMonthIndex)
+    const nextDue = sortedPayments.find((p: any) => p.status === 'DUE')
+    return nextDue ? nextDue.dueMonthIndex : -1
+  }
+
+  const nextDueMonthIndex = getNextDueMonthIndex()
+
+  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
+  const currentBonus = data.bonusAccrued || 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6 overflow-x-hidden">
@@ -348,7 +393,7 @@ export default function FreeContract({ id }: Props) {
             </div>
             
             {/* Lien vers l'historique des versements */}
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href={routes.admin.caisseSpecialeContractPayments(id)}
                 className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors duration-200 shadow-md hover:shadow-lg"
@@ -356,12 +401,50 @@ export default function FreeContract({ id }: Props) {
                 <FileText className="h-4 w-4" />
                 Historique des versements
               </Link>
+              <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
             </div>
           </div>
         </div>
 
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <StatCard 
+            icon={CreditCard} 
+            label="Montant mensuel" 
+            value={`${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`} 
+            accent="brand" 
+          />
+          <StatCard 
+            icon={Clock} 
+            label="Durée (mois)" 
+            value={data.monthsPlanned || 0} 
+          />
+          <StatCard 
+            icon={CheckCircle2} 
+            label="Nominal payé" 
+            value={`${(data.nominalPaid || 0).toLocaleString('fr-FR')} FCFA`} 
+          />
+          <StatCard 
+            icon={TrendingUp} 
+            label="Bonus" 
+            value={`${currentBonus.toLocaleString('fr-FR')} FCFA`} 
+            accent="emerald" 
+          />
+          <StatCard 
+            icon={AlertTriangle} 
+            label="Pénalités cumulées" 
+            value={`${(data.penaltiesTotal || 0).toLocaleString('fr-FR')} FCFA`} 
+            accent="red" 
+          />
+          <StatCard 
+            icon={CalendarDays} 
+            label="Prochaine échéance" 
+            value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString('fr-FR') : '—'} 
+          />
+        </div>
+
         {/* Outils de test (DEV uniquement) */}
-        <TestPaymentTools 
+        <TestPaymentTools
           contractId={id}
           contractData={data}
           onPaymentSuccess={async () => {
@@ -385,21 +468,36 @@ export default function FreeContract({ id }: Props) {
                 const StatusIcon = statusConfig.icon
                 const isSelected = selectedIdx === p.dueMonthIndex
                 
+                // Vérifier si ce mois est sélectionnable (seul le prochain mois à payer est cliquable)
+                const isSelectable = p.status === 'DUE' && !isClosed && p.dueMonthIndex === nextDueMonthIndex
+                
+                // Déterminer les classes CSS selon le statut
+                let cardClasses = 'border rounded-xl p-4 transition-all duration-200 '
+                if (isSelectable || p.status === 'PAID') {
+                  cardClasses += !isClosed ? 'cursor-pointer hover:shadow-md ' : 'cursor-default '
+                } else {
+                  cardClasses += 'cursor-default opacity-70 '
+                }
+                
+                if (isSelected) {
+                  cardClasses += 'border-[#234D65] bg-blue-50 ring-2 ring-[#234D65]/20 '
+                } else if (p.status === 'PAID') {
+                  cardClasses += 'border-green-200 bg-green-50 '
+                } else if (isSelectable) {
+                  cardClasses += 'border-blue-200 bg-blue-50 '
+                } else {
+                  cardClasses += 'border-gray-200 bg-gray-50 '
+                }
+                
                 return (
                   <div 
                     key={p.id} 
-                    className={`border rounded-xl p-4 transition-all duration-200 ${
-                      (p.status === 'DUE' || p.status === 'PAID') && !isClosed ? 'cursor-pointer hover:shadow-md' : 'cursor-default'
-                    } ${
-                      isSelected 
-                        ? 'border-[#234D65] bg-blue-50 ring-2 ring-[#234D65]/20' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => (p.status === 'DUE' || p.status === 'PAID') && !isClosed ? handleMonthClick(p.dueMonthIndex, p) : null}
+                    className={cardClasses}
+                    onClick={() => (isSelectable || p.status === 'PAID') && !isClosed ? handleMonthClick(p.dueMonthIndex, p) : null}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <div className="bg-[#234D65] text-white rounded-lg px-3 py-1 text-sm font-bold">
+                        <div className={`${isSelectable ? 'bg-blue-600' : 'bg-[#234D65]'} text-white rounded-lg px-3 py-1 text-sm font-bold`}>
                           M{p.dueMonthIndex + 1}
                         </div>
                         {isSelected && (
@@ -410,7 +508,7 @@ export default function FreeContract({ id }: Props) {
                       </div>
                       <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
                         <StatusIcon className="h-3 w-3" />
-                        {paymentStatusLabel(p.status)}
+                        {p.status === 'DUE' && p.dueMonthIndex !== nextDueMonthIndex ? 'À venir' : paymentStatusLabel(p.status)}
                       </span>
                     </div>
                     
@@ -430,10 +528,10 @@ export default function FreeContract({ id }: Props) {
                       </div>
                     </div>
                     
-                    {!isClosed && (
+                    {!isClosed && (isSelectable || p.status === 'PAID') && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                          {p.status === 'DUE' ? (
+                          {isSelectable ? (
                             <span>Cliquez pour payer</span>
                           ) : p.status === 'PAID' ? (
                             <span>Cliquez pour voir la facture</span>
@@ -512,7 +610,8 @@ export default function FreeContract({ id }: Props) {
               </button>
 
               <button 
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-green-300 text-green-700 rounded-xl hover:bg-green-50 transition-all duration-200 font-medium w-full" 
+                className="flex items-center justify-center gap-2 px-6 py-3 border border-green-300 text-green-700 rounded-xl hover:bg-green-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full" 
+                disabled={!hasActiveRefund}
                 onClick={() => setShowRemboursementPdf(true)}
               >
                 <FileText className="h-5 w-5" />

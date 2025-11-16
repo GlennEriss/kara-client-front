@@ -87,6 +87,9 @@ const generateBreadcrumbSegments = (pathname: string) => {
     isCurrent: pathname === '/dashboard'
   })
 
+  // Vérifier si on est sur une route avec ID de contrat (caisse-speciale)
+  const isContractDetailRoute = pathname.match(/^\/caisse-speciale\/contrats\/[^\/]+$/)
+
   // Traiter les autres segments
   let currentPath = ''
   for (let i = 0; i < segments.length; i++) {
@@ -101,9 +104,16 @@ const generateBreadcrumbSegments = (pathname: string) => {
     const label = getRouteLabel(currentPath)
     const isCurrent = currentPath === pathname
 
+    // Cas spécial : si on est sur une route de détail de contrat et que le segment actuel est "contrats",
+    // utiliser l'URL actuelle (avec l'ID) au lieu de la liste des contrats
+    let href = isCurrent ? undefined : currentPath
+    if (isContractDetailRoute && currentPath === '/caisse-speciale/contrats' && !isCurrent) {
+      href = pathname
+    }
+
     breadcrumbSegments.push({
       label,
-      href: isCurrent ? undefined : currentPath,
+      href,
       isCurrent,
       segment
     })

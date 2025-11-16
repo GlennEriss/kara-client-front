@@ -183,20 +183,11 @@ export default function StandardContract({ id }: Props) {
   const totalMonths = data.monthsPlanned || 0
   const progress = totalMonths > 0 ? (paidCount / totalMonths) * 100 : 0
 
-  // Récupérer les paramètres de caisse pour le calcul du bonus
+  // Récupérer les paramètres de caisse
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
   
-  // Calculer le bonus actuel
-  const calculateBonus = (monthIndex: number, nominalPaid: number) => {
-    if (!settings.data?.bonusRules) return 0
-    const bonusRate = settings.data.bonusRules.percentage / 100
-    return nominalPaid * bonusRate
-  }
-  
-  const currentBonus = calculateBonus(
-    data.currentMonthIndex || 0,
-    data.nominalPaid || 0
-  )
+  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
+  const currentBonus = data.bonusAccrued || 0
 
   // Trouver la prochaine échéance à payer (paiement séquentiel)
   const getNextDueMonthIndex = () => {
@@ -470,6 +461,12 @@ export default function StandardContract({ id }: Props) {
               data.status === "CLOSED"
             const hasEarlyRefund = refunds.some((r: any) => r.type === "EARLY" && r.status !== "ARCHIVED") ||
               data.status === "EARLY_REFUND_PENDING"
+            
+            // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
+            const hasActiveRefund = refunds.some((r: any) => 
+              (r.type === 'EARLY' || r.type === 'FINAL') && 
+              (r.status === 'PENDING' || r.status === 'APPROVED')
+            )
             return (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full md:w-auto">
                 <button
@@ -506,8 +503,10 @@ export default function StandardContract({ id }: Props) {
                   className={classNames(
                     "rounded-lg border px-3 py-2 text-sm font-medium w-full text-center",
                     brand.bgSoft,
-                    "hover:bg-slate-100"
+                    "hover:bg-slate-100",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
                   )}
+                  disabled={!hasActiveRefund}
                   onClick={() => setShowRemboursementPdf(true)}
                 >
                   <FileText className="h-4 w-4 mr-2" />
