@@ -1,8 +1,11 @@
 "use client"
 
 import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react'
-import { ContractFormData, EntitySearchResult } from '@/types/types'
-import { contractCreationDefaultValues } from '@/schemas/schemas'
+import { EntitySearchResult } from '@/types/types'
+import { contractCreationDefaultValues, type ContractCreationFormData } from '@/schemas/schemas'
+
+// Alias pour maintenir la compatibilité
+type ContractFormData = ContractCreationFormData
 
 // Types pour les actions du reducer
 type ContractFormAction =
