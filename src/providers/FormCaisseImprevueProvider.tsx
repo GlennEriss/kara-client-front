@@ -124,6 +124,8 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
   const setStep = (step: number) => {
     if (step >= 1 && step <= steps.length) {
       setCurrentStep(step)
+      // Scroll vers le haut de la page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -131,6 +133,8 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
   const goToNextStep = () => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
+      // Scroll vers le haut de la page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -138,6 +142,8 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
   const goToPreviousStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
+      // Scroll vers le haut de la page
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 

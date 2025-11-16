@@ -386,6 +386,9 @@ export function Step3ContractCreation() {
               phone1: formData.emergencyContact?.phone1 || '',
               phone2: formData.emergencyContact?.phone2 || '',
               relationship: formData.emergencyContact?.relationship || 'Autre',
+              typeId: formData.emergencyContact?.typeId || '',
+              idNumber: formData.emergencyContact?.idNumber || '',
+              documentPhotoUrl: formData.emergencyContact?.documentPhotoUrl || '',
               [field]: value 
             } 
           })
