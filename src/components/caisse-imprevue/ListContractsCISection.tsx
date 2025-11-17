@@ -24,7 +24,7 @@ import { useContractsCI, ContractsCIFilters } from '@/hooks/caisse-imprevue/useC
 import StatisticsCI from './StatisticsCI'
 import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
-import DownloadContractCIModal from './DownloadContractCIModal'
+import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
 import ViewRefundDocumentCIModal from './ViewRefundDocumentCIModal'
@@ -485,7 +485,7 @@ export default function ListContractsCISection() {
 
       {/* Modals */}
       {selectedContractForPDF && (
-        <DownloadContractCIModal
+        <ViewContractCIModal
           isOpen={isPDFModalOpen}
           onClose={handleClosePDFModal}
           contract={selectedContractForPDF}
