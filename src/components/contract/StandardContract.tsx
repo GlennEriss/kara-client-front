@@ -324,6 +324,10 @@ export default function StandardContract({ id }: Props) {
             <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
               {isGroupContract ? 'Contrat de Groupe' : 'Contrat Standard'}
             </Badge>
+            <Badge variant={data.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-sm px-3 py-1.5">
+              {data.status === 'ACTIVE' ? 'Actif' : data.status === 'LATE_NO_PENALTY' ? 'Retard (J+0..3)' :
+                data.status === 'LATE_WITH_PENALTY' ? 'Retard (J+4..12)' : data.status}
+            </Badge>
             {isClosed && (
               <Badge className="bg-red-500 text-white px-3 py-1.5 flex items-center gap-1">
                 <XCircle className="h-3 w-3" />
