@@ -50,6 +50,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import routes from "@/constantes/routes"
 
+// Helper pour formater les montants correctement
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 // ————————————————————————————————————————————————————————————
 // Helpers UI
 // ————————————————————————————————————————————————————————————
@@ -348,11 +353,11 @@ export default function StandardContract({ id }: Props) {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard icon={CreditCard} label="Montant mensuel" value={`${(data.monthlyAmount || 0).toLocaleString("fr-FR")} FCFA`} accent="brand" />
+        <StatCard icon={CreditCard} label="Montant mensuel" value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} accent="brand" />
         <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
-        <StatCard icon={CheckCircle2} label="Nominal payé" value={`${(data.nominalPaid || 0).toLocaleString("fr-FR")} FCFA`} />
-        <StatCard icon={CalendarDays} label="Bonus" value={`${currentBonus.toLocaleString("fr-FR")} FCFA`} accent="emerald" />
-        <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${(data.penaltiesTotal || 0).toLocaleString("fr-FR")} FCFA`} accent="red" />
+        <StatCard icon={CheckCircle2} label="Nominal payé" value={`${formatAmount(data.nominalPaid || 0)} FCFA`} />
+        <StatCard icon={CalendarDays} label="Bonus" value={`${formatAmount(currentBonus)} FCFA`} accent="emerald" />
+        <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} accent="red" />
         <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
       </div>
 
@@ -627,11 +632,11 @@ export default function StandardContract({ id }: Props) {
                           <div className="space-y-3 mb-4">
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-600">Montant nominal:</span>
-                              <span className="font-semibold">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span>
+                              <span className="font-semibold">{formatAmount(r.amountNominal || 0)} FCFA</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-600">Bonus:</span>
-                              <span className="font-semibold">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span>
+                              <span className="font-semibold">{formatAmount(r.amountBonus || 0)} FCFA</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-600">Échéance:</span>

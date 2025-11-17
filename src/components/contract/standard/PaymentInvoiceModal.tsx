@@ -16,6 +16,11 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { toast } from 'sonner'
 
+// Helper pour formater les montants correctement dans les PDFs
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 // ————————————————————————————————————————————————————————————
 // Helpers UI
 // ————————————————————————————————————————————————————————————
@@ -133,12 +138,12 @@ export default function PaymentInvoiceModal({
       
       // Utiliser le montant réellement versé (accumulatedAmount ou amount) pour les contrats LIBRE
       const displayedAmount = payment.amount || payment.accumulatedAmount || contractData.monthlyAmount || 0
-      doc.text(`Montant : ${displayedAmount.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Montant : ${formatAmount(displayedAmount)} FCFA`, 14, yPos)
       yPos += 6
       
       if (payment.penaltyApplied && payment.penaltyApplied > 0) {
         doc.setTextColor(220, 38, 38)
-        doc.text(`Pénalités appliquées : ${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        doc.text(`Pénalités appliquées : ${formatAmount(payment.penaltyApplied)} FCFA`, 14, yPos)
         yPos += 6
         if (payment.penaltyDays && payment.penaltyDays > 0) {
           doc.text(`Jours de retard : ${payment.penaltyDays}`, 14, yPos)
@@ -160,7 +165,7 @@ export default function PaymentInvoiceModal({
           const row = [
             `${contrib.memberFirstName} ${contrib.memberLastName}`,
             contrib.memberMatricule,
-            `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
+            `${formatAmount(contrib.amount)} FCFA`,
             contrib.time || '',
             contrib.mode === 'airtel_money' ? 'Airtel Money' :
               contrib.mode === 'mobicash' ? 'Mobicash' :
@@ -169,7 +174,7 @@ export default function PaymentInvoiceModal({
           ]
           
           if (contrib.penalty && contrib.penalty > 0) {
-            row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
+            row.push(`${formatAmount(contrib.penalty)} FCFA`)
           } else {
             row.push('-')
           }

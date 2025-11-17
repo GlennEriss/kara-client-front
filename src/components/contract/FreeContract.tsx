@@ -13,6 +13,11 @@ import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import FileInput from '@/components/ui/file-input'
 import type { PaymentMode } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
+
+// Helper pour formater les montants correctement
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
 import { 
   CreditCard, 
   Calendar, 
@@ -400,7 +405,7 @@ export default function FreeContract({ id }: Props) {
           <StatCard 
             icon={CreditCard} 
             label="Montant mensuel" 
-            value={`${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`} 
+            value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} 
             accent="brand" 
           />
           <StatCard 
@@ -411,18 +416,18 @@ export default function FreeContract({ id }: Props) {
           <StatCard 
             icon={CheckCircle2} 
             label="Nominal payé" 
-            value={`${(data.nominalPaid || 0).toLocaleString('fr-FR')} FCFA`} 
+            value={`${formatAmount(data.nominalPaid || 0)} FCFA`} 
           />
           <StatCard 
             icon={TrendingUp} 
             label="Bonus" 
-            value={`${currentBonus.toLocaleString('fr-FR')} FCFA`} 
+            value={`${formatAmount(currentBonus)} FCFA`} 
             accent="emerald" 
           />
           <StatCard 
             icon={AlertTriangle} 
             label="Pénalités cumulées" 
-            value={`${(data.penaltiesTotal || 0).toLocaleString('fr-FR')} FCFA`} 
+            value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} 
             accent="red" 
           />
           <StatCard 
@@ -500,14 +505,14 @@ export default function FreeContract({ id }: Props) {
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Objectif:</span>
                           <span className="font-semibold text-gray-900">
-                            {target.toLocaleString('fr-FR')} FCFA
+                            {formatAmount(target)} FCFA
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Accumulé:</span>
                           <span className="font-semibold text-green-600">
-                            {accumulated.toLocaleString('fr-FR')} FCFA
+                            {formatAmount(accumulated)} FCFA
                           </span>
                         </div>
 
@@ -682,11 +687,11 @@ export default function FreeContract({ id }: Props) {
                       <div className="space-y-3 mb-4">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Montant nominal:</span>
-                          <span className="font-semibold">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span>
+                          <span className="font-semibold">{formatAmount(r.amountNominal || 0)} FCFA</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Bonus:</span>
-                          <span className="font-semibold">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span>
+                          <span className="font-semibold">{formatAmount(r.amountBonus || 0)} FCFA</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Échéance:</span>

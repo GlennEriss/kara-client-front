@@ -48,6 +48,11 @@ const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDF
   ssr: false,
 })
 
+// Helper pour formater les montants correctement
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 interface DailyCIContractProps {
   contract: ContractCI
   document: any | null

@@ -33,6 +33,11 @@ import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData }
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+// Helper pour formater les montants correctement
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 type Props = { id: string }
 
 export default function DailyContract({ id }: Props) {
@@ -489,15 +494,15 @@ export default function DailyContract({ id }: Props) {
       let yPos = yStart + 6
       doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
       yPos += 6
-      doc.text(`Total du mois : ${(payment.accumulatedAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Total du mois : ${formatAmount(payment.accumulatedAmount || 0)} FCFA`, 14, yPos)
       yPos += 6
-      doc.text(`Objectif mensuel : ${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Objectif mensuel : ${formatAmount(data.monthlyAmount || 0)} FCFA`, 14, yPos)
       yPos += 6
 
       // Afficher les pénalités si elles existent
       if (payment.penaltyApplied && payment.penaltyApplied > 0) {
         doc.setTextColor(220, 38, 38) // Rouge
-        doc.text(`Pénalités appliquées : ${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        doc.text(`Pénalités appliquées : ${formatAmount(payment.penaltyApplied)} FCFA`, 14, yPos)
         yPos += 6
         if (payment.penaltyDays && payment.penaltyDays > 0) {
           doc.text(`Jours de retard : ${payment.penaltyDays}`, 14, yPos)
@@ -519,7 +524,7 @@ export default function DailyContract({ id }: Props) {
           const row = [
             `${contrib.memberFirstName} ${contrib.memberLastName}`,
             contrib.memberMatricule,
-            `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
+            `${formatAmount(contrib.amount)} FCFA`,
             contrib.time || '',
             contrib.mode === 'airtel_money' ? 'Airtel Money' :
               contrib.mode === 'mobicash' ? 'Mobicash' :
@@ -529,7 +534,7 @@ export default function DailyContract({ id }: Props) {
 
           // Ajouter les pénalités si présentes
           if (contrib.penalty && contrib.penalty > 0) {
-            row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
+            row.push(`${formatAmount(contrib.penalty)} FCFA`)
           } else {
             row.push('-')
           }
@@ -648,7 +653,7 @@ export default function DailyContract({ id }: Props) {
 
         doc.setFontSize(10)
         doc.setFont('helvetica', 'normal')
-        doc.text(`Montant : ${(contrib.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        doc.text(`Montant : ${formatAmount(contrib.amount || 0)} FCFA`, 14, yPos)
         yPos += 6
         if (contrib.time) {
           doc.text(`Heure : ${contrib.time}`, 14, yPos)
@@ -666,7 +671,7 @@ export default function DailyContract({ id }: Props) {
         // Afficher les pénalités de la contribution si présentes
         if (contrib.penalty && contrib.penalty > 0) {
           doc.setTextColor(220, 38, 38) // Rouge
-          doc.text(`Pénalité : ${contrib.penalty.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+          doc.text(`Pénalité : ${formatAmount(contrib.penalty)} FCFA`, 14, yPos)
           yPos += 6
           if (contrib.penaltyDays && contrib.penaltyDays > 0) {
             doc.text(`Jours de retard : ${contrib.penaltyDays}`, 14, yPos)
@@ -1049,7 +1054,7 @@ export default function DailyContract({ id }: Props) {
                 Contrat Journalier <span className="font-mono text-sm sm:text-base break-all">#{id}</span>
               </h1>
               <p className="text-gray-600 mt-2">
-                Objectif mensuel: <span className="font-semibold">{(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</span>
+                Objectif mensuel: <span className="font-semibold">{formatAmount(data.monthlyAmount || 0)} FCFA</span>
               </p>
               <div className="text-sm text-gray-500 mt-1">
                 Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}
@@ -1298,12 +1303,12 @@ export default function DailyContract({ id }: Props) {
                 })()}
                 <div className="flex items-center justify-between">
                   <span className="text-xs lg:text-sm text-gray-600">Objectif</span>
-                  <span className="text-sm lg:text-base font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
+                  <span className="text-sm lg:text-base font-semibold">{formatAmount(target)} FCFA</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-xs lg:text-sm text-gray-600">Versé</span>
-                  <span className="text-sm lg:text-base font-semibold text-green-600">{total.toLocaleString('fr-FC')} FCFA</span>
+                  <span className="text-sm lg:text-base font-semibold text-green-600">{formatAmount(total)} FCFA</span>
                 </div>
 
                 <div className="space-y-2">
@@ -1445,8 +1450,8 @@ export default function DailyContract({ id }: Props) {
                 </div>
 
                 <div className="space-y-2 text-xs lg:text-sm text-gray-600">
-                  <div>Nominal: <span className="font-medium">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span></div>
-                  <div>Bonus: <span className="font-medium">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span></div>
+                  <div>Nominal: <span className="font-medium">{formatAmount(r.amountNominal || 0)} FCFA</span></div>
+                  <div>Bonus: <span className="font-medium">{formatAmount(r.amountBonus || 0)} FCFA</span></div>
                   <div>Échéance: <span className="font-medium">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span></div>
                 </div>
 
@@ -1867,16 +1872,16 @@ export default function DailyContract({ id }: Props) {
                       }`}>
                       Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
                     </p>
-                    {latePaymentInfo.hasPenalty && (
-                      <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
-                        <p className="text-xs font-bold text-red-900">
-                          Pénalités : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
-                        </p>
-                        <p className="text-xs text-red-700 mt-0.5">
-                          Appliquées à partir du 4ème jour
-                        </p>
-                      </div>
-                    )}
+                        {latePaymentInfo.hasPenalty && (
+                          <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
+                            <p className="text-xs font-bold text-red-900">
+                              Pénalités : {formatAmount(latePaymentInfo.penalty)} FCFA
+                            </p>
+                            <p className="text-xs text-red-700 mt-0.5">
+                              Appliquées à partir du 4ème jour
+                            </p>
+                          </div>
+                        )}
                     {!latePaymentInfo.hasPenalty && (
                       <p className="text-xs text-orange-700 mt-1">
                         ⚠️ Période de tolérance (jours 1-3)
@@ -1971,7 +1976,7 @@ export default function DailyContract({ id }: Props) {
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-green-50 rounded-lg gap-1 lg:gap-2">
                         <span className="font-medium text-green-700 text-xs lg:text-sm">Total du mois:</span>
                         <span className="text-green-900 font-semibold text-xs lg:text-sm">
-                          {payment.accumulatedAmount?.toLocaleString('fr-FR')} FCFA
+                          {formatAmount(payment.accumulatedAmount || 0)} FCFA
                         </span>
                       </div>
                     </div>
@@ -2014,7 +2019,7 @@ export default function DailyContract({ id }: Props) {
                                 <div>
                                   <span className="font-medium">Montant:</span>
                                   <span className="ml-1 font-semibold text-green-600">
-                                    {contribution.amount.toLocaleString('fr-FR')} FCFA
+                                    {formatAmount(contribution.amount)} FCFA
                                   </span>
                                 </div>
                                 <div>
@@ -2093,7 +2098,7 @@ export default function DailyContract({ id }: Props) {
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
                       <span className="font-medium text-gray-700 text-xs lg:text-sm">Montant:</span>
                       <span className="text-gray-900 font-semibold text-xs lg:text-sm">
-                        {contribution?.amount?.toLocaleString('fr-FR')} FCFA
+                        {formatAmount(contribution?.amount || 0)} FCFA
                       </span>
                     </div>
 
@@ -2166,7 +2171,7 @@ export default function DailyContract({ id }: Props) {
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-green-50 rounded-lg gap-1 lg:gap-2">
                       <span className="font-medium text-green-700 text-xs lg:text-sm">Total du mois:</span>
                       <span className="text-green-900 font-semibold text-xs lg:text-sm">
-                        {payment.accumulatedAmount?.toLocaleString('fr-FR')} FCFA
+                        {formatAmount(payment.accumulatedAmount || 0)} FCFA
                       </span>
                     </div>
                   </div>
@@ -2638,7 +2643,7 @@ export default function DailyContract({ id }: Props) {
                         {lateInfo.hasPenalty && (
                           <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
                             <p className="text-xs font-bold text-red-900">
-                              Pénalités : {lateInfo.penalty.toLocaleString('fr-FR')} FCFA
+                              Pénalités : {formatAmount(lateInfo.penalty)} FCFA
                             </p>
                             <p className="text-xs text-red-700 mt-0.5">
                               Appliquées à partir du 4ème jour
