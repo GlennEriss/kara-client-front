@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
@@ -38,7 +39,9 @@ import {
   Building2,
   Trash2,
   CalendarDays,
-  CheckCircle2
+  CheckCircle2,
+  ArrowLeft,
+  History
 } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
@@ -48,6 +51,9 @@ import PaymentInvoiceModal from './standard/PaymentInvoiceModal'
 import EmergencyContact from './standard/EmergencyContact'
 import type { RefundDocument } from '@/types/types'
 import TestPaymentTools from './TestPaymentTools'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 type Props = { id: string }
 
@@ -76,6 +82,7 @@ function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
 }
 
 export default function FreeContract({ id }: Props) {
+  const router = useRouter()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
 
@@ -334,77 +341,59 @@ export default function FreeContract({ id }: Props) {
   const currentBonus = data.bonusAccrued || 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6 overflow-x-hidden">
-      <div className="max-w-6xl mx-auto space-y-6">
-        
-        {/* En-tête du contrat */}
-        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="bg-white/20 rounded-lg p-3">
-                  <FileText className="h-8 w-8 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-xl md:text-3xl font-bold text-white break-words">Contrat Libre</h1>
-                  <p className="text-blue-100 text-sm md:text-base break-all font-mono">#{id}</p>
-                </div>
-              </div>
-              {isClosed && (
-                <div className="bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                  <XCircle className="h-5 w-5" />
-                  Contrat fermé
-                </div>
-              )}
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* En-tête avec bouton retour */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.caisseSpeciale)}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour à la liste
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.caisseSpecialeContractPayments(id))}
+              className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              <History className="h-4 w-4" />
+              Historique des versements
+            </Button>
+
+            <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
           </div>
           
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 rounded-lg p-2">
-                  <Settings className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Type de caisse</p>
-                  <p className="font-semibold text-gray-900">{String((data as any).caisseType)}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="bg-green-100 rounded-lg p-2">
-                  <Shield className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Paramètres actifs</p>
-                  <p className="font-semibold text-gray-900">{settings.data ? (settings.data as any).id : '—'}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-100 rounded-lg p-2">
-                  <DollarSign className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Montant minimum</p>
-                  <p className="font-semibold text-gray-900">100 000 FCFA/mois</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Lien vers l'historique des versements */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href={routes.admin.caisseSpecialeContractPayments(id)}
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors duration-200 shadow-md hover:shadow-lg"
-              >
-                <FileText className="h-4 w-4" />
-                Historique des versements
-              </Link>
-              <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
-            </div>
+          <div className="flex items-center gap-2">
+            {isClosed && (
+              <Badge className="bg-red-500 text-white px-3 py-1.5 flex items-center gap-1">
+                <XCircle className="h-3 w-3" />
+                Contrat fermé
+              </Badge>
+            )}
           </div>
         </div>
+
+        {/* Titre principal */}
+        <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
+          <CardHeader className="overflow-hidden">
+            <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
+              <FileText className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
+              <span className="break-words">Contrat Libre</span>
+            </CardTitle>
+            <div className="space-y-1 text-blue-100 break-words">
+              <p className="text-sm sm:text-base lg:text-lg break-words">
+                Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
+              </p>
+              <p className="text-sm break-words">
+                {data.memberFirstName} {data.memberLastName} - Type de caisse: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
+              </p>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* Statistiques */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -452,17 +441,16 @@ export default function FreeContract({ id }: Props) {
           }}
         />
 
-        {/* Échéances de paiement */}
-        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
-          <div className="bg-gray-50 border-b border-gray-200 p-6">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-6 w-6 text-gray-700" />
-              <h2 className="text-xl font-bold text-gray-900">Échéances de paiement</h2>
-            </div>
-          </div>
-          
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {/* Échéancier de Paiement */}
+        <Card className="border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
+            <CardTitle className="flex items-center gap-2 text-indigo-700">
+              <Calendar className="h-5 w-5" />
+              Échéancier de Paiement
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {payments.map((p: any) => {
                 const statusConfig = getPaymentStatusConfig(p.status)
                 const StatusIcon = statusConfig.icon
@@ -470,81 +458,104 @@ export default function FreeContract({ id }: Props) {
                 
                 // Vérifier si ce mois est sélectionnable (seul le prochain mois à payer est cliquable)
                 const isSelectable = p.status === 'DUE' && !isClosed && p.dueMonthIndex === nextDueMonthIndex
-                
-                // Déterminer les classes CSS selon le statut
-                let cardClasses = 'border rounded-xl p-4 transition-all duration-200 '
-                if (isSelectable || p.status === 'PAID') {
-                  cardClasses += !isClosed ? 'cursor-pointer hover:shadow-md ' : 'cursor-default '
-                } else {
-                  cardClasses += 'cursor-default opacity-70 '
-                }
-                
-                if (isSelected) {
-                  cardClasses += 'border-[#234D65] bg-blue-50 ring-2 ring-[#234D65]/20 '
-                } else if (p.status === 'PAID') {
-                  cardClasses += 'border-green-200 bg-green-50 '
-                } else if (isSelectable) {
-                  cardClasses += 'border-blue-200 bg-blue-50 '
-                } else {
-                  cardClasses += 'border-gray-200 bg-gray-50 '
-                }
+                const target = data.monthlyAmount || 100000
+                const accumulated = p.accumulatedAmount || 0
+                const percentage = target > 0 ? Math.min(100, (accumulated / target) * 100) : 0
+
+                const isDisabled = isClosed && p.status !== 'PAID'
                 
                 return (
-                  <div 
-                    key={p.id} 
-                    className={cardClasses}
-                    onClick={() => (isSelectable || p.status === 'PAID') && !isClosed ? handleMonthClick(p.dueMonthIndex, p) : null}
+                  <Card
+                    key={p.id}
+                    className={`transition-all duration-300 border-2 ${
+                      isDisabled
+                        ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
+                        : p.status === 'PAID' 
+                        ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1' 
+                        : isSelectable
+                        ? 'border-blue-200 bg-blue-50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                        : 'border-gray-200 hover:border-[#224D62] cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                    }`}
+                    onClick={() => (isSelectable || p.status === 'PAID') && !isDisabled && handleMonthClick(p.dueMonthIndex, p)}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`${isSelectable ? 'bg-blue-600' : 'bg-[#234D65]'} text-white rounded-lg px-3 py-1 text-sm font-bold`}>
-                          M{p.dueMonthIndex + 1}
-                        </div>
-                        {isSelected && (
-                          <div className="bg-[#234D65] text-white rounded-full p-1">
-                            <CheckCircle className="h-4 w-4" />
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="bg-[#224D62] text-white rounded-lg px-3 py-1 text-sm font-bold">
+                            M{p.dueMonthIndex + 1}
                           </div>
-                        )}
+                          {isSelected && (
+                            <div className="bg-[#234D65] text-white rounded-full p-1">
+                              <CheckCircle className="h-4 w-4" />
+                            </div>
+                          )}
+                        </div>
+                        <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {p.status === 'DUE' && p.dueMonthIndex !== nextDueMonthIndex ? 'À venir' : paymentStatusLabel(p.status)}
+                        </Badge>
                       </div>
-                      <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
-                        <StatusIcon className="h-3 w-3" />
-                        {p.status === 'DUE' && p.dueMonthIndex !== nextDueMonthIndex ? 'À venir' : paymentStatusLabel(p.status)}
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Accumulé:</span>
-                        <span className="font-semibold">{(p.accumulatedAmount || 0).toLocaleString('fr-FR')} FCFA</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(((p.accumulatedAmount || 0) / 100000) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-xs text-gray-500 text-center">
-                        {((p.accumulatedAmount || 0) / 100000 * 100).toFixed(1)}% de l'objectif
-                      </div>
-                    </div>
-                    
-                    {!isClosed && (isSelectable || p.status === 'PAID') && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                          {isSelectable ? (
-                            <span>Cliquez pour payer</span>
-                          ) : p.status === 'PAID' ? (
-                            <span>Cliquez pour voir la facture</span>
-                          ) : null}
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Objectif:</span>
+                          <span className="font-semibold text-gray-900">
+                            {target.toLocaleString('fr-FR')} FCFA
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Accumulé:</span>
+                          <span className="font-semibold text-green-600">
+                            {accumulated.toLocaleString('fr-FR')} FCFA
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span>Progression</span>
+                            <span>{percentage.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                percentage >= 100 
+                                  ? 'bg-green-500' 
+                                  : percentage >= 50 
+                                  ? 'bg-yellow-500' 
+                                  : 'bg-red-500'
+                              }`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
+
+                      {!isDisabled && (isSelectable || p.status === 'PAID') && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
+                            {isSelectable ? (
+                              <span>Cliquez pour payer</span>
+                            ) : p.status === 'PAID' ? (
+                              <span>Cliquez pour voir la facture</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 )
               })}
             </div>
-          </div>
-        </div>
+
+            {/* Information */}
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>ℹ️ Information :</strong> Cliquez sur un mois pour enregistrer un versement.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Modal de paiement */}
         <PaymentCSModal
@@ -572,20 +583,20 @@ export default function FreeContract({ id }: Props) {
         />
 
         {/* Section Remboursements */}
-        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-6">
-            <div className="flex items-center gap-3">
-              <RefreshCw className="h-6 w-6 text-white" />
-              <h2 className="text-xl font-bold text-white">Remboursements</h2>
-            </div>
-          </div>
-          
-          <div className="p-6">
+        <Card className="border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-indigo-500 to-indigo-600">
+            <CardTitle className="flex items-center gap-2 text-white">
+              <RefreshCw className="h-5 w-5" />
+              Remboursements
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
             {/* Boutons d'action */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-              <button 
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-indigo-300 text-indigo-700 rounded-xl hover:bg-indigo-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full" 
-                disabled={isRefunding || !allPaid || hasFinalRefund} 
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <Button
+                variant="outline"
+                className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                disabled={isRefunding || !allPaid || hasFinalRefund}
                 onClick={() => {
                   setRefundType('FINAL')
                   setRefundReasonInput('')
@@ -594,29 +605,31 @@ export default function FreeContract({ id }: Props) {
               >
                 <TrendingUp className="h-5 w-5" />
                 Demander remboursement final
-              </button>
+              </Button>
               
-              <button 
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-orange-300 text-orange-700 rounded-xl hover:bg-orange-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full" 
-                disabled={isRefunding || !canEarly || hasEarlyRefund} 
+              <Button
+                variant="outline"
+                className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+                disabled={isRefunding || !canEarly || hasEarlyRefund}
                 onClick={() => {
                   setRefundType('EARLY')
                   setRefundReasonInput('')
                   setShowReasonModal(true)
                 }}
               >
-                  <Download className="h-5 w-5" />
+                <Download className="h-5 w-5" />
                 Demander retrait anticipé
-              </button>
+              </Button>
 
-              <button 
-                className="flex items-center justify-center gap-2 px-6 py-3 border border-green-300 text-green-700 rounded-xl hover:bg-green-50 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed w-full" 
+              <Button
+                variant="outline"
+                className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
                 disabled={!hasActiveRefund}
                 onClick={() => setShowRemboursementPdf(true)}
               >
                 <FileText className="h-5 w-5" />
                 PDF Remboursement
-              </button>
+              </Button>
             </div>
             
             {/* Liste des remboursements */}
@@ -658,10 +671,10 @@ export default function FreeContract({ id }: Props) {
                             <h3 className="font-semibold text-gray-900">
                               {r.type === 'FINAL' ? 'Remboursement Final' : r.type === 'EARLY' ? 'Retrait Anticipé' : 'Remboursement par Défaut'}
                             </h3>
-                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
-                              <StatusIcon className="h-3 w-3" />
+                            <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
+                              <StatusIcon className="h-3 w-3 mr-1" />
                               {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
-                            </span>
+                            </Badge>
                           </div>
                         </div>
                       </div>
@@ -876,8 +889,8 @@ export default function FreeContract({ id }: Props) {
                 })
               )}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Modales de confirmation */}
         {/* Modale de saisie de la cause du retrait */}

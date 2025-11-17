@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
 import { useGroupMembers } from "@/hooks/useMembers"
@@ -27,6 +28,12 @@ import {
   AlertTriangle,
   Download,
   X,
+  ArrowLeft,
+  History,
+  DollarSign,
+  RefreshCw,
+  TrendingUp,
+  XCircle,
 } from "lucide-react"
 import { Badge as BadgeShadcn } from "@/components/ui/badge"
 import PdfDocumentModal from "./PdfDocumentModal"
@@ -34,10 +41,14 @@ import PdfViewerModal from "./PdfViewerModal"
 import RemboursementNormalPDFModal from "./RemboursementNormalPDFModal"
 import PaymentCSModal, { PaymentCSFormData } from "./PaymentCSModal"
 import PaymentInvoiceModal from "./standard/PaymentInvoiceModal"
-import HeaderContractSection from "./standard/HeaderContractSection"
 import StandardEchanceForm from "./standard/StandardEchanceForm"
 import type { RefundDocument } from "@/types/types"
 import TestPaymentTools from "./TestPaymentTools"
+import EmergencyContact from "./standard/EmergencyContact"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import routes from "@/constantes/routes"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -48,19 +59,6 @@ const brand = {
   text: "text-[#234D65]",
   ring: "ring-[#234D65]/30",
   hover: "hover:bg-[#1a3a4f]",
-}
-
-function Badge({ children, tone = "slate" as "slate" | "green" | "red" | "yellow" | "blue" }: React.PropsWithChildren<{ tone?: "slate" | "green" | "red" | "yellow" | "blue" }>) {
-  const tones: Record<string, string> = {
-    slate: "bg-slate-100 text-slate-700",
-    green: "bg-green-100 text-green-700",
-    red: "bg-red-100 text-red-700",
-    yellow: "bg-yellow-100 text-yellow-700",
-    blue: "bg-blue-100 text-blue-700",
-  }
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${tones[tone]}`}>{children}</span>
-  )
 }
 
 function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
@@ -98,6 +96,7 @@ function classNames(...cls: (string | false | undefined)[]) {
 type Props = { id: string }
 
 export default function StandardContract({ id }: Props) {
+  const router = useRouter()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
 
@@ -290,19 +289,62 @@ export default function StandardContract({ id }: Props) {
   }
 
   return (
-    <div className="space-y-8 p-4 md:p-6 overflow-x-hidden">
-      {/* Header */}
-      <HeaderContractSection
-        id={id}
-        data={data}
-        isGroupContract={isGroupContract}
-        paidCount={paidCount}
-        totalMonths={totalMonths}
-        progress={progress}
-        isRecomputing={isRecomputing}
-        setIsRecomputing={setIsRecomputing}
-        refetch={async () => { await refetch() }}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* En-tête avec bouton retour */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.caisseSpeciale)}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour à la liste
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.caisseSpecialeContractPayments(id))}
+              className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              <History className="h-4 w-4" />
+              Historique des versements
+            </Button>
+
+            <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+              {isGroupContract ? 'Contrat de Groupe' : 'Contrat Standard'}
+            </Badge>
+            {isClosed && (
+              <Badge className="bg-red-500 text-white px-3 py-1.5 flex items-center gap-1">
+                <XCircle className="h-3 w-3" />
+                Contrat fermé
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Titre principal */}
+        <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
+          <CardHeader className="overflow-hidden">
+            <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
+              <DollarSign className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
+              <span className="break-words">Contrat Standard</span>
+            </CardTitle>
+            <div className="space-y-1 text-blue-100 break-words">
+              <p className="text-sm sm:text-base lg:text-lg break-words">
+                Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
+              </p>
+              <p className="text-sm break-words">
+                {data.memberFirstName} {data.memberLastName} - Type: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
+              </p>
+            </div>
+          </CardHeader>
+        </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -323,103 +365,125 @@ export default function StandardContract({ id }: Props) {
           await reloadRefunds() // Rafraîchir la liste des remboursements
         }}
       />
-          {/* Calendrier des échéances */}
-      <div className="space-y-3 rounded-2xl border bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-slate-900">Calendrier des échéances</h2>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          {payments.map((p: any) => {
-            let badge: React.ReactNode = null
-            if (p.status === "DUE" && p.dueAt) {
-              const now = new Date()
-              const due = new Date(p.dueAt)
-              const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
-              if (days > 12) badge = <BadgeShadcn variant="destructive">{">"}J+12</BadgeShadcn>
-              else if (days >= 4) badge = <BadgeShadcn variant="secondary">J+4..J+12</BadgeShadcn>
-              else if (days >= 0) badge = <BadgeShadcn variant="secondary">J+0..J+3</BadgeShadcn>
-            }
+        {/* Échéancier de Paiement */}
+        <Card className="border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
+            <CardTitle className="flex items-center gap-2 text-indigo-700">
+              <CalendarDays className="h-5 w-5" />
+              Échéancier de Paiement
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {payments.map((p: any) => {
+                let badge: React.ReactNode = null
+                if (p.status === "DUE" && p.dueAt) {
+                  const now = new Date()
+                  const due = new Date(p.dueAt)
+                  const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
+                  if (days > 12) badge = <BadgeShadcn variant="destructive">{">"}J+12</BadgeShadcn>
+                  else if (days >= 4) badge = <BadgeShadcn variant="secondary">J+4..J+12</BadgeShadcn>
+                  else if (days >= 0) badge = <BadgeShadcn variant="secondary">J+0..J+3</BadgeShadcn>
+                }
 
-            const isSelectable = p.status === "DUE" && !isClosed && p.dueMonthIndex === nextDueMonthIndex
-            
-            let cardColors = ""
-            if (p.status === "PAID") {
-              cardColors = "border-green-200 bg-green-50"
-            } else if (p.status === "DUE") {
-              if (p.dueMonthIndex === nextDueMonthIndex) {
-                cardColors = "border-blue-200 bg-blue-50"
-              } else {
-                cardColors = "border-gray-200 bg-gray-50"
-              }
-            } else if (p.status === "REFUSED") {
-              cardColors = "border-red-200 bg-red-50"
-            } else {
-              cardColors = "border-slate-200 bg-slate-50"
-            }
+                const isSelectable = p.status === "DUE" && !isClosed && p.dueMonthIndex === nextDueMonthIndex
+                const isDisabled = isClosed && p.status !== 'PAID'
 
-            return (
-              <div
-                key={p.id}
-                className={classNames(
-                  "rounded-2xl border p-4 shadow-sm transition-all cursor-pointer hover:shadow-md",
-                  cardColors,
-                  !isSelectable && p.status !== 'PAID' && "opacity-70"
-                )}
-                onClick={() => (isSelectable || p.status === 'PAID') && handleMonthClick(p.dueMonthIndex, p)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className={classNames(
-                    "font-medium text-lg",
-                    p.status === "PAID" ? "text-green-700" :
-                      p.status === "DUE" ? 
-                        (p.dueMonthIndex === nextDueMonthIndex ? "text-blue-700" : "text-gray-500") :
-                        p.status === "REFUSED" ? "text-red-700" :
-                          "text-slate-700"
-                  )}>
-                    M{p.dueMonthIndex + 1}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {badge}
-                    <BadgeShadcn variant={
-                      p.status === "PAID" ? "secondary" :
-                        p.status === "DUE" ? 
-                          (p.dueMonthIndex === nextDueMonthIndex ? "secondary" : "outline") :
-                          p.status === "REFUSED" ? "destructive" :
-                            "outline"
-                    } className={
-                      p.status === "PAID" ? "bg-green-100 text-green-800 border-green-200" :
-                        p.status === "DUE" && p.dueMonthIndex === nextDueMonthIndex ? "bg-blue-100 text-blue-800 border-blue-200" :
-                          p.status === "DUE" ? "bg-gray-100 text-gray-500 border-gray-200" : ""
-                    }>
-                      {p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" : 
-                        p.status === "DUE" ? "À payer" : 
-                        p.status === "PAID" ? "Payé" : 
-                        p.status === "REFUSED" ? "Refusé" : p.status}
-                    </BadgeShadcn>
-                  </div>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                  <div>Échéance: {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}</div>
-                  <div>Payé le: {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}</div>
-                  {p.penaltyApplied ? (
-                    <div className="col-span-2 text-red-600 font-medium">Pénalité: {p.penaltyApplied} FCFA</div>
-                  ) : null}
+                const getStatusConfig = (status: string) => {
+                  switch (status) {
+                    case 'DUE':
+                      return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', icon: Clock }
+                    case 'PAID':
+                      return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle2 }
+                    case 'REFUSED':
+                      return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: X }
+                    default:
+                      return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: AlertTriangle }
+                  }
+                }
+
+                const statusConfig = getStatusConfig(p.status)
+                const StatusIcon = statusConfig.icon
+
+                return (
+                  <Card
+                    key={p.id}
+                    className={`transition-all duration-300 border-2 ${
+                      isDisabled
+                        ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
+                        : p.status === 'PAID' 
+                        ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1' 
+                        : isSelectable
+                        ? 'border-blue-200 bg-blue-50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                        : 'border-gray-200 hover:border-[#224D62] cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                    }`}
+                    onClick={() => (isSelectable || p.status === 'PAID') && !isDisabled && handleMonthClick(p.dueMonthIndex, p)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="bg-[#224D62] text-white rounded-lg px-3 py-1 text-sm font-bold">
+                            M{p.dueMonthIndex + 1}
+                          </div>
+                          {badge}
+                        </div>
+                        <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" : 
+                            p.status === "DUE" ? "À payer" : 
+                            p.status === "PAID" ? "Payé" : 
+                            p.status === "REFUSED" ? "Refusé" : p.status}
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Échéance:</span>
+                          <span className="font-semibold text-gray-900">
+                            {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Payé le:</span>
+                          <span className="font-semibold text-green-600">
+                            {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}
+                          </span>
+                        </div>
+
+                        {p.penaltyApplied && (
+                          <div className="flex items-center justify-between text-sm text-red-600 font-medium">
+                            <span>Pénalité:</span>
+                            <span>{p.penaltyApplied} FCFA</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {!isDisabled && (isSelectable || p.status === 'PAID') && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
+                            {isSelectable ? (
+                              <span>Cliquez pour payer</span>
+                            ) : p.status === 'PAID' ? (
+                              <span>Cliquez pour voir la facture</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
 
-                {(isSelectable || p.status === 'PAID') && (
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                      {isSelectable ? (
-                        <span>Cliquez pour payer</span>
-                      ) : p.status === 'PAID' ? (
-                        <span>Cliquez pour voir la facture</span>
-                      ) : null}
-                    </div>
-                         </div>
-                       )}
-                     </div>
-            )
-          })}
-                   </div>
-                 </div>
+            {/* Information */}
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>ℹ️ Information :</strong> Cliquez sur un mois pour enregistrer un versement.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Modal de paiement */}
         <PaymentCSModal
@@ -448,10 +512,15 @@ export default function StandardContract({ id }: Props) {
         />
 
 
-      {/* Remboursements */}
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <SectionTitle>Remboursements</SectionTitle>
+      {/* Section Remboursements */}
+      <Card className="border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-indigo-500 to-indigo-600">
+          <CardTitle className="flex items-center gap-2 text-white">
+            <RefreshCw className="h-5 w-5" />
+            Remboursements
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
           {(() => {
             const paidCountLocal = payments.filter((x: any) => x.status === "PAID").length
             const allPaid = payments.length > 0 && paidCountLocal === payments.length
@@ -468,267 +537,318 @@ export default function StandardContract({ id }: Props) {
               (r.status === 'PENDING' || r.status === 'APPROVED')
             )
             return (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full md:w-auto">
-                <button
-                  className={classNames(
-                    "rounded-lg border px-3 py-2 text-sm font-medium w-full text-center",
-                    brand.bgSoft,
-                    "hover:bg-slate-100 disabled:opacity-50"
+              <>
+                {/* Boutons d'action */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                  <Button
+                    variant="outline"
+                    className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                    disabled={isRefunding || !allPaid || hasFinalRefund}
+                    onClick={() => {
+                      setRefundType('FINAL')
+                      setRefundReasonInput('')
+                      setShowReasonModal(true)
+                    }}
+                  >
+                    <TrendingUp className="h-5 w-5" />
+                    Demander remboursement final
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+                    disabled={isRefunding || !canEarly || hasEarlyRefund}
+                    onClick={() => {
+                      setRefundType('EARLY')
+                      setRefundReasonInput('')
+                      setShowReasonModal(true)
+                    }}
+                  >
+                    <Download className="h-5 w-5" />
+                    Demander retrait anticipé
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                    disabled={!hasActiveRefund}
+                    onClick={() => setShowRemboursementPdf(true)}
+                  >
+                    <FileText className="h-5 w-5" />
+                    PDF Remboursement
+                  </Button>
+                </div>
+
+                {/* Liste des remboursements */}
+                <div className="grid grid-cols-1 gap-6">
+                  {refunds.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                        <RefreshCw className="h-12 w-12 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun remboursement</h3>
+                      <p className="text-gray-600">Aucune demande de remboursement n'a été effectuée</p>
+                    </div>
+                  ) : (
+                    refunds.map((r: any) => {
+                      const getRefundStatusConfig = (status: string) => {
+                        switch (status) {
+                          case 'PENDING':
+                            return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                          case 'APPROVED':
+                            return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle2 }
+                          case 'PAID':
+                            return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle2 }
+                          default:
+                            return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: X }
+                        }
+                      }
+
+                      const statusConfig = getRefundStatusConfig(r.status)
+                      const StatusIcon = statusConfig.icon
+
+                      return (
+                        <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-indigo-100 rounded-lg p-2">
+                                <RefreshCw className="h-5 w-5 text-indigo-600" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-gray-900">
+                                  {r.type === 'FINAL' ? 'Remboursement Final' : r.type === 'EARLY' ? 'Retrait Anticipé' : 'Remboursement par Défaut'}
+                                </h3>
+                                <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
+                                  <StatusIcon className="h-3 w-3 mr-1" />
+                                  {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 mb-4">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Montant nominal:</span>
+                              <span className="font-semibold">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Bonus:</span>
+                              <span className="font-semibold">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Échéance:</span>
+                              <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
+                            </div>
+                          </div>
+
+                          {r.status === "PENDING" && (
+                            <div className="space-y-2">
+                              {/* Première ligne : Approbation et Document de remboursement */}
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <Button
+                                  variant="outline"
+                                  className="flex-1"
+                                  onClick={() => setConfirmApproveId(r.id)}
+                                  disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
+                                >
+                                  Approuver
+                                </Button>
+                                {(r.type === "FINAL" || r.type === "EARLY") && (
+                                  <Button
+                                    variant="outline"
+                                    className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
+                                    onClick={() => setShowRemboursementPdf(true)}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    Document de remboursement
+                                  </Button>
+                                )}
+                              </div>
+
+                              {/* Deuxième ligne : Actions sur le PDF */}
+                              {(r.type === "FINAL" || r.type === "EARLY") && (
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  {r.document ? (
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
+                                        onClick={() => handleViewDocument(r.id, r.document)}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                        Voir PDF
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        className="flex-1 border-blue-300 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
+                                        onClick={() => handleOpenPdfModal(r.id)}
+                                      >
+                                        <FileText className="h-4 w-4" />
+                                        Remplacer PDF
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        className="flex-1 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+                                        onClick={() => setConfirmDeleteDocumentId(r.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        Supprimer PDF
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      className="flex-1 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+                                      onClick={() => handleOpenPdfModal(r.id)}
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      Ajouter PDF
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Troisième ligne : Annulation (si applicable) */}
+                              {r.type === "EARLY" && !r.document && (
+                                <Button
+                                  variant="outline"
+                                  className="w-full border-red-300 text-red-600 hover:bg-red-50"
+                                  onClick={async () => {
+                                    try {
+                                      await cancelEarlyRefund(id, r.id)
+                                      await refetch()
+                                      await reloadRefunds() // Rafraîchir la liste des remboursements
+                                      toast.success("Demande anticipée annulée")
+                                    } catch (e: any) {
+                                      toast.error(e?.message || "Annulation impossible")
+                                    }
+                                  }}
+                                >
+                                  Annuler la demande
+                                </Button>
+                              )}
+                            </div>
+                          )}
+
+                          {r.status === "APPROVED" && (
+                            <div className="space-y-4">
+                              {/* Affichage de la cause (non modifiable) */}
+                              {r.reason && (
+                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                                  <p className="text-sm text-blue-900">{r.reason}</p>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div>
+                                  <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
+                                  <input
+                                    type="date"
+                                    value={refundDate}
+                                    onChange={(e) => setRefundDate(e.target.value)}
+                                    className="w-full rounded-lg border p-2 text-xs"
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs text-slate-600">Heure du retrait *</label>
+                                  <input
+                                    type="time"
+                                    value={refundTime}
+                                    onChange={(e) => setRefundTime(e.target.value)}
+                                    className="w-full rounded-lg border p-2 text-xs"
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                      const f = e.target.files?.[0]
+                                      if (!f) {
+                                        setRefundFile(undefined)
+                                        return
+                                      }
+                                      if (!f.type.startsWith("image/")) {
+                                        toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
+                                        setRefundFile(undefined)
+                                        return
+                                      }
+                                      setRefundFile(f)
+                                      toast.success("Preuve PDF sélectionnée")
+                                    }}
+                                    className="w-full rounded-lg border p-2 text-xs"
+                                    required
+                                  />
+                                </div>
+                              </div>
+                              <Button
+                                className={classNames(
+                                  "w-full inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white",
+                                  brand.bg,
+                                  brand.hover,
+                                  "disabled:opacity-50"
+                                )}
+                                disabled={(() => {
+                                  const hasFile = !!refundFile
+                                  const hasDate = refundDate || r.withdrawalDate
+                                  const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
+                                  return !hasFile || !hasDate || !hasTime
+                                })()}
+                                onClick={async () => {
+                                  try {
+                                    const normalizeDate = (dateValue: any): string | null => {
+                                      if (!dateValue) return null
+                                      try {
+                                        let date: Date
+                                        if (dateValue && typeof dateValue.toDate === "function") {
+                                          date = dateValue.toDate()
+                                        } else if (dateValue instanceof Date) {
+                                          date = dateValue
+                                        } else if (typeof dateValue === "string") {
+                                          date = new Date(dateValue)
+                                        } else {
+                                          date = new Date(dateValue)
+                                        }
+                                        return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0]
+                                      } catch {
+                                        return null
+                                      }
+                                    }
+
+                                    await markRefundPaid(id, r.id, refundFile!, {
+                                      reason: r.reason,
+                                      withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                                      withdrawalTime: refundTime || r.withdrawalTime,
+                                    })
+                                    setRefundDate("")
+                                    setRefundTime("")
+                                    setRefundFile(undefined)
+                                    setConfirmPaidId(null)
+                                    await refetch()
+                                    await reloadRefunds() // Rafraîchir la liste des remboursements
+                                    toast.success("Remboursement marqué payé")
+                                  } catch (error: any) {
+                                    toast.error(error?.message || "Erreur lors du marquage")
+                                  }
+                                }}
+                              >
+                                <FileText className="h-4 w-4" /> Marquer payé
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
                   )}
-                  disabled={isRefunding || !allPaid || hasFinalRefund}
-                  onClick={() => {
-                    setRefundType('FINAL')
-                    setRefundReasonInput('')
-                    setShowReasonModal(true)
-                  }}
-                >
-                  Demander remboursement final
-                </button>
-                <button
-                  className={classNames(
-                    "rounded-lg border px-3 py-2 text-sm font-medium w-full text-center",
-                    brand.bgSoft,
-                    "hover:bg-slate-100 disabled:opacity-50"
-                  )}
-                  disabled={isRefunding || !canEarly || hasEarlyRefund}
-                  onClick={() => {
-                    setRefundType('EARLY')
-                    setRefundReasonInput('')
-                    setShowReasonModal(true)
-                  }}
-                >
-                  Demander retrait anticipé
-                </button>
-                <button
-                  className={classNames(
-                    "rounded-lg border px-3 py-2 text-sm font-medium w-full text-center",
-                    brand.bgSoft,
-                    "hover:bg-slate-100",
-                    "disabled:opacity-50 disabled:cursor-not-allowed"
-                  )}
-                  disabled={!hasActiveRefund}
-                  onClick={() => setShowRemboursementPdf(true)}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  PDF Remboursement
-                </button>
-              </div>
+                </div>
+              </>
             )
           })()}
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {refunds.map((r: any) => (
-            <div key={r.id} className="rounded-2xl border bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="font-medium">{refundTypeLabel(r.type)}</div>
-                <Badge
-                  tone={r.status === "PENDING" ? "yellow" : r.status === "APPROVED" ? "blue" : r.status === "PAID" ? "green" : "slate"}
-                >
-                  {refundStatusLabel(r.status)}
-                </Badge>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                <div>Nominal: {(r.amountNominal || 0).toLocaleString("fr-FR")} FCFA</div>
-                <div>Bonus: {(r.amountBonus || 0).toLocaleString("fr-FR")} FCFA</div>
-                <div className="col-span-2">
-                  Échéance remboursement: {r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString("fr-FR") : "—"}
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {r.status === "PENDING" && (
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <button
-                      className="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => setConfirmApproveId(r.id)}
-                      disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
-                    >
-                      Approuver
-                    </button>
-                    {(r.type === "FINAL" || r.type === "EARLY") && (
-                      <>
-                        <button
-                          className="rounded-lg border px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
-                          onClick={() => setShowRemboursementPdf(true)}
-                        >
-                          <FileText className="h-4 w-4" />
-                          Document de remboursement
-                        </button>
-                        {r.document ? (
-                          <div className="flex gap-2">
-                            <button
-                              className="rounded-lg border px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
-                              onClick={() => handleViewDocument(r.id, r.document)}
-                            >
-                              <Eye className="h-4 w-4" />
-                              Voir PDF
-                            </button>
-                            <button
-                              className="rounded-lg border px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
-                              onClick={() => handleOpenPdfModal(r.id)}
-                            >
-                              <FileText className="h-4 w-4" />
-                              Remplacer PDF
-                            </button>
-                            <button
-                              className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                              onClick={() => setConfirmDeleteDocumentId(r.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Supprimer PDF
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                            onClick={() => handleOpenPdfModal(r.id)}
-                          >
-                            <FileText className="h-4 w-4" />
-                            Ajouter PDF
-                          </button>
-                        )}
-                      </>
-                    )}
-                    {r.type === "EARLY" && !r.document && (
-                      <button
-                        className="rounded-lg border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-                        onClick={async () => {
-                          try {
-                            await cancelEarlyRefund(id, r.id)
-                            await refetch()
-                            await reloadRefunds() // Rafraîchir la liste des remboursements
-                            toast.success("Demande anticipée annulée")
-                          } catch (e: any) {
-                            toast.error(e?.message || "Annulation impossible")
-                          }
-                        }}
-                      >
-                        Annuler
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {r.status === "APPROVED" && (
-                  <div className="mt-2 w-full space-y-3 rounded-xl border bg-slate-50 p-3">
-                    {/* Affichage de la cause (non modifiable) */}
-                    {r.reason && (
-                      <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                        <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
-                        <p className="text-sm text-blue-900">{r.reason}</p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
-                        <input
-                          type="date"
-                          value={refundDate}
-                          onChange={(e) => setRefundDate(e.target.value)}
-                          className="w-full rounded-lg border p-2 text-xs"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Heure du retrait *</label>
-                        <input
-                          type="time"
-                          value={refundTime}
-                          onChange={(e) => setRefundTime(e.target.value)}
-                          className="w-full rounded-lg border p-2 text-xs"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e) => {
-                            const f = e.target.files?.[0]
-                            if (!f) {
-                              setRefundFile(undefined)
-                              return
-                            }
-                            if (!f.type.startsWith("image/")) {
-                              toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
-                              setRefundFile(undefined)
-                              return
-                            }
-                            setRefundFile(f)
-                            toast.success("Preuve PDF sélectionnée")
-                          }}
-                          className="w-full rounded-lg border p-2 text-xs"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <button
-                      className={classNames(
-                        "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white",
-                        brand.bg,
-                        brand.hover,
-                        "disabled:opacity-50"
-                      )}
-                      disabled={(() => {
-                        const hasFile = !!refundFile
-                        const hasDate = refundDate || r.withdrawalDate
-                        const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
-                        return !hasFile || !hasDate || !hasTime
-                      })()}
-                      onClick={async () => {
-                        try {
-                          const normalizeDate = (dateValue: any): string | null => {
-                            if (!dateValue) return null
-                            try {
-                              let date: Date
-                              if (dateValue && typeof dateValue.toDate === "function") {
-                                date = dateValue.toDate()
-                              } else if (dateValue instanceof Date) {
-                                date = dateValue
-                              } else if (typeof dateValue === "string") {
-                                date = new Date(dateValue)
-                              } else {
-                                date = new Date(dateValue)
-                              }
-                              return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0]
-                            } catch {
-                              return null
-                            }
-                          }
-
-                          await markRefundPaid(id, r.id, refundFile!, {
-                            reason: r.reason,
-                            withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
-                            withdrawalTime: refundTime || r.withdrawalTime,
-                          })
-                          setRefundDate("")
-                          setRefundTime("")
-                          setRefundFile(undefined)
-                          setConfirmPaidId(null)
-                          await refetch()
-                          await reloadRefunds() // Rafraîchir la liste des remboursements
-                          toast.success("Remboursement marqué payé")
-                        } catch (error: any) {
-                          toast.error(error?.message || "Erreur lors du marquage")
-                        }
-                      }}
-                    >
-                      <FileText className="h-4 w-4" /> Marquer payé
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {refunds.length === 0 && (
-            <div className="text-xs text-slate-500">Aucun remboursement</div>
-          )}
-        </div>
-      </div>
-
+        </CardContent>
+      </Card>
+    </div>
       {/* Modales */}
       {/* Modale de saisie de la cause du retrait */}
       {showReasonModal && (
@@ -819,6 +939,7 @@ export default function StandardContract({ id }: Props) {
               <button
                 className={classNames("rounded-lg px-3 py-2 text-sm text-white", brand.bg, brand.hover)}
                 onClick={async () => {
+                  if (!confirmApproveId) return
                   await approveRefund(id, confirmApproveId)
                   setConfirmApproveId(null)
                   await refetch()
@@ -842,17 +963,17 @@ export default function StandardContract({ id }: Props) {
           onDocumentUploaded={handlePdfUpload}
           contractId={id}
           refundId={currentRefundId || ""}
-          existingDocument={currentRefund.document}
+          existingDocument={currentRefund?.document || null}
           title={currentRefund.type === 'FINAL' ? 'Document de Remboursement Final' : 'Document de Retrait Anticipé'}
           description={currentRefund.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.'}
           documentType={currentRefund.type === 'FINAL' ? 'FINAL_REFUND_CS' : 'EARLY_REFUND_CS'}
           memberId={documentMemberId}
-          documentLabel={`${currentRefund.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
+            documentLabel={`${currentRefund?.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
         />
       )}
 
       {/* Modal PDF Viewer */}
-      {currentDocument && (
+      {currentDocument && currentRefundId && (
         <PdfViewerModal
           isOpen={showPdfViewer}
           onClose={() => setShowPdfViewer(false)}
@@ -879,7 +1000,11 @@ export default function StandardContract({ id }: Props) {
               </button>
               <button
                 className="rounded-lg px-3 py-2 text-sm text-white bg-red-600 hover:bg-red-700"
-                onClick={() => handleDeleteDocument(confirmDeleteDocumentId)}
+                onClick={() => {
+                  if (confirmDeleteDocumentId) {
+                    handleDeleteDocument(confirmDeleteDocumentId)
+                  }
+                }}
               >
                 Supprimer
               </button>
