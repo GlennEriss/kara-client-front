@@ -474,6 +474,53 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const monthSliderRef = React.useRef<HTMLDivElement>(null)
   const monthTabRefs = React.useRef<Map<number, HTMLButtonElement>>(new Map())
 
+  // Synchroniser le scroll du slider quand le badge "Actuel" change
+  React.useEffect(() => {
+    if (!monthSliderRef.current) return
+    
+    const activeCard = monthSliderRef.current.querySelector(`[data-month-index="${currentMonthIndex}"]`) as HTMLElement
+    if (activeCard) {
+      const container = monthSliderRef.current
+      const containerRect = container.getBoundingClientRect()
+      const cardRect = activeCard.getBoundingClientRect()
+      
+      // Calculer la position relative de la carte dans le conteneur scrollable
+      // La différence entre les positions absolues + le scroll actuel donne la position dans le contenu
+      const currentScrollTop = container.scrollTop
+      const cardTopInContent = cardRect.top - containerRect.top + currentScrollTop
+      
+      // Hauteurs pour le calcul
+      const containerHeight = container.clientHeight
+      const cardHeight = cardRect.height
+      
+      // Centrer la carte : positionner le centre de la carte au centre du viewport
+      // scrollTop = position du centre de la carte - centre du viewport
+      const cardCenter = cardTopInContent + (cardHeight / 2)
+      const targetScrollTop = cardCenter - (containerHeight / 2)
+      
+      // S'assurer que le scroll ne dépasse pas les limites
+      const maxScrollTop = container.scrollHeight - containerHeight
+      const finalScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop))
+      
+      container.scrollTo({
+        top: finalScrollTop,
+        behavior: 'smooth'
+      })
+    }
+  }, [currentMonthIndex])
+
+  // Synchroniser le scroll des onglets mobiles quand le badge "Actuel" change
+  React.useEffect(() => {
+    const activeTab = monthTabRefs.current.get(currentMonthIndex)
+    if (activeTab) {
+      activeTab.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      })
+    }
+  }, [currentMonthIndex])
+
   const getPaymentForDate = (date: Date) => {
     // Calculer le monthIndex correct pour cette date spécifique
     const dateMonthIndex = calculateMonthIndex(date, contract.firstPaymentDate)
