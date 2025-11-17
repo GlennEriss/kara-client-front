@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,7 +35,7 @@ import FinalRefundCIModal from './FinalRefundCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
-import { calculateMonthIndex, isDateInMonthIndex } from '@/utils/caisse-imprevue-utils'
+import { calculateMonthIndex, isDateInMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import dynamic from 'next/dynamic'
@@ -336,12 +336,80 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
     }
   }, [activeSupport, showRepaySupportModal])
 
+  // Initialiser currentMonth au premier mois du contrat au chargement
+  React.useEffect(() => {
+    if (contract.firstPaymentDate) {
+      const firstPaymentDate = new Date(contract.firstPaymentDate)
+      firstPaymentDate.setHours(0, 0, 0, 0)
+      // Initialiser le calendrier sur le mois du premier paiement
+      setCurrentMonth(new Date(firstPaymentDate.getFullYear(), firstPaymentDate.getMonth(), 1))
+    }
+  }, [contract.firstPaymentDate])
+
   // Calculer l'index du mois actuel du calendrier par rapport à firstPaymentDate
   // Le mois est calculé en utilisant des cycles de 30 jours à partir de firstPaymentDate
   const currentMonthIndex = useMemo(() => {
-    // Calculer le monthIndex basé sur le premier jour du mois calendaire affiché
-    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
-    return calculateMonthIndex(firstDayOfMonth, contract.firstPaymentDate)
+    if (!contract.firstPaymentDate) return 0
+    
+    // Trouver le monthIndex qui a le plus de jours dans le mois calendaire affiché
+    const year = currentMonth.getFullYear()
+    const month = currentMonth.getMonth()
+    
+    // Obtenir le premier et dernier jour du mois calendaire
+    const firstDayOfCalendarMonth = new Date(year, month, 1)
+    firstDayOfCalendarMonth.setHours(0, 0, 0, 0)
+    const lastDayOfCalendarMonth = new Date(year, month + 1, 0)
+    lastDayOfCalendarMonth.setHours(23, 59, 59, 999)
+    
+    // Calculer les monthIndex possibles pour le début et la fin du mois calendaire
+    const startMonthIndex = calculateMonthIndex(firstDayOfCalendarMonth, contract.firstPaymentDate)
+    const endMonthIndex = calculateMonthIndex(lastDayOfCalendarMonth, contract.firstPaymentDate)
+    
+    // Si les deux sont identiques, c'est le bon
+    if (startMonthIndex === endMonthIndex) {
+      return startMonthIndex
+    }
+    
+    // Sinon, compter combien de jours appartiennent à chaque monthIndex
+    // Ne compter que les jours après firstPaymentDate
+    const monthIndexCounts: { [key: number]: number } = {}
+    const firstPaymentDateObj = new Date(contract.firstPaymentDate)
+    firstPaymentDateObj.setHours(0, 0, 0, 0)
+    
+    // Parcourir tous les jours du mois calendaire
+    const currentDate = new Date(firstDayOfCalendarMonth)
+    while (currentDate <= lastDayOfCalendarMonth) {
+      // Ne compter que les jours après ou égaux à firstPaymentDate
+      const dateToCheck = new Date(currentDate)
+      dateToCheck.setHours(0, 0, 0, 0)
+      
+      if (dateToCheck >= firstPaymentDateObj) {
+        const dayMonthIndex = calculateMonthIndex(currentDate, contract.firstPaymentDate)
+        // S'assurer que le monthIndex est valide (>= 0)
+        if (dayMonthIndex >= 0) {
+          monthIndexCounts[dayMonthIndex] = (monthIndexCounts[dayMonthIndex] || 0) + 1
+        }
+      }
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+    
+    // Trouver le monthIndex avec le plus de jours
+    let maxCount = 0
+    let dominantMonthIndex = startMonthIndex >= 0 ? startMonthIndex : 0
+    
+    // Si aucun jour valide trouvé, retourner 0 (premier mois)
+    if (Object.keys(monthIndexCounts).length === 0) {
+      return 0
+    }
+    
+    for (const [monthIdx, count] of Object.entries(monthIndexCounts)) {
+      if (count > maxCount) {
+        maxCount = count
+        dominantMonthIndex = parseInt(monthIdx)
+      }
+    }
+    
+    return dominantMonthIndex
   }, [currentMonth, contract.firstPaymentDate])
 
   // Fonctions utilitaires pour le calendrier
@@ -365,6 +433,95 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   }
 
   const monthDays = getMonthDays(currentMonth)
+
+  // Fonctions utilitaires pour les récapitulatifs mensuels
+  const getMonthDateRange = useCallback((monthIndex: number) => {
+    try {
+      const { startDate, endDate } = getMonthPeriod(monthIndex, contract.firstPaymentDate)
+      return { start: startDate, end: endDate }
+    } catch {
+      return null
+    }
+  }, [contract.firstPaymentDate])
+
+  const getTotalForMonth = useCallback((monthIndex: number) => {
+    const payment = payments.find((p: any) => p.monthIndex === monthIndex)
+    if (!payment || !payment.versements) return 0
+    
+    // Calculer le total des versements pour ce mois
+    return payment.versements.reduce((sum: number, versement: any) => {
+      return sum + (versement.amount || 0)
+    }, 0)
+  }, [payments])
+
+  const getMonthStatus = useCallback((monthIndex: number) => {
+    const payment = payments.find((p: any) => p.monthIndex === monthIndex)
+    if (!payment) return 'DUE'
+    
+    const total = getTotalForMonth(monthIndex)
+    const target = contract.subscriptionCIAmountPerMonth || 0
+    
+    if (total >= target) {
+      return 'PAID'
+    } else if (total > 0) {
+      return 'PARTIAL'
+    } else {
+      return 'DUE'
+    }
+  }, [payments, getTotalForMonth, contract.subscriptionCIAmountPerMonth])
+
+  // Référence pour le slider vertical (desktop) et horizontal (mobile)
+  const monthSliderRef = React.useRef<HTMLDivElement>(null)
+  const monthSliderMobileRef = React.useRef<HTMLDivElement>(null)
+
+  // Synchroniser le scroll du slider desktop quand le badge "Actuel" change
+  React.useEffect(() => {
+    if (!monthSliderRef.current) return
+    
+    const activeCard = monthSliderRef.current.querySelector(`[data-month-index="${currentMonthIndex}"]`) as HTMLElement
+    if (activeCard) {
+      const container = monthSliderRef.current
+      const containerRect = container.getBoundingClientRect()
+      const cardRect = activeCard.getBoundingClientRect()
+      
+      // Calculer la position relative de la carte dans le conteneur scrollable
+      // La différence entre les positions absolues + le scroll actuel donne la position dans le contenu
+      const currentScrollTop = container.scrollTop
+      const cardTopInContent = cardRect.top - containerRect.top + currentScrollTop
+      
+      // Hauteurs pour le calcul
+      const containerHeight = container.clientHeight
+      const cardHeight = cardRect.height
+      
+      // Centrer la carte : positionner le centre de la carte au centre du viewport
+      // scrollTop = position du centre de la carte - centre du viewport
+      const cardCenter = cardTopInContent + (cardHeight / 2)
+      const targetScrollTop = cardCenter - (containerHeight / 2)
+      
+      // S'assurer que le scroll ne dépasse pas les limites
+      const maxScrollTop = container.scrollHeight - containerHeight
+      const finalScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop))
+      
+      container.scrollTo({
+        top: finalScrollTop,
+        behavior: 'smooth'
+      })
+    }
+  }, [currentMonthIndex])
+
+  // Synchroniser le scroll du slider horizontal mobile quand le badge "Actuel" change
+  React.useEffect(() => {
+    if (!monthSliderMobileRef.current) return
+    
+    const activeCard = monthSliderMobileRef.current.querySelector(`[data-month-index="${currentMonthIndex}"]`) as HTMLElement
+    if (activeCard) {
+      activeCard.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      })
+    }
+  }, [currentMonthIndex])
 
   const getPaymentForDate = (date: Date) => {
     // Calculer le monthIndex correct pour cette date spécifique
@@ -713,46 +870,49 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
           </div>
         )}
 
-        {/* Calendrier quotidien */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <CardTitle className="flex items-center gap-2 text-indigo-700">
-                <Calendar className="h-5 w-5" />
-                Calendrier des Versements Quotidiens
-              </CardTitle>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const prevMonth = new Date(currentMonth)
-                    prevMonth.setMonth(prevMonth.getMonth() - 1)
-                    setCurrentMonth(prevMonth)
-                  }}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+        {/* Récapitulatifs mensuels et Calendrier */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Calendrier quotidien */}
+          <div className="flex-1">
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <CardTitle className="flex items-center gap-2 text-indigo-700">
+                    <Calendar className="h-5 w-5" />
+                    Calendrier des Versements Quotidiens
+                  </CardTitle>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const prevMonth = new Date(currentMonth)
+                        prevMonth.setMonth(prevMonth.getMonth() - 1)
+                        setCurrentMonth(prevMonth)
+                      }}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
 
-                <h3 className="text-lg font-bold text-gray-900 min-w-[160px] text-center">
-                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-                </h3>
+                    <h3 className="text-lg font-bold text-gray-900 min-w-[160px] text-center">
+                      {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                    </h3>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const nextMonth = new Date(currentMonth)
-                    nextMonth.setMonth(nextMonth.getMonth() + 1)
-                    setCurrentMonth(nextMonth)
-                  }}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const nextMonth = new Date(currentMonth)
+                        nextMonth.setMonth(nextMonth.getMonth() + 1)
+                        setCurrentMonth(nextMonth)
+                      }}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
               <CardContent className="p-6">
                 {/* Grille du calendrier */}
                 <div className="grid grid-cols-7 gap-1">
@@ -880,8 +1040,225 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
                     </div>
                   </div>
                 </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Slider vertical des récapitulatifs mensuels (Desktop uniquement) */}
+          <div className="hidden lg:block lg:w-80 xl:w-96 flex-shrink-0">
+            <Card className="border-0 shadow-xl h-full">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
+                <CardTitle className="flex items-center gap-2 text-indigo-700 text-lg">
+                  <TrendingUp className="h-5 w-5" />
+                  Récapitulatif mensuel
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 h-[calc(100vh-400px)] min-h-[600px] overflow-y-auto" ref={monthSliderRef}>
+                <div className="space-y-3">
+                  {Array.from({ length: contract.subscriptionCIDuration || 0 }).map((_, monthIndex) => {
+                    const total = getTotalForMonth(monthIndex)
+                    const status = getMonthStatus(monthIndex)
+                    const target = contract.subscriptionCIAmountPerMonth || 0
+                    const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
+                    const range = getMonthDateRange(monthIndex)
+                    const isActive = currentMonthIndex === monthIndex
+
+                    return (
+                      <Card
+                        key={monthIndex}
+                        data-month-index={monthIndex}
+                        className={cn(
+                          "border-2 shadow-md transition-all duration-300 cursor-pointer hover:shadow-lg",
+                          isActive 
+                            ? "border-indigo-500 bg-indigo-50/50 shadow-indigo-200" 
+                            : "border-gray-200 bg-white"
+                        )}
+                        onClick={() => {
+                          // Naviguer vers le mois correspondant
+                          if (range) {
+                            setCurrentMonth(new Date(range.start))
+                          }
+                        }}
+                      >
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-bold flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                              <Calendar className={cn("h-4 w-4", isActive ? "text-indigo-600" : "text-gray-600")} />
+                              Mois {monthIndex + 1}
+                            </span>
+                            {isActive && (
+                              <Badge className="bg-indigo-600 text-white text-xs">Actuel</Badge>
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {range && (
+                            <div className="text-xs text-gray-500">
+                              {format(range.start, 'dd MMM', { locale: fr })} → {format(range.end, 'dd MMM yyyy', { locale: fr })}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">Objectif:</span>
+                            <span className="font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">Versé:</span>
+                            <span className="font-semibold text-green-600">{total.toLocaleString('fr-FR')} FCFA</span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span>Progression</span>
+                              <span className="font-medium">{percentage.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className={cn(
+                                  "h-1.5 rounded-full transition-all duration-300",
+                                  percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                )}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 pt-1">
+                            <Badge
+                              variant={
+                                status === 'PAID' ? 'default' :
+                                  status === 'PARTIAL' ? 'secondary' :
+                                    status === 'DUE' ? 'secondary' : 'destructive'
+                              }
+                              className={cn(
+                                "text-xs",
+                                status === 'PAID' ? "bg-green-100 text-green-800 border-green-200" :
+                                  status === 'PARTIAL' ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
+                                    "bg-gray-100 text-gray-600 border-gray-200"
+                              )}
+                            >
+                              {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : 'En cours'}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Slider horizontal mobile des récapitulatifs mensuels (Mobile uniquement) */}
+          <div className="lg:hidden mt-4">
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b pb-3">
+                <CardTitle className="flex items-center gap-2 text-indigo-700 text-base">
+                  <TrendingUp className="h-4 w-4" />
+                  Récapitulatif mensuel
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div 
+                  ref={monthSliderMobileRef}
+                  className="overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory" 
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  <style dangerouslySetInnerHTML={{ __html: `
+                    .overflow-x-auto::-webkit-scrollbar {
+                      display: none;
+                    }
+                  `}} />
+                  <div className="flex gap-4 min-w-max">
+                    {Array.from({ length: contract.subscriptionCIDuration || 0 }).map((_, monthIndex) => {
+                      const total = getTotalForMonth(monthIndex)
+                      const status = getMonthStatus(monthIndex)
+                      const target = contract.subscriptionCIAmountPerMonth || 0
+                      const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
+                      const range = getMonthDateRange(monthIndex)
+                      const isActive = currentMonthIndex === monthIndex
+
+                      return (
+                        <Card
+                          key={monthIndex}
+                          data-month-index={monthIndex}
+                          className={cn(
+                            "border-2 shadow-md transition-all duration-300 cursor-pointer hover:shadow-lg snap-center shrink-0 w-[280px]",
+                            isActive 
+                              ? "border-indigo-500 bg-indigo-50/50 shadow-indigo-200" 
+                              : "border-gray-200 bg-white"
+                          )}
+                          onClick={() => {
+                            // Naviguer vers le mois correspondant
+                            if (range) {
+                              setCurrentMonth(new Date(range.start))
+                            }
+                          }}
+                        >
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-bold flex items-center justify-between">
+                              <span className="flex items-center gap-2">
+                                <Calendar className={cn("h-4 w-4", isActive ? "text-indigo-600" : "text-gray-600")} />
+                                Mois {monthIndex + 1}
+                              </span>
+                              {isActive && (
+                                <Badge className="bg-indigo-600 text-white text-xs">Actuel</Badge>
+                              )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            {range && (
+                              <div className="text-xs text-gray-500">
+                                {format(range.start, 'dd MMM', { locale: fr })} → {format(range.end, 'dd MMM yyyy', { locale: fr })}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Objectif:</span>
+                              <span className="font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Versé:</span>
+                              <span className="font-semibold text-green-600">{total.toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span>Progression</span>
+                                <span className="font-medium">{percentage.toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div
+                                  className={cn(
+                                    "h-1.5 rounded-full transition-all duration-300",
+                                    percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                  )}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1">
+                              <Badge
+                                variant={
+                                  status === 'PAID' ? 'default' :
+                                    status === 'PARTIAL' ? 'secondary' :
+                                      status === 'DUE' ? 'secondary' : 'destructive'
+                                }
+                                className={cn(
+                                  "text-xs",
+                                  status === 'PAID' ? "bg-green-100 text-green-800 border-green-200" :
+                                    status === 'PARTIAL' ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
+                                      "bg-gray-100 text-gray-600 border-gray-200"
+                                )}
+                              >
+                                {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : 'En cours'}
+                              </Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* Modal de paiement */}
         <PaymentCIModal
