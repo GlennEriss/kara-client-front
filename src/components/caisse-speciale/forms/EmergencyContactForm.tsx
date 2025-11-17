@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -82,11 +82,46 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
   const [isCompressing, setIsCompressing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  const DEFAULT_PHONE_PREFIX = '+241 '
+  const PHONE_DIGITS_LIMIT = 8
+
+  const formatPhoneValue = (value: string, allowEmpty = false) => {
+    const trimmed = value.replace(/\s/g, '')
+    if (allowEmpty && trimmed === '') {
+      return ''
+    }
+
+    let digits = value.replace(/[^0-9]/g, '')
+
+    if (digits.startsWith('241')) {
+      digits = digits.slice(3)
+    }
+
+    const normalized = digits.slice(0, PHONE_DIGITS_LIMIT)
+
+    if (!normalized) {
+      return allowEmpty ? '' : DEFAULT_PHONE_PREFIX
+    }
+
+    const grouped = normalized.replace(/(\d{2})(?=\d)/g, '$1 ')
+    return `${DEFAULT_PHONE_PREFIX}${grouped}`.trimEnd()
+  }
+
+  const initializationDone = useRef(false)
+
+  useEffect(() => {
+    if (initializationDone.current) return
+    if (!emergencyContact?.phone1 || emergencyContact.phone1.trim() === '') {
+      onUpdate('phone1', DEFAULT_PHONE_PREFIX)
+    }
+    initializationDone.current = true
+  }, [emergencyContact?.phone1, onUpdate])
+
   // Valeurs actuelles
   const lastName = emergencyContact?.lastName || ''
   const firstName = emergencyContact?.firstName || ''
-  const phone1 = emergencyContact?.phone1 || ''
-  const phone2 = emergencyContact?.phone2 || ''
+  const phone1 = emergencyContact?.phone1 || DEFAULT_PHONE_PREFIX
+  const phone2 = emergencyContact?.phone2 || DEFAULT_PHONE_PREFIX
   const relationship = emergencyContact?.relationship || ''
   const idNumber = emergencyContact?.idNumber || ''
   const typeId = emergencyContact?.typeId || ''
@@ -119,27 +154,28 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
         }
         break
         
-      case 'phone1':
-        if (!value || value.trim() === '') {
+      case 'phone1': {
+        const normalizedValue = value || ''
+        if (!normalizedValue || normalizedValue.trim() === '') {
           newErrors.phone1 = 'Le numéro de téléphone principal est obligatoire'
-        } else if (value.length > 12) {
-          newErrors.phone1 = 'Le numéro de téléphone ne peut pas dépasser 12 caractères'
-        } else if (!/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
+        } else if (!/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(normalizedValue.replace(/\s/g, ''))) {
           newErrors.phone1 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)'
         } else {
           delete newErrors.phone1
         }
         break
+      }
         
-      case 'phone2':
-        if (value && value.length > 12) {
-          newErrors.phone2 = 'Le numéro de téléphone ne peut pas dépasser 12 caractères'
-        } else if (value && !/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(value.replace(/\s/g, ''))) {
+      case 'phone2': {
+        const normalizedValue = value || ''
+        const cleaned = normalizedValue.replace(/\s/g, '')
+        if (cleaned && cleaned !== '+241' && !/^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(normalizedValue.replace(/\s/g, ''))) {
           newErrors.phone2 = 'Format de téléphone invalide. Les numéros gabonais commencent par +241 62, 65, 66, 74 ou 77 (ex: +241 65 34 56 78)'
         } else {
           delete newErrors.phone2
         }
         break
+      }
         
       case 'relationship':
         if (!value || value.trim() === '') {
@@ -257,10 +293,7 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
     
     // Filtrer les caractères pour les champs téléphone
     if (field === 'phone1' || field === 'phone2') {
-      // Garder seulement les chiffres, le + et les espaces
-      filteredValue = value.replace(/[^0-9+\s]/g, '')
-      // Limiter à 12 caractères
-      filteredValue = filteredValue.slice(0, 12)
+      filteredValue = formatPhoneValue(value, field === 'phone2')
     }
     
     onUpdate(field, filteredValue)
@@ -275,10 +308,8 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                      idNumber.trim() !== '' &&
                      documentPhotoUrl.trim() !== '' &&
                      Object.keys(errors).length === 0 &&
-                     (!phone1 || phone1.length <= 12) &&
-                     (!phone2 || phone2.length <= 12) &&
                      (!phone1 || /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(phone1.replace(/\s/g, ''))) &&
-                     (!phone2 || phone2 === '' || /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(phone2.replace(/\s/g, '')))
+                     (!phone2 || phone2 === '' || phone2 === DEFAULT_PHONE_PREFIX || /^(\+241|241)?(62|65|66|74|77)[0-9]{6}$/.test(phone2.replace(/\s/g, '')))
 
   return (
     <Card className={`border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 ${
@@ -371,7 +402,7 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                 value={phone1}
                 onChange={(e) => handleChange('phone1', e.target.value)}
                 placeholder="+241 65 34 56 78"
-                maxLength={12}
+                maxLength={17}
                 pattern="[0-9+\s]*"
                 inputMode="tel"
                 className={cn(
@@ -401,7 +432,7 @@ export default function EmergencyContactForm({ emergencyContact, onUpdate }: Eme
                 value={phone2}
                 onChange={(e) => handleChange('phone2', e.target.value)}
                 placeholder="+241 66 78 90 12"
-                maxLength={12}
+                maxLength={17}
                 pattern="[0-9+\s]*"
                 inputMode="tel"
                 className={cn(
