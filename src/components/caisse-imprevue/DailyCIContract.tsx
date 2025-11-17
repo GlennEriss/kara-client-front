@@ -470,11 +470,11 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
     }
   }, [payments, getTotalForMonth, contract.subscriptionCIAmountPerMonth])
 
-  // Référence pour le slider vertical
+  // Référence pour le slider vertical (desktop) et horizontal (mobile)
   const monthSliderRef = React.useRef<HTMLDivElement>(null)
-  const monthTabRefs = React.useRef<Map<number, HTMLButtonElement>>(new Map())
+  const monthSliderMobileRef = React.useRef<HTMLDivElement>(null)
 
-  // Synchroniser le scroll du slider quand le badge "Actuel" change
+  // Synchroniser le scroll du slider desktop quand le badge "Actuel" change
   React.useEffect(() => {
     if (!monthSliderRef.current) return
     
@@ -509,11 +509,13 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
     }
   }, [currentMonthIndex])
 
-  // Synchroniser le scroll des onglets mobiles quand le badge "Actuel" change
+  // Synchroniser le scroll du slider horizontal mobile quand le badge "Actuel" change
   React.useEffect(() => {
-    const activeTab = monthTabRefs.current.get(currentMonthIndex)
-    if (activeTab) {
-      activeTab.scrollIntoView({
+    if (!monthSliderMobileRef.current) return
+    
+    const activeCard = monthSliderMobileRef.current.querySelector(`[data-month-index="${currentMonthIndex}"]`) as HTMLElement
+    if (activeCard) {
+      activeCard.scrollIntoView({
         behavior: 'smooth',
         block: 'nearest',
         inline: 'center'
@@ -1144,135 +1146,117 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
             </Card>
           </div>
 
-          {/* Accordéon mobile des récapitulatifs mensuels (Mobile uniquement) */}
-          <div className="lg:hidden space-y-4">
-            {/* Onglets scrollables horizontaux */}
-            <div className="overflow-x-auto pb-2 -mx-4 px-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <style dangerouslySetInnerHTML={{ __html: `
-                .overflow-x-auto::-webkit-scrollbar {
-                  display: none;
-                }
-              `}} />
-              <div className="flex gap-2 min-w-max">
-                {Array.from({ length: contract.subscriptionCIDuration || 0 }).map((_, monthIndex) => {
-                  const isActive = currentMonthIndex === monthIndex
-                  const range = getMonthDateRange(monthIndex)
+          {/* Slider horizontal mobile des récapitulatifs mensuels (Mobile uniquement) */}
+          <div className="lg:hidden mt-4">
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b pb-3">
+                <CardTitle className="flex items-center gap-2 text-indigo-700 text-base">
+                  <TrendingUp className="h-4 w-4" />
+                  Récapitulatif mensuel
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div 
+                  ref={monthSliderMobileRef}
+                  className="overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory" 
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  <style dangerouslySetInnerHTML={{ __html: `
+                    .overflow-x-auto::-webkit-scrollbar {
+                      display: none;
+                    }
+                  `}} />
+                  <div className="flex gap-4 min-w-max">
+                    {Array.from({ length: contract.subscriptionCIDuration || 0 }).map((_, monthIndex) => {
+                      const total = getTotalForMonth(monthIndex)
+                      const status = getMonthStatus(monthIndex)
+                      const target = contract.subscriptionCIAmountPerMonth || 0
+                      const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
+                      const range = getMonthDateRange(monthIndex)
+                      const isActive = currentMonthIndex === monthIndex
 
-                  return (
-                    <Button
-                      key={monthIndex}
-                      ref={(el) => {
-                        if (el) {
-                          monthTabRefs.current.set(monthIndex, el)
-                        } else {
-                          monthTabRefs.current.delete(monthIndex)
-                        }
-                      }}
-                      variant={isActive ? 'default' : 'outline'}
-                      size="sm"
-                      className={cn(
-                        "shrink-0",
-                        isActive 
-                          ? "bg-indigo-600 text-white hover:bg-indigo-700" 
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      )}
-                      onClick={() => {
-                        if (range) {
-                          setCurrentMonth(new Date(range.start))
-                        }
-                      }}
-                    >
-                      <Calendar className="h-3 w-3 mr-1" />
-                      Mois {monthIndex + 1}
-                    </Button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Cartes mensuelles empilées */}
-            <div className="space-y-4">
-              {Array.from({ length: contract.subscriptionCIDuration || 0 }).map((_, monthIndex) => {
-                const total = getTotalForMonth(monthIndex)
-                const status = getMonthStatus(monthIndex)
-                const target = contract.subscriptionCIAmountPerMonth || 0
-                const percentage = target > 0 ? Math.min(100, (total / target) * 100) : 0
-                const range = getMonthDateRange(monthIndex)
-                const isActive = currentMonthIndex === monthIndex
-
-                return (
-                  <Card
-                    key={monthIndex}
-                    data-month-index={monthIndex}
-                    className={cn(
-                      "border-2 shadow-md transition-all duration-300",
-                      isActive 
-                        ? "border-indigo-500 bg-indigo-50/50 shadow-indigo-200" 
-                        : "border-gray-200 bg-white"
-                    )}
-                  >
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-bold flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <Calendar className={cn("h-4 w-4", isActive ? "text-indigo-600" : "text-gray-600")} />
-                          Mois {monthIndex + 1}
-                        </span>
-                        {isActive && (
-                          <Badge className="bg-indigo-600 text-white text-xs">Actuel</Badge>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {range && (
-                        <div className="text-xs text-gray-500">
-                          {format(range.start, 'dd MMM', { locale: fr })} → {format(range.end, 'dd MMM yyyy', { locale: fr })}
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Objectif:</span>
-                        <span className="font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">Versé:</span>
-                        <span className="font-semibold text-green-600">{total.toLocaleString('fr-FR')} FCFA</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Progression</span>
-                          <span className="font-medium">{percentage.toFixed(1)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={cn(
-                              "h-2 rounded-full transition-all duration-300",
-                              percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                            )}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <Badge
-                          variant={
-                            status === 'PAID' ? 'default' :
-                              status === 'PARTIAL' ? 'secondary' :
-                                status === 'DUE' ? 'secondary' : 'destructive'
-                          }
+                      return (
+                        <Card
+                          key={monthIndex}
+                          data-month-index={monthIndex}
                           className={cn(
-                            "text-xs",
-                            status === 'PAID' ? "bg-green-100 text-green-800 border-green-200" :
-                              status === 'PARTIAL' ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
-                                "bg-gray-100 text-gray-600 border-gray-200"
+                            "border-2 shadow-md transition-all duration-300 cursor-pointer hover:shadow-lg snap-center shrink-0 w-[280px]",
+                            isActive 
+                              ? "border-indigo-500 bg-indigo-50/50 shadow-indigo-200" 
+                              : "border-gray-200 bg-white"
                           )}
+                          onClick={() => {
+                            // Naviguer vers le mois correspondant
+                            if (range) {
+                              setCurrentMonth(new Date(range.start))
+                            }
+                          }}
                         >
-                          {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : 'En cours'}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-bold flex items-center justify-between">
+                              <span className="flex items-center gap-2">
+                                <Calendar className={cn("h-4 w-4", isActive ? "text-indigo-600" : "text-gray-600")} />
+                                Mois {monthIndex + 1}
+                              </span>
+                              {isActive && (
+                                <Badge className="bg-indigo-600 text-white text-xs">Actuel</Badge>
+                              )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            {range && (
+                              <div className="text-xs text-gray-500">
+                                {format(range.start, 'dd MMM', { locale: fr })} → {format(range.end, 'dd MMM yyyy', { locale: fr })}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Objectif:</span>
+                              <span className="font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Versé:</span>
+                              <span className="font-semibold text-green-600">{total.toLocaleString('fr-FR')} FCFA</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span>Progression</span>
+                                <span className="font-medium">{percentage.toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                <div
+                                  className={cn(
+                                    "h-1.5 rounded-full transition-all duration-300",
+                                    percentage >= 100 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                  )}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1">
+                              <Badge
+                                variant={
+                                  status === 'PAID' ? 'default' :
+                                    status === 'PARTIAL' ? 'secondary' :
+                                      status === 'DUE' ? 'secondary' : 'destructive'
+                                }
+                                className={cn(
+                                  "text-xs",
+                                  status === 'PAID' ? "bg-green-100 text-green-800 border-green-200" :
+                                    status === 'PARTIAL' ? "bg-yellow-100 text-yellow-800 border-yellow-200" :
+                                      "bg-gray-100 text-gray-600 border-gray-200"
+                                )}
+                              >
+                                {status === 'PAID' ? 'Complété' : status === 'PARTIAL' ? 'Partiel' : 'En cours'}
+                              </Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
