@@ -3,16 +3,17 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
-import { useGroupMembers } from '@/hooks/useMembers'
+import { useGroupMembers, useMember } from '@/hooks/useMembers'
 import { useAuth } from '@/hooks/useAuth'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
@@ -23,9 +24,11 @@ import TestPaymentTools from './TestPaymentTools'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -33,11 +36,18 @@ import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData }
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+// Helper pour formater les montants correctement
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 type Props = { id: string }
 
 export default function DailyContract({ id }: Props) {
+  const router = useRouter()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
+  const { data: member } = useMember((data as any)?.memberId)
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -72,6 +82,14 @@ export default function DailyContract({ id }: Props) {
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
   const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+  const [refundFile, setRefundFile] = useState<File | undefined>()
+  const [refundDate, setRefundDate] = useState(() => {
+    return new Date().toISOString().split('T')[0]
+  })
+  const [refundTime, setRefundTime] = useState(() => {
+    const now = new Date()
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  })
 
   const settings = useActiveCaisseSettingsByType((data as any)?.caisseType)
 
@@ -489,15 +507,15 @@ export default function DailyContract({ id }: Props) {
       let yPos = yStart + 6
       doc.text(`Statut : ${payment.status === 'PAID' ? 'Payé' : 'En cours'}`, 14, yPos)
       yPos += 6
-      doc.text(`Total du mois : ${(payment.accumulatedAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Total du mois : ${formatAmount(payment.accumulatedAmount || 0)} FCFA`, 14, yPos)
       yPos += 6
-      doc.text(`Objectif mensuel : ${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+      doc.text(`Objectif mensuel : ${formatAmount(data.monthlyAmount || 0)} FCFA`, 14, yPos)
       yPos += 6
 
       // Afficher les pénalités si elles existent
       if (payment.penaltyApplied && payment.penaltyApplied > 0) {
         doc.setTextColor(220, 38, 38) // Rouge
-        doc.text(`Pénalités appliquées : ${payment.penaltyApplied.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        doc.text(`Pénalités appliquées : ${formatAmount(payment.penaltyApplied)} FCFA`, 14, yPos)
         yPos += 6
         if (payment.penaltyDays && payment.penaltyDays > 0) {
           doc.text(`Jours de retard : ${payment.penaltyDays}`, 14, yPos)
@@ -519,7 +537,7 @@ export default function DailyContract({ id }: Props) {
           const row = [
             `${contrib.memberFirstName} ${contrib.memberLastName}`,
             contrib.memberMatricule,
-            `${contrib.amount.toLocaleString('fr-FR')} FCFA`,
+            `${formatAmount(contrib.amount)} FCFA`,
             contrib.time || '',
             contrib.mode === 'airtel_money' ? 'Airtel Money' :
               contrib.mode === 'mobicash' ? 'Mobicash' :
@@ -529,7 +547,7 @@ export default function DailyContract({ id }: Props) {
 
           // Ajouter les pénalités si présentes
           if (contrib.penalty && contrib.penalty > 0) {
-            row.push(`${contrib.penalty.toLocaleString('fr-FR')} FCFA`)
+            row.push(`${formatAmount(contrib.penalty)} FCFA`)
           } else {
             row.push('-')
           }
@@ -648,7 +666,7 @@ export default function DailyContract({ id }: Props) {
 
         doc.setFontSize(10)
         doc.setFont('helvetica', 'normal')
-        doc.text(`Montant : ${(contrib.amount || 0).toLocaleString('fr-FR')} FCFA`, 14, yPos)
+        doc.text(`Montant : ${formatAmount(contrib.amount || 0)} FCFA`, 14, yPos)
         yPos += 6
         if (contrib.time) {
           doc.text(`Heure : ${contrib.time}`, 14, yPos)
@@ -666,7 +684,7 @@ export default function DailyContract({ id }: Props) {
         // Afficher les pénalités de la contribution si présentes
         if (contrib.penalty && contrib.penalty > 0) {
           doc.setTextColor(220, 38, 38) // Rouge
-          doc.text(`Pénalité : ${contrib.penalty.toLocaleString('fr-FR')} FCFA`, 14, yPos)
+          doc.text(`Pénalité : ${formatAmount(contrib.penalty)} FCFA`, 14, yPos)
           yPos += 6
           if (contrib.penaltyDays && contrib.penaltyDays > 0) {
             doc.text(`Jours de retard : ${contrib.penaltyDays}`, 14, yPos)
@@ -1027,55 +1045,75 @@ export default function DailyContract({ id }: Props) {
   }, [contractStartDate])
 
   return (
-    <div className="min-h-screen p-6 overflow-x-hidden">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-6">
-          {/* Debug info pour les contrats de groupe */}
-          {isGroupContract && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Debug Contrat de Groupe:</strong>
-                ID: {groupeId} |
-                Type: {data.contractType || 'Non défini'} |
-                Membres: {groupMembers?.length || 0} |
-                Chargement: {isLoadingGroupMembers ? 'Oui' : 'Non'}
-              </p>
-            </div>
-          )}
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent break-words">
-                Contrat Journalier <span className="font-mono text-sm sm:text-base break-all">#{id}</span>
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Objectif mensuel: <span className="font-semibold">{(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA</span>
-              </p>
-              <div className="text-sm text-gray-500 mt-1">
-                Paramètres actifs ({String((data as any).caisseType)}): {settings.data ? (settings.data as any).id : '—'}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Badge variant={data.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-sm">
-                {data.status === 'ACTIVE' ? 'Actif' : data.status === 'LATE_NO_PENALTY' ? 'Retard (J+0..3)' :
-                  data.status === 'LATE_WITH_PENALTY' ? 'Retard (J+4..12)' : data.status}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Lien vers l'historique des versements */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href={routes.admin.caisseSpecialeContractPayments(id)}
-              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* En-tête avec bouton retour */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.caisseSpeciale)}
+              className="gap-2"
             >
-              <FileText className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
+              Retour à la liste
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => router.push(routes.admin.caisseSpecialeContractPayments(id))}
+              className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              <History className="h-4 w-4" />
               Historique des versements
-            </Link>
+            </Button>
+
             <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
+            </div>
+
+          <div className="flex items-center gap-2">
+            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+              {isGroupContract ? 'Contrat de Groupe' : 'Contrat Journalier'}
+              </Badge>
+            {(() => {
+              const statusConfig = getContractStatusConfig(data.status)
+              const StatusIcon = statusConfig.icon
+              return (
+                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+                  <StatusIcon className="h-4 w-4" />
+                  {statusConfig.label}
+                </Badge>
+              )
+            })()}
+            {isClosed && (
+              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
+                <XCircle className="h-4 w-4" />
+                Contrat fermé
+              </Badge>
+            )}
+            </div>
           </div>
-        </div>
+
+        {/* Titre principal */}
+        <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
+          <CardHeader className="overflow-hidden">
+            <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
+              <Calendar className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
+              <span className="break-words">{member?.firstName || ''} {member?.lastName || ''}</span>
+            </CardTitle>
+            <div className="space-y-1 text-blue-100 break-words">
+              <p className="text-sm sm:text-base lg:text-lg break-words">
+                Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
+              </p>
+              <p className="text-sm break-words">
+                {member?.firstName || ''} {member?.lastName || ''} - Objectif mensuel: <span className="font-mono text-xs break-all">{formatAmount(data.monthlyAmount || 0)} FCFA</span>
+              </p>
+              <p className="text-xs break-words">
+                Type de caisse: <span className="font-mono">{String((data as any).caisseType)}</span>
+              </p>
+          </div>
+          </CardHeader>
+        </Card>
 
         {/* Outils de test (DEV uniquement) */}
         <TestPaymentTools
@@ -1085,10 +1123,10 @@ export default function DailyContract({ id }: Props) {
             await refetch()
           }}
         />
-      </div>
 
       {/* Navigation du calendrier */}
-      <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-4 lg:p-6">
+        <Card className="border-0 shadow-xl">
+          <CardContent className="p-4 lg:p-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
           <Button
             variant="outline"
@@ -1268,7 +1306,8 @@ export default function DailyContract({ id }: Props) {
             </div>
           </div>
         </div>
-      </div>
+          </CardContent>
+        </Card>
 
       {/* Résumé mensuel */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
@@ -1298,12 +1337,12 @@ export default function DailyContract({ id }: Props) {
                 })()}
                 <div className="flex items-center justify-between">
                   <span className="text-xs lg:text-sm text-gray-600">Objectif</span>
-                  <span className="text-sm lg:text-base font-semibold">{target.toLocaleString('fr-FR')} FCFA</span>
+                  <span className="text-sm lg:text-base font-semibold">{formatAmount(target)} FCFA</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-xs lg:text-sm text-gray-600">Versé</span>
-                  <span className="text-sm lg:text-base font-semibold text-green-600">{total.toLocaleString('fr-FC')} FCFA</span>
+                  <span className="text-sm lg:text-base font-semibold text-green-600">{formatAmount(total)} FCFA</span>
                 </div>
 
                 <div className="space-y-2">
@@ -1338,14 +1377,17 @@ export default function DailyContract({ id }: Props) {
         })}
       </div>
 
-      {/* Remboursements */}
-      <div className="bg-white rounded-2xl shadow-lg shadow-blue-100/50 border border-gray-100 p-4 lg:p-6">
-        <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5 text-emerald-600" />
+        {/* Section Remboursements */}
+        <Card className="border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-indigo-500 to-indigo-600">
+            <CardTitle className="flex items-center gap-2 text-white">
+              <RefreshCw className="h-5 w-5" />
           Remboursements
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            {/* Boutons d'action */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
           {(() => {
             const payments = data.payments || []
             const paidCount = payments.filter((x: any) => x.status === 'PAID').length
@@ -1363,17 +1405,18 @@ export default function DailyContract({ id }: Props) {
             const canEarly = hasAtLeastOneContribution && !allPaid
             const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
             const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
-            
-            // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
-            const hasActiveRefund = refunds.some((r: any) => 
-              (r.type === 'EARLY' || r.type === 'FINAL') && 
-              (r.status === 'PENDING' || r.status === 'APPROVED')
-            )
+                
+                // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
+                const hasActiveRefund = refunds.some((r: any) => 
+                  (r.type === 'EARLY' || r.type === 'FINAL') && 
+                  (r.status === 'PENDING' || r.status === 'APPROVED')
+                )
 
             return (
               <>
                 <Button
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+                      variant="outline"
+                      className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
                   disabled={isRefunding || !allPaid || hasFinalRefund}
                   onClick={() => {
                     setRefundType('FINAL')
@@ -1381,431 +1424,485 @@ export default function DailyContract({ id }: Props) {
                     setShowReasonModal(true)
                   }}
                 >
-                  <span className="hidden sm:inline">Demander remboursement final</span>
-                  <span className="sm:hidden">Remboursement final</span>
+                      <TrendingUp className="h-5 w-5" />
+                      Demander remboursement final
                 </Button>
 
                 <Button
                   variant="outline"
+                      className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
                   disabled={isRefunding || !canEarly || hasEarlyRefund}
-                  className="w-full"
                   onClick={() => {
                     setRefundType('EARLY')
                     setRefundReasonInput('')
                     setShowReasonModal(true)
                   }}
                 >
-                  <span className="hidden sm:inline">Demander retrait anticipé</span>
-                  <span className="sm:hidden">Retrait anticipé</span>
+                      <Download className="h-5 w-5" />
+                      Demander retrait anticipé
                 </Button>
 
                 <Button
                   variant="outline"
-                  disabled={isClosed}
-                  className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
-                  onClick={() => setShowLatePaymentModal(true)}
-                >
-                  <span className="hidden sm:inline">Versement en retard</span>
-                  <span className="sm:hidden">En retard</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full border-green-300 text-green-700 hover:bg-green-50"
-                  disabled={!hasActiveRefund}
+                      className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                      disabled={!hasActiveRefund}
                   onClick={() => setShowRemboursementPdf(true)}
                 >
-                  <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">PDF Remboursement</span>
-                  <span className="sm:hidden">PDF Remb.</span>
+                      <FileText className="h-5 w-5" />
+                      PDF Remboursement
                 </Button>
               </>
             )
           })()}
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          {refunds.map((r: any) => (
-            <Card key={r.id} className="border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                  <div className="font-medium">
-                    {r.type === 'FINAL' ? 'Final' : r.type === 'EARLY' ? 'Anticipé' : 'Défaut'}
+            {/* Liste des remboursements */}
+            <div className="grid grid-cols-1 gap-6">
+              {refunds.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                    <RefreshCw className="h-12 w-12 text-gray-400" />
                   </div>
-                  <Badge
-                    variant={
-                      r.status === 'PENDING' ? 'secondary' :
-                        r.status === 'APPROVED' ? 'default' :
-                          r.status === 'PAID' ? 'default' : 'secondary'
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun remboursement</h3>
+                  <p className="text-gray-600">Aucune demande de remboursement n'a été effectuée</p>
+                </div>
+              ) : (
+                refunds.map((r: any) => {
+                  const getRefundStatusConfig = (status: string) => {
+                    switch (status) {
+                      case 'PENDING':
+                        return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                      case 'APPROVED':
+                        return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle }
+                      case 'PAID':
+                        return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle }
+                      default:
+                        return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle }
                     }
-                    className="text-xs self-start sm:self-auto"
-                  >
+                  }
+
+                  const statusConfig = getRefundStatusConfig(r.status)
+                  const StatusIcon = statusConfig.icon
+
+                  return (
+                    <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-indigo-100 rounded-lg p-2">
+                            <RefreshCw className="h-5 w-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">
+                              {r.type === 'FINAL' ? 'Remboursement Final' : r.type === 'EARLY' ? 'Retrait Anticipé' : 'Remboursement par Défaut'}
+                            </h3>
+                            <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
+                              <StatusIcon className="h-3 w-3 mr-1" />
                     {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
                   </Badge>
+                          </div>
+                        </div>
                 </div>
 
-                <div className="space-y-2 text-xs lg:text-sm text-gray-600">
-                  <div>Nominal: <span className="font-medium">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span></div>
-                  <div>Bonus: <span className="font-medium">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span></div>
-                  <div>Échéance: <span className="font-medium">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span></div>
+                      <div className="space-y-3 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Montant nominal:</span>
+                          <span className="font-semibold">{formatAmount(r.amountNominal || 0)} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Bonus:</span>
+                          <span className="font-semibold">{formatAmount(r.amountBonus || 0)} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Échéance:</span>
+                          <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
+                        </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
                   {r.status === 'PENDING' && (
+                        <div className="space-y-2">
+                          {/* Première ligne : Approbation et Document de remboursement */}
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        size="sm"
+                            <button 
+                              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => setConfirmApproveId(r.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
                       >
                         Approuver
-                      </Button>
+                            </button>
                       {(r.type === 'FINAL' || r.type === 'EARLY') && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
+                              <button 
+                                className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
                             onClick={() => setShowRemboursementPdf(true)}
-                            className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
                           >
                             <FileText className="h-4 w-4" />
                             Document de remboursement
-                          </Button>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Deuxième ligne : Actions sur le PDF */}
+                          {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                            <div className="flex flex-col sm:flex-row gap-2">
                           {r.document ? (
                             <>
-                              <Button
-                                size="sm"
-                                variant="outline"
+                                  <button 
+                                    className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
                                 onClick={() => handleViewDocument(r.id, r.document)}
-                                className="border-green-300 text-green-600 hover:bg-green-50 w-full sm:w-auto flex items-center justify-center gap-2"
                               >
                                 <Eye className="h-4 w-4" />
                                 Voir PDF
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
+                                  </button>
+                                  <button 
+                                    className="flex-1 px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
                                 onClick={() => handleOpenPdfModal(r.id)}
-                                className="border-blue-300 text-blue-600 hover:bg-blue-50 w-full sm:w-auto flex items-center justify-center gap-2"
                               >
                                 <FileText className="h-4 w-4" />
                                 Remplacer PDF
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
+                                  </button>
+                                  <button 
+                                    className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
                                 onClick={() => setConfirmDeleteDocumentId(r.id)}
-                                className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
                               >
                                 <Trash2 className="h-4 w-4" />
                                 Supprimer
-                              </Button>
+                                  </button>
                             </>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
+                                <button 
+                                  className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
                               onClick={() => handleOpenPdfModal(r.id)}
-                              className="border-red-300 text-red-600 hover:bg-red-50 w-full sm:w-auto flex items-center justify-center gap-2"
                             >
                               <FileText className="h-4 w-4" />
                               Ajouter PDF
-                            </Button>
+                                </button>
                           )}
-                        </>
+                            </div>
                       )}
+
+                          {/* Troisième ligne : Annulation (si applicable) */}
                       {r.type === 'EARLY' && !r.document && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 border-red-300 hover:bg-red-50 w-full sm:w-auto"
+                            <button 
+                              className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium"
                           onClick={async () => {
                             try {
-                              await cancelEarlyRefund(id, r.id)
-                              await refetch()
-                              await reloadRefunds() // Rafraîchir la liste des remboursements
+                                  await cancelEarlyRefund(id, r.id); 
+                                  await refetch();
+                                  await reloadRefunds(); // Rafraîchir la liste des remboursements
                               toast.success('Demande anticipée annulée')
-                            } catch (e: any) {
+                                } catch(e: any) { 
                               toast.error(e?.message || 'Annulation impossible')
                             }
                           }}
                         >
-                          Annuler
-                        </Button>
+                              Annuler la demande
+                            </button>
                       )}
                     </div>
                   )}
 
                   {r.status === 'APPROVED' && (
-                    <>
+                        <div className="space-y-4">
                       {/* Affichage de la cause (non modifiable) */}
                       {r.reason && (
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-3">
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                           <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
                           <p className="text-sm text-blue-900">{r.reason}</p>
                         </div>
                       )}
 
-                      <Form {...earlyRefundForm}>
-                        <form onSubmit={earlyRefundForm.handleSubmit(async (data) => {
-                          try {
-                            await markRefundPaid(id, r.id, data.proof, {
-                              reason: r.reason,
-                              withdrawalDate: data.withdrawalDate,
-                              withdrawalTime: data.withdrawalTime
-                            })
-
-                            // Réinitialiser le formulaire
-                            earlyRefundForm.reset(earlyRefundDefaultValues)
-                            setConfirmPaidId(null)
-                            await refetch()
-                            await reloadRefunds() // Rafraîchir la liste des remboursements
-                            toast.success('Remboursement marqué payé')
-                          } catch (error: any) {
-                            toast.error(error?.message || 'Erreur lors du marquage')
-                          }
-                        })}>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-
-                            {/* Date du retrait */}
-                            <FormField
-                              control={earlyRefundForm.control}
-                              name="withdrawalDate"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs text-gray-600">Date du retrait *</FormLabel>
-                                  <FormControl>
-                                    <Input
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Date du retrait *</label>
+                                <input
                                       type="date"
-                                      className="w-full text-xs"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-
-                            {/* Heure du retrait */}
-                            <FormField
-                              control={earlyRefundForm.control}
-                              name="withdrawalTime"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs text-gray-600">Heure du retrait *</FormLabel>
-                                  <FormControl>
-                                    <Input
+                                  value={refundDate}
+                                  onChange={(e) => setRefundDate(e.target.value)}
+                                  className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Heure du retrait *</label>
+                                <input
                                       type="time"
-                                      className="w-full text-xs"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
-                            />
-
-                            {/* Preuve du retrait */}
-                            <FormField
-                              control={earlyRefundForm.control}
-                              name="proof"
-                              render={({ field: { onChange, value, ...field } }) => (
-                                <FormItem>
-                                  <FormLabel className="text-xs text-gray-600">Preuve du retrait *</FormLabel>
-                                  <FormControl>
-                                    <Input
+                                  value={refundTime}
+                                  onChange={(e) => setRefundTime(e.target.value)}
+                                  className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
+                            <input
                                       type="file"
                                       accept="image/*"
                                       onChange={async (e) => {
-                                        const file = e.target.files?.[0]
-                                        if (!file) {
-                                          onChange(undefined)
+                                const f = e.target.files?.[0]
+                                if (!f) {
+                                  setRefundFile(undefined)
                                           return
                                         }
-                                        if (!file.type.startsWith('image/')) {
+                                if (!f.type.startsWith('image/')) {
                                           toast.error('La preuve doit être une image (JPG, PNG, WebP...)')
-                                          onChange(undefined)
+                                  setRefundFile(undefined)
                                           return
                                         }
-                                        onChange(file)
+                                setRefundFile(f)
                                         toast.success('Preuve PDF sélectionnée')
                                       }}
-                                      className="w-full text-xs"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-xs" />
-                                </FormItem>
-                              )}
+                              className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
                             />
                           </div>
 
-                          <Button
-                            type="submit"
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                            disabled={
-                              earlyRefundForm.formState.isSubmitting ||
-                              !earlyRefundForm.watch('withdrawalDate') ||
-                              !earlyRefundForm.watch('withdrawalTime') ||
-                              !earlyRefundForm.watch('proof')
-                            }
+                          <button 
+                            className="w-full px-4 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-lg hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" 
+                            disabled={(() => {
+                              const hasFile = !!refundFile
+                              const hasDate = refundDate || r.withdrawalDate
+                              const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== '--:--')
+                              return !hasFile || !hasDate || !hasTime
+                            })()}
+                            onClick={async () => { 
+                              try {
+                                const normalizeDate = (dateValue: any): string | null => {
+                                  if (!dateValue) return null
+                                  try {
+                                    let date: Date
+                                    if (dateValue && typeof dateValue.toDate === 'function') {
+                                      date = dateValue.toDate()
+                                    } else if (dateValue instanceof Date) {
+                                      date = dateValue
+                                    } else if (typeof dateValue === 'string') {
+                                      date = new Date(dateValue)
+                                    } else {
+                                      date = new Date(dateValue)
+                                    }
+                                    return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]
+                                  } catch {
+                                    return null
+                                  }
+                                }
+                                
+                                await markRefundPaid(id, r.id, refundFile, {
+                                  reason: r.reason,
+                                  withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                                  withdrawalTime: refundTime || r.withdrawalTime
+                                })
+                                setRefundDate('')
+                                setRefundTime('')
+                                setRefundFile(undefined)
+                                setConfirmPaidId(null)
+                                await refetch()
+                                await reloadRefunds() // Rafraîchir la liste des remboursements
+                                toast.success('Remboursement marqué payé')
+                              } catch (error: any) {
+                                toast.error(error?.message || 'Erreur lors du marquage')
+                              }
+                            }}
                           >
-                            {earlyRefundForm.formState.isSubmitting ? 'Traitement...' : 'Marquer payé'}
-                          </Button>
-                        </form>
-                      </Form>
-                    </>
+                            <CheckCircle className="h-5 w-5" />
+                            Marquer comme payé
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
                   )}
                 </div>
               </CardContent>
             </Card>
-          ))}
-
-          {refunds.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>Aucun remboursement</p>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Modal de versement */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="w-[95vw] max-w-md mx-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nouveau versement</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
+              <DollarSign className="h-6 w-6" />
+              Nouveau versement
+            </DialogTitle>
             <DialogDescription>
               Enregistrer un versement pour le {selectedDate?.toLocaleDateString('fr-FR')}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Date du versement (grisée) */}
-            <div>
-              <Label htmlFor="date">Date du versement</Label>
-              <Input
-                id="date"
-                type="text"
-                value={selectedDate?.toLocaleDateString('fr-FR') || ''}
-                disabled
-                className="w-full bg-gray-100 cursor-not-allowed"
-              />
-            </div>
+          <div className="space-y-6 py-4">
+            {/* Date et Heure */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="date" className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  Date de paiement *
+                  <span className="text-xs text-muted-foreground">(fixe)</span>
+                </Label>
+                <Input
+                  id="date"
+                  type="text"
+                  value={selectedDate?.toLocaleDateString('fr-FR') || ''}
+                  disabled
+                  className="w-full bg-gray-100 cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  📅 La date correspond au jour sélectionné dans le calendrier
+                </p>
+              </div>
 
-            {/* Heure du versement */}
-            <div>
-              <Label htmlFor="time">Heure du versement</Label>
-              <Input
-                id="time"
-                type="time"
-                value={paymentTime}
-                onChange={(e) => setPaymentTime(e.target.value)}
-                required
-                className="w-full"
-              />
+              <div>
+                <Label htmlFor="time" className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  Heure de paiement *
+                </Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={paymentTime}
+                  onChange={(e) => setPaymentTime(e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
             {/* Montant */}
             <div>
-              <Label htmlFor="amount">Montant (FCFA)</Label>
+              <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                Montant du versement (FCFA) *
+              </Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="0"
+                placeholder="Ex: 10000"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 min="100"
                 step="100"
                 required
-                className="w-full"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                💡 Pour les paiements quotidiens, le montant peut varier chaque jour. Montant minimum: 100 FCFA
+              </p>
             </div>
+
+            {/* Sélection du membre du groupe (si contrat de groupe) */}
+            {isGroupContract && (
+              <Alert className="border-blue-200 bg-blue-50">
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-700">
+                  <div className="space-y-2">
+                    <strong>Membre du groupe qui verse *</strong>
+                    <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
+                      <SelectTrigger className="w-full mt-2">
+                        <SelectValue placeholder="Sélectionnez le membre qui verse" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {groupMembers && groupMembers.length > 0 ? (
+                          groupMembers.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.firstName} {member.lastName} ({member.matricule})
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>
+                            Chargement des membres du groupe...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Ce champ permet de tracer qui a effectué le versement dans le groupe
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Mode de paiement */}
             <div>
-              <Label htmlFor="mode">Mode de paiement</Label>
-              <div className="flex gap-3 mt-2">
-                <label className="flex items-center space-x-2 cursor-pointer">
+              <Label className="flex items-center gap-2 mb-3">
+                <Smartphone className="h-4 w-4 text-muted-foreground" />
+                Mode de paiement *
+              </Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="airtel_money"
                     checked={paymentMode === 'airtel_money'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Airtel Money</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-red-100 rounded-lg p-2">
+                      <Smartphone className="h-5 w-5 text-red-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Airtel Money</span>
+                  </div>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="mobicash"
                     checked={paymentMode === 'mobicash'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Mobicash</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-blue-100 rounded-lg p-2">
+                      <Banknote className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Mobicash</span>
+                  </div>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="cash"
                     checked={paymentMode === 'cash'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Espèce</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-green-100 rounded-lg p-2">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Espèce</span>
+                  </div>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="bank_transfer"
                     checked={paymentMode === 'bank_transfer'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Virement bancaire</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-purple-100 rounded-lg p-2">
+                      <Building2 className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Virement bancaire</span>
+                  </div>
                 </label>
               </div>
             </div>
 
-            {/* Sélection du membre du groupe (si contrat de groupe) */}
-            {isGroupContract && (
-              <div>
-                <Label htmlFor="groupMember">Membre du groupe qui verse *</Label>
-                <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sélectionnez le membre qui verse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupMembers && groupMembers.length > 0 ? (
-                      groupMembers.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.firstName} {member.lastName} ({member.matricule})
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="" disabled>
-                        Chargement des membres du groupe...
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Ce champ permet de tracer qui a effectué le versement dans le groupe
-                </p>
-              </div>
-            )}
-
-            {/* Preuve de versement */}
+            {/* Preuve de paiement */}
             <div>
-              <Label htmlFor="proof">Preuve de versement</Label>
+              <Label htmlFor="proof" className="flex items-center gap-2 mb-2">
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                Preuve de paiement *
+              </Label>
               <Input
                 id="proof"
                 type="file"
@@ -1834,77 +1931,82 @@ export default function DailyContract({ id }: Props) {
                   setPaymentFile(file)
                   toast.success(`Image "${file.name}" sélectionnée`)
                 }}
+                disabled={isPaying}
                 required
-                className="w-full"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Formats acceptés : JPEG, PNG, WebP (max 5 MB)
               </p>
+              
               {paymentFile && (
-                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-xs text-green-700">
-                    ✅ Fichier prêt : <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB)
-                  </p>
-                </div>
+                <Alert className="mt-2 border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700">
+                    <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB)
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
 
             {/* Indicateur de retard et pénalités */}
             {latePaymentInfo && (
-              <div className={`rounded-lg p-3 border-2 ${latePaymentInfo.hasPenalty
-                  ? 'bg-red-50 border-red-300'
-                  : 'bg-orange-50 border-orange-300'
-                }`}>
-                <div className="flex items-start gap-2">
-                  <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
-                    }`} />
-                  <div className="flex-1">
-                    <h4 className={`font-semibold text-sm ${latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
-                      }`}>
-                      Paiement en retard
-                    </h4>
-                    <p className={`text-xs mt-1 ${latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
-                      }`}>
-                      Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
-                    </p>
-                    {latePaymentInfo.hasPenalty && (
-                      <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
-                        <p className="text-xs font-bold text-red-900">
-                          Pénalités : {latePaymentInfo.penalty.toLocaleString('fr-FR')} FCFA
-                        </p>
-                        <p className="text-xs text-red-700 mt-0.5">
-                          Appliquées à partir du 4ème jour
-                        </p>
-                      </div>
-                    )}
-                    {!latePaymentInfo.hasPenalty && (
-                      <p className="text-xs text-orange-700 mt-1">
-                        ⚠️ Période de tolérance (jours 1-3)
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <Alert className={latePaymentInfo.hasPenalty
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-orange-300 bg-orange-50'
+                }>
+                <AlertCircle className={`h-4 w-4 ${latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'}`} />
+                <AlertDescription className={latePaymentInfo.hasPenalty ? 'text-red-700' : 'text-orange-700'}>
+                  <strong>Paiement en retard</strong>
+                  <br />
+                  Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
+                  {latePaymentInfo.hasPenalty && (
+                    <>
+                      <br />
+                      <strong className="text-red-900">Pénalités : {formatAmount(latePaymentInfo.penalty)} FCFA</strong>
+                      <br />
+                      <span className="text-xs">Appliquées à partir du 4ème jour</span>
+                    </>
+                  )}
+                  {!latePaymentInfo.hasPenalty && (
+                    <>
+                      <br />
+                      <span className="text-xs">⚠️ Période de tolérance (jours 1-3)</span>
+                    </>
+                  )}
+                </AlertDescription>
+              </Alert>
             )}
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <DialogFooter>
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
                 setShowPaymentModal(false)
                 setSelectedGroupMemberId('')
               }}
-              className="w-full sm:w-auto"
+              disabled={isPaying}
             >
               Annuler
             </Button>
             <Button
+              type="button"
               onClick={onPaymentSubmit}
               disabled={isPaying || !paymentAmount || !paymentTime || !paymentFile}
-              className="bg-[#234D65] hover:bg-[#2c5a73] text-white w-full sm:w-auto"
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
             >
-              {isPaying ? 'Enregistrement...' : 'Enregistrer'}
+              {isPaying ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Enregistrer le versement
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1971,7 +2073,7 @@ export default function DailyContract({ id }: Props) {
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-green-50 rounded-lg gap-1 lg:gap-2">
                         <span className="font-medium text-green-700 text-xs lg:text-sm">Total du mois:</span>
                         <span className="text-green-900 font-semibold text-xs lg:text-sm">
-                          {payment.accumulatedAmount?.toLocaleString('fr-FR')} FCFA
+                          {formatAmount(payment.accumulatedAmount || 0)} FCFA
                         </span>
                       </div>
                     </div>
@@ -2014,7 +2116,7 @@ export default function DailyContract({ id }: Props) {
                                 <div>
                                   <span className="font-medium">Montant:</span>
                                   <span className="ml-1 font-semibold text-green-600">
-                                    {contribution.amount.toLocaleString('fr-FR')} FCFA
+                                    {formatAmount(contribution.amount)} FCFA
                                   </span>
                                 </div>
                                 <div>
@@ -2093,7 +2195,7 @@ export default function DailyContract({ id }: Props) {
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-gray-50 rounded-lg gap-1 lg:gap-2">
                       <span className="font-medium text-gray-700 text-xs lg:text-sm">Montant:</span>
                       <span className="text-gray-900 font-semibold text-xs lg:text-sm">
-                        {contribution?.amount?.toLocaleString('fr-FR')} FCFA
+                        {formatAmount(contribution?.amount || 0)} FCFA
                       </span>
                     </div>
 
@@ -2166,7 +2268,7 @@ export default function DailyContract({ id }: Props) {
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 lg:p-3 bg-green-50 rounded-lg gap-1 lg:gap-2">
                       <span className="font-medium text-green-700 text-xs lg:text-sm">Total du mois:</span>
                       <span className="text-green-900 font-semibold text-xs lg:text-sm">
-                        {payment.accumulatedAmount?.toLocaleString('fr-FR')} FCFA
+                        {formatAmount(payment.accumulatedAmount || 0)} FCFA
                       </span>
                     </div>
                   </div>
@@ -2638,7 +2740,7 @@ export default function DailyContract({ id }: Props) {
                         {lateInfo.hasPenalty && (
                           <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
                             <p className="text-xs font-bold text-red-900">
-                              Pénalités : {lateInfo.penalty.toLocaleString('fr-FR')} FCFA
+                              Pénalités : {formatAmount(lateInfo.penalty)} FCFA
                             </p>
                             <p className="text-xs text-red-700 mt-0.5">
                               Appliquées à partir du 4ème jour

@@ -38,6 +38,11 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { toast } from 'sonner'
 
+// Helper pour formater les montants correctement dans les PDFs
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 interface PaymentReceiptCIModalProps {
   isOpen: boolean
   onClose: () => void
@@ -143,7 +148,7 @@ export default function PaymentReceiptCIModal({
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
       doc.text('✓ PAIEMENT COMPLÉTÉ', 15, yPos + 8)
-      doc.text(`${payment.accumulatedAmount.toLocaleString('fr-FR')} FCFA`, pageWidth - 15, yPos + 8, { align: 'right' })
+      doc.text(`${formatAmount(payment.accumulatedAmount)} FCFA`, pageWidth - 15, yPos + 8, { align: 'right' })
 
       yPos += 20
       doc.setTextColor(0, 0, 0)
@@ -162,8 +167,8 @@ export default function PaymentReceiptCIModal({
           formatDate(versement.date),
           versement.time,
           modeConfig.label,
-          `${versement.amount.toLocaleString('fr-FR')} FCFA`,
-          versement.penalty && versement.penalty > 0 ? `${versement.penalty.toLocaleString('fr-FR')} FCFA` : '-'
+          `${formatAmount(versement.amount)} FCFA`,
+          versement.penalty && versement.penalty > 0 ? `${formatAmount(versement.penalty)} FCFA` : '-'
         ]
       })
 
@@ -206,7 +211,7 @@ export default function PaymentReceiptCIModal({
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       doc.text(`Objectif mensuel:`, 15, yPos)
-      doc.text(`${payment.targetAmount.toLocaleString('fr-FR')} FCFA`, pageWidth - 15, yPos, { align: 'right' })
+      doc.text(`${formatAmount(payment.targetAmount)} FCFA`, pageWidth - 15, yPos, { align: 'right' })
       
       yPos += 7
       doc.text(`Nombre de versements:`, 15, yPos)
@@ -221,7 +226,7 @@ export default function PaymentReceiptCIModal({
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(35, 77, 101)
       doc.text('TOTAL VERSÉ:', 15, yPos + 5)
-      doc.text(`${payment.accumulatedAmount.toLocaleString('fr-FR')} FCFA`, pageWidth - 15, yPos + 5, { align: 'right' })
+      doc.text(`${formatAmount(payment.accumulatedAmount)} FCFA`, pageWidth - 15, yPos + 5, { align: 'right' })
 
       // Footer
       yPos = pageHeight - 20
