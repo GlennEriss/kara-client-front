@@ -7,6 +7,7 @@ import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useAuth } from '@/hooks/useAuth'
+import { useMember } from '@/hooks/useMembers'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
@@ -91,6 +92,7 @@ export default function FreeContract({ id }: Props) {
   const router = useRouter()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
+  const { data: member } = useMember((data as any)?.memberId)
 
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -401,14 +403,14 @@ export default function FreeContract({ id }: Props) {
           <CardHeader className="overflow-hidden">
             <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
               <FileText className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
-              <span className="break-words">Contrat Libre</span>
+              <span className="break-words">{member?.firstName || ''} {member?.lastName || ''}</span>
             </CardTitle>
             <div className="space-y-1 text-blue-100 break-words">
               <p className="text-sm sm:text-base lg:text-lg break-words">
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
               </p>
               <p className="text-sm break-words">
-                {data.memberFirstName} {data.memberLastName} - Type de caisse: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
+                {member?.firstName || ''} {member?.lastName || ''} - Type de caisse: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
               </p>
             </div>
           </CardHeader>

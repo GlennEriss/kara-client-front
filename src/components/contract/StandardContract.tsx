@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useCaisseContract } from "@/hooks/useCaisseContracts"
 import { useActiveCaisseSettingsByType } from "@/hooks/useCaisseSettings"
-import { useGroupMembers } from "@/hooks/useMembers"
+import { useGroupMembers, useMember } from "@/hooks/useMembers"
 import { useAuth } from "@/hooks/useAuth"
 import {
   requestFinalRefund,
@@ -105,6 +105,7 @@ export default function StandardContract({ id }: Props) {
   const router = useRouter()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
+  const { data: member } = useMember((data as any)?.memberId)
 
   const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
@@ -349,14 +350,14 @@ export default function StandardContract({ id }: Props) {
           <CardHeader className="overflow-hidden">
             <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
               <DollarSign className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
-              <span className="break-words">Contrat Standard</span>
+              <span className="break-words">{member?.firstName || ''} {member?.lastName || ''}</span>
             </CardTitle>
             <div className="space-y-1 text-blue-100 break-words">
               <p className="text-sm sm:text-base lg:text-lg break-words">
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
               </p>
               <p className="text-sm break-words">
-                {data.memberFirstName} {data.memberLastName} - Type: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
+                {member?.firstName || ''} {member?.lastName || ''} - Type: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
               </p>
             </div>
           </CardHeader>

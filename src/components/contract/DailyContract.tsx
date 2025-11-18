@@ -8,7 +8,7 @@ import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
-import { useGroupMembers } from '@/hooks/useMembers'
+import { useGroupMembers, useMember } from '@/hooks/useMembers'
 import { useAuth } from '@/hooks/useAuth'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
@@ -46,6 +46,7 @@ export default function DailyContract({ id }: Props) {
   const router = useRouter()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
+  const { data: member } = useMember((data as any)?.memberId)
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -1097,14 +1098,14 @@ export default function DailyContract({ id }: Props) {
           <CardHeader className="overflow-hidden">
             <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
               <Calendar className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
-              <span className="break-words">Contrat Journalier</span>
+              <span className="break-words">{member?.firstName || ''} {member?.lastName || ''}</span>
             </CardTitle>
             <div className="space-y-1 text-blue-100 break-words">
               <p className="text-sm sm:text-base lg:text-lg break-words">
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
               </p>
               <p className="text-sm break-words">
-                {data.memberFirstName} {data.memberLastName} - Objectif mensuel: <span className="font-mono text-xs break-all">{formatAmount(data.monthlyAmount || 0)} FCFA</span>
+                {member?.firstName || ''} {member?.lastName || ''} - Objectif mensuel: <span className="font-mono text-xs break-all">{formatAmount(data.monthlyAmount || 0)} FCFA</span>
               </p>
               <p className="text-xs break-words">
                 Type de caisse: <span className="font-mono">{String((data as any).caisseType)}</span>

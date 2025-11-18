@@ -23,8 +23,8 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ContractCI, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
-import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
+import { ContractCI } from '@/types/types'
+import { getContractStatusConfig } from '@/utils/contract-status'
 import routes from '@/constantes/routes'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
@@ -563,7 +563,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
           <CardHeader className="overflow-hidden">
             <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
               <DollarSign className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
-              <span className="break-words">Gestion des Versements - Paiement Mensuel</span>
+              <span className="break-words">{contract.memberFirstName} {contract.memberLastName}</span>
             </CardTitle>
             <div className="space-y-1 text-blue-100 break-words">
               <p className="text-sm sm:text-base lg:text-lg break-words">
