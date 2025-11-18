@@ -49,6 +49,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import routes from "@/constantes/routes"
+import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
@@ -324,13 +325,19 @@ export default function StandardContract({ id }: Props) {
             <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
               {isGroupContract ? 'Contrat de Groupe' : 'Contrat Standard'}
             </Badge>
-            <Badge variant={data.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-sm px-3 py-1.5">
-              {data.status === 'ACTIVE' ? 'Actif' : data.status === 'LATE_NO_PENALTY' ? 'Retard (J+0..3)' :
-                data.status === 'LATE_WITH_PENALTY' ? 'Retard (J+4..12)' : data.status}
-            </Badge>
+            {(() => {
+              const statusConfig = getContractStatusConfig(data.status)
+              const StatusIcon = statusConfig.icon
+              return (
+                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+                  <StatusIcon className="h-4 w-4" />
+                  {statusConfig.label}
+                </Badge>
+              )
+            })()}
             {isClosed && (
-              <Badge className="bg-red-500 text-white px-3 py-1.5 flex items-center gap-1">
-                <XCircle className="h-3 w-3" />
+              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
+                <XCircle className="h-4 w-4" />
                 Contrat fermé
               </Badge>
             )}
@@ -384,18 +391,18 @@ export default function StandardContract({ id }: Props) {
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {payments.map((p: any) => {
-                let badge: React.ReactNode = null
-                if (p.status === "DUE" && p.dueAt) {
-                  const now = new Date()
-                  const due = new Date(p.dueAt)
-                  const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
-                  if (days > 12) badge = <BadgeShadcn variant="destructive">{">"}J+12</BadgeShadcn>
-                  else if (days >= 4) badge = <BadgeShadcn variant="secondary">J+4..J+12</BadgeShadcn>
-                  else if (days >= 0) badge = <BadgeShadcn variant="secondary">J+0..J+3</BadgeShadcn>
-                }
+          {payments.map((p: any) => {
+            let badge: React.ReactNode = null
+            if (p.status === "DUE" && p.dueAt) {
+              const now = new Date()
+              const due = new Date(p.dueAt)
+              const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
+              if (days > 12) badge = <BadgeShadcn variant="destructive">{">"}J+12</BadgeShadcn>
+              else if (days >= 4) badge = <BadgeShadcn variant="secondary">J+4..J+12</BadgeShadcn>
+              else if (days >= 0) badge = <BadgeShadcn variant="secondary">J+0..J+3</BadgeShadcn>
+            }
 
-                const isSelectable = p.status === "DUE" && !isClosed && p.dueMonthIndex === nextDueMonthIndex
+            const isSelectable = p.status === "DUE" && !isClosed && p.dueMonthIndex === nextDueMonthIndex
                 const isDisabled = isClosed && p.status !== 'PAID'
 
                 const getStatusConfig = (status: string) => {
@@ -414,9 +421,9 @@ export default function StandardContract({ id }: Props) {
                 const statusConfig = getStatusConfig(p.status)
                 const StatusIcon = statusConfig.icon
 
-                return (
+            return (
                   <Card
-                    key={p.id}
+                key={p.id}
                     className={`transition-all duration-300 border-2 ${
                       isDisabled
                         ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
@@ -432,18 +439,18 @@ export default function StandardContract({ id }: Props) {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <div className="bg-[#224D62] text-white rounded-lg px-3 py-1 text-sm font-bold">
-                            M{p.dueMonthIndex + 1}
-                          </div>
-                          {badge}
+                    M{p.dueMonthIndex + 1}
+                  </div>
+                    {badge}
                         </div>
                         <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
                           <StatusIcon className="h-3 w-3 mr-1" />
-                          {p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" : 
-                            p.status === "DUE" ? "À payer" : 
-                            p.status === "PAID" ? "Payé" : 
-                            p.status === "REFUSED" ? "Refusé" : p.status}
+                      {p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" : 
+                        p.status === "DUE" ? "À payer" : 
+                        p.status === "PAID" ? "Payé" : 
+                        p.status === "REFUSED" ? "Refusé" : p.status}
                         </Badge>
-                      </div>
+                  </div>
 
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
@@ -451,14 +458,14 @@ export default function StandardContract({ id }: Props) {
                           <span className="font-semibold text-gray-900">
                             {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}
                           </span>
-                        </div>
+                </div>
 
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Payé le:</span>
                           <span className="font-semibold text-green-600">
                             {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}
                           </span>
-                        </div>
+            </div>
 
                         {p.penaltyApplied && (
                           <div className="flex items-center justify-between text-sm text-red-600 font-medium">
@@ -469,28 +476,28 @@ export default function StandardContract({ id }: Props) {
                       </div>
 
                       {!isDisabled && (isSelectable || p.status === 'PAID') && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                            {isSelectable ? (
-                              <span>Cliquez pour payer</span>
-                            ) : p.status === 'PAID' ? (
-                              <span>Cliquez pour voir la facture</span>
-                            ) : null}
-                          </div>
-                        </div>
-                      )}
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
+                      {isSelectable ? (
+                        <span>Cliquez pour payer</span>
+                      ) : p.status === 'PAID' ? (
+                        <span>Cliquez pour voir la facture</span>
+                      ) : null}
+                    </div>
+                         </div>
+                       )}
                     </CardContent>
                   </Card>
-                )
-              })}
-            </div>
+            )
+          })}
+                   </div>
 
             {/* Information */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-700">
                 <strong>ℹ️ Information :</strong> Cliquez sur un mois pour enregistrer un versement.
               </p>
-            </div>
+                 </div>
           </CardContent>
         </Card>
 
@@ -552,39 +559,39 @@ export default function StandardContract({ id }: Props) {
                   <Button
                     variant="outline"
                     className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                    disabled={isRefunding || !allPaid || hasFinalRefund}
-                    onClick={() => {
-                      setRefundType('FINAL')
-                      setRefundReasonInput('')
-                      setShowReasonModal(true)
-                    }}
-                  >
+                  disabled={isRefunding || !allPaid || hasFinalRefund}
+                  onClick={() => {
+                    setRefundType('FINAL')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
+                  }}
+                >
                     <TrendingUp className="h-5 w-5" />
-                    Demander remboursement final
+                  Demander remboursement final
                   </Button>
                   <Button
                     variant="outline"
                     className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-                    disabled={isRefunding || !canEarly || hasEarlyRefund}
-                    onClick={() => {
-                      setRefundType('EARLY')
-                      setRefundReasonInput('')
-                      setShowReasonModal(true)
-                    }}
-                  >
+                  disabled={isRefunding || !canEarly || hasEarlyRefund}
+                  onClick={() => {
+                    setRefundType('EARLY')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
+                  }}
+                >
                     <Download className="h-5 w-5" />
-                    Demander retrait anticipé
+                  Demander retrait anticipé
                   </Button>
                   <Button
                     variant="outline"
                     className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
                     disabled={!hasActiveRefund}
-                    onClick={() => setShowRemboursementPdf(true)}
-                  >
+                  onClick={() => setShowRemboursementPdf(true)}
+                >
                     <FileText className="h-5 w-5" />
-                    PDF Remboursement
+                  PDF Remboursement
                   </Button>
-                </div>
+              </div>
 
                 {/* Liste des remboursements */}
                 <div className="grid grid-cols-1 gap-6">
@@ -592,7 +599,7 @@ export default function StandardContract({ id }: Props) {
                     <div className="text-center py-12">
                       <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
                         <RefreshCw className="h-12 w-12 text-gray-400" />
-                      </div>
+        </div>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun remboursement</h3>
                       <p className="text-gray-600">Aucune demande de remboursement n'a été effectuée</p>
                     </div>
@@ -628,10 +635,10 @@ export default function StandardContract({ id }: Props) {
                                 <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
                                   <StatusIcon className="h-3 w-3 mr-1" />
                                   {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
+                </Badge>
+              </div>
+                </div>
+              </div>
 
                           <div className="space-y-3 mb-4">
                             <div className="flex justify-between text-sm">
@@ -648,26 +655,26 @@ export default function StandardContract({ id }: Props) {
                             </div>
                           </div>
 
-                          {r.status === "PENDING" && (
+                {r.status === "PENDING" && (
                             <div className="space-y-2">
                               {/* Première ligne : Approbation et Document de remboursement */}
-                              <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                                 <Button
                                   variant="outline"
                                   className="flex-1"
-                                  onClick={() => setConfirmApproveId(r.id)}
-                                  disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
-                                >
-                                  Approuver
+                      onClick={() => setConfirmApproveId(r.id)}
+                      disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
+                    >
+                      Approuver
                                 </Button>
-                                {(r.type === "FINAL" || r.type === "EARLY") && (
+                    {(r.type === "FINAL" || r.type === "EARLY") && (
                                   <Button
                                     variant="outline"
                                     className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
-                                    onClick={() => setShowRemboursementPdf(true)}
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    Document de remboursement
+                          onClick={() => setShowRemboursementPdf(true)}
+                        >
+                          <FileText className="h-4 w-4" />
+                          Document de remboursement
                                   </Button>
                                 )}
                               </div>
@@ -675,189 +682,189 @@ export default function StandardContract({ id }: Props) {
                               {/* Deuxième ligne : Actions sur le PDF */}
                               {(r.type === "FINAL" || r.type === "EARLY") && (
                                 <div className="flex flex-col sm:flex-row gap-2">
-                                  {r.document ? (
+                        {r.document ? (
                                     <>
                                       <Button
                                         variant="outline"
                                         className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
-                                        onClick={() => handleViewDocument(r.id, r.document)}
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                        Voir PDF
+                              onClick={() => handleViewDocument(r.id, r.document)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              Voir PDF
                                       </Button>
                                       <Button
                                         variant="outline"
                                         className="flex-1 border-blue-300 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
-                                        onClick={() => handleOpenPdfModal(r.id)}
-                                      >
-                                        <FileText className="h-4 w-4" />
-                                        Remplacer PDF
+                              onClick={() => handleOpenPdfModal(r.id)}
+                            >
+                              <FileText className="h-4 w-4" />
+                              Remplacer PDF
                                       </Button>
                                       <Button
                                         variant="outline"
                                         className="flex-1 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
-                                        onClick={() => setConfirmDeleteDocumentId(r.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                        Supprimer PDF
+                              onClick={() => setConfirmDeleteDocumentId(r.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Supprimer PDF
                                       </Button>
                                     </>
-                                  ) : (
+                        ) : (
                                     <Button
                                       variant="outline"
                                       className="flex-1 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
-                                      onClick={() => handleOpenPdfModal(r.id)}
-                                    >
-                                      <FileText className="h-4 w-4" />
-                                      Ajouter PDF
+                            onClick={() => handleOpenPdfModal(r.id)}
+                          >
+                            <FileText className="h-4 w-4" />
+                            Ajouter PDF
                                     </Button>
-                                  )}
+                        )}
                                 </div>
-                              )}
+                    )}
 
                               {/* Troisième ligne : Annulation (si applicable) */}
-                              {r.type === "EARLY" && !r.document && (
+                    {r.type === "EARLY" && !r.document && (
                                 <Button
                                   variant="outline"
                                   className="w-full border-red-300 text-red-600 hover:bg-red-50"
-                                  onClick={async () => {
-                                    try {
-                                      await cancelEarlyRefund(id, r.id)
-                                      await refetch()
-                                      await reloadRefunds() // Rafraîchir la liste des remboursements
-                                      toast.success("Demande anticipée annulée")
-                                    } catch (e: any) {
-                                      toast.error(e?.message || "Annulation impossible")
-                                    }
-                                  }}
-                                >
+                        onClick={async () => {
+                          try {
+                            await cancelEarlyRefund(id, r.id)
+                            await refetch()
+                            await reloadRefunds() // Rafraîchir la liste des remboursements
+                            toast.success("Demande anticipée annulée")
+                          } catch (e: any) {
+                            toast.error(e?.message || "Annulation impossible")
+                          }
+                        }}
+                      >
                                   Annuler la demande
                                 </Button>
-                              )}
-                            </div>
-                          )}
+                    )}
+                  </div>
+                )}
 
-                          {r.status === "APPROVED" && (
+                {r.status === "APPROVED" && (
                             <div className="space-y-4">
-                              {/* Affichage de la cause (non modifiable) */}
-                              {r.reason && (
+                    {/* Affichage de la cause (non modifiable) */}
+                    {r.reason && (
                                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                  <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
-                                  <p className="text-sm text-blue-900">{r.reason}</p>
-                                </div>
-                              )}
+                        <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                        <p className="text-sm text-blue-900">{r.reason}</p>
+                      </div>
+                    )}
 
-                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <div>
-                                  <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
-                                  <input
-                                    type="date"
-                                    value={refundDate}
-                                    onChange={(e) => setRefundDate(e.target.value)}
-                                    className="w-full rounded-lg border p-2 text-xs"
-                                    required
-                                  />
-                                </div>
-                                <div>
-                                  <label className="mb-1 block text-xs text-slate-600">Heure du retrait *</label>
-                                  <input
-                                    type="time"
-                                    value={refundTime}
-                                    onChange={(e) => setRefundTime(e.target.value)}
-                                    className="w-full rounded-lg border p-2 text-xs"
-                                    required
-                                  />
-                                </div>
-                                <div>
-                                  <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={async (e) => {
-                                      const f = e.target.files?.[0]
-                                      if (!f) {
-                                        setRefundFile(undefined)
-                                        return
-                                      }
-                                      if (!f.type.startsWith("image/")) {
-                                        toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
-                                        setRefundFile(undefined)
-                                        return
-                                      }
-                                      setRefundFile(f)
-                                      toast.success("Preuve PDF sélectionnée")
-                                    }}
-                                    className="w-full rounded-lg border p-2 text-xs"
-                                    required
-                                  />
-                                </div>
-                              </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
+                        <input
+                          type="date"
+                          value={refundDate}
+                          onChange={(e) => setRefundDate(e.target.value)}
+                          className="w-full rounded-lg border p-2 text-xs"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-600">Heure du retrait *</label>
+                        <input
+                          type="time"
+                          value={refundTime}
+                          onChange={(e) => setRefundTime(e.target.value)}
+                          className="w-full rounded-lg border p-2 text-xs"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0]
+                            if (!f) {
+                              setRefundFile(undefined)
+                              return
+                            }
+                            if (!f.type.startsWith("image/")) {
+                              toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
+                              setRefundFile(undefined)
+                              return
+                            }
+                            setRefundFile(f)
+                            toast.success("Preuve PDF sélectionnée")
+                          }}
+                          className="w-full rounded-lg border p-2 text-xs"
+                          required
+                        />
+                      </div>
+                    </div>
                               <Button
-                                className={classNames(
+                      className={classNames(
                                   "w-full inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white",
-                                  brand.bg,
-                                  brand.hover,
-                                  "disabled:opacity-50"
-                                )}
-                                disabled={(() => {
-                                  const hasFile = !!refundFile
-                                  const hasDate = refundDate || r.withdrawalDate
-                                  const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
-                                  return !hasFile || !hasDate || !hasTime
-                                })()}
-                                onClick={async () => {
-                                  try {
-                                    const normalizeDate = (dateValue: any): string | null => {
-                                      if (!dateValue) return null
-                                      try {
-                                        let date: Date
-                                        if (dateValue && typeof dateValue.toDate === "function") {
-                                          date = dateValue.toDate()
-                                        } else if (dateValue instanceof Date) {
-                                          date = dateValue
-                                        } else if (typeof dateValue === "string") {
-                                          date = new Date(dateValue)
-                                        } else {
-                                          date = new Date(dateValue)
-                                        }
-                                        return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0]
-                                      } catch {
-                                        return null
-                                      }
-                                    }
+                        brand.bg,
+                        brand.hover,
+                        "disabled:opacity-50"
+                      )}
+                      disabled={(() => {
+                        const hasFile = !!refundFile
+                        const hasDate = refundDate || r.withdrawalDate
+                        const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
+                        return !hasFile || !hasDate || !hasTime
+                      })()}
+                      onClick={async () => {
+                        try {
+                          const normalizeDate = (dateValue: any): string | null => {
+                            if (!dateValue) return null
+                            try {
+                              let date: Date
+                              if (dateValue && typeof dateValue.toDate === "function") {
+                                date = dateValue.toDate()
+                              } else if (dateValue instanceof Date) {
+                                date = dateValue
+                              } else if (typeof dateValue === "string") {
+                                date = new Date(dateValue)
+                              } else {
+                                date = new Date(dateValue)
+                              }
+                              return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0]
+                            } catch {
+                              return null
+                            }
+                          }
 
-                                    await markRefundPaid(id, r.id, refundFile!, {
-                                      reason: r.reason,
-                                      withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
-                                      withdrawalTime: refundTime || r.withdrawalTime,
-                                    })
-                                    setRefundDate("")
-                                    setRefundTime("")
-                                    setRefundFile(undefined)
-                                    setConfirmPaidId(null)
-                                    await refetch()
-                                    await reloadRefunds() // Rafraîchir la liste des remboursements
-                                    toast.success("Remboursement marqué payé")
-                                  } catch (error: any) {
-                                    toast.error(error?.message || "Erreur lors du marquage")
-                                  }
-                                }}
-                              >
-                                <FileText className="h-4 w-4" /> Marquer payé
+                          await markRefundPaid(id, r.id, refundFile!, {
+                            reason: r.reason,
+                            withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                            withdrawalTime: refundTime || r.withdrawalTime,
+                          })
+                          setRefundDate("")
+                          setRefundTime("")
+                          setRefundFile(undefined)
+                          setConfirmPaidId(null)
+                          await refetch()
+                          await reloadRefunds() // Rafraîchir la liste des remboursements
+                          toast.success("Remboursement marqué payé")
+                        } catch (error: any) {
+                          toast.error(error?.message || "Erreur lors du marquage")
+                        }
+                      }}
+                    >
+                      <FileText className="h-4 w-4" /> Marquer payé
                               </Button>
-                            </div>
-                          )}
-                        </div>
+                  </div>
+                )}
+              </div>
                       )
                     })
-                  )}
-                </div>
+          )}
+        </div>
               </>
             )
           })()}
         </CardContent>
       </Card>
-    </div>
+      </div>
       {/* Modales */}
       {/* Modale de saisie de la cause du retrait */}
       {showReasonModal && (

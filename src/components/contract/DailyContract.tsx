@@ -24,6 +24,7 @@ import TestPaymentTools from './TestPaymentTools'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -1066,24 +1067,30 @@ export default function DailyContract({ id }: Props) {
             </Button>
 
             <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
-          </div>
-          
+            </div>
+
           <div className="flex items-center gap-2">
             <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
               {isGroupContract ? 'Contrat de Groupe' : 'Contrat Journalier'}
-            </Badge>
-            <Badge variant={data.status === 'ACTIVE' ? 'default' : 'secondary'} className="text-sm px-3 py-1.5">
-              {data.status === 'ACTIVE' ? 'Actif' : data.status === 'LATE_NO_PENALTY' ? 'Retard (J+0..3)' :
-                data.status === 'LATE_WITH_PENALTY' ? 'Retard (J+4..12)' : data.status}
-            </Badge>
+              </Badge>
+            {(() => {
+              const statusConfig = getContractStatusConfig(data.status)
+              const StatusIcon = statusConfig.icon
+              return (
+                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+                  <StatusIcon className="h-4 w-4" />
+                  {statusConfig.label}
+                </Badge>
+              )
+            })()}
             {isClosed && (
-              <Badge className="bg-red-500 text-white px-3 py-1.5 flex items-center gap-1">
-                <XCircle className="h-3 w-3" />
+              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
+                <XCircle className="h-4 w-4" />
                 Contrat fermé
               </Badge>
             )}
+            </div>
           </div>
-        </div>
 
         {/* Titre principal */}
         <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
@@ -1102,7 +1109,7 @@ export default function DailyContract({ id }: Props) {
               <p className="text-xs break-words">
                 Type de caisse: <span className="font-mono">{String((data as any).caisseType)}</span>
               </p>
-            </div>
+          </div>
           </CardHeader>
         </Card>
 
@@ -1115,7 +1122,7 @@ export default function DailyContract({ id }: Props) {
           }}
         />
 
-        {/* Navigation du calendrier */}
+      {/* Navigation du calendrier */}
         <Card className="border-0 shadow-xl">
           <CardContent className="p-4 lg:p-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
@@ -1300,8 +1307,8 @@ export default function DailyContract({ id }: Props) {
           </CardContent>
         </Card>
 
-        {/* Résumé mensuel */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+      {/* Résumé mensuel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         {Array.from({ length: data.monthsPlanned || 0 }).map((_, monthIndex) => {
           const total = getTotalForMonth(monthIndex)
           const status = getMonthStatus(monthIndex)
@@ -1373,29 +1380,29 @@ export default function DailyContract({ id }: Props) {
           <CardHeader className="bg-gradient-to-r from-indigo-500 to-indigo-600">
             <CardTitle className="flex items-center gap-2 text-white">
               <RefreshCw className="h-5 w-5" />
-              Remboursements
+          Remboursements
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             {/* Boutons d'action */}
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
-              {(() => {
-                const payments = data.payments || []
-                const paidCount = payments.filter((x: any) => x.status === 'PAID').length
-                const allPaid = payments.length > 0 && paidCount === payments.length
+          {(() => {
+            const payments = data.payments || []
+            const paidCount = payments.filter((x: any) => x.status === 'PAID').length
+            const allPaid = payments.length > 0 && paidCount === payments.length
 
-                // Pour DailyContract : vérifier s'il y a au moins 1 versement (contribution)
-                const hasAtLeastOneContribution = payments.some((p: any) => {
-                  if (isGroupContract) {
-                    return p.groupContributions && p.groupContributions.length > 0
-                  } else {
-                    return p.contribs && p.contribs.length > 0
-                  }
-                })
+            // Pour DailyContract : vérifier s'il y a au moins 1 versement (contribution)
+            const hasAtLeastOneContribution = payments.some((p: any) => {
+              if (isGroupContract) {
+                return p.groupContributions && p.groupContributions.length > 0
+              } else {
+                return p.contribs && p.contribs.length > 0
+              }
+            })
 
-                const canEarly = hasAtLeastOneContribution && !allPaid
-                const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
-                const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
+            const canEarly = hasAtLeastOneContribution && !allPaid
+            const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED') || data.status === 'FINAL_REFUND_PENDING' || data.status === 'CLOSED'
+            const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED') || data.status === 'EARLY_REFUND_PENDING'
                 
                 // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
                 const hasActiveRefund = refunds.some((r: any) => 
@@ -1403,50 +1410,50 @@ export default function DailyContract({ id }: Props) {
                   (r.status === 'PENDING' || r.status === 'APPROVED')
                 )
 
-                return (
-                  <>
-                    <Button
+            return (
+              <>
+                <Button
                       variant="outline"
                       className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                      disabled={isRefunding || !allPaid || hasFinalRefund}
-                      onClick={() => {
-                        setRefundType('FINAL')
-                        setRefundReasonInput('')
-                        setShowReasonModal(true)
-                      }}
-                    >
+                  disabled={isRefunding || !allPaid || hasFinalRefund}
+                  onClick={() => {
+                    setRefundType('FINAL')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
+                  }}
+                >
                       <TrendingUp className="h-5 w-5" />
                       Demander remboursement final
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
+                </Button>
+
+                <Button
+                  variant="outline"
                       className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-                      disabled={isRefunding || !canEarly || hasEarlyRefund}
-                      onClick={() => {
-                        setRefundType('EARLY')
-                        setRefundReasonInput('')
-                        setShowReasonModal(true)
-                      }}
-                    >
+                  disabled={isRefunding || !canEarly || hasEarlyRefund}
+                  onClick={() => {
+                    setRefundType('EARLY')
+                    setRefundReasonInput('')
+                    setShowReasonModal(true)
+                  }}
+                >
                       <Download className="h-5 w-5" />
                       Demander retrait anticipé
-                    </Button>
+                </Button>
 
-                    <Button
-                      variant="outline"
+                <Button
+                  variant="outline"
                       className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
                       disabled={!hasActiveRefund}
-                      onClick={() => setShowRemboursementPdf(true)}
-                    >
+                  onClick={() => setShowRemboursementPdf(true)}
+                >
                       <FileText className="h-5 w-5" />
                       PDF Remboursement
-                    </Button>
-                  </>
-                )
-              })()}
-            </div>
-            
+                </Button>
+              </>
+            )
+          })()}
+        </div>
+
             {/* Liste des remboursements */}
             <div className="grid grid-cols-1 gap-6">
               {refunds.length === 0 ? (
@@ -1488,11 +1495,11 @@ export default function DailyContract({ id }: Props) {
                             </h3>
                             <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                              {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
-                            </Badge>
+                    {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                  </Badge>
                           </div>
                         </div>
-                      </div>
+                </div>
 
                       <div className="space-y-3 mb-4">
                         <div className="flex justify-between text-sm">
@@ -1507,26 +1514,26 @@ export default function DailyContract({ id }: Props) {
                           <span className="text-gray-600">Échéance:</span>
                           <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
                         </div>
-                      </div>
+                </div>
 
-                      {r.status === 'PENDING' && (
+                  {r.status === 'PENDING' && (
                         <div className="space-y-2">
                           {/* Première ligne : Approbation et Document de remboursement */}
-                          <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                             <button 
                               className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                              onClick={() => setConfirmApproveId(r.id)}
-                              disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
-                            >
-                              Approuver
+                        onClick={() => setConfirmApproveId(r.id)}
+                        disabled={(r.type === 'FINAL' && !r.document) || (r.type === 'EARLY' && !r.document)}
+                      >
+                        Approuver
                             </button>
-                            {(r.type === 'FINAL' || r.type === 'EARLY') && (
+                      {(r.type === 'FINAL' || r.type === 'EARLY') && (
                               <button 
                                 className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-                                onClick={() => setShowRemboursementPdf(true)}
-                              >
-                                <FileText className="h-4 w-4" />
-                                Document de remboursement
+                            onClick={() => setShowRemboursementPdf(true)}
+                          >
+                            <FileText className="h-4 w-4" />
+                            Document de remboursement
                               </button>
                             )}
                           </div>
@@ -1534,79 +1541,79 @@ export default function DailyContract({ id }: Props) {
                           {/* Deuxième ligne : Actions sur le PDF */}
                           {(r.type === 'FINAL' || r.type === 'EARLY') && (
                             <div className="flex flex-col sm:flex-row gap-2">
-                              {r.document ? (
-                                <>
+                          {r.document ? (
+                            <>
                                   <button 
                                     className="flex-1 px-4 py-2 border border-green-300 text-green-600 rounded-lg hover:bg-green-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-                                    onClick={() => handleViewDocument(r.id, r.document)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                    Voir PDF
+                                onClick={() => handleViewDocument(r.id, r.document)}
+                              >
+                                <Eye className="h-4 w-4" />
+                                Voir PDF
                                   </button>
                                   <button 
                                     className="flex-1 px-4 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-                                    onClick={() => handleOpenPdfModal(r.id)}
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                    Remplacer PDF
+                                onClick={() => handleOpenPdfModal(r.id)}
+                              >
+                                <FileText className="h-4 w-4" />
+                                Remplacer PDF
                                   </button>
                                   <button 
                                     className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-                                    onClick={() => setConfirmDeleteDocumentId(r.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    Supprimer
+                                onClick={() => setConfirmDeleteDocumentId(r.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Supprimer
                                   </button>
-                                </>
-                              ) : (
+                            </>
+                          ) : (
                                 <button 
                                   className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
-                                  onClick={() => handleOpenPdfModal(r.id)}
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  Ajouter PDF
+                              onClick={() => handleOpenPdfModal(r.id)}
+                            >
+                              <FileText className="h-4 w-4" />
+                              Ajouter PDF
                                 </button>
-                              )}
-                            </div>
                           )}
+                            </div>
+                      )}
 
                           {/* Troisième ligne : Annulation (si applicable) */}
-                          {r.type === 'EARLY' && !r.document && (
+                      {r.type === 'EARLY' && !r.document && (
                             <button 
                               className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 font-medium"
-                              onClick={async () => {
-                                try { 
+                          onClick={async () => {
+                            try {
                                   await cancelEarlyRefund(id, r.id); 
                                   await refetch();
                                   await reloadRefunds(); // Rafraîchir la liste des remboursements
-                                  toast.success('Demande anticipée annulée') 
+                              toast.success('Demande anticipée annulée')
                                 } catch(e: any) { 
-                                  toast.error(e?.message || 'Annulation impossible') 
-                                }
-                              }}
-                            >
+                              toast.error(e?.message || 'Annulation impossible')
+                            }
+                          }}
+                        >
                               Annuler la demande
                             </button>
-                          )}
+                      )}
+                    </div>
+                  )}
+
+                  {r.status === 'APPROVED' && (
+                        <div className="space-y-4">
+                      {/* Affichage de la cause (non modifiable) */}
+                      {r.reason && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                          <p className="text-sm text-blue-900">{r.reason}</p>
                         </div>
                       )}
 
-                      {r.status === 'APPROVED' && (
-                        <div className="space-y-4">
-                          {/* Affichage de la cause (non modifiable) */}
-                          {r.reason && (
-                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                              <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
-                              <p className="text-sm text-blue-900">{r.reason}</p>
-                            </div>
-                          )}
-                            
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-3">
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">Date du retrait *</label>
                                 <input
-                                  type="date"
+                                      type="date"
                                   value={refundDate}
                                   onChange={(e) => setRefundDate(e.target.value)}
                                   className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
@@ -1616,7 +1623,7 @@ export default function DailyContract({ id }: Props) {
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">Heure du retrait *</label>
                                 <input
-                                  type="time"
+                                      type="time"
                                   value={refundTime}
                                   onChange={(e) => setRefundTime(e.target.value)}
                                   className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
@@ -1628,26 +1635,26 @@ export default function DailyContract({ id }: Props) {
                           <div>
                             <label className="block text-xs font-medium text-gray-700 mb-2">Preuve du retrait *</label>
                             <input
-                              type="file"
-                              accept="image/*"
-                              onChange={async (e) => {
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={async (e) => {
                                 const f = e.target.files?.[0]
                                 if (!f) {
                                   setRefundFile(undefined)
-                                  return
-                                }
+                                          return
+                                        }
                                 if (!f.type.startsWith('image/')) {
-                                  toast.error('La preuve doit être une image (JPG, PNG, WebP...)')
+                                          toast.error('La preuve doit être une image (JPG, PNG, WebP...)')
                                   setRefundFile(undefined)
-                                  return
-                                }
+                                          return
+                                        }
                                 setRefundFile(f)
-                                toast.success('Preuve PDF sélectionnée')
-                              }}
+                                        toast.success('Preuve PDF sélectionnée')
+                                      }}
                               className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#234D65]/20 focus:border-[#234D65] transition-all duration-200"
                             />
                           </div>
-                          
+
                           <button 
                             className="w-full px-4 py-3 bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white rounded-lg hover:shadow-lg hover:shadow-[#234D65]/25 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" 
                             disabled={(() => {
@@ -1702,10 +1709,10 @@ export default function DailyContract({ id }: Props) {
                     </div>
                   )
                 })
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
       </div>
 
       {/* Modal de versement */}
@@ -1903,16 +1910,16 @@ export default function DailyContract({ id }: Props) {
                       }`}>
                       Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
                     </p>
-                        {latePaymentInfo.hasPenalty && (
-                          <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
-                            <p className="text-xs font-bold text-red-900">
+                    {latePaymentInfo.hasPenalty && (
+                      <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
+                        <p className="text-xs font-bold text-red-900">
                               Pénalités : {formatAmount(latePaymentInfo.penalty)} FCFA
-                            </p>
-                            <p className="text-xs text-red-700 mt-0.5">
-                              Appliquées à partir du 4ème jour
-                            </p>
-                          </div>
-                        )}
+                        </p>
+                        <p className="text-xs text-red-700 mt-0.5">
+                          Appliquées à partir du 4ème jour
+                        </p>
+                      </div>
+                    )}
                     {!latePaymentInfo.hasPenalty && (
                       <p className="text-xs text-orange-700 mt-1">
                         ⚠️ Période de tolérance (jours 1-3)

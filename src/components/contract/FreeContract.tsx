@@ -59,6 +59,7 @@ import TestPaymentTools from './TestPaymentTools'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
 
 type Props = { id: string }
 
@@ -376,9 +377,19 @@ export default function FreeContract({ id }: Props) {
             <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
               Contrat Libre
             </Badge>
+            {(() => {
+              const statusConfig = getContractStatusConfig(data.status)
+              const StatusIcon = statusConfig.icon
+              return (
+                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+                  <StatusIcon className="h-4 w-4" />
+                  {statusConfig.label}
+                </Badge>
+              )
+            })()}
             {isClosed && (
-              <Badge className="bg-red-500 text-white px-3 py-1.5 flex items-center gap-1">
-                <XCircle className="h-3 w-3" />
+              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
+                <XCircle className="h-4 w-4" />
                 Contrat fermé
               </Badge>
             )}

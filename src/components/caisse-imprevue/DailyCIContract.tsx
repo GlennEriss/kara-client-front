@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ContractCI, CONTRACT_CI_STATUS_LABELS, PaymentCI } from '@/types/types'
+import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
 import routes from '@/constantes/routes'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
@@ -38,15 +39,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { calculateMonthIndex, isDateInMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import dynamic from 'next/dynamic'
 import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
 import { listRefunds } from '@/db/caisse/refunds.db'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
-
-const SupportRecognitionPDFModal = dynamic(() => import('./SupportRecognitionPDFModal'), {
-  ssr: false,
-})
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
@@ -292,7 +288,6 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const [showRequestSupportModal, setShowRequestSupportModal] = useState(false)
   const [showSupportHistoryModal, setShowSupportHistoryModal] = useState(false)
   const [showRepaySupportModal, setShowRepaySupportModal] = useState(false)
-  const [showRecognitionModal, setShowRecognitionModal] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
@@ -688,19 +683,6 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
     }
   }
 
-  // Fonction pour ouvrir le modal de reconnaissance
-  const handleGenerateRecognitionPDF = () => {
-    // Utiliser le support actif ou le dernier support de l'historique
-    const supportToUse = activeSupport || (supportsHistory.length > 0 ? supportsHistory[0] : null)
-    
-    if (!supportToUse) {
-      toast.error('Aucune information de support disponible pour générer la reconnaissance')
-      return
-    }
-
-    setShowRecognitionModal(true)
-  }
-
   // Calculer les conditions pour les remboursements
   const paidCount = payments.filter((p: any) => p.status === 'PAID').length
   const allPaid = payments.length > 0 && paidCount === payments.length
@@ -758,22 +740,24 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
               Historique des aides
             </Button>
 
-            {/* Bouton Reconnaissance */}
-            <Button
-              variant="outline"
-              onClick={handleGenerateRecognitionPDF}
-              className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
-            >
-              <FileSignature className="h-4 w-4" />
-              <Download className="h-4 w-4" />
-              Reconnaissance
-            </Button>
-
             {/* Bouton Contact d'urgence */}
             <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} />
           </div>
           
           <div className="flex items-center gap-2">
+            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+              Contrat Journalier CI
+            </Badge>
+            {(() => {
+              const statusConfig = getContractStatusConfig(contract.status)
+              const StatusIcon = statusConfig.icon
+              return (
+                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+                  <StatusIcon className="h-4 w-4" />
+                  {statusConfig.label}
+                </Badge>
+              )
+            })()}
             {/* Badge Support Actif */}
             {activeSupport && activeSupport.status === 'ACTIVE' && (
               <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
@@ -781,10 +765,6 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
                 Support en cours
               </Badge>
             )}
-            
-            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-              {CONTRACT_CI_STATUS_LABELS[contract.status]}
-            </Badge>
           </div>
         </div>
 
@@ -1537,28 +1517,6 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
           onClose={() => setShowFinalRefundModal(false)}
           contract={contract}
         />
-
-        {/* Modal de reconnaissance de souscription */}
-        {showRecognitionModal && (() => {
-          const supportToUse = activeSupport || (supportsHistory.length > 0 ? supportsHistory[0] : null)
-          if (!supportToUse) return null
-          
-          return (
-            <SupportRecognitionPDFModal
-              isOpen={showRecognitionModal}
-              onClose={() => setShowRecognitionModal(false)}
-              contract={{
-                memberFirstName: contract.memberFirstName,
-                memberLastName: contract.memberLastName,
-                subscriptionCICode: contract.subscriptionCICode,
-                subscriptionCIAmountPerMonth: contract.subscriptionCIAmountPerMonth,
-              }}
-              support={{
-                approvedAt: supportToUse.approvedAt,
-              }}
-            />
-          )
-        })()}
       </div>
     </div>
   )
