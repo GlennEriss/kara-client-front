@@ -348,6 +348,26 @@ export default function FreeContract({ id }: Props) {
   // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
   const currentBonus = data.bonusAccrued || 0
 
+  // Calculer le nominal payé réel : somme de toutes les contributions de tous les paiements payés
+  const actualNominalPaid = useMemo(() => {
+    return payments.reduce((total: number, payment: any) => {
+      if (payment.status === 'PAID') {
+        // Si le paiement a des contributions, les sommer
+        if (payment.contribs && Array.isArray(payment.contribs) && payment.contribs.length > 0) {
+          const contributionsSum = payment.contribs.reduce((sum: number, contrib: any) => {
+            return sum + (contrib.amount || 0)
+          }, 0)
+          return total + contributionsSum
+        }
+        // Sinon, utiliser accumulatedAmount si disponible
+        if (payment.accumulatedAmount) {
+          return total + payment.accumulatedAmount
+        }
+      }
+      return total
+    }, 0)
+  }, [payments])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -421,7 +441,7 @@ export default function FreeContract({ id }: Props) {
           <StatCard 
             icon={CreditCard} 
             label="Montant mensuel" 
-            value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} 
+            value="Libre" 
             accent="brand" 
           />
           <StatCard 
@@ -432,7 +452,7 @@ export default function FreeContract({ id }: Props) {
           <StatCard 
             icon={CheckCircle2} 
             label="Nominal payé" 
-            value={`${formatAmount(data.nominalPaid || 0)} FCFA`} 
+            value={`${formatAmount(actualNominalPaid)} FCFA`} 
           />
           <StatCard 
             icon={TrendingUp} 
@@ -521,7 +541,7 @@ export default function FreeContract({ id }: Props) {
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Objectif:</span>
                           <span className="font-semibold text-gray-900">
-                            {formatAmount(target)} FCFA
+                            Libre
                           </span>
                         </div>
 
