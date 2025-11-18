@@ -7,12 +7,18 @@ import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useAuth } from '@/hooks/useAuth'
+import { useMember } from '@/hooks/useMembers'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
 import FileInput from '@/components/ui/file-input'
 import type { PaymentMode } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
+
+// Helper pour formater les montants correctement
+const formatAmount = (amount: number): string => {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
 import { 
   CreditCard, 
   Calendar, 
@@ -54,6 +60,7 @@ import TestPaymentTools from './TestPaymentTools'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
 
 type Props = { id: string }
 
@@ -85,6 +92,7 @@ export default function FreeContract({ id }: Props) {
   const router = useRouter()
   const { data, isLoading, isError, error, refetch } = useCaisseContract(id)
   const { user } = useAuth()
+  const { data: member } = useMember((data as any)?.memberId)
 
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -340,6 +348,26 @@ export default function FreeContract({ id }: Props) {
   // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
   const currentBonus = data.bonusAccrued || 0
 
+  // Calculer le nominal payé réel : somme de toutes les contributions de tous les paiements payés
+  const actualNominalPaid = useMemo(() => {
+    return payments.reduce((total: number, payment: any) => {
+      if (payment.status === 'PAID') {
+        // Si le paiement a des contributions, les sommer
+        if (payment.contribs && Array.isArray(payment.contribs) && payment.contribs.length > 0) {
+          const contributionsSum = payment.contribs.reduce((sum: number, contrib: any) => {
+            return sum + (contrib.amount || 0)
+          }, 0)
+          return total + contributionsSum
+        }
+        // Sinon, utiliser accumulatedAmount si disponible
+        if (payment.accumulatedAmount) {
+          return total + payment.accumulatedAmount
+        }
+      }
+      return total
+    }, 0)
+  }, [payments])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -368,9 +396,22 @@ export default function FreeContract({ id }: Props) {
           </div>
           
           <div className="flex items-center gap-2">
+            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+              Contrat Libre
+            </Badge>
+            {(() => {
+              const statusConfig = getContractStatusConfig(data.status)
+              const StatusIcon = statusConfig.icon
+              return (
+                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+                  <StatusIcon className="h-4 w-4" />
+                  {statusConfig.label}
+                </Badge>
+              )
+            })()}
             {isClosed && (
-              <Badge className="bg-red-500 text-white px-3 py-1.5 flex items-center gap-1">
-                <XCircle className="h-3 w-3" />
+              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
+                <XCircle className="h-4 w-4" />
                 Contrat fermé
               </Badge>
             )}
@@ -382,14 +423,14 @@ export default function FreeContract({ id }: Props) {
           <CardHeader className="overflow-hidden">
             <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-black text-white flex items-center gap-3 break-words">
               <FileText className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 shrink-0" />
-              <span className="break-words">Contrat Libre</span>
+              <span className="break-words">{member?.firstName || ''} {member?.lastName || ''}</span>
             </CardTitle>
             <div className="space-y-1 text-blue-100 break-words">
               <p className="text-sm sm:text-base lg:text-lg break-words">
                 Contrat <span className="font-mono text-xs sm:text-sm break-all">#{id}</span>
               </p>
               <p className="text-sm break-words">
-                {data.memberFirstName} {data.memberLastName} - Type de caisse: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
+                {member?.firstName || ''} {member?.lastName || ''} - Type de caisse: <span className="font-mono text-xs break-all">{String((data as any).caisseType)}</span>
               </p>
             </div>
           </CardHeader>
@@ -400,7 +441,7 @@ export default function FreeContract({ id }: Props) {
           <StatCard 
             icon={CreditCard} 
             label="Montant mensuel" 
-            value={`${(data.monthlyAmount || 0).toLocaleString('fr-FR')} FCFA`} 
+            value="Libre" 
             accent="brand" 
           />
           <StatCard 
@@ -411,18 +452,18 @@ export default function FreeContract({ id }: Props) {
           <StatCard 
             icon={CheckCircle2} 
             label="Nominal payé" 
-            value={`${(data.nominalPaid || 0).toLocaleString('fr-FR')} FCFA`} 
+            value={`${formatAmount(actualNominalPaid)} FCFA`} 
           />
           <StatCard 
             icon={TrendingUp} 
             label="Bonus" 
-            value={`${currentBonus.toLocaleString('fr-FR')} FCFA`} 
+            value={`${formatAmount(currentBonus)} FCFA`} 
             accent="emerald" 
           />
           <StatCard 
             icon={AlertTriangle} 
             label="Pénalités cumulées" 
-            value={`${(data.penaltiesTotal || 0).toLocaleString('fr-FR')} FCFA`} 
+            value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} 
             accent="red" 
           />
           <StatCard 
@@ -500,14 +541,14 @@ export default function FreeContract({ id }: Props) {
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Objectif:</span>
                           <span className="font-semibold text-gray-900">
-                            {target.toLocaleString('fr-FR')} FCFA
+                            Libre
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Accumulé:</span>
                           <span className="font-semibold text-green-600">
-                            {accumulated.toLocaleString('fr-FR')} FCFA
+                            {formatAmount(accumulated)} FCFA
                           </span>
                         </div>
 
@@ -682,11 +723,11 @@ export default function FreeContract({ id }: Props) {
                       <div className="space-y-3 mb-4">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Montant nominal:</span>
-                          <span className="font-semibold">{(r.amountNominal || 0).toLocaleString('fr-FR')} FCFA</span>
+                          <span className="font-semibold">{formatAmount(r.amountNominal || 0)} FCFA</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Bonus:</span>
-                          <span className="font-semibold">{(r.amountBonus || 0).toLocaleString('fr-FR')} FCFA</span>
+                          <span className="font-semibold">{formatAmount(r.amountBonus || 0)} FCFA</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Échéance:</span>

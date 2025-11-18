@@ -4,19 +4,15 @@ import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Calendar,
   Clock,
@@ -27,6 +23,7 @@ import {
   Upload,
   Loader2,
   AlertTriangle,
+  CheckCircle,
 } from 'lucide-react'
 import { PaymentMode } from '@/types/types'
 import { toast } from 'sonner'
@@ -138,9 +135,7 @@ export default function PaymentCSModal({
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSubmit = async () => {
     if (!formData.date || !formData.time || !formData.amount || !formData.mode || !proofFile) {
       toast.error('Veuillez remplir tous les champs obligatoires')
       return
@@ -160,6 +155,19 @@ export default function PaymentCSModal({
         mode: formData.mode!,
         proofFile: proofFile!,
       })
+      
+      // Réinitialiser le formulaire
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        time: (() => {
+          const now = new Date()
+          return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+        })(),
+        amount: defaultAmount,
+        mode: 'airtel_money',
+      })
+      setProofFile(undefined)
+      
       onClose()
     } catch (error) {
       console.error('Erreur lors de la soumission:', error)
@@ -169,224 +177,231 @@ export default function PaymentCSModal({
     }
   }
 
-  const getPaymentModeIcon = (mode: PaymentMode) => {
-    switch (mode) {
-      case 'airtel_money':
-        return <Smartphone className="h-4 w-4" />
-      case 'mobicash':
-        return <Banknote className="h-4 w-4" />
-      case 'cash':
-        return <DollarSign className="h-4 w-4" />
-      case 'bank_transfer':
-        return <Building2 className="h-4 w-4" />
-      default:
-        return <DollarSign className="h-4 w-4" />
-    }
-  }
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-[#234D65]" />
+          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
+            <DollarSign className="h-6 w-6" />
             {title}
           </DialogTitle>
-          <p className="text-sm text-gray-600 mt-2">{description}</p>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6 py-4">
           {/* Informations du membre (si contrat de groupe) */}
           {isGroupContract && groupMemberName && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">
-                  Paiement pour : {groupMemberName}
-                </span>
-              </div>
-            </div>
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-700">
+                <strong>Paiement pour :</strong> {groupMemberName}
+              </AlertDescription>
+            </Alert>
           )}
 
-          {/* Informations de paiement */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Informations de paiement
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Montant */}
-              <div className="space-y-2">
-                <Label htmlFor="amount" className="text-sm font-medium text-gray-700">
-                  Montant du versement *
-                </Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="amount"
-                    type="number"
-                    value={formData.amount || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
-                    className="pl-10"
-                    placeholder="100000"
-                    min="0"
-                    step="100"
-                    required
-                  />
-                </div>
-              </div>
+          {/* Date et Heure */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="date" className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Date de paiement *
+              </Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.date || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                required
+              />
+            </div>
 
-              {/* Date */}
-              <div className="space-y-2">
-                <Label htmlFor="date" className="text-sm font-medium text-gray-700">
-                  Date de paiement *
-                </Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
+            <div>
+              <Label htmlFor="time" className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Heure de paiement *
+              </Label>
+              <Input
+                id="time"
+                type="time"
+                value={formData.time || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
+                required
+              />
+            </div>
+          </div>
 
-              {/* Heure */}
-              <div className="space-y-2">
-                <Label htmlFor="time" className="text-sm font-medium text-gray-700">
-                  Heure de paiement *
-                </Label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="time"
-                    type="time"
-                    value={formData.time || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
+          {/* Montant */}
+          <div>
+            <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              Montant du versement (FCFA) *
+            </Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="Ex: 100000"
+              value={formData.amount || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
+              min="100"
+              step="100"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Montant minimum: 100 FCFA
+            </p>
+          </div>
 
-              {/* Mode de paiement */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">
-                  Mode de paiement *
-                </Label>
-                <Select
-                  value={formData.mode || 'airtel_money'}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, mode: value as PaymentMode }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="airtel_money">
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="h-4 w-4" />
-                        Airtel Money
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="mobicash">
-                      <div className="flex items-center gap-2">
-                        <Banknote className="h-4 w-4" />
-                        Mobicash
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="cash">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Espèce
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="bank_transfer">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        Virement bancaire
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Mode de paiement */}
+          <div>
+            <Label className="flex items-center gap-2 mb-3">
+              <Smartphone className="h-4 w-4 text-muted-foreground" />
+              Mode de paiement *
+            </Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="airtel_money"
+                  checked={formData.mode === 'airtel_money'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode }))}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-red-100 rounded-lg p-2">
+                    <Smartphone className="h-5 w-5 text-red-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Airtel Money</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="mobicash"
+                  checked={formData.mode === 'mobicash'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode }))}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-blue-100 rounded-lg p-2">
+                    <Banknote className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Mobicash</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="cash"
+                  checked={formData.mode === 'cash'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode }))}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-green-100 rounded-lg p-2">
+                    <DollarSign className="h-5 w-5 text-green-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Espèce</span>
+                </div>
+              </label>
+
+              <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
+                <input
+                  type="radio"
+                  name="paymentMode"
+                  value="bank_transfer"
+                  checked={formData.mode === 'bank_transfer'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, mode: e.target.value as PaymentMode }))}
+                  className="text-[#224D62] focus:ring-[#224D62]"
+                />
+                <div className="ml-3 flex items-center gap-3">
+                  <div className="bg-purple-100 rounded-lg p-2">
+                    <Building2 className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <span className="font-medium text-gray-900">Virement bancaire</span>
+                </div>
+              </label>
             </div>
           </div>
 
           {/* Preuve de paiement */}
-          <div className="space-y-2">
-            <Label htmlFor="proof" className="text-sm font-medium text-gray-700">
+          <div>
+            <Label htmlFor="proof" className="flex items-center gap-2 mb-2">
+              <Upload className="h-4 w-4 text-muted-foreground" />
               Preuve de paiement *
             </Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-              <input
-                id="proof"
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-                disabled={isCompressing}
-              />
-              <label htmlFor="proof" className="cursor-pointer">
-                <div className="space-y-2">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {proofFile ? proofFile.name : 'Cliquez pour sélectionner une image'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      PNG, JPG, JPEG jusqu'à 10MB
-                    </p>
-                  </div>
-                  {isCompressing && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-blue-600">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Compression en cours...
-                    </div>
-                  )}
-                </div>
-              </label>
-            </div>
-            {proofFile && (
-              <div className="text-xs text-green-600 flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />
-                Fichier sélectionné : {(proofFile.size / 1024 / 1024).toFixed(2)} MB
-              </div>
+            <Input
+              id="proof"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              disabled={isCompressing || isSubmitting}
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Formats acceptés : JPEG, PNG, WebP (max 10 MB) • ✨ Compression automatique activée
+            </p>
+            
+            {isCompressing && (
+              <Alert className="mt-2 border-blue-200 bg-blue-50">
+                <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                <AlertDescription className="text-blue-700">
+                  Compression de l'image en cours...
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {proofFile && !isCompressing && (
+              <Alert className="mt-2 border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-700">
+                  <strong>{proofFile.name}</strong> ({(proofFile.size / 1024).toFixed(2)} KB)
+                </AlertDescription>
+              </Alert>
             )}
           </div>
+        </div>
 
-          {/* Boutons d'action */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isCompressing || !formData.date || !formData.time || !formData.amount || !formData.mode || !proofFile}
-              className="bg-[#234D65] hover:bg-[#1a3a4f]"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Enregistrement...
-                </>
-              ) : (
-                <>
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Enregistrer le versement
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isSubmitting || isCompressing}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={
+              isSubmitting ||
+              isCompressing ||
+              !formData.date ||
+              !formData.time ||
+              !formData.amount ||
+              !formData.mode ||
+              !proofFile
+            }
+            className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              <>
+                <DollarSign className="h-4 w-4 mr-2" />
+                Enregistrer le versement
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
