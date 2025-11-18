@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
@@ -28,6 +28,7 @@ import { translateContractStatus, getContractStatusConfig } from '@/utils/contra
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -1718,138 +1719,190 @@ export default function DailyContract({ id }: Props) {
 
       {/* Modal de versement */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="w-[95vw] max-w-md mx-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nouveau versement</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
+              <DollarSign className="h-6 w-6" />
+              Nouveau versement
+            </DialogTitle>
             <DialogDescription>
               Enregistrer un versement pour le {selectedDate?.toLocaleDateString('fr-FR')}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Date du versement (grisée) */}
-            <div>
-              <Label htmlFor="date">Date du versement</Label>
-              <Input
-                id="date"
-                type="text"
-                value={selectedDate?.toLocaleDateString('fr-FR') || ''}
-                disabled
-                className="w-full bg-gray-100 cursor-not-allowed"
-              />
-            </div>
+          <div className="space-y-6 py-4">
+            {/* Date et Heure */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="date" className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  Date de paiement *
+                  <span className="text-xs text-muted-foreground">(fixe)</span>
+                </Label>
+                <Input
+                  id="date"
+                  type="text"
+                  value={selectedDate?.toLocaleDateString('fr-FR') || ''}
+                  disabled
+                  className="w-full bg-gray-100 cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  📅 La date correspond au jour sélectionné dans le calendrier
+                </p>
+              </div>
 
-            {/* Heure du versement */}
-            <div>
-              <Label htmlFor="time">Heure du versement</Label>
-              <Input
-                id="time"
-                type="time"
-                value={paymentTime}
-                onChange={(e) => setPaymentTime(e.target.value)}
-                required
-                className="w-full"
-              />
+              <div>
+                <Label htmlFor="time" className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  Heure de paiement *
+                </Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={paymentTime}
+                  onChange={(e) => setPaymentTime(e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
             {/* Montant */}
             <div>
-              <Label htmlFor="amount">Montant (FCFA)</Label>
+              <Label htmlFor="amount" className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                Montant du versement (FCFA) *
+              </Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="0"
+                placeholder="Ex: 10000"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 min="100"
                 step="100"
                 required
-                className="w-full"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                💡 Pour les paiements quotidiens, le montant peut varier chaque jour. Montant minimum: 100 FCFA
+              </p>
             </div>
+
+            {/* Sélection du membre du groupe (si contrat de groupe) */}
+            {isGroupContract && (
+              <Alert className="border-blue-200 bg-blue-50">
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-700">
+                  <div className="space-y-2">
+                    <strong>Membre du groupe qui verse *</strong>
+                    <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
+                      <SelectTrigger className="w-full mt-2">
+                        <SelectValue placeholder="Sélectionnez le membre qui verse" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {groupMembers && groupMembers.length > 0 ? (
+                          groupMembers.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.firstName} {member.lastName} ({member.matricule})
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>
+                            Chargement des membres du groupe...
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Ce champ permet de tracer qui a effectué le versement dans le groupe
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Mode de paiement */}
             <div>
-              <Label htmlFor="mode">Mode de paiement</Label>
-              <div className="flex gap-3 mt-2">
-                <label className="flex items-center space-x-2 cursor-pointer">
+              <Label className="flex items-center gap-2 mb-3">
+                <Smartphone className="h-4 w-4 text-muted-foreground" />
+                Mode de paiement *
+              </Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="airtel_money"
                     checked={paymentMode === 'airtel_money'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Airtel Money</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-red-100 rounded-lg p-2">
+                      <Smartphone className="h-5 w-5 text-red-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Airtel Money</span>
+                  </div>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="mobicash"
                     checked={paymentMode === 'mobicash'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Mobicash</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-blue-100 rounded-lg p-2">
+                      <Banknote className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Mobicash</span>
+                  </div>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="cash"
                     checked={paymentMode === 'cash'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Espèce</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-green-100 rounded-lg p-2">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Espèce</span>
+                  </div>
                 </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
+
+                <label className="relative flex items-center p-4 border-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors duration-200 has-[:checked]:border-[#224D62] has-[:checked]:bg-[#224D62]/5">
                   <input
                     type="radio"
                     name="paymentMode"
                     value="bank_transfer"
                     checked={paymentMode === 'bank_transfer'}
                     onChange={(e) => setPaymentMode(e.target.value as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer')}
-                    className="text-blue-600"
+                    className="text-[#224D62] focus:ring-[#224D62]"
                   />
-                  <span className="text-sm">Virement bancaire</span>
+                  <div className="ml-3 flex items-center gap-3">
+                    <div className="bg-purple-100 rounded-lg p-2">
+                      <Building2 className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">Virement bancaire</span>
+                  </div>
                 </label>
               </div>
             </div>
 
-            {/* Sélection du membre du groupe (si contrat de groupe) */}
-            {isGroupContract && (
-              <div>
-                <Label htmlFor="groupMember">Membre du groupe qui verse *</Label>
-                <Select value={selectedGroupMemberId} onValueChange={setSelectedGroupMemberId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Sélectionnez le membre qui verse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupMembers && groupMembers.length > 0 ? (
-                      groupMembers.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.firstName} {member.lastName} ({member.matricule})
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="" disabled>
-                        Chargement des membres du groupe...
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Ce champ permet de tracer qui a effectué le versement dans le groupe
-                </p>
-              </div>
-            )}
-
-            {/* Preuve de versement */}
+            {/* Preuve de paiement */}
             <div>
-              <Label htmlFor="proof">Preuve de versement</Label>
+              <Label htmlFor="proof" className="flex items-center gap-2 mb-2">
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                Preuve de paiement *
+              </Label>
               <Input
                 id="proof"
                 type="file"
@@ -1878,77 +1931,82 @@ export default function DailyContract({ id }: Props) {
                   setPaymentFile(file)
                   toast.success(`Image "${file.name}" sélectionnée`)
                 }}
+                disabled={isPaying}
                 required
-                className="w-full"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Formats acceptés : JPEG, PNG, WebP (max 5 MB)
               </p>
+              
               {paymentFile && (
-                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-xs text-green-700">
-                    ✅ Fichier prêt : <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB)
-                  </p>
-                </div>
+                <Alert className="mt-2 border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700">
+                    <strong>{paymentFile.name}</strong> ({(paymentFile.size / 1024).toFixed(2)} KB)
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
 
             {/* Indicateur de retard et pénalités */}
             {latePaymentInfo && (
-              <div className={`rounded-lg p-3 border-2 ${latePaymentInfo.hasPenalty
-                  ? 'bg-red-50 border-red-300'
-                  : 'bg-orange-50 border-orange-300'
-                }`}>
-                <div className="flex items-start gap-2">
-                  <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'
-                    }`} />
-                  <div className="flex-1">
-                    <h4 className={`font-semibold text-sm ${latePaymentInfo.hasPenalty ? 'text-red-900' : 'text-orange-900'
-                      }`}>
-                      Paiement en retard
-                    </h4>
-                    <p className={`text-xs mt-1 ${latePaymentInfo.hasPenalty ? 'text-red-800' : 'text-orange-800'
-                      }`}>
-                      Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
-                    </p>
-                    {latePaymentInfo.hasPenalty && (
-                      <div className="mt-2 p-2 bg-red-100 rounded-md border border-red-200">
-                        <p className="text-xs font-bold text-red-900">
-                              Pénalités : {formatAmount(latePaymentInfo.penalty)} FCFA
-                        </p>
-                        <p className="text-xs text-red-700 mt-0.5">
-                          Appliquées à partir du 4ème jour
-                        </p>
-                      </div>
-                    )}
-                    {!latePaymentInfo.hasPenalty && (
-                      <p className="text-xs text-orange-700 mt-1">
-                        ⚠️ Période de tolérance (jours 1-3)
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <Alert className={latePaymentInfo.hasPenalty
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-orange-300 bg-orange-50'
+                }>
+                <AlertCircle className={`h-4 w-4 ${latePaymentInfo.hasPenalty ? 'text-red-600' : 'text-orange-600'}`} />
+                <AlertDescription className={latePaymentInfo.hasPenalty ? 'text-red-700' : 'text-orange-700'}>
+                  <strong>Paiement en retard</strong>
+                  <br />
+                  Ce paiement est effectué avec <strong>{latePaymentInfo.daysLate} jour(s) de retard</strong>
+                  {latePaymentInfo.hasPenalty && (
+                    <>
+                      <br />
+                      <strong className="text-red-900">Pénalités : {formatAmount(latePaymentInfo.penalty)} FCFA</strong>
+                      <br />
+                      <span className="text-xs">Appliquées à partir du 4ème jour</span>
+                    </>
+                  )}
+                  {!latePaymentInfo.hasPenalty && (
+                    <>
+                      <br />
+                      <span className="text-xs">⚠️ Période de tolérance (jours 1-3)</span>
+                    </>
+                  )}
+                </AlertDescription>
+              </Alert>
             )}
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <DialogFooter>
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
                 setShowPaymentModal(false)
                 setSelectedGroupMemberId('')
               }}
-              className="w-full sm:w-auto"
+              disabled={isPaying}
             >
               Annuler
             </Button>
             <Button
+              type="button"
               onClick={onPaymentSubmit}
               disabled={isPaying || !paymentAmount || !paymentTime || !paymentFile}
-              className="bg-[#234D65] hover:bg-[#2c5a73] text-white w-full sm:w-auto"
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
             >
-              {isPaying ? 'Enregistrement...' : 'Enregistrer'}
+              {isPaying ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Enregistrer le versement
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
