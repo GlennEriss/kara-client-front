@@ -56,6 +56,7 @@ const PAYMENT_MODE_LABELS = {
   mobicash: { label: 'Mobicash', icon: Banknote, color: 'text-blue-600', bg: 'bg-blue-100' },
   cash: { label: 'Espèce', icon: DollarSign, color: 'text-green-600', bg: 'bg-green-100' },
   bank_transfer: { label: 'Virement bancaire', icon: Building2, color: 'text-purple-600', bg: 'bg-purple-100' },
+  other: { label: 'Autre', icon: CreditCard, color: 'text-gray-600', bg: 'bg-gray-100' },
 }
 
 export default function PaymentReceiptCIModal({

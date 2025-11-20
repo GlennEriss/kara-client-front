@@ -49,6 +49,11 @@ const adminMenuItems = [
         url: routes.admin.caisseImprevue,
         icon: HeartHandshake,
     },
+    {
+        title: "Bienfaiteur",
+        url: routes.admin.bienfaiteur,
+        icon: HeartHandshake,
+    },
     /*{
         title: "Assurance",
         url: "/dashboard/insurance",
