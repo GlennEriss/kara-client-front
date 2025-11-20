@@ -693,12 +693,31 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const isContractCanceled = contract.status === 'CANCELED'
   const isContractFinished = contract.status === 'FINISHED'
   const isContractTerminated = isContractCanceled || isContractFinished
+  const headerStatusConfig = getContractStatusConfig(contract.status)
+  const HeaderStatusIcon = headerStatusConfig.icon
+  const headerBadges = (
+    <>
+      <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+        Contrat Journalier CI
+      </Badge>
+      <Badge className={`${headerStatusConfig.bg} ${headerStatusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+        <HeaderStatusIcon className="h-4 w-4" />
+        {headerStatusConfig.label}
+      </Badge>
+      {activeSupport && activeSupport.status === 'ACTIVE' && (
+        <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Support en cours
+        </Badge>
+      )}
+    </>
+  )
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
@@ -743,29 +762,13 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
             {/* Bouton Contact d'urgence */}
             <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} />
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-              Contrat Journalier CI
-            </Badge>
-            {(() => {
-              const statusConfig = getContractStatusConfig(contract.status)
-              const StatusIcon = statusConfig.icon
-              return (
-                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
-                  <StatusIcon className="h-4 w-4" />
-                  {statusConfig.label}
-                </Badge>
-              )
-            })()}
-            {/* Badge Support Actif */}
-            {activeSupport && activeSupport.status === 'ACTIVE' && (
-              <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Support en cours
-              </Badge>
-            )}
+
+          <div className="hidden lg:flex flex-wrap gap-2">
+            {headerBadges}
           </div>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:hidden">
+          {headerBadges}
         </div>
 
         {/* Titre principal */}
