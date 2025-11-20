@@ -11,6 +11,7 @@ import { deleteObject, ref } from '@/firebase/storage'
 import { getStorageInstance } from '@/firebase/storage'
 import type { GroupPaymentContribution } from './types'
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import type { PaymentMode } from '@/types/types'
 
 // Fonction utilitaire pour générer un ID de contribution personnalisé
 function generateContributionId(memberId: string, paidAt: Date): string {
@@ -185,7 +186,7 @@ export async function subscribe(input: {
   return id
 }
 
-export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' }) {
+export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   const settings = await getActiveSettings((contract as any).caisseType)
@@ -565,7 +566,7 @@ export async function updatePaymentContribution(input: {
   updates: {
     amount?: number
     time?: string
-    mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+    mode?: PaymentMode
     proofFile?: File
     memberId?: string
   }
@@ -721,7 +722,7 @@ export async function payGroup(input: {
   file?: File; 
   paidAt?: Date; 
   time: string; 
-  mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' 
+  mode: PaymentMode 
 }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
