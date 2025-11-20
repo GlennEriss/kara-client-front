@@ -157,7 +157,7 @@ export default function AddParticipantModal({ eventId, isOpen, onClose, allowedT
                     >
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={member.photoUrl || ''} />
+                          <AvatarImage src={member.photoURL || ''} />
                           <AvatarFallback>
                             {`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
                           </AvatarFallback>
