@@ -79,8 +79,6 @@ export interface CaissePayment {
   groupContributions?: GroupPaymentContribution[]
 }
 
-import type { PaymentMode } from '@/types/types'
-
 export interface GroupPaymentContribution {
   id: string
   memberId: string
