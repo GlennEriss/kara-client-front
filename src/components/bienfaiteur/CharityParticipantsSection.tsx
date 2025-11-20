@@ -74,7 +74,7 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
     <div className="space-y-6">
       {/* Filtres et actions */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -86,7 +86,7 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant={typeFilter === 'all' ? 'default' : 'outline'}
                 onClick={() => setTypeFilter('all')}
@@ -105,12 +105,17 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
               >
                 Groupes
               </Button>
-
-              <Button onClick={() => setIsAddOpen(true)} className="bg-[#234D65] hover:bg-[#2c5a73]">
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter
-              </Button>
             </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:justify-end">
+            <Button
+              onClick={() => setIsAddOpen(true)}
+              className="bg-[#234D65] hover:bg-[#2c5a73] w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Ajouter
+            </Button>
           </div>
         </CardContent>
       </Card>
