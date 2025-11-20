@@ -183,7 +183,7 @@ export default function StandardContract({ id }: Props) {
   const headerBadges = (
     <>
       <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-        {isGroupContract ? 'Contrat de Groupe' : 'Contrat Standard'}
+        Contrat Standard
       </Badge>
       <Badge className={`${headerStatusConfig.bg} ${headerStatusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
         <HeaderStatusIcon className="h-4 w-4" />
@@ -210,7 +210,7 @@ export default function StandardContract({ id }: Props) {
 
   // Récupérer les paramètres de caisse
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
-  
+
   // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
   const currentBonus = data.bonusAccrued || 0
 
@@ -278,7 +278,7 @@ export default function StandardContract({ id }: Props) {
 
   const handleMonthClick = (monthIndex: number, payment: any) => {
     setSelectedMonthIndex(monthIndex)
-    
+
     // Si le paiement est déjà effectué, afficher la facture
     if (payment.status === 'PAID') {
       setSelectedPayment(payment)
@@ -293,11 +293,11 @@ export default function StandardContract({ id }: Props) {
     if (selectedMonthIndex === null) return
 
     try {
-      await pay({ 
-      contractId: id,
-        dueMonthIndex: selectedMonthIndex, 
-        memberId: data.memberId, 
-        amount: paymentData.amount, 
+      await pay({
+        contractId: id,
+        dueMonthIndex: selectedMonthIndex,
+        memberId: data.memberId,
+        amount: paymentData.amount,
         file: paymentData.proofFile,
         paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
         time: paymentData.time,
@@ -305,7 +305,7 @@ export default function StandardContract({ id }: Props) {
       })
       await refetch()
       toast.success('Contribution enregistrée')
-      
+
       setShowPaymentModal(false)
       setSelectedMonthIndex(null)
     } catch (error) {
@@ -328,7 +328,7 @@ export default function StandardContract({ id }: Props) {
               <ArrowLeft className="h-4 w-4" />
               Retour à la liste
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={() => router.push(routes.admin.caisseSpecialeContractPayments(id))}
@@ -340,7 +340,7 @@ export default function StandardContract({ id }: Props) {
 
             <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
           </div>
-          
+
           <div className="hidden lg:flex flex-wrap gap-2">
             {headerBadges}
           </div>
@@ -367,25 +367,25 @@ export default function StandardContract({ id }: Props) {
           </CardHeader>
         </Card>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard icon={CreditCard} label="Montant mensuel" value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} accent="brand" />
-        <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
-        <StatCard icon={CheckCircle2} label="Nominal payé" value={`${formatAmount(data.nominalPaid || 0)} FCFA`} />
-        <StatCard icon={CalendarDays} label="Bonus" value={`${formatAmount(currentBonus)} FCFA`} accent="emerald" />
-        <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} accent="red" />
-        <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
-      </div>
+        {/* Stats */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <StatCard icon={CreditCard} label="Montant mensuel" value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} accent="brand" />
+          <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
+          <StatCard icon={CheckCircle2} label="Nominal payé" value={`${formatAmount(data.nominalPaid || 0)} FCFA`} />
+          <StatCard icon={CalendarDays} label="Bonus" value={`${formatAmount(currentBonus)} FCFA`} accent="emerald" />
+          <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} accent="red" />
+          <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
+        </div>
 
-      {/* Outils de test (DEV uniquement) */}
-      <TestPaymentTools 
-        contractId={id}
-        contractData={data}
-        onPaymentSuccess={async () => {
-          await refetch()
-          await reloadRefunds() // Rafraîchir la liste des remboursements
-        }}
-      />
+        {/* Outils de test (DEV uniquement) */}
+        <TestPaymentTools
+          contractId={id}
+          contractData={data}
+          onPaymentSuccess={async () => {
+            await refetch()
+            await reloadRefunds() // Rafraîchir la liste des remboursements
+          }}
+        />
         {/* Échéancier de Paiement */}
         <Card className="border-0 shadow-xl">
           <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
@@ -396,18 +396,18 @@ export default function StandardContract({ id }: Props) {
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {payments.map((p: any) => {
-            let badge: React.ReactNode = null
-            if (p.status === "DUE" && p.dueAt) {
-              const now = new Date()
-              const due = new Date(p.dueAt)
-              const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
-              if (days > 12) badge = <BadgeShadcn variant="destructive">{">"}J+12</BadgeShadcn>
-              else if (days >= 4) badge = <BadgeShadcn variant="secondary">J+4..J+12</BadgeShadcn>
-              else if (days >= 0) badge = <BadgeShadcn variant="secondary">J+0..J+3</BadgeShadcn>
-            }
+              {payments.map((p: any) => {
+                let badge: React.ReactNode = null
+                if (p.status === "DUE" && p.dueAt) {
+                  const now = new Date()
+                  const due = new Date(p.dueAt)
+                  const days = Math.floor((now.getTime() - due.getTime()) / 86400000)
+                  if (days > 12) badge = <BadgeShadcn variant="destructive">{">"}J+12</BadgeShadcn>
+                  else if (days >= 4) badge = <BadgeShadcn variant="secondary">J+4..J+12</BadgeShadcn>
+                  else if (days >= 0) badge = <BadgeShadcn variant="secondary">J+0..J+3</BadgeShadcn>
+                }
 
-            const isSelectable = p.status === "DUE" && !isClosed && p.dueMonthIndex === nextDueMonthIndex
+                const isSelectable = p.status === "DUE" && !isClosed && p.dueMonthIndex === nextDueMonthIndex
                 const isDisabled = isClosed && p.status !== 'PAID'
 
                 const getStatusConfig = (status: string) => {
@@ -426,36 +426,35 @@ export default function StandardContract({ id }: Props) {
                 const statusConfig = getStatusConfig(p.status)
                 const StatusIcon = statusConfig.icon
 
-            return (
+                return (
                   <Card
-                key={p.id}
-                    className={`transition-all duration-300 border-2 ${
-                      isDisabled
+                    key={p.id}
+                    className={`transition-all duration-300 border-2 ${isDisabled
                         ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
-                        : p.status === 'PAID' 
-                        ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1' 
-                        : isSelectable
-                        ? 'border-blue-200 bg-blue-50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
-                        : 'border-gray-200 hover:border-[#224D62] cursor-pointer hover:shadow-lg hover:-translate-y-1'
-                    }`}
+                        : p.status === 'PAID'
+                          ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                          : isSelectable
+                            ? 'border-blue-200 bg-blue-50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                            : 'border-gray-200 hover:border-[#224D62] cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                      }`}
                     onClick={() => (isSelectable || p.status === 'PAID') && !isDisabled && handleMonthClick(p.dueMonthIndex, p)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <div className="bg-[#224D62] text-white rounded-lg px-3 py-1 text-sm font-bold">
-                    M{p.dueMonthIndex + 1}
-                  </div>
-                    {badge}
+                            M{p.dueMonthIndex + 1}
+                          </div>
+                          {badge}
                         </div>
                         <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
                           <StatusIcon className="h-3 w-3 mr-1" />
-                      {p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" : 
-                        p.status === "DUE" ? "À payer" : 
-                        p.status === "PAID" ? "Payé" : 
-                        p.status === "REFUSED" ? "Refusé" : p.status}
+                          {p.status === "DUE" && p.dueMonthIndex !== nextDueMonthIndex ? "À venir" :
+                            p.status === "DUE" ? "À payer" :
+                              p.status === "PAID" ? "Payé" :
+                                p.status === "REFUSED" ? "Refusé" : p.status}
                         </Badge>
-                  </div>
+                      </div>
 
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
@@ -463,14 +462,14 @@ export default function StandardContract({ id }: Props) {
                           <span className="font-semibold text-gray-900">
                             {p.dueAt ? new Date(p.dueAt).toLocaleDateString("fr-FR") : "—"}
                           </span>
-                </div>
+                        </div>
 
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Payé le:</span>
                           <span className="font-semibold text-green-600">
                             {p.paidAt ? new Date(p.paidAt).toLocaleDateString("fr-FR") : "—"}
                           </span>
-            </div>
+                        </div>
 
                         {p.penaltyApplied && (
                           <div className="flex items-center justify-between text-sm text-red-600 font-medium">
@@ -481,28 +480,28 @@ export default function StandardContract({ id }: Props) {
                       </div>
 
                       {!isDisabled && (isSelectable || p.status === 'PAID') && (
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
-                      {isSelectable ? (
-                        <span>Cliquez pour payer</span>
-                      ) : p.status === 'PAID' ? (
-                        <span>Cliquez pour voir la facture</span>
-                      ) : null}
-                    </div>
-                         </div>
-                       )}
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-center gap-2 text-sm text-[#234D65] font-medium">
+                            {isSelectable ? (
+                              <span>Cliquez pour payer</span>
+                            ) : p.status === 'PAID' ? (
+                              <span>Cliquez pour voir la facture</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
-            )
-          })}
-                   </div>
+                )
+              })}
+            </div>
 
             {/* Information */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-700">
                 <strong>ℹ️ Information :</strong> Cliquez sur un mois pour enregistrer un versement.
               </p>
-                 </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -533,342 +532,342 @@ export default function StandardContract({ id }: Props) {
         />
 
 
-      {/* Section Remboursements */}
-      <Card className="border-0 shadow-xl">
-        <CardHeader className="bg-gradient-to-r from-indigo-500 to-indigo-600">
-          <CardTitle className="flex items-center gap-2 text-white">
-            <RefreshCw className="h-5 w-5" />
-            Remboursements
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          {(() => {
-            const paidCountLocal = payments.filter((x: any) => x.status === "PAID").length
-            const allPaid = payments.length > 0 && paidCountLocal === payments.length
-            const canEarly = paidCountLocal >= 1 && !allPaid
-            const hasFinalRefund = refunds.some((r: any) => r.type === "FINAL" && r.status !== "ARCHIVED") ||
-              data.status === "FINAL_REFUND_PENDING" ||
-              data.status === "CLOSED"
-            const hasEarlyRefund = refunds.some((r: any) => r.type === "EARLY" && r.status !== "ARCHIVED") ||
-              data.status === "EARLY_REFUND_PENDING"
-            
-            // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
-            const hasActiveRefund = refunds.some((r: any) => 
-              (r.type === 'EARLY' || r.type === 'FINAL') && 
-              (r.status === 'PENDING' || r.status === 'APPROVED')
-            )
-            return (
-              <>
-                {/* Boutons d'action */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                  <Button
-                    variant="outline"
-                    className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                  disabled={isRefunding || !allPaid || hasFinalRefund}
-                  onClick={() => {
-                    setRefundType('FINAL')
-                    setRefundReasonInput('')
-                    setShowReasonModal(true)
-                  }}
-                >
-                    <TrendingUp className="h-5 w-5" />
-                  Demander remboursement final
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
-                  disabled={isRefunding || !canEarly || hasEarlyRefund}
-                  onClick={() => {
-                    setRefundType('EARLY')
-                    setRefundReasonInput('')
-                    setShowReasonModal(true)
-                  }}
-                >
-                    <Download className="h-5 w-5" />
-                  Demander retrait anticipé
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
-                    disabled={!hasActiveRefund}
-                  onClick={() => setShowRemboursementPdf(true)}
-                >
-                    <FileText className="h-5 w-5" />
-                  PDF Remboursement
-                  </Button>
-              </div>
+        {/* Section Remboursements */}
+        <Card className="border-0 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-indigo-500 to-indigo-600">
+            <CardTitle className="flex items-center gap-2 text-white">
+              <RefreshCw className="h-5 w-5" />
+              Remboursements
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            {(() => {
+              const paidCountLocal = payments.filter((x: any) => x.status === "PAID").length
+              const allPaid = payments.length > 0 && paidCountLocal === payments.length
+              const canEarly = paidCountLocal >= 1 && !allPaid
+              const hasFinalRefund = refunds.some((r: any) => r.type === "FINAL" && r.status !== "ARCHIVED") ||
+                data.status === "FINAL_REFUND_PENDING" ||
+                data.status === "CLOSED"
+              const hasEarlyRefund = refunds.some((r: any) => r.type === "EARLY" && r.status !== "ARCHIVED") ||
+                data.status === "EARLY_REFUND_PENDING"
 
-                {/* Liste des remboursements */}
-                <div className="grid grid-cols-1 gap-6">
-                  {refunds.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-                        <RefreshCw className="h-12 w-12 text-gray-400" />
-        </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun remboursement</h3>
-                      <p className="text-gray-600">Aucune demande de remboursement n'a été effectuée</p>
-                    </div>
-                  ) : (
-                    refunds.map((r: any) => {
-                      const getRefundStatusConfig = (status: string) => {
-                        switch (status) {
-                          case 'PENDING':
-                            return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
-                          case 'APPROVED':
-                            return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle2 }
-                          case 'PAID':
-                            return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle2 }
-                          default:
-                            return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: X }
-                        }
-                      }
-
-                      const statusConfig = getRefundStatusConfig(r.status)
-                      const StatusIcon = statusConfig.icon
-
-                      return (
-                        <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="bg-indigo-100 rounded-lg p-2">
-                                <RefreshCw className="h-5 w-5 text-indigo-600" />
-                              </div>
-                              <div>
-                                <h3 className="font-semibold text-gray-900">
-                                  {r.type === 'FINAL' ? 'Remboursement Final' : r.type === 'EARLY' ? 'Retrait Anticipé' : 'Remboursement par Défaut'}
-                                </h3>
-                                <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
-                                  <StatusIcon className="h-3 w-3 mr-1" />
-                                  {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
-                </Badge>
-              </div>
-                </div>
-              </div>
-
-                          <div className="space-y-3 mb-4">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Montant nominal:</span>
-                              <span className="font-semibold">{formatAmount(r.amountNominal || 0)} FCFA</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Bonus:</span>
-                              <span className="font-semibold">{formatAmount(r.amountBonus || 0)} FCFA</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Échéance:</span>
-                              <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
-                            </div>
-                          </div>
-
-                {r.status === "PENDING" && (
-                            <div className="space-y-2">
-                              {/* Première ligne : Approbation et Document de remboursement */}
-                  <div className="flex flex-col sm:flex-row gap-2">
-                                <Button
-                                  variant="outline"
-                                  className="flex-1"
-                      onClick={() => setConfirmApproveId(r.id)}
-                      disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
+              // Vérifier si une demande de retrait anticipé ou remboursement final est active (PENDING ou APPROVED)
+              const hasActiveRefund = refunds.some((r: any) =>
+                (r.type === 'EARLY' || r.type === 'FINAL') &&
+                (r.status === 'PENDING' || r.status === 'APPROVED')
+              )
+              return (
+                <>
+                  {/* Boutons d'action */}
+                  <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                    <Button
+                      variant="outline"
+                      className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                      disabled={isRefunding || !allPaid || hasFinalRefund}
+                      onClick={() => {
+                        setRefundType('FINAL')
+                        setRefundReasonInput('')
+                        setShowReasonModal(true)
+                      }}
                     >
-                      Approuver
-                                </Button>
-                    {(r.type === "FINAL" || r.type === "EARLY") && (
+                      <TrendingUp className="h-5 w-5" />
+                      Demander remboursement final
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center justify-center gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+                      disabled={isRefunding || !canEarly || hasEarlyRefund}
+                      onClick={() => {
+                        setRefundType('EARLY')
+                        setRefundReasonInput('')
+                        setShowReasonModal(true)
+                      }}
+                    >
+                      <Download className="h-5 w-5" />
+                      Demander retrait anticipé
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center justify-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                      disabled={!hasActiveRefund}
+                      onClick={() => setShowRemboursementPdf(true)}
+                    >
+                      <FileText className="h-5 w-5" />
+                      PDF Remboursement
+                    </Button>
+                  </div>
+
+                  {/* Liste des remboursements */}
+                  <div className="grid grid-cols-1 gap-6">
+                    {refunds.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                          <RefreshCw className="h-12 w-12 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun remboursement</h3>
+                        <p className="text-gray-600">Aucune demande de remboursement n'a été effectuée</p>
+                      </div>
+                    ) : (
+                      refunds.map((r: any) => {
+                        const getRefundStatusConfig = (status: string) => {
+                          switch (status) {
+                            case 'PENDING':
+                              return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock }
+                            case 'APPROVED':
+                              return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: CheckCircle2 }
+                            case 'PAID':
+                              return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle2 }
+                            default:
+                              return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: X }
+                          }
+                        }
+
+                        const statusConfig = getRefundStatusConfig(r.status)
+                        const StatusIcon = statusConfig.icon
+
+                        return (
+                          <div key={r.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-indigo-100 rounded-lg p-2">
+                                  <RefreshCw className="h-5 w-5 text-indigo-600" />
+                                </div>
+                                <div>
+                                  <h3 className="font-semibold text-gray-900">
+                                    {r.type === 'FINAL' ? 'Remboursement Final' : r.type === 'EARLY' ? 'Retrait Anticipé' : 'Remboursement par Défaut'}
+                                  </h3>
+                                  <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border mt-1`}>
+                                    <StatusIcon className="h-3 w-3 mr-1" />
+                                    {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3 mb-4">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Montant nominal:</span>
+                                <span className="font-semibold">{formatAmount(r.amountNominal || 0)} FCFA</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Bonus:</span>
+                                <span className="font-semibold">{formatAmount(r.amountBonus || 0)} FCFA</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Échéance:</span>
+                                <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
+                              </div>
+                            </div>
+
+                            {r.status === "PENDING" && (
+                              <div className="space-y-2">
+                                {/* Première ligne : Approbation et Document de remboursement */}
+                                <div className="flex flex-col sm:flex-row gap-2">
                                   <Button
                                     variant="outline"
-                                    className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
-                          onClick={() => setShowRemboursementPdf(true)}
-                        >
-                          <FileText className="h-4 w-4" />
-                          Document de remboursement
+                                    className="flex-1"
+                                    onClick={() => setConfirmApproveId(r.id)}
+                                    disabled={(r.type === "FINAL" && !r.document) || (r.type === "EARLY" && !r.document)}
+                                  >
+                                    Approuver
                                   </Button>
-                                )}
-                              </div>
+                                  {(r.type === "FINAL" || r.type === "EARLY") && (
+                                    <Button
+                                      variant="outline"
+                                      className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
+                                      onClick={() => setShowRemboursementPdf(true)}
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                      Document de remboursement
+                                    </Button>
+                                  )}
+                                </div>
 
-                              {/* Deuxième ligne : Actions sur le PDF */}
-                              {(r.type === "FINAL" || r.type === "EARLY") && (
-                                <div className="flex flex-col sm:flex-row gap-2">
-                        {r.document ? (
-                                    <>
-                                      <Button
-                                        variant="outline"
-                                        className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
-                              onClick={() => handleViewDocument(r.id, r.document)}
-                            >
-                              <Eye className="h-4 w-4" />
-                              Voir PDF
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        className="flex-1 border-blue-300 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
-                              onClick={() => handleOpenPdfModal(r.id)}
-                            >
-                              <FileText className="h-4 w-4" />
-                              Remplacer PDF
-                                      </Button>
+                                {/* Deuxième ligne : Actions sur le PDF */}
+                                {(r.type === "FINAL" || r.type === "EARLY") && (
+                                  <div className="flex flex-col sm:flex-row gap-2">
+                                    {r.document ? (
+                                      <>
+                                        <Button
+                                          variant="outline"
+                                          className="flex-1 border-green-300 text-green-600 hover:bg-green-50 flex items-center justify-center gap-2"
+                                          onClick={() => handleViewDocument(r.id, r.document)}
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                          Voir PDF
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          className="flex-1 border-blue-300 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
+                                          onClick={() => handleOpenPdfModal(r.id)}
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                          Remplacer PDF
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          className="flex-1 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+                                          onClick={() => setConfirmDeleteDocumentId(r.id)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                          Supprimer PDF
+                                        </Button>
+                                      </>
+                                    ) : (
                                       <Button
                                         variant="outline"
                                         className="flex-1 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
-                              onClick={() => setConfirmDeleteDocumentId(r.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Supprimer PDF
+                                        onClick={() => handleOpenPdfModal(r.id)}
+                                      >
+                                        <FileText className="h-4 w-4" />
+                                        Ajouter PDF
                                       </Button>
-                                    </>
-                        ) : (
-                                    <Button
-                                      variant="outline"
-                                      className="flex-1 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
-                            onClick={() => handleOpenPdfModal(r.id)}
-                          >
-                            <FileText className="h-4 w-4" />
-                            Ajouter PDF
-                                    </Button>
-                        )}
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Troisième ligne : Annulation (si applicable) */}
+                                {r.type === "EARLY" && !r.document && (
+                                  <Button
+                                    variant="outline"
+                                    className="w-full border-red-300 text-red-600 hover:bg-red-50"
+                                    onClick={async () => {
+                                      try {
+                                        await cancelEarlyRefund(id, r.id)
+                                        await refetch()
+                                        await reloadRefunds() // Rafraîchir la liste des remboursements
+                                        toast.success("Demande anticipée annulée")
+                                      } catch (e: any) {
+                                        toast.error(e?.message || "Annulation impossible")
+                                      }
+                                    }}
+                                  >
+                                    Annuler la demande
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+
+                            {r.status === "APPROVED" && (
+                              <div className="space-y-4">
+                                {/* Affichage de la cause (non modifiable) */}
+                                {r.reason && (
+                                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
+                                    <p className="text-sm text-blue-900">{r.reason}</p>
+                                  </div>
+                                )}
+
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
+                                    <input
+                                      type="date"
+                                      value={refundDate}
+                                      onChange={(e) => setRefundDate(e.target.value)}
+                                      className="w-full rounded-lg border p-2 text-xs"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-slate-600">Heure du retrait *</label>
+                                    <input
+                                      type="time"
+                                      value={refundTime}
+                                      onChange={(e) => setRefundTime(e.target.value)}
+                                      className="w-full rounded-lg border p-2 text-xs"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={async (e) => {
+                                        const f = e.target.files?.[0]
+                                        if (!f) {
+                                          setRefundFile(undefined)
+                                          return
+                                        }
+                                        if (!f.type.startsWith("image/")) {
+                                          toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
+                                          setRefundFile(undefined)
+                                          return
+                                        }
+                                        setRefundFile(f)
+                                        toast.success("Preuve PDF sélectionnée")
+                                      }}
+                                      className="w-full rounded-lg border p-2 text-xs"
+                                      required
+                                    />
+                                  </div>
                                 </div>
-                    )}
-
-                              {/* Troisième ligne : Annulation (si applicable) */}
-                    {r.type === "EARLY" && !r.document && (
                                 <Button
-                                  variant="outline"
-                                  className="w-full border-red-300 text-red-600 hover:bg-red-50"
-                        onClick={async () => {
-                          try {
-                            await cancelEarlyRefund(id, r.id)
-                            await refetch()
-                            await reloadRefunds() // Rafraîchir la liste des remboursements
-                            toast.success("Demande anticipée annulée")
-                          } catch (e: any) {
-                            toast.error(e?.message || "Annulation impossible")
-                          }
-                        }}
-                      >
-                                  Annuler la demande
+                                  className={classNames(
+                                    "w-full inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white",
+                                    brand.bg,
+                                    brand.hover,
+                                    "disabled:opacity-50"
+                                  )}
+                                  disabled={(() => {
+                                    const hasFile = !!refundFile
+                                    const hasDate = refundDate || r.withdrawalDate
+                                    const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
+                                    return !hasFile || !hasDate || !hasTime
+                                  })()}
+                                  onClick={async () => {
+                                    try {
+                                      const normalizeDate = (dateValue: any): string | null => {
+                                        if (!dateValue) return null
+                                        try {
+                                          let date: Date
+                                          if (dateValue && typeof dateValue.toDate === "function") {
+                                            date = dateValue.toDate()
+                                          } else if (dateValue instanceof Date) {
+                                            date = dateValue
+                                          } else if (typeof dateValue === "string") {
+                                            date = new Date(dateValue)
+                                          } else {
+                                            date = new Date(dateValue)
+                                          }
+                                          return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0]
+                                        } catch {
+                                          return null
+                                        }
+                                      }
+
+                                      await markRefundPaid(id, r.id, refundFile!, {
+                                        reason: r.reason,
+                                        withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
+                                        withdrawalTime: refundTime || r.withdrawalTime,
+                                      })
+                                      setRefundDate("")
+                                      setRefundTime("")
+                                      setRefundFile(undefined)
+                                      setConfirmPaidId(null)
+                                      await refetch()
+                                      await reloadRefunds() // Rafraîchir la liste des remboursements
+                                      toast.success("Remboursement marqué payé")
+                                    } catch (error: any) {
+                                      toast.error(error?.message || "Erreur lors du marquage")
+                                    }
+                                  }}
+                                >
+                                  <FileText className="h-4 w-4" /> Marquer payé
                                 </Button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })
                     )}
                   </div>
-                )}
-
-                {r.status === "APPROVED" && (
-                            <div className="space-y-4">
-                    {/* Affichage de la cause (non modifiable) */}
-                    {r.reason && (
-                                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <label className="block text-xs text-blue-700 font-medium mb-1">Cause du retrait:</label>
-                        <p className="text-sm text-blue-900">{r.reason}</p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Date du retrait *</label>
-                        <input
-                          type="date"
-                          value={refundDate}
-                          onChange={(e) => setRefundDate(e.target.value)}
-                          className="w-full rounded-lg border p-2 text-xs"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Heure du retrait *</label>
-                        <input
-                          type="time"
-                          value={refundTime}
-                          onChange={(e) => setRefundTime(e.target.value)}
-                          className="w-full rounded-lg border p-2 text-xs"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs text-slate-600">Preuve du retrait *</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e) => {
-                            const f = e.target.files?.[0]
-                            if (!f) {
-                              setRefundFile(undefined)
-                              return
-                            }
-                            if (!f.type.startsWith("image/")) {
-                              toast.error("La preuve doit être une image (JPG, PNG, WebP...)")
-                              setRefundFile(undefined)
-                              return
-                            }
-                            setRefundFile(f)
-                            toast.success("Preuve PDF sélectionnée")
-                          }}
-                          className="w-full rounded-lg border p-2 text-xs"
-                          required
-                        />
-                      </div>
-                    </div>
-                              <Button
-                      className={classNames(
-                                  "w-full inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white",
-                        brand.bg,
-                        brand.hover,
-                        "disabled:opacity-50"
-                      )}
-                      disabled={(() => {
-                        const hasFile = !!refundFile
-                        const hasDate = refundDate || r.withdrawalDate
-                        const hasTime = (refundTime && refundTime.trim()) || (r.withdrawalTime && r.withdrawalTime.trim() && r.withdrawalTime !== "--:--")
-                        return !hasFile || !hasDate || !hasTime
-                      })()}
-                      onClick={async () => {
-                        try {
-                          const normalizeDate = (dateValue: any): string | null => {
-                            if (!dateValue) return null
-                            try {
-                              let date: Date
-                              if (dateValue && typeof dateValue.toDate === "function") {
-                                date = dateValue.toDate()
-                              } else if (dateValue instanceof Date) {
-                                date = dateValue
-                              } else if (typeof dateValue === "string") {
-                                date = new Date(dateValue)
-                              } else {
-                                date = new Date(dateValue)
-                              }
-                              return isNaN(date.getTime()) ? null : date.toISOString().split("T")[0]
-                            } catch {
-                              return null
-                            }
-                          }
-
-                          await markRefundPaid(id, r.id, refundFile!, {
-                            reason: r.reason,
-                            withdrawalDate: refundDate || normalizeDate(r.withdrawalDate) || undefined,
-                            withdrawalTime: refundTime || r.withdrawalTime,
-                          })
-                          setRefundDate("")
-                          setRefundTime("")
-                          setRefundFile(undefined)
-                          setConfirmPaidId(null)
-                          await refetch()
-                          await reloadRefunds() // Rafraîchir la liste des remboursements
-                          toast.success("Remboursement marqué payé")
-                        } catch (error: any) {
-                          toast.error(error?.message || "Erreur lors du marquage")
-                        }
-                      }}
-                    >
-                      <FileText className="h-4 w-4" /> Marquer payé
-                              </Button>
-                  </div>
-                )}
-              </div>
-                      )
-                    })
-          )}
-        </div>
-              </>
-            )
-          })()}
-        </CardContent>
-      </Card>
+                </>
+              )
+            })()}
+          </CardContent>
+        </Card>
       </div>
       {/* Modales */}
       {/* Modale de saisie de la cause du retrait */}
@@ -895,8 +894,8 @@ export default function StandardContract({ id }: Props) {
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <button 
-                className="rounded-lg border px-4 py-2 text-sm" 
+              <button
+                className="rounded-lg border px-4 py-2 text-sm"
                 onClick={() => {
                   setShowReasonModal(false)
                   setRefundType(null)
@@ -916,7 +915,7 @@ export default function StandardContract({ id }: Props) {
                 onClick={async () => {
                   try {
                     setIsRefunding(true)
-                    
+
                     if (refundType === 'FINAL') {
                       await requestFinalRefund(id, refundReasonInput)
                       toast.success('Remboursement final demandé')
@@ -931,7 +930,7 @@ export default function StandardContract({ id }: Props) {
                     setShowReasonModal(false)
                     setRefundType(null)
                     setRefundReasonInput('')
-                    
+
                     // Afficher le PDF de remboursement
                     setShowRemboursementPdf(true)
                   } catch (e: any) {
@@ -989,7 +988,7 @@ export default function StandardContract({ id }: Props) {
           description={currentRefund.type === 'FINAL' ? 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le remboursement final.' : 'Téléchargez le document PDF à remplir, puis téléversez-le une fois complété pour pouvoir approuver le retrait anticipé.'}
           documentType={currentRefund.type === 'FINAL' ? 'FINAL_REFUND_CS' : 'EARLY_REFUND_CS'}
           memberId={documentMemberId}
-            documentLabel={`${currentRefund?.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
+          documentLabel={`${currentRefund?.type === 'FINAL' ? 'Remboursement final' : 'Retrait anticipé'} - Contrat ${id}`}
         />
       )}
 
