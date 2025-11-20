@@ -221,124 +221,241 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
             </div>
           ) : paginatedContributions.length > 0 ? (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Contributeur</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Montant / Description</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedContributions.map((contribution) => {
-                    const referenceDate = 
-                      contribution.contributionDate || 
-                      contribution.payment?.date || 
-                      contribution.createdAt || 
-                      contribution.updatedAt
-                    const paymentMethod = contribution.payment?.mode
-                    return (
-                      <TableRow key={contribution.id}>
-                        <TableCell className="font-medium">
-                          {formatDateSafe(referenceDate)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {contribution.participant?.photoURL && (
-                              <img 
-                                src={contribution.participant.photoURL} 
+              {/* Vue mobile en cartes */}
+              <div className="md:hidden divide-y">
+                {paginatedContributions.map((contribution) => {
+                  const referenceDate = 
+                    contribution.contributionDate || 
+                    contribution.payment?.date || 
+                    contribution.createdAt || 
+                    contribution.updatedAt
+                  const paymentMethod = contribution.payment?.mode
+
+                  return (
+                    <div key={contribution.id} className="p-4 space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs text-gray-500">{formatDateSafe(referenceDate)}</p>
+                          <div className="mt-2 flex items-center gap-3">
+                            {contribution.participant?.photoURL ? (
+                              <img
+                                src={contribution.participant.photoURL}
                                 alt={contribution.participant.name}
-                                className="w-8 h-8 rounded-full object-cover"
+                                className="w-12 h-12 rounded-full object-cover"
                               />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-sm text-gray-500">
+                                {contribution.participant?.name?.[0] || 'C'}
+                              </div>
                             )}
                             <div>
-                              <div className="font-medium">
+                              <p className="font-semibold">
                                 {contribution.participant?.name || 'Contributeur inconnu'}
-                              </div>
+                              </p>
                               {contribution.participant?.type === 'member' && contribution.participant?.groupName && (
-                                <div className="text-xs text-gray-500">
-                                  {contribution.participant.groupName}
-                                </div>
+                                <p className="text-xs text-gray-500">{contribution.participant.groupName}</p>
                               )}
                               {contribution.participant?.type === 'group' && (
-                                <div className="text-xs text-gray-500">
-                                  Groupe
-                                </div>
+                                <p className="text-xs text-gray-500">Groupe</p>
                               )}
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={contribution.contributionType === 'money' ? 'default' : 'secondary'}>
-                            {contribution.contributionType === 'money' ? 'Espèces' : 'En nature'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {contribution.contributionType === 'money' ? (
-                            <div>
-                              <div className="font-medium">
-                                {contribution.payment?.amount 
-                                  ? `${contribution.payment.amount.toLocaleString()} FCFA`
-                                  : '0 FCFA'
-                                }
+                        </div>
+                        {getStatusBadge(contribution.status)}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={contribution.contributionType === 'money' ? 'default' : 'secondary'}>
+                          {contribution.contributionType === 'money' ? 'Espèces' : 'En nature'}
+                        </Badge>
+                        {paymentMethod && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full capitalize">
+                            {paymentMethod.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="rounded-lg bg-gray-50 p-3 space-y-1">
+                        {contribution.contributionType === 'money' ? (
+                          <>
+                            <p className="text-lg font-semibold text-[#234D65]">
+                              {contribution.payment?.amount ? `${contribution.payment.amount.toLocaleString()} FCFA` : '0 FCFA'}
+                            </p>
+                            {contribution.notes && (
+                              <p className="text-sm text-gray-600">{contribution.notes}</p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-medium text-gray-800">
+                              {contribution.inKindDescription || 'Description non fournie'}
+                            </p>
+                            {contribution.estimatedValue && (
+                              <p className="text-sm text-gray-500">
+                                Valeur estimée&nbsp;: ~{contribution.estimatedValue.toLocaleString()} FCFA
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {contribution.proofUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewProof(contribution.id)}
+                            className="flex-1"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Preuve
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleGenerateReceipt(contribution.id)}
+                          className="flex-1"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Reçu
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(contribution.id)}
+                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Vue desktop en tableau */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Contributeur</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Montant / Description</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedContributions.map((contribution) => {
+                      const referenceDate = 
+                        contribution.contributionDate || 
+                        contribution.payment?.date || 
+                        contribution.createdAt || 
+                        contribution.updatedAt
+                      const paymentMethod = contribution.payment?.mode
+                      return (
+                        <TableRow key={contribution.id}>
+                          <TableCell className="font-medium">
+                            {formatDateSafe(referenceDate)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {contribution.participant?.photoURL && (
+                                <img 
+                                  src={contribution.participant.photoURL} 
+                                  alt={contribution.participant.name}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              )}
+                              <div>
+                                <div className="font-medium">
+                                  {contribution.participant?.name || 'Contributeur inconnu'}
+                                </div>
+                                {contribution.participant?.type === 'member' && contribution.participant?.groupName && (
+                                  <div className="text-xs text-gray-500">
+                                    {contribution.participant.groupName}
+                                  </div>
+                                )}
+                                {contribution.participant?.type === 'group' && (
+                                  <div className="text-xs text-gray-500">
+                                    Groupe
+                                  </div>
+                                )}
                               </div>
-                              {paymentMethod && (
-                                <div className="text-xs text-gray-500">
-                                  {paymentMethod}
-                                </div>
-                              )}
                             </div>
-                          ) : (
-                            <div>
-                              <div className="text-sm">{contribution.inKindDescription || 'Description non fournie'}</div>
-                              {contribution.estimatedValue && contribution.estimatedValue > 0 && (
-                                <div className="text-xs text-gray-500">
-                                  ~{contribution.estimatedValue.toLocaleString()} FCFA
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={contribution.contributionType === 'money' ? 'default' : 'secondary'}>
+                              {contribution.contributionType === 'money' ? 'Espèces' : 'En nature'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {contribution.contributionType === 'money' ? (
+                              <div>
+                                <div className="font-medium">
+                                  {contribution.payment?.amount 
+                                    ? `${contribution.payment.amount.toLocaleString()} FCFA`
+                                    : '0 FCFA'
+                                  }
                                 </div>
+                                {paymentMethod && (
+                                  <div className="text-xs text-gray-500">
+                                    {paymentMethod}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="text-sm">{contribution.inKindDescription || 'Description non fournie'}</div>
+                                {contribution.estimatedValue && contribution.estimatedValue > 0 && (
+                                  <div className="text-xs text-gray-500">
+                                    ~{contribution.estimatedValue.toLocaleString()} FCFA
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(contribution.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              {contribution.proofUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewProof(contribution.id)}
+                                  title="Voir la preuve"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
                               )}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(contribution.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            {contribution.proofUrl && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleViewProof(contribution.id)}
-                                title="Voir la preuve"
+                                onClick={() => handleGenerateReceipt(contribution.id)}
+                                title="Télécharger le reçu"
                               >
-                                <Eye className="w-4 h-4" />
+                                <FileText className="w-4 h-4" />
                               </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleGenerateReceipt(contribution.id)}
-                              title="Télécharger le reçu"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(contribution.id)}
-                              title="Supprimer"
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(contribution.id)}
+                                title="Supprimer"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
