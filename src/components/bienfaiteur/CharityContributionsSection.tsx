@@ -239,7 +239,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                       contribution.payment?.date || 
                       contribution.createdAt || 
                       contribution.updatedAt
-                    const paymentMethod = contribution.payment?.paymentMethod || contribution.payment?.mode
+                    const paymentMethod = contribution.payment?.mode
                     return (
                       <TableRow key={contribution.id}>
                         <TableCell className="font-medium">
