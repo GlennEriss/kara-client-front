@@ -37,6 +37,16 @@ const routes = {
         caisseImprevueContractDetails: (id: string) => `/caisse-imprevue/contrats/${id}`,
         caisseImprevueContractPayments: (id: string) => `/caisse-imprevue/contrats/${id}/versements`,
         caisseImprevueSettings: '/caisse-imprevue/settings',
+        // Bienfaiteur
+        bienfaiteur: '/bienfaiteur',
+        bienfaiteurList: '/bienfaiteur',
+        bienfaiteurCreate: '/bienfaiteur/create',
+        bienfaiteurDetails: (id: string) => `/bienfaiteur/${id}`,
+        bienfaiteurModify: (id: string) => `/bienfaiteur/${id}/modify`,
+        bienfaiteurContributions: (id: string) => `/bienfaiteur/${id}/contributions`,
+        bienfaiteurParticipants: (id: string) => `/bienfaiteur/${id}/participants`,
+        bienfaiteurGroups: (id: string) => `/bienfaiteur/${id}/groups`,
+        bienfaiteurMedia: (id: string) => `/bienfaiteur/${id}/media`,
     },
     member: {
         home: '/',
