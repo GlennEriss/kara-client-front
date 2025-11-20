@@ -29,6 +29,12 @@ const routeLabels: Record<string, string> = {
   '/caisse-speciale': 'Caisse Spéciale',
   '/caisse-speciale/contrats': 'Contrats',
   '/caisse-speciale/settings': 'Paramètres Caisse',
+  '/caisse-imprevue': 'Caisse Imprévue',
+  '/caisse-imprevue/create': 'Créer',
+  '/caisse-imprevue/contrats': 'Contrats',
+  '/caisse-imprevue/settings': 'Paramètres Caisse',
+  '/bienfaiteur': 'Bienfaiteur',
+  '/bienfaiteur/create': 'Créer',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -63,7 +69,20 @@ const getRouteLabel = (path: string): string => {
   if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+\/versements$/)) {
     return 'Versements'
   }
+  if (path.match(/^\/caisse-imprevue\/contrats\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/caisse-imprevue\/contrats\/[^\/]+\/versements$/)) {
+    return 'Versements'
+  }
+  if (path.match(/^\/bienfaiteur\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/bienfaiteur\/[^\/]+\/modify$/)) {
+    return 'Modifier'
+  }
 
+  
   // Vérifier les routes qui commencent par un pattern
   for (const [route, label] of Object.entries(routeLabels)) {
     if (path.startsWith(route + '/')) {
