@@ -52,6 +52,9 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   EARLY_REFUND_CS: 'Document de retrait anticipé Caisse Spéciale',
   FINAL_REFUND_CI: 'Document de remboursement final Caisse Imprévue',
   FINAL_REFUND_CS: 'Document de remboursement final Caisse Spéciale',
+  CHARITY_EVENT_MEDIA: 'Média d\'évènement Bienfaiteur',
+  CHARITY_CONTRIBUTION_RECEIPT: 'Reçu de contribution Bienfaiteur',
+  CHARITY_EVENT_REPORT: 'Rapport d\'évènement Bienfaiteur',
 }
 
 // Labels pour les formats
@@ -76,6 +79,9 @@ const DOCUMENT_TYPE_COLORS: Record<string, string> = {
   EARLY_REFUND_CI: 'bg-teal-100 text-teal-700',
   FINAL_REFUND_CS: 'bg-amber-100 text-amber-700',
   FINAL_REFUND_CI: 'bg-amber-100 text-amber-700',
+  CHARITY_EVENT_MEDIA: 'bg-pink-100 text-pink-700',
+  CHARITY_CONTRIBUTION_RECEIPT: 'bg-indigo-100 text-indigo-700',
+  CHARITY_EVENT_REPORT: 'bg-cyan-100 text-cyan-700',
 }
 
 export default function ContractsHistoryPage() {
