@@ -41,6 +41,7 @@ const PAYMENT_MODE_LABELS: Record<string, string> = {
   mobicash: 'Mobicash',
   cash: 'Espèce',
   bank_transfer: 'Virement bancaire',
+  other: 'Autre',
 }
 
 const PAYMENT_STATUS_LABELS = {

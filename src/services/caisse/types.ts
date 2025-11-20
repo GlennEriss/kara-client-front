@@ -1,4 +1,4 @@
-import { PaymentMode } from "@/types/types"
+import type { PaymentMode } from "@/types/types"
 
 export type CaisseType = 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
 export type CaisseContractStatus =
@@ -91,7 +91,7 @@ export interface GroupPaymentContribution {
   memberContacts?: string[]
   amount: number
   time: string
-  mode: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+  mode: PaymentMode
   proofUrl?: string
   penalty?: number // Montant de la pénalité pour cette contribution
   penaltyDays?: number // Nombre de jours de retard pour cette contribution
@@ -106,7 +106,7 @@ export interface IndividualPaymentContribution {
   paidAt: Date
   proofUrl?: string
   time?: string
-  mode?: 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+  mode?: PaymentMode
   memberId?: string
   memberName?: string
   memberPhotoURL?: string

@@ -129,7 +129,7 @@ export interface MembershipRequest extends RegisterFormData {
   priorityScore?: number
 }
 
-export type PaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+export type PaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
 export interface Payment {
   date: Date
   mode: PaymentMode
@@ -1124,6 +1124,9 @@ export type DocumentType =
   | 'FINAL_REFUND_CI'  // Document de remboursement final Caisse Imprévue
   | 'EARLY_REFUND_CS'  // Document de retrait anticipé Caisse Spéciale
   | 'FINAL_REFUND_CS'  // Document de remboursement final Caisse Spéciale
+  | 'CHARITY_EVENT_MEDIA'         // Média d'évènement Bienfaiteur
+  | 'CHARITY_CONTRIBUTION_RECEIPT' // Reçu de contribution Bienfaiteur
+  | 'CHARITY_EVENT_REPORT'         // Rapport d'évènement Bienfaiteur
 
 /**
  * Formats de documents possibles
@@ -1152,6 +1155,173 @@ export interface Document {
   updatedBy: string
   createdAt: Date
   updatedAt: Date
+}
+
+// ================== TYPES POUR LE MODULE BIENFAITEUR ==================
+
+/**
+ * Statuts possibles pour un évènement de charité
+ */
+export type CharityEventStatus = 'draft' | 'upcoming' | 'ongoing' | 'closed' | 'archived'
+
+/**
+ * Type pour un évènement de charité (récollection)
+ */
+export interface CharityEvent {
+  id: string
+  title: string
+  slug?: string
+  description: string
+  location: string
+  startDate: Date
+  endDate: Date
+  minContributionAmount?: number
+  targetAmount?: number
+  currency: string
+  coverPhotoUrl?: string | null
+  coverPhotoPath?: string | null
+  status: CharityEventStatus
+  isPublic?: boolean
+  totalCollectedAmount: number
+  totalContributionsCount: number
+  totalParticipantsCount: number
+  totalGroupsCount: number
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type de participant à un évènement de charité
+ */
+export type CharityParticipantType = 'member' | 'group'
+
+/**
+ * Participant à un évènement de charité
+ */
+export interface CharityParticipant {
+  id: string
+  eventId: string
+  participantType: CharityParticipantType
+  memberId?: string // User.id
+  groupId?: string  // Group.id
+  totalAmount: number
+  contributionsCount: number
+  lastContributionAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type de contribution à un évènement de charité
+ */
+export type CharityContributionType = 'money' | 'in_kind'
+
+/**
+ * Statut d'une contribution
+ */
+export type CharityContributionStatus = 'pending' | 'confirmed' | 'canceled'
+
+/**
+ * Contribution à un évènement de charité
+ */
+export interface CharityContribution {
+  id: string
+  eventId: string
+  participantId: string
+  contributionType: CharityContributionType
+  contributionDate?: Date
+  payment?: Payment & { paymentType: 'Charity' }
+  inKindDescription?: string
+  estimatedValue?: number
+  notes?: string
+  proofUrl?: string
+  proofPath?: string
+  proofType?: 'image' | 'pdf' | 'other'
+  receiptUrl?: string // PDF généré style CaisseImprevuePDF
+  receiptPath?: string
+  status: CharityContributionStatus
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+export type CharityContributionInput = Omit<
+  CharityContribution,
+  'id' | 'participantId' | 'eventId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'
+>
+
+/**
+ * Contribution enrichie avec les données du participant
+ */
+export interface EnrichedCharityContribution extends CharityContribution {
+  participant?: {
+    type: CharityParticipantType
+    name: string
+    groupName?: string
+    photoURL?: string
+  }
+}
+
+/**
+ * Type de média pour un évènement de charité
+ */
+export type CharityMediaType = 'photo' | 'video'
+
+/**
+ * Média lié à un évènement de charité
+ */
+export interface CharityMedia {
+  id: string
+  eventId: string
+  type: CharityMediaType
+  url: string
+  path: string
+  thumbnailUrl?: string
+  thumbnailPath?: string
+  title?: string
+  description?: string
+  takenAt?: Date
+  createdAt: Date
+  createdBy: string
+}
+
+/**
+ * Filtres pour la recherche d'évènements de charité
+ */
+export interface CharityEventFilters {
+  status?: CharityEventStatus | 'all'
+  dateFrom?: Date
+  dateTo?: Date
+  searchQuery?: string
+  page?: number
+  limit?: number
+  orderByField?: string
+  orderByDirection?: 'asc' | 'desc'
+  lastDoc?: any // Document Firestore pour pagination
+}
+
+/**
+ * Statistiques globales des évènements de charité
+ */
+export interface CharityGlobalStats {
+  totalEventsThisYear: number
+  totalCollectedAmount: number
+  totalParticipants: number
+  nextUpcomingEvent?: CharityEvent
+}
+
+// Labels français pour les statuts d'évènements de charité
+export const CHARITY_EVENT_STATUS_LABELS: Record<CharityEventStatus, string> = {
+  draft: 'Brouillon',
+  upcoming: 'À venir',
+  ongoing: 'En cours',
+  closed: 'Terminé',
+  archived: 'Archivé'
 }
 
 // ================== TYPES POUR LES FILLEULS ==================

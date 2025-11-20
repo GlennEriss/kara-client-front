@@ -15,7 +15,7 @@ export const individualContractSchema = z.object({
   // Informations de paiement
   paymentDate: z.string().min(1, 'La date de paiement est obligatoire'),
   paymentTime: z.string().min(1, 'L\'heure de paiement est obligatoire'),
-  paymentMode: z.enum(['airtel_money', 'mobicash', 'cash', 'bank_transfer'], {
+  paymentMode: z.enum(['airtel_money', 'mobicash', 'cash', 'bank_transfer', 'other'], {
     message: 'Le mode de paiement est obligatoire'
   }),
   
@@ -41,7 +41,7 @@ export const groupContractSchema = z.object({
   // Informations de paiement
   paymentDate: z.string().min(1, 'La date de paiement est obligatoire'),
   paymentTime: z.string().min(1, 'L\'heure de paiement est obligatoire'),
-  paymentMode: z.enum(['airtel_money', 'mobicash', 'cash', 'bank_transfer'], {
+  paymentMode: z.enum(['airtel_money', 'mobicash', 'cash', 'bank_transfer', 'other'], {
     message: 'Le mode de paiement est obligatoire'
   }),
   
