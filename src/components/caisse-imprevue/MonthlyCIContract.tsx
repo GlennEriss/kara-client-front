@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft,
   Calendar,
+  CalendarDays,
   DollarSign,
   CheckCircle,
   Clock,
@@ -452,6 +453,10 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const allPaid = payments.length > 0 && paidCount === payments.length
   const canEarly = paidCount >= 1 && !allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
   const canFinal = allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
+
+  // Calculer la progression des mois payés
+  const totalMonths = contract.subscriptionCIDuration || 0
+  const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED')
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED')
   const isContractCanceled = contract.status === 'CANCELED'
@@ -581,6 +586,29 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
 
         {/* Statistiques de paiement - Carrousel */}
         <PaymentStatsCarousel contract={contract} paymentStats={paymentStats} />
+
+        {/* Barre de progression */}
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-[#234D65]" />
+                <span>
+                  Mois payés&nbsp;: <b>{paidCount}</b> / {totalMonths || '—'}
+                </span>
+              </div>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-sm text-slate-700">
+              Montant payé&nbsp;: <b>{(paymentStats?.totalAmountPaid || 0).toLocaleString('fr-FR')} FCFA</b>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Banner d'alerte si contrat résilié */}
         {isContractCanceled && (

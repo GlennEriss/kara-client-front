@@ -377,6 +377,29 @@ export default function StandardContract({ id }: Props) {
           <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
         </div>
 
+        {/* Barre de progression */}
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-[#234D65]" />
+                <span>
+                  Mois payés&nbsp;: <b>{paidCount}</b> / {totalMonths || '—'}
+                </span>
+              </div>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] transition-all duration-300"
+                style={{ width: `${Math.min(100, progress)}%` }}
+              />
+            </div>
+            <div className="text-sm text-slate-700">
+              Montant payé&nbsp;: <b>{formatAmount(data.nominalPaid || 0)} FCFA</b>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Outils de test (DEV uniquement) */}
         <TestPaymentTools
           contractId={id}
