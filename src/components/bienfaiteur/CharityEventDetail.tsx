@@ -17,6 +17,7 @@ import CharityContributionsSection from './CharityContributionsSection'
 import CharityParticipantsSection from './CharityParticipantsSection'
 import CharityGroupsSection from './CharityGroupsSection'
 import CharityMediaSection from './CharityMediaSection'
+import CharityEventSettings from './CharityEventSettings'
 
 interface CharityEventDetailProps {
   eventId: string
@@ -227,21 +228,7 @@ export default function CharityEventDetail({ eventId }: CharityEventDetailProps)
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informations de l'évènement</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-medium mb-2">Description</h3>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {event.description}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <CharityEventSettings event={event} />
         </TabsContent>
       </Tabs>
     </div>

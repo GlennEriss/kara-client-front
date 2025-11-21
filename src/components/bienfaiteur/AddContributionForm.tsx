@@ -24,6 +24,8 @@ import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
 import { cn } from '@/lib/utils'
 import { CharityContributionInput, PaymentMode } from '@/types/types'
 import { useAuth } from '@/hooks/useAuth'
+import { uploadContributionProof } from '@/services/bienfaiteur/CharityMediaService'
+import { useUpdateCharityContribution } from '@/hooks/bienfaiteur/useCharityContributions'
 
 interface AddContributionFormProps {
   eventId: string
@@ -42,6 +44,7 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
   const [selectedGroupName, setSelectedGroupName] = useState<string>('')
 
   const { mutate: addContribution, isPending } = useAddParticipantWithContribution()
+  const { mutate: updateContribution } = useUpdateCharityContribution()
   const { user } = useAuth()
 
   const {
@@ -122,8 +125,6 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
         return
       }
 
-      // TODO: uploader la preuve sur Firebase Storage et récupérer l'URL
-
       const contributionDate = new Date(data.contributionDate)
       
       // Validation de la date
@@ -175,9 +176,40 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
         groupId: selectedGroupId || undefined,
         contribution: contributionPayload,
       }, {
-        onSuccess: () => {
-          toast.success('Contribution ajoutée avec succès!')
-          handleClose()
+        onSuccess: async (result) => {
+          // Upload de la preuve si elle existe
+          if (proofFile && result?.contributionId) {
+            try {
+              toast.info('Upload de la preuve en cours...')
+              const uploadResult = await uploadContributionProof(proofFile, eventId, result.contributionId)
+              
+              // Mettre à jour la contribution avec l'URL de la preuve
+              updateContribution({
+                eventId,
+                contributionId: result.contributionId,
+                updates: {
+                  proofUrl: uploadResult.url,
+                  proofPath: uploadResult.path,
+                  proofType: proofFile.type === 'application/pdf' ? 'pdf' : proofFile.type.startsWith('image/') ? 'image' : 'other'
+                }
+              }, {
+                onSuccess: () => {
+                  toast.success('Contribution ajoutée avec succès!')
+                  handleClose()
+                },
+                onError: (error: any) => {
+                  toast.warning('Contribution créée mais erreur lors de l\'upload de la preuve: ' + (error.message || 'Erreur inconnue'))
+                  handleClose()
+                }
+              })
+            } catch (uploadError: any) {
+              toast.warning('Contribution créée mais erreur lors de l\'upload de la preuve: ' + (uploadError.message || 'Erreur inconnue'))
+              handleClose()
+            }
+          } else {
+            toast.success('Contribution ajoutée avec succès!')
+            handleClose()
+          }
         },
         onError: (error: any) => {
           toast.error(error.message || 'Erreur lors de l\'ajout de la contribution')

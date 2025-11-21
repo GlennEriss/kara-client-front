@@ -162,7 +162,9 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
                         variant="ghost"
                         size="sm"
                         onClick={() => setParticipantToRemove(participant.id)}
-                        className="text-red-600 hover:text-red-700"
+                        disabled={participant.contributionsCount > 0}
+                        className={`${participant.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
+                        title={participant.contributionsCount > 0 ? 'Impossible de retirer un participant ayant des contributions' : 'Retirer ce participant'}
                       >
                         <UserMinus className="w-4 h-4" />
                       </Button>
@@ -251,15 +253,27 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
           <DialogHeader>
             <DialogTitle>Retirer le participant</DialogTitle>
             <DialogDescription>
-              Êtes-vous sûr de vouloir retirer ce participant de l'évènement ?
-              Cette action ne supprimera pas ses contributions existantes.
+              {(() => {
+                const participant = filtered.find(p => p.id === participantToRemove)
+                if (participant && participant.contributionsCount > 0) {
+                  return `Impossible de retirer ce participant car il a ${participant.contributionsCount} contribution(s). Veuillez d'abord supprimer toutes ses contributions.`
+                }
+                return 'Êtes-vous sûr de vouloir retirer ce participant de l\'évènement ? Cette action est irréversible.'
+              })()}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setParticipantToRemove(null)} disabled={isRemoving}>
               Annuler
             </Button>
-            <Button variant="destructive" onClick={handleRemoveParticipant} disabled={isRemoving}>
+            <Button 
+              variant="destructive" 
+              onClick={handleRemoveParticipant} 
+              disabled={isRemoving || (() => {
+                const participant = filtered.find(p => p.id === participantToRemove)
+                return participant ? participant.contributionsCount > 0 : false
+              })()}
+            >
               {isRemoving ? 'Retrait en cours...' : 'Retirer'}
             </Button>
           </DialogFooter>

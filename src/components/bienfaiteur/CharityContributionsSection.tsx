@@ -8,12 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Plus, Search, Download, FileText, Eye, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useCharityContributions } from '@/hooks/bienfaiteur/useCharityContributions'
+import { useCharityContributions, useDeleteCharityContribution, useCharityContribution } from '@/hooks/bienfaiteur/useCharityContributions'
+import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import AddContributionForm from './AddContributionForm'
+import CharityContributionReceiptPDF from './CharityContributionReceiptPDF'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import Image from 'next/image'
 
 interface CharityContributionsSectionProps {
   eventId: string
@@ -25,9 +29,15 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
   const [typeFilter, setTypeFilter] = useState<'all' | 'money' | 'in_kind'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'canceled'>('all')
   const [currentPage, setCurrentPage] = useState(1)
+  const [contributionToDelete, setContributionToDelete] = useState<string | null>(null)
+  const [contributionForReceipt, setContributionForReceipt] = useState<string | null>(null)
+  const [proofToView, setProofToView] = useState<string | null>(null)
   const itemsPerPage = 10
 
   const { data: contributions, isLoading } = useCharityContributions(eventId)
+  const { data: contributionForPDF } = useCharityContribution(eventId, contributionForReceipt || '')
+  const { data: event } = useCharityEvent(eventId)
+  const { mutate: deleteContribution, isPending: isDeleting } = useDeleteCharityContribution()
 
   // Log des contributions pour debug
   React.useEffect(() => {
@@ -112,15 +122,41 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
   }
 
   const handleViewProof = (contributionId: string) => {
-    toast.info('Visualisation de la preuve à implémenter')
+    const contribution = contributions?.find(c => c.id === contributionId)
+    if (contribution?.proofUrl) {
+      setProofToView(contribution.proofUrl)
+    } else {
+      toast.info('Aucune preuve disponible pour cette contribution')
+    }
   }
 
   const handleGenerateReceipt = (contributionId: string) => {
-    toast.info('Génération du reçu PDF à implémenter')
+    setContributionForReceipt(contributionId)
   }
 
   const handleDelete = (contributionId: string) => {
-    toast.info('Suppression à implémenter')
+    setContributionToDelete(contributionId)
+  }
+
+  const confirmDelete = () => {
+    if (!contributionToDelete) return
+
+    deleteContribution(
+      { eventId, contributionId: contributionToDelete },
+      {
+        onSuccess: () => {
+          toast.success('Contribution supprimée avec succès')
+          setContributionToDelete(null)
+          // Réinitialiser à la page 1 si la page actuelle est vide
+          if (paginatedContributions.length === 1 && currentPage > 1) {
+            setCurrentPage(currentPage - 1)
+          }
+        },
+        onError: (error: any) => {
+          toast.error(error.message || 'Erreur lors de la suppression de la contribution')
+        }
+      }
+    )
   }
 
   return (
@@ -502,6 +538,72 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
       />
+
+      {/* Confirmation de suppression */}
+      <Dialog open={!!contributionToDelete} onOpenChange={() => setContributionToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer la contribution</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette contribution ? Cette action est irréversible et mettra à jour les statistiques de l'évènement et du participant.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContributionToDelete(null)} disabled={isDeleting}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de visualisation de preuve */}
+      {proofToView && (
+        <Dialog open={!!proofToView} onOpenChange={() => setProofToView(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Preuve de contribution</DialogTitle>
+            </DialogHeader>
+            <div className="relative w-full h-[70vh] bg-gray-100 rounded-lg overflow-hidden">
+              {proofToView.endsWith('.pdf') || proofToView.includes('application/pdf') ? (
+                <iframe
+                  src={proofToView}
+                  className="w-full h-full"
+                  title="Preuve PDF"
+                />
+              ) : (
+                <Image
+                  src={proofToView}
+                  alt="Preuve de contribution"
+                  fill
+                  className="object-contain"
+                />
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setProofToView(null)}>
+                Fermer
+              </Button>
+              <Button onClick={() => window.open(proofToView, '_blank')}>
+                <Download className="w-4 h-4 mr-2" />
+                Télécharger
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal de génération de reçu PDF */}
+      {contributionForReceipt && contributionForPDF && event && (
+        <CharityContributionReceiptPDF
+          isOpen={!!contributionForReceipt}
+          onClose={() => setContributionForReceipt(null)}
+          contribution={contributionForPDF as any}
+          event={event}
+        />
+      )}
     </div>
   )
 }

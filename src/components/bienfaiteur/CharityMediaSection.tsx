@@ -19,6 +19,8 @@ import { charityMediaSchema, CharityMediaFormData } from '@/schemas/bienfaiteur.
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import CharityMediaLightbox from './CharityMediaLightbox'
+import { CharityMedia } from '@/types/types'
 
 interface CharityMediaSectionProps {
   eventId: string
@@ -30,6 +32,8 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
   const [typeFilter, setTypeFilter] = useState<'all' | 'photo' | 'video'>('all')
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [lightboxMedia, setLightboxMedia] = useState<CharityMedia | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
 
   const { data: media, isLoading } = useCharityMedia(eventId)
   const { mutate: createMedia, isPending: isCreating } = useCreateCharityMedia()
@@ -135,8 +139,26 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
     )
   }
 
-  const handleView = (url: string) => {
-    window.open(url, '_blank')
+  const handleView = (mediaItem: CharityMedia) => {
+    const index = filtered.findIndex(m => m.id === mediaItem.id)
+    setLightboxIndex(index >= 0 ? index : 0)
+    setLightboxMedia(mediaItem)
+  }
+
+  const handlePrevious = () => {
+    if (lightboxIndex > 0) {
+      const newIndex = lightboxIndex - 1
+      setLightboxIndex(newIndex)
+      setLightboxMedia(filtered[newIndex])
+    }
+  }
+
+  const handleNext = () => {
+    if (lightboxIndex < filtered.length - 1) {
+      const newIndex = lightboxIndex + 1
+      setLightboxIndex(newIndex)
+      setLightboxMedia(filtered[newIndex])
+    }
   }
 
   return (
@@ -221,7 +243,7 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => handleView(item.url)}
+                    onClick={() => handleView(item)}
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     Voir
@@ -448,6 +470,17 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Lightbox */}
+      <CharityMediaLightbox
+        isOpen={!!lightboxMedia}
+        onClose={() => setLightboxMedia(null)}
+        media={lightboxMedia}
+        allMedia={filtered}
+        onPrevious={lightboxIndex > 0 ? handlePrevious : undefined}
+        onNext={lightboxIndex < filtered.length - 1 ? handleNext : undefined}
+        currentIndex={lightboxIndex}
+      />
     </div>
   )
 }

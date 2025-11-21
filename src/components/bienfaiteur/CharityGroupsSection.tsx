@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Search, Users, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useCharityParticipants } from '@/hooks/bienfaiteur/useCharityParticipants'
+import { useCharityParticipants, useRemoveCharityParticipant } from '@/hooks/bienfaiteur/useCharityParticipants'
 import { Skeleton } from '@/components/ui/skeleton'
 import AddParticipantModal from './AddParticipantModal'
 import { useCharityGroups } from '@/hooks/bienfaiteur/useCharityGroups'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { toast } from 'sonner'
+import { Trash2 } from 'lucide-react'
 
 interface CharityGroupsSectionProps {
   eventId: string
@@ -19,10 +22,12 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [groupToRemove, setGroupToRemove] = useState<string | null>(null)
   const itemsPerPage = 12
 
   const { data: groupParticipants, isLoading } = useCharityParticipants(eventId, 'group')
   const { data: allGroups } = useCharityGroups()
+  const { mutate: removeParticipant, isPending: isRemoving } = useRemoveCharityParticipant()
 
   // Enrichir les participants avec les infos du groupe
   const enrichedGroups = groupParticipants?.map(participant => {
@@ -53,6 +58,27 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
   // Calcul des stats
   const totalAmount = sorted.reduce((sum, g) => sum + g.totalAmount, 0)
   const totalContributions = sorted.reduce((sum, g) => sum + g.contributionsCount, 0)
+
+  const handleRemoveGroup = () => {
+    if (!groupToRemove) return
+
+    removeParticipant(
+      { eventId, participantId: groupToRemove },
+      {
+        onSuccess: () => {
+          toast.success('Groupe retiré avec succès')
+          setGroupToRemove(null)
+          // Réinitialiser à la page 1 si la page actuelle est vide
+          if (paginatedGroups.length === 1 && currentPage > 1) {
+            setCurrentPage(currentPage - 1)
+          }
+        },
+        onError: (error: any) => {
+          toast.error(error.message || 'Erreur lors du retrait du groupe')
+        }
+      }
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -177,6 +203,21 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
                         </div>
                       ) : null
                     })()}
+
+                    {/* Bouton supprimer - seulement si 0 contributions */}
+                    <div className="pt-3 border-t mt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setGroupToRemove(group.id)}
+                        disabled={group.contributionsCount > 0}
+                        className={`w-full ${group.contributionsCount > 0 ? 'opacity-50 cursor-not-allowed' : 'text-red-600 hover:text-red-700 hover:bg-red-50'}`}
+                        title={group.contributionsCount > 0 ? 'Impossible de supprimer un groupe ayant des contributions' : 'Retirer ce groupe'}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {group.contributionsCount > 0 ? 'Contributions existantes' : 'Retirer le groupe'}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -232,6 +273,40 @@ export default function CharityGroupsSection({ eventId }: CharityGroupsSectionPr
         onClose={() => setIsAddOpen(false)}
         allowedTypes={['group']}
       />
+
+      {/* Confirmation de suppression */}
+      <Dialog open={!!groupToRemove} onOpenChange={() => setGroupToRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Retirer le groupe</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir retirer ce groupe de l'évènement ?
+              {(() => {
+                const group = sorted.find(g => g.id === groupToRemove)
+                if (group && group.contributionsCount > 0) {
+                  return ` Ce groupe a ${group.contributionsCount} contribution(s) et ne peut pas être retiré.`
+                }
+                return ' Cette action est irréversible.'
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGroupToRemove(null)} disabled={isRemoving}>
+              Annuler
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleRemoveGroup} 
+              disabled={isRemoving || (() => {
+                const group = sorted.find(g => g.id === groupToRemove)
+                return group ? group.contributionsCount > 0 : false
+              })()}
+            >
+              {isRemoving ? 'Retrait en cours...' : 'Retirer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
