@@ -6,13 +6,14 @@ export const metadata: Metadata = {
 }
 
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export default function EditVehiculePage({ params }: Props) {
+export default async function EditVehiculePage({ params }: Props) {
+  const { id } = await params
   return (
     <div className="p-6">
-      <VehicleInsuranceEditView insuranceId={params.id} />
+      <VehicleInsuranceEditView insuranceId={id} />
     </div>
   )
 }
