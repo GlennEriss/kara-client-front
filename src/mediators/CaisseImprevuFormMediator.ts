@@ -107,11 +107,12 @@ export class CaisseImprevuFormMediator {
             console.log('✅ Photo du document uploadée avec succès!')
 
             // Transformer emergencyContact du step3 en objet EmergencyContactCI
+            // Normaliser les numéros de téléphone en retirant les espaces
             const emergencyContact: EmergencyContactCI = {
                 lastName: data.step3.lastName,
                 firstName: data.step3.firstName,
-                phone1: data.step3.phone1,
-                phone2: data.step3.phone2,
+                phone1: data.step3.phone1?.replace(/\s/g, '') || '',
+                phone2: data.step3.phone2?.replace(/\s/g, '') || '',
                 relationship: data.step3.relationship,
                 idNumber: data.step3.idNumber,
                 typeId: data.step3.typeId,

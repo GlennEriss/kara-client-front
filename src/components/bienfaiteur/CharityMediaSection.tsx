@@ -19,6 +19,8 @@ import { charityMediaSchema, CharityMediaFormData } from '@/schemas/bienfaiteur.
 import Image from 'next/image'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import CharityMediaLightbox from './CharityMediaLightbox'
+import { CharityMedia } from '@/types/types'
 
 interface CharityMediaSectionProps {
   eventId: string
@@ -30,6 +32,8 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
   const [typeFilter, setTypeFilter] = useState<'all' | 'photo' | 'video'>('all')
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [lightboxMedia, setLightboxMedia] = useState<CharityMedia | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
 
   const { data: media, isLoading } = useCharityMedia(eventId)
   const { mutate: createMedia, isPending: isCreating } = useCreateCharityMedia()
@@ -135,15 +139,33 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
     )
   }
 
-  const handleView = (url: string) => {
-    window.open(url, '_blank')
+  const handleView = (mediaItem: CharityMedia) => {
+    const index = filtered.findIndex(m => m.id === mediaItem.id)
+    setLightboxIndex(index >= 0 ? index : 0)
+    setLightboxMedia(mediaItem)
+  }
+
+  const handlePrevious = () => {
+    if (lightboxIndex > 0) {
+      const newIndex = lightboxIndex - 1
+      setLightboxIndex(newIndex)
+      setLightboxMedia(filtered[newIndex])
+    }
+  }
+
+  const handleNext = () => {
+    if (lightboxIndex < filtered.length - 1) {
+      const newIndex = lightboxIndex + 1
+      setLightboxIndex(newIndex)
+      setLightboxMedia(filtered[newIndex])
+    }
   }
 
   return (
     <div className="space-y-6">
       {/* Filtres et actions */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -155,7 +177,7 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant={typeFilter === 'all' ? 'default' : 'outline'}
                 onClick={() => setTypeFilter('all')}
@@ -176,12 +198,17 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
                 <Video className="w-4 h-4 mr-2" />
                 Vidéos
               </Button>
-
-              <Button onClick={() => setIsAddOpen(true)} className="bg-[#234D65] hover:bg-[#2c5a73]">
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter
-              </Button>
             </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:justify-end">
+            <Button
+              onClick={() => setIsAddOpen(true)}
+              className="bg-[#234D65] hover:bg-[#2c5a73] w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Ajouter
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -216,7 +243,7 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => handleView(item.url)}
+                    onClick={() => handleView(item)}
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     Voir
@@ -443,6 +470,17 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Lightbox */}
+      <CharityMediaLightbox
+        isOpen={!!lightboxMedia}
+        onClose={() => setLightboxMedia(null)}
+        media={lightboxMedia}
+        allMedia={filtered}
+        onPrevious={lightboxIndex > 0 ? handlePrevious : undefined}
+        onNext={lightboxIndex < filtered.length - 1 ? handleNext : undefined}
+        currentIndex={lightboxIndex}
+      />
     </div>
   )
 }

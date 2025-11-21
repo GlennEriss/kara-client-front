@@ -52,6 +52,51 @@ export async function deleteCharityEventCover(filePath: string): Promise<void> {
   }
 }
 
+/**
+ * Upload une preuve de contribution (image ou PDF)
+ */
+export async function uploadContributionProof(
+  file: File,
+  eventId: string,
+  contributionId: string
+): Promise<{ url: string; path: string }> {
+  try {
+    const storage = getStorageInstance()
+    
+    const timestamp = Date.now()
+    const fileExtension = file.name.split('.').pop() || (file.type === 'application/pdf' ? 'pdf' : 'jpg')
+    const fileName = `${contributionId}_${timestamp}_proof.${fileExtension}`
+    const filePath = `charity-events/${eventId}/contributions/${fileName}`
+    
+    const storageRef = ref(storage, filePath)
+    
+    // Upload the file with metadata
+    const metadata = {
+      customMetadata: {
+        eventId,
+        contributionId,
+        uploadedAt: new Date().toISOString(),
+        originalFileName: file.name,
+        fileSize: file.size.toString(),
+        fileType: file.type
+      }
+    }
+    
+    const snapshot = await uploadBytes(storageRef, file, metadata)
+    
+    // Get download URL
+    const downloadURL = await getDownloadURL(snapshot.ref)
+    
+    return {
+      url: downloadURL,
+      path: filePath
+    }
+  } catch (error: any) {
+    console.error('❌ Contribution proof upload failed:', error)
+    throw new Error(`Échec de l'upload de la preuve: ${error.message}`)
+  }
+}
+
 export class CharityMediaService {
   /**
    * Récupère tous les médias d'un évènement

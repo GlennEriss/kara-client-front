@@ -12,6 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
+import routes from '@/constantes/routes'
 
 // Mapping des routes vers leurs labels pour le breadcrumb
 const routeLabels: Record<string, string> = {
@@ -29,6 +30,12 @@ const routeLabels: Record<string, string> = {
   '/caisse-speciale': 'Caisse Spéciale',
   '/caisse-speciale/contrats': 'Contrats',
   '/caisse-speciale/settings': 'Paramètres Caisse',
+  '/caisse-imprevue': 'Caisse Imprévue',
+  '/caisse-imprevue/create': 'Créer',
+  '/caisse-imprevue/contrats': 'Contrats',
+  '/caisse-imprevue/settings': 'Paramètres Caisse',
+  '/bienfaiteur': 'Bienfaiteur',
+  '/bienfaiteur/create': 'Créer',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -63,7 +70,20 @@ const getRouteLabel = (path: string): string => {
   if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+\/versements$/)) {
     return 'Versements'
   }
+  if (path.match(/^\/caisse-imprevue\/contrats\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/caisse-imprevue\/contrats\/[^\/]+\/versements$/)) {
+    return 'Versements'
+  }
+  if (path.match(/^\/bienfaiteur\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/bienfaiteur\/[^\/]+\/modify$/)) {
+    return 'Modifier'
+  }
 
+  
   // Vérifier les routes qui commencent par un pattern
   for (const [route, label] of Object.entries(routeLabels)) {
     if (path.startsWith(route + '/')) {
@@ -73,6 +93,16 @@ const getRouteLabel = (path: string): string => {
 
   // Fallback pour les routes non reconnues
   return 'Page'
+}
+
+// Fonction pour extraire l'ID du membre depuis l'ID du contrat
+// Format attendu: MK_CS_JOURNALIERE_8311.MK.061125_171125_1315 ou MK_CI_CONTRACT_2663.MK.260925_171125_0956
+// L'ID membre a le format: XXXX.MK.jjmmyy (ex: 2663.MK.260925)
+const extractMemberIdFromContractId = (contractId: string): string | null => {
+  // Pattern pour extraire la partie XXXX.MK.jjmmyy
+  // Le pattern cherche: un nombre, suivi de .MK., suivi de 6 chiffres (jjmmyy)
+  const match = contractId.match(/(\d+\.MK\.\d{6})/)
+  return match ? match[1] : null
 }
 
 // Fonction pour générer les segments du breadcrumb
@@ -87,8 +117,10 @@ const generateBreadcrumbSegments = (pathname: string) => {
     isCurrent: pathname === '/dashboard'
   })
 
-  // Vérifier si on est sur une route avec ID de contrat (caisse-speciale)
-  const isContractDetailRoute = pathname.match(/^\/caisse-speciale\/contrats\/[^\/]+$/)
+  // Vérifier si on est sur une route avec ID de contrat (caisse-speciale ou caisse-imprevue)
+  const contractRouteMatch = pathname.match(/^\/(caisse-speciale|caisse-imprevue)\/contrats\/([^\/]+)(?:\/.*)?$/)
+  const contractId = contractRouteMatch ? contractRouteMatch[2] : null
+  const memberId = contractId ? extractMemberIdFromContractId(contractId) : null
 
   // Traiter les autres segments
   let currentPath = ''
@@ -104,11 +136,13 @@ const generateBreadcrumbSegments = (pathname: string) => {
     const label = getRouteLabel(currentPath)
     const isCurrent = currentPath === pathname
 
-    // Cas spécial : si on est sur une route de détail de contrat et que le segment actuel est "contrats",
-    // utiliser l'URL actuelle (avec l'ID) au lieu de la liste des contrats
+    // Cas spécial pour les routes de contrats
     let href = isCurrent ? undefined : currentPath
-    if (isContractDetailRoute && currentPath === '/caisse-speciale/contrats' && !isCurrent) {
-      href = pathname
+    
+    // Si on est sur une route de contrat et que le segment actuel est "contrats",
+    // utiliser l'URL contracts-history/[memberId] au lieu de la liste des contrats
+    if (contractRouteMatch && memberId && (currentPath === '/caisse-speciale/contrats' || currentPath === '/caisse-imprevue/contrats') && !isCurrent) {
+      href = routes.admin.contractsHistoryDetails(memberId)
     }
 
     breadcrumbSegments.push({
