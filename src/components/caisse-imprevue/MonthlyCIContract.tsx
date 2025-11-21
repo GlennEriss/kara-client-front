@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft,
   Calendar,
+  CalendarDays,
   DollarSign,
   CheckCircle,
   Clock,
@@ -452,11 +453,34 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const allPaid = payments.length > 0 && paidCount === payments.length
   const canEarly = paidCount >= 1 && !allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
   const canFinal = allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
+
+  // Calculer la progression des mois payés
+  const totalMonths = contract.subscriptionCIDuration || 0
+  const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED')
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED')
   const isContractCanceled = contract.status === 'CANCELED'
   const isContractFinished = contract.status === 'FINISHED'
   const isContractTerminated = isContractCanceled || isContractFinished
+  const headerStatusConfig = getContractStatusConfig(contract.status)
+  const HeaderStatusIcon = headerStatusConfig.icon
+  const headerBadges = (
+    <>
+      <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+        Contrat Mensuel CI
+      </Badge>
+      <Badge className={`${headerStatusConfig.bg} ${headerStatusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+        <HeaderStatusIcon className="h-4 w-4" />
+        {headerStatusConfig.label}
+      </Badge>
+      {activeSupport && activeSupport.status === 'ACTIVE' && (
+        <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          Support en cours
+        </Badge>
+      )}
+    </>
+  )
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -488,7 +512,7 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
@@ -533,29 +557,13 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
             {/* Bouton Contact d'urgence */}
             <EmergencyContact emergencyContact={(contract as any)?.emergencyContact} />
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-              Contrat Mensuel CI
-            </Badge>
-            {(() => {
-              const statusConfig = getContractStatusConfig(contract.status)
-              const StatusIcon = statusConfig.icon
-              return (
-                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
-                  <StatusIcon className="h-4 w-4" />
-                  {statusConfig.label}
-                </Badge>
-              )
-            })()}
-            {/* Badge Support Actif */}
-            {activeSupport && activeSupport.status === 'ACTIVE' && (
-              <Badge className="bg-orange-600 text-white px-3 py-1.5 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Support en cours
-              </Badge>
-            )}
+
+          <div className="hidden lg:flex flex-wrap gap-2">
+            {headerBadges}
           </div>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:hidden">
+          {headerBadges}
         </div>
 
         {/* Titre principal */}
@@ -578,6 +586,29 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
 
         {/* Statistiques de paiement - Carrousel */}
         <PaymentStatsCarousel contract={contract} paymentStats={paymentStats} />
+
+        {/* Barre de progression */}
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-[#234D65]" />
+                <span>
+                  Mois payés&nbsp;: <b>{paidCount}</b> / {totalMonths || '—'}
+                </span>
+              </div>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-sm text-slate-700">
+              Montant payé&nbsp;: <b>{(paymentStats?.totalAmountPaid || 0).toLocaleString('fr-FR')} FCFA</b>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Banner d'alerte si contrat résilié */}
         {isContractCanceled && (

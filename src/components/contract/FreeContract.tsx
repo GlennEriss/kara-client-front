@@ -172,6 +172,25 @@ export default function FreeContract({ id }: Props) {
   }
 
   const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
+  const headerStatusConfig = getContractStatusConfig(data.status)
+  const HeaderStatusIcon = headerStatusConfig.icon
+  const headerBadges = (
+    <>
+      <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+        Contrat Libre
+      </Badge>
+      <Badge className={`${headerStatusConfig.bg} ${headerStatusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+        <HeaderStatusIcon className="h-4 w-4" />
+        {headerStatusConfig.label}
+      </Badge>
+      {isClosed && (
+        <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
+          <XCircle className="h-4 w-4" />
+          Contrat fermé
+        </Badge>
+      )}
+    </>
+  )
   const settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   const handleMonthClick = (monthIndex: number, payment: any) => {
@@ -372,7 +391,7 @@ export default function FreeContract({ id }: Props) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
@@ -395,27 +414,12 @@ export default function FreeContract({ id }: Props) {
             <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
           </div>
           
-          <div className="flex items-center gap-2">
-            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-              Contrat Libre
-            </Badge>
-            {(() => {
-              const statusConfig = getContractStatusConfig(data.status)
-              const StatusIcon = statusConfig.icon
-              return (
-                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
-                  <StatusIcon className="h-4 w-4" />
-                  {statusConfig.label}
-                </Badge>
-              )
-            })()}
-            {isClosed && (
-              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
-                <XCircle className="h-4 w-4" />
-                Contrat fermé
-              </Badge>
-            )}
+          <div className="hidden lg:flex flex-wrap gap-2">
+            {headerBadges}
           </div>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:hidden">
+          {headerBadges}
         </div>
 
         {/* Titre principal */}

@@ -411,13 +411,12 @@ export default function Step2() {
                     <Input
                       type="date"
                       {...field}
-                      min={new Date().toISOString().split('T')[0]}
                       className="pl-10 border-[#224D62]/30 focus:border-[#224D62] focus:ring-[#224D62]/20"
                     />
                   </div>
                 </FormControl>
                 <FormDescription>
-                  La date doit être aujourd'hui ou dans le futur
+                  Sélectionnez la date du premier versement (les dates passées sont acceptées)
                 </FormDescription>
                 <FormMessage />
               </FormItem>

@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
 import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Calendar, Plus, DollarSign, TrendingUp, FileText, CheckCircle, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Plus, DollarSign, TrendingUp, FileText, CheckCircle, CheckCircle2, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle, CreditCard } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
 import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
@@ -39,6 +39,37 @@ import autoTable from 'jspdf-autotable'
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+// ————————————————————————————————————————————————————————————
+// Helpers UI
+// ————————————————————————————————————————————————————————————
+const brand = {
+  bg: "bg-[#234D65]",
+  bgSoft: "bg-[#234D65]/10",
+  text: "text-[#234D65]",
+  ring: "ring-[#234D65]/30",
+  hover: "hover:bg-[#1a3a4f]",
+}
+
+function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
+  const accents: Record<string, string> = {
+    slate: "from-slate-50 to-white",
+    emerald: "from-emerald-50 to-white",
+    red: "from-rose-50 to-white",
+    brand: "from-[#234D65]/10 to-white",
+  }
+  return (
+    <div className={`rounded-2xl border bg-gradient-to-b ${accents[accent]} p-4 shadow-sm`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-slate-500">{label}</div>
+          <div className="mt-1 text-lg font-semibold text-slate-800">{value}</div>
+        </div>
+        {Icon ? <Icon className={`h-5 w-5 ${brand.text}`} /> : null}
+      </div>
+    </div>
+  )
 }
 
 type Props = { id: string }
@@ -236,12 +267,40 @@ export default function DailyContract({ id }: Props) {
   if (isError) return <div className="p-4 text-red-600">Erreur de chargement du contrat: {(error as any)?.message}</div>
   if (!data) return <div className="p-4">Contrat introuvable</div>
 
-  const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
-
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
   const isGroupContract = data.contractType === 'GROUP' || !!groupeId
   const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
+
+  // Calculer la progression des mois payés
+  const payments = data?.payments || []
+  const paidCount = payments.filter((payment: any) => payment.status === 'PAID').length
+  const totalMonths = data?.monthsPlanned || 0
+  const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
+
+  // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
+  const currentBonus = data.bonusAccrued || 0
+
+  const isClosed = data.status === 'CLOSED' || data.status === 'RESCINDED'
+  const headerStatusConfig = getContractStatusConfig(data.status)
+  const HeaderStatusIcon = headerStatusConfig.icon
+  const headerBadges = (
+    <>
+      <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
+        {isGroupContract ? 'Contrat de Groupe' : 'Contrat Journalier'}
+      </Badge>
+      <Badge className={`${headerStatusConfig.bg} ${headerStatusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
+        <HeaderStatusIcon className="h-4 w-4" />
+        {headerStatusConfig.label}
+      </Badge>
+      {isClosed && (
+        <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
+          <XCircle className="h-4 w-4" />
+          Contrat fermé
+        </Badge>
+      )}
+    </>
+  )
 
   // Fonctions utilitaires pour le calendrier
   const getMonthDays = (date: Date) => {
@@ -398,6 +457,11 @@ export default function DailyContract({ id }: Props) {
     const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
     return payment?.accumulatedAmount || 0
   }
+
+  // Calculer le nominal payé en sommant tous les montants versés par mois
+  const nominalPaid: number = Array.from({ length: totalMonths }).reduce((sum: number, _, monthIndex: number) => {
+    return sum + getTotalForMonth(monthIndex)
+  }, 0)
 
   const getMonthStatus = (monthIndex: number) => {
     const payment = data.payments?.find((p: any) => p.dueMonthIndex === monthIndex)
@@ -1048,7 +1112,7 @@ export default function DailyContract({ id }: Props) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8 overflow-x-hidden">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* En-tête avec bouton retour */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 flex-wrap">
             <Button
               variant="outline"
@@ -1069,30 +1133,15 @@ export default function DailyContract({ id }: Props) {
             </Button>
 
             <EmergencyContact emergencyContact={(data as any)?.emergencyContact} />
-            </div>
-
-          <div className="flex items-center gap-2">
-            <Badge className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white text-lg px-4 py-2">
-              {isGroupContract ? 'Contrat de Groupe' : 'Contrat Journalier'}
-              </Badge>
-            {(() => {
-              const statusConfig = getContractStatusConfig(data.status)
-              const StatusIcon = statusConfig.icon
-              return (
-                <Badge className={`${statusConfig.bg} ${statusConfig.text} text-lg px-4 py-2 flex items-center gap-1.5`}>
-                  <StatusIcon className="h-4 w-4" />
-                  {statusConfig.label}
-                </Badge>
-              )
-            })()}
-            {isClosed && (
-              <Badge className="bg-gradient-to-r from-red-500 to-red-600 text-white text-lg px-4 py-2 flex items-center gap-1.5">
-                <XCircle className="h-4 w-4" />
-                Contrat fermé
-              </Badge>
-            )}
-            </div>
           </div>
+
+          <div className="hidden lg:flex flex-wrap gap-2">
+            {headerBadges}
+          </div>
+          </div>
+        <div className="flex flex-wrap gap-2 lg:hidden">
+          {headerBadges}
+        </div>
 
         {/* Titre principal */}
         <Card className="border-0 shadow-xl bg-gradient-to-r from-[#234D65] to-[#2c5a73] overflow-hidden">
@@ -1113,6 +1162,39 @@ export default function DailyContract({ id }: Props) {
               </p>
           </div>
           </CardHeader>
+        </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <StatCard icon={CreditCard} label="Montant mensuel" value={`${formatAmount(data.monthlyAmount || 0)} FCFA`} accent="brand" />
+          <StatCard icon={Clock} label="Durée (mois)" value={data.monthsPlanned || 0} />
+          <StatCard icon={CheckCircle2} label="Nominal payé" value={`${formatAmount(nominalPaid)} FCFA`} />
+          <StatCard icon={CalendarDays} label="Bonus" value={`${formatAmount(currentBonus)} FCFA`} accent="emerald" />
+          <StatCard icon={AlertTriangle} label="Pénalités cumulées" value={`${formatAmount(data.penaltiesTotal || 0)} FCFA`} accent="red" />
+          <StatCard icon={CalendarDays} label="Prochaine échéance" value={data.nextDueAt ? new Date(data.nextDueAt).toLocaleDateString("fr-FR") : "—"} />
+        </div>
+
+        {/* Barre de progression */}
+        <Card className="border-0 shadow-md">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-[#234D65]" />
+                <span>
+                  Mois payés&nbsp;: <b>{paidCount}</b> / {totalMonths || '—'}
+                </span>
+              </div>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-sm text-slate-700">
+              Montant payé&nbsp;: <b>{formatAmount(nominalPaid)} FCFA</b>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Outils de test (DEV uniquement) */}
