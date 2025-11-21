@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins } from "lucide-react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -53,6 +53,11 @@ const adminMenuItems = [
         title: "Bienfaiteur",
         url: routes.admin.bienfaiteur,
         icon: HandCoins,
+    },
+    {
+        title: "Véhicules",
+        url: routes.admin.vehicules,
+        icon: Car,
     },
     /*{
         title: "Assurance",

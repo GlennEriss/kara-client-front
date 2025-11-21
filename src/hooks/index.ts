@@ -24,6 +24,10 @@ export * from './useMembers'
 // Intermediary hooks
 export * from './useIntermediary'
 
+// Vehicule hooks
+export * from './vehicule/useVehicleInsurances'
+export * from './vehicule/useVehicleInsuranceForm'
+
 // TODO: Ajouter les autres domaines au fur et à mesure
 // export * from './admin'
 // export * from './companies'

@@ -15,6 +15,7 @@ import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
 import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
 import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -78,6 +79,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new DocumentRepository())
     }
     return this.repositories.get(key) as IDocumentRepository
+  }
+
+  /**
+   * Obtient le repository des assurances véhicules
+   */
+  static getVehicleInsuranceRepository(): VehicleInsuranceRepository {
+    const key = 'VehicleInsuranceRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new VehicleInsuranceRepository())
+    }
+    return this.repositories.get(key) as VehicleInsuranceRepository
   }
 
   /**
