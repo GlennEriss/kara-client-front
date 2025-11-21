@@ -37,8 +37,23 @@
 - ✅ S’assurer que tous les composants réutilisent `src/components/ui/*` et Tailwind, et que le design reste aligné (responsive mobile/tablette/desktop).
 
 ## 6. Fonctionnalités avancées & UX
-- ✅ Implémenter les badges d’état (actif, expire bientôt, expiré) calculés côté service.
-- ✅ Ajout de filtres : recherche libre, compagnie d’assurance, type de véhicule, statut, tri alphabétique.
+- ✅ Implémenter les badges d'état (actif, expire bientôt, expiré) calculés côté service.
+- ✅ Ajout de filtres : recherche libre, compagnie d'assurance, type de véhicule, statut, tri alphabétique.
+- ✅ Récupération des membres avec véhicules : utilisation du filtre `hasCar: true` via `useAllMembers({ hasCar: true })` (déjà implémenté dans `getMembers`).
+- ✅ Correction du problème de double barre de scroll sur `/vehicules` : déplacement du padding dans `LayoutDashboard`.
+- ✅ Amélioration de la clarté du formulaire d'ajout d'assurance : ajout de labels et descriptions explicites.
+- ✅ Amélioration de l'affichage de la liste des membres avec véhicules :
+  - Ajout d'un compteur du nombre de membres avec véhicules dans l'en-tête
+  - Tri alphabétique des membres dans le sélecteur
+  - Indicateurs de chargement et messages d'état améliorés
+  - Gestion du cas où aucun membre n'a de véhicule
+  - Limite augmentée à 1000 membres pour couvrir tous les cas
+  - Bouton actualiser qui rafraîchit aussi la liste des membres
+- ✅ Correction du problème de récupération des membres avec véhicules :
+  - Récupération de tous les membres (sans filtre hasCar côté Firestore) pour éviter les problèmes d'indexation
+  - Filtrage côté client pour inclure les membres où `hasCar === true` OU qui ont déjà une assurance véhicule
+  - Récupération de toutes les assurances pour obtenir la liste complète des membres avec assurance
+  - Résout le problème où certains membres avec véhicules n'apparaissaient pas dans la liste
 - ⬜ Ajouter un export CSV/PDF (optionnel mais recommandé, basé sur Service + hook).
 - ⬜ Gestion du parrainage : afficher le parrain, liens vers sa fiche, filtres par parrain.
 

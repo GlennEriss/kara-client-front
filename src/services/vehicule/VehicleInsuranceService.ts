@@ -26,41 +26,45 @@ export class VehicleInsuranceService {
   async createInsurance(payload: CreatePayload, adminId: string): Promise<string> {
     const now = new Date()
     const status = this.computeStatus(payload.endDate)
-    const entity: Omit<VehicleInsurance, 'id'> = {
+    const entity: any = {
       memberId: payload.memberId,
       memberFirstName: payload.memberFirstName,
       memberLastName: payload.memberLastName,
       memberMatricule: payload.memberMatricule,
-      memberContacts: payload.memberContacts,
-      memberPhotoUrl: payload.memberPhotoUrl,
-      sponsorMemberId: payload.sponsorMemberId || undefined,
-      sponsorName: payload.sponsorName || undefined,
+      memberContacts: payload.memberContacts || [],
+      memberPhotoUrl: payload.memberPhotoUrl || null,
+      sponsorMemberId: payload.sponsorMemberId || null,
+      sponsorName: payload.sponsorName || null,
       vehicleType: payload.vehicleType,
       vehicleBrand: payload.vehicleBrand,
       vehicleModel: payload.vehicleModel,
-      vehicleYear: payload.vehicleYear ?? undefined,
+      vehicleYear: payload.vehicleYear ?? null,
       plateNumber: payload.plateNumber,
       insuranceCompany: payload.insuranceCompany,
-      insuranceAgent: payload.insuranceAgent || undefined,
+      insuranceAgent: payload.insuranceAgent || null,
       policyNumber: payload.policyNumber,
-      coverageType: payload.coverageType || undefined,
+      coverageType: payload.coverageType || null,
       premiumAmount: payload.premiumAmount,
       currency: payload.currency,
       startDate: payload.startDate,
       endDate: payload.endDate,
       status,
-      notes: payload.notes || undefined,
+      notes: payload.notes || null,
       attachments: this.normalizeAttachments(payload.attachments),
       renewalCount: 0,
-      lastRenewedAt: undefined,
       createdAt: now,
       createdBy: adminId,
       updatedAt: now,
       updatedBy: adminId,
     }
 
-    return this.repository.create(entity)
+    // Supprimer tous les champs undefined (Firestore n'accepte pas undefined)
+    // On garde les null car Firestore les accepte
+    const cleanedEntity = this.removeUndefinedFields(entity)
+
+    return this.repository.create(cleanedEntity as Omit<VehicleInsurance, 'id'>)
   }
+
 
   async updateInsurance(id: string, updates: Partial<CreatePayload>, adminId: string): Promise<void> {
     const current = await this.repository.getById(id)
@@ -72,15 +76,17 @@ export class VehicleInsuranceService {
     // Extraire attachments pour le normaliser séparément
     const { attachments, ...restUpdates } = updates
     
-    const updatePayload: Partial<VehicleInsurance> = {
+    const updatePayload: any = {
       ...restUpdates,
-      // Normaliser les valeurs null en undefined
-      sponsorMemberId: updates.sponsorMemberId !== undefined ? (updates.sponsorMemberId || undefined) : undefined,
-      sponsorName: updates.sponsorName !== undefined ? (updates.sponsorName || undefined) : undefined,
-      insuranceAgent: updates.insuranceAgent !== undefined ? (updates.insuranceAgent || undefined) : undefined,
-      coverageType: updates.coverageType !== undefined ? (updates.coverageType || undefined) : undefined,
-      vehicleYear: updates.vehicleYear !== undefined ? (updates.vehicleYear ?? undefined) : undefined,
-      notes: updates.notes !== undefined ? (updates.notes || undefined) : undefined,
+      // Normaliser les valeurs - utiliser null au lieu de undefined
+      memberContacts: updates.memberContacts !== undefined ? (updates.memberContacts || []) : undefined,
+      memberPhotoUrl: updates.memberPhotoUrl !== undefined ? (updates.memberPhotoUrl || null) : undefined,
+      sponsorMemberId: updates.sponsorMemberId !== undefined ? (updates.sponsorMemberId || null) : undefined,
+      sponsorName: updates.sponsorName !== undefined ? (updates.sponsorName || null) : undefined,
+      insuranceAgent: updates.insuranceAgent !== undefined ? (updates.insuranceAgent || null) : undefined,
+      coverageType: updates.coverageType !== undefined ? (updates.coverageType || null) : undefined,
+      vehicleYear: updates.vehicleYear !== undefined ? (updates.vehicleYear ?? null) : undefined,
+      notes: updates.notes !== undefined ? (updates.notes || null) : undefined,
       status,
       updatedAt: new Date(),
       updatedBy: adminId,
@@ -91,7 +97,11 @@ export class VehicleInsuranceService {
       updatePayload.attachments = this.normalizeAttachments(attachments)
     }
 
-    await this.repository.update(id, updatePayload)
+    // Supprimer tous les champs undefined (Firestore n'accepte pas undefined)
+    // On garde les null car Firestore les accepte
+    const cleanedPayload = this.removeUndefinedFields(updatePayload)
+
+    await this.repository.update(id, cleanedPayload as Partial<VehicleInsurance>)
   }
 
   async renewInsurance(id: string, data: { startDate: Date; endDate: Date; premiumAmount: number; policyNumber?: string; coverageType?: string }, adminId: string): Promise<void> {
@@ -152,6 +162,20 @@ export class VehicleInsuranceService {
       receiptUrl: attachments.receiptUrl || undefined,
       receiptPath: attachments.receiptPath || undefined,
     }
+  }
+
+  /**
+   * Supprime tous les champs undefined d'un objet pour compatibilité Firestore
+   * Firestore n'accepte pas les valeurs undefined
+   */
+  private removeUndefinedFields<T extends Record<string, any>>(obj: T): Partial<T> {
+    const cleaned: Partial<T> = {}
+    for (const key in obj) {
+      if (obj[key] !== undefined) {
+        cleaned[key] = obj[key]
+      }
+    }
+    return cleaned
   }
 }
 

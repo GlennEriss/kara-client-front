@@ -29,11 +29,11 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
   }, [pathname])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white h-screen overflow-hidden">
       <SidebarProvider defaultOpen>
         <AppSidebar />
         <main className="flex-1 flex flex-col h-screen overflow-auto">
-          <header className="sticky top-0 z-96 flex h-20 shrink-0 items-center gap-4 px-6 border-b border-gray-200 bg-white">
+          <header className="sticky top-0 z-20 flex h-20 shrink-0 items-center gap-4 px-6 border-b border-gray-200 bg-white">
             <SidebarTrigger className="p-2 rounded-lg hover:bg-gray-100 transition-colors" />
             <div className="flex-1">
               <DashboardBreadcrumb />
@@ -43,8 +43,10 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
               <span className="text-sm text-gray-600">En ligne</span>
             </div>
           </header>
-          <div className="flex-1">
-            {children}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+            <div className="p-6">
+              {children}
+            </div>
           </div>
         </main>
       </SidebarProvider>

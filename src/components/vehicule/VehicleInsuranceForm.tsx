@@ -5,12 +5,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useVehicleInsuranceForm } from '@/hooks/vehicule/useVehicleInsuranceForm'
 import { VehicleInsurance } from '@/types/types'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { MemberWithSubscription } from '@/db/member.db'
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
+import { User, Car, Shield, Calendar, FileText, DollarSign } from 'lucide-react'
 
 interface Props {
   members: MemberWithSubscription[]
@@ -18,9 +20,10 @@ interface Props {
   initialInsurance?: VehicleInsurance | null
   isSubmitting?: boolean
   mode?: 'create' | 'edit'
+  isLoadingMembers?: boolean
 }
 
-export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSubmitting, mode = 'create' }: Props) {
+export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSubmitting, mode = 'create', isLoadingMembers = false }: Props) {
   const defaultValues = useMemo(() => {
     if (!initialInsurance) {
       return {
@@ -28,6 +31,7 @@ export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSu
         memberFirstName: '',
         memberLastName: '',
         memberMatricule: '',
+        memberContacts: [],
         vehicleType: 'car' as VehicleInsuranceFormValues['vehicleType'],
         vehicleBrand: '',
         vehicleModel: '',
@@ -75,6 +79,7 @@ export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSu
     form.setValue('memberFirstName', member.firstName || '')
     form.setValue('memberLastName', member.lastName || '')
     form.setValue('memberMatricule', member.matricule || '')
+    form.setValue('memberContacts', member.contacts || [])
   }
 
   const handleSubmit = (values: VehicleInsuranceFormValues) => {
@@ -95,211 +100,337 @@ export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSu
     })
   }
 
+  const selectedMember = useMemo(() => {
+    const memberId = form.watch('memberId')
+    if (!memberId) return null
+    return members.find(m => m.id === memberId)
+  }, [form.watch('memberId'), members])
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="grid md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="memberId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Membre</FormLabel>
-                <Select disabled={mode === 'edit'} value={field.value} onValueChange={value => handleMemberChange(value)}>
-                  <FormControl>
-                    <SelectTrigger className="capitalize">
-                      <SelectValue placeholder="Sélectionner un membre" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {memberOptions.map(option => (
-                      <SelectItem key={option.id} value={option.id}>
-                        {option.label} • {option.matricule}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
+      <form id="vehicle-insurance-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        {/* Section Membre */}
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-blue-100">
+                <User className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Membre</CardTitle>
+                <CardDescription>Sélectionnez le membre possédant le véhicule</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <FormField
               control={form.control}
-              name="memberFirstName"
+              name="memberId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Prénom</FormLabel>
-                  <Input {...field} disabled />
+                  <FormLabel className="text-sm font-semibold">Membre possédant un véhicule</FormLabel>
+                  <Select 
+                    disabled={mode === 'edit' || isLoadingMembers || memberOptions.length === 0} 
+                    value={field.value} 
+                    onValueChange={value => handleMemberChange(value)}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder={
+                          isLoadingMembers 
+                            ? "Chargement des membres..." 
+                            : memberOptions.length === 0 
+                              ? "Aucun membre avec véhicule disponible" 
+                              : "Sélectionner un membre"
+                        } />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {isLoadingMembers ? (
+                        <SelectItem value="loading" disabled>Chargement...</SelectItem>
+                      ) : memberOptions.length === 0 ? (
+                        <SelectItem value="no-members" disabled>Aucun membre avec véhicule trouvé</SelectItem>
+                      ) : (
+                        memberOptions.map(option => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label} • {option.matricule}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {selectedMember && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedMember.firstName} {selectedMember.lastName} • Matricule: {selectedMember.matricule}
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="memberLastName"
-              render={({ field }) => (
+          </CardContent>
+        </Card>
+
+        {/* Section Véhicule */}
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-green-100">
+                <Car className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Informations du véhicule</CardTitle>
+                <CardDescription>Détails du véhicule à assurer</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="vehicleType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-semibold">Type de véhicule</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="car">Voiture</SelectItem>
+                        <SelectItem value="motorcycle">Moto</SelectItem>
+                        <SelectItem value="truck">Camion</SelectItem>
+                        <SelectItem value="bus">Bus</SelectItem>
+                        <SelectItem value="other">Autre</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="plateNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-semibold">Plaque d'immatriculation</FormLabel>
+                    <Input {...field} placeholder="AA-123-BB" className="h-11 uppercase" />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <FormField control={form.control} name="vehicleBrand" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom</FormLabel>
-                  <Input {...field} disabled />
+                  <FormLabel className="text-sm font-semibold">Marque</FormLabel>
+                  <Input {...field} placeholder="Toyota" className="h-11" />
                   <FormMessage />
                 </FormItem>
-              )}
-            />
-          </div>
-        </div>
+              )} />
+              <FormField control={form.control} name="vehicleModel" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Modèle</FormLabel>
+                  <Input {...field} placeholder="Corolla" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="vehicleYear" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Année</FormLabel>
+                  <Input 
+                    type="number" 
+                    value={field.value || ''} 
+                    onChange={event => field.onChange(event.target.value ? Number(event.target.value) : undefined)} 
+                    placeholder="2020"
+                    className="h-11"
+                  />
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="vehicleType"
-            render={({ field }) => (
+        {/* Section Assurance */}
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-purple-100">
+                <Shield className="h-4 w-4 text-purple-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Détails de l'assurance</CardTitle>
+                <CardDescription>Informations sur la police d'assurance</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="insuranceCompany" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Compagnie d'assurance</FormLabel>
+                  <Input {...field} placeholder="Nom de l'assurance" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="policyNumber" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Numéro de police</FormLabel>
+                  <Input {...field} placeholder="POL-123456" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="coverageType" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Type de couverture</FormLabel>
+                  <Input {...field} value={field.value || ''} placeholder="Tous risques" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="insuranceAgent" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Agent / Contact</FormLabel>
+                  <Input {...field} value={field.value || ''} placeholder="Nom de l'agent" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section Financière */}
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-amber-100">
+                <DollarSign className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Informations financières</CardTitle>
+                <CardDescription>Montant et parrainage</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <FormField control={form.control} name="premiumAmount" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Montant annuel</FormLabel>
+                  <Input 
+                    type="number" 
+                    value={field.value || 0} 
+                    onChange={event => field.onChange(Number(event.target.value))} 
+                    className="h-11"
+                  />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="currency" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Devise</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="FCFA">FCFA</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="sponsorName" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Parrain (optionnel)</FormLabel>
+                  <Input {...field} value={field.value || ''} placeholder="Nom du parrain" className="h-11" />
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section Dates */}
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-red-100">
+                <Calendar className="h-4 w-4 text-red-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Période de couverture</CardTitle>
+                <CardDescription>Dates de début et de fin de l'assurance</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="startDate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Date de début</FormLabel>
+                  <Input 
+                    type="date" 
+                    value={field.value ? formatDate(field.value) : ''} 
+                    onChange={event => field.onChange(event.target.value ? new Date(event.target.value) : undefined)} 
+                    className="h-11"
+                  />
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="endDate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Date de fin</FormLabel>
+                  <Input 
+                    type="date" 
+                    value={field.value ? formatDate(field.value) : ''} 
+                    onChange={event => field.onChange(event.target.value ? new Date(event.target.value) : undefined)} 
+                    className="h-11"
+                  />
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section Notes */}
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-gray-100">
+                <FileText className="h-4 w-4 text-gray-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Notes</CardTitle>
+                <CardDescription>Informations complémentaires</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <FormField control={form.control} name="notes" render={({ field }) => (
               <FormItem>
-                <FormLabel>Type de véhicule</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="car">Voiture</SelectItem>
-                    <SelectItem value="motorcycle">Moto</SelectItem>
-                    <SelectItem value="truck">Camion</SelectItem>
-                    <SelectItem value="bus">Bus</SelectItem>
-                    <SelectItem value="other">Autre</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormLabel className="text-sm font-semibold">Notes (optionnel)</FormLabel>
+                <Textarea 
+                  {...field} 
+                  value={field.value || ''} 
+                  placeholder="Informations complémentaires..." 
+                  rows={4}
+                  className="resize-none"
+                />
                 <FormMessage />
               </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="plateNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Plaque</FormLabel>
-                <Input {...field} placeholder="AA-123-BB" className="uppercase" />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-4">
-          <FormField control={form.control} name="vehicleBrand" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Marque</FormLabel>
-              <Input {...field} placeholder="Toyota" />
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="vehicleModel" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Modèle</FormLabel>
-              <Input {...field} placeholder="Corolla" />
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="vehicleYear" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Année</FormLabel>
-              <Input type="number" value={field.value || ''} onChange={event => field.onChange(event.target.value ? Number(event.target.value) : undefined)} />
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <FormField control={form.control} name="insuranceCompany" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Compagnie d’assurance</FormLabel>
-              <Input {...field} placeholder="Nom de l’assurance" />
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="policyNumber" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Numéro de police</FormLabel>
-              <Input {...field} placeholder="POL-123456" />
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <FormField control={form.control} name="coverageType" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Type de couverture</FormLabel>
-              <Input {...field} placeholder="Tous risques" />
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="insuranceAgent" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Agent / contact</FormLabel>
-              <Input {...field} placeholder="Nom de l’agent" />
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-4">
-          <FormField control={form.control} name="premiumAmount" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Montant annuel</FormLabel>
-              <Input type="number" value={field.value || 0} onChange={event => field.onChange(Number(event.target.value))} />
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="currency" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Devise</FormLabel>
-              <Input {...field} />
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="sponsorName" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Parrain (optionnel)</FormLabel>
-              <Input {...field} placeholder="Nom du parrain" />
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <FormField control={form.control} name="startDate" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Début</FormLabel>
-              <Input type="date" value={field.value ? formatDate(field.value) : ''} onChange={event => field.onChange(event.target.value ? new Date(event.target.value) : undefined)} />
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="endDate" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Fin</FormLabel>
-              <Input type="date" value={field.value ? formatDate(field.value) : ''} onChange={event => field.onChange(event.target.value ? new Date(event.target.value) : undefined)} />
-              <FormMessage />
-            </FormItem>
-          )} />
-        </div>
-
-        <FormField control={form.control} name="notes" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Notes</FormLabel>
-            <Textarea {...field} placeholder="Informations complémentaires" rows={3} />
-            <FormMessage />
-          </FormItem>
-        )} />
-
-        <div className="flex justify-end gap-3">
-          <Button type="submit" className={cn('min-w-[200px]', isSubmitting && 'opacity-75')} disabled={isSubmitting}>
-            {isSubmitting ? 'Enregistrement...' : mode === 'create' ? 'Ajouter' : 'Mettre à jour'}
-          </Button>
-        </div>
+            )} />
+          </CardContent>
+        </Card>
       </form>
     </Form>
   )
@@ -309,4 +440,3 @@ function formatDate(date: Date) {
   const iso = date.toISOString()
   return iso.substring(0, 10)
 }
-

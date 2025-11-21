@@ -36,6 +36,8 @@ const routeLabels: Record<string, string> = {
   '/caisse-imprevue/settings': 'Paramètres Caisse',
   '/bienfaiteur': 'Bienfaiteur',
   '/bienfaiteur/create': 'Créer',
+  '/vehicules': 'Véhicules',
+  '/vehicules/create': 'Créer',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -80,6 +82,12 @@ const getRouteLabel = (path: string): string => {
     return 'Détails'
   }
   if (path.match(/^\/bienfaiteur\/[^\/]+\/modify$/)) {
+    return 'Modifier'
+  }
+  if (path.match(/^\/vehicules\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/vehicules\/[^\/]+\/edit$/)) {
     return 'Modifier'
   }
 

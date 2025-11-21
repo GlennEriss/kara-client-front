@@ -14,7 +14,7 @@ import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Plus, ShieldCheck } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 const DEFAULT_FILTERS: VehicleInsuranceFilters = {
@@ -36,9 +36,40 @@ export function VehicleInsuranceList() {
 
   const { data: stats, isLoading: statsLoading } = useVehicleInsuranceStats()
   const { data: list, isLoading, refetch } = useVehicleInsuranceList({ ...filters, page, limit: pageSize }, page, pageSize)
-  const { data: membersData, isLoading: membersLoading } = useAllMembers({ hasCar: true }, 1, 100)
+  // Récupérer TOUS les membres (sans filtre hasCar côté Firestore pour éviter les problèmes d'indexation)
+  const { data: membersData, isLoading: membersLoading, refetch: refetchMembers } = useAllMembers({}, 1, 1000)
+  // Récupérer toutes les assurances (sans pagination) pour obtenir la liste complète des membres avec assurance
+  const { data: allInsurancesList } = useVehicleInsuranceList({}, 1, 10000)
 
-  const membersWithCar = useMemo(() => membersData?.data || [], [membersData])
+  // Récupérer les IDs des membres qui ont déjà une assurance véhicule
+  const memberIdsWithInsurance = useMemo(() => {
+    if (!allInsurancesList?.items) {
+      return new Set<string>()
+    }
+    return new Set(allInsurancesList.items.map((insurance: VehicleInsurance) => insurance.memberId))
+  }, [allInsurancesList])
+
+  const membersWithCar = useMemo(() => {
+    if (!membersData?.data) {
+      return []
+    }
+    
+    // Filtrer côté client pour inclure :
+    // 1. Les membres où hasCar === true
+    // 2. OU les membres qui ont déjà une assurance véhicule (même si hasCar n'est pas défini)
+    const filtered = membersData.data.filter(member => {
+      const hasCarField = member.hasCar === true
+      const hasExistingInsurance = memberIdsWithInsurance.has(member.id)
+      return hasCarField || hasExistingInsurance
+    })
+    
+    // Trier par nom pour faciliter la recherche
+    return filtered.sort((a, b) => {
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase()
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase()
+      return nameA.localeCompare(nameB)
+    })
+  }, [membersData, memberIdsWithInsurance])
   const companies = useMemo(() => stats?.byCompany.map(item => item.company) || [], [stats])
 
   const createMutation = useCreateVehicleInsurance()
@@ -60,11 +91,21 @@ export function VehicleInsuranceList() {
 
   const handleSubmitForm = async (values: VehicleInsuranceFormValues) => {
     try {
+      // Récupérer le membre sélectionné pour enrichir les données
+      const selectedMember = membersWithCar.find(m => m.id === values.memberId)
+      
+      // Enrichir les valeurs avec les informations du membre
+      const enrichedValues = {
+        ...values,
+        memberContacts: selectedMember?.contacts || values.memberContacts || [],
+        memberPhotoUrl: selectedMember?.photoURL || null,
+      }
+      
       if (formMode === 'create') {
-        await createMutation.mutateAsync(values)
+        await createMutation.mutateAsync(enrichedValues as any)
         toast.success('Assurance véhicule créée')
       } else if (currentInsurance) {
-        await updateMutation.mutateAsync({ id: currentInsurance.id, updates: values })
+        await updateMutation.mutateAsync({ id: currentInsurance.id, updates: enrichedValues })
         toast.success('Assurance mise à jour')
       }
       setIsFormOpen(false)
@@ -109,13 +150,23 @@ export function VehicleInsuranceList() {
             <ShieldCheck className="h-7 w-7 text-[#234D65]" />
             Assurances des véhicules
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Suivi complet des membres possédant un véhicule et de leurs assurances.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Suivi complet des membres possédant un véhicule et de leurs assurances.
+            {!membersLoading && membersWithCar.length > 0 && (
+              <span className="ml-2 font-medium text-[#234D65]">
+                ({membersWithCar.length} {membersWithCar.length === 1 ? 'membre' : 'membres'} avec véhicule)
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => refetch()}>
+          <Button variant="outline" onClick={() => {
+            refetch()
+            refetchMembers()
+          }}>
             Actualiser
           </Button>
-          <Button onClick={openCreateModal} disabled={membersLoading}>
+          <Button onClick={openCreateModal} disabled={membersLoading || membersWithCar.length === 0}>
             <Plus className="h-4 w-4 mr-2" />
             Nouvelle assurance
           </Button>
@@ -159,11 +210,62 @@ export function VehicleInsuranceList() {
           setCurrentInsurance(null)
         }
       }}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{formMode === 'create' ? 'Ajouter une assurance' : 'Modifier l’assurance'}</DialogTitle>
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0 pb-4 border-b">
+            <DialogTitle className="text-2xl font-bold">{formMode === 'create' ? 'Ajouter une assurance véhicule' : "Modifier l'assurance"}</DialogTitle>
+            {formMode === 'create' && (
+              <div className="space-y-1 mt-2">
+                <p className="text-sm text-gray-600">
+                  Ajoutez les informations d'assurance pour un membre qui possède déjà un véhicule.
+                </p>
+                {membersLoading ? (
+                  <p className="text-xs text-gray-400">Chargement des membres...</p>
+                ) : membersWithCar.length === 0 ? (
+                  <p className="text-xs text-amber-600 font-medium">
+                    ⚠️ Aucun membre avec véhicule trouvé. Assurez-vous que des membres ont l'attribut "hasCar" activé.
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 font-medium">
+                    {membersWithCar.length} {membersWithCar.length === 1 ? 'membre disponible' : 'membres disponibles'} avec véhicule
+                  </p>
+                )}
+              </div>
+            )}
           </DialogHeader>
-          <VehicleInsuranceForm members={membersWithCar} onSubmit={handleSubmitForm} initialInsurance={currentInsurance} isSubmitting={createMutation.isPending || updateMutation.isPending} mode={formMode} />
+          <div className="flex-1 overflow-y-auto px-1 pr-2 -mr-2">
+            <VehicleInsuranceForm 
+              members={membersWithCar} 
+              onSubmit={handleSubmitForm} 
+              initialInsurance={currentInsurance} 
+              isSubmitting={createMutation.isPending || updateMutation.isPending} 
+              mode={formMode}
+              isLoadingMembers={membersLoading}
+            />
+          </div>
+          <DialogFooter className="flex-shrink-0 pt-4 border-t bg-gray-50 -mx-6 -mb-6 px-6 pb-6">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsFormOpen(false)}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              Annuler
+            </Button>
+            <Button 
+              type="submit"
+              form="vehicle-insurance-form"
+              disabled={createMutation.isPending || updateMutation.isPending || membersWithCar.length === 0}
+              className="min-w-[140px] bg-[#234D65] hover:bg-[#2c5a73]"
+            >
+              {createMutation.isPending || updateMutation.isPending ? (
+                <>Enregistrement...</>
+              ) : formMode === 'create' ? (
+                <>Ajouter l'assurance</>
+              ) : (
+                <>Mettre à jour</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

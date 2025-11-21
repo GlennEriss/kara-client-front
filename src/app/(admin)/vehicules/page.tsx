@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function VehiculesPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <VehicleInsuranceList />
     </div>
   )

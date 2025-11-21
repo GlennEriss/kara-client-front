@@ -5,6 +5,7 @@ export const vehicleInsuranceFormSchema = z.object({
   memberFirstName: z.string().min(1, 'Le prénom est requis'),
   memberLastName: z.string().min(1, 'Le nom est requis'),
   memberMatricule: z.string().optional(),
+  memberContacts: z.array(z.string()).optional(),
   sponsorMemberId: z.string().optional().nullable(),
   sponsorName: z.string().optional().nullable(),
   vehicleType: z.enum(['car', 'motorcycle', 'truck', 'bus', 'other']),
