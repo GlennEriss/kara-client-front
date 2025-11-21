@@ -1324,6 +1324,90 @@ export const CHARITY_EVENT_STATUS_LABELS: Record<CharityEventStatus, string> = {
   archived: 'Archivé'
 }
 
+// ================== TYPES POUR LE MODULE VÉHICULE ==================
+
+export type VehicleInsuranceStatus = 'active' | 'expires_soon' | 'expired'
+
+export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bus' | 'other'
+
+export interface VehicleInsurance {
+  id: string
+  memberId: string
+  memberFirstName: string
+  memberLastName: string
+  memberMatricule?: string
+  memberContacts?: string[]
+  memberPhotoUrl?: string | null
+  sponsorMemberId?: string
+  sponsorName?: string
+  vehicleType: VehicleType
+  vehicleBrand?: string
+  vehicleModel?: string
+  vehicleYear?: number
+  plateNumber?: string
+  insuranceCompany: string
+  insuranceAgent?: string
+  policyNumber: string
+  coverageType?: string
+  premiumAmount: number
+  currency: string
+  startDate: Date
+  endDate: Date
+  status: VehicleInsuranceStatus
+  notes?: string
+  attachments?: {
+    policyUrl?: string
+    policyPath?: string
+    receiptUrl?: string
+    receiptPath?: string
+  }
+  renewalCount?: number
+  lastRenewedAt?: Date
+  createdAt: Date
+  createdBy: string
+  updatedAt: Date
+  updatedBy?: string
+}
+
+export interface VehicleInsuranceFilters {
+  status?: VehicleInsuranceStatus | 'all'
+  insuranceCompany?: string
+  vehicleType?: VehicleType | 'all'
+  searchQuery?: string
+  sponsorMemberId?: string
+  alphabeticalOrder?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+  orderByField?: string
+  orderByDirection?: 'asc' | 'desc'
+}
+
+export interface VehicleInsuranceListResult {
+  items: VehicleInsurance[]
+  total: number
+  page: number
+  limit: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+  nextCursor?: any
+}
+
+export interface VehicleInsuranceStats {
+  totalInsured: number
+  active: number
+  expiresSoon: number
+  expired: number
+  byCompany: Array<{ company: string; count: number }>
+  byVehicleType: Array<{ type: VehicleType; count: number }>
+  expiringSoonList: VehicleInsurance[]
+}
+
+export const VEHICLE_INSURANCE_STATUS_LABELS: Record<VehicleInsuranceStatus, string> = {
+  active: 'Active',
+  expires_soon: 'Expire bientôt',
+  expired: 'Expirée'
+}
+
 // ================== TYPES POUR LES FILLEULS ==================
 
 /**
