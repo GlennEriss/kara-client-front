@@ -76,6 +76,16 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
     resolver: async (values, context, options) => {
       const step = currentStepRef.current
 
+      // Normaliser les numéros de téléphone en retirant les espaces avant la validation
+      const normalizedValues = {
+        ...values,
+        step3: values.step3 ? {
+          ...values.step3,
+          phone1: values.step3.phone1?.replace(/\s/g, '') || '',
+          phone2: values.step3.phone2?.replace(/\s/g, '') || ''
+        } : values.step3
+      }
+
       // @ts-ignore - Typage complexe, mais fonctionnel
       const schemaToUse = step === 1
         ? z.object({ step1: caisseImprevueStep1Schema, step2: z.any().optional(), step3: z.any().optional() })
@@ -84,7 +94,7 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
           : caisseImprevueGlobalSchema
 
       // @ts-ignore
-      return zodResolver(schemaToUse)(values, context, options)
+      return zodResolver(schemaToUse)(normalizedValues, context, options)
     },
     defaultValues: defaultCaisseImprevueGlobalValues,
     mode: 'onSubmit',

@@ -66,7 +66,8 @@ export const emergencyContactSchema = z.object({
   firstName: z.string()
     .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
     .regex(/^[a-zA-ZÀ-ÿ\s\-']*$/, 'Le prénom ne peut contenir que des lettres, espaces, tirets et apostrophes')
-    .optional(),
+    .optional()
+    .or(z.literal('')),
   
   // Téléphone 1 obligatoire
   phone1: z.string()

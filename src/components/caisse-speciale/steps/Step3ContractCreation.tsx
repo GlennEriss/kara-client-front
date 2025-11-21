@@ -47,10 +47,22 @@ export function Step3ContractCreation() {
     let isEmergencyContactValid = false
     if (formData.emergencyContact) {
       try {
-        emergencyContactSchema.parse(formData.emergencyContact)
+        // Normaliser les numéros de téléphone en retirant les espaces
+        const normalizedEmergencyContact = {
+          ...formData.emergencyContact,
+          phone1: formData.emergencyContact.phone1?.replace(/\s/g, '') || '',
+          phone2: formData.emergencyContact.phone2?.replace(/\s/g, '') || ''
+        }
+        emergencyContactSchema.parse(normalizedEmergencyContact)
         isEmergencyContactValid = true
-      } catch (error) {
+      } catch (error: any) {
         console.log('❌ Contact d\'urgence invalide:', error)
+        if (error?.errors && Array.isArray(error.errors)) {
+          console.log('Détails des erreurs:', error.errors.map((err: any) => ({
+            champ: err.path?.[0],
+            message: err.message
+          })))
+        }
         isEmergencyContactValid = false
       }
     }
@@ -58,7 +70,6 @@ export function Step3ContractCreation() {
     const isValid = Boolean(
       formData.firstPaymentDate &&
       formData.firstPaymentDate.trim() !== '' &&
-      new Date(formData.firstPaymentDate) >= new Date() &&
       isEmergencyContactValid
     )
 
@@ -90,10 +101,35 @@ export function Step3ContractCreation() {
         return
       }
 
+      // Normaliser les numéros de téléphone en retirant les espaces
+      const normalizedEmergencyContact = {
+        ...formData.emergencyContact,
+        phone1: formData.emergencyContact.phone1?.replace(/\s/g, '') || '',
+        phone2: formData.emergencyContact.phone2?.replace(/\s/g, '') || ''
+      }
+
       try {
-        emergencyContactSchema.parse(formData.emergencyContact)
-      } catch (error) {
-        toast.error('Les informations du contact d\'urgence sont incomplètes ou invalides.')
+        emergencyContactSchema.parse(normalizedEmergencyContact)
+      } catch (error: any) {
+        console.error('❌ Erreur de validation du contact d\'urgence:', error)
+        
+        // Extraire les messages d'erreur détaillés
+        const errorMessages: string[] = []
+        if (error?.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err: any) => {
+            const field = err.path?.[0] || 'champ'
+            const message = err.message || 'est invalide'
+            errorMessages.push(`${field}: ${message}`)
+          })
+        }
+        
+        const errorMessage = errorMessages.length > 0
+          ? `Les informations du contact d'urgence sont incomplètes ou invalides:\n${errorMessages.join('\n')}`
+          : 'Les informations du contact d\'urgence sont incomplètes ou invalides.'
+        
+        toast.error(errorMessage, {
+          duration: 6000
+        })
         return
       }
 
@@ -113,7 +149,7 @@ export function Step3ContractCreation() {
         return
       }
 
-      // Préparer les données pour la création
+      // Préparer les données pour la création avec numéros de téléphone normalisés
       const contractData = {
         memberId: formData.contractType === 'INDIVIDUAL' ? formData.memberId : undefined,
         groupeId: formData.contractType === 'GROUP' ? formData.groupeId : undefined,
@@ -121,7 +157,7 @@ export function Step3ContractCreation() {
         monthsPlanned: formData.monthsPlanned,
         caisseType: formData.caisseType,
         firstPaymentDate: formData.firstPaymentDate,
-        emergencyContact: formData.emergencyContact,
+        emergencyContact: normalizedEmergencyContact,
         createdBy: user?.uid
       }
 
@@ -307,12 +343,11 @@ export function Step3ContractCreation() {
                   type="date"
                   value={formData.firstPaymentDate || ''}
                   onChange={(e) => updateFormData({ firstPaymentDate: e.target.value })}
-                  min={new Date().toISOString().split('T')[0]}
                   className="w-full pl-10 pr-4 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
                 />
               </div>
               <p className="text-xs text-purple-600 mt-1">
-                Sélectionnez une date future pour le premier versement
+                Sélectionnez la date du premier versement (les dates passées sont acceptées)
               </p>
             </div>
           </div>
