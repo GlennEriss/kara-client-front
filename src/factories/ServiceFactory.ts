@@ -5,6 +5,7 @@ import { FilleulService } from '@/services/filleuls/FilleulService'
 import { RepositoryFactory } from './RepositoryFactory'
 import { ICaisseImprevueService } from '@/services/caisse-imprevue/ICaisseImprevueService'
 import { CaisseImprevueService } from '@/services/caisse-imprevue/CaisseImprevueService'
+import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -54,6 +55,18 @@ export class ServiceFactory {
       const supportCIRepository = RepositoryFactory.getSupportCIRepository()
       const earlyRefundCIRepository = RepositoryFactory.getEarlyRefundCIRepository()
       this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository, documentRepository, paymentCIRepository, supportCIRepository, earlyRefundCIRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des assurances véhicules
+   */
+  static getVehicleInsuranceService(): VehicleInsuranceService {
+    const key = 'VehicleInsuranceService'
+    if (!this.services.has(key)) {
+      const repository = RepositoryFactory.getVehicleInsuranceRepository()
+      this.services.set(key, new VehicleInsuranceService(repository))
     }
     return this.services.get(key)
   }
