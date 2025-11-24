@@ -7,6 +7,24 @@ import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 
+const VEHICLE_TYPE_LABELS: Record<string, string> = {
+  car: 'Voiture',
+  motorcycle: 'Moto',
+  truck: 'Camion',
+  bus: 'Bus',
+  maison: 'Maison',
+  other: 'Autre',
+}
+
+const ENERGY_LABELS: Record<string, string> = {
+  essence: 'Essence',
+  diesel: 'Diesel',
+  electrique: 'Électrique',
+  hybride: 'Hybride',
+  gaz: 'Gaz',
+  autre: 'Autre',
+}
+
 interface Props {
   insurance?: VehicleInsurance | null
   open: boolean
@@ -16,13 +34,21 @@ interface Props {
 export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props) {
   if (!insurance) return null
 
+  const holderFirstName = (insurance.holderType === 'member' ? insurance.memberFirstName : insurance.nonMemberFirstName) || ''
+  const holderLastName = (insurance.holderType === 'member' ? insurance.memberLastName : insurance.nonMemberLastName) || ''
+  const holderLabel = insurance.holderType === 'member' ? 'Membre KARA' : 'Non-membre'
+  const holderReference = insurance.holderType === 'member' ? (insurance.memberMatricule || 'Matricule inconnu') : 'Externe'
+  const phone = insurance.primaryPhone || insurance.memberContacts?.[0] || insurance.nonMemberPhone1 || ''
+  const vehicleTypeLabel = VEHICLE_TYPE_LABELS[insurance.vehicleType] || insurance.vehicleType
+  const energyLabel = insurance.energySource ? (ENERGY_LABELS[insurance.energySource] || insurance.energySource) : ''
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>
-              {insurance.memberFirstName} {insurance.memberLastName}
+              {holderFirstName} {holderLastName}
             </span>
             <VehicleInsuranceBadge status={insurance.status} />
           </DialogTitle>
@@ -31,12 +57,36 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
 
         <div className="grid gap-6">
           <section>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Titulaire</h3>
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Type</p>
+                <p className="font-medium text-gray-900">{holderLabel}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Référence</p>
+                <p className="font-medium text-gray-900">{holderReference}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Ville</p>
+                <p className="font-medium text-gray-900">{insurance.city || 'Non renseignée'}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Contact</p>
+                <p className="font-medium text-gray-900">{phone || 'Non renseigné'}</p>
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          <section>
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Véhicule</h3>
             <div className="grid md:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">Type / Modèle</p>
                 <p className="font-medium text-gray-900">
-                  {insurance.vehicleType} • {insurance.vehicleBrand} {insurance.vehicleModel}
+                  {vehicleTypeLabel} • {insurance.vehicleBrand} {insurance.vehicleModel}
                 </p>
               </div>
               <div>
@@ -46,6 +96,14 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
               <div>
                 <p className="text-gray-500">Année</p>
                 <p className="font-medium text-gray-900">{insurance.vehicleYear || '—'}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Source d'énergie</p>
+                <p className="font-medium text-gray-900">{energyLabel || 'Non renseignée'}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Puissance fiscale</p>
+                <p className="font-medium text-gray-900">{insurance.fiscalPower || '—'}</p>
               </div>
               <div>
                 <p className="text-gray-500">Parrain</p>
@@ -62,20 +120,18 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
               <div>
                 <p className="text-gray-500">Compagnie</p>
                 <p className="font-medium text-gray-900">{insurance.insuranceCompany}</p>
-                {insurance.insuranceAgent && <p className="text-xs text-gray-500">Agent : {insurance.insuranceAgent}</p>}
               </div>
               <div>
                 <p className="text-gray-500">Police</p>
                 <p className="font-medium text-gray-900">{insurance.policyNumber}</p>
               </div>
               <div>
-                <p className="text-gray-500">Couverture</p>
-                <p className="font-medium text-gray-900">{insurance.coverageType || 'Non spécifiée'}</p>
-              </div>
-              <div>
                 <p className="text-gray-500">Montant</p>
                 <p className="font-medium text-gray-900">
                   {insurance.premiumAmount.toLocaleString('fr-FR')} {insurance.currency}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {insurance.warrantyMonths ? `${insurance.warrantyMonths} mois de garantie` : 'Durée non renseignée'}
                 </p>
               </div>
               <div>

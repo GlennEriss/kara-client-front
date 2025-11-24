@@ -49,21 +49,52 @@ export class VehicleInsuranceRepository implements IRepository {
 
     let items = snapshot.docs.map(doc => this.mapDocToEntity(doc.id, doc.data() as FirestoreVehicleInsurance))
 
+    // Filtrer par type de titulaire
+    if (filters?.holderType && filters.holderType !== 'all') {
+      items = items.filter(item => item.holderType === filters.holderType)
+    }
+
     if (filters?.searchQuery) {
       const search = filters.searchQuery.toLowerCase()
-      items = items.filter(item =>
-        `${item.memberFirstName} ${item.memberLastName}`.toLowerCase().includes(search) ||
-        item.policyNumber.toLowerCase().includes(search) ||
-        (item.plateNumber?.toLowerCase().includes(search) ?? false) ||
-        item.insuranceCompany.toLowerCase().includes(search)
-      )
+      items = items.filter(item => {
+        // Recherche dans les noms (membre ou non-membre)
+        const firstName = item.holderType === 'member' 
+          ? (item.memberFirstName || '') 
+          : (item.nonMemberFirstName || '')
+        const lastName = item.holderType === 'member'
+          ? (item.memberLastName || '')
+          : (item.nonMemberLastName || '')
+        const fullName = `${firstName} ${lastName}`.toLowerCase()
+        const phone = (item.primaryPhone || item.nonMemberPhone1 || item.memberContacts?.[0] || '').toLowerCase()
+        const city = (item.city || '').toLowerCase()
+        return fullName.includes(search) ||
+          city.includes(search) ||
+          phone.includes(search) ||
+          item.policyNumber.toLowerCase().includes(search) ||
+          (item.plateNumber?.toLowerCase().includes(search) ?? false) ||
+          item.insuranceCompany.toLowerCase().includes(search) ||
+          (item.memberMatricule?.toLowerCase().includes(search) ?? false)
+      })
     }
 
     if (filters?.alphabeticalOrder) {
       const direction = filters.alphabeticalOrder === 'asc' ? 1 : -1
       items = items.sort((a, b) => {
-        const aName = `${a.memberLastName} ${a.memberFirstName}`.toLowerCase()
-        const bName = `${b.memberLastName} ${b.memberFirstName}`.toLowerCase()
+        const aLastName = a.holderType === 'member' 
+          ? (a.memberLastName || '') 
+          : (a.nonMemberLastName || '')
+        const aFirstName = a.holderType === 'member'
+          ? (a.memberFirstName || '')
+          : (a.nonMemberFirstName || '')
+        const bLastName = b.holderType === 'member'
+          ? (b.memberLastName || '')
+          : (b.nonMemberLastName || '')
+        const bFirstName = b.holderType === 'member'
+          ? (b.memberFirstName || '')
+          : (b.nonMemberFirstName || '')
+        
+        const aName = `${aLastName} ${aFirstName}`.toLowerCase()
+        const bName = `${bLastName} ${bFirstName}`.toLowerCase()
         if (aName < bName) return -1 * direction
         if (aName > bName) return 1 * direction
         return 0
@@ -148,6 +179,10 @@ export class VehicleInsuranceRepository implements IRepository {
       { active: 0, expiresSoon: 0, expired: 0 }
     )
 
+    // Compter les membres et non-membres
+    const membersCount = items.filter(item => item.holderType === 'member').length
+    const nonMembersCount = items.filter(item => item.holderType === 'non-member').length
+
     const byCompanyMap = new Map<string, number>()
     const byVehicleTypeMap = new Map<string, number>()
     items.forEach(item => {
@@ -165,6 +200,8 @@ export class VehicleInsuranceRepository implements IRepository {
       active: totals.active,
       expiresSoon: totals.expiresSoon,
       expired: totals.expired,
+      membersCount,
+      nonMembersCount,
       byCompany: Array.from(byCompanyMap.entries()).map(([company, count]) => ({ company, count })),
       byVehicleType: Array.from(byVehicleTypeMap.entries()).map(([type, count]) => ({ type: type as any, count })),
       expiringSoonList,
@@ -181,12 +218,19 @@ export class VehicleInsuranceRepository implements IRepository {
   private mapDocToEntity(id: string, data: FirestoreVehicleInsurance): VehicleInsurance {
     return {
       id,
+      city: data.city,
+      primaryPhone: data.primaryPhone || data.nonMemberPhone1 || data.memberContacts?.[0],
+      holderType: data.holderType || (data.memberId ? 'member' : 'non-member'), // Rétrocompatibilité
       memberId: data.memberId,
       memberFirstName: data.memberFirstName,
       memberLastName: data.memberLastName,
       memberMatricule: data.memberMatricule,
       memberContacts: data.memberContacts,
       memberPhotoUrl: data.memberPhotoUrl,
+      nonMemberFirstName: data.nonMemberFirstName,
+      nonMemberLastName: data.nonMemberLastName,
+      nonMemberPhone1: data.nonMemberPhone1,
+      nonMemberPhone2: data.nonMemberPhone2,
       sponsorMemberId: data.sponsorMemberId,
       sponsorName: data.sponsorName,
       vehicleType: data.vehicleType,
@@ -194,10 +238,11 @@ export class VehicleInsuranceRepository implements IRepository {
       vehicleModel: data.vehicleModel,
       vehicleYear: data.vehicleYear,
       plateNumber: data.plateNumber,
+      energySource: data.energySource,
+      fiscalPower: data.fiscalPower,
       insuranceCompany: data.insuranceCompany,
-      insuranceAgent: data.insuranceAgent,
       policyNumber: data.policyNumber,
-      coverageType: data.coverageType,
+      warrantyMonths: data.warrantyMonths,
       premiumAmount: data.premiumAmount,
       currency: data.currency || 'FCFA',
       startDate: this.toDate(data.startDate),

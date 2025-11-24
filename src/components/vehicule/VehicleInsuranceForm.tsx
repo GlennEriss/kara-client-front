@@ -4,18 +4,35 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useVehicleInsuranceForm } from '@/hooks/vehicule/useVehicleInsuranceForm'
 import { VehicleInsurance } from '@/types/types'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
-import { MemberWithSubscription } from '@/db/member.db'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { User, Car, Shield, Calendar, FileText, DollarSign } from 'lucide-react'
+import { User, Car, Shield, Calendar, FileText, DollarSign, Users } from 'lucide-react'
+import MemberSearchInput from './MemberSearchInput'
+
+const DEFAULT_PHONE_PREFIX = '+241 '
+const PHONE_DIGITS_LIMIT = 8
+
+const formatPhoneValue = (value: string, allowEmpty = false) => {
+  const digitsOnly = value.replace(/[^0-9]/g, '')
+  let digits = digitsOnly
+  if (digits.startsWith('241')) {
+    digits = digits.slice(3)
+  }
+  const normalized = digits.slice(0, PHONE_DIGITS_LIMIT)
+  if (!normalized) {
+    return allowEmpty ? '' : DEFAULT_PHONE_PREFIX
+  }
+  const grouped = normalized.replace(/(\d{2})(?=\d)/g, '$1 ')
+  return `${DEFAULT_PHONE_PREFIX}${grouped}`.trimEnd()
+}
 
 interface Props {
-  members: MemberWithSubscription[]
   onSubmit: (values: VehicleInsuranceFormValues) => void
   initialInsurance?: VehicleInsurance | null
   isSubmitting?: boolean
@@ -23,43 +40,64 @@ interface Props {
   isLoadingMembers?: boolean
 }
 
-export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSubmitting, mode = 'create', isLoadingMembers = false }: Props) {
+export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting, mode = 'create', isLoadingMembers = false }: Props) {
   const defaultValues = useMemo(() => {
     if (!initialInsurance) {
       return {
+        holderType: 'member' as VehicleInsuranceFormValues['holderType'],
+        city: '',
         memberId: '',
         memberFirstName: '',
         memberLastName: '',
         memberMatricule: '',
         memberContacts: [],
+        nonMemberFirstName: '',
+        nonMemberLastName: '',
+        nonMemberPhone1: DEFAULT_PHONE_PREFIX,
+        nonMemberPhone2: null,
         vehicleType: 'car' as VehicleInsuranceFormValues['vehicleType'],
+        energySource: 'essence' as VehicleInsuranceFormValues['energySource'],
+        fiscalPower: '',
         vehicleBrand: '',
         vehicleModel: '',
         plateNumber: '',
+        warrantyMonths: 12,
         insuranceCompany: '',
         policyNumber: '',
-        coverageType: '',
         premiumAmount: 0,
         currency: 'FCFA',
         startDate: new Date(),
         endDate: new Date(),
+        notes: '',
       } as Partial<VehicleInsuranceFormValues>
     }
 
+    // Déterminer le type de titulaire depuis les données existantes
+    const holderType = initialInsurance.holderType || 
+      (initialInsurance.memberId ? 'member' : 'non-member')
+
     return {
-      memberId: initialInsurance.memberId,
-      memberFirstName: initialInsurance.memberFirstName,
-      memberLastName: initialInsurance.memberLastName,
-      memberMatricule: initialInsurance.memberMatricule,
+      holderType,
+      city: initialInsurance.city || '',
+      memberId: initialInsurance.memberId || '',
+      memberFirstName: initialInsurance.memberFirstName || '',
+      memberLastName: initialInsurance.memberLastName || '',
+      memberMatricule: initialInsurance.memberMatricule || '',
+      memberContacts: initialInsurance.memberContacts || [],
+      nonMemberFirstName: initialInsurance.nonMemberFirstName || '',
+      nonMemberLastName: initialInsurance.nonMemberLastName || '',
+      nonMemberPhone1: initialInsurance.nonMemberPhone1 || '',
+      nonMemberPhone2: initialInsurance.nonMemberPhone2 || null,
       vehicleType: initialInsurance.vehicleType,
       vehicleBrand: initialInsurance.vehicleBrand,
       vehicleModel: initialInsurance.vehicleModel,
       vehicleYear: initialInsurance.vehicleYear,
       plateNumber: initialInsurance.plateNumber,
+      energySource: initialInsurance.energySource || 'essence',
+      fiscalPower: initialInsurance.fiscalPower || '',
       insuranceCompany: initialInsurance.insuranceCompany,
-      insuranceAgent: initialInsurance.insuranceAgent,
       policyNumber: initialInsurance.policyNumber,
-      coverageType: initialInsurance.coverageType,
+      warrantyMonths: initialInsurance.warrantyMonths ?? 12,
       premiumAmount: initialInsurance.premiumAmount,
       currency: initialInsurance.currency,
       startDate: initialInsurance.startDate,
@@ -72,102 +110,262 @@ export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSu
 
   const form = useVehicleInsuranceForm(defaultValues)
 
-  const handleMemberChange = (memberId: string) => {
-    const member = members.find(m => m.id === memberId)
-    if (!member) return
+  const holderType = form.watch('holderType')
+  const initialMemberDisplayName =
+    initialInsurance && initialInsurance.memberFirstName
+      ? `${initialInsurance.memberFirstName || ''} ${initialInsurance.memberLastName || ''}`.trim()
+      : undefined
+  useEffect(() => {
+    if (holderType === 'non-member') {
+      const phone1 = form.getValues('nonMemberPhone1')
+      if (!phone1) {
+        form.setValue('nonMemberPhone1', DEFAULT_PHONE_PREFIX, { shouldDirty: false, shouldValidate: true })
+      }
+    }
+  }, [holderType, form])
+
+  const handleMemberChange = (memberId: string, member: any) => {
+    if (!member) {
+      form.setValue('memberId', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberFirstName', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberLastName', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberMatricule', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberContacts', [], { shouldDirty: true, shouldValidate: true })
+      return
+    }
     form.setValue('memberId', memberId, { shouldDirty: true, shouldValidate: true })
-    form.setValue('memberFirstName', member.firstName || '')
-    form.setValue('memberLastName', member.lastName || '')
-    form.setValue('memberMatricule', member.matricule || '')
-    form.setValue('memberContacts', member.contacts || [])
+    form.setValue('memberFirstName', member.firstName || '', { shouldDirty: true, shouldValidate: true })
+    form.setValue('memberLastName', member.lastName || '', { shouldDirty: true, shouldValidate: true })
+    form.setValue('memberMatricule', member.matricule || '', { shouldDirty: true, shouldValidate: true })
+    form.setValue('memberContacts', member.contacts || [], { shouldDirty: true, shouldValidate: true })
+  }
+
+  const handleHolderTypeChange = (value: 'member' | 'non-member') => {
+    form.setValue('holderType', value, { shouldDirty: true, shouldValidate: true })
+    // Réinitialiser les champs selon le type
+    if (value === 'member') {
+      form.setValue('nonMemberFirstName', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('nonMemberLastName', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('nonMemberPhone1', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('nonMemberPhone2', null, { shouldDirty: true, shouldValidate: true })
+    } else {
+      form.setValue('memberId', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberFirstName', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberLastName', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberMatricule', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('memberContacts', [], { shouldDirty: true, shouldValidate: true })
+      form.setValue('nonMemberPhone1', DEFAULT_PHONE_PREFIX, { shouldDirty: true, shouldValidate: true })
+    }
+  }
+
+  const handlePhoneChange = (fieldName: 'nonMemberPhone1' | 'nonMemberPhone2', rawValue: string) => {
+    const formatted = formatPhoneValue(rawValue, fieldName === 'nonMemberPhone2')
+    form.setValue(fieldName, formatted, { shouldDirty: true, shouldValidate: true })
   }
 
   const handleSubmit = (values: VehicleInsuranceFormValues) => {
     onSubmit(values)
   }
 
-  const memberOptions = members.map(member => ({
-    id: member.id,
-    label: `${member.firstName} ${member.lastName}`,
-    matricule: member.matricule,
-  }))
-
-  if (initialInsurance && !memberOptions.find(option => option.id === initialInsurance.memberId)) {
-    memberOptions.unshift({
-      id: initialInsurance.memberId,
-      label: `${initialInsurance.memberFirstName} ${initialInsurance.memberLastName}`,
-      matricule: initialInsurance.memberMatricule || '',
-    })
-  }
-
-  const selectedMember = useMemo(() => {
-    const memberId = form.watch('memberId')
-    if (!memberId) return null
-    return members.find(m => m.id === memberId)
-  }, [form.watch('memberId'), members])
-
   return (
     <Form {...form}>
       <form id="vehicle-insurance-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* Section Membre */}
+        {/* Section Titulaire */}
         <Card className="border-2">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-blue-100">
-                <User className="h-4 w-4 text-blue-600" />
+                <Users className="h-4 w-4 text-blue-600" />
               </div>
               <div>
-                <CardTitle className="text-lg">Membre</CardTitle>
-                <CardDescription>Sélectionnez le membre possédant le véhicule</CardDescription>
+                <CardTitle className="text-lg">Titulaire de l'assurance</CardTitle>
+                <CardDescription>Choisissez si le titulaire est un membre KARA ou un non-membre</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* Choix du type de titulaire */}
             <FormField
               control={form.control}
-              name="memberId"
+              name="holderType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm font-semibold">Membre possédant un véhicule</FormLabel>
-                  <Select 
-                    disabled={mode === 'edit' || isLoadingMembers || memberOptions.length === 0} 
-                    value={field.value} 
-                    onValueChange={value => handleMemberChange(value)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder={
-                          isLoadingMembers 
-                            ? "Chargement des membres..." 
-                            : memberOptions.length === 0 
-                              ? "Aucun membre avec véhicule disponible" 
-                              : "Sélectionner un membre"
-                        } />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {isLoadingMembers ? (
-                        <SelectItem value="loading" disabled>Chargement...</SelectItem>
-                      ) : memberOptions.length === 0 ? (
-                        <SelectItem value="no-members" disabled>Aucun membre avec véhicule trouvé</SelectItem>
-                      ) : (
-                        memberOptions.map(option => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.label} • {option.matricule}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  {selectedMember && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {selectedMember.firstName} {selectedMember.lastName} • Matricule: {selectedMember.matricule}
-                    </p>
-                  )}
+                  <FormLabel className="text-sm font-semibold">Type de titulaire</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={handleHolderTypeChange}
+                      className="flex gap-6"
+                      disabled={mode === 'edit'}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="member" id="holder-member" />
+                        <label
+                          htmlFor="holder-member"
+                          className="flex items-center gap-2 text-sm font-medium leading-none cursor-pointer"
+                        >
+                          <User className="h-4 w-4 text-blue-600" />
+                          Membre KARA
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="non-member" id="holder-non-member" />
+                        <label
+                          htmlFor="holder-non-member"
+                          className="flex items-center gap-2 text-sm font-medium leading-none cursor-pointer"
+                        >
+                          <Users className="h-4 w-4 text-gray-600" />
+                          Non-membre
+                        </label>
+                      </div>
+                    </RadioGroup>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Champs pour membre */}
+            {holderType === 'member' && (
+              <FormField
+                control={form.control}
+                name="memberId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <MemberSearchInput
+                        value={field.value || ''}
+                        onChange={handleMemberChange}
+                        selectedMemberId={field.value}
+                        error={form.formState.errors.memberId?.message}
+                        disabled={mode === 'edit' || isLoadingMembers}
+                        label="Rechercher un membre"
+                        placeholder="Rechercher par nom, prénom ou matricule..."
+                        initialDisplayName={initialMemberDisplayName}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold">Ville (Gabon)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      placeholder="Libreville, Port-Gentil..."
+                      className="h-11"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Champs pour non-membre */}
+            {holderType === 'non-member' && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="nonMemberFirstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold">
+                          Prénom <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="Prénom"
+                            className="h-11"
+                            disabled={mode === 'edit'}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="nonMemberLastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold">
+                          Nom <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="Nom"
+                            className="h-11"
+                            disabled={mode === 'edit'}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="nonMemberPhone1"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold">
+                          Téléphone 1 <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            ref={field.ref}
+                            name={field.name}
+                            value={field.value || ''}
+                            onBlur={field.onBlur}
+                            onChange={event => handlePhoneChange('nonMemberPhone1', event.target.value)}
+                            placeholder="+241 65 67 17 34"
+                            className="h-11"
+                            disabled={mode === 'edit'}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="nonMemberPhone2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-semibold">Téléphone 2 (optionnel)</FormLabel>
+                        <FormControl>
+                          <Input
+                            ref={field.ref}
+                            name={field.name}
+                            value={field.value || ''}
+                            onBlur={field.onBlur}
+                            onChange={event => handlePhoneChange('nonMemberPhone2', event.target.value)}
+                            placeholder="+241 74 XX XX XX"
+                            className="h-11"
+                            disabled={mode === 'edit'}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -203,6 +401,7 @@ export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSu
                         <SelectItem value="motorcycle">Moto</SelectItem>
                         <SelectItem value="truck">Camion</SelectItem>
                         <SelectItem value="bus">Bus</SelectItem>
+                        <SelectItem value="maison">Maison</SelectItem>
                         <SelectItem value="other">Autre</SelectItem>
                       </SelectContent>
                     </Select>
@@ -251,6 +450,44 @@ export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSu
                 </FormItem>
               )} />
             </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="energySource"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-semibold">Source d'énergie</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Energie" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="essence">Essence</SelectItem>
+                        <SelectItem value="diesel">Diesel</SelectItem>
+                        <SelectItem value="electrique">Électrique</SelectItem>
+                        <SelectItem value="hybride">Hybride</SelectItem>
+                        <SelectItem value="gaz">Gaz</SelectItem>
+                        <SelectItem value="autre">Autre</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="fiscalPower"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-semibold">Puissance fiscale / administrative</FormLabel>
+                    <Input {...field} placeholder="11 CV" className="h-11" />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -284,22 +521,24 @@ export function VehicleInsuranceForm({ members, onSubmit, initialInsurance, isSu
                 </FormItem>
               )} />
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="coverageType" render={({ field }) => (
+            <FormField
+              control={form.control}
+              name="warrantyMonths"
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm font-semibold">Type de couverture</FormLabel>
-                  <Input {...field} value={field.value || ''} placeholder="Tous risques" className="h-11" />
+                  <FormLabel className="text-sm font-semibold">Durée de garantie (mois)</FormLabel>
+                  <Input
+                    type="number"
+                    value={field.value || 0}
+                    onChange={event => field.onChange(Number(event.target.value))}
+                    className="h-11"
+                    min={1}
+                    max={60}
+                  />
                   <FormMessage />
                 </FormItem>
-              )} />
-              <FormField control={form.control} name="insuranceAgent" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-sm font-semibold">Agent / Contact</FormLabel>
-                  <Input {...field} value={field.value || ''} placeholder="Nom de l'agent" className="h-11" />
-                  <FormMessage />
-                </FormItem>
-              )} />
-            </div>
+              )}
+            />
           </CardContent>
         </Card>
 

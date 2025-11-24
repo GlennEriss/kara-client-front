@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useInfiniteQuery, useMutation } from '@tanstack/react-query'
 import { getUserById, getAllUsers, getUsersPage } from '@/db/user.db'
-import { getMembersByGroup, getMembershipRequestByDossier, getMemberStats, getMemberSubscriptions, getMemberWithSubscription, MemberWithSubscription, searchMembers, getMembers } from '@/db/member.db'
+import { getMembersByGroup, getMembershipRequestByDossier, getMemberStats, getMemberSubscriptions, getMemberWithSubscription, MemberWithSubscription, searchMembers, getMembers, updateMemberHasCar } from '@/db/member.db'
 import { Subscription, User, UserFilters, UserStats } from '@/types/types'
 
 // Hook pour récupérer tous les membres avec pagination et filtres
@@ -162,6 +162,39 @@ export function useInvalidateMembers() {
       queryClient.invalidateQueries({ queryKey: ['member', userId] })
     }
   }
+}
+
+/**
+ * Hook pour mettre à jour le statut hasCar d'un membre
+ */
+export function useUpdateMemberHasCar() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (params: {
+      memberId: string
+      hasCar: boolean
+      updatedBy: string
+    }) => {
+      const { memberId, hasCar, updatedBy } = params
+      const success = await updateMemberHasCar(memberId, hasCar, updatedBy)
+      
+      if (!success) {
+        throw new Error('Impossible de mettre à jour le statut véhicule')
+      }
+      
+      return success
+    },
+    onSuccess: (_, variables) => {
+      // Invalider toutes les queries liées aux membres
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+      queryClient.invalidateQueries({ queryKey: ['allMembers'] })
+      queryClient.invalidateQueries({ queryKey: ['member', variables.memberId] })
+    },
+    onError: (error) => {
+      console.error('Erreur lors de la mise à jour du statut véhicule:', error)
+    }
+  })
 }
 
 /**

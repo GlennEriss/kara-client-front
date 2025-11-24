@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { VehicleInsurance, VehicleInsuranceListResult } from '@/types/types'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
-import { Eye, Pencil, RefreshCw, Trash2 } from 'lucide-react'
+import { Eye, Pencil, RefreshCw, Trash2, Phone, MapPin } from 'lucide-react'
 import MembershipPagination from '@/components/memberships/MembershipPagination'
 
 interface Props {
@@ -18,6 +18,24 @@ interface Props {
   onDelete: (insurance: VehicleInsurance) => void
   onPageChange: (page: number) => void
   onItemsPerPageChange: (limit: number) => void
+}
+
+const VEHICLE_TYPE_LABELS: Record<string, string> = {
+  car: 'Voiture',
+  motorcycle: 'Moto',
+  truck: 'Camion',
+  bus: 'Bus',
+  maison: 'Maison',
+  other: 'Autre',
+}
+
+const ENERGY_LABELS: Record<string, string> = {
+  essence: 'Essence',
+  diesel: 'Diesel',
+  electrique: 'Électrique',
+  hybride: 'Hybride',
+  gaz: 'Gaz',
+  autre: 'Autre',
 }
 
 export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew, onDelete, onPageChange, onItemsPerPageChange }: Props) {
@@ -66,63 +84,95 @@ export function VehicleInsuranceTable({ data, isLoading, onView, onEdit, onRenew
                 </TableRow>
               )}
 
-              {data?.items.map(item => (
-                <TableRow key={item.id} className="hover:bg-gray-50">
-                  <TableCell>
-                    <div>
+              {data?.items.map(item => {
+                const holderFirstName = (item.holderType === 'member' ? item.memberFirstName : item.nonMemberFirstName) || ''
+                const holderLastName = (item.holderType === 'member' ? item.memberLastName : item.nonMemberLastName) || ''
+                const holderLabel = item.holderType === 'member' ? 'Membre KARA' : 'Non-membre'
+                const holderReference = item.holderType === 'member' ? (item.memberMatricule || 'Matricule inconnu') : 'Externe'
+                const phone = item.primaryPhone || item.memberContacts?.[0] || item.nonMemberPhone1 || ''
+                const city = item.city || ''
+                const vehicleTypeLabel = VEHICLE_TYPE_LABELS[item.vehicleType] || item.vehicleType
+                const energyLabel = item.energySource ? (ENERGY_LABELS[item.energySource] || item.energySource) : ''
+                return (
+                  <TableRow key={item.id} className="hover:bg-gray-50">
+                    <TableCell>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-gray-900">
+                          {holderFirstName} {holderLastName}
+                        </p>
+                        <p className="text-xs uppercase tracking-wide text-gray-500">{holderLabel}</p>
+                        <p className="text-sm text-gray-500">{holderReference}</p>
+                        {city && (
+                          <p className="text-xs text-gray-500 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {city}
+                          </p>
+                        )}
+                        {phone && (
+                          <p className="text-xs text-gray-500 flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {phone}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {item.vehicleBrand} {item.vehicleModel}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {vehicleTypeLabel} • {item.plateNumber}
+                        </p>
+                        {(energyLabel || item.fiscalPower) && (
+                          <p className="text-xs text-gray-500">
+                            {energyLabel}
+                            {energyLabel && item.fiscalPower ? ' • ' : ''}
+                            {item.fiscalPower}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-gray-900">{item.insuranceCompany}</p>
+                        <p className="text-sm text-gray-500">{item.policyNumber}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <p className="font-semibold text-gray-900">
-                        {item.memberFirstName} {item.memberLastName}
+                        {item.premiumAmount.toLocaleString('fr-FR')} {item.currency}
                       </p>
-                      <p className="text-sm text-gray-500">{item.memberMatricule || 'Matricule inconnu'}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {item.vehicleBrand} {item.vehicleModel}
+                      <p className="text-xs text-gray-500">
+                        {item.warrantyMonths ? `${item.warrantyMonths} mois de garantie` : 'Durée non renseignée'}
                       </p>
-                      <p className="text-sm text-gray-500">
-                        {item.vehicleType} • {item.plateNumber}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-gray-900">{item.insuranceCompany}</p>
-                      <p className="text-sm text-gray-500">{item.policyNumber}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <p className="font-semibold text-gray-900">
-                      {item.premiumAmount.toLocaleString('fr-FR')} {item.currency}
-                    </p>
-                    <p className="text-xs text-gray-500">Couverture {item.coverageType || 'N/A'}</p>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-gray-700">
-                      <p>Du {item.startDate.toLocaleDateString('fr-FR')}</p>
-                      <p>Au {item.endDate.toLocaleDateString('fr-FR')}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <VehicleInsuranceBadge status={item.status} />
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => onView(item)}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onRenew(item)}>
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" onClick={() => onDelete(item)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-gray-700">
+                        <p>Du {item.startDate.toLocaleDateString('fr-FR')}</p>
+                        <p>Au {item.endDate.toLocaleDateString('fr-FR')}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <VehicleInsuranceBadge status={item.status} />
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => onView(item)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(item)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => onRenew(item)}>
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-red-600 hover:text-red-700" onClick={() => onDelete(item)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

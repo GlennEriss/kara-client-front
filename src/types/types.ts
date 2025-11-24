@@ -1328,16 +1328,32 @@ export const CHARITY_EVENT_STATUS_LABELS: Record<CharityEventStatus, string> = {
 
 export type VehicleInsuranceStatus = 'active' | 'expires_soon' | 'expired'
 
-export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bus' | 'other'
+export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bus' | 'maison' | 'other'
+
+export type VehicleEnergySource = 'essence' | 'diesel' | 'electrique' | 'hybride' | 'gaz' | 'autre'
+
+export type VehicleInsuranceHolderType = 'member' | 'non-member'
 
 export interface VehicleInsurance {
   id: string
-  memberId: string
-  memberFirstName: string
-  memberLastName: string
+  holderType: VehicleInsuranceHolderType
+  city?: string
+  primaryPhone?: string
+  
+  // Champs pour membre (si holderType === 'member')
+  memberId?: string
+  memberFirstName?: string
+  memberLastName?: string
   memberMatricule?: string
   memberContacts?: string[]
   memberPhotoUrl?: string | null
+  
+  // Champs pour non-membre (si holderType === 'non-member')
+  nonMemberFirstName?: string
+  nonMemberLastName?: string
+  nonMemberPhone1?: string
+  nonMemberPhone2?: string | null
+  
   sponsorMemberId?: string
   sponsorName?: string
   vehicleType: VehicleType
@@ -1345,10 +1361,11 @@ export interface VehicleInsurance {
   vehicleModel?: string
   vehicleYear?: number
   plateNumber?: string
+  energySource?: VehicleEnergySource
+  fiscalPower?: string
   insuranceCompany: string
-  insuranceAgent?: string
   policyNumber: string
-  coverageType?: string
+  warrantyMonths?: number
   premiumAmount: number
   currency: string
   startDate: Date
@@ -1376,6 +1393,7 @@ export interface VehicleInsuranceFilters {
   searchQuery?: string
   sponsorMemberId?: string
   alphabeticalOrder?: 'asc' | 'desc'
+  holderType?: VehicleInsuranceHolderType | 'all' // Filtrer par type de titulaire
   page?: number
   limit?: number
   orderByField?: string
@@ -1397,6 +1415,8 @@ export interface VehicleInsuranceStats {
   active: number
   expiresSoon: number
   expired: number
+  membersCount: number // Nombre d'assurances pour membres
+  nonMembersCount: number // Nombre d'assurances pour non-membres
   byCompany: Array<{ company: string; count: number }>
   byVehicleType: Array<{ type: VehicleType; count: number }>
   expiringSoonList: VehicleInsurance[]
