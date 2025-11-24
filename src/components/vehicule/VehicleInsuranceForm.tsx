@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useVehicleInsuranceForm } from '@/hooks/vehicule/useVehicleInsuranceForm'
-import { VehicleInsurance } from '@/types/types'
+import { VehicleInsurance, User as UserType } from '@/types/types'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { useMemo, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -69,6 +69,10 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
         startDate: new Date(),
         endDate: new Date(),
         notes: '',
+        sponsorMemberId: '',
+        sponsorName: '',
+        sponsorMatricule: null,
+        sponsorContacts: [],
       } as Partial<VehicleInsuranceFormValues>
     }
 
@@ -102,8 +106,10 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
       currency: initialInsurance.currency,
       startDate: initialInsurance.startDate,
       endDate: initialInsurance.endDate,
-      sponsorMemberId: initialInsurance.sponsorMemberId,
-      sponsorName: initialInsurance.sponsorName,
+      sponsorMemberId: initialInsurance.sponsorMemberId || '',
+      sponsorName: initialInsurance.sponsorName || '',
+      sponsorMatricule: initialInsurance.sponsorMatricule,
+      sponsorContacts: initialInsurance.sponsorContacts || [],
       notes: initialInsurance.notes,
     } as Partial<VehicleInsuranceFormValues>
   }, [initialInsurance])
@@ -115,6 +121,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
     initialInsurance && initialInsurance.memberFirstName
       ? `${initialInsurance.memberFirstName || ''} ${initialInsurance.memberLastName || ''}`.trim()
       : undefined
+  const initialSponsorDisplayName = initialInsurance?.sponsorName || undefined
   useEffect(() => {
     if (holderType === 'non-member') {
       const phone1 = form.getValues('nonMemberPhone1')
@@ -124,7 +131,7 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
     }
   }, [holderType, form])
 
-  const handleMemberChange = (memberId: string, member: any) => {
+  const handleMemberChange = (memberId: string, member: UserType | null) => {
     if (!member) {
       form.setValue('memberId', '', { shouldDirty: true, shouldValidate: true })
       form.setValue('memberFirstName', '', { shouldDirty: true, shouldValidate: true })
@@ -138,6 +145,20 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
     form.setValue('memberLastName', member.lastName || '', { shouldDirty: true, shouldValidate: true })
     form.setValue('memberMatricule', member.matricule || '', { shouldDirty: true, shouldValidate: true })
     form.setValue('memberContacts', member.contacts || [], { shouldDirty: true, shouldValidate: true })
+  }
+
+  const handleSponsorChange = (memberId: string, member: UserType | null) => {
+    if (!memberId || !member) {
+      form.setValue('sponsorMemberId', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('sponsorName', '', { shouldDirty: true, shouldValidate: true })
+      form.setValue('sponsorMatricule', null, { shouldDirty: true, shouldValidate: true })
+      form.setValue('sponsorContacts', [], { shouldDirty: true, shouldValidate: true })
+      return
+    }
+    form.setValue('sponsorMemberId', memberId, { shouldDirty: true, shouldValidate: true })
+    form.setValue('sponsorName', `${member.firstName || ''} ${member.lastName || ''}`.trim(), { shouldDirty: true, shouldValidate: true })
+    form.setValue('sponsorMatricule', member.matricule || null, { shouldDirty: true, shouldValidate: true })
+    form.setValue('sponsorContacts', member.contacts || [], { shouldDirty: true, shouldValidate: true })
   }
 
   const handleHolderTypeChange = (value: 'member' | 'non-member') => {
@@ -587,14 +608,30 @@ export function VehicleInsuranceForm({ onSubmit, initialInsurance, isSubmitting,
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="sponsorName" render={({ field }) => (
+            </div>
+            <FormField
+              control={form.control}
+              name="sponsorMemberId"
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm font-semibold">Parrain (optionnel)</FormLabel>
-                  <Input {...field} value={field.value || ''} placeholder="Nom du parrain" className="h-11" />
+                  <FormControl>
+                    <MemberSearchInput
+                      value={field.value || ''}
+                      onChange={handleSponsorChange}
+                      selectedMemberId={field.value || undefined}
+                      error={form.formState.errors.sponsorMemberId?.message}
+                      disabled={isLoadingMembers}
+                      label="Parrain"
+                      placeholder="Nom, prénom ou matricule du parrain"
+                      initialDisplayName={initialSponsorDisplayName}
+                      isRequired
+                      helperText="Tapez # suivi du matricule ou le nom d'un membre pour le retrouver rapidement"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
-              )} />
-            </div>
+              )}
+            />
           </CardContent>
         </Card>
 

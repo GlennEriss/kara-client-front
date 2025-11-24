@@ -93,6 +93,28 @@ L’export et la saisie doivent refléter les colonnes du fichier `exemple.xlsx`
 
 Le module doit permettre l’export **Excel et PDF** reproduisant exactement cette structure (lignes introductives “FICHE D'EVALUATION…” + “DONNEES CLIENTS”, colonnes dans le même ordre, fusion des cellules d’en-tête).
 
+### 2.5 Recherche du parrain (section « Informations financières »)
+
+Le parrain est obligatoirement un **membre existant** (même référentiel que `src/components/memberships/MembershipList.tsx`). Pour éviter de charger toute la base, on réutilise le même pattern que pour le titulaire membre :
+
+- **Composant proposé : `SponsorSearchInput`**
+  - S’appuie sur `useSearchMembers` (recherche par nom, prénom, matricule).
+  - Déclenche la recherche à partir de 2 caractères avec debounce 300 ms.
+  - Résultats affichés sous forme de cartes compactes : `Nom Prénom • Matricule • Téléphone`.
+  - Possibilité de filtrer rapidement par matricule (`#` ou `MAT-` déclenche un mode “matricule exact”).
+  - Lors de la sélection on remplit `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `sponsorContacts`.
+
+- **UI dans le formulaire** :
+  - La section « Informations financières » affiche un bloc `Parrain (facultatif)` avec l’input de recherche + un badge résumant le parrain choisi (nom, matricule, lien vers la fiche membre).
+  - Bouton “Changer de parrain” qui remet l’input en mode recherche.
+  - Tooltip rappelant que le parrain doit être un membre actif de KARA.
+
+- **Cas limites** :
+  - Si le membre sélectionné n’a pas d’abonnement actif, afficher un warning mais autoriser l’enregistrement (business à confirmer).
+  - Si aucun parrain n’est requis, laisser le champ vide (option “Aucun parrain” qui efface les valeurs).
+
+Cette approche garantit une recherche cohérente avec la liste des membres tout en minimisant les lectures Firestore.
+
 ## 3. Modifications techniques
 
 ### 3.1 Schéma Zod (`src/schemas/vehicule.schema.ts`)

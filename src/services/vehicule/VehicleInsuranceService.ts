@@ -52,6 +52,8 @@ export class VehicleInsuranceService {
       nonMemberPhone2: payload.holderType === 'non-member' ? (payload.nonMemberPhone2 || null) : undefined,
       sponsorMemberId: payload.sponsorMemberId || null,
       sponsorName: payload.sponsorName || null,
+      sponsorMatricule: payload.sponsorMatricule || null,
+      sponsorContacts: payload.sponsorContacts || [],
       vehicleType: payload.vehicleType,
       vehicleBrand: payload.vehicleBrand,
       vehicleModel: payload.vehicleModel,
@@ -137,6 +139,12 @@ export class VehicleInsuranceService {
     }
     if (updates.sponsorName !== undefined) {
       updatePayload.sponsorName = updates.sponsorName || null
+    }
+    if (updates.sponsorMatricule !== undefined) {
+      updatePayload.sponsorMatricule = updates.sponsorMatricule || null
+    }
+    if (updates.sponsorContacts !== undefined) {
+      updatePayload.sponsorContacts = updates.sponsorContacts || []
     }
     if (updates.vehicleYear !== undefined) {
       updatePayload.vehicleYear = updates.vehicleYear ?? null

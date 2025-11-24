@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { VehicleInsurance } from '@/types/types'
 import { VehicleInsuranceBadge } from './VehicleInsuranceBadge'
 import { Button } from '@/components/ui/button'
-import { Download } from 'lucide-react'
+import { Download, Phone } from 'lucide-react'
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
   car: 'Voiture',
@@ -107,7 +107,22 @@ export function VehicleInsuranceDetail({ insurance, open, onOpenChange }: Props)
               </div>
               <div>
                 <p className="text-gray-500">Parrain</p>
-                <p className="font-medium text-gray-900">{insurance.sponsorName || 'Non renseigné'}</p>
+                {insurance.sponsorMemberId ? (
+                  <div className="space-y-1">
+                    <p className="font-medium text-gray-900">{insurance.sponsorName || '—'}</p>
+                    {insurance.sponsorMatricule && (
+                      <p className="text-xs text-gray-500">Matricule : {insurance.sponsorMatricule}</p>
+                    )}
+                    {insurance.sponsorContacts && insurance.sponsorContacts.length > 0 && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {insurance.sponsorContacts[0]}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-medium text-gray-900">Non renseigné</p>
+                )}
               </div>
             </div>
           </section>

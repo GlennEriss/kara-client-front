@@ -17,7 +17,7 @@
 - `VehicleEnergySource = 'essence' | 'diesel' | 'electrique' | 'hybride' | 'gaz' | 'autre'`
 - `VehicleInsuranceHolderType = 'member' | 'non-member'` : Type de titulaire (membre ou non-membre)
 - `VehicleInsurance` :
-  - `id`, `holderType`, `city`, `primaryPhone`, `memberId` (optionnel si membre), `vehicleType`, `energySource`, `fiscalPower`, `brand`, `model`, `plateNumber`, `warrantyMonths`, `insuranceCompany`, `policyNumber`, `premium`, `currency`, `startDate`, `endDate`, `status`, `sponsorMemberId`, `notes`, `createdAt`, `createdBy`, `updatedAt`, `updatedBy`.
+  - `id`, `holderType`, `city`, `primaryPhone`, `memberId` (optionnel si membre), `vehicleType`, `energySource`, `fiscalPower`, `brand`, `model`, `plateNumber`, `warrantyMonths`, `insuranceCompany`, `policyNumber`, `premium`, `currency`, `startDate`, `endDate`, `status`, `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `notes`, `createdAt`, `createdBy`, `updatedAt`, `updatedBy`.
   - **Pour membre** : `memberId`, `memberFirstName`, `memberLastName`, `memberMatricule`, `memberContacts`
   - **Pour non-membre** : `nonMemberFirstName`, `nonMemberLastName`, `nonMemberPhone1`, `nonMemberPhone2` (optionnel)
 - `VehicleInsuranceFilters` :
@@ -41,7 +41,7 @@ Collection utilisée : `vehicle-insurances`. Chaque document représente une pol
 - `nonMemberFirstName`, `nonMemberLastName`, `nonMemberPhone1`, `nonMemberPhone2` (optionnel)
 
 **Champs communs (suite) :**
-- `sponsorMemberId`, `sponsorName` (optionnel)
+- `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `sponsorContacts` (optionnel)
 - `vehicleType`, `vehicleBrand`, `vehicleModel`, `vehicleYear`, `plateNumber`
 - `energySource`, `fiscalPower`, `warrantyMonths`
 - `insuranceCompany`, `insuranceAgent`, `policyNumber`, `coverageType`, `premiumAmount`, `currency`
@@ -117,6 +117,10 @@ Indexes à prévoir :
     - Pour non-membre : nom, prénom, téléphone 1
     - Communs : type véhicule, plaque, assureur, numéro police, montant, dates
   - Validation : `endDate > startDate`, montant positif, plaque unique, téléphone valide pour non-membres.
+  - **Parrain (Informations financières)** :
+    - Recherche/autocomplete identique à la sélection d’un membre (nom / matricule).
+    - Le choix stocke `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `sponsorContacts`.
+    - Badge récapitulatif + bouton “Retirer/Changer”.
 - **Badges/alertes** :
   - `status` calculé côté service (`expired` si `endDate < today`, `expiresSoon` si < 30 jours).
 
@@ -186,6 +190,19 @@ Au lieu de charger tous les membres dans un select, le formulaire utilise :
 - **Recherche par** : nom, prénom, matricule
 
 **Voir la documentation détaillée** : `docs/vehicule/FORMULAIRE_ASSURANCE_VEHICULE.md`
+
+### 9.3 Sélection du parrain
+
+- `SponsorSearchInput` (ou réutilisation configurée de `MemberSearchInput`) est rendu dans la section « Informations financières ».
+- Les résultats proviennent de `useSearchMembers` pour garantir une cohérence totale avec `src/components/memberships/MembershipList.tsx`.
+- Support de la recherche par matricule (`MAT-0001`), nom ou prénom.
+- Lorsque l’utilisateur choisit un parrain :
+  - Le formulaire remplit les champs `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `sponsorContacts`.
+  - Un badge affiche le résumé + lien vers la fiche membre (navigue vers la page `memberships/[id]`).
+  - Bouton “Changer” remet l’état de recherche, bouton “Aucun parrain” vide les champs.
+- Contraintes UX :
+  - Warning si parrain inactif (abonnement expiré) mais enregistrement permis (à valider côté métier).
+  - Les lectures Firestore restent limitées grâce au debounce et au plafond de résultats (10-20).
 
 ## 10. Conclusion
 

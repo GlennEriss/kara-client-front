@@ -1354,8 +1354,10 @@ export interface VehicleInsurance {
   nonMemberPhone1?: string
   nonMemberPhone2?: string | null
   
-  sponsorMemberId?: string
-  sponsorName?: string
+  sponsorMemberId?: string | null
+  sponsorName?: string | null
+  sponsorMatricule?: string | null
+  sponsorContacts?: string[]
   vehicleType: VehicleType
   vehicleBrand?: string
   vehicleModel?: string

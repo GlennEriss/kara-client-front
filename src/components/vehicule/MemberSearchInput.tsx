@@ -20,6 +20,8 @@ interface MemberSearchInputProps {
   label?: string
   placeholder?: string
   initialDisplayName?: string
+  isRequired?: boolean
+  helperText?: string
 }
 
 export default function MemberSearchInput({
@@ -30,16 +32,27 @@ export default function MemberSearchInput({
   disabled = false,
   label = 'Rechercher un membre',
   placeholder = 'Rechercher par nom, prénom ou matricule...',
-  initialDisplayName
+  initialDisplayName,
+  isRequired = true,
+  helperText,
 }: MemberSearchInputProps) {
   const [searchQuery, setSearchQuery] = useState(initialDisplayName || '')
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const normalizedQuery = React.useMemo(() => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed) return ''
+    if (trimmed.startsWith('#')) {
+      return trimmed.slice(1)
+    }
+    return trimmed
+  }, [searchQuery])
+
   // Recherche membres avec debounce intégré dans useSearchMembers
   const { data: members, isLoading } = useSearchMembers(
-    searchQuery,
-    searchQuery.length >= 2 && isOpen && !disabled
+    normalizedQuery,
+    normalizedQuery.length >= 2 && isOpen && !disabled
   )
 
   // Fermer le dropdown si on clique en dehors
@@ -98,8 +111,11 @@ export default function MemberSearchInput({
     <div className="space-y-2 relative" ref={containerRef}>
       {label && (
         <Label htmlFor="member-search">
-          {label} <span className="text-red-500">*</span>
+          {label} {isRequired && <span className="text-red-500">*</span>}
         </Label>
+      )}
+      {helperText && (
+        <p className="text-xs text-gray-500 -mt-1">{helperText}</p>
       )}
       
       <div className="relative">

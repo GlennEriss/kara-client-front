@@ -1,5 +1,24 @@
 import { z } from 'zod'
 
+const GABON_PHONE_REGEX = /^\+2416\d{7}$/
+
+const normalizePhone = (value?: string | null) => (value || '').replace(/\s+/g, '')
+const hasCompletePhone = (value?: string | null) => {
+  const normalized = normalizePhone(value)
+  return normalized.length > 4 && normalized !== '+241'
+}
+
+const optionalGabonPhoneSchema = z
+  .string()
+  .optional()
+  .nullable()
+  .refine(value => {
+    if (!hasCompletePhone(value)) return true
+    return GABON_PHONE_REGEX.test(normalizePhone(value))
+  }, {
+    message: 'Format attendu: +241 6X XX XX XX',
+  })
+
 export const vehicleInsuranceFormSchema = z.object({
   // Type de titulaire
   holderType: z.enum(['member', 'non-member']),
@@ -15,11 +34,13 @@ export const vehicleInsuranceFormSchema = z.object({
   // Champs pour non-membre (conditionnel)
   nonMemberFirstName: z.string().optional(),
   nonMemberLastName: z.string().optional(),
-  nonMemberPhone1: z.string().optional(),
-  nonMemberPhone2: z.string().optional().nullable(),
+  nonMemberPhone1: optionalGabonPhoneSchema,
+  nonMemberPhone2: optionalGabonPhoneSchema,
   
-  sponsorMemberId: z.string().optional().nullable(),
-  sponsorName: z.string().optional().nullable(),
+  sponsorMemberId: z.string().min(1, 'Parrain requis'),
+  sponsorName: z.string().min(1, 'Parrain requis'),
+  sponsorMatricule: z.string().optional().nullable(),
+  sponsorContacts: z.array(z.string()).optional(),
   vehicleType: z.enum(['car', 'motorcycle', 'truck', 'bus', 'maison', 'other']),
   vehicleBrand: z.string().min(1, 'La marque est requise'),
   vehicleModel: z.string().min(1, 'Le modèle est requis'),
@@ -64,19 +85,46 @@ export const vehicleInsuranceFormSchema = z.object({
   message: "La date de fin doit être postérieure à la date de début",
   path: ['endDate'],
 })
-.refine(data => {
-  // Validation : si membre, memberId requis
+.superRefine((data, ctx) => {
   if (data.holderType === 'member') {
-    return !!data.memberId && !!data.memberFirstName && !!data.memberLastName
+    if (!data.memberId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Sélectionnez un membre KARA',
+        path: ['memberId'],
+      })
+    }
+  } else {
+    if (!data.nonMemberFirstName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le prénom est requis',
+        path: ['nonMemberFirstName'],
+      })
+    }
+    if (!data.nonMemberLastName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le nom est requis',
+        path: ['nonMemberLastName'],
+      })
+    }
+    if (!hasCompletePhone(data.nonMemberPhone1) || !GABON_PHONE_REGEX.test(normalizePhone(data.nonMemberPhone1))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Téléphone au format gabonais requis',
+        path: ['nonMemberPhone1'],
+      })
+    }
   }
-  // Si non-membre, nom, prénom et téléphone 1 requis
-  if (data.holderType === 'non-member') {
-    return !!(data.nonMemberFirstName && data.nonMemberLastName && data.nonMemberPhone1)
+
+  if (hasCompletePhone(data.nonMemberPhone2) && !GABON_PHONE_REGEX.test(normalizePhone(data.nonMemberPhone2))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Téléphone au format gabonais requis',
+      path: ['nonMemberPhone2'],
+    })
   }
-  return true
-}, {
-  message: "Les champs requis selon le type de titulaire doivent être remplis",
-  path: ['holderType'],
 })
 
 export type VehicleInsuranceFormValues = z.infer<typeof vehicleInsuranceFormSchema>

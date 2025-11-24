@@ -100,7 +100,21 @@ export function VehicleInsuranceDetailView({ insuranceId }: Props) {
           <DetailRow label="Année">{data.vehicleYear || '—'}</DetailRow>
           <DetailRow label="Source d'énergie">{energyLabel || '—'}</DetailRow>
           <DetailRow label="Puissance fiscale">{data.fiscalPower || '—'}</DetailRow>
-          <DetailRow label="Parrain">{data.sponsorName || 'Non renseigné'}</DetailRow>
+          <DetailRow label="Parrain">
+            {data.sponsorMemberId ? (
+              <div className="space-y-1">
+                <p>{data.sponsorName || '—'}</p>
+                {data.sponsorMatricule && (
+                  <p className="text-xs text-gray-500 font-normal">Matricule : {data.sponsorMatricule}</p>
+                )}
+                {data.sponsorContacts && data.sponsorContacts.length > 0 && (
+                  <p className="text-xs text-gray-500 font-normal">{data.sponsorContacts[0]}</p>
+                )}
+              </div>
+            ) : (
+              <span>Non renseigné</span>
+            )}
+          </DetailRow>
         </CardContent>
       </Card>
 
@@ -142,7 +156,7 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   return (
     <div>
       <p className="text-xs uppercase text-gray-500">{label}</p>
-      <p className="font-semibold text-gray-900">{children}</p>
+      <div className="font-semibold text-gray-900">{children}</div>
     </div>
   )
 }
