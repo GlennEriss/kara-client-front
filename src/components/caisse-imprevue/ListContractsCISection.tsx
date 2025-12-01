@@ -13,17 +13,22 @@ import {
   Plus,
   Eye,
   Calendar,
+  CalendarDays,
   User,
   Phone,
   ChevronLeft,
   ChevronRight,
-  DollarSign
+  DollarSign,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react'
-import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
+import { toast } from 'sonner'
+import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS, CaisseImprevuePaymentFrequency } from '@/types/types'
 import { useContractsCI, ContractsCIFilters } from '@/hooks/caisse-imprevue/useContractsCI'
 import StatisticsCI from './StatisticsCI'
 import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
@@ -63,10 +68,14 @@ const ModernSkeleton = () => (
 export default function ListContractsCISection() {
   const router = useRouter()
   
+  // État pour l'onglet actif (Tous, Journalier, Mensuel)
+  const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY'>('all')
+  
   // États
   const [filters, setFilters] = useState<ContractsCIFilters>({
     search: '',
-    status: 'ACTIVE' as ContractCIStatus | 'all'
+    status: 'ACTIVE' as ContractCIStatus | 'all',
+    paymentFrequency: 'all'
   })
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 14
@@ -82,13 +91,19 @@ export default function ListContractsCISection() {
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
 
+  // Construire les filtres avec paymentFrequency selon l'onglet actif
+  const effectiveFilters: ContractsCIFilters = {
+    ...filters,
+    paymentFrequency: activeTab === 'all' ? 'all' : activeTab
+  }
+
   // Hook pour récupérer les contrats
-  const { data: contracts, isLoading, error, refetch } = useContractsCI(filters)
+  const { data: contracts, isLoading, error, refetch } = useContractsCI(effectiveFilters)
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters])
+  }, [filters.status, filters.search, activeTab])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: any) => {
@@ -97,7 +112,11 @@ export default function ListContractsCISection() {
   }
 
   const handleResetFilters = () => {
-    setFilters({ search: '', status: 'ACTIVE' })
+    setFilters({ 
+      search: '', 
+      status: 'ACTIVE',
+      paymentFrequency: 'all'
+    })
     setCurrentPage(1)
   }
 
@@ -164,6 +183,138 @@ export default function ListContractsCISection() {
     refetch()
   }
 
+  // Fonctions d'export
+  const buildExportRows = () => {
+    if (!contracts) return []
+    
+    return contracts.map((contract) => {
+      const frequencyLabel = contract.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'
+      const statusLabel = CONTRACT_CI_STATUS_LABELS[contract.status]
+      
+      return [
+        contract.id,
+        frequencyLabel,
+        `${contract.memberFirstName} ${contract.memberLastName}`,
+        statusLabel,
+        new Intl.NumberFormat('fr-FR').format(contract.subscriptionCIAmountPerMonth),
+        new Intl.NumberFormat('fr-FR').format(contract.subscriptionCINominal),
+        contract.subscriptionCIDuration,
+        contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '',
+        contract.totalMonthsPaid,
+        contract.subscriptionCIDuration - contract.totalMonthsPaid,
+      ]
+    })
+  }
+
+  const handleExportExcel = async () => {
+    if (!contracts || contracts.length === 0) {
+      toast.error('Aucun contrat à exporter')
+      return
+    }
+
+    try {
+      const XLSX = await import('xlsx')
+      const rows = buildExportRows()
+      
+      const headers = [
+        'ID',
+        'Type',
+        'Membre',
+        'Statut',
+        'Montant mensuel (FCFA)',
+        'Nominal (FCFA)',
+        'Durée (mois)',
+        'Date début',
+        'Mois payés',
+        'Versements en attente',
+      ]
+
+      const sheetData = [
+        ['LISTE DES CONTRATS CAISSE IMPRÉVUE'],
+        [`Type: ${activeTab === 'all' ? 'Tous' : activeTab === 'DAILY' ? 'Journalier' : 'Mensuel'}`],
+        [`Généré le ${new Date().toLocaleDateString('fr-FR')}`],
+        [],
+        headers,
+        ...rows,
+      ]
+
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData)
+      
+      // Fusionner les cellules pour les en-têtes
+      worksheet['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } },
+      ]
+
+      // Définir la largeur des colonnes
+      worksheet['!cols'] = headers.map(() => ({ wch: 20 }))
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Contrats')
+      
+      const filename = `contrats_ci_${activeTab === 'all' ? 'tous' : activeTab.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      XLSX.writeFile(workbook, filename)
+      toast.success('Export Excel généré')
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel:', error)
+      toast.error('Erreur lors de l\'export Excel')
+    }
+  }
+
+  const handleExportPDF = async () => {
+    if (!contracts || contracts.length === 0) {
+      toast.error('Aucun contrat à exporter')
+      return
+    }
+
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.text('Liste des Contrats - Caisse Imprévue', 14, 14)
+      doc.setFontSize(10)
+      const typeLabel = activeTab === 'all' ? 'Tous' : activeTab === 'DAILY' ? 'Journalier' : 'Mensuel'
+      doc.text(`Type: ${typeLabel}`, 14, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
+      doc.text(`Total: ${contracts.length} contrat(s)`, 14, 28)
+
+      const rows = buildExportRows()
+      const headers = [
+        'ID',
+        'Type',
+        'Membre',
+        'Statut',
+        'Montant mensuel',
+        'Nominal',
+        'Durée',
+        'Date début',
+        'Mois payés',
+        'En attente',
+      ]
+
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 32,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        margin: { top: 32 },
+      })
+
+      const filename = `contrats_ci_${activeTab === 'all' ? 'tous' : activeTab.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.pdf`
+      doc.save(filename)
+      toast.success('Export PDF généré')
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error)
+      toast.error('Erreur lors de l\'export PDF')
+    }
+  }
+
   // Pagination
   const totalPages = Math.ceil((contracts?.length || 0) / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -193,8 +344,26 @@ export default function ListContractsCISection() {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {/* Onglets pour filtrer par type de contrat */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY')} className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsTrigger value="all" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Tous
+          </TabsTrigger>
+          <TabsTrigger value="DAILY" className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Journalier
+          </TabsTrigger>
+          <TabsTrigger value="MONTHLY" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Mensuel
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Statistiques */}
-      <StatisticsCI />
+      <StatisticsCI paymentFrequency={activeTab === 'all' ? undefined : activeTab} />
 
       {/* Filtres */}
       <FiltersCI

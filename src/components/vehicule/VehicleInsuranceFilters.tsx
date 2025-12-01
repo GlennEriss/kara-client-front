@@ -68,6 +68,7 @@ export function VehicleInsuranceFilters({ filters, onChange, onReset, companies 
             <SelectItem value="motorcycle">Moto</SelectItem>
             <SelectItem value="truck">Camion</SelectItem>
             <SelectItem value="bus">Bus</SelectItem>
+            <SelectItem value="maison">Maison</SelectItem>
             <SelectItem value="other">Autre</SelectItem>
           </SelectContent>
         </Select>

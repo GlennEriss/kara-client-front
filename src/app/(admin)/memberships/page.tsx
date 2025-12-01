@@ -1,12 +1,15 @@
-import { Metadata } from 'next'
-import MembershipList from '@/components/memberships/MembershipList'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Gestion des Membres | KARA Admin',
-  description: 'Gestion des membres adhérents, bienfaiteurs et sympathisants de la mutuelle KARA'
-}
+import { useState } from 'react'
+import MembershipList from '@/components/memberships/MembershipList'
+import MemberVehicleList from '@/components/memberships/MemberVehicleList'
+import MemberBirthdaysList from '@/components/memberships/MemberBirthdaysList'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Users, Car, Cake } from 'lucide-react'
 
 export default function MembershipsPage() {
+  const [activeTab, setActiveTab] = useState('list')
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -20,7 +23,34 @@ export default function MembershipsPage() {
         </div>
       </div>
 
-      <MembershipList />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsTrigger value="list" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Liste des membres
+          </TabsTrigger>
+          <TabsTrigger value="vehicles" className="flex items-center gap-2">
+            <Car className="h-4 w-4" />
+            Véhicules des membres
+          </TabsTrigger>
+          <TabsTrigger value="birthdays" className="flex items-center gap-2">
+            <Cake className="h-4 w-4" />
+            Anniversaires
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="mt-6">
+          <MembershipList />
+        </TabsContent>
+
+        <TabsContent value="vehicles" className="mt-6">
+          <MemberVehicleList />
+        </TabsContent>
+
+        <TabsContent value="birthdays" className="mt-6">
+          <MemberBirthdaysList />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

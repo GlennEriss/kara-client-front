@@ -69,9 +69,9 @@ export function useRenewVehicleInsurance() {
   const { user } = useAuth()
 
   return useMutation({
-    mutationFn: ({ id, startDate, endDate, premiumAmount, policyNumber, coverageType }: { id: string; startDate: Date; endDate: Date; premiumAmount: number; policyNumber?: string; coverageType?: string }) => {
+    mutationFn: ({ id, startDate, endDate, premiumAmount, policyNumber }: { id: string; startDate: Date; endDate: Date; premiumAmount: number; policyNumber?: string }) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
-      return getService().renewInsurance(id, { startDate, endDate, premiumAmount, policyNumber, coverageType }, user.uid)
+      return getService().renewInsurance(id, { startDate, endDate, premiumAmount, policyNumber }, user.uid)
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-insurances', variables.id] })

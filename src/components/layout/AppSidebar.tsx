@@ -1,6 +1,7 @@
 "use client"
 
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car } from "lucide-react"
+import { useState } from "react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -23,7 +24,26 @@ import { auth, signOut } from "@/firebase/auth"
 import { cn } from "@/lib/utils"
 
 // Menu items pour l'administration
-const adminMenuItems = [
+type SidebarSubItem = {
+    title: string
+    url: string
+    icon: any
+}
+
+type SidebarItem =
+    | {
+        title: string
+        url: string
+        icon: any
+        children?: undefined
+    }
+    | {
+        title: string
+        icon: any
+        children: SidebarSubItem[]
+    }
+
+const adminMenuItems: SidebarItem[] = [
     {
         title: "Tableau de bord",
         url: "/dashboard",
@@ -51,13 +71,19 @@ const adminMenuItems = [
     },
     {
         title: "Bienfaiteur",
-        url: routes.admin.bienfaiteur,
         icon: HandCoins,
-    },
-    {
-        title: "Véhicules",
-        url: routes.admin.vehicules,
-        icon: Car,
+        children: [
+            {
+                title: "Charités",
+                url: routes.admin.bienfaiteur,
+                icon: HeartHandshake,
+            },
+            {
+                title: "Véhicules",
+                url: routes.admin.vehicules,
+                icon: Car,
+            },
+        ],
     },
     /*{
         title: "Assurance",
@@ -117,6 +143,14 @@ const systemMenuItems: any[] = [
 export function AppSidebar() {
     const router = useRouter()
     const pathname = usePathname()
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+    const handleToggleSection = (title: string) => {
+        setOpenSections((prev) => ({
+            ...prev,
+            [title]: !prev[title],
+        }))
+    }
+
 
     const handleLogout = async () => {
         await signOut(auth)
@@ -176,31 +210,88 @@ export function AppSidebar() {
                     <SidebarGroupContent>
                         <SidebarMenu className="space-y-2">
                             {adminMenuItems.map((item, index) => {
-                                const isActive = isActiveRoute(item.url)
+                                if (!item.children) {
+                                    const isActive = isActiveRoute(item.url)
+                                    return (
+                                        <SidebarMenuItem key={item.title}>
+                                            <SidebarMenuButton asChild>
+                                                <Link
+                                                    href={item.url}
+                                                    className={cn(
+                                                        "flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm",
+                                                        isActive && "text-white bg-white/15 shadow-lg translate-x-1"
+                                                    )}
+                                                    style={{
+                                                        animationDelay: `${index * 0.1}s`
+                                                    }}
+                                                >
+                                                    <item.icon className={cn(
+                                                        "h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-cyan-300",
+                                                        isActive && "text-cyan-300 scale-110"
+                                                    )} />
+                                                    <span className={cn(
+                                                        "font-medium transition-all duration-300 group-hover:font-semibold",
+                                                        isActive && "font-semibold"
+                                                    )}>{item.title}</span>
+                                                </Link>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    )
+                                }
+
+                                const isSectionActive = item.children.some(child => isActiveRoute(child.url))
+                                const isOpen = openSections[item.title] ?? isSectionActive
+
                                 return (
                                     <SidebarMenuItem key={item.title}>
-                                        <SidebarMenuButton asChild>
-                                            <Link
-                                                href={item.url}
-                                                className={cn(
-                                                    "flex items-center gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 group backdrop-blur-sm",
-                                                    isActive && "text-white bg-white/15 shadow-lg translate-x-1"
-                                                )}
-                                                style={{
-                                                    animationDelay: `${index * 0.1}s`
-                                                }}
-                                            >
+                                        <button
+                                            onClick={() => handleToggleSection(item.title)}
+                                            className={cn(
+                                                "w-full flex items-center justify-between gap-3 px-3 py-3 rounded-xl text-white/80 transition-all duration-300 hover:text-white hover:bg-white/10 hover:shadow-lg hover:translate-x-1 backdrop-blur-sm",
+                                                isSectionActive && "text-white bg-white/15 shadow-lg translate-x-1"
+                                            )}
+                                            style={{
+                                                animationDelay: `${index * 0.1}s`
+                                            }}
+                                            aria-expanded={isOpen}
+                                        >
+                                            <div className="flex items-center gap-3">
                                                 <item.icon className={cn(
-                                                    "h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-cyan-300",
-                                                    isActive && "text-cyan-300 scale-110"
+                                                    "h-5 w-5 transition-all duration-300",
+                                                    isSectionActive && "text-cyan-300 scale-110"
                                                 )} />
                                                 <span className={cn(
-                                                    "font-medium transition-all duration-300 group-hover:font-semibold",
-                                                    isActive && "font-semibold"
-                                                )}>{item.title}</span>
-
-                                            </Link>
-                                        </SidebarMenuButton>
+                                                    "font-medium transition-all duration-300",
+                                                    isSectionActive && "font-semibold"
+                                                )}>
+                                                    {item.title}
+                                                </span>
+                                            </div>
+                                            <ChevronDown className={cn(
+                                                "h-4 w-4 transition-transform duration-300",
+                                                isOpen && "rotate-180"
+                                            )} />
+                                        </button>
+                                        {isOpen && (
+                                            <div className="pl-8 pt-2 space-y-2">
+                                                {item.children.map(child => {
+                                                    const isActive = isActiveRoute(child.url)
+                                                    return (
+                                                        <Link
+                                                            key={child.title}
+                                                            href={child.url}
+                                                            className={cn(
+                                                                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-white/70 transition-all duration-300 hover:text-white hover:bg-white/10 hover:translate-x-1",
+                                                                isActive && "text-white bg-white/15 translate-x-1"
+                                                            )}
+                                                        >
+                                                            <child.icon className="h-4 w-4" />
+                                                            <span className="font-medium">{child.title}</span>
+                                                        </Link>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
                                     </SidebarMenuItem>
                                 )
                             })}

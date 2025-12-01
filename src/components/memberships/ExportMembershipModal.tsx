@@ -10,7 +10,7 @@ import type { UserFilters } from '@/types/types'
 import type { MemberWithSubscription } from '@/db/member.db'
 import { getMembers } from '@/db/member.db'
 import { getMembershipRequestById } from '@/db/membership.db'
-import { Loader2 } from 'lucide-react'
+import { Loader2, FileDown } from 'lucide-react'
 import { getNationalityName } from '@/constantes/nationality'
 
 interface ExportMembershipModalProps {
@@ -21,6 +21,8 @@ interface ExportMembershipModalProps {
 
 type SortOrder = 'A-Z' | 'Z-A'
 type QuantityMode = 'custom' | 'all'
+type VehicleFilter = 'all' | 'with' | 'without'
+type ExportFormat = 'csv' | 'excel' | 'pdf'
 
 export default function ExportMembershipModal({ isOpen, onClose, filters }: ExportMembershipModalProps) {
   const today = new Date()
@@ -31,6 +33,8 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
   const [quantity, setQuantity] = React.useState<number>(50)
   const [dateStart, setDateStart] = React.useState<string>(formatDateInput(defaultStart))
   const [dateEnd, setDateEnd] = React.useState<string>(formatDateInput(today))
+  const [vehicleFilter, setVehicleFilter] = React.useState<VehicleFilter>('all')
+  const [exportFormat, setExportFormat] = React.useState<ExportFormat>('excel')
   const [isExporting, setIsExporting] = React.useState(false)
 
   function formatDateInput(d: Date) {
@@ -57,8 +61,11 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
       const collected: MemberWithSubscription[] = []
       const targetCount = quantityMode === 'all' ? Infinity : Math.max(0, Number(quantity) || 0)
 
-      // Copie des filtres pour éviter mutation
-      const baseFilters: UserFilters = { ...filters }
+      // Copie des filtres pour éviter mutation + ajout du filtre véhicule
+      const baseFilters: UserFilters = {
+        ...filters,
+        ...(vehicleFilter === 'all' ? {} : { hasCar: vehicleFilter === 'with' }),
+      }
 
       // Boucle de pagination
       // Arrête lorsque: pas de page suivante, ou quantité atteinte
@@ -119,22 +126,84 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
         }
       }
 
-      // Export CSV (compatible Excel)
-      const csv = toCSV(rows)
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `export_membres_${new Date().toISOString().slice(0,10)}.csv`
-      link.click()
-      URL.revokeObjectURL(url)
-      toast.success('Export CSV généré')
+      // Export selon le format choisi
+      if (exportFormat === 'csv') {
+        const csv = toCSV(rows)
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `export_membres_${new Date().toISOString().slice(0, 10)}.csv`
+        link.click()
+        URL.revokeObjectURL(url)
+        toast.success('Export CSV généré')
+      } else if (exportFormat === 'excel') {
+        await handleExportExcel(rows)
+      } else if (exportFormat === 'pdf') {
+        await handleExportPdf(rows)
+      }
+
       onClose()
     } catch (e) {
+      console.error('Erreur export:', e)
       toast.error("Erreur lors de l'export")
     } finally {
       setIsExporting(false)
     }
+  }
+
+  const handleExportExcel = async (rows: any[]) => {
+    const XLSX = await import('xlsx')
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Membres')
+    const filename = `export_membres_${new Date().toISOString().slice(0, 10)}.xlsx`
+    XLSX.writeFile(workbook, filename)
+    toast.success('Export Excel généré')
+  }
+
+  const handleExportPdf = async (rows: any[]) => {
+    const { jsPDF } = await import('jspdf')
+    const autoTable = (await import('jspdf-autotable')).default
+    const doc = new jsPDF('landscape')
+
+    // En-tête
+    doc.setFontSize(16)
+    doc.text('Liste des Membres', 14, 14)
+    doc.setFontSize(10)
+    const vehicleFilterLabel =
+      vehicleFilter === 'all'
+        ? 'Tous les membres'
+        : vehicleFilter === 'with'
+        ? 'Membres avec véhicule'
+        : 'Membres sans véhicule'
+    doc.text(`Filtre: ${vehicleFilterLabel}`, 14, 20)
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
+
+    // Préparer les en-têtes et les données
+    if (rows.length === 0) {
+      doc.text('Aucun membre à exporter', 14, 30)
+      doc.save(`export_membres_${new Date().toISOString().slice(0, 10)}.pdf`)
+      toast.success('Export PDF généré')
+      return
+    }
+
+    const headers = Object.keys(rows[0])
+    const bodyRows = rows.map((row) => headers.map((h) => String(row[h] || '')))
+
+    autoTable(doc, {
+      head: [headers],
+      body: bodyRows,
+      startY: 30,
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      margin: { top: 30 },
+    })
+
+    const filename = `export_membres_${new Date().toISOString().slice(0, 10)}.pdf`
+    doc.save(filename)
+    toast.success('Export PDF généré')
   }
 
   function buildRow(member: any, dossier: any) {
@@ -250,6 +319,36 @@ export default function ExportMembershipModal({ isOpen, onClose, filters }: Expo
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Format d'export */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Format d'export</label>
+            <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as ExportFormat)} disabled={isExporting}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir un format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="excel">Excel (.xlsx)</SelectItem>
+                <SelectItem value="csv">CSV (.csv)</SelectItem>
+                <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Filtre véhicule */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Filtrer par véhicule</label>
+            <Select value={vehicleFilter} onValueChange={(v) => setVehicleFilter(v as VehicleFilter)} disabled={isExporting}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir un filtre" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les membres</SelectItem>
+                <SelectItem value="with">Membres avec véhicule</SelectItem>
+                <SelectItem value="without">Membres sans véhicule</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Ordre alphabétique */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Ordre alphabétique</label>

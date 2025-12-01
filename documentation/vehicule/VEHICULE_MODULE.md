@@ -13,26 +13,48 @@
 ### 2.1 Types à ajouter dans `src/types/types.ts`
 
 - `VehicleInsuranceStatus = 'active' | 'expires_soon' | 'expired'`
-- `VehicleType = 'Voiture' | 'Moto' | 'Camion' | ...` (liste extensible)
+- `VehicleType = 'Voiture' | 'Moto' | 'Camion' | 'Bus' | 'Maison' | ...`
+- `VehicleEnergySource = 'essence' | 'diesel' | 'electrique' | 'hybride' | 'gaz' | 'autre'`
+- `VehicleInsuranceHolderType = 'member' | 'non-member'` : Type de titulaire (membre ou non-membre)
 - `VehicleInsurance` :
-  - `id`, `memberId`, `vehicleType`, `brand`, `model`, `plateNumber`, `insuranceCompany`, `policyNumber`, `coverage`, `premium`, `currency`, `startDate`, `endDate`, `status`, `sponsorMemberId`, `notes`, `createdAt`, `createdBy`, `updatedAt`, `updatedBy`.
+  - `id`, `holderType`, `city`, `primaryPhone`, `memberId` (optionnel si membre), `vehicleType`, `energySource`, `fiscalPower`, `brand`, `model`, `plateNumber`, `warrantyMonths`, `insuranceCompany`, `policyNumber`, `premium`, `currency`, `startDate`, `endDate`, `status`, `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `notes`, `createdAt`, `createdBy`, `updatedAt`, `updatedBy`.
+  - **Pour membre** : `memberId`, `memberFirstName`, `memberLastName`, `memberMatricule`, `memberContacts`
+  - **Pour non-membre** : `nonMemberFirstName`, `nonMemberLastName`, `nonMemberPhone1`, `nonMemberPhone2` (optionnel)
 - `VehicleInsuranceFilters` :
-  - `status`, `insuranceCompany`, `vehicleType`, `searchQuery`, `alphabeticalOrder`, `page`, `limit`.
+  - `status`, `insuranceCompany`, `vehicleType`, `searchQuery`, `alphabeticalOrder`, `page`, `limit`, `holderType` (optionnel pour filtrer par type de titulaire).
 - `VehicleInsuranceStats` :
-  - `totalInsured`, `active`, `expired`, `expiresSoon`, `byCompany`, `byVehicleType`.
+  - `totalInsured`, `active`, `expired`, `expiresSoon`, `byCompany`, `byVehicleType`, `membersCount`, `nonMembersCount`.
 
 ### 2.2 Données Firestore
 
-Collection utilisée : `vehicle-insurances`. Chaque document représente une police pour un membre (1 véhicule = 1 document). Les champs enregistrés :
+Collection utilisée : `vehicle-insurances`. Chaque document représente une police pour un membre ou un non-membre (1 véhicule = 1 document). Les champs enregistrés :
 
+**Champs communs :**
+- `holderType` : 'member' | 'non-member' (obligatoire)
+- `city` : ville au Gabon
+- `primaryPhone` : téléphone principal utilisé pour les exports/notifications
+
+**Si holderType === 'member' :**
 - `memberId`, `memberFirstName`, `memberLastName`, `memberMatricule`, `memberContacts`, `memberPhotoUrl`
-- `sponsorMemberId`, `sponsorName`
+
+**Si holderType === 'non-member' :**
+- `nonMemberFirstName`, `nonMemberLastName`, `nonMemberPhone1`, `nonMemberPhone2` (optionnel)
+
+**Champs communs (suite) :**
+- `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `sponsorContacts` (optionnel)
 - `vehicleType`, `vehicleBrand`, `vehicleModel`, `vehicleYear`, `plateNumber`
+- `energySource`, `fiscalPower`, `warrantyMonths`
 - `insuranceCompany`, `insuranceAgent`, `policyNumber`, `coverageType`, `premiumAmount`, `currency`
 - `startDate`, `endDate`, `status`
 - `attachments.policyUrl`, `attachments.receiptUrl` (preuve)
 - `renewalCount`, `lastRenewedAt`
 - `createdAt`, `createdBy`, `updatedAt`, `updatedBy`
+
+Un **export Excel/PDF** (basé sur `documentation/vehicule/exemple.xlsx`) est attendu :
+
+- Les colonnes doivent respecter exactement l’ordre et les intitulés du fichier de référence.
+- Deux lignes d’en-tête fusionnées (“FICHE D'EVALUATION…” et “DONNEES CLIENTS”).
+- Les données proviennent de la collection complète, pas seulement de la page affichée.
 
 Indexes à prévoir :
 - `status` + `endDate` (listing par statut/échéance)
@@ -87,8 +109,18 @@ Indexes à prévoir :
   - Pièces jointes (preuve de police, facture).
 - **Formulaire** :
   - react-hook-form + Zod.
-  - Champs obligatoires : membre (lecture seule ou sélection), type véhicule, plaque, assureur, numéro police, montant, dates.
-  - Validation : `endDate > startDate`, montant positif, plaque unique.
+  - **Sélection du titulaire** : Deux options disponibles :
+    - **Option "Membre"** : Recherche/autocomplete avec `useSearchMembers` (recherche par nom, prénom, matricule). Affiche les résultats au fur et à mesure de la saisie (minimum 2-3 caractères). Évite de charger tous les membres dans un select.
+    - **Option "Non-membre"** : Formulaire avec champs manuels : nom, prénom, téléphone 1, téléphone 2.
+  - Champs obligatoires : 
+    - Pour membre : sélection via recherche
+    - Pour non-membre : nom, prénom, téléphone 1
+    - Communs : type véhicule, plaque, assureur, numéro police, montant, dates
+  - Validation : `endDate > startDate`, montant positif, plaque unique, téléphone valide pour non-membres.
+  - **Parrain (Informations financières)** :
+    - Recherche/autocomplete identique à la sélection d’un membre (nom / matricule).
+    - Le choix stocke `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `sponsorContacts`.
+    - Badge récapitulatif + bouton “Retirer/Changer”.
 - **Badges/alertes** :
   - `status` calculé côté service (`expired` si `endDate < today`, `expiresSoon` si < 30 jours).
 
@@ -141,11 +173,44 @@ vehiculeEdit: (id: string) => `/vehicules/${id}/edit`,
   - Carrousel de stats, pagination, filtres.
   - Gestion des modals (ex : `CharityEventDetail`, `CreateCharityEventForm`).
 
-## 9. Conclusion
+## 9. Amélioration du formulaire d'assurance
 
-Le module Véhicule s’intègre naturellement dans l’architecture existante : données centralisées dans Firestore, couche métier isolée dans les services, UI réutilisant les composants existants. Le plan ci-dessus couvre les responsabilités, le modèle, les routes, les tâches et les exigences UX pour garantir une expérience cohérente et responsive sur tous les terminaux.
+### 9.1 Support des non-membres
 
-## 10. Implémentation (Novembre 2025)
+Le formulaire d'assurance véhicule supporte désormais deux types de titulaires :
+- **Membres KARA** : Sélection via recherche/autocomplete (voir `docs/vehicule/FORMULAIRE_ASSURANCE_VEHICULE.md`)
+- **Personnes externes** : Saisie manuelle (nom, prénom, téléphones)
+
+### 9.2 Recherche optimisée pour les membres
+
+Au lieu de charger tous les membres dans un select, le formulaire utilise :
+- **Recherche en temps réel** avec `useSearchMembers`
+- **Autocomplete** avec résultats limités (10-20)
+- **Debounce** pour optimiser les requêtes
+- **Recherche par** : nom, prénom, matricule
+
+**Voir la documentation détaillée** : `docs/vehicule/FORMULAIRE_ASSURANCE_VEHICULE.md`
+
+### 9.3 Sélection du parrain
+
+- `SponsorSearchInput` (ou réutilisation configurée de `MemberSearchInput`) est rendu dans la section « Informations financières ».
+- Les résultats proviennent de `useSearchMembers` pour garantir une cohérence totale avec `src/components/memberships/MembershipList.tsx`.
+- Support de la recherche par matricule (`MAT-0001`), nom ou prénom.
+- Lorsque l’utilisateur choisit un parrain :
+  - Le formulaire remplit les champs `sponsorMemberId`, `sponsorName`, `sponsorMatricule`, `sponsorContacts`.
+  - Un badge affiche le résumé + lien vers la fiche membre (navigue vers la page `memberships/[id]`).
+  - Bouton “Changer” remet l’état de recherche, bouton “Aucun parrain” vide les champs.
+- Contraintes UX :
+  - Warning si parrain inactif (abonnement expiré) mais enregistrement permis (à valider côté métier).
+  - Les lectures Firestore restent limitées grâce au debounce et au plafond de résultats (10-20).
+
+## 10. Conclusion
+
+Le module Véhicule s'intègre naturellement dans l'architecture existante : données centralisées dans Firestore, couche métier isolée dans les services, UI réutilisant les composants existants. Le plan ci-dessus couvre les responsabilités, le modèle, les routes, les tâches et les exigences UX pour garantir une expérience cohérente et responsive sur tous les terminaux.
+
+Le formulaire amélioré permet de gérer efficacement les assurances pour les membres et les non-membres, avec une recherche performante qui évite les problèmes de chargement massif.
+
+## 11. Implémentation (Novembre 2025)
 
 - **Données** : collection `vehicle-insurances` alimentée via `VehicleInsuranceRepository` + service.
 - **Service** : `VehicleInsuranceService` assure création, mise à jour, renouvellement, marquage expiré, statistiques.

@@ -13,7 +13,6 @@ const renewSchema = z.object({
   endDate: z.coerce.date({ message: 'Date de fin requise' }),
   premiumAmount: z.coerce.number({ message: 'Montant requis' }).positive('Montant positif requis'),
   policyNumber: z.string().optional(),
-  coverageType: z.string().optional(),
 })
 
 export type VehicleInsuranceRenewValues = z.infer<typeof renewSchema>
@@ -32,7 +31,6 @@ export function VehicleInsuranceRenewForm({ defaultValues, onSubmit, isSubmittin
       endDate: defaultValues?.endDate ?? new Date(),
       premiumAmount: defaultValues?.premiumAmount ?? 0,
       policyNumber: defaultValues?.policyNumber,
-      coverageType: defaultValues?.coverageType,
     },
   })
 
@@ -73,16 +71,6 @@ export function VehicleInsuranceRenewForm({ defaultValues, onSubmit, isSubmittin
         <FormField control={form.control} name="policyNumber" render={({ field }) => (
           <FormItem>
             <FormLabel>Nouveau numéro de police (optionnel)</FormLabel>
-            <FormControl>
-              <Input {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-
-        <FormField control={form.control} name="coverageType" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Couverture (optionnel)</FormLabel>
             <FormControl>
               <Input {...field} />
             </FormControl>

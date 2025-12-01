@@ -214,8 +214,90 @@ export interface MembershipRequestAction {
   memberNumber?: string // Pour l'approbation
 }
 
+// ================== TYPES POUR LES NOTIFICATIONS ==================
+
 /**
- * Type pour les notifications liées aux demandes
+ * Module d'origine de la notification
+ */
+export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur'
+
+/**
+ * Type de notification
+ */
+export type NotificationType =
+  | 'birthday_reminder' // Anniversaire (J-2, J, J+1)
+  | 'new_request' // Nouvelle demande d'adhésion
+  | 'status_update' // Changement de statut
+  | 'reminder' // Rappel générique
+  | 'contract_expiring' // Contrat qui expire
+  | 'payment_due' // Paiement dû
+  | 'contract_created' // Contrat créé
+  | 'contract_finished' // Contrat terminé
+  | 'contract_canceled' // Contrat résilié
+
+/**
+ * Filtres pour les requêtes de notifications
+ */
+export interface NotificationFilters {
+  module?: NotificationModule
+  type?: NotificationType
+  isRead?: boolean
+  dateFrom?: Date
+  dateTo?: Date
+}
+
+/**
+ * Résultat paginé des notifications
+ */
+export interface PaginatedNotifications {
+  data: Notification[]
+  pagination: {
+    currentPage: number
+    totalPages: number
+    totalItems: number
+    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+  }
+}
+
+/**
+ * Type unifié pour les notifications
+ */
+export interface Notification {
+  id: string
+  module: NotificationModule
+  entityId: string // ID de la ressource (memberId, requestId, etc.)
+  type: NotificationType
+  title: string
+  message: string
+  isRead: boolean
+  createdAt: Date
+  scheduledAt?: Date
+  sentAt?: Date
+  metadata?: {
+    // Métadonnées communes
+    [key: string]: any
+    
+    // Métadonnées spécifiques aux anniversaires (si type === 'birthday_reminder')
+    memberId?: string
+    memberFirstName?: string
+    memberLastName?: string
+    birthDate?: string // ISO string
+    daysUntil?: number // -1, 0, ou 2
+    age?: number
+    notificationDate?: string // YYYY-MM-DD pour éviter les doublons
+  }
+  
+  // Champs spécifiques selon le module (optionnels, pour compatibilité)
+  requestId?: string
+  memberId?: string
+  contractId?: string
+}
+
+/**
+ * Type pour les notifications liées aux demandes (ancien format, à migrer progressivement)
+ * @deprecated Utiliser Notification à la place
  */
 export interface MembershipNotification {
   id: string
@@ -1328,27 +1410,46 @@ export const CHARITY_EVENT_STATUS_LABELS: Record<CharityEventStatus, string> = {
 
 export type VehicleInsuranceStatus = 'active' | 'expires_soon' | 'expired'
 
-export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bus' | 'other'
+export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bus' | 'maison' | 'other'
+
+export type VehicleEnergySource = 'essence' | 'diesel' | 'electrique' | 'hybride' | 'gaz' | 'autre'
+
+export type VehicleInsuranceHolderType = 'member' | 'non-member'
 
 export interface VehicleInsurance {
   id: string
-  memberId: string
-  memberFirstName: string
-  memberLastName: string
+  holderType: VehicleInsuranceHolderType
+  city?: string
+  primaryPhone?: string
+  
+  // Champs pour membre (si holderType === 'member')
+  memberId?: string
+  memberFirstName?: string
+  memberLastName?: string
   memberMatricule?: string
   memberContacts?: string[]
   memberPhotoUrl?: string | null
-  sponsorMemberId?: string
-  sponsorName?: string
+  
+  // Champs pour non-membre (si holderType === 'non-member')
+  nonMemberFirstName?: string
+  nonMemberLastName?: string
+  nonMemberPhone1?: string
+  nonMemberPhone2?: string | null
+  
+  sponsorMemberId?: string | null
+  sponsorName?: string | null
+  sponsorMatricule?: string | null
+  sponsorContacts?: string[]
   vehicleType: VehicleType
   vehicleBrand?: string
   vehicleModel?: string
   vehicleYear?: number
   plateNumber?: string
+  energySource?: VehicleEnergySource
+  fiscalPower?: string
   insuranceCompany: string
-  insuranceAgent?: string
   policyNumber: string
-  coverageType?: string
+  warrantyMonths?: number
   premiumAmount: number
   currency: string
   startDate: Date
@@ -1376,6 +1477,7 @@ export interface VehicleInsuranceFilters {
   searchQuery?: string
   sponsorMemberId?: string
   alphabeticalOrder?: 'asc' | 'desc'
+  holderType?: VehicleInsuranceHolderType | 'all' // Filtrer par type de titulaire
   page?: number
   limit?: number
   orderByField?: string
@@ -1397,6 +1499,8 @@ export interface VehicleInsuranceStats {
   active: number
   expiresSoon: number
   expired: number
+  membersCount: number // Nombre d'assurances pour membres
+  nonMembersCount: number // Nombre d'assurances pour non-membres
   byCompany: Array<{ company: string; count: number }>
   byVehicleType: Array<{ type: VehicleType; count: number }>
   expiringSoonList: VehicleInsurance[]

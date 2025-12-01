@@ -17,6 +17,8 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
 import { useContractsCIStats } from '@/hooks/caisse-imprevue/useContractsCI'
+import { CaisseImprevuePaymentFrequency } from '@/types/types'
+import { ContractsCIFilters } from '@/repositories/caisse-imprevu/IContractCIRepository'
 
 // Composant pour les statistiques modernes
 const StatsCard = ({
@@ -174,8 +176,16 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
   }
 }
 
-export default function StatisticsCI() {
-  const { data: stats, isLoading } = useContractsCIStats()
+interface StatisticsCIProps {
+  paymentFrequency?: CaisseImprevuePaymentFrequency
+}
+
+export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {}) {
+  const filters: ContractsCIFilters | undefined = paymentFrequency 
+    ? { paymentFrequency }
+    : undefined
+  
+  const { data: stats, isLoading } = useContractsCIStats(filters)
 
   const [itemsPerView, setItemsPerView] = useState(1)
   
@@ -331,4 +341,3 @@ export default function StatisticsCI() {
     </div>
   )
 }
-

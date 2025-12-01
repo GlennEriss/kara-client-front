@@ -6,6 +6,7 @@ import { RepositoryFactory } from './RepositoryFactory'
 import { ICaisseImprevueService } from '@/services/caisse-imprevue/ICaisseImprevueService'
 import { CaisseImprevueService } from '@/services/caisse-imprevue/CaisseImprevueService'
 import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceService'
+import { NotificationService } from '@/services/notifications/NotificationService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -67,6 +68,17 @@ export class ServiceFactory {
     if (!this.services.has(key)) {
       const repository = RepositoryFactory.getVehicleInsuranceRepository()
       this.services.set(key, new VehicleInsuranceService(repository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des notifications
+   */
+  static getNotificationService(): NotificationService {
+    const key = 'NotificationService'
+    if (!this.services.has(key)) {
+      this.services.set(key, new NotificationService())
     }
     return this.services.get(key)
   }
