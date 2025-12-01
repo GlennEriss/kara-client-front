@@ -1,7 +1,6 @@
 'use client'
 
 import { useVehicleInsurance, useUpdateVehicleInsurance } from '@/hooks/vehicule/useVehicleInsurances'
-import { useAllMembers } from '@/hooks/useMembers'
 import { VehicleInsuranceForm } from './VehicleInsuranceForm'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 import { Button } from '@/components/ui/button'
@@ -16,10 +15,9 @@ interface Props {
 
 export function VehicleInsuranceEditView({ insuranceId }: Props) {
   const { data, isLoading } = useVehicleInsurance(insuranceId)
-  const { data: membersData, isLoading: membersLoading } = useAllMembers({ hasCar: true }, 1, 100)
   const updateMutation = useUpdateVehicleInsurance()
 
-  if (isLoading || membersLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-1/3" />
@@ -46,13 +44,13 @@ export function VehicleInsuranceEditView({ insuranceId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase text-gray-500">Édition</p>
-          <h1 className="text-2xl font-bold text-gray-900">Modifier l’assurance</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Modifier l'assurance</h1>
         </div>
         <Button variant="outline" asChild>
           <Link href={routes.admin.vehiculeDetails(insuranceId)}>Retour au détail</Link>
         </Button>
       </div>
-      <VehicleInsuranceForm members={membersData?.data || []} onSubmit={handleSubmit} initialInsurance={data} isSubmitting={updateMutation.isPending} mode="edit" />
+      <VehicleInsuranceForm onSubmit={handleSubmit} initialInsurance={data} isSubmitting={updateMutation.isPending} mode="edit" />
     </div>
   )
 }
