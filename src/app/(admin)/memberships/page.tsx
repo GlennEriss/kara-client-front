@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import MembershipList from '@/components/memberships/MembershipList'
 import MemberVehicleList from '@/components/memberships/MemberVehicleList'
+import MemberBirthdaysList from '@/components/memberships/MemberBirthdaysList'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Users, Car } from 'lucide-react'
+import { Users, Car, Cake } from 'lucide-react'
 
 export default function MembershipsPage() {
   const [activeTab, setActiveTab] = useState('list')
@@ -23,7 +24,7 @@ export default function MembershipsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="list" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Liste des membres
@@ -31,6 +32,10 @@ export default function MembershipsPage() {
           <TabsTrigger value="vehicles" className="flex items-center gap-2">
             <Car className="h-4 w-4" />
             Véhicules des membres
+          </TabsTrigger>
+          <TabsTrigger value="birthdays" className="flex items-center gap-2">
+            <Cake className="h-4 w-4" />
+            Anniversaires
           </TabsTrigger>
         </TabsList>
 
@@ -40,6 +45,10 @@ export default function MembershipsPage() {
 
         <TabsContent value="vehicles" className="mt-6">
           <MemberVehicleList />
+        </TabsContent>
+
+        <TabsContent value="birthdays" className="mt-6">
+          <MemberBirthdaysList />
         </TabsContent>
       </Tabs>
     </div>

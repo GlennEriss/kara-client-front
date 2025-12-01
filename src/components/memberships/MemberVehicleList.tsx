@@ -6,7 +6,8 @@ import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertCircle, Car, Filter } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { AlertCircle, Car, Filter, Search } from 'lucide-react'
 import { useAllMembers } from '@/hooks/useMembers'
 import { useUpdateMemberHasCar } from '@/hooks/useMembers'
 import { MemberWithSubscription } from '@/db/member.db'
@@ -22,11 +23,17 @@ export default function MemberVehicleList() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Construire les filtres selon le filtre véhicule sélectionné
-  const filters: UserFilters = vehicleFilter === 'all' 
-    ? {} 
-    : { hasCar: vehicleFilter === 'with' }
+  // Construire les filtres selon le filtre véhicule sélectionné + recherche nom/matricule
+  const filters: UserFilters = {
+    ...(vehicleFilter === 'all' ? {} : { hasCar: vehicleFilter === 'with' }),
+    ...(searchQuery.trim()
+      ? {
+          searchQuery: searchQuery.trim(),
+        }
+      : {}),
+  }
 
   const { 
     data: membersData, 
@@ -38,7 +45,7 @@ export default function MemberVehicleList() {
   // Réinitialiser la page quand le filtre change
   useEffect(() => {
     setCurrentPage(1)
-  }, [vehicleFilter])
+  }, [vehicleFilter, searchQuery])
 
   const updateHasCarMutation = useUpdateMemberHasCar()
 
@@ -123,19 +130,33 @@ export default function MemberVehicleList() {
           </p>
         </div>
 
-        {/* Filtre véhicule */}
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-gray-500" />
-          <Select value={vehicleFilter} onValueChange={(value: VehicleFilter) => setVehicleFilter(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filtrer par véhicule" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les membres</SelectItem>
-              <SelectItem value="with">Avec véhicule</SelectItem>
-              <SelectItem value="without">Sans véhicule</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Filtres véhicule + recherche */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Recherche par nom / matricule */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Nom, prénom ou matricule"
+              className="pl-9 pr-3 h-9"
+            />
+          </div>
+
+          {/* Filtre véhicule */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <Select value={vehicleFilter} onValueChange={(value: VehicleFilter) => setVehicleFilter(value)}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="Filtrer par véhicule" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les membres</SelectItem>
+                <SelectItem value="with">Avec véhicule</SelectItem>
+                <SelectItem value="without">Sans véhicule</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
