@@ -28,13 +28,13 @@ export const useContractsCI = (filters?: ContractsCIFilters) => {
  * Hook pour récupérer les statistiques des contrats CI
  * Utilise le service CaisseImprevueService via ServiceFactory (singleton)
  */
-export const useContractsCIStats = () => {
+export const useContractsCIStats = (filters?: ContractsCIFilters) => {
   return useQuery({
-    queryKey: ['contractsCIStats'],
+    queryKey: ['contractsCIStats', filters],
     queryFn: async () => {
       try {
         const service = ServiceFactory.getCaisseImprevueService()
-        return await service.getContractsCIStats()
+        return await service.getContractsCIStats(filters)
       } catch (error) {
         console.error('Erreur lors de la récupération des statistiques CI:', error)
         throw error

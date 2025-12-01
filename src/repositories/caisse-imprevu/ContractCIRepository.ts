@@ -220,21 +220,25 @@ export class ContractCIRepository implements IContractCIRepository {
         try {
             const { collection, db, getDocs, query, orderBy, where } = await getFirestore();
 
-            let q;
+            const constraints: any[] = [];
             
             // Filtrer par statut si spécifié
             if (filters?.status && filters.status !== 'all') {
-                q = query(
-                    collection(db, firebaseCollectionNames.contractsCI || "contractsCI"),
-                    where("status", "==", filters.status),
-                    orderBy("createdAt", "desc")
-                );
-            } else {
-                q = query(
-                    collection(db, firebaseCollectionNames.contractsCI || "contractsCI"),
-                    orderBy("createdAt", "desc")
-                );
+                constraints.push(where("status", "==", filters.status));
             }
+
+            // Filtrer par paymentFrequency si spécifié
+            if (filters?.paymentFrequency && filters.paymentFrequency !== 'all') {
+                constraints.push(where("paymentFrequency", "==", filters.paymentFrequency));
+            }
+
+            // Toujours trier par date de création décroissante
+            constraints.push(orderBy("createdAt", "desc"));
+
+            const q = query(
+                collection(db, firebaseCollectionNames.contractsCI || "contractsCI"),
+                ...constraints
+            );
 
             const querySnapshot = await getDocs(q);
             let contracts: ContractCI[] = [];
@@ -259,7 +263,8 @@ export class ContractCIRepository implements IContractCIRepository {
                     c.memberFirstName?.toLowerCase().includes(searchLower) ||
                     c.memberLastName?.toLowerCase().includes(searchLower) ||
                     c.subscriptionCICode?.toLowerCase().includes(searchLower) ||
-                    c.subscriptionCILabel?.toLowerCase().includes(searchLower)
+                    c.subscriptionCILabel?.toLowerCase().includes(searchLower) ||
+                    c.memberContacts?.some(contact => contact.toLowerCase().includes(searchLower))
                 );
             }
 
@@ -273,15 +278,25 @@ export class ContractCIRepository implements IContractCIRepository {
 
     /**
      * Récupère les statistiques des contrats
+     * @param {ContractsCIFilters} filters - Filtres optionnels pour les statistiques
      * @returns {Promise<ContractsCIStats>} - Statistiques des contrats
      */
-    async getContractsStats(): Promise<ContractsCIStats> {
+    async getContractsStats(filters?: ContractsCIFilters): Promise<ContractsCIStats> {
         try {
-            const { collection, db, getDocs } = await getFirestore();
+            const { collection, db, getDocs, query, where } = await getFirestore();
 
-            const querySnapshot = await getDocs(
-                collection(db, firebaseCollectionNames.contractsCI || "contractsCI")
-            );
+            const constraints: any[] = [];
+
+            // Filtrer par paymentFrequency si spécifié
+            if (filters?.paymentFrequency && filters.paymentFrequency !== 'all') {
+                constraints.push(where("paymentFrequency", "==", filters.paymentFrequency));
+            }
+
+            const q = constraints.length > 0
+                ? query(collection(db, firebaseCollectionNames.contractsCI || "contractsCI"), ...constraints)
+                : query(collection(db, firebaseCollectionNames.contractsCI || "contractsCI"));
+
+            const querySnapshot = await getDocs(q);
 
             const contracts: ContractCI[] = [];
 

@@ -13,24 +13,54 @@ Ce document décrit **les fonctionnalités à implémenter** pour le système de
 
 ## 2. Backlog de fonctionnalités globales
 
+> **Important** : Avant toute implémentation, consulter [`ARCHITECTURE_NOTIFICATIONS.md`](./ARCHITECTURE_NOTIFICATIONS.md) pour les détails techniques complets.
+
 - [ ] **NF1 – Modèle unifié de notification**  
-  - Définir un type `Notification` générique (ou un équivalent dans `src/types/types.ts`) aligné sur le modèle décrit dans `ANALYSE_NOTIFICATIONS.md`.  
-  - Identifier / refactoriser les types existants (`MembershipNotification`, futurs types véhicules, caisse spéciale, etc.) pour qu’ils adhèrent à ce modèle.
+  - Définir un type `Notification` générique dans `src/types/types.ts` (voir section 8 de `ARCHITECTURE_NOTIFICATIONS.md`).  
+  - Identifier / refactoriser les types existants (`MembershipNotification`, futurs types véhicules, caisse spéciale, etc.) pour qu'ils adhèrent à ce modèle.
+  - Créer les types `NotificationFilters`, `PaginatedNotifications`, etc.
 
-- [ ] **NF2 – Stockage et accès aux notifications**  
-  - Créer une ou plusieurs collections Firestore pour stocker les notifications (structure à préciser : collection globale, sous‑collections par module, etc.).  
-  - Exposer des repositories & services pour la création, la lecture, la mise à jour (`isRead`, etc.).
+- [ ] **NF2 – Repositories**  
+  - Créer `src/repositories/notifications/INotificationRepository.ts` (interface)
+  - Créer `src/repositories/notifications/NotificationRepository.ts` (implémentation)
+  - Implémenter toutes les méthodes : `create()`, `getById()`, `getUnreadNotifications()`, `markAsRead()`, etc.
+  - Configurer les indexes Firestore nécessaires (voir section 1.2 de `ARCHITECTURE_NOTIFICATIONS.md`)
 
-- [ ] **NF3 – Planification / jobs de notifications**  
-  - Mettre en place un mécanisme de planification (Cloud Functions, cron, ou équivalent) pour :
-    - Générer des notifications **programmées** (ex. anniversaires J‑2, J, J+1).  
-    - Gérer les rappels récurrents (renouvellement, échéances…).
+- [ ] **NF3 – Services**  
+  - Créer `src/services/notifications/NotificationService.ts`
+  - Implémenter la logique métier : création de notifications, formatage des messages, validation
+  - Créer les méthodes spécialisées : `createBirthdayNotification()`, `createMembershipRequestNotification()`, etc.
+  - Intégrer dans `ServiceFactory`
 
-- [ ] **NF4 – Intégration par module**  
-  - Pour chaque module, documenter et implémenter ses propres règles de notifications dans :
-    - `documentation/<module>/notifications.md` (spécification fonctionnelle).
-    - Les services/hooks correspondants (`src/services/<module>`, `src/hooks/<module>`).  
-  - Exemple (memberships) : notifications pour nouvelles demandes, changements de statut, anniversaires.
+- [ ] **NF4 – Hooks React**  
+  - Créer `src/hooks/notifications/useNotifications.ts`
+  - Créer `src/hooks/notifications/useUnreadNotifications.ts`
+  - Créer `src/hooks/notifications/useUnreadCount.ts`
+  - Créer `src/hooks/notifications/useMarkNotificationAsRead.ts`
+  - Créer `src/hooks/notifications/useMarkAllNotificationsAsRead.ts`
+  - Tous les hooks utilisent React Query et appellent `NotificationService` via `ServiceFactory`
+
+- [ ] **NF5 – Composant UI NotificationBell**  
+  - Créer `src/components/layout/NotificationBell.tsx`
+  - Utiliser les hooks créés dans NF4
+  - Intégrer dans `LayoutDashboard.tsx` (header)
+  - Implémenter l'affichage, les interactions (marquer comme lu), le badge avec compteur
+
+- [ ] **NF6 – Jobs planifiés (Cloud Functions)**  
+  - Créer `functions/src/scheduled/birthdayNotifications.ts` (job quotidien pour anniversaires J-2, J, J+1)
+  - Créer `functions/src/scheduled/scheduledNotifications.ts` (job horaire pour notifications programmées)
+  - Configurer les triggers cron dans Firebase
+  - Tester les jobs en environnement de développement
+  - **Documentation** : Voir [`NF6_JOBS_PLANIFIES.md`](./NF6_JOBS_PLANIFIES.md) pour les détails d'implémentation
+
+- [ ] **NF7 – Intégration par module**  
+  - **Memberships** :
+    - Modifier `MembershipService` pour créer des notifications lors de la création/mise à jour de demandes
+    - Tester le flux complet
+    - **Documentation** : Voir [`NF7_INTEGRATION_MEMBERSHIP_SERVICE.md`](./NF7_INTEGRATION_MEMBERSHIP_SERVICE.md) pour les détails d'implémentation
+  - **Véhicules** : (à venir)
+  - **Caisse Spéciale** : (à venir)
+  - **Bienfaiteur** : (à venir)
 
 ## 3. Impacts architecturaux
 

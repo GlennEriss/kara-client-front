@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "./AppSidebar"
 import { DashboardBreadcrumb } from "./DashboardBreadcrumb"
+import NotificationBell from "./NotificationBell"
 import { usePathname } from 'next/navigation'
 
 export default function LayoutDashboard({ children }: React.PropsWithChildren) {
@@ -39,6 +40,7 @@ export default function LayoutDashboard({ children }: React.PropsWithChildren) {
               <DashboardBreadcrumb />
             </div>
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-sm text-gray-600">En ligne</span>
             </div>

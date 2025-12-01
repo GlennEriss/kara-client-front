@@ -9,9 +9,12 @@ import { IDocumentRepository } from "@/repositories/documents/IDocumentRepositor
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { ISupportCIRepository } from "@/repositories/caisse-imprevu/ISupportCIRepository";
 import { IEarlyRefundCIRepository } from "@/repositories/caisse-imprevu/IEarlyRefundCIRepository";
+import { ServiceFactory } from "@/factories/ServiceFactory";
+import { NotificationService } from "@/services/notifications/NotificationService";
 
 export class CaisseImprevueService implements ICaisseImprevueService {
     readonly name = "CaisseImprevueService"
+    private notificationService: NotificationService
 
     constructor(
         private memberRepository: IMemberRepository, 
@@ -31,6 +34,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         this.paymentCIRepository = paymentCIRepository
         this.supportCIRepository = supportCIRepository
         this.earlyRefundCIRepository = earlyRefundCIRepository
+        this.notificationService = ServiceFactory.getNotificationService()
     }
 
     async searchMembers(searchQuery: string): Promise<User[]> {
@@ -66,7 +70,31 @@ export class CaisseImprevueService implements ICaisseImprevueService {
     }
 
     async createContractCI(data: Omit<ContractCI, 'createdAt' | 'updatedAt'>): Promise<ContractCI> {
-        return await this.contractCIRepository.createContract(data)
+        const contract = await this.contractCIRepository.createContract(data)
+        
+        // Créer une notification de création de contrat
+        try {
+            const frequencyLabel = data.paymentFrequency === 'DAILY' ? 'journalier' : 'mensuel'
+            await this.notificationService.createNotification({
+                module: 'caisse_imprevue',
+                entityId: contract.id,
+                type: 'contract_created',
+                title: 'Nouveau contrat créé',
+                message: `Un nouveau contrat ${frequencyLabel} a été créé pour ${data.memberFirstName} ${data.memberLastName}`,
+                metadata: {
+                    contractId: contract.id,
+                    paymentFrequency: data.paymentFrequency,
+                    memberId: data.memberId,
+                    memberFirstName: data.memberFirstName,
+                    memberLastName: data.memberLastName,
+                },
+            })
+        } catch (error) {
+            // Ne pas faire échouer la création du contrat si la notification échoue
+            console.error('Erreur lors de la création de la notification:', error)
+        }
+        
+        return contract
     }
 
     async getContractCIById(id: string): Promise<ContractCI | null> {
@@ -85,8 +113,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         return await this.contractCIRepository.getContractsWithFilters(filters)
     }
 
-    async getContractsCIStats(): Promise<ContractsCIStats> {
-        return await this.contractCIRepository.getContractsStats()
+    async getContractsCIStats(filters?: ContractsCIFilters): Promise<ContractsCIStats> {
+        return await this.contractCIRepository.getContractsStats(filters)
     }
 
     async uploadContractDocument(file: File, contractId: string, memberId: string, userId: string): Promise<{ documentId: string; contract: ContractCI }> {
@@ -633,11 +661,35 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             const earlyRefund = await this.earlyRefundCIRepository.createEarlyRefund(contractId, earlyRefundData)
 
             // 10. Mettre à jour le contrat pour référencer le document et résilier le contrat
-            await this.contractCIRepository.updateContract(contractId, {
+            const updatedContract = await this.contractCIRepository.updateContract(contractId, {
                 earlyRefundDocumentId: document.id,
                 status: 'CANCELED', // Résilier le contrat lors d'un retrait anticipé
                 updatedBy: data.userId,
             })
+
+            // Créer une notification de résiliation de contrat
+            if (updatedContract) {
+                try {
+                    const frequencyLabel = updatedContract.paymentFrequency === 'DAILY' ? 'journalier' : 'mensuel'
+                    await this.notificationService.createNotification({
+                        module: 'caisse_imprevue',
+                        entityId: contractId,
+                        type: 'contract_canceled',
+                        title: 'Contrat résilié',
+                        message: `Le contrat ${contractId} de ${updatedContract.memberFirstName} ${updatedContract.memberLastName} (${frequencyLabel}) a été résilié`,
+                        metadata: {
+                            contractId,
+                            paymentFrequency: updatedContract.paymentFrequency,
+                            memberId: updatedContract.memberId,
+                            memberFirstName: updatedContract.memberFirstName,
+                            memberLastName: updatedContract.memberLastName,
+                            reason: 'Retrait anticipé',
+                        },
+                    })
+                } catch (error) {
+                    console.error('Erreur lors de la création de la notification:', error)
+                }
+            }
 
             return earlyRefund
         } catch (error) {
@@ -758,11 +810,35 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             const createdRefund = await this.earlyRefundCIRepository.createEarlyRefund(contractId, finalRefundData as any)
 
             // 10. Mettre à jour le contrat pour référencer le document et terminer le contrat
-            await this.contractCIRepository.updateContract(contractId, {
+            const updatedContract = await this.contractCIRepository.updateContract(contractId, {
                 finalRefundDocumentId: document.id,
                 status: 'FINISHED', // Terminer le contrat lors d'un remboursement final
                 updatedBy: data.userId,
             })
+
+            // Créer une notification de terminaison de contrat
+            if (updatedContract) {
+                try {
+                    const frequencyLabel = updatedContract.paymentFrequency === 'DAILY' ? 'journalier' : 'mensuel'
+                    await this.notificationService.createNotification({
+                        module: 'caisse_imprevue',
+                        entityId: contractId,
+                        type: 'contract_finished',
+                        title: 'Contrat terminé',
+                        message: `Le contrat ${contractId} de ${updatedContract.memberFirstName} ${updatedContract.memberLastName} (${frequencyLabel}) est terminé`,
+                        metadata: {
+                            contractId,
+                            paymentFrequency: updatedContract.paymentFrequency,
+                            memberId: updatedContract.memberId,
+                            memberFirstName: updatedContract.memberFirstName,
+                            memberLastName: updatedContract.memberLastName,
+                            reason: 'Remboursement final',
+                        },
+                    })
+                } catch (error) {
+                    console.error('Erreur lors de la création de la notification:', error)
+                }
+            }
 
             // Convertir le résultat en FinalRefundCI
             return {

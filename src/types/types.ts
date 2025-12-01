@@ -214,8 +214,90 @@ export interface MembershipRequestAction {
   memberNumber?: string // Pour l'approbation
 }
 
+// ================== TYPES POUR LES NOTIFICATIONS ==================
+
 /**
- * Type pour les notifications liées aux demandes
+ * Module d'origine de la notification
+ */
+export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur'
+
+/**
+ * Type de notification
+ */
+export type NotificationType =
+  | 'birthday_reminder' // Anniversaire (J-2, J, J+1)
+  | 'new_request' // Nouvelle demande d'adhésion
+  | 'status_update' // Changement de statut
+  | 'reminder' // Rappel générique
+  | 'contract_expiring' // Contrat qui expire
+  | 'payment_due' // Paiement dû
+  | 'contract_created' // Contrat créé
+  | 'contract_finished' // Contrat terminé
+  | 'contract_canceled' // Contrat résilié
+
+/**
+ * Filtres pour les requêtes de notifications
+ */
+export interface NotificationFilters {
+  module?: NotificationModule
+  type?: NotificationType
+  isRead?: boolean
+  dateFrom?: Date
+  dateTo?: Date
+}
+
+/**
+ * Résultat paginé des notifications
+ */
+export interface PaginatedNotifications {
+  data: Notification[]
+  pagination: {
+    currentPage: number
+    totalPages: number
+    totalItems: number
+    itemsPerPage: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+  }
+}
+
+/**
+ * Type unifié pour les notifications
+ */
+export interface Notification {
+  id: string
+  module: NotificationModule
+  entityId: string // ID de la ressource (memberId, requestId, etc.)
+  type: NotificationType
+  title: string
+  message: string
+  isRead: boolean
+  createdAt: Date
+  scheduledAt?: Date
+  sentAt?: Date
+  metadata?: {
+    // Métadonnées communes
+    [key: string]: any
+    
+    // Métadonnées spécifiques aux anniversaires (si type === 'birthday_reminder')
+    memberId?: string
+    memberFirstName?: string
+    memberLastName?: string
+    birthDate?: string // ISO string
+    daysUntil?: number // -1, 0, ou 2
+    age?: number
+    notificationDate?: string // YYYY-MM-DD pour éviter les doublons
+  }
+  
+  // Champs spécifiques selon le module (optionnels, pour compatibilité)
+  requestId?: string
+  memberId?: string
+  contractId?: string
+}
+
+/**
+ * Type pour les notifications liées aux demandes (ancien format, à migrer progressivement)
+ * @deprecated Utiliser Notification à la place
  */
 export interface MembershipNotification {
   id: string
