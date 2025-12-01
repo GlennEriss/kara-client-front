@@ -2,6 +2,7 @@
 
 ## Vue d’ensemble
 
+- Le projet s’opère pour la mutuelle KARA au **Gabon**. Les données (adresses, numéros de téléphone, documents) doivent toujours respecter les formats et références locales.
 - `src/firebase` contient toute l’intégration Firebase (Firestore, Storage, Auth, Messaging). Ces helpers de base de données sont le point d’entrée unique pour l’accès aux données et aux services Firebase.
 - Les données persistent dans Firestore/Storage via `src/repositories/**`. Chaque module possède ses repositories dédiés qui encapsulent les requêtes vers Firebase. Pas de logique métier dans cette couche.
 - Les services métier se trouvent dans `src/services/**`. Ils orchestrent les repositories, appliquent les règles métier et exposent des méthodes de haut niveau.
@@ -43,6 +44,7 @@ hooks => components
 - **Providers (`src/providers`)** : création des contextes React et wrappers globaux (Auth, React Query, formulaires spécialisés, etc.).
 - **UI (`src/components/ui`)** : bibliothèque UI shadcn/maison. Tous les nouveaux composants doivent réutiliser ces primitives (Button, Card, Tabs, Dialog, etc.).
 - **Modules** : chaque module suit la structure complète (repositories → services → hooks → composants). Exemple : le module Bienfaiteur range ses composants dans `components/bienfaiteur/`, ses hooks dans `hooks/bienfaiteur/`, ses services dans `services/bienfaiteur/`, etc.
+- **Numéros de téléphone** : toute saisie doit utiliser la logique de formatage déjà mise en place dans `src/components/register/Step1.tsx` (préfixe +241, groupement et validation) pour garantir un format identique à celui exigé lors de l’inscription.
 
 ## Bonnes pratiques
 

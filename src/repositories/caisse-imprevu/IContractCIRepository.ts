@@ -1,9 +1,10 @@
-import { ContractCI, ContractCIStatus } from "@/types/types";
+import { ContractCI, ContractCIStatus, CaisseImprevuePaymentFrequency } from "@/types/types";
 import { IRepository } from "../IRepository";
 
 export interface ContractsCIFilters {
     search?: string;
     status?: ContractCIStatus | 'all';
+    paymentFrequency?: CaisseImprevuePaymentFrequency | 'all';
 }
 
 export interface ContractsCIStats {
@@ -23,7 +24,7 @@ export interface IContractCIRepository extends IRepository {
     getAllContracts(): Promise<ContractCI[]>;
     getContractsByMemberId(memberId: string): Promise<ContractCI[]>;
     getContractsWithFilters(filters?: ContractsCIFilters): Promise<ContractCI[]>;
-    getContractsStats(): Promise<ContractsCIStats>;
+    getContractsStats(filters?: ContractsCIFilters): Promise<ContractsCIStats>;
     updateContract(id: string, data: Partial<Omit<ContractCI, 'id' | 'createdAt'>>): Promise<ContractCI | null>;
     deleteContract(id: string): Promise<void>;
 }

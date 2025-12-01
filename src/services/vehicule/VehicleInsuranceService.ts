@@ -26,24 +26,44 @@ export class VehicleInsuranceService {
   async createInsurance(payload: CreatePayload, adminId: string): Promise<string> {
     const now = new Date()
     const status = this.computeStatus(payload.endDate)
+    const memberContacts = payload.holderType === 'member' ? payload.memberContacts || [] : undefined
+    const primaryPhone =
+      payload.holderType === 'member'
+        ? memberContacts && memberContacts.length > 0
+          ? memberContacts[0]
+          : ''
+        : payload.nonMemberPhone1 || ''
+
     const entity: any = {
-      memberId: payload.memberId,
-      memberFirstName: payload.memberFirstName,
-      memberLastName: payload.memberLastName,
-      memberMatricule: payload.memberMatricule,
-      memberContacts: payload.memberContacts || [],
-      memberPhotoUrl: payload.memberPhotoUrl || null,
+      holderType: payload.holderType,
+      city: payload.city,
+      primaryPhone: primaryPhone || null,
+      // Champs pour membre
+      memberId: payload.holderType === 'member' ? payload.memberId : undefined,
+      memberFirstName: payload.holderType === 'member' ? payload.memberFirstName : undefined,
+      memberLastName: payload.holderType === 'member' ? payload.memberLastName : undefined,
+      memberMatricule: payload.holderType === 'member' ? payload.memberMatricule : undefined,
+      memberContacts,
+      memberPhotoUrl: payload.holderType === 'member' ? (payload.memberPhotoUrl || null) : undefined,
+      // Champs pour non-membre
+      nonMemberFirstName: payload.holderType === 'non-member' ? payload.nonMemberFirstName : undefined,
+      nonMemberLastName: payload.holderType === 'non-member' ? payload.nonMemberLastName : undefined,
+      nonMemberPhone1: payload.holderType === 'non-member' ? payload.nonMemberPhone1 : undefined,
+      nonMemberPhone2: payload.holderType === 'non-member' ? (payload.nonMemberPhone2 || null) : undefined,
       sponsorMemberId: payload.sponsorMemberId || null,
       sponsorName: payload.sponsorName || null,
+      sponsorMatricule: payload.sponsorMatricule || null,
+      sponsorContacts: payload.sponsorContacts || [],
       vehicleType: payload.vehicleType,
       vehicleBrand: payload.vehicleBrand,
       vehicleModel: payload.vehicleModel,
       vehicleYear: payload.vehicleYear ?? null,
       plateNumber: payload.plateNumber,
+      energySource: payload.energySource,
+      fiscalPower: payload.fiscalPower,
       insuranceCompany: payload.insuranceCompany,
-      insuranceAgent: payload.insuranceAgent || null,
       policyNumber: payload.policyNumber,
-      coverageType: payload.coverageType || null,
+      warrantyMonths: payload.warrantyMonths,
       premiumAmount: payload.premiumAmount,
       currency: payload.currency,
       startDate: payload.startDate,
@@ -74,23 +94,77 @@ export class VehicleInsuranceService {
     const status = updates.endDate ? this.computeStatus(updates.endDate) : current.status
     
     // Extraire attachments pour le normaliser séparément
-    const { attachments, ...restUpdates } = updates
+    const { attachments, holderType, ...restUpdates } = updates
     
     const updatePayload: any = {
       ...restUpdates,
-      // Normaliser les valeurs - utiliser null au lieu de undefined
-      memberContacts: updates.memberContacts !== undefined ? (updates.memberContacts || []) : undefined,
-      memberPhotoUrl: updates.memberPhotoUrl !== undefined ? (updates.memberPhotoUrl || null) : undefined,
-      sponsorMemberId: updates.sponsorMemberId !== undefined ? (updates.sponsorMemberId || null) : undefined,
-      sponsorName: updates.sponsorName !== undefined ? (updates.sponsorName || null) : undefined,
-      insuranceAgent: updates.insuranceAgent !== undefined ? (updates.insuranceAgent || null) : undefined,
-      coverageType: updates.coverageType !== undefined ? (updates.coverageType || null) : undefined,
-      vehicleYear: updates.vehicleYear !== undefined ? (updates.vehicleYear ?? null) : undefined,
-      notes: updates.notes !== undefined ? (updates.notes || null) : undefined,
-      status,
-      updatedAt: new Date(),
-      updatedBy: adminId,
     }
+
+    // Si holderType change, mettre à jour les champs en conséquence
+    if (holderType !== undefined) {
+      updatePayload.holderType = holderType
+      // Si on passe de membre à non-membre, vider les champs membre
+      if (holderType === 'non-member' && current.holderType === 'member') {
+        updatePayload.memberId = undefined
+        updatePayload.memberFirstName = undefined
+        updatePayload.memberLastName = undefined
+        updatePayload.memberMatricule = undefined
+        updatePayload.memberContacts = undefined
+        updatePayload.memberPhotoUrl = undefined
+      }
+      // Si on passe de non-membre à membre, vider les champs non-membre
+      if (holderType === 'member' && current.holderType === 'non-member') {
+        updatePayload.nonMemberFirstName = undefined
+        updatePayload.nonMemberLastName = undefined
+        updatePayload.nonMemberPhone1 = undefined
+        updatePayload.nonMemberPhone2 = undefined
+      }
+    }
+
+    // Normaliser les valeurs - utiliser null au lieu de undefined
+    if (updates.city !== undefined) {
+      updatePayload.city = updates.city
+    }
+    if (updates.memberContacts !== undefined) {
+      updatePayload.memberContacts = updates.memberContacts || []
+    }
+    if (updates.memberPhotoUrl !== undefined) {
+      updatePayload.memberPhotoUrl = updates.memberPhotoUrl || null
+    }
+    if (updates.nonMemberPhone2 !== undefined) {
+      updatePayload.nonMemberPhone2 = updates.nonMemberPhone2 || null
+    }
+    if (updates.sponsorMemberId !== undefined) {
+      updatePayload.sponsorMemberId = updates.sponsorMemberId || null
+    }
+    if (updates.sponsorName !== undefined) {
+      updatePayload.sponsorName = updates.sponsorName || null
+    }
+    if (updates.sponsorMatricule !== undefined) {
+      updatePayload.sponsorMatricule = updates.sponsorMatricule || null
+    }
+    if (updates.sponsorContacts !== undefined) {
+      updatePayload.sponsorContacts = updates.sponsorContacts || []
+    }
+    if (updates.vehicleYear !== undefined) {
+      updatePayload.vehicleYear = updates.vehicleYear ?? null
+    }
+    if (updates.notes !== undefined) {
+      updatePayload.notes = updates.notes || null
+    }
+
+    const effectiveHolderType = holderType ?? current.holderType
+    const nextMemberContacts = updates.memberContacts ?? current.memberContacts
+    const nextNonMemberPhone = updates.nonMemberPhone1 ?? current.nonMemberPhone1
+    if (effectiveHolderType === 'member') {
+      updatePayload.primaryPhone = nextMemberContacts && nextMemberContacts.length > 0 ? nextMemberContacts[0] : current.primaryPhone || null
+    } else {
+      updatePayload.primaryPhone = nextNonMemberPhone || current.primaryPhone || null
+    }
+
+    updatePayload.status = status
+    updatePayload.updatedAt = new Date()
+    updatePayload.updatedBy = adminId
 
     // Normaliser attachments si fourni
     if (attachments !== undefined) {
@@ -104,7 +178,7 @@ export class VehicleInsuranceService {
     await this.repository.update(id, cleanedPayload as Partial<VehicleInsurance>)
   }
 
-  async renewInsurance(id: string, data: { startDate: Date; endDate: Date; premiumAmount: number; policyNumber?: string; coverageType?: string }, adminId: string): Promise<void> {
+  async renewInsurance(id: string, data: { startDate: Date; endDate: Date; premiumAmount: number; policyNumber?: string }, adminId: string): Promise<void> {
     const current = await this.repository.getById(id)
     if (!current) throw new Error('Assurance véhicule introuvable')
 
@@ -115,7 +189,6 @@ export class VehicleInsuranceService {
       endDate: data.endDate,
       premiumAmount: data.premiumAmount,
       policyNumber: data.policyNumber || current.policyNumber,
-      coverageType: data.coverageType || current.coverageType,
       renewalCount,
       lastRenewedAt: new Date(),
       status,

@@ -16,6 +16,8 @@ import { AdminRepository } from '@/repositories/admins/AdminRepository'
 import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
 import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
+import { INotificationRepository } from '@/repositories/notifications/INotificationRepository'
+import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -123,6 +125,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new EarlyRefundCIRepository())
     }
     return this.repositories.get(key) as IEarlyRefundCIRepository
+  }
+
+  /**
+   * Obtient le repository des notifications
+   */
+  static getNotificationRepository(): NotificationRepository {
+    const key = 'NotificationRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new NotificationRepository())
+    }
+    return this.repositories.get(key) as NotificationRepository
   }
 
   /**

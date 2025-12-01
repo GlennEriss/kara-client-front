@@ -641,6 +641,32 @@ export async function getMembershipRequestByDossier(dossierId: string) {
 }
 
 /**
+ * Met à jour le statut hasCar d'un membre
+ * @param memberId - ID du membre
+ * @param hasCar - Nouveau statut (true = avec véhicule, false = sans véhicule)
+ * @param updatedBy - ID de l'administrateur qui effectue la mise à jour
+ * @returns Promise<boolean>
+ */
+export async function updateMemberHasCar(
+  memberId: string,
+  hasCar: boolean,
+  updatedBy: string
+): Promise<boolean> {
+  try {
+    const memberRef = doc(db, 'users', memberId)
+    await updateDoc(memberRef, {
+      hasCar,
+      updatedBy,
+      updatedAt: serverTimestamp()
+    } as any)
+    return true
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du statut véhicule:', error)
+    return false
+  }
+}
+
+/**
  * Recherche des membres par terme de recherche
  */
 export async function searchMembers(searchTerm: string, limit: number = 10): Promise<User[]> {

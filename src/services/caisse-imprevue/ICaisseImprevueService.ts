@@ -24,7 +24,7 @@ export interface ICaisseImprevueService extends IService{
     getContractsCIByMemberId(memberId: string): Promise<ContractCI[]>
     getAdminById(id: string): Promise<Admin | null>
     getContractsCIPaginated(filters?: ContractsCIFilters): Promise<ContractCI[]>
-    getContractsCIStats(): Promise<ContractsCIStats>
+    getContractsCIStats(filters?: ContractsCIFilters): Promise<ContractsCIStats>
     uploadContractDocument(file: File, contractId: string, memberId: string, userId: string): Promise<{ documentId: string; contract: ContractCI }>
     uploadEmergencyContactImage(imageUrl: string, memberId: string, contractId: string): Promise<{ url: string; path: string }>
     getDocumentById(documentId: string): Promise<Document | null>

@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Plus, Search, Download, FileText, Eye, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, FileText, Eye, Trash2, ChevronLeft, ChevronRight, FileSpreadsheet, FileDown, Download } from 'lucide-react'
 import { useCharityContributions, useDeleteCharityContribution, useCharityContribution } from '@/hooks/bienfaiteur/useCharityContributions'
 import { useCharityEvent } from '@/hooks/bienfaiteur/useCharityEvents'
 import AddContributionForm from './AddContributionForm'
@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import Image from 'next/image'
+import type { EnrichedCharityContribution } from '@/types/types'
 
 interface CharityContributionsSectionProps {
   eventId: string
@@ -32,7 +33,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
   const [contributionToDelete, setContributionToDelete] = useState<string | null>(null)
   const [contributionForReceipt, setContributionForReceipt] = useState<string | null>(null)
   const [proofToView, setProofToView] = useState<string | null>(null)
-  const itemsPerPage = 10
+  const groupsPerPage = 9
 
   const { data: contributions, isLoading } = useCharityContributions(eventId)
   const { data: contributionForPDF } = useCharityContribution(eventId, contributionForReceipt || '')
@@ -74,10 +75,82 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
     return true
   }) || []
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage)
-  const paginatedContributions = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const paginatedContributions = filtered
+
+  const contributorGroups = useMemo(() => {
+    const map = new Map<string, {
+      id: string
+      name: string
+      participantType?: string
+      groupName?: string
+      avatar?: string
+      contributions: EnrichedCharityContribution[]
+      totalMoney: number
+      totalInKindValue: number
+      confirmedCount: number
+      pendingCount: number
+      canceledCount: number
+      lastContributionDate?: Date
+    }>()
+
+    filtered.forEach(contribution => {
+      const key = contribution.participantId || contribution.participant?.name || contribution.id
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          name: contribution.participant?.name || 'Contributeur inconnu',
+          participantType: contribution.participant?.type,
+          groupName: contribution.participant?.groupName,
+          avatar: contribution.participant?.photoURL,
+          contributions: [],
+          totalMoney: 0,
+          totalInKindValue: 0,
+          confirmedCount: 0,
+          pendingCount: 0,
+          canceledCount: 0,
+          lastContributionDate: undefined
+        })
+      }
+      const group = map.get(key)!
+      group.contributions.push(contribution)
+      if (contribution.contributionType === 'money' && contribution.payment?.amount) {
+        group.totalMoney += contribution.payment.amount
+      }
+      if (contribution.contributionType === 'in_kind' && contribution.estimatedValue) {
+        group.totalInKindValue += contribution.estimatedValue
+      }
+      if (contribution.status === 'confirmed') group.confirmedCount += 1
+      if (contribution.status === 'pending') group.pendingCount += 1
+      if (contribution.status === 'canceled') group.canceledCount += 1
+
+      const referenceDate = contribution.contributionDate || contribution.payment?.date || contribution.createdAt || contribution.updatedAt
+      const currentDate =
+        referenceDate instanceof Date
+          ? referenceDate
+          : typeof (referenceDate as any)?.toDate === 'function'
+            ? (referenceDate as any).toDate()
+            : referenceDate
+              ? new Date(referenceDate as any)
+              : undefined
+
+      if (currentDate && (!group.lastContributionDate || currentDate > group.lastContributionDate)) {
+        group.lastContributionDate = currentDate
+      }
+    })
+
+    return Array.from(map.values()).sort((a, b) => (b.totalMoney + b.totalInKindValue) - (a.totalMoney + a.totalInKindValue))
+  }, [filtered])
+
+  const searchLower = searchQuery.trim().toLowerCase()
+  const filteredContributorGroups = useMemo(() => {
+    if (!searchLower) return contributorGroups
+    return contributorGroups.filter(group => group.name.toLowerCase().includes(searchLower))
+  }, [contributorGroups, searchLower])
+
+  const totalPages = Math.max(1, Math.ceil(filteredContributorGroups.length / groupsPerPage))
+  const paginatedGroups = filteredContributorGroups.slice(
+    (currentPage - 1) * groupsPerPage,
+    currentPage * groupsPerPage
   )
 
   // Calcul des totaux
@@ -87,6 +160,10 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
   
   const cashContributions = filtered.filter(c => c.contributionType === 'money').length
   const inKindContributions = filtered.filter(c => c.contributionType === 'in_kind').length
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [typeFilter, statusFilter, searchQuery])
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; label: string }> = {
@@ -117,8 +194,133 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
     return format(date, 'dd/MM/yyyy', { locale: fr })
   }
 
-  const handleExportCSV = () => {
-    toast.info('Export CSV à implémenter')
+  const formatDateForExport = (value?: Date) => {
+    if (!value) return ''
+    try {
+      return format(value, 'dd/MM/yyyy', { locale: fr })
+    } catch {
+      return ''
+    }
+  }
+
+  const formatReadableAmount = (value?: number) =>
+    new Intl.NumberFormat('fr-FR')
+      .format(value ?? 0)
+      .replace(/\u202f/g, ' ')
+
+  const handleExportExcel = async () => {
+    if (!filteredContributorGroups.length) {
+      toast.info('Aucune contribution à exporter')
+      return
+    }
+
+    try {
+      const XLSX = await import('xlsx')
+      const headers = [
+        'Contributeur',
+        'Type',
+        'Nombre de contributions',
+        'Total espèces (FCFA)',
+        'Valeur en nature (FCFA)',
+        'Total estimé (FCFA)',
+        'Confirmées',
+        'En attente',
+        'Annulées',
+        'Dernière contribution'
+      ]
+
+      const rows = filteredContributorGroups.map(group => [
+        group.name,
+        group.participantType === 'group' ? 'Groupe' : 'Membre',
+        group.contributions.length,
+        group.totalMoney,
+        group.totalInKindValue,
+        group.totalMoney + group.totalInKindValue,
+        group.confirmedCount,
+        group.pendingCount,
+        group.canceledCount,
+        formatDateForExport(group.lastContributionDate)
+      ])
+
+      const worksheetData = [
+        [`Contributeurs - ${event?.title || 'Évènement'}`],
+        [`Généré le ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: fr })}`],
+        [],
+        headers,
+        ...rows
+      ]
+
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+      worksheet['!cols'] = headers.map(() => ({ wch: 22 }))
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Contributeurs')
+      const filename = `contributeurs_${format(new Date(), 'yyyyMMdd_HHmm')}.xlsx`
+      XLSX.writeFile(workbook, filename)
+      toast.success('Export Excel généré')
+    } catch (error) {
+      console.error(error)
+      toast.error('Erreur lors de la génération du fichier Excel')
+    }
+  }
+
+  const handleExportPDF = async () => {
+    if (!filteredContributorGroups.length) {
+      toast.info('Aucune contribution à exporter')
+      return
+    }
+
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape')
+      doc.setFontSize(14)
+      doc.text(`Contributeurs - ${event?.title || 'Évènement'}`, 14, 16)
+      doc.setFontSize(10)
+      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: fr })}`, 14, 22)
+
+      const headers = [
+        'Contributeur',
+        'Type',
+        'Contributions',
+        'Espèces (FCFA)',
+        'Nature (FCFA)',
+        'Total (FCFA)',
+        'Confirmées',
+        'En attente',
+        'Annulées',
+        'Dernière contribution'
+      ]
+
+      const rows = filteredContributorGroups.map(group => [
+        group.name,
+        group.participantType === 'group' ? 'Groupe' : 'Membre',
+        group.contributions.length.toString(),
+        formatReadableAmount(group.totalMoney),
+        formatReadableAmount(group.totalInKindValue),
+        formatReadableAmount(group.totalMoney + group.totalInKindValue),
+        formatReadableAmount(group.totalMoney),
+        formatReadableAmount(group.totalInKindValue),
+        formatReadableAmount(group.totalMoney + group.totalInKindValue),
+        group.confirmedCount.toString(),
+        group.pendingCount.toString(),
+        group.canceledCount.toString(),
+        formatDateForExport(group.lastContributionDate)
+      ])
+
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 28,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [35, 77, 101] }
+      })
+
+      doc.save(`contributeurs_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`)
+      toast.success('Export PDF généré')
+    } catch (error) {
+      console.error(error)
+      toast.error('Erreur lors de la génération du PDF')
+    }
   }
 
   const handleViewProof = (contributionId: string) => {
@@ -148,7 +350,7 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
           toast.success('Contribution supprimée avec succès')
           setContributionToDelete(null)
           // Réinitialiser à la page 1 si la page actuelle est vide
-          if (paginatedContributions.length === 1 && currentPage > 1) {
+          if (paginatedGroups.length === 1 && currentPage > 1) {
             setCurrentPage(currentPage - 1)
           }
         },
@@ -232,9 +434,13 @@ export default function CharityContributionsSection({ eventId }: CharityContribu
                 </SelectContent>
               </Select>
 
-              <Button variant="outline" onClick={handleExportCSV}>
-                <Download className="w-4 h-4 mr-2" />
-                Exporter CSV
+              <Button variant="outline" onClick={handleExportExcel}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Exporter Excel
+              </Button>
+              <Button variant="outline" onClick={handleExportPDF}>
+                <FileDown className="w-4 h-4 mr-2" />
+                Exporter PDF
               </Button>
 
               <Button onClick={() => setIsAddOpen(true)} className="bg-[#234D65] hover:bg-[#2c5a73]">
