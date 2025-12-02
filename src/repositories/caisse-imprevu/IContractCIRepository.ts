@@ -5,6 +5,7 @@ export interface ContractsCIFilters {
     search?: string;
     status?: ContractCIStatus | 'all';
     paymentFrequency?: CaisseImprevuePaymentFrequency | 'all';
+    overdueOnly?: boolean; // Nouveau : filtrer uniquement les contrats en retard
 }
 
 export interface ContractsCIStats {
