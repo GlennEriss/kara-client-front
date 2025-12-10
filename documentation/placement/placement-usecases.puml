@@ -1,0 +1,74 @@
+@startuml
+title Use cases par package (Placement)
+
+actor "Équipe Kara" as Kara
+actor "Bienfaiteur" as B
+actor "Système de paiement" as Pay
+actor "Service de notifications" as Notif
+
+rectangle "UI / API" {
+  usecase "BO Kara - gérer placements\n(consultation, décisions)" as UC_BO
+  usecase "Espace Bienfaiteur - consulter/\nvalider simulations, signer" as UC_BENE
+}
+
+rectangle "Hooks / Mediators" {
+  usecase "Orchestrer workflows\n(React Query, formulaires,\nmediators placement)" as UC_HOOKS
+}
+
+rectangle "Services (Domaine Placement)" {
+  usecase "Préqualification / offre standard" as UC_PREQUAL
+  usecase "Simulation et contrat" as UC_SIMU
+  usecase "Commissions et échéances" as UC_COMM
+  usecase "Retrait anticipé\n(commission, avenant,\nquittances)" as UC_RET
+}
+
+rectangle "Repositories" {
+  usecase "Accès Firestore\n(placements)" as UC_REPO
+}
+
+rectangle "Paiement" {
+  usecase "Encaissements / versements" as UC_PAY
+}
+
+rectangle "Notifications" {
+  usecase "Envoi SMS / e-mail\n(sollicitations, rappels)" as UC_NOTIF
+}
+
+rectangle "Membres" {
+  usecase "Lister/attribuer rôles\n(Bienfaiteur)" as UC_MEMBRES
+}
+
+Kara --> UC_BO
+Kara --> UC_HOOKS
+Kara --> UC_PREQUAL
+Kara --> UC_SIMU
+Kara --> UC_COMM
+Kara --> UC_RET
+
+B --> UC_BENE
+B --> UC_SIMU
+B --> UC_RET
+
+UC_BO --> UC_HOOKS
+UC_BENE --> UC_HOOKS
+UC_HOOKS --> UC_PREQUAL
+UC_HOOKS --> UC_SIMU
+UC_HOOKS --> UC_COMM
+UC_HOOKS --> UC_RET
+UC_HOOKS --> UC_MEMBRES
+
+UC_PREQUAL --> UC_REPO
+UC_SIMU --> UC_REPO
+UC_COMM --> UC_REPO
+UC_RET --> UC_REPO
+
+UC_COMM --> UC_PAY
+UC_SIMU --> UC_NOTIF
+UC_COMM --> UC_NOTIF
+UC_RET --> UC_NOTIF
+
+UC_PREQUAL --> UC_MEMBRES
+
+@enduml
+
+

@@ -1,5 +1,6 @@
 import { Document } from '@/types/types'
 import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
 import {
   DocumentListQuery,
   DocumentSortInput,
@@ -30,7 +31,7 @@ const DEFAULT_SORT: DocumentSortInput[] = [
 ]
 
 export class DocumentService {
-  constructor(private readonly repository: DocumentRepository) {}
+  constructor(private readonly repository: IDocumentRepository) {}
 
   async getMemberDocuments(params: MemberDocumentQueryParams): Promise<MemberDocumentList> {
     const effectiveParams: DocumentListQuery = {

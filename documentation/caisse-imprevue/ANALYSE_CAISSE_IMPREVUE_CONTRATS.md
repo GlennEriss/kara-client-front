@@ -421,6 +421,42 @@
 
 ---
 
+### UC9 – Filtrer les contrats par retard de paiement
+
+**Acteur** : Admin
+
+**Objectif** : Permettre à l'admin de visualiser uniquement les contrats qui ont des versements en retard
+
+**Préconditions** :
+- L'admin est sur la page de gestion des contrats
+- Des contrats existent dans le système
+
+**Définition d'un contrat en retard** :
+Un contrat est considéré en retard si :
+- Le contrat a le statut `ACTIVE`
+- Le contrat a au moins un versement (dans la sous-collection `payments`) avec :
+  - `status: 'DUE'` ou `status: 'PARTIAL'`
+  - `dueDate` < date actuelle (le versement est en retard)
+
+**Scénario principal** :
+1. L'admin voit un nouvel onglet "Retard" dans la liste des onglets (à côté de "Tous", "Journalier", "Mensuel")
+2. L'admin clique sur l'onglet "Retard"
+3. Le système affiche uniquement les contrats qui ont au moins un versement en retard
+4. Les contrats sont affichés avec un indicateur visuel (badge, couleur) pour montrer qu'ils sont en retard
+5. Les statistiques s'adaptent pour afficher uniquement les contrats en retard
+
+**Scénarios alternatifs** :
+- Si aucun contrat n'est en retard, afficher "Aucun contrat en retard"
+- Les filtres de statut et de recherche restent actifs sur l'onglet "Retard"
+- La pagination fonctionne normalement sur l'onglet "Retard"
+
+**Postconditions** :
+- Seuls les contrats en retard sont affichés
+- Les statistiques sont mises à jour pour refléter les contrats en retard
+- Les autres onglets (Tous, Journalier, Mensuel) ne sont pas affectés
+
+---
+
 ## 5. Structure des données
 
 ### 5.1. Type ContractCI (existant)
@@ -477,6 +513,7 @@ export interface ContractsCIFilters {
   status?: ContractCIStatus | 'all'
   search?: string
   memberId?: string
+  overdueOnly?: boolean // Nouveau : filtrer uniquement les contrats en retard
 }
 ```
 

@@ -29,6 +29,8 @@ import {
   BarChart3,
   Upload
 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
 import { useContracts } from '@/hooks/useContracts'
@@ -401,6 +403,9 @@ const ListContracts = () => {
     router.push('/caisse-speciale/create')
   }
   
+  // État pour l'onglet actif (Tous les contrats / Retard)
+  const [activeTab, setActiveTab] = useState<'all' | 'overdue'>('all')
+  
   // États
   const [filters, setFilters] = useState({
     search: '',
@@ -427,10 +432,10 @@ const ListContracts = () => {
   const membersData = { data: [] as any[] }
   const groupsData: any[] = []
 
-  // Reset page when filters change
+  // Reset page when filters or tab change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters])
+  }, [filters, activeTab])
 
   // Charger les refunds pour chaque contrat
   useEffect(() => {
@@ -723,11 +728,43 @@ const ListContracts = () => {
     return labels[status as keyof typeof labels] || status
   }
 
+  /**
+   * Vérifie si un contrat est en retard
+   */
+  const isContractOverdue = (contract: any): boolean => {
+    // Vérifier les statuts de retard
+    if (contract.status === 'LATE_NO_PENALTY' || contract.status === 'LATE_WITH_PENALTY') {
+      return true
+    }
+    
+    // Vérifier nextDueAt pour les contrats ACTIVE
+    if (contract.status === 'ACTIVE' && contract.nextDueAt) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const nextDue = contract.nextDueAt instanceof Date 
+        ? contract.nextDueAt 
+        : new Date(contract.nextDueAt)
+      nextDue.setHours(0, 0, 0, 0)
+      
+      if (nextDue < today) {
+        return true
+      }
+    }
+    
+    return false
+  }
+
   // Filtrage des contrats
   const filteredContracts = React.useMemo(() => {
     if (!contractsData) return []
 
     let contracts = contractsData
+
+    // Filtrer par retard si l'onglet "Retard" est actif
+    if (activeTab === 'overdue') {
+      contracts = contracts.filter((c: any) => isContractOverdue(c))
+    }
 
     if (filters.search) {
       const searchLower = filters.search.toLowerCase()
@@ -757,7 +794,7 @@ const ListContracts = () => {
     }
 
     return contracts
-  }, [contractsData, filters, groupsData, membersData])
+  }, [contractsData, filters, groupsData, membersData, activeTab])
 
   // Pagination
   const totalPages = Math.ceil(filteredContracts.length / itemsPerPage)
@@ -782,17 +819,20 @@ const ListContracts = () => {
   const stats = React.useMemo(() => {
     if (!contractsData) return null
 
-    const total = contractsData.length
-    const draft = contractsData.filter((c: any) => c.status === 'DRAFT').length
-    const active = contractsData.filter((c: any) => c.status === 'ACTIVE').length
-    const late = contractsData.filter((c: any) =>
+    // Utiliser filteredContracts si on est sur l'onglet "Retard", sinon contractsData
+    const dataSource = activeTab === 'overdue' ? filteredContracts : contractsData
+
+    const total = dataSource.length
+    const draft = dataSource.filter((c: any) => c.status === 'DRAFT').length
+    const active = dataSource.filter((c: any) => c.status === 'ACTIVE').length
+    const late = dataSource.filter((c: any) =>
       c.status === 'LATE_NO_PENALTY' || c.status === 'LATE_WITH_PENALTY'
     ).length
-    const group = contractsData.filter((c: any) => isGroupContract(c)).length
+    const group = dataSource.filter((c: any) => isGroupContract(c)).length
     const individual = total - group
 
     // Statistiques des tontines closes par type
-    const closedContracts = contractsData.filter((c: any) => c.status === 'CLOSED')
+    const closedContracts = dataSource.filter((c: any) => c.status === 'CLOSED')
     const closedStats = closedContracts.reduce((acc: any, contract: any) => {
       const type = contract.caisseType || 'STANDARD'
       if (!acc[type]) {
@@ -817,7 +857,7 @@ const ListContracts = () => {
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
       closedStats,
     }
-  }, [contractsData])
+  }, [contractsData, activeTab, filteredContracts])
 
   // Somme des nominalPaid pour les contrats clos
   const { sum: closedNominalSum } = useClosedNominalSum(contractsData)
@@ -845,6 +885,20 @@ const ListContracts = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
+      {/* Onglets pour filtrer par retard */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
+        <TabsList className="grid w-full max-w-xl grid-cols-2">
+          <TabsTrigger value="all" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Tous les contrats
+          </TabsTrigger>
+          <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
+            <AlertCircle className="h-4 w-4" />
+            Retard
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Carrousel de statistiques */}
       {stats && <StatsCarousel stats={stats} closedNominalSum={closedNominalSum || 0} />}
 
@@ -973,6 +1027,14 @@ const ListContracts = () => {
               >
                 <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Badge "En retard" */}
+                  {isContractOverdue(contract) && (
+                    <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      En retard
+                    </Badge>
+                  )}
 
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
                     <div className="flex items-start justify-between mb-4">

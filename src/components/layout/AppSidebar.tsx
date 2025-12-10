@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown } from "lucide-react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -79,11 +79,21 @@ const adminMenuItems: SidebarItem[] = [
                 icon: HeartHandshake,
             },
             {
+                title: "Placements",
+                url: routes.admin.placements,
+                icon: Wallet,
+            },
+            {
                 title: "Véhicules",
                 url: routes.admin.vehicules,
                 icon: Car,
             },
         ],
+    },
+    {
+        title: "Géographie",
+        url: routes.admin.geographie,
+        icon: MapPin,
     },
     /*{
         title: "Assurance",
@@ -176,6 +186,9 @@ export function AppSidebar() {
             return pathname === routes.admin.caisseImprevue
         }
         if (url === routes.admin.caisseImprevueSettings) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
+        if (url === routes.admin.geographie) {
             return pathname === url || pathname.startsWith(url + '/')
         }
         // Comportement par défaut: actif si égalité ou sous-chemin
