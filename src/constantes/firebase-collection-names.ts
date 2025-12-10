@@ -22,6 +22,11 @@ export const firebaseCollectionNames = {
     contractsCI: "contractsCI",
     // Documents
     documents: "documents",
+    // Géographie
+    provinces: "provinces",
+    cities: "cities",
+    districts: "districts",
+    quarters: "quarters",
 }
 
 // Export également en majuscules pour compatibilité

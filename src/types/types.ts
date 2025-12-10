@@ -1609,3 +1609,62 @@ export interface PhotonResult {
     coordinates: [number, number]
   }
 }
+
+// ================== TYPES GÉOGRAPHIE ==================
+
+/**
+ * Province - Entité géographique de niveau 1
+ */
+export interface Province {
+  id: string
+  code: string // Code unique (ex: "ESTuaire", "OGOUE_MARITIME")
+  name: string
+  displayOrder?: number
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Ville - Entité géographique de niveau 2 (appartient à une Province)
+ */
+export interface City {
+  id: string
+  provinceId: string
+  name: string
+  postalCode?: string
+  displayOrder?: number
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Arrondissement - Entité géographique de niveau 3 (appartient à une Ville)
+ */
+export interface District {
+  id: string
+  cityId: string
+  name: string
+  displayOrder?: number
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Quartier - Entité géographique de niveau 4 (appartient à un Arrondissement)
+ */
+export interface Quarter {
+  id: string
+  districtId: string
+  name: string
+  displayOrder?: number
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}

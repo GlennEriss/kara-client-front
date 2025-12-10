@@ -51,6 +51,8 @@ const routes = {
         bienfaiteurParticipants: (id: string) => `/bienfaiteur/${id}/participants`,
         bienfaiteurGroups: (id: string) => `/bienfaiteur/${id}/groups`,
         bienfaiteurMedia: (id: string) => `/bienfaiteur/${id}/media`,
+        // Géographie
+        geographie: '/geographie',
     },
     member: {
         home: '/',

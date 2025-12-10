@@ -7,6 +7,7 @@ import { ICaisseImprevueService } from '@/services/caisse-imprevue/ICaisseImprev
 import { CaisseImprevueService } from '@/services/caisse-imprevue/CaisseImprevueService'
 import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceService'
 import { NotificationService } from '@/services/notifications/NotificationService'
+import { GeographieService } from '@/services/geographie/GeographieService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -79,6 +80,21 @@ export class ServiceFactory {
     const key = 'NotificationService'
     if (!this.services.has(key)) {
       this.services.set(key, new NotificationService())
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion de la géographie
+   */
+  static getGeographieService(): GeographieService {
+    const key = 'GeographieService'
+    if (!this.services.has(key)) {
+      const provinceRepository = RepositoryFactory.getProvinceRepository()
+      const cityRepository = RepositoryFactory.getCityRepository()
+      const districtRepository = RepositoryFactory.getDistrictRepository()
+      const quarterRepository = RepositoryFactory.getQuarterRepository()
+      this.services.set(key, new GeographieService(provinceRepository, cityRepository, districtRepository, quarterRepository))
     }
     return this.services.get(key)
   }

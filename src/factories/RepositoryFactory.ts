@@ -18,6 +18,10 @@ import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
 import { INotificationRepository } from '@/repositories/notifications/INotificationRepository'
 import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
+import { ProvinceRepository } from '@/repositories/geographie/ProvinceRepository'
+import { CityRepository } from '@/repositories/geographie/CityRepository'
+import { DistrictRepository } from '@/repositories/geographie/DistrictRepository'
+import { QuarterRepository } from '@/repositories/geographie/QuarterRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -136,6 +140,50 @@ export class RepositoryFactory {
       this.repositories.set(key, new NotificationRepository())
     }
     return this.repositories.get(key) as NotificationRepository
+  }
+
+  /**
+   * Obtient le repository des provinces
+   */
+  static getProvinceRepository(): ProvinceRepository {
+    const key = 'ProvinceRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new ProvinceRepository())
+    }
+    return this.repositories.get(key) as ProvinceRepository
+  }
+
+  /**
+   * Obtient le repository des villes
+   */
+  static getCityRepository(): CityRepository {
+    const key = 'CityRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CityRepository())
+    }
+    return this.repositories.get(key) as CityRepository
+  }
+
+  /**
+   * Obtient le repository des arrondissements
+   */
+  static getDistrictRepository(): DistrictRepository {
+    const key = 'DistrictRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new DistrictRepository())
+    }
+    return this.repositories.get(key) as DistrictRepository
+  }
+
+  /**
+   * Obtient le repository des quartiers
+   */
+  static getQuarterRepository(): QuarterRepository {
+    const key = 'QuarterRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new QuarterRepository())
+    }
+    return this.repositories.get(key) as QuarterRepository
   }
 
   /**
