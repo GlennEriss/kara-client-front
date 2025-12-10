@@ -1,0 +1,88 @@
+@startuml
+
+title Packages du module Placement (aligné sur l'architecture)
+
+package "UI / API" {
+  [Backoffice Kara]
+  [Espace Bienfaiteur]
+  [Placement API]
+}
+
+package "Membres" {
+  [MembershipService]
+}
+
+package "Hooks / Mediators" {
+  [Placement Hooks]
+  [Placement Mediators]
+}
+
+package "Services (Domaine Placement)" {
+  [PlacementService]
+}
+
+package "Factories" {
+  [ServiceFactory]
+  [RepositoryFactory]
+}
+
+package "Repositories" {
+  [PlacementRepository]
+  [DocumentRepository]
+}
+
+package "Paiement" {
+  [PaymentGateway]
+}
+
+package "Notifications" {
+  [NotificationService]
+}
+
+[Backoffice Kara] --> [Placement Hooks]
+[Espace Bienfaiteur] --> [Placement Hooks]
+
+[Placement Hooks] --> [Placement Mediators]
+[Placement Mediators] --> [Placement API]
+[Placement API] --> [PlacementService]
+[PlacementService] --> [RepositoryFactory]
+[RepositoryFactory] --> [PlacementRepository]
+[ServiceFactory] --> [PlacementService]
+[PlacementService] --> [MembershipService]
+[PlacementService] --> [PaymentGateway]
+[PlacementService] --> [NotificationService]
+[PlacementRepository] --> [PaymentGateway]
+[Documents] as Docs
+package "Documents" {
+  [DocumentService]
+  [DocumentRepository] #line:dashed
+}
+
+[PlacementService] --> [DocumentService]
+[DocumentService] --> [DocumentRepository]
+
+[PlacementRepository] --> [PaymentGateway]
+[PlacementRepository] --> [NotificationService]
+[PlacementRepository] --> [DocumentRepository]
+
+[PlacementService] --> Docs
+
+note right of [ServiceFactory]
+  Instancie PlacementService
+  en injectant les repositories
+  via RepositoryFactory
+end note
+
+note right of [Placement Hooks]
+  Hooks React (React Query, forms)
+  consomment les services/médiateurs
+end note
+
+note bottom of [PlacementRepository]
+  Accès Firestore/Storage via
+  firebase helpers existants
+end note
+
+@enduml
+
+

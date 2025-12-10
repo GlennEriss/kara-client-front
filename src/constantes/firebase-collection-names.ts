@@ -22,6 +22,7 @@ export const firebaseCollectionNames = {
     contractsCI: "contractsCI",
     // Documents
     documents: "documents",
+    placements: "placements",
     // Géographie
     provinces: "provinces",
     cities: "cities",
@@ -45,6 +46,7 @@ export const FIREBASE_COLLECTION_NAMES = {
     ADDRESSES: "addresses",
     COMPANIES: "companies",
     PROFESSIONS: "professions",
+    PLACEMENTS: "placements",
     // Caisse Spéciale
     CAISSE_CONTRACTS: "caisseContracts",
     CAISSE_SETTINGS: "caisseSettings",

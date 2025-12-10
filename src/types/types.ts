@@ -219,7 +219,7 @@ export interface MembershipRequestAction {
 /**
  * Module d'origine de la notification
  */
-export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur'
+export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur' | 'placement'
 
 /**
  * Type de notification
@@ -234,6 +234,11 @@ export type NotificationType =
   | 'contract_created' // Contrat créé
   | 'contract_finished' // Contrat terminé
   | 'contract_canceled' // Contrat résilié
+  | 'commission_due_reminder' // Rappel avant échéance de commission (module placement)
+  | 'commission_overdue' // Commission en retard (module placement)
+  | 'placement_activated' // Placement activé (module placement)
+  | 'early_exit_request' // Demande de retrait anticipé (module placement)
+  | 'placement_completed' // Placement terminé (module placement)
 
 /**
  * Filtres pour les requêtes de notifications
@@ -1209,6 +1214,9 @@ export type DocumentType =
   | 'CHARITY_EVENT_MEDIA'         // Média d'évènement Bienfaiteur
   | 'CHARITY_CONTRIBUTION_RECEIPT' // Reçu de contribution Bienfaiteur
   | 'CHARITY_EVENT_REPORT'         // Rapport d'évènement Bienfaiteur
+  | 'PLACEMENT_CONTRACT'           // Contrat de placement
+  | 'PLACEMENT_COMMISSION_PROOF'   // Preuve de commission placement
+  | 'PLACEMENT_EARLY_EXIT_QUITTANCE' // Quittance de retrait anticipé placement
 
 /**
  * Formats de documents possibles
@@ -1510,6 +1518,60 @@ export const VEHICLE_INSURANCE_STATUS_LABELS: Record<VehicleInsuranceStatus, str
   active: 'Active',
   expires_soon: 'Expire bientôt',
   expired: 'Expirée'
+}
+
+// ================== TYPES PLACEMENT ==================
+
+export type PlacementStatus = 'Draft' | 'Active' | 'Closed' | 'EarlyExit' | 'Canceled'
+export type CommissionStatus = 'Due' | 'Paid' | 'Partial' | 'Canceled'
+export type PayoutMode = 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End'
+
+// Types de documents placement : on réutilise DocumentType existant en ajoutant si besoin des variantes placement
+export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE'
+
+export interface Placement {
+  id: string
+  benefactorId: string // User.id avec rôle Bienfaiteur
+  amount: number
+  rate: number // taux de commission
+  periodMonths: number // 1..7
+  payoutMode: PayoutMode
+  status: PlacementStatus
+  startDate?: Date
+  endDate?: Date
+  contractDocumentId?: string // Référence Document.id
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // User.id (Admin)
+  updatedBy?: string // User.id (Admin)
+}
+
+export interface CommissionPaymentPlacement {
+  id: string
+  placementId: string
+  dueDate: Date
+  amount: number
+  status: CommissionStatus
+  proofDocumentId?: string // Document.id
+  paidAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // User.id (Admin)
+  updatedBy?: string // User.id (Admin)
+}
+
+export interface EarlyExitPlacement {
+  id: string
+  placementId: string
+  requestedAt: Date
+  validatedAt?: Date
+  commissionDue: number
+  payoutAmount: number
+  quittanceDocumentId?: string // Document.id
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // User.id (Admin)
+  updatedBy?: string // User.id (Admin)
 }
 
 // ================== TYPES POUR LES FILLEULS ==================

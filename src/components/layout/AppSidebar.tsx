@@ -79,6 +79,11 @@ const adminMenuItems: SidebarItem[] = [
                 icon: HeartHandshake,
             },
             {
+                title: "Placements",
+                url: routes.admin.placements,
+                icon: Wallet,
+            },
+            {
                 title: "Véhicules",
                 url: routes.admin.vehicules,
                 icon: Car,

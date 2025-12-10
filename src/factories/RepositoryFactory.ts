@@ -18,6 +18,7 @@ import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
 import { INotificationRepository } from '@/repositories/notifications/INotificationRepository'
 import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
+import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { ProvinceRepository } from '@/repositories/geographie/ProvinceRepository'
 import { CityRepository } from '@/repositories/geographie/CityRepository'
 import { DistrictRepository } from '@/repositories/geographie/DistrictRepository'
@@ -140,6 +141,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new NotificationRepository())
     }
     return this.repositories.get(key) as NotificationRepository
+  }
+
+  /**
+   * Obtient le repository des placements
+   */
+  static getPlacementRepository(): PlacementRepository {
+    const key = 'PlacementRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new PlacementRepository())
+    }
+    return this.repositories.get(key) as PlacementRepository
   }
 
   /**

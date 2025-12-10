@@ -8,6 +8,8 @@ import { CaisseImprevueService } from '@/services/caisse-imprevue/CaisseImprevue
 import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceService'
 import { NotificationService } from '@/services/notifications/NotificationService'
 import { GeographieService } from '@/services/geographie/GeographieService'
+import { PlacementService } from '@/services/placement/PlacementService'
+import { DocumentService } from '@/services/documents/DocumentService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -80,6 +82,21 @@ export class ServiceFactory {
     const key = 'NotificationService'
     if (!this.services.has(key)) {
       this.services.set(key, new NotificationService())
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des placements
+   */
+  static getPlacementService(): PlacementService {
+    const key = 'PlacementService'
+    if (!this.services.has(key)) {
+      const placementRepository = RepositoryFactory.getPlacementRepository()
+      const documentRepository = RepositoryFactory.getDocumentRepository()
+      const documentService = new DocumentService(documentRepository)
+      const memberRepository = RepositoryFactory.getMemberRepository()
+      this.services.set(key, new PlacementService(placementRepository, documentService, documentRepository, memberRepository))
     }
     return this.services.get(key)
   }

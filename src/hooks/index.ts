@@ -1,3 +1,4 @@
+export * from './usePlacements'
 // Export de tous les hooks organisés par domaine
 
 // Homepage hooks
