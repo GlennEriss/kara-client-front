@@ -1,0 +1,91 @@
+@startuml
+title Séquences principales - Module Placement
+
+' Participants communs
+participant "Backoffice Kara (UI)" as BO
+participant "Espace Bienfaiteur (UI)" as EB
+participant "Hooks/Mediators" as Hooks
+participant "Placement API" as API
+participant "PlacementService" as Svc
+participant "ServiceFactory" as SF
+participant "RepositoryFactory" as RF
+participant "PlacementRepository" as Repo
+participant "MembershipService" as Membres
+participant "PaymentGateway" as Pay
+participant "NotificationService" as Notif
+participant "DocumentService" as DocSvc
+participant "DocumentRepository" as DocRepo
+
+== Préqualification & offre standard ==
+BO -> Hooks: Charger fiche placement
+Hooks -> API: GET /placements/{id}/prequal
+API -> Svc: getPrequalification(placementId)
+Svc -> SF: getPlacementService()
+Svc -> Membres: getBenefactorProfile()
+Svc -> Repo: getPlacement()
+Svc -> API: prequalification + offre standard
+API -> Hooks: données préqualifiées
+Hooks -> BO: Afficher préqual + offre
+
+== Simulation & contrat ==
+BO -> Hooks: Demander simulation
+Hooks -> API: POST /placements/{id}/simulate
+API -> Svc: simulate(placement)
+Svc -> Repo: getPlacement()
+Svc -> Membres: getBenefactorProfile()
+Svc -> API: simulation (taux, période, mode)
+API -> Hooks: simulation
+Hooks -> BO: Afficher simulation
+BO -> Hooks: Générer contrat
+Hooks -> API: POST /placements/{id}/contract
+API -> Svc: generateContract(placement)
+Svc -> DocSvc: createContractPdf()
+DocSvc -> DocRepo: saveDocument(type=ADHESION)
+Svc -> Repo: updatePlacement(contractRef)
+API -> Hooks: contrat prêt (URL)
+Hooks -> BO: Lien de signature (Kara)
+EB -> Hooks: Signer en ligne
+Hooks -> API: POST /placements/{id}/sign
+API -> Svc: recordSignature()
+Svc -> DocRepo: saveDocument(type=ADHESION)
+Svc -> Repo: updatePlacement(status=Active)
+
+== Cycle de commission ==
+Hooks -> API: GET /placements/{id}/commissions
+API -> Svc: listCommissions()
+Svc -> Repo: getCommissions()
+API -> Hooks: commissions dues
+Hooks -> BO: Afficher échéances
+BO -> Hooks: Marquer commission payée + preuve
+Hooks -> API: POST /placements/{id}/commissions/{cid}/pay
+API -> Svc: payCommission(cid, proof)
+Svc -> Pay: collectPayment()
+Svc -> DocRepo: saveDocument(type=CHARITY_CONTRIBUTION_RECEIPT)
+Svc -> Repo: updateCommission(status=Paid, proofRef)
+Svc -> Notif: notifyBenefactor(payment)
+
+== Retrait anticipé ==
+EB -> Hooks: Demander retrait anticipé
+Hooks -> API: POST /placements/{id}/early-exit
+API -> Svc: requestEarlyExit(placementId)
+Svc -> Repo: getPlacement()
+Svc -> Svc: computeEarlyExitCommission()
+Svc -> DocSvc: generateEarlyExitAvenant()
+DocSvc -> DocRepo: saveDocument(type=EARLY_REFUND_CI)
+Svc -> Repo: saveEarlyExit(commissionDue, docRef)
+Svc -> Notif: notifyKaraAndBenefactor()
+BO -> Hooks: Valider retrait anticipé
+Hooks -> API: POST /placements/{id}/early-exit/approve
+API -> Svc: approveEarlyExit()
+Svc -> Pay: refundCapitalAndCommission()
+Svc -> DocSvc: generateExitQuittance()
+DocSvc -> DocRepo: saveDocument(type=FINAL_REFUND_CI)
+Svc -> Repo: closePlacement(status=EarlyExit)
+Svc -> Notif: sendQuittanceToBenefactor()
+
+== Archivage ==
+Svc -> DocRepo: tag documents (archived/replaced)
+Svc -> Repo: mark placement closed
+
+@enduml
+

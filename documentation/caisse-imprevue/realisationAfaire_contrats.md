@@ -126,21 +126,52 @@ Ce document décrit **les fonctionnalités à implémenter** pour améliorer la 
 
 ### UC8 – Exporter les listes de contrats en PDF et Excel
 
+- [x] **Service**
+  - ✅ Exports implémentés directement dans `ListContractsCISection.tsx`
+
+- [x] **Composants UI**
+  - ✅ Boutons d'export Excel et PDF ajoutés dans `ListContractsCISection.tsx`
+  - ✅ Fonctions d'export avec gestion des erreurs implémentées
+
+- [x] **Format d'export**
+  - ✅ Colonnes Excel/PDF : ID, Type, Membre, Statut, Montant mensuel, Nominal, Durée, Date début, Mois payés, Versements en attente
+  - ✅ Respect des filtres et de la recherche
+  - ✅ Respect de l'onglet actif (Tous, Journalier, ou Mensuel)
+
+### UC9 – Filtrer les contrats par retard de paiement
+
+> **Documentation détaillée** : Voir [`./UC9_FILTRAGE_RETARD.md`](./UC9_FILTRAGE_RETARD.md) pour l'implémentation complète.
+
+- [ ] **Repository**
+  - Étendre `IContractCIRepository.getContractsWithFilters()` pour supporter `overdueOnly: true`
+  - Implémenter la méthode `filterOverdueContracts()` pour identifier les contrats en retard :
+    - Récupérer tous les contrats actifs
+    - Pour chaque contrat, vérifier la sous-collection `payments`
+    - Filtrer les contrats ayant au moins un versement avec `status: 'DUE'` ou `'PARTIAL'` et `dueDate < aujourd'hui`
+  - **Note** : Commencer avec un filtrage côté client, puis optimiser avec un champ calculé si nécessaire
+
 - [ ] **Service**
-  - Créer `src/services/caisse-imprevue/CaisseImprevueContractExportService.ts`
-  - Implémenter `exportToExcel()` pour générer un fichier CSV
-  - Implémenter `exportToPdf()` pour générer un fichier PDF avec `jspdf` et `jspdf-autotable`
+  - Aucune modification nécessaire, le service passe simplement les filtres au repository
+
+- [ ] **Hooks**
+  - Aucune modification nécessaire, le hook passe simplement les filtres au service
 
 - [ ] **Composants UI**
-  - Ajouter un bouton "Exporter" dans `ListContractsCISection.tsx`
-  - Créer un menu déroulant pour choisir le format (Excel/PDF)
-  - Implémenter les fonctions d'export avec gestion des erreurs
+  - Modifier `src/components/caisse-imprevue/ListContractsCISection.tsx`
+  - Ajouter un nouvel onglet "Retard" dans les Tabs (après "Mensuel")
+  - Implémenter la logique pour activer `overdueOnly: true` quand l'onglet "Retard" est sélectionné
+  - Ajouter un badge visuel (rouge/orange) sur les contrats en retard dans la liste
+  - Adapter les statistiques pour l'onglet "Retard" (afficher uniquement les stats des contrats en retard)
 
-- [ ] **Format d'export**
-  - Colonnes Excel/PDF : ID, Type (Journalier/Mensuel), Membre, Statut, Montant mensuel, Nominal, Durée, Date début, Total payé, Versements en attente
-  - Respecter les filtres et la recherche appliqués
-  - Respecter l'onglet actif (Tous, Journalier, ou Mensuel)
-  - Inclure les statistiques en bas de page (PDF uniquement)
+- [ ] **Indicateurs visuels**
+  - Badge "En retard" sur les cartes de contrats
+  - Couleur différente (rouge/orange) pour les contrats en retard
+  - Afficher le nombre de jours de retard si disponible
+
+- [ ] **Optimisations futures (optionnel)**
+  - Ajouter un champ calculé `hasOverduePayments: boolean` sur chaque contrat
+  - Mettre à jour ce champ via une Cloud Function ou lors de la création/mise à jour des versements
+  - Créer un index Firestore pour optimiser les requêtes
 
 ## 3. Impacts architecturaux
 

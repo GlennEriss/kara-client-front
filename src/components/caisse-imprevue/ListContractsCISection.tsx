@@ -29,6 +29,7 @@ import StatisticsCI from './StatisticsCI'
 import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
 import ViewUploadedContractCIModal from './ViewUploadedContractCIModal'
@@ -68,8 +69,8 @@ const ModernSkeleton = () => (
 export default function ListContractsCISection() {
   const router = useRouter()
   
-  // État pour l'onglet actif (Tous, Journalier, Mensuel)
-  const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY'>('all')
+  // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard)
+  const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY' | 'overdue'>('all')
   
   // États
   const [filters, setFilters] = useState<ContractsCIFilters>({
@@ -91,10 +92,11 @@ export default function ListContractsCISection() {
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
 
-  // Construire les filtres avec paymentFrequency selon l'onglet actif
+  // Construire les filtres avec paymentFrequency et overdueOnly selon l'onglet actif
   const effectiveFilters: ContractsCIFilters = {
     ...filters,
-    paymentFrequency: activeTab === 'all' ? 'all' : activeTab
+    paymentFrequency: activeTab === 'all' || activeTab === 'overdue' ? 'all' : activeTab,
+    overdueOnly: activeTab === 'overdue'
   }
 
   // Hook pour récupérer les contrats
@@ -345,8 +347,8 @@ export default function ListContractsCISection() {
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Onglets pour filtrer par type de contrat */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY')} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY' | 'overdue')} className="w-full">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Tous
@@ -359,11 +361,15 @@ export default function ListContractsCISection() {
             <Calendar className="h-4 w-4" />
             Mensuel
           </TabsTrigger>
+          <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
+            <AlertCircle className="h-4 w-4" />
+            Retard
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
       {/* Statistiques */}
-      <StatisticsCI paymentFrequency={activeTab === 'all' ? undefined : activeTab} />
+      <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' ? undefined : activeTab} />
 
       {/* Filtres */}
       <FiltersCI
@@ -434,6 +440,14 @@ export default function ListContractsCISection() {
               >
                 <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Badge "En retard" - sera affiché si le contrat est dans l'onglet "Retard" */}
+                  {activeTab === 'overdue' && (
+                    <Badge variant="destructive" className="absolute top-3 right-3 z-20 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      En retard
+                    </Badge>
+                  )}
 
                   <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
                     <div className="flex items-start justify-between mb-4">

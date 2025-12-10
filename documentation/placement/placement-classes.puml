@@ -1,0 +1,132 @@
+@startuml
+title Diagramme de classes - Module Placement
+
+class User {
+  id: string
+  matricule: string
+  firstName: string
+  lastName: string
+  roles: UserRole[]
+  contacts: string[]
+  email?: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+class Placement {
+  id: string
+  benefactorId: string  // User.id avec rôle Bienfaiteur
+  amount: number
+  rate: number          // taux de commission
+  periodMonths: int     // 1..7
+  payoutMode: PayoutMode
+  status: PlacementStatus
+  startDate?: Date
+  endDate?: Date
+  contractUrl?: string
+  contractPath?: string
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string     // User.id (Admin)
+  updatedBy?: string    // User.id (Admin)
+}
+
+class CommissionPayment {
+  id: string
+  placementId: string
+  dueDate: Date
+  amount: number
+  status: CommissionStatus
+  proofUrl?: string
+  proofPath?: string
+  paidAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string     // User.id (Admin)
+  updatedBy?: string    // User.id (Admin)
+}
+
+class EarlyExit {
+  id: string
+  placementId: string
+  requestedAt: Date
+  validatedAt?: Date
+  commissionDue: number
+  payoutAmount: number
+  quittanceUrl?: string
+  quittancePath?: string
+  createdBy: string     // User.id (Admin)
+  updatedBy?: string    // User.id (Admin)
+}
+
+class Document {
+  id: string
+  type: DocumentType  // cf. src/types/types.ts
+  format: string
+  url: string
+  path: string
+  size: number
+  memberId: string
+  contractId?: string
+  createdBy: string
+  updatedBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+enum PlacementStatus {
+  Draft
+  Active
+  Closed
+  EarlyExit
+  Canceled
+}
+
+enum CommissionStatus {
+  Due
+  Paid
+  Partial
+  Canceled
+}
+
+enum PayoutMode {
+  MonthlyCommission_CapitalEnd
+  CapitalPlusCommission_End
+}
+
+enum DocumentType {
+  // Réutilisé depuis src/types/types.ts (ADHESION_CS, ADHESION_CI, ..., CHARITY_EVENT_REPORT, etc.)
+}
+
+User "1" -- "many" Placement : crée/gestion\n(Admin via roles)
+User "1" -- "many" Placement : est bénéficiaire\n(Bienfaiteur)
+Placement "1" -- "many" CommissionPayment
+Placement "0..1" -- "1" EarlyExit
+Placement "0..*" -- "many" Document : contrats/quittances
+CommissionPayment "0..*" -- "many" Document : preuves de commission
+EarlyExit "0..*" -- "many" Document : quittances / avenants
+
+note right of User
+  Admin/Bienfaiteur différenciés
+  par les rôles (UserRole)
+end note
+
+note bottom of Placement
+  Traceabilité admin:
+  createdBy / updatedBy = User.id
+end note
+
+note bottom of CommissionPayment
+  Preuve de versement (proofUrl/proofPath)
+  et statut de commission
+end note
+
+note bottom of Document
+  Documents gérés via DocumentRepository existant,
+  typés avec DocumentType de src/types/types.ts
+end note
+
+@enduml
+
+

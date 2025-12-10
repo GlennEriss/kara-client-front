@@ -1,0 +1,24 @@
+@startuml
+
+title Contexte du module Placement
+
+actor "Équipe Kara" as Kara
+actor "Bienfaiteur" as B
+actor "Système de paiement" as Pay
+actor "Service de notifications" as Notif
+
+rectangle "Module Placement" as Placement {
+}
+
+Kara --> Placement : Créer / gérer\nles placements
+Placement --> Kara : Contrats, états,\nalertes et rapports
+
+B --> Placement : Consulter offres,\nvalider simulation,\nsigner contrats\net avenants
+Placement --> B : Sollicitations,\nnotifications,\nquittances
+
+Placement --> Pay : Encaissements\net versements
+Placement --> Notif : SMS / E-mails\nde rappel
+
+@enduml
+
+

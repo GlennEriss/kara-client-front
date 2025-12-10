@@ -17,18 +17,58 @@
 
 ## 3. Analyse UML (à compléter)
 
-### 3.1. Cas d’utilisation (Use Case)
+### 3.1. Cas d'utilisation (Use Case)
 
-- Identifier les principaux cas d’utilisation :
+- Identifier les principaux cas d'utilisation :
   - UC1 – Créer un contrat de caisse spéciale.
   - UC2 – Modifier un contrat avant validation.
   - UC3 – Générer / télécharger le PDF du contrat.
-  - UC4 – Consulter l’historique des contrats d’un membre.
+  - UC4 – Consulter l'historique des contrats d'un membre.
   - UC5 – Résilier / clôturer un contrat.
+  - UC6 – Filtrer les contrats par retard de paiement.
 - Pour chaque UC, décrire :
   - Acteur(s)
   - Pré‑conditions / Post‑conditions
-  - Scénario nominal + scénarios d’exception.
+  - Scénario nominal + scénarios d'exception.
+
+---
+
+### UC6 – Filtrer les contrats par retard de paiement
+
+**Acteur** : Admin
+
+**Objectif** : Permettre à l'admin de visualiser uniquement les contrats qui ont des versements en retard
+
+**Préconditions** :
+- L'admin est sur la page de gestion des contrats de caisse spéciale
+- Des contrats existent dans le système
+
+**Définition d'un contrat en retard** :
+Un contrat est considéré en retard si :
+- Le contrat a le statut `ACTIVE`, `LATE_NO_PENALTY`, ou `LATE_WITH_PENALTY`
+- ET l'une des conditions suivantes :
+  - Le contrat a le statut `LATE_NO_PENALTY` ou `LATE_WITH_PENALTY` (déjà calculé par le système)
+  - Le contrat a `nextDueAt` défini et `nextDueAt < date actuelle` (prochain versement en retard)
+  - Le contrat a au moins un versement (dans la sous-collection `payments`) avec :
+    - `status: 'DUE'` ou `status: 'PARTIAL'`
+    - `dueAt` défini et `dueAt < date actuelle` (le versement est en retard)
+
+**Scénario principal** :
+1. L'admin voit un nouvel onglet "Retard" dans la liste des onglets de la page de gestion des contrats
+2. L'admin clique sur l'onglet "Retard"
+3. Le système affiche uniquement les contrats qui sont en retard selon les critères définis
+4. Les contrats sont affichés avec un indicateur visuel (badge, couleur) pour montrer qu'ils sont en retard
+5. Les statistiques s'adaptent pour afficher uniquement les contrats en retard
+
+**Scénarios alternatifs** :
+- Si aucun contrat n'est en retard, afficher "Aucun contrat en retard"
+- Les filtres de statut et de recherche restent actifs sur l'onglet "Retard"
+- La pagination fonctionne normalement sur l'onglet "Retard"
+
+**Postconditions** :
+- Seuls les contrats en retard sont affichés
+- Les statistiques sont mises à jour pour refléter les contrats en retard
+- Les autres filtres et onglets ne sont pas affectés
 
 ### 3.2. Diagramme de classes (conceptuel)
 

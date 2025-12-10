@@ -268,6 +268,11 @@ export class ContractCIRepository implements IContractCIRepository {
                 );
             }
 
+            // Filtrer par retard de paiement si demandé
+            if (filters?.overdueOnly) {
+                contracts = await this.filterOverdueContracts(contracts);
+            }
+
             return contracts;
 
         } catch (error) {
@@ -344,6 +349,88 @@ export class ContractCIRepository implements IContractCIRepository {
                 canceledPercentage: 0,
             };
         }
+    }
+
+    /**
+     * Filtre les contrats pour ne garder que ceux avec des versements en retard
+     * @param {ContractCI[]} contracts - Liste des contrats à filtrer
+     * @returns {Promise<ContractCI[]>} - Liste des contrats en retard
+     */
+    private async filterOverdueContracts(contracts: ContractCI[]): Promise<ContractCI[]> {
+        const { collection, db, getDocs, query, where } = await getFirestore();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const overdueContracts: ContractCI[] = [];
+
+        for (const contract of contracts) {
+            // Ne vérifier que les contrats actifs
+            if (contract.status !== 'ACTIVE') {
+                continue;
+            }
+
+            try {
+                // Récupérer les versements du contrat
+                const paymentsCollectionRef = collection(
+                    db,
+                    firebaseCollectionNames.contractsCI || "contractsCI",
+                    contract.id,
+                    "payments"
+                );
+
+                // Récupérer uniquement les versements avec status DUE ou PARTIAL
+                const paymentsQuery = query(
+                    paymentsCollectionRef,
+                    where("status", "in", ["DUE", "PARTIAL"])
+                );
+
+                const paymentsSnapshot = await getDocs(paymentsQuery);
+
+                // Vérifier si au moins un versement est en retard
+                let hasOverdue = false;
+
+                for (const paymentDoc of paymentsSnapshot.docs) {
+                    const payment = paymentDoc.data();
+                    
+                    // Calculer la date d'échéance à partir de firstPaymentDate et monthIndex
+                    if (contract.firstPaymentDate) {
+                        const firstPaymentDate = new Date(contract.firstPaymentDate);
+                        firstPaymentDate.setHours(0, 0, 0, 0);
+                        
+                        // Calculer la date d'échéance pour ce mois
+                        const dueDate = new Date(firstPaymentDate);
+                        if (contract.paymentFrequency === 'MONTHLY') {
+                            // Pour les contrats mensuels, ajouter le nombre de mois
+                            dueDate.setMonth(dueDate.getMonth() + (payment.monthIndex || 0));
+                        } else if (contract.paymentFrequency === 'DAILY') {
+                            // Pour les contrats journaliers, ajouter le nombre de jours
+                            dueDate.setDate(dueDate.getDate() + (payment.monthIndex || 0));
+                        }
+                        dueDate.setHours(0, 0, 0, 0);
+
+                        // Si la date d'échéance est passée, le versement est en retard
+                        if (dueDate < today) {
+                            hasOverdue = true;
+                            break;
+                        }
+                    } else {
+                        // Si pas de firstPaymentDate, considérer comme en retard si status est DUE ou PARTIAL
+                        // (cela signifie qu'un versement est attendu mais pas encore payé)
+                        hasOverdue = true;
+                        break;
+                    }
+                }
+
+                if (hasOverdue) {
+                    overdueContracts.push(contract);
+                }
+            } catch (error) {
+                console.error(`Erreur lors de la vérification des retards pour le contrat ${contract.id}:`, error);
+                // En cas d'erreur, ne pas inclure le contrat
+            }
+        }
+
+        return overdueContracts;
     }
 }
 
