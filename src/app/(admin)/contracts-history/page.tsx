@@ -55,6 +55,9 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   CHARITY_EVENT_MEDIA: 'Média d\'évènement Bienfaiteur',
   CHARITY_CONTRIBUTION_RECEIPT: 'Reçu de contribution Bienfaiteur',
   CHARITY_EVENT_REPORT: 'Rapport d\'évènement Bienfaiteur',
+  PLACEMENT_CONTRACT: 'Contrat de placement',
+  PLACEMENT_COMMISSION_PROOF: 'Preuve de commission placement',
+  PLACEMENT_EARLY_EXIT_QUITTANCE: 'Quittance de retrait anticipé placement',
 }
 
 // Labels pour les formats
