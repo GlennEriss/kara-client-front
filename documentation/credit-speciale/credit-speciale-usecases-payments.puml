@@ -1,0 +1,42 @@
+@startuml
+title Use cases – Package Paiement / Preuves
+left to right direction
+skinparam actorStyle awesome
+
+actor "Services Crédit spéciale" as Services
+actor "Paiement / Preuves" as Pay
+actor "Équipe Kara" as Kara
+actor Client
+
+usecase "Enregistrer moyen de paiement\n(espèces, mobile money, virement)" as UC_Mode
+usecase "Associer preuve de paiement\n(reçu, capture)" as UC_Proof
+usecase "Valider cohérence montant\n(versé vs dû)" as UC_ValidateAmount
+usecase "Tracer date/heure remise\net référence paiement" as UC_Log
+usecase "Calculer impact sur score\n(ponctualité/retard)" as UC_UpdateScore
+
+Services --> UC_Mode
+Services --> UC_Proof
+Services --> UC_ValidateAmount
+Services --> UC_Log
+Services --> UC_UpdateScore
+
+UC_Mode --> Pay
+UC_Proof --> Pay
+UC_ValidateAmount --> Pay
+UC_Log --> Pay
+UC_UpdateScore --> Pay
+
+Kara --> UC_Mode
+Kara --> UC_Proof
+Kara --> UC_Log
+
+Client --> UC_Mode
+Client --> UC_Proof
+
+note right of UC_ValidateAmount
+  Vérifier montants partiels, pénalités,
+  reste à payer, statut PAID/PARTIAL.
+end note
+
+@enduml
+

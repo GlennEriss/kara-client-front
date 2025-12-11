@@ -1,0 +1,18 @@
+@startuml
+title Activité – Lancer simulation personnalisée (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre demande approuvée (APPROVED);
+:Admin saisit montants par mois (ex: mois1=30k, mois2=0, mois3=100k...);
+:Form UI valide champs (schema, somme totale);
+if (Champs valides ?) then (oui)
+  :Service calcule durée réelle (jusqu'à remboursement complet);
+  :Service calcule intérêts totaux;
+  :Service génère tableau personnalisé (échéancier variable);
+  :Service génère tableau limite (7/3 mois standard) pour comparaison;
+  :UI affiche 2 tableaux (limite vs personnalisé);
+else (non)
+  :Afficher messages d'erreur;
+endif
+stop
+@enduml
+

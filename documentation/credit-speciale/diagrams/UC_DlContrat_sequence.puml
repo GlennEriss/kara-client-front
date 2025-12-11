@@ -1,0 +1,36 @@
+@startuml
+title Séquence – Générer / télécharger contrat (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load crédit
+Hooks -> Repo : getById creditId
+Repo --> Hooks : Crédit contractUrl
+
+User -> UI : Clique Télécharger contrat
+UI -> Hooks : downloadContract creditId
+Hooks -> Service : getContractPDF creditId
+alt Contrat déjà généré
+  Service -> Repo : getById creditId
+  Repo --> Service : Crédit contractUrl
+  Service -> Docs : getDocument contractUrl
+  Docs --> Service : Blob PDF
+else Contrat non généré
+  Service -> Repo : getById creditId
+  Repo --> Service : Crédit données
+  Service -> Docs : generateContractPDF données
+  Docs --> Service : Blob PDF
+  Service -> Repo : update credit contractUrl
+end
+Service --> Hooks : Blob PDF
+Hooks --> UI : Télécharger PDF
+UI --> User : Contrat téléchargé
+
+@enduml
+

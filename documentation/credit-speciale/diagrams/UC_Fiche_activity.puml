@@ -1,0 +1,10 @@
+@startuml
+title Activité – Voir la fiche crédit (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:UI charge données crédit (Repo);
+:UI charge données associées (garant, versements, pénalités, documents);
+:UI affiche fiche complète (montant, durée, versé, reste, garant, pénalités, scoring admin-only, documents);
+stop
+@enduml
+

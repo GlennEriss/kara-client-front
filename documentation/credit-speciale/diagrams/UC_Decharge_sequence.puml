@@ -1,0 +1,45 @@
+@startuml
+title Séquence – Générer décharge (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+participant "Documents / Storage" as Docs
+participant "Notifications" as Notif
+
+== Détection automatique remboursement intégral ==
+Service -> RepoPay : getTotalPaid
+RepoPay --> Service : Montant versé total
+Service -> Repo : getById
+Repo --> Service : Crédit montantTotal
+alt Remboursement intégral
+  Service -> Docs : generateDischargePDF
+  Docs -> Docs : Stocker PDF metadata type version createdBy
+  Docs --> Service : URL décharge
+  Service -> Repo : update credit dischargeUrl status DISCHARGED dischargedAt
+  Repo --> Service : updated
+  Service -> Notif : discharge_notification client décharge disponible
+  Notif --> Client : Notification décharge
+end
+
+== Génération manuelle Admin ==
+Admin -> UI : Clique Générer décharge
+UI -> Hooks : generateDischarge
+Hooks -> Service : generateDischargePDF
+Service -> Docs : generateDischargePDF
+Docs --> Service : URL décharge
+Service --> Hooks : URL décharge
+Hooks --> UI : Afficher lien téléchargement
+UI --> Admin : Décharge prête
+
+note right of Service
+Décharge générée automatiquement après remboursement intégral
+Ou manuellement par admin
+Status DISCHARGED
+end note
+
+@enduml
+

@@ -1,0 +1,30 @@
+@startuml
+title Séquence – Initialiser formulaires (Hooks) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Schemas Zod" as Schema
+participant "CI/Membership" as CI
+database "Repo membres" as RepoMembres
+
+User -> UI : Ouvre formulaire demande simulation versement
+UI -> Hooks : Init form
+Hooks -> Schema : Load schema validation
+Schema --> Hooks : Schema Zod
+Hooks -> Hooks : Initialiser react-hook-form avec schema
+Hooks-> Hooks : Charger valeurs par défaut type crédit dates
+Hooks -> RepoMembres : Prefetch membre si admin
+RepoMembres --> Hooks : Membre
+Hooks -> CI : Prefetch statut CI client garant
+CI --> Hooks : Statut CI
+Hooks --> UI : Formulaire initialisé form defaultValues prefetchedData
+UI --> User : Formulaire prêt
+
+note right of Hooks
+Initialisation centralisée des formulaires
+Préchargement données pour performance
+end note
+
+@enduml
+

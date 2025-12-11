@@ -1,0 +1,18 @@
+@startuml
+title Activité – Exporter listes demandes (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre écran demandes (avec filtres appliqués);
+:Admin clique "Exporter (PDF/Excel)";
+:UI prépare données export (filtres, pagination);
+:Hooks prépare format export (PDF ou Excel);
+:Service récupère données demandes (Repo avec filtres);
+:Service formate données export;
+if (Format PDF ?) then (oui)
+  :Documents/Storage génère PDF (tableau demandes);
+else (Excel)
+  :Documents/Storage génère Excel (feuille demandes);
+endif
+:UI télécharge fichier export;
+stop
+@enduml
+

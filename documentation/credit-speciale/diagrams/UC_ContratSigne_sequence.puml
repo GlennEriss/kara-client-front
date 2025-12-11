@@ -1,0 +1,33 @@
+@startuml
+title Séquence – Consulter contrat signé (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load crédit
+Hooks -> Repo : getById creditId
+Repo --> Hooks : Crédit signedContractUrl
+
+User -> UI : Clique Consulter contrat signé
+UI -> Hooks : viewSignedContract creditId
+Hooks -> Service : getSignedContract creditId
+Service -> Repo : getById creditId
+Repo --> Service : Crédit signedContractUrl
+Service -> Docs : getDocument signedContractUrl
+Docs --> Service : Blob PDF signé
+Service --> Hooks : Blob PDF
+Hooks --> UI : Afficher ou télécharger PDF
+UI --> User : Contrat signé affiché
+
+note right of Service
+Contrat signé téléversé après signature
+Visible admin et client
+end note
+
+@enduml
+

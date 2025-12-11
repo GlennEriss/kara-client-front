@@ -1,0 +1,11 @@
+@startuml
+title Activité – Précharger données (Hooks) – Crédit spéciale/fixe/aide
+start
+:UI charge formulaire;
+:Hooks précharge membre (si admin);
+:Hooks précharge garant (si sélectionné);
+:Hooks précharge statut CI (client/garant);
+:UI affiche formulaire avec données préchargées;
+stop
+@enduml
+

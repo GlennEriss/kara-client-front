@@ -1,0 +1,44 @@
+@startuml
+title Séquence – Exporter listes demandes (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+
+Admin -> UI : Ouvre écran demandes filtres appliqués
+UI -> Hooks : Load demandes filtres pagination
+Hooks -> Service : listDemands
+Service -> Repo : query where filtres plus pagination
+Repo --> Service : Demandes
+Service --> Hooks : Demandes
+Hooks --> UI : Afficher demandes
+
+Admin -> UI : Clique "Exporter PDF ou Excel"
+UI -> Hooks : exportDemands format filtres
+Hooks -> Service : exportDemands format filtres
+Service -> Repo : query all where filtres sans pagination
+Repo --> Service : Toutes demandes filtrées
+Service -> Service : Formater données export colonnes valeurs
+alt Format PDF
+  Service -> Docs : generatePDFExport demandes format demandes
+  Docs -> Docs : Générer PDF tableau demandes
+  Docs --> Service : Blob PDF
+else Format Excel
+  Service -> Docs : generateExcelExport demandes format demandes
+  Docs -> Docs : Générer Excel feuille demandes
+  Docs --> Service : Blob Excel
+end
+Service --> Hooks : Blob fichier
+Hooks --> UI : Télécharger fichier
+UI --> Admin : Fichier export téléchargé
+
+note right of Service
+Export sans pagination : toutes les demandes filtrées
+Format : colonnes (statut, type, membre, garant, montant, dates, etc.)
+end note
+
+@enduml
+

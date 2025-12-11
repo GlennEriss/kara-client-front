@@ -1,0 +1,24 @@
+@startuml
+title Séquence – Remonter historique de fiabilité (CI/Membership) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "CI/Membership" as CI
+database "Repo crédits" as RepoCredits
+database "Repo paiements" as RepoPay
+
+Service -> CI : getReliabilityHistory memberId
+CI -> RepoCredits : getByMemberId memberId
+RepoCredits --> CI : Crédits précédents
+CI -> RepoPay : getPaymentHistory crédits précédents
+RepoPay --> CI : Historique paiements
+CI -> CI : Calculer historique fiabilité ponctualité retards
+CI --> Service : Historique fiabilité pour score
+
+note right of CI
+Historique : crédits précédents, ponctualité, retards
+Utilisé pour calcul score initial
+Facteur récence 6 mois
+end note
+
+@enduml
+

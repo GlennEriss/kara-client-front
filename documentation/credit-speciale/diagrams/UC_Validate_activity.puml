@@ -1,0 +1,18 @@
+@startuml
+title Activité – Valider les champs (Hooks) – Crédit spéciale/fixe/aide
+start
+:User saisit données formulaire;
+:Hooks valide champs (schema Zod);
+if (Champs valides ?) then (oui)
+  :Hooks valide règles métier;
+  if (Règles métier OK ?) then (oui)
+    :Validation OK;
+  else (non)
+    :Afficher erreurs règles métier;
+  endif
+else (non)
+  :Afficher erreurs schema;
+endif
+stop
+@enduml
+

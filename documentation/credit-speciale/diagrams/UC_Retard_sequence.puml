@@ -1,0 +1,27 @@
+@startuml
+title Séquence – Gérer retard et statut (Système) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo pénalités" as RepoPen
+participant "Notifications" as Notif
+
+Service -> Service : Détecter retard dueAt avant maintenant
+Service -> Service : Calculer pénalités règle de 3
+Service -> Service : Déterminer statut OVERDUE ou PARTIAL
+Service -> Repo : update credit statut OVERDUE ou PARTIAL
+Repo --> Service : updated
+Service -> RepoPen : insert penalty montant joursRetard
+RepoPen --> Service : penaltyId
+Service -> Notif : overdue_notification client retard pénalités
+Notif --> Client : Notification retard
+
+note right of Service
+Retard détecté automatiquement
+Statut OVERDUE si non payé
+Statut PARTIAL si partiellement payé
+Pénalités calculées règle de 3
+end note
+
+@enduml
+

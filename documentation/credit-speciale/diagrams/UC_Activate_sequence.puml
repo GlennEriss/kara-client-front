@@ -1,0 +1,25 @@
+@startuml
+title Séquence – Activer contrat après upload signé (Système) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+participant "Notifications" as Notif
+
+Service -> Service : Détecter upload contrat signé
+Service -> Docs : validateContract file
+Docs --> Service : Contrat valide
+Service -> Repo : update credit status ACTIVE activatedAt
+Repo --> Service : updated
+Service -> Notif : contrat_activated client admin
+Notif --> Client : Notification contrat activé
+Notif --> Admin : Notification contrat activé
+
+note right of Service
+Activation automatique après upload signé
+Status passe à ACTIVE
+Remise fonds possible
+end note
+
+@enduml
+

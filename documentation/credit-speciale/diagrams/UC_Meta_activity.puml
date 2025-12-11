@@ -1,0 +1,9 @@
+@startuml
+title Activité – Indexer métadonnées (Documents) – Crédit spéciale/fixe/aide
+start
+:Documents/Storage génère ou reçoit document;
+:Documents/Storage indexe métadonnées (type, version, createdBy);
+:Documents/Storage stocke métadonnées;
+stop
+@enduml
+

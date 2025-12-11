@@ -1,0 +1,21 @@
+@startuml
+title Activité – Calculer et gérer pénalités (Système/Admin) – Crédit spéciale/fixe/aide
+start
+:Service détecte retard (date échéance < date actuelle);
+:Service calcule pénalités (règle de 3 : jours de retard × montant mensuel / 30);
+:Service enregistre pénalités (calculées, payées=false);
+:Notifications notifie client (pénalités, montant, choix payer ou non);
+if (Client choisit de payer ?) then (oui)
+  :Service marque pénalités payées;
+  :Service met à jour montant total versé;
+else (non)
+  :Service reporte pénalités (payées=false);
+  :Service vérifie fin de contrat;
+  if (Fin de contrat + pénalités impayées ?) then (oui)
+    :Service bloque nouvelle demande;
+  else (non)
+  endif
+endif
+stop
+@enduml
+

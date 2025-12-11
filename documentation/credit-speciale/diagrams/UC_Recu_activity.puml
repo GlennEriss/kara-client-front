@@ -1,0 +1,11 @@
+@startuml
+title Activité – Générer reçu de paiement (PDF) – Crédit spéciale/fixe/aide
+start
+:Service enregistre versement;
+:Service génère reçu PDF (template + données versement);
+:Documents/Storage stocke PDF (metadata);
+:Service associe reçu au versement (receiptUrl);
+:Notifications notifie client (reçu disponible);
+stop
+@enduml
+

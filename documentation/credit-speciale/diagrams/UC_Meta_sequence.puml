@@ -1,0 +1,21 @@
+@startuml
+title Séquence – Indexer métadonnées (Documents) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "Documents / Storage" as Docs
+database "Repo documents" as RepoDocs
+
+Service -> Docs : generateDocument type données createdBy
+Docs -> Docs : Générer document
+Docs -> Docs : Indexer métadonnées type version createdBy timestamps
+Docs -> RepoDocs : store metadata type version createdBy
+RepoDocs --> Docs : metadataId
+Docs --> Service : documentUrl metadataId
+
+note right of Docs
+Métadonnées : type, version, createdBy, timestamps
+Indexation pour recherche et traçabilité
+end note
+
+@enduml
+

@@ -1,0 +1,28 @@
+@startuml
+title Séquence – Consigner justification dérogation (CI/Membership) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "CI/Membership" as CI
+
+Admin -> UI : Accepte demande avec dérogation
+UI -> Hooks : recordOverride creditId justification
+Hooks -> Service : recordOverride creditId justification
+Service -> CI : storeOverride creditId justification adminId
+CI -> Repo : update credit overrideJustification overrideAdminId
+Repo --> Service : updated
+Service --> Hooks : Dérogation consignée
+Hooks --> UI : Confirmation
+UI --> Admin : Dérogation enregistrée
+
+note right of CI
+Dérogation : cas particulier accepté par admin
+Justification obligatoire
+Traçabilité admin
+end note
+
+@enduml
+

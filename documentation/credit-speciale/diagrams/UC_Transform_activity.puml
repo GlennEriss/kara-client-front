@@ -1,0 +1,13 @@
+@startuml
+title Activité – Transformer en crédit fixe après 7 mois (Système) – Crédit spéciale/fixe/aide
+start
+:Service détecte crédit spéciale non remboursé après 7 mois;
+:Service vérifie statut (ACTIVE, non remboursé);
+:Service transforme crédit (type=FIXE, supprimer intérêts);
+:Service met à jour statut (TRANSFORMED);
+:Service recalcule échéancier (sans intérêts);
+:Service enregistre transformation (Repo);
+:Notifications notifie client (transformation);
+stop
+@enduml
+

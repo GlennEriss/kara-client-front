@@ -1,0 +1,11 @@
+@startuml
+title Activité – Invalider / rafraîchir cache après mutation (Hooks) – Crédit spéciale/fixe/aide
+start
+:Service exécute mutation (création/update);
+:Service retourne résultat;
+:Hooks invalide cache React Query (query keys);
+:Hooks rafraîchit données (refetch);
+:UI affiche données à jour;
+stop
+@enduml
+
