@@ -1,0 +1,40 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor Client
+
+usecase "Saisir une demande de prêt\n(montant, type spéciale/fixe/aide)" as UC_Demande
+usecase "Fournir le montant mensuel\nsouhaité" as UC_Mensuel
+usecase "Consulter la simulation\nfournie par l'admin\n(standard/perso + tableaux)" as UC_ViewSimu
+usecase "Signer le contrat" as UC_Signer
+usecase "Télécharger contrat\n(vierge ou signé)" as UC_Contrat
+usecase "Consulter notifications\néchéances (J-1/J/J+1) et pénalités" as UC_Notifs
+usecase "Choisir de payer ou non\nles pénalités lors du versement" as UC_PenalitesChoix
+usecase "Consulter historique des versements\n(montants, preuves, pénalités)" as UC_HistoPay
+usecase "Télécharger reçu de paiement (PDF)" as UC_Recu
+usecase "Consulter stats du contrat\n(montant emprunté, durée, versé, reste)" as UC_StatsContrat
+
+Client --> UC_Demande
+Client --> UC_Mensuel
+Client --> UC_ViewSimu
+Client --> UC_Signer
+Client --> UC_Contrat
+Client --> UC_Notifs
+Client --> UC_PenalitesChoix
+Client --> UC_HistoPay
+Client --> UC_Recu
+Client --> UC_StatsContrat
+
+note right of UC_ViewSimu
+  Lecture seule des simulations
+  produites par l'admin.
+end note
+
+note right of UC_PenalitesChoix
+  Choix exprimé au moment du versement,
+  l'enregistrement reste côté admin.
+end note
+
+@enduml
+

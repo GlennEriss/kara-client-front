@@ -1,0 +1,10 @@
+@startuml
+title Activité – Servir / télécharger documents (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client demande document (contrat, décharge, preuve);
+:Service récupère document (Documents);
+:Documents/Storage sert document;
+:UI télécharge ou affiche document;
+stop
+@enduml
+

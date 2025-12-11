@@ -1,0 +1,73 @@
+@startuml
+title Diagramme de packages (Crédit spéciale / fixe / aide)
+left to right direction
+skinparam packageStyle rectangle
+skinparam package {
+  BackgroundColor #F8F8F8
+  BorderColor #888888
+  RoundCorner 8
+}
+
+package "UI / Pages" as UI {
+  [Admin Backoffice]
+  [Espace Client]
+}
+
+package "Hooks / Mediators" as Hooks {
+  [Formulaires & orchestration]
+}
+
+package "Services Crédit spéciale" as Services {
+  [Gestion des demandes]
+  [Simulations (standard/personnalisée)]
+  [Éligibilité & Garanties]
+  [Contrats & Remise fonds]
+  [Versements & Pénalités]
+  [Transformation 7e mois]
+  [Blocage pénalités]
+  [Rémunération garant]
+}
+
+package "Repositories" as Repos {
+  [Crédits]
+  [Paiements]
+  [Pénalités]
+  [Garanties]
+  [Contrats signés]
+}
+
+package "Documents / Storage" as Docs {
+  [Contrats PDF]
+  [Décharges]
+  [Preuves de versement]
+}
+
+package "Notifications" as Notifs {
+  [Échéances]
+  [Pénalités]
+  [Transformation]
+  [Blocage]
+}
+
+package "Caisse imprévue / Membership" as CI {
+  [Statut à jour client/garant]
+}
+
+package "Paiement / Preuves" as Pay {
+  [Encaissements / moyens de paiement]
+  [Gestion des preuves]
+}
+
+UI --> Hooks
+Hooks --> Services
+Services --> Repos
+Services --> Docs
+Services --> Notifs
+Services --> CI
+Services --> Pay
+
+UI --> Notifs
+UI --> Docs
+
+@enduml
+

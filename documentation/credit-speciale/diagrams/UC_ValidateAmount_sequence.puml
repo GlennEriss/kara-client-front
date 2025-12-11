@@ -1,0 +1,31 @@
+@startuml
+title Séquence – Valider cohérence montant (Payments) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+participant "Paiement / Preuves" as Pay
+
+Service -> Service : Reçoit versement montant
+Service -> Repo : getById creditId
+Repo --> Service : Crédit montantDû montantVersé
+Service -> RepoPay : getTotalPaid creditId
+RepoPay --> Service : Total versé
+Service -> Pay : validateAmount montantVersé montantDû
+Pay -> Pay : Vérifier montants partiels
+Pay -> Pay : Vérifier pénalités
+Pay -> Pay : Déterminer statut PAID ou PARTIAL
+Pay --> Service : OK statut ou erreur
+alt Montant cohérent
+  Service -> Service : Enregistrer versement statut
+else Montant incohérent
+  Service -> Service : Rejeter versement erreur
+end
+
+note right of Pay
+Validation : montants partiels, pénalités,
+reste à payer, statut PAID/PARTIAL
+end note
+
+@enduml
+

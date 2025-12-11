@@ -1,0 +1,79 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor Client
+actor "Équipe Kara (Admin)" as Admin
+actor Système
+
+' Demande et validation
+usecase "Saisir ou créer une demande\n(montant, type spéciale/fixe/aide)" as UC_Demande
+usecase "Valider ou refuser la demande\n(`APPROVED` / `REJECTED`)" as UC_Validation
+
+' Simulation
+usecase "Proposer la simulation auto\n(montant, taux, durée, 1er versement)" as UC_SimuAuto
+usecase "Simuler personnalisée\n(montants variables par mois)" as UC_SimuPerso
+usecase "Générer 2 tableaux récap\n(limite vs personnalisé)" as UC_Tableaux
+
+' Éligibilité et garant
+usecase "Vérifier l'éligibilité\n(client ou garant à jour CI)" as UC_Elig
+usecase "Sélectionner / enregistrer un garant\n(membre ou admin, lien parenté)" as UC_Garant
+
+' Contrat
+usecase "Générer le contrat PDF" as UC_Contrat
+usecase "Signer le contrat" as UC_Signer
+usecase "Téléverser le contrat signé\net remettre les fonds" as UC_Remise
+
+' Suivi et pénalités
+usecase "Enregistrer les versements\n(preuve, note, commentaire)" as UC_Versements
+usecase "Calculer les pénalités retard\n(règle de 3)" as UC_Penalites
+usecase "Notifier les pénalités et\nenregistrer le choix du client" as UC_NotifPen
+usecase "Transformer en crédit fixe\naprès 7 mois (supprimer intérêts)" as UC_Transform
+usecase "Bloquer nouvelle demande\nsi pénalités impayées" as UC_Blocage
+usecase "Générer la décharge\n(en fin de remboursement)" as UC_Decharge
+usecase "Rémunérer le garant membre\n(2% du mensuel)" as UC_Remun
+usecase "Planifier rappels d'échéance\net notifications" as UC_Rappels
+usecase "Archiver documents et\nsuivre les statistiques" as UC_Archive
+
+' Liens acteurs
+Client --> UC_Demande
+Admin --> UC_Demande
+Admin --> UC_Validation
+Système --> UC_SimuAuto
+Client --> UC_SimuPerso
+Admin --> UC_SimuPerso
+Système --> UC_Tableaux
+Admin --> UC_Garant
+Système --> UC_Elig
+Système --> UC_Contrat
+Client --> UC_Signer
+Système --> UC_Remise
+Admin --> UC_Remise
+Système --> UC_Versements
+Admin --> UC_Versements
+Système --> UC_Penalites
+Système --> UC_NotifPen
+Client --> UC_NotifPen
+Système --> UC_Transform
+Système --> UC_Blocage
+Système --> UC_Decharge
+Admin --> UC_Decharge
+Système --> UC_Remun
+Système --> UC_Rappels
+Système --> UC_Archive
+
+' Notes
+note right of UC_SimuAuto
+  Démarrer après validation de la demande (`APPROVED`).
+end note
+
+note right of UC_Transform
+  Transformation auto après 7 mois : retirer les intérêts.
+end note
+
+note right of UC_Penalites
+  Règle de 3 : (montant mensuel / 30) × jours de retard.
+end note
+
+@enduml
+

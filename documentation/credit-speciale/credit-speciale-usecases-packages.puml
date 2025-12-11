@@ -1,0 +1,94 @@
+@startuml
+title Use cases par package (Crédit spéciale / fixe / aide)
+left to right direction
+skinparam actorStyle awesome
+skinparam rectangle {
+  BackgroundColor<<pkg>> #F8F8F8
+  BorderColor<<pkg>> #888888
+  RoundCorner 8
+}
+
+actor Client
+actor "Équipe Kara" as Kara
+actor "Service de notifications" as Notif
+actor "Paiement / Preuves" as Pay
+actor "Caisse imprévue / Membership" as CI
+
+rectangle "UI / Pages" <<pkg>> {
+  usecase "BO Kara - gérer crédits\n(demandes, simulations, contrats,\nversements, pénalités)" as UC_UI_ADMIN
+  usecase "Espace Client - demander crédit,\nsimulation perso, signature,\nconsulter pénalités" as UC_UI_CLIENT
+}
+
+rectangle "Hooks / Mediators" <<pkg>> {
+  usecase "Orchestrer formulaires\n(demande, simulation, versement,\npreuve, pénalités)" as UC_HOOKS
+}
+
+rectangle "Services (Domaine Crédit spéciale)" <<pkg>> {
+  usecase "Demandes & validation\n(`PENDING` → `APPROVED`/`REJECTED`)" as UC_DEMANDE
+  usecase "Simulations standard & perso\n+ tableaux (7/3 mois vs perso)" as UC_SIMU
+  usecase "Éligibilité & garantie\n(client ou garant à jour CI)" as UC_ELIG
+  usecase "Contrat & signature & remise fonds" as UC_CONTRAT
+  usecase "Versements, pénalités (règle de 3),\ntransformation 7e mois, blocage pénalités" as UC_VERSEMENTS
+  usecase "Rémunération garant membre (2%)" as UC_REMUN
+}
+
+rectangle "Repositories" <<pkg>> {
+  usecase "CRUD crédits / paiements /\npénalités / garanties /\ncontrats signés" as UC_REPO
+}
+
+rectangle "Documents / Storage" <<pkg>> {
+  usecase "Contrats PDF, décharges,\npreuves de versement" as UC_DOCS
+}
+
+rectangle "Notifications" <<pkg>> {
+  usecase "Échéances, pénalités,\ntransformation, blocage" as UC_NOTIF
+}
+
+rectangle "Caisse imprévue / Membership" <<pkg>> {
+  usecase "Vérifier statut à jour\nclient ou garant" as UC_CI
+}
+
+' Acteurs vers UI
+Client --> UC_UI_CLIENT
+Kara --> UC_UI_ADMIN
+
+' UI vers Hooks
+UC_UI_ADMIN --> UC_HOOKS
+UC_UI_CLIENT --> UC_HOOKS
+
+' Hooks vers Services
+UC_HOOKS --> UC_DEMANDE
+UC_HOOKS --> UC_SIMU
+UC_HOOKS --> UC_ELIG
+UC_HOOKS --> UC_CONTRAT
+UC_HOOKS --> UC_VERSEMENTS
+UC_HOOKS --> UC_REMUN
+
+' Services vers Repositories
+UC_DEMANDE --> UC_REPO
+UC_SIMU --> UC_REPO
+UC_ELIG --> UC_REPO
+UC_CONTRAT --> UC_REPO
+UC_VERSEMENTS --> UC_REPO
+UC_REMUN --> UC_REPO
+
+' Services vers Documents
+UC_CONTRAT --> UC_DOCS
+UC_VERSEMENTS --> UC_DOCS
+
+' Services vers Notifications
+UC_DEMANDE --> UC_NOTIF
+UC_SIMU --> UC_NOTIF
+UC_VERSEMENTS --> UC_NOTIF
+UC_REMUN --> UC_NOTIF
+
+' Services vers intégrations externes
+UC_VERSEMENTS --> Pay
+UC_CONTRAT --> Pay
+UC_ELIG --> UC_CI
+
+' Notifications acteur
+Notif --> UC_NOTIF
+
+@enduml
+

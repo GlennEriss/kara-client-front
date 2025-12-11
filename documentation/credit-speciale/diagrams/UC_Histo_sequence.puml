@@ -1,0 +1,29 @@
+@startuml
+title Séquence – Consulter historique général (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load historique
+Hooks -> Service : getHistory creditId
+Service -> Repo : getById creditId
+Repo --> Service : Crédit statuts changements
+Service -> RepoPay : getByCreditId creditId
+RepoPay --> Service : Versements
+Service -> Service : Compiler historique chronologique
+Service --> Hooks : Historique demandes statuts notifications versements
+Hooks --> UI : Afficher historique
+UI --> User : Historique affiché
+
+note right of Service
+Historique : demandes, statuts, notifications, versements
+Tri chronologique
+end note
+
+@enduml
+

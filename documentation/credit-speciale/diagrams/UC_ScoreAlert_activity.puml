@@ -1,0 +1,10 @@
+@startuml
+title Activité – Notifier admin des scores variation forte (Notifications) – Crédit spéciale/fixe/aide
+start
+:Service calcule score;
+:Service détecte variation forte (seuil);
+:Service déclenche notification (Notifications);
+:Notifications envoie alerte (admin, variation score);
+stop
+@enduml
+

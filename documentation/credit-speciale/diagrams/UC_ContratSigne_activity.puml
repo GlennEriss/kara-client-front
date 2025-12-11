@@ -1,0 +1,10 @@
+@startuml
+title Activité – Consulter contrat signé (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:UI charge contrat signé (signedContractUrl);
+:Service récupère document (Documents);
+:UI affiche ou télécharge PDF signé;
+stop
+@enduml
+

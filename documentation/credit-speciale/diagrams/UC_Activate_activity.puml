@@ -1,0 +1,11 @@
+@startuml
+title Activité – Activer contrat après upload signé (Système) – Crédit spéciale/fixe/aide
+start
+:Service détecte upload contrat signé;
+:Service vérifie contrat valide;
+:Service active contrat (status=ACTIVE);
+:Service enregistre activation (Repo);
+:Notifications notifie client et admin (contrat activé);
+stop
+@enduml
+

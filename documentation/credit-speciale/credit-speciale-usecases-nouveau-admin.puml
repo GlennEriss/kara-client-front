@@ -1,0 +1,75 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor "Équipe Kara (Admin)" as Admin
+actor Garant
+
+usecase "Créer une demande pour un client\nou traiter une demande saisie" as UC_Demande
+usecase "Valider ou refuser la demande\n(`APPROVED` / `REJECTED`)" as UC_Validation
+usecase "Gérer onglets + stats demandes\n(pending/approved/rejected)" as UC_TabsDemandes
+usecase "Lancer la simulation auto\n(après validation)" as UC_SimuAuto
+usecase "Ajuster la simulation\n(personnalisée si besoin)" as UC_SimuPerso
+usecase "Générer / consulter les tableaux\n(standard vs personnalisé)" as UC_Tableaux
+usecase "Sélectionner / enregistrer un garant\n(membre ou admin, lien parenté)" as UC_Garant
+usecase "Rémunérer le garant membre\n(parrain, 2% du versé mensuel)" as UC_Remun
+usecase "Générer le contrat PDF" as UC_Contrat
+usecase "Générer contrat vierge à signer" as UC_ContratVierge
+usecase "Téléverser le contrat signé\net remettre les fonds (activer contrat)" as UC_Remise
+usecase "Enregistrer les versements\n(preuve, commentaire, note)" as UC_Versements
+usecase "Générer reçu de paiement (PDF)" as UC_Recu
+usecase "Notifier le client des pénalités\net consigner son choix" as UC_NotifPen
+usecase "Débloquer / bloquer\nselon pénalités impayées" as UC_Blocage
+usecase "Générer la décharge\n(en fin de remboursement)" as UC_Decharge
+usecase "Gérer onglets + stats contrats\n(actifs, retard, pénalités, à jour)" as UC_TabsContrats
+usecase "Trier par échéance la plus proche\n(contrats)" as UC_SortDue
+usecase "Exporter listes demandes/contrats\n(PDF/Excel)" as UC_ExportLists
+usecase "Consulter contrat signé\n(PDF téléversé)" as UC_ContratSigne
+usecase "Consulter stats contrat\n(montant, durée, versé, reste)" as UC_StatsContrat
+usecase "Consulter reçus et historique\n(versements, preuves, pénalités)" as UC_HistoPay
+
+Admin --> UC_Demande
+Admin --> UC_Validation
+Admin --> UC_TabsDemandes
+Admin --> UC_SimuAuto
+Admin --> UC_SimuPerso
+Admin --> UC_Tableaux
+Admin --> UC_Garant
+Admin --> UC_Contrat
+Admin --> UC_ContratVierge
+Admin --> UC_Remise
+Admin --> UC_Versements
+Admin --> UC_Recu
+Admin --> UC_NotifPen
+Admin --> UC_Blocage
+Admin --> UC_Decharge
+Admin --> UC_TabsContrats
+Admin --> UC_SortDue
+Admin --> UC_ExportLists
+Admin --> UC_ContratSigne
+Admin --> UC_StatsContrat
+Admin --> UC_HistoPay
+Admin --> UC_Remun
+Garant --> UC_Remun
+
+note right of UC_SimuAuto
+  Démarrer uniquement après validation.
+end note
+
+note right of UC_Blocage
+  Refuser nouvelle demande
+  si pénalités impayées.
+end note
+
+note right of UC_TabsDemandes
+  Stats par onglet : volume, échéances,
+  priorités (proche de la fin).
+end note
+
+note right of UC_TabsContrats
+  Stats par onglet : actifs, retard,
+  pénalités, à jour, montants dus.
+end note
+
+@enduml
+

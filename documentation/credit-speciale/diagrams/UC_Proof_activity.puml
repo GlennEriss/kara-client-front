@@ -1,0 +1,9 @@
+@startuml
+title Activité – Associer preuve de paiement (Payments) – Crédit spéciale/fixe/aide
+start
+:Admin enregistre versement;
+:Admin téléverse preuve (reçu, capture);
+:Service associe preuve au versement;
+stop
+@enduml
+

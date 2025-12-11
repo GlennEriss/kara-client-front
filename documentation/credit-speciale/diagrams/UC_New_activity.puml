@@ -1,0 +1,9 @@
+@startuml
+title Activité – Notifier nouvelle demande (Notifications) – Crédit spéciale/fixe/aide
+start
+:Service crée nouvelle demande;
+:Service déclenche notification (Notifications);
+:Notifications envoie notification (admin);
+stop
+@enduml
+

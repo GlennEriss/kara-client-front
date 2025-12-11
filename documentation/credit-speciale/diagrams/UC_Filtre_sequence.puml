@@ -1,0 +1,37 @@
+@startuml
+title Séquence – Filtrer / rechercher crédits (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Ouvre écran listes
+UI -> Hooks : Init filtres (lecture URL query params)
+Hooks -> UI : Filtres initiaux
+
+Admin -> UI : Modifie filtres (statut, type, membre, garant, date, retard, texte)
+UI -> Hooks : updateFilters(filters)
+Hooks -> UI : Sync URL (query params)
+Hooks -> Service : listCredits(filters, pagination)
+Service -> Repo : query where (statut, type, membreId, garantId, overdue, searchText)\n+ pagination (page, limit)
+Repo --> Service : Résultats paginés
+Service --> Hooks : Crédits filtrés + total
+Hooks --> UI : Afficher résultats
+
+Admin -> UI : Change page / limite
+UI -> Hooks : updatePagination(page, limit)
+Hooks -> Service : listCredits(filters, newPagination)
+Service -> Repo : query + pagination
+Repo --> Service : Nouvelle page
+Service --> Hooks : Résultats
+Hooks --> UI : Afficher nouvelle page
+
+note right of Hooks
+Sync URL garantit partage d'état et navigation
+Cache React Query pour performance
+end note
+
+@enduml
+

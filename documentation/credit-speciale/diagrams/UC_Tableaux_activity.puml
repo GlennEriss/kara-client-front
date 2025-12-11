@@ -1,0 +1,12 @@
+@startuml
+title Activité – Générer tableaux récap (limite vs personnalisé) – Crédit spéciale/fixe/aide
+start
+:Service reçoit simulation (standard ou personnalisée);
+:Service génère tableau limite (7/3 mois standard);
+:Service génère tableau personnalisé (si simulation perso);
+:Service calcule échéancier (dates, montants, intérêts);
+:Service formate tableaux (colonnes, lignes);
+:UI affiche 2 tableaux (limite vs personnalisé);
+stop
+@enduml
+

@@ -1,0 +1,20 @@
+@startuml
+title Activité – Rémunérer garant membre (Système/Garant) – Crédit spéciale/fixe/aide
+start
+:Service détecte versement enregistré;
+:Service vérifie garant (membre/parrain ?);
+if (Garant membre/parrain ?) then (oui)
+  :Service calcule rémunération (2% du montant versé mensuel);
+  :Service enregistre rémunération (Repo);
+  :Notifications notifie garant (rémunération);
+else (Garant admin ?) then (non)
+  :Pas de rémunération;
+endif
+if (Garant consulte rémunérations ?) then (oui)
+  :Service récupère historique rémunérations (Repo);
+  :UI affiche historique (montants, périodes);
+else (non)
+endif
+stop
+@enduml
+

@@ -1,0 +1,53 @@
+@startuml
+title Use cases – Package Documents / Storage
+left to right direction
+skinparam actorStyle awesome
+
+actor "Services Crédit spéciale" as Services
+actor "Équipe Kara" as Kara
+actor Client
+
+usecase "Générer contrat PDF\n(depuis template + données crédit)" as UC_Contrat
+usecase "Téléverser contrat signé\n(PDF/image)" as UC_UploadContrat
+usecase "Téléverser preuves de versement\n(reçus, captures)" as UC_UploadPreuve
+usecase "Générer décharge PDF" as UC_Decharge
+usecase "Générer contrat vierge\n(non rempli) pour signature" as UC_ContratVierge
+usecase "Générer reçu de paiement (PDF)" as UC_Recu
+usecase "Exporter listes (demandes/contrats)\nen PDF" as UC_ExportList
+usecase "Servir / télécharger documents\n(contrats, décharges, preuves)" as UC_Download
+usecase "Indexer métadonnées\n(type, version, createdBy)" as UC_Meta
+usecase "Servir badge score (admin-only)\n(non visible client)" as UC_ScoreDoc
+
+UC_Contrat <|-- UC_Meta : <<include>>
+UC_UploadContrat <|-- UC_Meta : <<include>>
+UC_UploadPreuve <|-- UC_Meta : <<include>>
+UC_Decharge <|-- UC_Meta : <<include>>
+UC_ContratVierge <|-- UC_Meta : <<include>>
+UC_Recu <|-- UC_Meta : <<include>>
+UC_ExportList <|-- UC_Meta : <<include>>
+UC_ScoreDoc <|-- UC_Meta : <<include>>
+
+Services --> UC_Contrat
+Services --> UC_UploadContrat
+Services --> UC_UploadPreuve
+Services --> UC_Decharge
+Services --> UC_ContratVierge
+Services --> UC_Recu
+Services --> UC_ExportList
+Services --> UC_Download
+Services --> UC_ScoreDoc
+
+Kara --> UC_UploadContrat
+Kara --> UC_UploadPreuve
+Kara --> UC_Download
+
+Client --> UC_Download
+
+note right of UC_Contrat
+  Inclut les clauses, montant, taux,
+  échéancier, garant, pénalités,
+  transformation, blocage.
+end note
+
+@enduml
+

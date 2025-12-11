@@ -1,0 +1,43 @@
+@startuml
+title Séquence – Valider ou refuser une demande (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+participant "CI/Membership" as CI
+database "Repo crédits" as Repo
+participant "Notifications" as Notif
+
+Admin -> UI : Consulte demande (PENDING)
+UI -> Hooks : Load demande + garant + statut CI
+Hooks -> Repo : getById(demandeId)
+Repo --> Hooks : Demande + garant
+Hooks -> CI : checkStatus(clientId, garantId)
+CI --> Hooks : Statut CI (client/garant)
+
+Admin -> UI : Clique "Valider" ou "Refuser"
+UI -> Hooks : validateRequest(demandeId, decision, justification?)
+Hooks -> Service : validateRequest(demandeId, APPROVED/REJECTED, justification?)
+Service -> CI : vérifier éligibilité finale (client/garant)
+CI --> Service : statut CI
+alt Éligible ou dérogation
+  Service -> Repo : update status=APPROVED, updatedBy=admin, justification?
+  Repo --> Service : updated
+  Service -> Notif : decision (APPROVED, client)
+  Service --> Hooks : demande approuvée
+else Non éligible
+  Service -> Repo : update status=REJECTED, updatedBy=admin, raison
+  Repo --> Service : updated
+  Service -> Notif : decision (REJECTED, client)
+  Service --> Hooks : demande refusée
+end
+Hooks --> UI : Rafraîchir statut
+UI --> Admin : Confirmation + nouveau statut
+
+note right of Service
+Respect architecture : UI -> Hooks -> Service -> Repo/CI/Notif
+end note
+
+@enduml
+

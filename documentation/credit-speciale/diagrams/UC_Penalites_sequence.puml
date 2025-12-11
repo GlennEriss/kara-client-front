@@ -1,0 +1,56 @@
+@startuml
+title Séquence – Calculer et gérer pénalités (Système/Admin) – Crédit spéciale/fixe/aide
+
+actor Client
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo pénalités" as RepoPen
+participant "Notifications" as Notif
+
+== Calcul automatique pénalités (Système) ==
+Service -> Service : Détecter retard dueAt avant maintenant
+Service -> Service : Calculer pénalités règle de 3 jours fois montant mensuel divisé 30
+Service -> RepoPen : insert penalty
+RepoPen --> Service : penaltyId
+Service -> Notif : penalties_notification client montant choix payer ou non
+Notif --> Client : Notification pénalités
+
+== Client consulte pénalités ==
+Client -> UI : Consulte fiche crédit
+UI -> Hooks : Load pénalités
+Hooks -> RepoPen : getByCreditId
+RepoPen --> Hooks : Pénalités
+Hooks --> UI : Afficher pénalités
+
+== Client choisit de payer ou non ==
+Client -> UI : Clique "Payer pénalités" ou "Reporter"
+UI -> Hooks : handlePenaltyChoice
+Hooks -> Service : updatePenaltyChoice
+alt Payer
+  Service -> RepoPen : update penalty payée true paidAt
+  RepoPen --> Service : updated
+  Service -> Repo : update credit montantVersé plus pénalités
+  Repo --> Service : updated
+else Reporter
+  Service -> RepoPen : update penalty payée false reportée
+  RepoPen --> Service : updated
+end
+Service -> Service : Vérifier fin de contrat plus pénalités impayées
+alt Fin contrat plus pénalités impayées
+  Service -> Repo : update credit blocked true
+  Repo --> Service : updated
+  Service -> Notif : block_notification client raison
+end
+Service --> Hooks : Pénalités mises à jour
+Hooks --> UI : Rafraîchir pénalités
+UI --> Client : Confirmation
+
+note right of Service
+Règle de 3 : pénalités = (jours retard × montant mensuel) / 30
+Blocage si fin contrat + pénalités impayées
+end note
+
+@enduml
+

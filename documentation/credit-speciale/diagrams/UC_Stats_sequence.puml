@@ -1,0 +1,29 @@
+@startuml
+title Séquence – Agrégations statistiques (Repositories) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Firestore" as FS
+
+Service -> Repo : getStats(filters?)
+Repo -> FS : count where (status=ACTIVE)
+FS --> Repo : countActifs
+Repo -> FS : count where (status=ACTIVE + overdue)
+FS --> Repo : countRetard
+Repo -> FS : sum montantVersé where (filtres)
+FS --> Repo : totalVersé
+Repo -> FS : sum montantTotal where (filtres)
+FS --> Repo : totalEmprunté
+Repo -> FS : sum pénalités where (payées=false)
+FS --> Repo : totalPenalites
+Repo : Calculer agrégations par type (spéciale/fixe/aide)
+Repo --> Service : Stats {actifs, retard, montants, pénalités, par type}
+
+note right of Repo
+Agrégations Firestore (count, sum)
+Calculs par type de crédit
+Stats pour onglets et dashboard
+end note
+
+@enduml
+

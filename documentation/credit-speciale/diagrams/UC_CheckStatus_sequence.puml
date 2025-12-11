@@ -1,0 +1,21 @@
+@startuml
+title Séquence – Vérifier statut à jour CI (CI/Membership) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "CI/Membership" as CI
+database "Repo CI" as RepoCI
+
+Service -> CI : checkStatus
+CI -> RepoCI : getMemberStatus
+RepoCI --> CI : Statut CI à jour ou non à jour dernière cotisation
+CI -> CI : Vérifier statut à jour si dernière cotisation récente
+CI --> Service : Statut CI à jour ou non à jour
+
+note right of CI
+Vérification statut caisse imprévue
+Critère : dernière cotisation récente
+Utilisé pour éligibilité crédit
+end note
+
+@enduml
+

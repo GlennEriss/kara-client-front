@@ -1,0 +1,18 @@
+@startuml
+title Activité – Gérer onglets + stats contrats (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre l'écran contrats;
+:UI initialise onglets (actifs, retard, pénalités, à jour);
+:Hooks charge stats par onglet (counts);
+:Service calcule agrégations (actifs, retard, pénalités, à jour);
+:Repo exécute requêtes groupées (where status/overdue);
+:UI affiche onglets avec badges (counts);
+if (Admin change d'onglet ?) then (oui)
+  :Charger liste contrats de l'onglet;
+  :Afficher filtres spécifiques à l'onglet;
+  :Rafraîchir stats de l'onglet;
+else (non)
+endif
+stop
+@enduml
+

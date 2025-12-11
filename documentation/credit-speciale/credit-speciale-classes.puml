@@ -1,0 +1,155 @@
+@startuml
+title Diagramme de classes – Crédit spéciale / fixe / aide
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+class User {
+  id: string
+  firstName: string
+  lastName: string
+  phone?: string
+  email?: string
+  roles: ('ADMIN' | 'MEMBER')[]
+}
+
+class Member
+class Admin
+Member --|> User
+Admin --|> User
+
+class EmergencyContact {
+  name: string
+  phone: string
+  relation: string
+}
+
+class CreditSpecialeContract {
+  id: string
+  creditType: 'SPECIALE' | 'FIXE' | 'AIDE'
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'DEFAULTED' | 'TRANSFORMED'
+  requestedAmount: number
+  interestRate: number
+  monthlyPayment: number
+  firstPaymentDate: Date
+  monthsPlanned: number
+  totalAmount: number
+  simulationType: 'STANDARD' | 'CUSTOM'
+  isEligible: boolean
+  eligibilityReason?: string
+  transformedAt?: Date
+  contractDocumentId?: string
+  signedContractDocumentId?: string
+  dischargeDocumentId?: string
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy: string
+}
+
+class SimulationData {
+  amount: number
+  interestRate: number
+  monthlyPayment: number
+  firstPaymentDate: Date
+  durationInMonths: number
+  totalInterest: number
+  totalAmount: number
+  isValid: boolean
+  proposedMinimumAmount?: number
+}
+
+class CustomPayment {
+  monthIndex: number
+  amount: number
+  dueDate: Date
+}
+
+class CustomSimulationData {
+  payments: CustomPayment[*]
+  totalAmount: number
+  durationInMonths: number
+  isValid: boolean
+}
+
+class CreditPayment {
+  id: string
+  contractId: string
+  monthIndex: number
+  dueDate: Date
+  amount: number
+  paidAmount: number
+  penaltyAmount: number
+  status: 'DUE' | 'PAID' | 'PARTIAL' | 'OVERDUE'
+  paidAt?: Date
+  paymentMethod?: string
+  proofDocumentId?: string
+  receiptDocumentId?: string
+  comment?: string
+  rating?: number
+  daysLate?: number
+  penaltyPaid: boolean
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy: string
+}
+
+class GuarantorReward {
+  id: string
+  contractId: string
+  paymentId: string
+  guarantorId: string
+  rate: number = 0.02
+  amount: number
+  createdAt: Date
+  createdBy: string
+}
+
+class ReliabilityScore {
+  userId: string
+  score: number  // 0..10
+  lastComputedAt: Date
+}
+
+class Document {
+  id: string
+  type: DocumentType
+  url: string
+  metadata?: any
+  createdAt: Date
+  createdBy: string
+}
+
+User "1" -- "0..*" CreditSpecialeContract : emprunteur
+User "0..1" -- "0..*" CreditSpecialeContract : garant\n(membre ou admin)
+CreditSpecialeContract "1" o-- "1" EmergencyContact
+CreditSpecialeContract "1" o-- "1" SimulationData
+CreditSpecialeContract "0..1" o-- "1" CustomSimulationData
+CreditSpecialeContract "1" --> "0..*" CreditPayment
+CreditPayment "0..1" --> Document : proof/receipt
+CreditSpecialeContract "0..1" --> Document : contrat/signé/décharge
+CreditPayment "0..*" --> GuarantorReward : génère
+User "1" --> "0..*" ReliabilityScore : score fiabilité (admin-only)
+User "1" --> "0..*" GuarantorReward : rémunérations
+
+note right of Document
+  Ajouter des types pour le module :
+  - CREDIT_CS_CONTRACT
+  - CREDIT_CS_CONTRACT_SIGNED
+  - CREDIT_CS_RECEIPT
+  - CREDIT_CS_DISCHARGE
+end note
+
+note right of GuarantorReward
+  2% du montant versé mensuel
+  uniquement si garant = membre/parrain.
+end note
+
+note right of ReliabilityScore
+  Calcul 0..10, visible admin,
+  maj à chaque paiement.
+end note
+
+@enduml
+

@@ -1,0 +1,32 @@
+@startuml
+title Séquence – Téléverser preuves de versement (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo paiements" as RepoPay
+participant "Documents / Storage" as Docs
+
+Admin -> UI : Enregistre versement
+UI -> Hooks : recordPayment creditId paymentData file
+Hooks -> Service : recordPayment creditId paymentData
+Service -> RepoPay : insert payment
+RepoPay --> Service : paymentId
+Hooks -> Service : uploadProof paymentId file
+Service -> Docs : upload file metadata
+Docs --> Service : proofUrl
+Service -> RepoPay : update payment proofUrl
+RepoPay --> Service : updated
+Service --> Hooks : Versement avec preuve enregistré
+Hooks --> UI : Confirmation
+UI --> Admin : Versement enregistré
+
+note right of Service
+Preuve : reçu capture image
+Stockée dans Documents/Storage
+Associée au versement
+end note
+
+@enduml
+

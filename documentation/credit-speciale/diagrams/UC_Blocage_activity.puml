@@ -1,0 +1,20 @@
+@startuml
+title Activité – Bloquer nouvelle demande si pénalités impayées (Système) – Crédit spéciale/fixe/aide
+start
+:Service détecte fin de contrat;
+:Service vérifie pénalités impayées;
+if (Pénalités impayées ?) then (oui)
+  :Service bloque nouvelle demande (blocked=true);
+  :Service enregistre blocage (Repo);
+  :Notifications notifie client (blocage, raison);
+else (non)
+  :Pas de blocage;
+endif
+if (Admin débloque ?) then (oui)
+  :Service débloque (blocked=false, justification);
+  :Service enregistre déblocage (Repo);
+else (non)
+endif
+stop
+@enduml
+

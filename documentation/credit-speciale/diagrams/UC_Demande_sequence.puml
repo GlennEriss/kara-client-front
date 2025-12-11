@@ -1,0 +1,39 @@
+@startuml
+title Séquence – Saisir une demande de prêt (Client) – Crédit spéciale/fixe/aide
+
+actor Client
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+participant "CI/Membership" as CI
+database "Repo crédits" as Repo
+database "Repo documents" as Docs
+participant "Notifications" as Notif
+
+Client -> UI : Ouvre formulaire demande
+UI -> Hooks : Init form (schema, default type)
+Hooks -> CI : Prefetch statut client/garant
+CI --> Hooks : Statut CI
+
+Client -> UI : Saisie montant, type (spéciale/fixe/aide), mensualité\n+ garant (optionnel), cause
+UI -> Hooks : Valider champs
+Hooks --> UI : OK / erreurs
+
+Client -> UI : Soumettre
+UI -> Hooks : onSubmit
+Hooks -> Service : createRequest(dto, createdBy=client)
+Service -> Repo : insert credit (status=PENDING,\ncreditType, mensualité, garantId?, createdBy)
+Repo --> Service : id, timestamps
+Service -> Notif : new_request (admin)
+Service -> CI : vérifier éligibilité préliminaire (client/garant)
+CI --> Service : statut CI
+Service --> Hooks : demande créée (id, statut)
+Hooks --> UI : afficher confirmation
+UI --> Client : Confirmation + statut PENDING
+
+note right of Service
+Respect architecture : UI -> Hooks -> Service -> Repo/CI/Notif
+end note
+
+@enduml
+

@@ -1,0 +1,25 @@
+@startuml
+title Séquence – Consulter reçus de paiement (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo paiements" as RepoPay
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load reçus
+Hooks -> Service : getReceipts creditId
+Service -> RepoPay : query where creditId receiptUrl not null
+RepoPay --> Service : Paiements avec reçus
+Service --> Hooks : Liste reçus dates montants receiptUrls
+Hooks --> UI : Afficher liste reçus
+UI --> User : Reçus affichés
+
+note right of Service
+Reçus générés après chaque versement
+Liens PDF téléchargeables
+end note
+
+@enduml
+

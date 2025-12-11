@@ -1,0 +1,42 @@
+@startuml
+title Séquence – Générer contrat PDF (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+
+Admin -> UI : Valide simulation plus garant
+UI -> Hooks : generateContract creditId
+Hooks -> Service : generateContractPDF creditId
+Service -> Repo : getById creditId garant échéancier
+Repo --> Service : Données crédit complètes
+Service -> Docs : generatePDF template données
+Docs -> Docs : Générer PDF montant taux durée garant échéancier clauses
+Docs -> Docs : Stocker PDF metadata type version createdBy
+Docs --> Service : URL PDF
+Service -> Repo : update credit contractUrl contractGeneratedAt
+Repo --> Service : updated
+Service --> Hooks : URL contrat
+Hooks --> UI : Afficher lien téléchargement
+UI --> Admin : Contrat prêt
+
+alt Contrat vierge demandé
+  Admin -> UI : Clique Générer contrat vierge
+  UI -> Hooks : generateBlankContract creditId
+  Hooks -> Service : generateBlankContractPDF creditId
+  Service -> Docs : generateBlankPDF template
+  Docs --> Service : URL PDF vierge
+  Service --> Hooks : URL contrat vierge
+  Hooks --> UI : Afficher lien téléchargement vierge
+end
+
+note right of Docs
+Template PDF avec placeholders
+Métadonnées : type, version, createdBy, timestamps
+end note
+
+@enduml
+

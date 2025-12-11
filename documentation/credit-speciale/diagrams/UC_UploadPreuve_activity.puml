@@ -1,0 +1,10 @@
+@startuml
+title Activité – Téléverser preuves de versement (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin enregistre versement;
+:Admin téléverse preuve (reçu, capture);
+:Documents/Storage stocke preuve;
+:Service associe preuve au versement;
+stop
+@enduml
+

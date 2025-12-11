@@ -1,0 +1,30 @@
+@startuml
+title Séquence – Notifier échéance de paiement (J-1/J/J+1) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Notifications" as Notif
+
+== Job planifié (quotidien) ==
+Service : Planifier rappels échéances
+Service : Détecter échéances proches (J-1, J, J+1)
+Service -> Repo : query where (nextDueAt between J-1 and J+1, status=ACTIVE)
+Repo --> Service : Crédits avec échéance proche
+loop Pour chaque crédit
+  Service : Déterminer type notification (J-1, J, J+1)
+  Service -> Notif : due_notification (client, type, nextDueAt, montant)
+  Notif --> Client : Notification échéance
+  alt Échéance J+1 non payée
+    Service : Calculer pénalités (règle de 3)
+    Service -> Notif : penalties_notification (client, montant, choix payer ou non)
+    Notif --> Client : Notification pénalités
+  end
+end
+
+note right of Service
+Rappels automatiques J-1, J, J+1
+Pénalités calculées si J+1 non payée
+end note
+
+@enduml
+

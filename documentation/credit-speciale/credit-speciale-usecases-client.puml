@@ -1,0 +1,38 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor Client
+
+usecase "Solliciter un accompagnement exceptionnel\n(demande de prêt d'un montant)" as UC1
+usecase "Indiquer le montant mensuel\nqu'il peut rembourser" as UC3
+usecase "Faire une simulation personnalisée\n(montants variables par mois)" as UC7
+usecase "Signer le contrat" as UC12
+usecase "Revoir son montant d'emprunt\nà la baisse si nécessaire" as UC6
+usecase "Choisir de rembourser ou non\nles pénalités à chaque versement" as UC17
+
+Client --> UC1
+Client --> UC3
+Client --> UC7
+Client --> UC12
+Client --> UC6
+Client --> UC17
+
+note right of UC1
+  Le client fait une demande de prêt
+  d'un montant spécifique
+end note
+
+note right of UC7
+  Exemple : 1er versement 30 000 FCFA,
+  2ème 0 FCFA, 3ème 100 000 FCFA...
+  jusqu'à remboursement total
+end note
+
+note right of UC17
+  Le client est notifié des pénalités
+  et choisit de les rembourser ou non
+end note
+
+@enduml
+

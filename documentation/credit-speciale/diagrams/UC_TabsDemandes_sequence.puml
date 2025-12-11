@@ -1,0 +1,44 @@
+@startuml
+title Séquence – Gérer onglets + stats demandes (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Ouvre écran demandes
+UI -> Hooks : Init tabs (pending, approved, rejected)
+Hooks -> Service : getDemandsStats()
+Service -> Repo : count where status=PENDING
+Repo --> Service : countPending
+Service -> Repo : count where status=APPROVED
+Repo --> Service : countApproved
+Service -> Repo : count where status=REJECTED
+Repo --> Service : countRejected
+Service --> Hooks : Stats {pending, approved, rejected}
+Hooks --> UI : Afficher onglets avec badges
+
+Admin -> UI : Clique onglet "Pending"
+UI -> Hooks : switchTab("pending")
+Hooks -> Service : listDemands(status=PENDING, filters, pagination)
+Service -> Repo : query where status=PENDING + filters + pagination
+Repo --> Service : Demandes pending
+Service --> Hooks : Liste demandes
+Hooks --> UI : Afficher liste
+
+Admin -> UI : Clique onglet "Approved"
+UI -> Hooks : switchTab("approved")
+Hooks -> Service : listDemands(status=APPROVED, filters, pagination)
+Service -> Repo : query where status=APPROVED + filters + pagination
+Repo --> Service : Demandes approved
+Service --> Hooks : Liste demandes
+Hooks --> UI : Afficher liste
+
+note right of Hooks
+Cache React Query par onglet pour performance
+Invalidation après mutations (validation/refus)
+end note
+
+@enduml
+

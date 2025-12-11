@@ -1,0 +1,10 @@
+@startuml
+title Activité – Gérer signature / remise fonds (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin téléverse contrat signé;
+:Service active contrat (status=ACTIVE);
+:Service enregistre remise fonds;
+:Notifications notifie client (contrat activé, fonds remis);
+stop
+@enduml
+
