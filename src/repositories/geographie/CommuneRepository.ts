@@ -1,19 +1,19 @@
 import { IRepository } from '../IRepository'
-import type { Quarter } from '@/types/types'
+import type { Commune } from '@/types/types'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 
 const getFirestore = () => import('@/firebase/firestore')
 
-export class QuarterRepository implements IRepository {
-  readonly name = 'QuarterRepository'
+export class CommuneRepository implements IRepository {
+  readonly name = 'CommuneRepository'
 
   /**
-   * Crée un nouveau quartier
+   * Crée une nouvelle commune
    */
-  async create(data: Omit<Quarter, 'id' | 'createdAt' | 'updatedAt'>): Promise<Quarter> {
+  async create(data: Omit<Commune, 'id' | 'createdAt' | 'updatedAt'>): Promise<Commune> {
     try {
       const { collection, addDoc, db, serverTimestamp } = await getFirestore()
-      const collectionRef = collection(db, firebaseCollectionNames.quarters || 'quarters')
+      const collectionRef = collection(db, firebaseCollectionNames.communes || 'communes')
 
       const docData: any = {
         ...data,
@@ -32,23 +32,23 @@ export class QuarterRepository implements IRepository {
       const createdDoc = await this.getById(docRef.id)
 
       if (!createdDoc) {
-        throw new Error('Erreur lors de la récupération du quartier créé')
+        throw new Error('Erreur lors de la récupération de la commune créée')
       }
 
       return createdDoc
     } catch (error) {
-      console.error('Erreur lors de la création du quartier:', error)
+      console.error('Erreur lors de la création de la commune:', error)
       throw error
     }
   }
 
   /**
-   * Récupère un quartier par son ID
+   * Récupère une commune par son ID
    */
-  async getById(id: string): Promise<Quarter | null> {
+  async getById(id: string): Promise<Commune | null> {
     try {
       const { doc, getDoc, db } = await getFirestore()
-      const docRef = doc(db, firebaseCollectionNames.quarters || 'quarters', id)
+      const docRef = doc(db, firebaseCollectionNames.communes || 'communes', id)
       const snapshot = await getDoc(docRef)
 
       if (!snapshot.exists()) {
@@ -58,42 +58,46 @@ export class QuarterRepository implements IRepository {
       const data = snapshot.data()
       return {
         id: snapshot.id,
-        districtId: data.districtId,
+        departmentId: data.departmentId,
         name: data.name,
+        postalCode: data.postalCode ?? undefined,
+        alias: data.alias ?? undefined,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
         createdBy: data.createdBy,
         updatedBy: data.updatedBy ?? undefined,
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération du quartier:', error)
+      console.error('Erreur lors de la récupération de la commune:', error)
       throw error
     }
   }
 
   /**
-   * Récupère tous les quartiers d'un arrondissement (tri alphabétique)
+   * Récupère toutes les communes d'un département
    */
-  async getByDistrictId(districtId: string): Promise<Quarter[]> {
+  async getByDepartmentId(departmentId: string): Promise<Commune[]> {
     try {
       const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
-      const collectionRef = collection(db, firebaseCollectionNames.quarters || 'quarters')
+      const collectionRef = collection(db, firebaseCollectionNames.communes || 'communes')
 
       const q = query(
         collectionRef,
-        where('districtId', '==', districtId),
+        where('departmentId', '==', departmentId),
         orderBy('name', 'asc')
       )
 
       const snapshot = await getDocs(q)
-      const quarters: Quarter[] = []
+      const communes: Commune[] = []
 
       snapshot.forEach((doc) => {
         const data = doc.data()
-        quarters.push({
+        communes.push({
           id: doc.id,
-          districtId: data.districtId,
+          departmentId: data.departmentId,
           name: data.name,
+          postalCode: data.postalCode ?? undefined,
+          alias: data.alias ?? undefined,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           createdBy: data.createdBy,
@@ -101,32 +105,34 @@ export class QuarterRepository implements IRepository {
         })
       })
 
-      return quarters
+      return communes
     } catch (error) {
-      console.error('Erreur lors de la récupération des quartiers:', error)
+      console.error('Erreur lors de la récupération des communes:', error)
       throw error
     }
   }
 
   /**
-   * Récupère tous les quartiers (tri alphabétique)
+   * Récupère toutes les communes
    */
-  async getAll(): Promise<Quarter[]> {
+  async getAll(): Promise<Commune[]> {
     try {
       const { collection, query, orderBy, getDocs, db } = await getFirestore()
-      const collectionRef = collection(db, firebaseCollectionNames.quarters || 'quarters')
+      const collectionRef = collection(db, firebaseCollectionNames.communes || 'communes')
 
       const q = query(collectionRef, orderBy('name', 'asc'))
 
       const snapshot = await getDocs(q)
-      const quarters: Quarter[] = []
+      const communes: Commune[] = []
 
       snapshot.forEach((doc) => {
         const data = doc.data()
-        quarters.push({
+        communes.push({
           id: doc.id,
-          districtId: data.districtId,
+          departmentId: data.departmentId,
           name: data.name,
+          postalCode: data.postalCode ?? undefined,
+          alias: data.alias ?? undefined,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           createdBy: data.createdBy,
@@ -134,20 +140,20 @@ export class QuarterRepository implements IRepository {
         })
       })
 
-      return quarters
+      return communes
     } catch (error) {
-      console.error('Erreur lors de la récupération des quartiers:', error)
+      console.error('Erreur lors de la récupération des communes:', error)
       throw error
     }
   }
 
   /**
-   * Met à jour un quartier
+   * Met à jour une commune
    */
-  async update(id: string, data: Partial<Omit<Quarter, 'id' | 'createdAt'>>): Promise<Quarter> {
+  async update(id: string, data: Partial<Omit<Commune, 'id' | 'createdAt'>>): Promise<Commune> {
     try {
       const { doc, updateDoc, db, serverTimestamp } = await getFirestore()
-      const docRef = doc(db, firebaseCollectionNames.quarters || 'quarters', id)
+      const docRef = doc(db, firebaseCollectionNames.communes || 'communes', id)
 
       const updateData: any = {
         ...data,
@@ -164,43 +170,43 @@ export class QuarterRepository implements IRepository {
       const updatedDoc = await this.getById(id)
 
       if (!updatedDoc) {
-        throw new Error('Erreur lors de la récupération du quartier mis à jour')
+        throw new Error('Erreur lors de la récupération de la commune mise à jour')
       }
 
       return updatedDoc
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du quartier:', error)
+      console.error('Erreur lors de la mise à jour de la commune:', error)
       throw error
     }
   }
 
   /**
-   * Supprime un quartier
+   * Supprime une commune
    */
   async delete(id: string): Promise<void> {
     try {
       const { doc, deleteDoc, db } = await getFirestore()
-      const docRef = doc(db, firebaseCollectionNames.quarters || 'quarters', id)
+      const docRef = doc(db, firebaseCollectionNames.communes || 'communes', id)
       await deleteDoc(docRef)
     } catch (error) {
-      console.error('Erreur lors de la suppression du quartier:', error)
+      console.error('Erreur lors de la suppression de la commune:', error)
       throw error
     }
   }
 
   /**
-   * Recherche des quartiers par nom
+   * Recherche des communes par nom
    */
-  async searchByName(searchTerm: string, districtId?: string): Promise<Quarter[]> {
+  async searchByName(searchTerm: string, departmentId?: string): Promise<Commune[]> {
     try {
       const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
-      const collectionRef = collection(db, firebaseCollectionNames.quarters || 'quarters')
+      const collectionRef = collection(db, firebaseCollectionNames.communes || 'communes')
 
       let q
-      if (districtId) {
+      if (departmentId) {
         q = query(
           collectionRef,
-          where('districtId', '==', districtId),
+          where('departmentId', '==', departmentId),
           orderBy('name', 'asc')
         )
       } else {
@@ -209,17 +215,19 @@ export class QuarterRepository implements IRepository {
 
       const snapshot = await getDocs(q)
       const searchLower = searchTerm.toLowerCase()
-      const quarters: Quarter[] = []
+      const communes: Commune[] = []
 
       snapshot.forEach((doc) => {
         const data = doc.data()
         const name = data.name?.toLowerCase() || ''
 
         if (name.includes(searchLower)) {
-          quarters.push({
+          communes.push({
             id: doc.id,
-            districtId: data.districtId,
+            departmentId: data.departmentId,
             name: data.name,
+            postalCode: data.postalCode ?? undefined,
+            alias: data.alias ?? undefined,
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date(),
             createdBy: data.createdBy,
@@ -228,9 +236,9 @@ export class QuarterRepository implements IRepository {
         }
       })
 
-      return quarters
+      return communes
     } catch (error) {
-      console.error('Erreur lors de la recherche de quartiers:', error)
+      console.error('Erreur lors de la recherche de communes:', error)
       throw error
     }
   }

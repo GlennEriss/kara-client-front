@@ -61,11 +61,10 @@ export class ProvinceRepository implements IRepository {
         id: snapshot.id,
         code: data.code,
         name: data.name,
-        displayOrder: data.displayOrder ?? null,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
         createdBy: data.createdBy,
-        updatedBy: data.updatedBy ?? null,
+        updatedBy: data.updatedBy ?? undefined,
       }
     } catch (error) {
       console.error('Erreur lors de la récupération de la province:', error)
@@ -74,15 +73,13 @@ export class ProvinceRepository implements IRepository {
   }
 
   /**
-   * Récupère toutes les provinces avec tri optionnel
+   * Récupère toutes les provinces (tri alphabétique)
    */
-  async getAll(orderByField: 'name' | 'displayOrder' = 'displayOrder'): Promise<Province[]> {
+  async getAll(): Promise<Province[]> {
     try {
       const { collection, query, orderBy, getDocs, db } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.provinces || 'provinces')
 
-      // Toujours trier par 'name' dans Firestore car displayOrder peut être absent
-      // On fera le tri par displayOrder côté client si nécessaire
       const q = query(collectionRef, orderBy('name', 'asc'))
 
       const snapshot = await getDocs(q)
@@ -94,33 +91,12 @@ export class ProvinceRepository implements IRepository {
           id: doc.id,
           code: data.code,
           name: data.name,
-          displayOrder: data.displayOrder ?? null,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           createdBy: data.createdBy,
-          updatedBy: data.updatedBy ?? null,
+          updatedBy: data.updatedBy ?? undefined,
         })
       })
-
-      // Trier côté client si nécessaire
-      if (orderByField === 'displayOrder') {
-        provinces.sort((a, b) => {
-          // Les éléments avec displayOrder en premier
-          const aOrder = a.displayOrder ?? undefined
-          const bOrder = b.displayOrder ?? undefined
-          if (aOrder !== undefined && bOrder !== undefined) {
-            if (aOrder !== bOrder) {
-              return aOrder - bOrder
-            }
-          } else if (aOrder !== undefined) {
-            return -1
-          } else if (bOrder !== undefined) {
-            return 1
-          }
-          // Si les deux n'ont pas de displayOrder, trier par nom
-          return a.name.localeCompare(b.name)
-        })
-      }
 
       return provinces
     } catch (error) {
@@ -202,11 +178,10 @@ export class ProvinceRepository implements IRepository {
             id: doc.id,
             code: data.code,
             name: data.name,
-            displayOrder: data.displayOrder ?? null,
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date(),
             createdBy: data.createdBy,
-            updatedBy: data.updatedBy ?? null,
+            updatedBy: data.updatedBy ?? undefined,
           })
         }
       })

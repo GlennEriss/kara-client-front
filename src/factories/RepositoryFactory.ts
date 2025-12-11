@@ -20,7 +20,8 @@ import { INotificationRepository } from '@/repositories/notifications/INotificat
 import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { ProvinceRepository } from '@/repositories/geographie/ProvinceRepository'
-import { CityRepository } from '@/repositories/geographie/CityRepository'
+import { DepartmentRepository } from '@/repositories/geographie/DepartmentRepository'
+import { CommuneRepository } from '@/repositories/geographie/CommuneRepository'
 import { DistrictRepository } from '@/repositories/geographie/DistrictRepository'
 import { QuarterRepository } from '@/repositories/geographie/QuarterRepository'
 
@@ -166,14 +167,25 @@ export class RepositoryFactory {
   }
 
   /**
-   * Obtient le repository des villes
+   * Obtient le repository des départements
    */
-  static getCityRepository(): CityRepository {
-    const key = 'CityRepository'
+  static getDepartmentRepository(): DepartmentRepository {
+    const key = 'DepartmentRepository'
     if (!this.repositories.has(key)) {
-      this.repositories.set(key, new CityRepository())
+      this.repositories.set(key, new DepartmentRepository())
     }
-    return this.repositories.get(key) as CityRepository
+    return this.repositories.get(key) as DepartmentRepository
+  }
+
+  /**
+   * Obtient le repository des communes
+   */
+  static getCommuneRepository(): CommuneRepository {
+    const key = 'CommuneRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CommuneRepository())
+    }
+    return this.repositories.get(key) as CommuneRepository
   }
 
   /**

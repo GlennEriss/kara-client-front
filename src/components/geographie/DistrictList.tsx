@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { districtSchema, districtBulkCreateSchema, type DistrictFormData, type DistrictBulkCreateFormData } from '@/schemas/geographie.schema'
-import { useDistricts, useDistrictMutations, useCities, useProvinces } from '@/hooks/useGeographie'
+import { useDistricts, useDistrictMutations, useCommunes, useDepartments, useProvinces } from '@/hooks/useGeographie'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Map, RefreshCw, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Map, RefreshCw, Loader2, Download } from 'lucide-react'
 import type { District } from '@/types/types'
 
 function DistrictSkeleton() {
@@ -30,7 +30,9 @@ function DistrictSkeleton() {
 
 export default function DistrictList() {
   const [search, setSearch] = useState('')
-  const [selectedCityId, setSelectedCityId] = useState<string>('all')
+  const [selectedProvinceId, setSelectedProvinceId] = useState<string>('all')
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('all')
+  const [selectedCommuneId, setSelectedCommuneId] = useState<string>('all')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isBulkCreateOpen, setIsBulkCreateOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -39,19 +41,27 @@ export default function DistrictList() {
   const [createMode, setCreateMode] = useState<'single' | 'bulk'>('bulk')
 
   const { data: provinces = [] } = useProvinces()
-  const { data: cities = [] } = useCities()
-  const { data: districts = [], isLoading, error, refetch } = useDistricts(selectedCityId === 'all' ? undefined : selectedCityId)
+  const { data: departments = [] } = useDepartments(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
+  const { data: communes = [] } = useCommunes(selectedDepartmentId === 'all' ? undefined : selectedDepartmentId)
+  const { data: districts = [], isLoading, error, refetch } = useDistricts(selectedCommuneId === 'all' ? undefined : selectedCommuneId)
   const { create, update, remove, createBulk } = useDistrictMutations()
 
   const form = useForm<DistrictFormData>({
     resolver: zodResolver(districtSchema),
-    defaultValues: { cityId: '', name: '', displayOrder: undefined },
+    defaultValues: { communeId: '', name: '' },
   })
 
   const bulkForm = useForm<DistrictBulkCreateFormData>({
     resolver: zodResolver(districtBulkCreateSchema),
-    defaultValues: { cityId: '', count: 1 },
+    defaultValues: { communeId: '', count: 1 },
   })
+
+  // Sélections hiérarchiques pour les formulaires
+  const [formProvinceId, setFormProvinceId] = useState<string>('all')
+  const [formDepartmentId, setFormDepartmentId] = useState<string>('all')
+
+  const departmentsForForm = useDepartments(formProvinceId === 'all' ? undefined : formProvinceId).data || []
+  const communesForForm = useCommunes(formDepartmentId === 'all' ? undefined : formDepartmentId).data || []
 
   const filteredDistricts = useMemo(() => {
     let filtered = districts
@@ -65,18 +75,18 @@ export default function DistrictList() {
   const openCreate = () => {
     if (createMode === 'bulk') {
       setEditingDistrict(null)
-      bulkForm.reset({ cityId: '', count: 1 })
+      bulkForm.reset({ communeId: '', count: 1 })
       setIsBulkCreateOpen(true)
     } else {
       setEditingDistrict(null)
-      form.reset({ cityId: '', name: '', displayOrder: undefined })
+      form.reset({ communeId: '', name: '' })
       setIsCreateOpen(true)
     }
   }
 
   const submitBulkCreate = async (values: DistrictBulkCreateFormData) => {
     try {
-      await createBulk.mutateAsync({ cityId: values.cityId, count: values.count })
+      await createBulk.mutateAsync({ communeId: values.communeId, count: values.count })
       setIsBulkCreateOpen(false)
       // Le refetch est géré automatiquement par le hook
     } catch (e: any) {
@@ -87,9 +97,8 @@ export default function DistrictList() {
   const openEdit = (district: District) => {
     setEditingDistrict(district)
     form.reset({
-      cityId: district.cityId,
+      communeId: district.communeId,
       name: district.name,
-      displayOrder: district.displayOrder ?? undefined,
     })
     setIsCreateOpen(true)
   }
@@ -120,6 +129,31 @@ export default function DistrictList() {
     }
   }
 
+  const exportCsv = () => {
+    const headers = ['Arrondissement', 'Commune', 'Département', 'Province']
+    const rows = filteredDistricts.map((district) => {
+      const commune = communes.find((c) => c.id === district.communeId)
+      const department = commune ? departments.find((d) => d.id === commune.departmentId) : null
+      const province = department ? provinces.find((p) => p.id === department.provinceId) : null
+      return [
+        district.name,
+        commune?.name || '',
+        department?.name || '',
+        province?.name || '',
+      ]
+    })
+    const csv = [headers, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'arrondissements.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -129,6 +163,9 @@ export default function DistrictList() {
           <p className="text-gray-600 mt-1">{filteredDistricts.length} arrondissement(s)</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredDistricts.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
           </Button>
@@ -151,17 +188,59 @@ export default function DistrictList() {
                 className="pl-9"
               />
             </div>
-            <Select value={selectedCityId} onValueChange={setSelectedCityId}>
+            <Select
+              value={selectedProvinceId}
+              onValueChange={(value) => {
+                setSelectedProvinceId(value)
+                setSelectedDepartmentId('all')
+                setSelectedCommuneId('all')
+              }}
+            >
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Toutes les villes" />
+                <SelectValue placeholder="Toutes les provinces" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes les villes</SelectItem>
-                {cities.map((city) => {
-                  const province = provinces.find((p) => p.id === city.provinceId)
+                <SelectItem value="all">Toutes les provinces</SelectItem>
+                {provinces.map((province) => (
+                  <SelectItem key={province.id} value={province.id}>
+                    {province.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedDepartmentId}
+              onValueChange={(value) => {
+                setSelectedDepartmentId(value)
+                setSelectedCommuneId('all')
+              }}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Tous les départements" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les départements</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedCommuneId} onValueChange={setSelectedCommuneId}>
+              <SelectTrigger className="w-[240px]">
+                <SelectValue placeholder="Toutes les communes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les communes</SelectItem>
+                {communes.map((commune) => {
+                  const department = departments.find((d) => d.id === commune.departmentId)
+                  const province = department ? provinces.find((p) => p.id === department.provinceId) : null
                   return (
-                    <SelectItem key={city.id} value={city.id}>
-                      {city.name} {province && `(${province.name})`}
+                    <SelectItem key={commune.id} value={commune.id}>
+                      {commune.name} {department && `(${department.name})`} {province && `- ${province.name}`}
                     </SelectItem>
                   )
                 })}
@@ -184,64 +263,90 @@ export default function DistrictList() {
             <DistrictSkeleton key={i} />
           ))}
         </div>
-      ) : filteredDistricts.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDistricts.map((district) => {
-            const city = cities.find((c) => c.id === district.cityId)
-            const province = city ? provinces.find((p) => p.id === city.provinceId) : null
+      ) : (
+        (() => {
+          const communesToShow =
+            selectedCommuneId === 'all'
+              ? communes
+              : communes.filter((c) => c.id === selectedCommuneId)
+
+          if (selectedCommuneId === 'all' && filteredDistricts.length === 0) {
             return (
-              <Card key={district.id} className="h-full hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center">
-                        <Map className="w-4 h-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">{district.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {city?.name} {province && `(${province.name})`}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {district.displayOrder !== undefined && (
-                    <div className="text-xs text-gray-500 mb-3">
-                      Ordre d'affichage: {district.displayOrder}
-                    </div>
-                  )}
-                  <div className="mt-4 flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEdit(district)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setDistrictToDelete(district)
-                        setIsDeleteOpen(true)
-                      }}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+              <Card>
+                <CardContent className="text-center py-12">
+                  Sélectionnez au moins une commune pour afficher les arrondissements.
                 </CardContent>
               </Card>
             )
-          })}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="text-center py-12">
-            Aucun arrondissement trouvé
-          </CardContent>
-        </Card>
+          }
+
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {communesToShow.map((commune) => {
+                const department = departments.find((d) => d.id === commune.departmentId)
+                const province = department ? provinces.find((p) => p.id === department.provinceId) : null
+                const districtsForCommune = filteredDistricts.filter((d) => d.communeId === commune.id)
+
+                if (districtsForCommune.length === 0) return null
+
+                return (
+                  <Card key={commune.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center">
+                            <Map className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">{commune.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {department?.name} {province && `- ${province.name}`}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {districtsForCommune.length} arrondissement(s)
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        {districtsForCommune.map((district) => (
+                          <div
+                            key={district.id}
+                            className="flex items-center justify-between rounded-md border border-gray-100 px-3 py-2 bg-white"
+                          >
+                            <div className="text-sm font-medium text-gray-800">{district.name}</div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEdit(district)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setDistrictToDelete(district)
+                                  setIsDeleteOpen(true)
+                                }}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )
+        })()
       )}
 
       {/* Modal création / édition */}
@@ -257,27 +362,72 @@ export default function DistrictList() {
             <form onSubmit={form.handleSubmit(submitDistrict)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="cityId"
+                name="communeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ville</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une ville" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {cities.map((city) => {
-                          const province = provinces.find((p) => p.id === city.provinceId)
-                          return (
-                            <SelectItem key={city.id} value={city.id}>
-                              {city.name} {province && `(${province.name})`}
+                    <FormLabel>Commune</FormLabel>
+                    <div className="grid gap-3">
+                      <Select
+                        value={formProvinceId}
+                        onValueChange={(value) => {
+                          setFormProvinceId(value)
+                          setFormDepartmentId('all')
+                          field.onChange('')
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Province" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Sélectionner une province</SelectItem>
+                          {provinces.map((province) => (
+                            <SelectItem key={province.id} value={province.id}>
+                              {province.name}
                             </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={formDepartmentId}
+                        onValueChange={(value) => {
+                          setFormDepartmentId(value)
+                          field.onChange('')
+                        }}
+                        disabled={formProvinceId === 'all'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Département" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Sélectionner un département</SelectItem>
+                          {departmentsForForm.map((department) => (
+                            <SelectItem key={department.id} value={department.id}>
+                              {department.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select onValueChange={field.onChange} value={field.value} disabled={formDepartmentId === 'all'}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner une commune" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {communesForForm.map((commune) => (
+                            <SelectItem key={commune.id} value={commune.id}>
+                              {commune.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -290,30 +440,7 @@ export default function DistrictList() {
                   <FormItem>
                     <FormLabel>Nom</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Akanda" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ordre d'affichage (optionnel)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
-                          field.onChange(isNaN(value as number) ? undefined : value)
-                        }}
-                        placeholder="1"
-                      />
+                      <Input {...field} placeholder="1er arrondissement" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -342,34 +469,79 @@ export default function DistrictList() {
           <DialogHeader>
             <DialogTitle>Créer des arrondissements en masse</DialogTitle>
             <DialogDescription>
-              Créez plusieurs arrondissements pour une ville. Les arrondissements seront nommés automatiquement : "1er arrondissement", "2ème arrondissement", etc.
+              Créez plusieurs arrondissements pour une commune. Les arrondissements seront nommés automatiquement : "1er arrondissement", "2ème arrondissement", etc.
             </DialogDescription>
           </DialogHeader>
           <Form {...bulkForm}>
             <form onSubmit={bulkForm.handleSubmit(submitBulkCreate)} className="space-y-4">
               <FormField
                 control={bulkForm.control}
-                name="cityId"
+                name="communeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ville</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une ville" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {cities.map((city) => {
-                          const province = provinces.find((p) => p.id === city.provinceId)
-                          return (
-                            <SelectItem key={city.id} value={city.id}>
-                              {city.name} {province && `(${province.name})`}
+                    <FormLabel>Commune</FormLabel>
+                    <div className="grid gap-3">
+                      <Select
+                        value={formProvinceId}
+                        onValueChange={(value) => {
+                          setFormProvinceId(value)
+                          setFormDepartmentId('all')
+                          field.onChange('')
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Province" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Sélectionner une province</SelectItem>
+                          {provinces.map((province) => (
+                            <SelectItem key={province.id} value={province.id}>
+                              {province.name}
                             </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={formDepartmentId}
+                        onValueChange={(value) => {
+                          setFormDepartmentId(value)
+                          field.onChange('')
+                        }}
+                        disabled={formProvinceId === 'all'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Département" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Sélectionner un département</SelectItem>
+                          {departmentsForForm.map((department) => (
+                            <SelectItem key={department.id} value={department.id}>
+                              {department.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select onValueChange={field.onChange} value={field.value} disabled={formDepartmentId === 'all'}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner une commune" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {communesForForm.map((commune) => (
+                            <SelectItem key={commune.id} value={commune.id}>
+                              {commune.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -444,4 +616,6 @@ export default function DistrictList() {
     </div>
   )
 }
+
+
 
