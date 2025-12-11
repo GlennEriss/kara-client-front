@@ -3,22 +3,24 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Clock, CheckCircle, DollarSign, AlertCircle } from 'lucide-react'
+import { Clock, CheckCircle, DollarSign, AlertCircle, Trash2, ExternalLink, Phone, User } from 'lucide-react'
 import type { Placement, CommissionPaymentPlacement } from '@/types/types'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 
 interface PlacementCardProps {
   placement: Placement
   onDetailsClick: () => void
-  onEarlyExitClick: () => void
   onPayCommissionClick: (commissionId: string) => void
+  onDeleteClick?: () => void
+  onOpenClick?: () => void
 }
 
 export default function PlacementCard({
   placement,
   onDetailsClick,
-  onEarlyExitClick,
   onPayCommissionClick,
+  onDeleteClick,
+  onOpenClick,
 }: PlacementCardProps) {
   const { data: commissions = [] } = usePlacementCommissions(placement.id)
   
@@ -26,6 +28,15 @@ export default function PlacementCard({
   const nextDueCommission = commissions.find(c => c.status === 'Due')
   const paidCommissions = commissions.filter(c => c.status === 'Paid').length
   const totalCommissions = commissions.length
+  const nextDate = placement.nextCommissionDate || nextDueCommission?.dueDate
+
+  const statusLabel: Record<string, string> = {
+    Draft: 'Brouillon',
+    Active: 'Actif',
+    Closed: 'Clos',
+    EarlyExit: 'Sortie anticipée',
+    Canceled: 'Annulé',
+  }
 
   return (
     <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white border-0 shadow-md overflow-hidden">
@@ -38,15 +49,51 @@ export default function PlacementCard({
             placement.status === 'Draft' ? 'bg-yellow-100 text-yellow-700' :
             'bg-gray-100 text-gray-700'
           }`}>
-            {placement.status}
+            {statusLabel[placement.status] || placement.status}
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <div className="flex items-center gap-2 text-gray-600">
-          <span className="font-medium text-gray-500">Bienfaiteur:</span>
-          <span className="font-semibold text-gray-800">{placement.benefactorId.slice(0, 12)}...</span>
+        <div className="flex items-center gap-3 text-gray-600">
+          <User className="h-4 w-4 text-gray-400" />
+          <div className="space-y-0.5">
+            <div className="text-xs text-gray-500">Bienfaiteur</div>
+            <div className="font-semibold text-gray-800">
+              {placement.benefactorName || placement.benefactorId.slice(0, 12)}
+            </div>
+            {placement.benefactorPhone && (
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Phone className="h-3 w-3" />
+                <span>{placement.benefactorPhone}</span>
+              </div>
+            )}
+          </div>
         </div>
+        {placement.urgentContact && (
+          <div className="flex items-center gap-3 text-gray-600 rounded-lg bg-slate-50 px-3 py-2">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <div className="space-y-0.5">
+              <div className="text-xs text-amber-700 font-semibold">Contact urgent</div>
+              <div className="text-sm font-semibold text-gray-800">
+                {placement.urgentContact.name}
+                {placement.urgentContact.firstName ? ` ${placement.urgentContact.firstName}` : ''}
+              </div>
+              <div className="text-xs text-gray-600">{placement.urgentContact.phone}</div>
+              {placement.urgentContact.phone2 && (
+                <div className="text-[11px] text-gray-500">{placement.urgentContact.phone2}</div>
+              )}
+              {placement.urgentContact.relationship && (
+                <div className="text-[11px] text-gray-500">{placement.urgentContact.relationship}</div>
+              )}
+              {(placement.urgentContact.idNumber || placement.urgentContact.typeId) && (
+                <div className="text-[11px] text-gray-500">
+                  {placement.urgentContact.typeId ? `${placement.urgentContact.typeId} ` : ''}
+                  {placement.urgentContact.idNumber || ''}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg">
           <div>
@@ -83,7 +130,7 @@ export default function PlacementCard({
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-600">Prochaine échéance:</span>
                   <span className="text-xs font-semibold text-gray-800">
-                    {new Date(nextDueCommission.dueDate).toLocaleDateString('fr-FR')}
+                    {nextDate ? new Date(nextDate).toLocaleDateString('fr-FR') : '-'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -130,6 +177,28 @@ export default function PlacementCard({
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
+          {placement.status === 'Active' && onOpenClick && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={onOpenClick}
+            >
+              <ExternalLink className="w-4 h-4 mr-1" />
+              Ouvrir
+            </Button>
+          )}
+          {placement.status === 'Draft' && onDeleteClick && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={onDeleteClick}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Supprimer
+            </Button>
+          )}
           <Button
             size="sm"
             variant="secondary"
@@ -137,14 +206,6 @@ export default function PlacementCard({
             onClick={onDetailsClick}
           >
             Détails
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs"
-            onClick={onEarlyExitClick}
-          >
-            Retrait anticipé
           </Button>
         </div>
       </CardContent>

@@ -32,12 +32,18 @@ const uploadSchema = z.object({
 type UploadFormData = z.infer<typeof uploadSchema>
 
 // Types de documents spécifiques aux placements
-type PlacementSpecificDocumentType = 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE'
+type PlacementSpecificDocumentType =
+  | 'PLACEMENT_CONTRACT'
+  | 'PLACEMENT_COMMISSION_PROOF'
+  | 'PLACEMENT_EARLY_EXIT_QUITTANCE'
+  | 'PLACEMENT_FINAL_QUITTANCE'
+  | 'PLACEMENT_EARLY_EXIT_ADDENDUM'
 
 interface PlacementDocumentUploadModalProps {
   isOpen: boolean
   onClose: () => void
   onUploaded: (documentId: string) => void
+  onSuccess?: (documentId: string) => void
   placementId: string
   benefactorId: string
   documentType: PlacementDocumentType
@@ -50,12 +56,15 @@ const DOCUMENT_TYPE_LABELS: Record<PlacementSpecificDocumentType, string> = {
   PLACEMENT_CONTRACT: 'Contrat de placement',
   PLACEMENT_COMMISSION_PROOF: 'Preuve de commission',
   PLACEMENT_EARLY_EXIT_QUITTANCE: 'Quittance de retrait anticipé',
+  PLACEMENT_FINAL_QUITTANCE: 'Quittance finale',
+  PLACEMENT_EARLY_EXIT_ADDENDUM: 'Avenant de retrait anticipé',
 }
 
 export default function PlacementDocumentUploadModal({
   isOpen,
   onClose,
   onUploaded,
+  onSuccess,
   placementId,
   benefactorId,
   documentType,
@@ -109,13 +118,20 @@ export default function PlacementDocumentUploadModal({
         result = await service.uploadPlacementDocument(compressedFile, placementId, benefactorId, documentType, user.uid)
       } else if (documentType === 'PLACEMENT_COMMISSION_PROOF') {
         throw new Error('Utilisez uploadCommissionProof pour les preuves de commission')
-      } else {
+      } else if (documentType === 'PLACEMENT_EARLY_EXIT_QUITTANCE') {
         result = await service.uploadEarlyExitQuittance(compressedFile, placementId, benefactorId, user.uid)
+      } else if (documentType === 'PLACEMENT_FINAL_QUITTANCE') {
+        result = await service.uploadFinalQuittance(compressedFile, placementId, benefactorId, user.uid)
+      } else if (documentType === 'PLACEMENT_EARLY_EXIT_ADDENDUM') {
+        result = await service.uploadEarlyExitAddendum(compressedFile, placementId, benefactorId, user.uid)
+      } else {
+        throw new Error('Type de document non supporté pour ce modal')
       }
       
       form.reset()
       setSelectedFile(null)
       onUploaded(result.documentId)
+      if (onSuccess) onSuccess(result.documentId)
       onClose()
     } catch (error: any) {
       console.error('Erreur lors du téléversement:', error)
