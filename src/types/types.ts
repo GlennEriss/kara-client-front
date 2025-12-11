@@ -1217,6 +1217,10 @@ export type DocumentType =
   | 'PLACEMENT_CONTRACT'           // Contrat de placement
   | 'PLACEMENT_COMMISSION_PROOF'   // Preuve de commission placement
   | 'PLACEMENT_EARLY_EXIT_QUITTANCE' // Quittance de retrait anticipé placement
+  | 'CREDIT_SPECIALE_CONTRACT'     // Contrat crédit spéciale
+  | 'CREDIT_SPECIALE_CONTRACT_SIGNED' // Contrat crédit spéciale signé
+  | 'CREDIT_SPECIALE_RECEIPT'      // Reçu de paiement crédit spéciale
+  | 'CREDIT_SPECIALE_DISCHARGE'    // Décharge crédit spéciale
 
 /**
  * Formats de documents possibles
@@ -1227,6 +1231,202 @@ export type DocumentFormat =
   | 'excel'
   | 'image'
   | 'text'
+
+// ================== TYPES POUR CRÉDIT SPÉCIALE / FIXE / AIDE ==================
+
+/**
+ * Types de crédit possibles
+ */
+export type CreditType = 'SPECIALE' | 'FIXE' | 'AIDE'
+
+/**
+ * Statut d'une demande de crédit
+ */
+export type CreditDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+/**
+ * Statut d'un contrat de crédit
+ */
+export type CreditContractStatus = 
+  | 'DRAFT'           // Brouillon (demande créée, pas encore validée)
+  | 'PENDING'          // En attente de validation
+  | 'APPROVED'         // Approuvé, en attente de simulation
+  | 'SIMULATED'        // Simulation effectuée, en attente de contrat
+  | 'ACTIVE'           // Contrat signé et actif
+  | 'OVERDUE'          // En retard de paiement
+  | 'PARTIAL'          // Partiellement remboursé
+  | 'TRANSFORMED'      // Transformé en crédit fixe après 7 mois
+  | 'BLOCKED'          // Bloqué (pénalités impayées)
+  | 'DISCHARGED'       // Déchargé (remboursement complet)
+  | 'CLOSED'           // Clos
+
+/**
+ * Moyen de paiement pour crédit spéciale
+ */
+export type CreditPaymentMode = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CHEQUE'
+
+/**
+ * Type pour une demande de crédit
+ */
+export interface CreditDemand {
+  id: string
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
+  creditType: CreditType
+  amount: number
+  monthlyPaymentAmount?: number
+  cause: string
+  status: CreditDemandStatus
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  eligibilityOverride?: {
+    justification: string
+    adminId: string
+    adminName: string
+    createdAt: Date
+  }
+  score?: number // Score de fiabilité (0-10, admin-only)
+  scoreUpdatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour un contrat de crédit
+ */
+export interface CreditContract {
+  id: string
+  demandId: string
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
+  creditType: CreditType
+  amount: number
+  interestRate: number
+  monthlyPaymentAmount: number
+  totalAmount: number // Montant + intérêts
+  duration: number // Durée en mois
+  firstPaymentDate: Date
+  nextDueAt?: Date
+  status: CreditContractStatus
+  amountPaid: number
+  amountRemaining: number
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  guarantorIsParrain: boolean // Si le garant a parrainé le client
+  contractUrl?: string // URL du contrat PDF généré
+  signedContractUrl?: string // URL du contrat signé téléversé
+  dischargeUrl?: string // URL de la décharge
+  activatedAt?: Date
+  fundsReleasedAt?: Date
+  dischargedAt?: Date
+  transformedAt?: Date
+  blockedAt?: Date
+  blockedReason?: string
+  score?: number // Score de fiabilité (0-10, admin-only)
+  scoreUpdatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour un versement de crédit
+ */
+export interface CreditPayment {
+  id: string
+  creditId: string
+  amount: number
+  paymentDate: Date
+  paymentTime: string
+  mode: CreditPaymentMode
+  proofUrl?: string
+  comment?: string
+  note?: number // Note sur 10
+  reference?: string // Référence unique du paiement
+  receiptUrl?: string // URL du reçu PDF
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour une pénalité
+ */
+export interface CreditPenalty {
+  id: string
+  creditId: string
+  amount: number
+  daysLate: number
+  dueDate: Date
+  paid: boolean
+  paidAt?: Date
+  reported: boolean // Si le client a choisi de reporter
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour la rémunération du garant
+ */
+export interface GuarantorRemuneration {
+  id: string
+  creditId: string
+  guarantorId: string
+  paymentId: string
+  amount: number // 2% du montant versé mensuel
+  month: number // Mois concerné
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour une simulation standard
+ */
+export interface StandardSimulation {
+  amount: number
+  interestRate: number
+  monthlyPayment: number
+  firstPaymentDate: Date
+  duration: number // Calculé
+  totalAmount: number // Montant + intérêts
+  isValid: boolean // Si respecte les limites (7 mois spéciale, 3 mois aide)
+  suggestedMinimumAmount?: number // Si dépasse les limites
+}
+
+/**
+ * Type pour une simulation personnalisée
+ */
+export interface CustomSimulation {
+  amount: number
+  interestRate: number
+  monthlyPayments: Array<{
+    month: number
+    amount: number
+  }>
+  firstPaymentDate: Date
+  duration: number // Calculé
+  totalAmount: number // Montant + intérêts
+  isValid: boolean
+  suggestedMinimumAmount?: number
+}
 
 /**
  * Interface pour un document
