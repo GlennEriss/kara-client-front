@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { usePlacements, usePlacementMutations, usePlacementCommissions, useEarlyExit, useCalculateEarlyExit, usePlacementStats } from '@/hooks/usePlacements'
 import { useSearchMembers } from '@/hooks/useMembers'
 import { useAuth } from '@/hooks/useAuth'
@@ -58,21 +60,23 @@ function PayCommissionModalWrapper({
   )
 }
 
-type PlacementFormData = {
-  benefactorId: string
-  amount: number
-  rate: number
-  periodMonths: number
-  payoutMode: PayoutMode
-  firstCommissionDate: string // date du 1er versement de commission (YYYY-MM-DD)
-  urgentName?: string
-  urgentFirstName?: string
-  urgentPhone?: string
-  urgentPhone2?: string
-  urgentRelationship?: string
-  urgentIdNumber?: string
-  urgentTypeId?: string
-}
+const placementSchema = z.object({
+  benefactorId: z.string().min(1, 'Le bienfaiteur est requis'),
+  amount: z.coerce.number().positive('Le montant doit être > 0'),
+  rate: z.coerce.number().min(0, 'Le taux doit être >= 0'),
+  periodMonths: z.coerce.number().int().min(1, 'Minimum 1 mois').max(7, 'Maximum 7 mois'),
+  payoutMode: z.enum(['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End']),
+  firstCommissionDate: z.string().min(1, 'La date est requise'),
+  urgentName: z.string().optional(),
+  urgentFirstName: z.string().optional(),
+  urgentPhone: z.string().optional(),
+  urgentPhone2: z.string().optional(),
+  urgentRelationship: z.string().optional(),
+  urgentIdNumber: z.string().optional(),
+  urgentTypeId: z.string().optional(),
+})
+
+type PlacementFormData = z.infer<typeof placementSchema>
 
 type EarlyExitFormData = {
   commissionDue: number
@@ -137,7 +141,10 @@ export default function PlacementList() {
   const { data: earlyExitInfo } = useEarlyExit(detailState.placementId || undefined)
   const { data: placementStats } = usePlacementStats()
 
+  const placementFormResolver = zodResolver(placementSchema) as any
+
   const form = useForm<PlacementFormData>({
+    resolver: placementFormResolver,
     defaultValues: {
       benefactorId: '',
       amount: 0,

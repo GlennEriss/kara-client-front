@@ -71,7 +71,7 @@ export class PlacementService {
       if (member) {
         const roles = member.roles || []
         if (!roles.includes('Bienfaiteur')) {
-          await this.memberRepository.updateMemberRoles(member.id as string, [...roles, 'Bienfaiteur'])
+          await this.memberRepository.updateMemberRoles(member.id as string, [...roles, 'Bienfaiteur'], adminId)
         }
       }
     } catch (error) {
