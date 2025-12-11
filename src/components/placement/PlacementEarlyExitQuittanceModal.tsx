@@ -70,6 +70,7 @@ interface PlacementEarlyExitQuittanceModalProps {
   onClose: () => void
   placement: Placement
   earlyExit: EarlyExitPlacement
+  onGenerated?: (documentId: string) => void
 }
 
 export default function PlacementEarlyExitQuittanceModal({
@@ -77,6 +78,7 @@ export default function PlacementEarlyExitQuittanceModal({
   onClose,
   placement,
   earlyExit,
+  onGenerated,
 }: PlacementEarlyExitQuittanceModalProps) {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -289,6 +291,25 @@ export default function PlacementEarlyExitQuittanceModal({
       const fileName = `QUITTANCE_SORTIE_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
       
       doc.save(fileName)
+
+      // Attacher dans la base (optionnel)
+      if (onGenerated) {
+        try {
+          const blob = doc.output('blob')
+          const file = new File([blob], fileName, { type: 'application/pdf' })
+          const { ServiceFactory } = await import('@/factories/ServiceFactory')
+          const service = ServiceFactory.getPlacementService()
+          const res = await service.uploadEarlyExitQuittance(
+            file,
+            placement.id,
+            placement.benefactorId,
+            placement.updatedBy || placement.createdBy
+          )
+          onGenerated(res.documentId)
+        } catch (err) {
+          console.error('Erreur lors de l’attachement de la quittance', err)
+        }
+      }
 
       toast.success('✅ PDF téléchargé avec succès', {
         description: 'La quittance de sortie anticipée a été générée et téléchargée.',

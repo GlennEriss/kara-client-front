@@ -58,6 +58,8 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   PLACEMENT_CONTRACT: 'Contrat de placement',
   PLACEMENT_COMMISSION_PROOF: 'Preuve de commission placement',
   PLACEMENT_EARLY_EXIT_QUITTANCE: 'Quittance de retrait anticipé placement',
+  PLACEMENT_FINAL_QUITTANCE: 'Quittance finale placement',
+  PLACEMENT_EARLY_EXIT_ADDENDUM: 'Avenant retrait anticipé placement',
 }
 
 // Labels pour les formats

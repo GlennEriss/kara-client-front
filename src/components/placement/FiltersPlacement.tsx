@@ -11,6 +11,8 @@ export interface PlacementFilters {
   status: PlacementStatus | 'all'
   payoutMode: PayoutMode | 'all'
   periodMonths: string // 'all' ou '1-3', '4-7'
+  monthOnly: boolean
+  lateOnly: boolean
 }
 
 interface FiltersPlacementProps {
@@ -61,7 +63,7 @@ export default function FiltersPlacement({ filters, onFiltersChange, onReset }: 
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Rechercher un placement..."
+                placeholder="Rechercher (nom, prénom, matricule, id)..."
                 className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full transition-all duration-200 text-sm"
                 value={filters.search}
                 onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
@@ -100,6 +102,28 @@ export default function FiltersPlacement({ filters, onFiltersChange, onReset }: 
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+
+            {/* Commissions du mois */}
+            <Button
+              type="button"
+              variant={filters.monthOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onFiltersChange({ ...filters, monthOnly: !filters.monthOnly, lateOnly: filters.monthOnly ? filters.lateOnly : false })}
+              className={filters.monthOnly ? 'bg-[#234D65] text-white' : ''}
+            >
+              Commissions du mois
+            </Button>
+
+            {/* En retard */}
+            <Button
+              type="button"
+              variant={filters.lateOnly ? 'destructive' : 'outline'}
+              size="sm"
+              onClick={() => onFiltersChange({ ...filters, lateOnly: !filters.lateOnly, monthOnly: filters.lateOnly ? filters.monthOnly : false })}
+              className={filters.lateOnly ? '' : 'text-gray-700'}
+            >
+              En retard
+            </Button>
 
             {/* Bouton reset */}
             <Button

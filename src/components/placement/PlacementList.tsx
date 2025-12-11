@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { usePlacements, usePlacementMutations, usePlacementCommissions, useEarlyExit, useCalculateEarlyExit, usePlacementStats } from '@/hooks/usePlacements'
 import { useSearchMembers } from '@/hooks/useMembers'
 import { useAuth } from '@/hooks/useAuth'
@@ -22,6 +24,8 @@ import PlacementCard from './PlacementCard'
 import EarlyExitForm from './EarlyExitForm'
 import PlacementFinalQuittanceModal from './PlacementFinalQuittanceModal'
 import PlacementEarlyExitQuittanceModal from './PlacementEarlyExitQuittanceModal'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useRouter } from 'next/navigation'
 
 // Composant wrapper pour le modal de paiement de commission
 function PayCommissionModalWrapper({
@@ -56,14 +60,23 @@ function PayCommissionModalWrapper({
   )
 }
 
-type PlacementFormData = {
-  benefactorId: string
-  amount: number
-  rate: number
-  periodMonths: number
-  payoutMode: PayoutMode
-  firstCommissionDate: string // date du 1er versement de commission (YYYY-MM-DD)
-}
+const placementSchema = z.object({
+  benefactorId: z.string().min(1, 'Le bienfaiteur est requis'),
+  amount: z.coerce.number().positive('Le montant doit être > 0'),
+  rate: z.coerce.number().min(0, 'Le taux doit être >= 0'),
+  periodMonths: z.coerce.number().int().min(1, 'Minimum 1 mois').max(7, 'Maximum 7 mois'),
+  payoutMode: z.enum(['MonthlyCommission_CapitalEnd', 'CapitalPlusCommission_End']),
+  firstCommissionDate: z.string().min(1, 'La date est requise'),
+  urgentName: z.string().optional(),
+  urgentFirstName: z.string().optional(),
+  urgentPhone: z.string().optional(),
+  urgentPhone2: z.string().optional(),
+  urgentRelationship: z.string().optional(),
+  urgentIdNumber: z.string().optional(),
+  urgentTypeId: z.string().optional(),
+})
+
+type PlacementFormData = z.infer<typeof placementSchema>
 
 type EarlyExitFormData = {
   commissionDue: number
@@ -91,6 +104,8 @@ export default function PlacementList() {
     status: 'all',
     payoutMode: 'all',
     periodMonths: 'all',
+    monthOnly: false,
+    lateOnly: false,
   })
   const [earlyExitPlacementId, setEarlyExitPlacementId] = useState<string | null>(null)
   const [detailState, setDetailState] = useState<PlacementDetailState>({ placementId: null })
@@ -102,6 +117,11 @@ export default function PlacementList() {
   const [viewDocumentTitle, setViewDocumentTitle] = useState<string>('')
   const [finalQuittancePlacementId, setFinalQuittancePlacementId] = useState<string | null>(null)
   const [earlyExitQuittancePlacementId, setEarlyExitQuittancePlacementId] = useState<string | null>(null)
+  const [deletePlacementId, setDeletePlacementId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('all')
+  const [page, setPage] = useState(1)
+  const pageSize = 6
+  const router = useRouter()
   const earlyExitForm = useForm<EarlyExitFormData>({
     defaultValues: {
       commissionDue: 0,
@@ -114,14 +134,17 @@ export default function PlacementList() {
   
   const { data: memberResults = [] } = useSearchMembers(memberSearch, memberSearch.length >= 2)
   const { data: placements = [], isLoading, error, refetch } = usePlacements()
-  const { create, requestEarlyExit, payCommission } = usePlacementMutations()
+  const { create, requestEarlyExit, payCommission, remove } = usePlacementMutations()
   const { user, loading: authLoading } = useAuth()
 
   const { data: commissions = [] } = usePlacementCommissions(detailState.placementId || undefined)
   const { data: earlyExitInfo } = useEarlyExit(detailState.placementId || undefined)
   const { data: placementStats } = usePlacementStats()
 
+  const placementFormResolver = zodResolver(placementSchema) as any
+
   const form = useForm<PlacementFormData>({
+    resolver: placementFormResolver,
     defaultValues: {
       benefactorId: '',
       amount: 0,
@@ -129,8 +152,17 @@ export default function PlacementList() {
       periodMonths: 1,
       payoutMode: 'MonthlyCommission_CapitalEnd',
       firstCommissionDate: new Date().toISOString().slice(0, 10),
+      urgentName: '',
+      urgentFirstName: '',
+      urgentPhone: '',
+      urgentPhone2: '',
+      urgentRelationship: '',
+      urgentIdNumber: '',
+      urgentTypeId: '',
     },
   })
+
+  const isMonthlyPayout = form.watch('payoutMode') === 'MonthlyCommission_CapitalEnd'
 
   const filtered = useMemo(() => {
     let result = [...placements]
@@ -138,10 +170,16 @@ export default function PlacementList() {
     // Filtre par recherche textuelle
     if (filters.search.trim()) {
       const q = filters.search.toLowerCase()
-      result = result.filter(p => 
-        p.id.toLowerCase().includes(q) || 
-        p.benefactorId.toLowerCase().includes(q)
-      )
+      result = result.filter(p => {
+        const name = (p as any).benefactorName?.toLowerCase?.() || ''
+        const phone = (p as any).benefactorPhone?.toLowerCase?.() || ''
+        return (
+          p.id.toLowerCase().includes(q) ||
+          p.benefactorId.toLowerCase().includes(q) ||
+          name.includes(q) ||
+          phone.includes(q)
+        )
+      })
     }
 
     // Filtre par statut
@@ -163,34 +201,68 @@ export default function PlacementList() {
       }
     }
 
+    // Filtrage commissions du mois / en retard basé sur les champs persistés (nextCommissionDate / hasOverdueCommission)
+    if (filters.monthOnly || filters.lateOnly) {
+      const now = new Date()
+      const sameMonth = (d?: any) => {
+        if (!d) return false
+        const date = typeof d === 'string' ? new Date(d) : d
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
+      }
+
+      result = result.filter(p => {
+        if (p.status !== 'Active') return false
+        const matchMonth = filters.monthOnly ? sameMonth((p as any).nextCommissionDate) : true
+        const matchLate = filters.lateOnly ? !!(p as any).hasOverdueCommission : true
+        return matchMonth && matchLate
+      })
+    }
+
     return result
   }, [placements, filters])
 
-  const baseStats = useMemo(() => {
-    const total = placements.length
-    const totalAmount = placements.reduce((sum, p) => sum + (p.amount || 0), 0)
-    const draft = placements.filter(p => p.status === 'Draft').length
-    const active = placements.filter(p => p.status === 'Active').length
-    const closed = placements.filter(p => p.status === 'Closed').length
-    return { total, totalAmount, draft, active, closed }
-  }, [placements])
+  const filteredByTab = useMemo(() => {
+    if (activeTab === 'all') return filtered
+    if (activeTab === 'mensuel') return filtered.filter(p => p.payoutMode === 'MonthlyCommission_CapitalEnd')
+    if (activeTab === 'final') return filtered.filter(p => p.payoutMode === 'CapitalPlusCommission_End')
+    if (activeTab === 'actifs') return filtered.filter(p => p.status === 'Active')
+    if (activeTab === 'brouillons') return filtered.filter(p => p.status === 'Draft')
+    if (activeTab === 'clos') return filtered.filter(p => p.status === 'Closed')
+    if (activeTab === 'early') return filtered.filter(p => p.status === 'EarlyExit')
+    // Commissions du mois / En retard : approximation (à affiner avec échéancier)
+    if (activeTab === 'month') {
+      return filtered.filter(p => p.payoutMode === 'MonthlyCommission_CapitalEnd' && p.status === 'Active')
+    }
+    if (activeTab === 'late') {
+      return filtered.filter(p => p.status === 'Active') // placeholder : à affiner avec échéances
+    }
+    return filtered
+  }, [filtered, activeTab])
+
+  const totalPages = Math.max(1, Math.ceil(filteredByTab.length / pageSize))
+  const paginated = filteredByTab.slice((page - 1) * pageSize, page * pageSize)
+
+  React.useEffect(() => {
+    setPage(1)
+  }, [filteredByTab, filters, activeTab])
 
   const stats = useMemo(() => {
-    const total = filtered.length
-    const totalAmount = filtered.reduce((sum, p) => sum + (p.amount || 0), 0)
-    const draft = filtered.filter(p => p.status === 'Draft').length
-    const active = filtered.filter(p => p.status === 'Active').length
-    const closed = filtered.filter(p => p.status === 'Closed').length
-    return { total, totalAmount, draft, active, closed }
-  }, [filtered])
+    const total = filteredByTab.length
+    const totalAmount = filteredByTab.reduce((sum, p) => sum + (p.amount || 0), 0)
+    const draft = filteredByTab.filter(p => p.status === 'Draft').length
+    const active = filteredByTab.filter(p => p.status === 'Active').length
+    const closed = filteredByTab.filter(p => p.status === 'Closed').length
+    const early = filteredByTab.filter(p => p.status === 'EarlyExit').length
+    return { total, totalAmount, draft, active, closed, early }
+  }, [filteredByTab])
 
   const uniqueBenefactors = useMemo(() => {
-    const ids = Array.from(new Set(filtered.map(p => p.benefactorId)))
+    const ids = Array.from(new Set(filteredByTab.map(p => p.benefactorId)))
     return ids
-  }, [filtered])
+  }, [filteredByTab])
 
   const exportCSV = () => {
-    const rows = filtered.map(p => ({
+    const rows = filteredByTab.map(p => ({
       id: p.id,
       benefactorId: p.benefactorId,
       amount: p.amount,
@@ -226,7 +298,7 @@ export default function PlacementList() {
   const exportPDF = () => {
     const win = window.open('', '_blank')
     if (!win) return
-    const rows = filtered.map(
+    const rows = filteredByTab.map(
       (p) =>
         `<tr>
           <td>${p.id}</td>
@@ -291,12 +363,12 @@ export default function PlacementList() {
     const total = stats.total || 0
     const pct = (value: number) => (total > 0 ? Math.round((value / total) * 100) : 0)
     const statsData = placementStats || {
-      total: 0,
-      totalAmount: 0,
-      draft: 0,
-      active: 0,
-      closed: 0,
-      earlyExit: 0,
+      total: stats.total,
+      totalAmount: stats.totalAmount,
+      draft: stats.draft,
+      active: stats.active,
+      closed: stats.closed,
+      earlyExit: stats.early,
       canceled: 0,
       commissionsDue: 0,
       commissionsPaid: 0,
@@ -382,6 +454,26 @@ export default function PlacementList() {
     ]
   }, [stats, placementStats])
 
+  const payoutPieData = useMemo(() => {
+    const data = placementStats?.payoutModeDistribution || { MonthlyCommission_CapitalEnd: 0, CapitalPlusCommission_End: 0 }
+    return [
+      { name: 'Mensuel', value: data.MonthlyCommission_CapitalEnd, fill: '#2563eb' },
+      { name: 'Final', value: data.CapitalPlusCommission_End, fill: '#7c3aed' },
+    ]
+  }, [placementStats])
+
+  const statusPieData = useMemo(() => {
+    const data = placementStats || { draft: stats.draft, active: stats.active, closed: stats.closed, earlyExit: stats.early, canceled: 0 }
+    return [
+      { name: 'Actifs', value: data.active || 0, fill: '#10b981' },
+      { name: 'Brouillons', value: data.draft || 0, fill: '#f59e0b' },
+      { name: 'Clos', value: data.closed || 0, fill: '#3b82f6' },
+      { name: 'Sortie anticipée', value: data.earlyExit || 0, fill: '#ef4444' },
+    ]
+  }, [placementStats, stats])
+
+  const topBenefactors = useMemo(() => placementStats?.topBenefactors || [], [placementStats])
+
   const [itemsPerView, setItemsPerView] = useState(1)
   const [carouselIndex, setCarouselIndex] = useState(0)
 
@@ -412,15 +504,34 @@ export default function PlacementList() {
       status: 'all',
       payoutMode: 'all',
       periodMonths: 'all',
+      monthOnly: false,
+      lateOnly: false,
     })
   }
 
   const submitPlacement = async (values: PlacementFormData) => {
     if (!user?.uid) return
     try {
-      const { firstCommissionDate, ...rest } = values
+      const { firstCommissionDate, urgentName, urgentFirstName, urgentPhone, urgentPhone2, urgentRelationship, urgentIdNumber, urgentTypeId, ...rest } = values
+      const urgentContact =
+        urgentName && urgentPhone
+          ? {
+              name: urgentName,
+              firstName: urgentFirstName || undefined,
+              phone: urgentPhone,
+              phone2: urgentPhone2 || undefined,
+              relationship: urgentRelationship || undefined,
+              idNumber: urgentIdNumber || undefined,
+              typeId: urgentTypeId || undefined,
+            }
+          : undefined
+
       await create.mutateAsync({
         ...rest,
+        urgentContact,
+        amount: Number(rest.amount) || 0,
+        rate: Number(rest.rate) || 0,
+        periodMonths: Number(rest.periodMonths) || 0,
         // Date du 1er versement de commission = startDate du placement
         startDate: firstCommissionDate ? new Date(firstCommissionDate) : undefined,
         adminId: user.uid,
@@ -501,7 +612,7 @@ export default function PlacementList() {
               Gestion des placements et suivi des bienfaiteurs
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              {filtered.length} résultat(s) affiché(s) / {placements.length} au total
+              {filteredByTab.length} résultat(s) affiché(s) / {placements.length} au total
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -627,47 +738,190 @@ export default function PlacementList() {
           </div>
         </div>
 
-        {/* Filtres */}
-        <FiltersPlacement 
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          onReset={handleResetFilters}
-        />
-
-        {/* Liste des placements */}
-        {error ? (
-          <Alert variant="destructive" className="bg-red-50 border-red-200">
-            <AlertDescription>Erreur lors du chargement des placements</AlertDescription>
-          </Alert>
-        ) : isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#234D65]" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-md">
-            <CardContent className="py-16 text-center">
-              <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 text-lg font-medium">Aucun placement trouvé</p>
-              <p className="text-gray-400 text-sm mt-2">Commencez par créer votre premier placement</p>
+        {/* Répartition et top bienfaiteurs */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="col-span-1 bg-white border-0 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold text-gray-700">Répartition par mode</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={payoutPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
+                    {payoutPieData.map((entry, index) => (
+                      <Cell key={`payout-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((p) => (
-              <PlacementCard
-                key={p.id}
-                placement={p}
-                onDetailsClick={() => setDetailState({ placementId: p.id })}
-                onEarlyExitClick={() => setEarlyExitPlacementId(p.id)}
-                onPayCommissionClick={(commissionId) => {
-                  setPayCommissionPlacementId(p.id)
-                  setPayCommissionId(commissionId)
-                }}
-              />
-            ))}
-          </div>
-        )}
+
+          <Card className="col-span-1 bg-white border-0 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold text-gray-700">Répartition par statut</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
+                    {statusPieData.map((entry, index) => (
+                      <Cell key={`status-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-1 bg-white border-0 shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold text-gray-700">Top bienfaiteurs</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {topBenefactors.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun bienfaiteur en tête pour l’instant.</p>
+              ) : (
+                topBenefactors.slice(0, 5).map((b, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{(b as any).name || (b as any).benefactorId || 'Bienfaiteur'}</p>
+                        <p className="text-xs text-gray-500">
+                          Montant: {new Intl.NumberFormat('fr-FR').format((b as any).totalAmount || (b as any).amount || 0)} FCFA
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="flex flex-wrap gap-2">
+            <TabsTrigger value="all">Tous</TabsTrigger>
+            <TabsTrigger value="mensuel">Mensuel</TabsTrigger>
+            <TabsTrigger value="final">Final</TabsTrigger>
+            <TabsTrigger value="month">Commissions du mois</TabsTrigger>
+            <TabsTrigger value="late">En retard</TabsTrigger>
+            <TabsTrigger value="actifs">Actifs</TabsTrigger>
+            <TabsTrigger value="brouillons">Brouillons</TabsTrigger>
+            <TabsTrigger value="clos">Clos</TabsTrigger>
+            <TabsTrigger value="early">Sortie anticipée</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={activeTab} className="space-y-4">
+            {/* Filtres */}
+            <FiltersPlacement 
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onReset={handleResetFilters}
+            />
+
+            {/* Liste des placements */}
+            {error ? (
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <AlertDescription>Erreur lors du chargement des placements</AlertDescription>
+              </Alert>
+            ) : isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-[#234D65]" />
+              </div>
+            ) : filteredByTab.length === 0 ? (
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-md">
+                <CardContent className="py-16 text-center">
+                  <FileText className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500 text-lg font-medium">Aucun placement trouvé</p>
+                  <p className="text-gray-400 text-sm mt-2">Commencez par créer votre premier placement</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {paginated.map((p) => (
+                    <PlacementCard
+                      key={p.id}
+                      placement={p}
+                      onDetailsClick={() => setDetailState({ placementId: p.id })}
+                      onPayCommissionClick={(commissionId) => {
+                        setPayCommissionPlacementId(p.id)
+                        setPayCommissionId(commissionId)
+                      }}
+                      onOpenClick={p.status === 'Active' ? () => router.push(`/placements/${p.id}`) : undefined}
+                      onDeleteClick={p.status === 'Draft' ? () => setDeletePlacementId(p.id) : undefined}
+                    />
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-sm text-gray-500">
+                      Page {page} / {totalPages} — {filteredByTab.length} résultat(s)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="bg-white"
+                      >
+                        Précédent
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="bg-white"
+                      >
+                        Suivant
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Modal suppression placement */}
+      <Dialog open={!!deletePlacementId} onOpenChange={(open) => !open && setDeletePlacementId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer le placement ?</DialogTitle>
+            <DialogDescription>
+              Cette action est définitive. Le placement (brouillon) sera supprimé ainsi que ses commissions associées.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeletePlacementId(null)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (!deletePlacementId) return
+                try {
+                  await remove.mutateAsync(deletePlacementId)
+                  setDeletePlacementId(null)
+                } catch (e) {
+                  // toast géré côté mutation si besoin
+                }
+              }}
+              disabled={remove.isPending}
+            >
+              {remove.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal de création */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -742,14 +996,21 @@ export default function PlacementList() {
                 <FormField
                   control={form.control}
                   name="amount"
-                  rules={{ required: 'Montant requis' }}
+                rules={{ 
+                  required: 'Montant requis',
+                  min: { value: 1, message: 'Le montant doit être > 0' }
+                }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-semibold text-gray-700">Montant (FCFA) *</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
-                          {...field} 
+                        {...field}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/^0+(?=\d)/, '')
+                          field.onChange(v ? Number(v) : '')
+                        }}
                           className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]"
                           placeholder="ex: 500000"
                         />
@@ -762,7 +1023,10 @@ export default function PlacementList() {
                 <FormField
                   control={form.control}
                   name="rate"
-                  rules={{ required: 'Taux requis' }}
+                rules={{ 
+                  required: 'Taux requis',
+                  min: { value: 0, message: 'Le taux doit être >= 0' }
+                }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-semibold text-gray-700">Taux (%) *</FormLabel>
@@ -771,6 +1035,10 @@ export default function PlacementList() {
                           type="number" 
                           {...field} 
                           step="0.1" 
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/^0+(?=\d)/, '')
+                          field.onChange(v ? Number(v) : '')
+                        }}
                           className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]"
                           placeholder="ex: 5.5"
                         />
@@ -784,7 +1052,11 @@ export default function PlacementList() {
               <FormField
                 control={form.control}
                 name="periodMonths"
-                rules={{ required: 'Période requise' }}
+                rules={{ 
+                  required: 'Période requise',
+                  min: { value: 1, message: 'Minimum 1 mois' },
+                  max: { value: 7, message: 'Maximum 7 mois' },
+                }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-semibold text-gray-700">Période (mois) *</FormLabel>
@@ -794,6 +1066,10 @@ export default function PlacementList() {
                         {...field} 
                         min={1} 
                         max={7} 
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/^0+(?=\d)/, '')
+                          field.onChange(v ? Number(v) : '')
+                        }}
                         className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]"
                         placeholder="Entre 1 et 7 mois"
                       />
@@ -833,7 +1109,7 @@ export default function PlacementList() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-semibold text-gray-700">
-                      Date du 1er versement de commission *
+                      {isMonthlyPayout ? 'Date du 1er versement de commission *' : 'Date de début de contrat *'}
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -843,12 +1119,102 @@ export default function PlacementList() {
                       />
                     </FormControl>
                     <p className="text-xs text-gray-500 mt-1">
-                      Cette date sera utilisée pour calculer les échéances de commission.
+                      {isMonthlyPayout
+                        ? 'Utilisée pour calculer les échéances mensuelles.'
+                        : 'Utilisée pour calculer la date de fin (début + durée en mois).'}
                     </p>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Contact urgent (optionnel) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="urgentName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-semibold text-gray-700">Contact urgent - Nom</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Nom du contact" className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="urgentFirstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-semibold text-gray-700">Prénom</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Prénom du contact" className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="urgentPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-semibold text-gray-700">Téléphone</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Téléphone" className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="urgentPhone2"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-semibold text-gray-700">Téléphone 2</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Téléphone secondaire" className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="urgentRelationship"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-semibold text-gray-700">Lien</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Lien (parent, collègue...)" className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="urgentIdNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-semibold text-gray-700">N° pièce</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="N° CNI / Passeport" className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="urgentTypeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-semibold text-gray-700">Type de pièce</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="CNI, Passeport..." className="border-gray-200 focus:border-[#234D65] focus:ring-[#234D65]" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <DialogFooter className="gap-2 pt-4 border-t">
                 <Button 
