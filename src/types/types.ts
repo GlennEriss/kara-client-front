@@ -1217,6 +1217,8 @@ export type DocumentType =
   | 'PLACEMENT_CONTRACT'           // Contrat de placement
   | 'PLACEMENT_COMMISSION_PROOF'   // Preuve de commission placement
   | 'PLACEMENT_EARLY_EXIT_QUITTANCE' // Quittance de retrait anticipé placement
+  | 'PLACEMENT_FINAL_QUITTANCE'      // Quittance finale placement
+  | 'PLACEMENT_EARLY_EXIT_ADDENDUM'   // Avenant retrait anticipé placement
 
 /**
  * Formats de documents possibles
@@ -1527,11 +1529,23 @@ export type CommissionStatus = 'Due' | 'Paid' | 'Partial' | 'Canceled'
 export type PayoutMode = 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End'
 
 // Types de documents placement : on réutilise DocumentType existant en ajoutant si besoin des variantes placement
-export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE'
+export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE' | 'PLACEMENT_FINAL_QUITTANCE' | 'PLACEMENT_EARLY_EXIT_ADDENDUM'
 
 export interface Placement {
   id: string
   benefactorId: string // User.id avec rôle Bienfaiteur
+  benefactorName?: string
+  benefactorPhone?: string
+  urgentContact?: {
+    name: string
+    firstName?: string
+    phone: string
+    phone2?: string
+    relationship?: string
+    idNumber?: string
+    typeId?: string
+    documentPhotoUrl?: string
+  }
   amount: number
   rate: number // taux de commission
   periodMonths: number // 1..7
@@ -1539,7 +1553,12 @@ export interface Placement {
   status: PlacementStatus
   startDate?: Date
   endDate?: Date
+  nextCommissionDate?: Date
+  hasOverdueCommission?: boolean
   contractDocumentId?: string // Référence Document.id
+  finalQuittanceDocumentId?: string
+  earlyExitQuittanceDocumentId?: string
+  earlyExitAddendumDocumentId?: string
   createdAt: Date
   updatedAt: Date
   createdBy: string // User.id (Admin)
@@ -1553,6 +1572,7 @@ export interface CommissionPaymentPlacement {
   amount: number
   status: CommissionStatus
   proofDocumentId?: string // Document.id
+  receiptDocumentId?: string // Reçu / quittance payée
   paidAt?: Date
   createdAt: Date
   updatedAt: Date

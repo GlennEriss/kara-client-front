@@ -68,12 +68,14 @@ interface PlacementFinalQuittanceModalProps {
   isOpen: boolean
   onClose: () => void
   placement: Placement
+  onGenerated?: (documentId: string) => void
 }
 
 export default function PlacementFinalQuittanceModal({
   isOpen,
   onClose,
   placement,
+  onGenerated,
 }: PlacementFinalQuittanceModalProps) {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -271,6 +273,19 @@ export default function PlacementFinalQuittanceModal({
       const fileName = `QUITTANCE_FINALE_${sanitizeName(firstName)}_${sanitizeName(lastName)}.pdf`
       
       doc.save(fileName)
+
+      if (onGenerated) {
+        try {
+          const blob = doc.output('blob')
+          const file = new File([blob], fileName, { type: 'application/pdf' })
+          const { ServiceFactory } = await import('@/factories/ServiceFactory')
+          const service = ServiceFactory.getPlacementService()
+          const res = await service.uploadFinalQuittance(file, placement.id, placement.benefactorId, placement.updatedBy || placement.createdBy)
+          onGenerated(res.documentId)
+        } catch (err) {
+          console.error('Erreur lors de l\'attachement de la quittance finale', err)
+        }
+      }
 
       toast.success('✅ PDF téléchargé avec succès', {
         description: 'La quittance finale a été générée et téléchargée.',

@@ -14,6 +14,9 @@ export class PlacementRepository implements IRepository {
     const colRef = collection(db, this.collectionName)
     const docRef = await addDoc(colRef, {
       ...data,
+      amount: Number((data as any).amount) || 0,
+      rate: Number((data as any).rate) || 0,
+      periodMonths: Number((data as any).periodMonths) || 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
@@ -38,6 +41,16 @@ export class PlacementRepository implements IRepository {
       return {
         id: docSnap.id,
         ...(d as any),
+        amount: Number((d as any).amount) || 0,
+        rate: Number((d as any).rate) || 0,
+        periodMonths: Number((d as any).periodMonths) || 0,
+        startDate: d.startDate?.toDate ? d.startDate.toDate() : d.startDate,
+        endDate: d.endDate?.toDate ? d.endDate.toDate() : d.endDate,
+        nextCommissionDate: d.nextCommissionDate?.toDate ? d.nextCommissionDate.toDate() : d.nextCommissionDate,
+        hasOverdueCommission: d.hasOverdueCommission ?? false,
+        finalQuittanceDocumentId: d.finalQuittanceDocumentId,
+        earlyExitQuittanceDocumentId: d.earlyExitQuittanceDocumentId,
+        earlyExitAddendumDocumentId: d.earlyExitAddendumDocumentId,
         createdAt: d.createdAt?.toDate() || new Date(),
         updatedAt: d.updatedAt?.toDate() || new Date(),
       } as Placement
@@ -53,6 +66,14 @@ export class PlacementRepository implements IRepository {
     return {
       id: snap.id,
       ...(d as any),
+      amount: Number((d as any).amount) || 0,
+      rate: Number((d as any).rate) || 0,
+      periodMonths: Number((d as any).periodMonths) || 0,
+      nextCommissionDate: d?.nextCommissionDate?.toDate ? d.nextCommissionDate.toDate() : d?.nextCommissionDate,
+      hasOverdueCommission: d.hasOverdueCommission ?? false,
+      finalQuittanceDocumentId: d.finalQuittanceDocumentId,
+      earlyExitQuittanceDocumentId: d.earlyExitQuittanceDocumentId,
+      earlyExitAddendumDocumentId: d.earlyExitAddendumDocumentId,
       createdAt: d.createdAt?.toDate() || new Date(),
       updatedAt: d.updatedAt?.toDate() || new Date(),
     } as Placement
