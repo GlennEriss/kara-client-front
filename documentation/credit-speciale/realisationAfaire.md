@@ -120,7 +120,48 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 - CI/Membership : vérification statut à jour pour éligibilité, récupération info membre/garant, dérogation, historique fiabilité.  
   - Diagrammes : activité [`diagrams/UC_CheckStatus_activity.puml`](./diagrams/UC_CheckStatus_activity.puml), séquence [`diagrams/UC_CheckStatus_sequence.puml`](./diagrams/UC_CheckStatus_sequence.puml), activité [`diagrams/UC_GetMember_activity.puml`](./diagrams/UC_GetMember_activity.puml), séquence [`diagrams/UC_GetMember_sequence.puml`](./diagrams/UC_GetMember_sequence.puml), activité [`diagrams/UC_Override_activity.puml`](./diagrams/UC_Override_activity.puml), séquence [`diagrams/UC_Override_sequence.puml`](./diagrams/UC_Override_sequence.puml), activité [`diagrams/UC_ScoreHistory_activity.puml`](./diagrams/UC_ScoreHistory_activity.puml), séquence [`diagrams/UC_ScoreHistory_sequence.puml`](./diagrams/UC_ScoreHistory_sequence.puml)
 
-## 4. Références
+## 4. Design / UI
+
+**⚠️ Contrainte importante :** Tous les composants UI du module Crédit spéciale doivent conserver le même design et la même expérience utilisateur que les modules existants de la caisse spéciale et de la caisse imprévue.
+
+### 4.1 Références de design
+- **Liste des contrats** : Référence [`src/components/caisse-speciale/ListContracts.tsx`](../../src/components/caisse-speciale/ListContracts.tsx)
+  - Carrousel de statistiques avec drag/swipe
+  - Cards avec badges de statut, animations hover
+  - Filtres modernes avec recherche
+  - Onglets (Tous les contrats / Retard)
+  - Pagination
+  - Export Excel
+  - Modals pour PDF (téléchargement, téléversement, consultation)
+  
+- **Fiche contrat détaillée** : Référence [`src/components/caisse-imprevue/MonthlyCIContract.tsx`](../../src/components/caisse-imprevue/MonthlyCIContract.tsx)
+  - Carrousel de statistiques de paiement
+  - Barre de progression
+  - Échéancier avec cards cliquables
+  - Modals pour paiements, reçus, supports
+  - Section remboursements
+  - Badges de statut avec icônes
+  - Design responsive avec gradients
+
+### 4.2 Éléments de design à réutiliser
+- **Couleurs principales** : `#234D65` / `#2c5a73` (gradients)
+- **Composants** : Cards avec `border-0 shadow-xl`, badges avec bordures, animations `hover:shadow-lg hover:-translate-y-1`
+- **Carrousel de stats** : Hook `useCarousel` avec drag/swipe, navigation avec chevrons
+- **Filtres** : Cards avec icônes, inputs arrondis, boutons de reset
+- **Modals** : Design cohérent avec headers colorés, boutons d'action
+- **Badges de statut** : Couleurs conditionnelles (vert=actif, orange=retard, rouge=bloqué)
+- **Skeletons** : Animations de chargement avec gradients
+- **Responsive** : Grid adaptatif, flex-wrap, breakpoints (sm, md, lg, xl)
+
+### 4.3 Composants à créer avec le même design
+- Liste des demandes de crédit (équivalent à `ListContracts.tsx`)
+- Fiche crédit détaillée (équivalent à `MonthlyCIContract.tsx`)
+- Modals pour simulations, contrats, versements, pénalités
+- Tableaux récapitulatifs (simulation standard vs personnalisée)
+- Historique des versements
+- Suivi de rémunération garant
+
+## 5. Références
 - Analyse détaillée : [`./ANALYSE_CREDIT_SPECIALE.md`](./ANALYSE_CREDIT_SPECIALE.md)
 - Architecture : [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md)
 - Types : `src/types/types.ts` (User/Admin/Member, DocumentType, crédits/paiements)
