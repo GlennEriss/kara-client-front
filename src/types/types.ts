@@ -1681,7 +1681,6 @@ export interface Province {
   id: string
   code: string // Code unique (ex: "ESTuaire", "OGOUE_MARITIME")
   name: string
-  displayOrder?: number
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1689,14 +1688,13 @@ export interface Province {
 }
 
 /**
- * Ville - Entité géographique de niveau 2 (appartient à une Province)
+ * Département - Entité géographique de niveau 2 (appartient à une Province)
  */
-export interface City {
+export interface Department {
   id: string
   provinceId: string
   name: string
-  postalCode?: string
-  displayOrder?: number
+  code?: string
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1704,13 +1702,27 @@ export interface City {
 }
 
 /**
- * Arrondissement - Entité géographique de niveau 3 (appartient à une Ville)
+ * Commune (ou Ville) - Entité géographique de niveau 3 (appartient à un Département)
+ */
+export interface Commune {
+  id: string
+  departmentId: string
+  name: string
+  postalCode?: string
+  alias?: string // "Ville" si applicable
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Arrondissement - Entité géographique de niveau 4 (appartient à une Commune)
  */
 export interface District {
   id: string
-  cityId: string
+  communeId: string
   name: string
-  displayOrder?: number
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1718,13 +1730,12 @@ export interface District {
 }
 
 /**
- * Quartier - Entité géographique de niveau 4 (appartient à un Arrondissement)
+ * Quartier - Entité géographique de niveau 5 (appartient à un Arrondissement)
  */
 export interface Quarter {
   id: string
   districtId: string
   name: string
-  displayOrder?: number
   createdAt: Date
   updatedAt: Date
   createdBy: string

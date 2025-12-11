@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { provinceSchema, type ProvinceFormData } from '@/schemas/geographie.schema'
 import { useProvinces, useProvinceMutations } from '@/hooks/useGeographie'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, MapPin, RefreshCw, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, MapPin, RefreshCw, Loader2, Download } from 'lucide-react'
 import type { Province } from '@/types/types'
 
 function ProvinceSkeleton() {
@@ -39,7 +39,7 @@ export default function ProvinceList() {
 
   const form = useForm<ProvinceFormData>({
     resolver: zodResolver(provinceSchema),
-    defaultValues: { code: '', name: '', displayOrder: undefined },
+    defaultValues: { code: '', name: '' },
   })
 
   const filteredProvinces = useMemo(() => {
@@ -54,7 +54,7 @@ export default function ProvinceList() {
 
   const openCreate = () => {
     setEditingProvince(null)
-    form.reset({ code: '', name: '', displayOrder: undefined })
+    form.reset({ code: '', name: '' })
     setIsCreateOpen(true)
   }
 
@@ -63,7 +63,6 @@ export default function ProvinceList() {
     form.reset({
       code: province.code,
       name: province.name,
-      displayOrder: province.displayOrder ?? undefined,
     })
     setIsCreateOpen(true)
   }
@@ -94,6 +93,21 @@ export default function ProvinceList() {
     }
   }
 
+  const exportCsv = () => {
+    const headers = ['Province', 'Code']
+    const rows = filteredProvinces.map((province) => [province.name, province.code])
+    const csv = [headers, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'provinces.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -103,6 +117,9 @@ export default function ProvinceList() {
           <p className="text-gray-600 mt-1">{filteredProvinces.length} province(s)</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredProvinces.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
           </Button>
@@ -158,11 +175,6 @@ export default function ProvinceList() {
                     </div>
                   </div>
                 </div>
-                {province.displayOrder !== undefined && (
-                  <div className="text-xs text-gray-500 mb-3">
-                    Ordre d'affichage: {province.displayOrder}
-                  </div>
-                )}
                 <div className="mt-4 flex items-center justify-end gap-2">
                   <Button
                     variant="ghost"
@@ -235,29 +247,6 @@ export default function ProvinceList() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ordre d'affichage (optionnel)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
-                          field.onChange(isNaN(value as number) ? undefined : value)
-                        }}
-                        placeholder="1"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Annuler
@@ -283,7 +272,7 @@ export default function ProvinceList() {
               Supprimer définitivement "{provinceToDelete?.name}" ?
               <br />
               <span className="text-red-600 font-medium">
-                Cette action supprimera également toutes les villes associées.
+                Cette action supprimera également tous les départements associés.
               </span>
             </DialogDescription>
           </DialogHeader>

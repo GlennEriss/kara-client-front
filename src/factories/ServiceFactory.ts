@@ -108,10 +108,11 @@ export class ServiceFactory {
     const key = 'GeographieService'
     if (!this.services.has(key)) {
       const provinceRepository = RepositoryFactory.getProvinceRepository()
-      const cityRepository = RepositoryFactory.getCityRepository()
+      const departmentRepository = RepositoryFactory.getDepartmentRepository()
+      const communeRepository = RepositoryFactory.getCommuneRepository()
       const districtRepository = RepositoryFactory.getDistrictRepository()
       const quarterRepository = RepositoryFactory.getQuarterRepository()
-      this.services.set(key, new GeographieService(provinceRepository, cityRepository, districtRepository, quarterRepository))
+      this.services.set(key, new GeographieService(provinceRepository, departmentRepository, communeRepository, districtRepository, quarterRepository))
     }
     return this.services.get(key)
   }

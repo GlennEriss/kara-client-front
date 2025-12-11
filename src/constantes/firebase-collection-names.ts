@@ -25,7 +25,8 @@ export const firebaseCollectionNames = {
     placements: "placements",
     // Géographie
     provinces: "provinces",
-    cities: "cities",
+    departments: "departments",
+    communes: "communes",
     districts: "districts",
     quarters: "quarters",
 }

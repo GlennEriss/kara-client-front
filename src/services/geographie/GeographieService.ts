@@ -1,8 +1,9 @@
 import { IService } from '../interfaces/IService'
-import type { Province, City, District, Quarter } from '@/types/types'
-import type { ProvinceFormData, CityFormData, DistrictFormData, QuarterFormData } from '@/schemas/geographie.schema'
+import type { Province, Department, Commune, District, Quarter } from '@/types/types'
+import type { ProvinceFormData, DepartmentFormData, CommuneFormData, DistrictFormData, QuarterFormData } from '@/schemas/geographie.schema'
 import { ProvinceRepository } from '@/repositories/geographie/ProvinceRepository'
-import { CityRepository } from '@/repositories/geographie/CityRepository'
+import { DepartmentRepository } from '@/repositories/geographie/DepartmentRepository'
+import { CommuneRepository } from '@/repositories/geographie/CommuneRepository'
 import { DistrictRepository } from '@/repositories/geographie/DistrictRepository'
 import { QuarterRepository } from '@/repositories/geographie/QuarterRepository'
 
@@ -11,7 +12,8 @@ export class GeographieService implements IService {
 
   constructor(
     private provinceRepository: ProvinceRepository,
-    private cityRepository: CityRepository,
+    private departmentRepository: DepartmentRepository,
+    private communeRepository: CommuneRepository,
     private districtRepository: DistrictRepository,
     private quarterRepository: QuarterRepository
   ) {}
@@ -33,7 +35,6 @@ export class GeographieService implements IService {
     return this.provinceRepository.create({
       ...data,
       code: data.code.toUpperCase(),
-      displayOrder: data.displayOrder ?? undefined,
       createdBy: userId,
     })
   }
@@ -61,18 +62,17 @@ export class GeographieService implements IService {
     return this.provinceRepository.update(id, {
       ...data,
       code: data.code ? data.code.toUpperCase() : undefined,
-      displayOrder: data.displayOrder ?? undefined,
       updatedBy: userId,
     })
   }
 
   /**
-   * Supprime une province (vérifie qu'elle n'a pas de villes)
+   * Supprime une province (vérifie qu'elle n'a pas de départements)
    */
   async deleteProvince(id: string): Promise<void> {
-    const cities = await this.cityRepository.getByProvinceId(id)
-    if (cities.length > 0) {
-      throw new Error('Impossible de supprimer cette province car elle contient des villes')
+    const departments = await this.departmentRepository.getByProvinceId(id)
+    if (departments.length > 0) {
+      throw new Error('Impossible de supprimer cette province car elle contient des départements')
     }
 
     await this.provinceRepository.delete(id)
@@ -99,33 +99,32 @@ export class GeographieService implements IService {
     return this.provinceRepository.searchByName(searchTerm)
   }
 
-  // ================== VILLES ==================
+  // ================== DÉPARTEMENTS ==================
 
   /**
-   * Crée une nouvelle ville avec validation
+   * Crée un nouveau département avec validation
    */
-  async createCity(data: CityFormData, userId: string): Promise<City> {
+  async createDepartment(data: DepartmentFormData, userId: string): Promise<Department> {
     // Vérifier que la province existe
     const province = await this.provinceRepository.getById(data.provinceId)
     if (!province) {
       throw new Error('Province introuvable')
     }
 
-    return this.cityRepository.create({
+    return this.departmentRepository.create({
       ...data,
-      postalCode: data.postalCode ?? undefined,
-      displayOrder: data.displayOrder ?? undefined,
+      code: data.code ? data.code.toUpperCase() : undefined,
       createdBy: userId,
     })
   }
 
   /**
-   * Met à jour une ville
+   * Met à jour un département
    */
-  async updateCity(id: string, data: Partial<CityFormData>, userId: string): Promise<City> {
-    const existing = await this.cityRepository.getById(id)
+  async updateDepartment(id: string, data: Partial<DepartmentFormData>, userId: string): Promise<Department> {
+    const existing = await this.departmentRepository.getById(id)
     if (!existing) {
-      throw new Error('Ville introuvable')
+      throw new Error('Département introuvable')
     }
 
     // Si la province change, vérifier qu'elle existe
@@ -136,52 +135,136 @@ export class GeographieService implements IService {
       }
     }
 
-    return this.cityRepository.update(id, {
+    return this.departmentRepository.update(id, {
       ...data,
-      postalCode: data.postalCode ?? undefined,
-      displayOrder: data.displayOrder ?? undefined,
+      code: data.code ? data.code.toUpperCase() : undefined,
       updatedBy: userId,
     })
   }
 
   /**
-   * Supprime une ville (vérifie qu'elle n'a pas d'arrondissements)
+   * Supprime un département (vérifie qu'il n'a pas de communes)
    */
-  async deleteCity(id: string): Promise<void> {
-    const districts = await this.districtRepository.getByCityId(id)
-    if (districts.length > 0) {
-      throw new Error('Impossible de supprimer cette ville car elle contient des arrondissements')
+  async deleteDepartment(id: string): Promise<void> {
+    const communes = await this.communeRepository.getByDepartmentId(id)
+    if (communes.length > 0) {
+      throw new Error('Impossible de supprimer ce département car il contient des communes')
     }
 
-    await this.cityRepository.delete(id)
+    await this.departmentRepository.delete(id)
   }
 
   /**
-   * Récupère toutes les villes d'une province
+   * Récupère tous les départements d'une province
    */
-  async getCitiesByProvinceId(provinceId: string): Promise<City[]> {
-    return this.cityRepository.getByProvinceId(provinceId)
+  async getDepartmentsByProvinceId(provinceId: string): Promise<Department[]> {
+    return this.departmentRepository.getByProvinceId(provinceId)
   }
 
   /**
-   * Récupère toutes les villes
+   * Récupère tous les départements
    */
-  async getAllCities(): Promise<City[]> {
-    return this.cityRepository.getAll()
+  async getAllDepartments(): Promise<Department[]> {
+    return this.departmentRepository.getAll()
   }
 
   /**
-   * Récupère une ville par ID
+   * Récupère un département par ID
    */
-  async getCityById(id: string): Promise<City | null> {
-    return this.cityRepository.getById(id)
+  async getDepartmentById(id: string): Promise<Department | null> {
+    return this.departmentRepository.getById(id)
   }
 
   /**
-   * Recherche des villes
+   * Recherche des départements
    */
-  async searchCities(searchTerm: string, provinceId?: string): Promise<City[]> {
-    return this.cityRepository.searchByName(searchTerm, provinceId)
+  async searchDepartments(searchTerm: string, provinceId?: string): Promise<Department[]> {
+    return this.departmentRepository.searchByName(searchTerm, provinceId)
+  }
+
+  // ================== COMMUNES ==================
+
+  /**
+   * Crée une nouvelle commune avec validation
+   */
+  async createCommune(data: CommuneFormData, userId: string): Promise<Commune> {
+    // Vérifier que le département existe
+    const department = await this.departmentRepository.getById(data.departmentId)
+    if (!department) {
+      throw new Error('Département introuvable')
+    }
+
+    return this.communeRepository.create({
+      ...data,
+      postalCode: data.postalCode ?? undefined,
+      alias: data.alias ?? undefined,
+      createdBy: userId,
+    })
+  }
+
+  /**
+   * Met à jour une commune
+   */
+  async updateCommune(id: string, data: Partial<CommuneFormData>, userId: string): Promise<Commune> {
+    const existing = await this.communeRepository.getById(id)
+    if (!existing) {
+      throw new Error('Commune introuvable')
+    }
+
+    // Si le département change, vérifier qu'il existe
+    if (data.departmentId && data.departmentId !== existing.departmentId) {
+      const department = await this.departmentRepository.getById(data.departmentId)
+      if (!department) {
+        throw new Error('Département introuvable')
+      }
+    }
+
+    return this.communeRepository.update(id, {
+      ...data,
+      postalCode: data.postalCode ?? undefined,
+      alias: data.alias ?? undefined,
+      updatedBy: userId,
+    })
+  }
+
+  /**
+   * Supprime une commune (vérifie qu'elle n'a pas d'arrondissements)
+   */
+  async deleteCommune(id: string): Promise<void> {
+    const districts = await this.districtRepository.getByCommuneId(id)
+    if (districts.length > 0) {
+      throw new Error('Impossible de supprimer cette commune car elle contient des arrondissements')
+    }
+
+    await this.communeRepository.delete(id)
+  }
+
+  /**
+   * Récupère toutes les communes d'un département
+   */
+  async getCommunesByDepartmentId(departmentId: string): Promise<Commune[]> {
+    return this.communeRepository.getByDepartmentId(departmentId)
+  }
+
+  /**
+   * Récupère toutes les communes
+   */
+  async getAllCommunes(): Promise<Commune[]> {
+    return this.communeRepository.getAll()
+  }
+
+  /**
+   * Récupère une commune par ID
+   */
+  async getCommuneById(id: string): Promise<Commune | null> {
+    return this.communeRepository.getById(id)
+  }
+
+  /**
+   * Recherche des communes
+   */
+  async searchCommunes(searchTerm: string, departmentId?: string): Promise<Commune[]> {
+    return this.communeRepository.searchByName(searchTerm, departmentId)
   }
 
   // ================== ARRONDISSEMENTS ==================
@@ -190,34 +273,33 @@ export class GeographieService implements IService {
    * Crée un nouvel arrondissement avec validation
    */
   async createDistrict(data: DistrictFormData, userId: string): Promise<District> {
-    // Vérifier que la ville existe
-    const city = await this.cityRepository.getById(data.cityId)
-    if (!city) {
-      throw new Error('Ville introuvable')
+    // Vérifier que la commune existe
+    const commune = await this.communeRepository.getById(data.communeId)
+    if (!commune) {
+      throw new Error('Commune introuvable')
     }
 
     return this.districtRepository.create({
       ...data,
-      displayOrder: data.displayOrder ?? undefined,
       createdBy: userId,
     })
   }
 
   /**
-   * Crée plusieurs arrondissements en masse pour une ville
+   * Crée plusieurs arrondissements en masse pour une commune
    * Génère automatiquement "1er arrondissement", "2ème arrondissement", etc.
    */
-  async createDistrictsBulk(cityId: string, count: number, userId: string): Promise<District[]> {
-    // Vérifier que la ville existe
-    const city = await this.cityRepository.getById(cityId)
-    if (!city) {
-      throw new Error('Ville introuvable')
+  async createDistrictsBulk(communeId: string, count: number, userId: string): Promise<District[]> {
+    // Vérifier que la commune existe
+    const commune = await this.communeRepository.getById(communeId)
+    if (!commune) {
+      throw new Error('Commune introuvable')
     }
 
-    // Vérifier qu'il n'y a pas déjà des arrondissements pour cette ville
-    const existingDistricts = await this.districtRepository.getByCityId(cityId)
+    // Vérifier qu'il n'y a pas déjà des arrondissements pour cette commune
+    const existingDistricts = await this.districtRepository.getByCommuneId(communeId)
     if (existingDistricts.length > 0) {
-      throw new Error('Cette ville a déjà des arrondissements. Veuillez les supprimer d\'abord ou les créer individuellement.')
+      throw new Error('Cette commune a déjà des arrondissements. Veuillez les supprimer d\'abord ou les créer individuellement.')
     }
 
     // Générer les noms des arrondissements
@@ -232,9 +314,8 @@ export class GeographieService implements IService {
       }
 
       districts.push({
-        cityId,
+        communeId,
         name,
-        displayOrder: i,
         createdBy: userId,
       })
     }
@@ -258,17 +339,16 @@ export class GeographieService implements IService {
       throw new Error('Arrondissement introuvable')
     }
 
-    // Si la ville change, vérifier qu'elle existe
-    if (data.cityId && data.cityId !== existing.cityId) {
-      const city = await this.cityRepository.getById(data.cityId)
-      if (!city) {
-        throw new Error('Ville introuvable')
+    // Si la commune change, vérifier qu'elle existe
+    if (data.communeId && data.communeId !== existing.communeId) {
+      const commune = await this.communeRepository.getById(data.communeId)
+      if (!commune) {
+        throw new Error('Commune introuvable')
       }
     }
 
     return this.districtRepository.update(id, {
       ...data,
-      displayOrder: data.displayOrder ?? undefined,
       updatedBy: userId,
     })
   }
@@ -286,10 +366,10 @@ export class GeographieService implements IService {
   }
 
   /**
-   * Récupère tous les arrondissements d'une ville
+   * Récupère tous les arrondissements d'une commune
    */
-  async getDistrictsByCityId(cityId: string): Promise<District[]> {
-    return this.districtRepository.getByCityId(cityId)
+  async getDistrictsByCommuneId(communeId: string): Promise<District[]> {
+    return this.districtRepository.getByCommuneId(communeId)
   }
 
   /**
@@ -309,8 +389,8 @@ export class GeographieService implements IService {
   /**
    * Recherche des arrondissements
    */
-  async searchDistricts(searchTerm: string, cityId?: string): Promise<District[]> {
-    return this.districtRepository.searchByName(searchTerm, cityId)
+  async searchDistricts(searchTerm: string, communeId?: string): Promise<District[]> {
+    return this.districtRepository.searchByName(searchTerm, communeId)
   }
 
   // ================== QUARTIERS ==================
@@ -327,7 +407,6 @@ export class GeographieService implements IService {
 
     return this.quarterRepository.create({
       ...data,
-      displayOrder: data.displayOrder ?? undefined,
       createdBy: userId,
     })
   }
@@ -351,7 +430,6 @@ export class GeographieService implements IService {
 
     return this.quarterRepository.update(id, {
       ...data,
-      displayOrder: data.displayOrder ?? undefined,
       updatedBy: userId,
     })
   }
