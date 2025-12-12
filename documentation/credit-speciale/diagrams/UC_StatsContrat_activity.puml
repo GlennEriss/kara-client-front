@@ -1,0 +1,10 @@
+@startuml
+title Activité – Consulter stats contrat (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:UI charge stats contrat (montant emprunté, durée, versé, reste);
+:Service calcule stats (Repo);
+:UI affiche stats (montant, durée, versé, reste, pourcentage remboursé);
+stop
+@enduml
+

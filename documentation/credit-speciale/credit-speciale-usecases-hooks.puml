@@ -1,0 +1,69 @@
+@startuml
+title Use cases – Package Hooks / Mediators (Crédit spéciale)
+left to right direction
+skinparam actorStyle awesome
+
+actor Client
+actor "Équipe Kara (Admin)" as Admin
+actor Garant
+
+usecase "Initialiser les formulaires\n(demande, simulation, versement)" as UC_InitForms
+usecase "Valider les champs\n(schema, règles métier)" as UC_Validate
+usecase "Précharger données\n(membre, garant, statuts CI)" as UC_Prefetch
+usecase "Gérer pagination / filtres / recherche\n(sync URL, cache)" as UC_Pagination
+usecase "Orchestrer simulations\n(standard + perso)" as UC_Simu
+usecase "Composer tableaux récap\n(limite vs personnalisé)" as UC_Tableaux
+usecase "Déclencher génération contrat\net upload signé" as UC_ContractFlow
+usecase "Gérer versements\n(et pièces jointes)" as UC_Payments
+usecase "Gérer pénalités & retard\n(calc client-side, affichage)" as UC_Penalites
+usecase "Invalider / rafraîchir cache\naprès action (mutation)" as UC_Cache
+usecase "Gérer onglets et stats\n(demandes: pending/approved/rejected,\ncontrats: actifs/retard/pénalités/à jour)" as UC_Tabs
+usecase "Trier par échéance la plus proche\n(contrats)" as UC_SortDue
+usecase "Préparer exports PDF/Excel\n(demandes, contrats)" as UC_Export
+usecase "Préparer reçu PDF après versement" as UC_Recu
+usecase "Afficher badge de score\n(admin-only)" as UC_Score
+usecase "Préparer vue rémunérations garant\n(historiques, périodes)" as UC_RemunGarant
+
+UC_InitForms --> UC_Validate
+UC_InitForms --> UC_Prefetch
+UC_Pagination --> UC_Simu
+UC_Pagination --> UC_Payments
+UC_Simu --> UC_Tableaux
+UC_ContractFlow --> UC_Cache
+UC_Payments --> UC_Cache
+UC_Penalites --> UC_Cache
+UC_Tabs --> UC_Pagination
+UC_Export --> UC_Cache
+UC_Recu --> UC_Cache
+UC_Score --> UC_Cache
+UC_RemunGarant --> UC_Cache
+
+Client --> UC_InitForms
+Client --> UC_Pagination
+Client --> UC_ContractFlow
+Client --> UC_Penalites
+
+Admin --> UC_InitForms
+Admin --> UC_Pagination
+Admin --> UC_Simu
+Admin --> UC_Tableaux
+Admin --> UC_ContractFlow
+Admin --> UC_Payments
+Admin --> UC_Penalites
+Admin --> UC_Tabs
+Admin --> UC_SortDue
+Admin --> UC_Export
+Admin --> UC_Recu
+Admin --> UC_Score
+Admin --> UC_RemunGarant
+
+Garant --> UC_RemunGarant
+
+note right of UC_Pagination
+  Gestion des filtres (statut, type, retard),
+  recherche texte, tri, page/limit,
+  sync URL et cache React Query.
+end note
+
+@enduml
+

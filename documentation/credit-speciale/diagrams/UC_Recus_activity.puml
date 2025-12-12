@@ -1,0 +1,10 @@
+@startuml
+title Activité – Consulter reçus de paiement (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:UI charge liste reçus (Repo);
+:Service récupère reçus (Repo paiements);
+:UI affiche liste reçus (dates, montants, liens PDF);
+stop
+@enduml
+

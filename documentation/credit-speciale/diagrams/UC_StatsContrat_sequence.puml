@@ -1,0 +1,31 @@
+@startuml
+title Séquence – Consulter stats contrat (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load stats contrat
+Hooks -> Service : getContractStats creditId
+Service -> Repo : getById creditId
+Repo --> Service : Crédit montantTotal createdAt
+Service -> RepoPay : getTotalPaid creditId
+RepoPay --> Service : Montant versé total
+Service -> Service : Calculer durée createdAt à maintenant
+Service -> Service : Calculer reste montantTotal moins montantVersé
+Service -> Service : Calculer pourcentage remboursé
+Service --> Hooks : Stats montant durée versé reste pourcentage
+Hooks --> UI : Afficher stats
+UI --> User : Stats contrat affichées
+
+note right of Service
+Stats : montant emprunté, durée, versé, reste,
+pourcentage remboursé
+end note
+
+@enduml
+

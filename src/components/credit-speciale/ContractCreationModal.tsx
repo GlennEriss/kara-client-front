@@ -1,0 +1,688 @@
+'use client'
+
+import React, { useState, useEffect, useMemo } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { 
+  Loader2, 
+  CheckCircle,
+  ArrowRight,
+  ArrowLeft,
+  User,
+  Users,
+  Phone,
+  DollarSign,
+  Percent,
+  Calendar,
+  AlertTriangle,
+  FileText
+} from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import type { CreditDemand, StandardSimulation, CustomSimulation } from '@/types/types'
+import { EmergencyContact } from '@/schemas/emergency-contact.schema'
+import EmergencyContactForm from '@/components/caisse-speciale/forms/EmergencyContactForm'
+import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+import routes from '@/constantes/routes'
+
+interface ContractCreationModalProps {
+  isOpen: boolean
+  onClose: () => void
+  demand: CreditDemand
+  simulation: StandardSimulation | CustomSimulation
+}
+
+type Step = 'summary' | 'guarantor' | 'emergency' | 'confirm'
+
+// Fonction d'arrondi personnalisée
+const customRound = (num: number): number => {
+  const decimalPart = num - Math.floor(num)
+  if (decimalPart >= 0.5) {
+    return Math.ceil(num)
+  } else {
+    return Math.floor(num)
+  }
+}
+
+export default function ContractCreationModal({
+  isOpen,
+  onClose,
+  demand,
+  simulation
+}: ContractCreationModalProps) {
+  const router = useRouter()
+  const { createFromDemand } = useCreditContractMutations()
+  
+  const [currentStep, setCurrentStep] = useState<Step>('summary')
+  const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2%
+
+  // Déterminer si le garant est un parrain (et donc doit recevoir une rémunération)
+  const hasGuarantor = !!demand.guarantorId
+  const guarantorIsParrain = hasGuarantor && demand.guarantorIsMember // Le parrain est un membre qui a parrainé
+
+  // Calcul des étapes selon le contexte
+  const steps = useMemo(() => {
+    const baseSteps: Step[] = ['summary']
+    if (guarantorIsParrain) {
+      baseSteps.push('guarantor')
+    }
+    baseSteps.push('emergency', 'confirm')
+    return baseSteps
+  }, [guarantorIsParrain])
+
+  const currentStepIndex = steps.indexOf(currentStep)
+  const isLastStep = currentStepIndex === steps.length - 1
+  const isFirstStep = currentStepIndex === 0
+
+  // Réinitialiser les étapes quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep('summary')
+      setEmergencyContact({})
+      setGuarantorRemunerationPercentage(2) // Réinitialiser à 2% par défaut
+    }
+  }, [isOpen])
+
+  // Calculer l'échéancier pour l'affichage
+  const schedule = useMemo(() => {
+    const result = simulation
+    const monthlyRate = result.interestRate / 100
+    const firstDate = new Date(result.firstPaymentDate)
+    const monthlyPayment = 'monthlyPayment' in result 
+      ? result.monthlyPayment 
+      : result.monthlyPayments[0]?.amount || 0
+    
+    let remaining = result.amount
+    const items: Array<{
+      month: number
+      date: Date
+      payment: number
+      interest: number
+      principal: number
+      remaining: number
+    }> = []
+
+    for (let i = 0; i < result.duration; i++) {
+      if (remaining <= 0) break
+
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      const interest = remaining * monthlyRate
+      const balanceWithInterest = remaining + interest
+      
+      let payment: number
+      if (remaining < monthlyPayment) {
+        payment = remaining
+        remaining = 0
+      } else {
+        payment = monthlyPayment
+        remaining = Math.max(0, balanceWithInterest - payment)
+      }
+
+      items.push({
+        month: i + 1,
+        date,
+        payment: customRound(payment),
+        interest: customRound(interest),
+        principal: customRound(balanceWithInterest),
+        remaining: customRound(remaining),
+      })
+    }
+
+    return items
+  }, [simulation])
+
+  // Calculer le tableau de rémunération du parrain (pourcentage personnalisé de chaque mensualité)
+  const guarantorRemunerationSchedule = useMemo(() => {
+    if (!guarantorIsParrain) return []
+    
+    return schedule.map(item => ({
+      month: item.month,
+      date: item.date,
+      monthlyPayment: item.payment,
+      guarantorAmount: customRound(item.payment * guarantorRemunerationPercentage / 100),
+    }))
+  }, [schedule, guarantorIsParrain, guarantorRemunerationPercentage])
+
+  const totalGuarantorRemuneration = guarantorRemunerationSchedule.reduce(
+    (sum, item) => sum + item.guarantorAmount, 
+    0
+  )
+
+  // Validation du contact d'urgence
+  const isEmergencyContactValid = useMemo(() => {
+    return (
+      emergencyContact.lastName?.trim() &&
+      emergencyContact.phone1?.trim() &&
+      emergencyContact.relationship?.trim() &&
+      emergencyContact.typeId?.trim() &&
+      emergencyContact.idNumber?.trim() &&
+      emergencyContact.documentPhotoUrl?.trim()
+    )
+  }, [emergencyContact])
+
+  // Gérer la mise à jour du contact d'urgence
+  const handleEmergencyContactUpdate = (field: string, value: any) => {
+    setEmergencyContact(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Navigation entre étapes
+  const goToNextStep = () => {
+    const nextIndex = currentStepIndex + 1
+    if (nextIndex < steps.length) {
+      setCurrentStep(steps[nextIndex])
+    }
+  }
+
+  const goToPreviousStep = () => {
+    const prevIndex = currentStepIndex - 1
+    if (prevIndex >= 0) {
+      setCurrentStep(steps[prevIndex])
+    }
+  }
+
+  // Créer le contrat
+  const handleCreateContract = async () => {
+    if (!isEmergencyContactValid) {
+      toast.error('Veuillez remplir tous les champs du contact d\'urgence')
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+
+      const simulationData = {
+        interestRate: simulation.interestRate,
+        monthlyPaymentAmount: 'monthlyPayment' in simulation 
+          ? simulation.monthlyPayment 
+          : simulation.monthlyPayments.length > 0 
+            ? simulation.monthlyPayments[0].amount 
+            : simulation.amount / simulation.duration,
+        duration: simulation.duration,
+        firstPaymentDate: simulation.firstPaymentDate,
+        totalAmount: simulation.totalAmount,
+        emergencyContact: emergencyContact as EmergencyContact,
+        guarantorRemunerationPercentage: guarantorIsParrain ? guarantorRemunerationPercentage : 0,
+      }
+
+      await createFromDemand.mutateAsync({
+        demandId: demand.id,
+        simulationData,
+      })
+
+      toast.success('Contrat créé avec succès')
+      // Attendre un peu pour que les queries soient invalidées
+      await new Promise(resolve => setTimeout(resolve, 500))
+      onClose()
+      // Rediriger vers les contrats ou rester sur la page des demandes
+      router.push(routes.admin.creditSpecialeContrats)
+    } catch (error: any) {
+      console.error('Erreur lors de la création du contrat:', error)
+      toast.error(error?.message || 'Erreur lors de la création du contrat')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Vérifier si on peut passer à l'étape suivante
+  const canProceed = () => {
+    switch (currentStep) {
+      case 'summary':
+        return true
+      case 'guarantor':
+        // Valider que le pourcentage est entre 0 et 2
+        return guarantorRemunerationPercentage >= 0 && guarantorRemunerationPercentage <= 2
+      case 'emergency':
+        return isEmergencyContactValid
+      case 'confirm':
+        return isEmergencyContactValid
+      default:
+        return false
+    }
+  }
+
+  const renderStepIndicator = () => (
+    <div className="flex items-center justify-center space-x-2 mb-6">
+      {steps.map((step, index) => (
+        <React.Fragment key={step}>
+          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-colors ${
+            index < currentStepIndex 
+              ? 'bg-green-500 text-white' 
+              : index === currentStepIndex 
+                ? 'bg-[#234D65] text-white' 
+                : 'bg-gray-200 text-gray-500'
+          }`}>
+            {index < currentStepIndex ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              index + 1
+            )}
+          </div>
+          {index < steps.length - 1 && (
+            <div className={`w-12 h-1 rounded ${
+              index < currentStepIndex ? 'bg-green-500' : 'bg-gray-200'
+            }`} />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  )
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 'summary':
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-[#234D65]">Récapitulatif de la simulation</h3>
+              <p className="text-gray-600 text-sm">Vérifiez les détails avant de continuer</p>
+            </div>
+
+            {/* Infos client */}
+            <Card className="border-[#234D65]/20">
+              <CardHeader className="py-3 bg-[#234D65]/5">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Informations client
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">Nom complet:</span>
+                    <span className="ml-2 font-medium">{demand.clientFirstName} {demand.clientLastName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Type de crédit:</span>
+                    <span className="ml-2">
+                      <Badge variant="outline">{demand.creditType}</Badge>
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Résumé simulation */}
+            <Card className="border-green-200 bg-green-50/50">
+              <CardHeader className="py-3 bg-green-100/50">
+                <CardTitle className="text-sm flex items-center gap-2 text-green-800">
+                  <DollarSign className="w-4 h-4" />
+                  Simulation validée
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="text-center p-2 bg-white rounded-lg">
+                    <p className="text-gray-500">Montant</p>
+                    <p className="font-bold text-lg">{simulation.amount.toLocaleString('fr-FR')} FCFA</p>
+                  </div>
+                  <div className="text-center p-2 bg-white rounded-lg">
+                    <p className="text-gray-500">Mensualité</p>
+                    <p className="font-bold text-lg">
+                      {'monthlyPayment' in simulation 
+                        ? simulation.monthlyPayment.toLocaleString('fr-FR') 
+                        : simulation.monthlyPayments[0]?.amount.toLocaleString('fr-FR') || '-'} FCFA
+                    </p>
+                  </div>
+                  <div className="text-center p-2 bg-white rounded-lg">
+                    <p className="text-gray-500">Durée</p>
+                    <p className="font-bold text-lg">{simulation.duration} mois</p>
+                  </div>
+                  <div className="text-center p-2 bg-white rounded-lg">
+                    <p className="text-gray-500">Total à rembourser</p>
+                    <p className="font-bold text-lg">{customRound(simulation.totalAmount).toLocaleString('fr-FR')} FCFA</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Échéancier */}
+            <div className="max-h-60 overflow-y-auto border rounded-lg">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white">
+                  <TableRow>
+                    <TableHead>Mois</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Mensualité</TableHead>
+                    <TableHead className="text-right">Intérêts</TableHead>
+                    <TableHead className="text-right">Reste dû</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedule.map((row) => (
+                    <TableRow key={row.month}>
+                      <TableCell className="font-medium">M{row.month}</TableCell>
+                      <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                      <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                      <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                      <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Info garant si présent */}
+            {hasGuarantor && (
+              <Card className="border-blue-200 bg-blue-50/50">
+                <CardHeader className="py-3 bg-blue-100/50">
+                  <CardTitle className="text-sm flex items-center gap-2 text-blue-800">
+                    <Users className="w-4 h-4" />
+                    Garant
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{demand.guarantorFirstName} {demand.guarantorLastName}</p>
+                      <p className="text-sm text-gray-500">{demand.guarantorRelation}</p>
+                    </div>
+                    {guarantorIsParrain && (
+                      <Badge className="bg-purple-500">Parrain - Éligible rémunération</Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )
+
+      case 'guarantor':
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-[#234D65]">Rémunération du parrain</h3>
+              <p className="text-gray-600 text-sm">Le parrain gagne un pourcentage de chaque mensualité versée (0% à 2%)</p>
+            </div>
+
+            <Alert className="border-purple-200 bg-purple-50">
+              <Users className="h-4 w-4 text-purple-600" />
+              <AlertDescription className="text-purple-800">
+                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est le parrain du client et recevra une rémunération sur chaque mensualité payée.
+              </AlertDescription>
+            </Alert>
+
+            {/* Champ de saisie du pourcentage */}
+            <Card className="border-purple-200 bg-purple-50/50">
+              <CardContent className="py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="remunerationPercentage" className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                    <Percent className="w-4 h-4" />
+                    Pourcentage de rémunération (%)
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="remunerationPercentage"
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={guarantorRemunerationPercentage}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value)
+                        if (!isNaN(value)) {
+                          // Limiter entre 0 et 2
+                          const clampedValue = Math.max(0, Math.min(2, value))
+                          setGuarantorRemunerationPercentage(clampedValue)
+                        } else if (e.target.value === '') {
+                          setGuarantorRemunerationPercentage(0)
+                        }
+                      }}
+                      className="w-32 border-purple-300 focus:border-purple-500 focus:ring-purple-500/20"
+                      placeholder="2.0"
+                    />
+                    <span className="text-sm text-gray-600">% (entre 0% et 2%)</span>
+                  </div>
+                  {(guarantorRemunerationPercentage < 0 || guarantorRemunerationPercentage > 2) && (
+                    <p className="text-sm text-red-600">
+                      Le pourcentage doit être compris entre 0% et 2%
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tableau de rémunération */}
+            <Card>
+              <CardHeader className="py-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Percent className="w-4 h-4" />
+                  Tableau de rémunération ({guarantorRemunerationPercentage}% par mensualité)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="max-h-60 overflow-y-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-white">
+                      <TableRow>
+                        <TableHead>Mois</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Mensualité client</TableHead>
+                        <TableHead className="text-right">Rémunération parrain ({guarantorRemunerationPercentage}%)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {guarantorRemunerationSchedule.map((row) => (
+                        <TableRow key={row.month}>
+                          <TableCell className="font-medium">M{row.month}</TableCell>
+                          <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                          <TableCell className="text-right">{row.monthlyPayment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right text-purple-600 font-medium">
+                            {row.guarantorAmount.toLocaleString('fr-FR')} FCFA
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total */}
+            <div className="p-4 bg-purple-100 rounded-lg flex items-center justify-between">
+              <span className="font-medium text-purple-800">Total rémunération parrain:</span>
+              <span className="text-xl font-bold text-purple-600">
+                {totalGuarantorRemuneration.toLocaleString('fr-FR')} FCFA
+              </span>
+            </div>
+          </div>
+        )
+
+      case 'emergency':
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-[#234D65]">Contact d'urgence</h3>
+              <p className="text-gray-600 text-sm">Renseignez une personne à contacter en cas d'urgence</p>
+            </div>
+
+            <EmergencyContactForm
+              emergencyContact={{
+                lastName: emergencyContact.lastName || '',
+                firstName: emergencyContact.firstName || '',
+                phone1: emergencyContact.phone1 || '',
+                phone2: emergencyContact.phone2 || '',
+                relationship: emergencyContact.relationship || 'Autre',
+                idNumber: emergencyContact.idNumber || '',
+                typeId: emergencyContact.typeId || '',
+                documentPhotoUrl: emergencyContact.documentPhotoUrl || '',
+              }}
+              onUpdate={handleEmergencyContactUpdate}
+            />
+          </div>
+        )
+
+      case 'confirm':
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-lg font-semibold text-[#234D65]">Confirmation</h3>
+              <p className="text-gray-600 text-sm">Vérifiez les informations avant de créer le contrat</p>
+            </div>
+
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                Toutes les informations sont complètes. Vous pouvez créer le contrat.
+              </AlertDescription>
+            </Alert>
+
+            {/* Récapitulatif final */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="border-gray-200">
+                <CardHeader className="py-2 bg-gray-50">
+                  <CardTitle className="text-sm">Client</CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 text-sm">
+                  <p className="font-medium">{demand.clientFirstName} {demand.clientLastName}</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-gray-200">
+                <CardHeader className="py-2 bg-gray-50">
+                  <CardTitle className="text-sm">Montant & Durée</CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 text-sm">
+                  <p>{simulation.amount.toLocaleString('fr-FR')} FCFA sur {simulation.duration} mois</p>
+                </CardContent>
+              </Card>
+
+              {hasGuarantor && (
+                <Card className="border-gray-200">
+                  <CardHeader className="py-2 bg-gray-50">
+                    <CardTitle className="text-sm">Garant</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-2 text-sm">
+                    <p className="font-medium">{demand.guarantorFirstName} {demand.guarantorLastName}</p>
+                    {guarantorIsParrain && (
+                      <Badge className="mt-1 bg-purple-500">
+                        Parrain - {guarantorRemunerationPercentage}%
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="border-gray-200">
+                <CardHeader className="py-2 bg-gray-50">
+                  <CardTitle className="text-sm">Contact d'urgence</CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 text-sm">
+                  <p className="font-medium">{emergencyContact.lastName} {emergencyContact.firstName}</p>
+                  <p className="text-gray-500">{emergencyContact.phone1}</p>
+                  <p className="text-gray-500">{emergencyContact.relationship}</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 'summary':
+        return 'Étape 1 - Récapitulatif'
+      case 'guarantor':
+        return 'Étape 2 - Rémunération parrain'
+      case 'emergency':
+        return guarantorIsParrain ? 'Étape 3 - Contact d\'urgence' : 'Étape 2 - Contact d\'urgence'
+      case 'confirm':
+        return 'Confirmation finale'
+      default:
+        return ''
+    }
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="!max-w-[90vw] !w-[90vw] max-h-[95vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-[#234D65] flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Création du contrat de crédit spéciale
+          </DialogTitle>
+          <DialogDescription>
+            {getStepTitle()}
+          </DialogDescription>
+        </DialogHeader>
+
+        {renderStepIndicator()}
+
+        <div className="py-4">
+          {renderStepContent()}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={isFirstStep ? onClose : goToPreviousStep}
+            disabled={isSubmitting}
+          >
+            {isFirstStep ? (
+              'Annuler'
+            ) : (
+              <>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Précédent
+              </>
+            )}
+          </Button>
+
+          {currentStep === 'confirm' ? (
+            <Button
+              onClick={handleCreateContract}
+              disabled={isSubmitting || !canProceed()}
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Création en cours...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Créer le contrat
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={goToNextStep}
+              disabled={!canProceed()}
+              className="bg-[#234D65] hover:bg-[#1a3a4c]"
+            >
+              Suivant
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+

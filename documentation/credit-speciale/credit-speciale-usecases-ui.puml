@@ -1,0 +1,106 @@
+@startuml
+title Use cases – Package UI / Pages (Crédit spéciale / fixe / aide)
+left to right direction
+skinparam actorStyle awesome
+
+actor Client
+actor "Équipe Kara (Admin)" as Admin
+actor Garant
+
+usecase "Consulter le tableau de bord\n(stats globales, retard, montants, pénalités)" as UC_Dashboard
+usecase "Filtrer / rechercher / paginer\ncrédits (statut, type, membre, garant)" as UC_Filtre
+usecase "Créer une demande pour un client" as UC_CreateDemande
+usecase "Saisir une demande (client connecté)" as UC_SelfDemande
+usecase "Voir la fiche crédit" as UC_Fiche
+usecase "Lancer la simulation standard\n(et afficher durée, intérêts)" as UC_SimuStd
+usecase "Lancer la simulation personnalisée\n(montants mensuels variables)" as UC_SimuPerso
+usecase "Afficher les tableaux récap\n(limite 7/3 mois vs personnalisé)" as UC_Tableaux
+usecase "Générer / télécharger le contrat" as UC_DlContrat
+usecase "Téléverser le contrat signé" as UC_UploadContrat
+usecase "Enregistrer un versement\n(montant, moyen, preuve, note)" as UC_Payment
+usecase "Consulter pénalités & retard\n(indicateurs, badge)" as UC_Penalites
+usecase "Consulter l'historique\n(demandes, statuts, notifications,\nversements)" as UC_Histo
+usecase "Consulter l'historique des versements\n(dates, montants, preuves, pénalités)" as UC_HistoPay
+usecase "Basculer onglets demandes\n(en attente, acceptées, refusées)\navec stats par onglet" as UC_TabsDemandes
+usecase "Basculer onglets contrats\n(actifs, retard, pénalités, à jour)\navec stats par onglet" as UC_TabsContrats
+usecase "Trier par échéance la plus proche" as UC_SortDue
+usecase "Exporter demandes\n(PDF / Excel)" as UC_ExportDemandes
+usecase "Exporter contrats\n(PDF / Excel)" as UC_ExportContrats
+usecase "Générer contrat vierge à signer\n(remise au client)" as UC_ContratVierge
+usecase "Consulter contrat signé\n(PDF téléversé)" as UC_ContratSigne
+usecase "Consulter stats contrat\n(montant emprunté, durée, versé, reste)" as UC_StatsContrat
+usecase "Consulter reçus de paiement\n(PDF)" as UC_Recus
+usecase "Afficher la note fiabilité emprunteur\n(badge admin-only)" as UC_Score
+usecase "Consulter ses rémunérations de garant\n(historiques, montants, périodes)" as UC_RemunGarant
+
+UC_SimuStd <|-- UC_SimuPerso : <<extend>>
+UC_SimuStd <|-- UC_Tableaux : <<include>>
+UC_SimuPerso <|-- UC_Tableaux : <<include>>
+UC_Fiche <|-- UC_Penalites : <<include>>
+UC_Fiche <|-- UC_DlContrat : <<include>>
+UC_Fiche <|-- UC_UploadContrat : <<include>>
+UC_Fiche <|-- UC_Payment : <<include>>
+UC_Fiche <|-- UC_Histo : <<include>>
+UC_Histo <|-- UC_HistoPay : <<include>>
+UC_Fiche <|-- UC_StatsContrat : <<include>>
+UC_Fiche <|-- UC_ContratSigne : <<include>>
+UC_Fiche <|-- UC_Recus : <<include>>
+UC_DlContrat <|-- UC_ContratVierge : <<extend>>
+UC_Fiche <|-- UC_Score : <<include>>
+
+Client --> UC_SelfDemande
+Client --> UC_Fiche
+Client --> UC_DlContrat
+Client --> UC_UploadContrat
+Client --> UC_Penalites
+Client --> UC_Histo
+Client --> UC_HistoPay
+Client --> UC_StatsContrat
+Client --> UC_ContratSigne
+Client --> UC_Recus
+Garant --> UC_RemunGarant
+
+Admin --> UC_Dashboard
+Admin --> UC_Filtre
+Admin --> UC_CreateDemande
+Admin --> UC_Fiche
+Admin --> UC_SimuStd
+Admin --> UC_SimuPerso
+Admin --> UC_Tableaux
+Admin --> UC_DlContrat
+Admin --> UC_UploadContrat
+Admin --> UC_Payment
+Admin --> UC_Penalites
+Admin --> UC_Histo
+Admin --> UC_HistoPay
+Admin --> UC_TabsDemandes
+Admin --> UC_TabsContrats
+Admin --> UC_SortDue
+Admin --> UC_ExportDemandes
+Admin --> UC_ExportContrats
+Admin --> UC_ContratVierge
+Admin --> UC_ContratSigne
+Admin --> UC_StatsContrat
+Admin --> UC_Recus
+Admin --> UC_Score
+Admin --> UC_RemunGarant
+
+note right of UC_Score
+  Badge visible uniquement pour l'admin,
+  jamais affiché au client.
+end note
+
+note right of UC_Filtre
+  Filtres : statut, type crédit,
+  membre, garant, date, retard,
+  montant, pénalités, recherche texte.
+end note
+
+note right of UC_Dashboard
+  KPI : actifs, retard, montants dus,
+  pénalités impayées, transformations,
+  remboursements terminés.
+end note
+
+@enduml
+

@@ -1,0 +1,20 @@
+@startuml
+title Activité – Filtrer / rechercher crédits (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre l'écran listes (demandes/contrats);
+:Admin sélectionne filtres (statut, type, membre, garant, date, retard, texte);
+:UI synchronise filtres avec URL (query params);
+:Hooks prépare requête filtrée;
+:Service applique filtres (statut, type, membre, garant, retard, texte);
+:Repo exécute requête Firestore (where clauses);
+:Repo retourne résultats paginés;
+:UI affiche résultats filtrés;
+if (Admin modifie filtres ?) then (oui)
+  :Mettre à jour URL;
+  :Invalider cache React Query;
+  :Relancer requête;
+else (non)
+endif
+stop
+@enduml
+

@@ -1,0 +1,138 @@
+@startuml
+title Use cases – Package Services (Crédit spéciale / fixe / aide)
+left to right direction
+skinparam actorStyle awesome
+
+actor "Équipe Kara" as Kara
+actor Client
+actor Garant
+actor "Notifications" as Notif
+actor "Documents" as Docs
+actor "Repositories" as Repo
+actor "Caisse imprévue / Membership" as CI
+
+usecase "Gérer demandes\n(PENDING → APPROVED/REJECTED)" as UC_Demande
+usecase "Calculer simulation standard\n(durée, intérêts, 1er versement)" as UC_SimuStd
+usecase "Calculer simulation personnalisée\n(montants par mois)" as UC_SimuPerso
+usecase "Générer tableaux récap\n(limite 7/3 vs personnalisé)" as UC_Tableaux
+usecase "Vérifier éligibilité\n(client ou garant à jour CI)" as UC_Elig
+usecase "Gérer garant\n(membre/admin, lien, statut)" as UC_Garant
+usecase "Générer contrat PDF\n(depuis template)" as UC_Contrat
+usecase "Gérer signature / remise fonds" as UC_Signature
+usecase "Enregistrer versement\n(montant, moyen, preuve, note)" as UC_Versement
+usecase "Calculer pénalités\n(règle de 3)" as UC_Penalites
+usecase "Gérer retard & statut\n(OVERDUE, PARTIAL)" as UC_Retard
+usecase "Transformer en crédit fixe\naprès 7 mois" as UC_Transform
+usecase "Bloquer nouvelle demande\nsi pénalités impayées" as UC_Blocage
+usecase "Rémunérer garant membre\n(2% mensuel)" as UC_Remun
+usecase "Générer décharge\n(fin de remboursement)" as UC_Decharge
+usecase "Calculer statistiques\n(totaux, retard, pénalités, transformations)" as UC_Stats
+usecase "Filtrer / rechercher\npar statut, type, membre, garant, retard" as UC_Filtre
+usecase "Lister l'historique des versements\n(dates, montants, preuves, pénalités)" as UC_HistoPay
+usecase "Gérer onglets demandes\n(pending/approved/rejected)\n+ stats par onglet" as UC_TabsDemandes
+usecase "Gérer onglets contrats\n(actifs/retard/pénalités/à jour)\n+ stats par onglet" as UC_TabsContrats
+usecase "Trier par échéance la plus proche\n(des contrats)" as UC_SortDue
+usecase "Activer contrat après upload signé" as UC_Activate
+usecase "Générer contrat vierge à signer" as UC_ContratVierge
+usecase "Exporter listes demandes\n(PDF/Excel)" as UC_ExportDemandes
+usecase "Exporter listes contrats\n(PDF/Excel)" as UC_ExportContrats
+usecase "Générer reçu de paiement (PDF)" as UC_Recu
+usecase "Calculer score fiabilité emprunteur\n(0-10, admin-only)" as UC_Scoring
+usecase "Mettre à jour score après paiement\n(retard/ponctualité)" as UC_UpdateScore
+usecase "Afficher score sur demande/contrat\n(admin-only)" as UC_ShowScore
+
+UC_SimuStd <|-- UC_Tableaux : <<include>>
+UC_SimuPerso <|-- UC_Tableaux : <<include>>
+UC_Versement <|-- UC_Penalites : <<include>>
+UC_Retard <|-- UC_Penalites : <<extend>>
+UC_Transform <|-- UC_Blocage : <<include>>
+UC_Decharge <|-- UC_Stats : <<extend>>
+UC_Filtre <|-- UC_Stats : <<include>>
+UC_Versement <|-- UC_HistoPay : <<include>>
+UC_Contrat <|-- UC_ContratVierge : <<extend>>
+UC_Signature <|-- UC_Activate : <<include>>
+UC_Versement <|-- UC_Recu : <<include>>
+UC_Filtre <|-- UC_SortDue : <<include>>
+UC_Stats <|-- UC_TabsDemandes : <<extend>>
+UC_Stats <|-- UC_TabsContrats : <<extend>>
+UC_Scoring <|-- UC_ShowScore : <<include>>
+UC_Versement <|-- UC_UpdateScore : <<include>>
+UC_UpdateScore <|-- UC_Scoring : <<include>>
+
+Kara --> UC_Demande
+Kara --> UC_SimuStd
+Kara --> UC_SimuPerso
+Kara --> UC_Tableaux
+Kara --> UC_Elig
+Kara --> UC_Garant
+Kara --> UC_Contrat
+Kara --> UC_Signature
+Kara --> UC_Versement
+Kara --> UC_Retard
+Kara --> UC_Transform
+Kara --> UC_Blocage
+Kara --> UC_Remun
+Kara --> UC_Decharge
+Kara --> UC_Stats
+Kara --> UC_Filtre
+Kara --> UC_HistoPay
+Kara --> UC_TabsDemandes
+Kara --> UC_TabsContrats
+Kara --> UC_SortDue
+Kara --> UC_Activate
+Kara --> UC_ContratVierge
+Kara --> UC_ExportDemandes
+Kara --> UC_ExportContrats
+Kara --> UC_Recu
+Kara --> UC_Scoring
+Kara --> UC_ShowScore
+Garant --> UC_Remun
+
+Client --> UC_Signature
+
+UC_Demande --> Repo
+UC_SimuStd --> Repo
+UC_SimuPerso --> Repo
+UC_Tableaux --> Repo
+UC_Elig --> CI
+UC_Garant --> Repo
+UC_Contrat --> Docs
+UC_Signature --> Docs
+UC_Versement --> Repo
+UC_Penalites --> Repo
+UC_Retard --> Repo
+UC_Transform --> Repo
+UC_Blocage --> Repo
+UC_Remun --> Repo
+UC_Decharge --> Docs
+UC_Stats --> Repo
+UC_Filtre --> Repo
+UC_TabsDemandes --> Repo
+UC_TabsContrats --> Repo
+UC_SortDue --> Repo
+UC_ContratVierge --> Docs
+UC_ExportDemandes --> Repo
+UC_ExportContrats --> Repo
+UC_Recu --> Docs
+UC_Scoring --> Repo
+UC_UpdateScore --> Repo
+UC_ShowScore --> Repo
+
+UC_Demande --> Notif
+UC_Versement --> Notif
+UC_Penalites --> Notif
+UC_Retard --> Notif
+UC_Transform --> Notif
+UC_Blocage --> Notif
+UC_Decharge --> Notif
+UC_Activate --> Notif
+UC_Recu --> Notif
+
+note right of UC_Stats
+  Totaux, actifs, en retard, pénalités dues,
+  transformations, montants dus/payés,
+  par type (spéciale/fixe/aide).
+end note
+
+@enduml
+

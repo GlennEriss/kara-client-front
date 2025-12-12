@@ -1,0 +1,75 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor Système
+actor Garant
+
+usecase "Enregistrer la demande\net son statut (`PENDING`)" as UC_Demande
+usecase "Proposer la simulation auto\n(montant, taux, durée, 1er versement)" as UC_SimuAuto
+usecase "Valider la simulation vs limites\n(7 mois spéciale, 3 mois aide)" as UC_SimuValidation
+usecase "Proposer un montant minimum\nsi dépassement" as UC_ProposeMin
+usecase "Générer les tableaux récap\n(limite vs personnalisé)" as UC_Tableaux
+usecase "Vérifier l'éligibilité\n(client ou garant à jour CI)" as UC_Elig
+usecase "Générer le contrat PDF" as UC_Contrat
+usecase "Accepter le téléversement\ndu contrat signé" as UC_Remise
+usecase "Tracer et calculer les versements\n+ pièces justificatives" as UC_Versements
+usecase "Calculer les pénalités\n(règle de 3)" as UC_Penalites
+usecase "Notifier des pénalités\net enregistrer le choix" as UC_NotifPen
+usecase "Transformer en crédit fixe\naprès 7 mois (supprimer intérêts)" as UC_Transform
+usecase "Bloquer une nouvelle demande\nsi pénalités impayées" as UC_Blocage
+usecase "Générer la décharge" as UC_Decharge
+usecase "Rémunérer le garant membre\n(2% du mensuel)" as UC_Remun
+usecase "Planifier les rappels\net notifications d'échéance" as UC_Rappels
+usecase "Archiver documents\net suivre les statistiques" as UC_Archive
+usecase "Gérer onglets + stats\n(demandes et contrats)" as UC_Tabs
+usecase "Trier par échéance la plus proche\n(nextDueAt)" as UC_SortDue
+usecase "Notifier contrat activé\n(après upload signé)" as UC_Activate
+usecase "Générer contrat vierge\n(non rempli) pour signature" as UC_ContratVierge
+usecase "Générer reçu de paiement (PDF)" as UC_Recu
+usecase "Préparer exports PDF/Excel\n(demandes, contrats)" as UC_Export
+usecase "Calculer score fiabilité auto\n(0-10, admin-only)" as UC_Scoring
+usecase "Mettre à jour score à chaque paiement\n(retard/ponctualité)" as UC_UpdateScore
+usecase "Exposer score aux écrans admin\n(demandes/contrats, jamais client)" as UC_ShowScore
+
+Système --> UC_Demande
+Système --> UC_SimuAuto
+Système --> UC_SimuValidation
+Système --> UC_ProposeMin
+Système --> UC_Tableaux
+Système --> UC_Elig
+Système --> UC_Contrat
+Système --> UC_Remise
+Système --> UC_Versements
+Système --> UC_Penalites
+Système --> UC_NotifPen
+Système --> UC_Transform
+Système --> UC_Blocage
+Système --> UC_Decharge
+Système --> UC_Remun
+Système --> UC_Rappels
+Système --> UC_Archive
+Système --> UC_Tabs
+Système --> UC_SortDue
+Système --> UC_Activate
+Système --> UC_ContratVierge
+Système --> UC_Recu
+Système --> UC_Export
+Système --> UC_Scoring
+Système --> UC_UpdateScore
+Système --> UC_ShowScore
+Garant --> UC_Remun
+
+note right of UC_SimuValidation
+  Limites : 7 mois (spéciale), 3 mois (aide),
+  illimité (fixe).
+end note
+
+note right of UC_Transform
+  Après 7 mois non remboursé,
+  transformer en crédit fixe et
+  retirer les intérêts.
+end note
+
+@enduml
+

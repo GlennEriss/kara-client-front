@@ -1,0 +1,58 @@
+@startuml
+title Use cases – Package Repositories (Crédit spéciale)
+left to right direction
+skinparam actorStyle awesome
+
+actor "Services Crédit spéciale" as Services
+
+usecase "CRUD crédits\n(create/update status, type, dates)" as UC_Credit
+usecase "CRUD paiements\n(montants, status, dueAt/paidAt)" as UC_Payment
+usecase "CRUD pénalités\n(calculées, payées, reportées)" as UC_Penalty
+usecase "CRUD garanties\n(garant membre/admin, lien, statut CI)" as UC_Garant
+usecase "CRUD contrats signés\n(contratId, urls, meta)" as UC_ContratsDoc
+usecase "Requêtes filtrées\n(statuts, types, retard, pagination)" as UC_Query
+usecase "Agrégations statistiques\n(totaux, montants, pénalités, retard)" as UC_Stats
+usecase "Transactions / batch\n(mise à jour paiement + pénalités)" as UC_Tx
+usecase "Requêtes par onglets\nDemandes (pending/approved/rejected)\nContrats (actifs/retard/pénalités/à jour)" as UC_Tabs
+usecase "Trier par échéance la plus proche\n(nextDueAt)" as UC_SortDue
+usecase "Stocker reçus paiement (PDF)\n& liens" as UC_Recus
+usecase "Exports listes demandes/contrats\n(PDF/Excel sources)" as UC_Export
+usecase "Stocker score fiabilité\n(0-10, admin-only)" as UC_Score
+usecase "Mettre à jour score après paiement\n(retard/ponctualité)" as UC_UpdateScore
+
+UC_Query <|-- UC_Stats : <<include>>
+UC_Payment <|-- UC_Tx : <<include>>
+UC_Penalty <|-- UC_Tx : <<include>>
+UC_Query <|-- UC_Tabs : <<include>>
+UC_Query <|-- UC_SortDue : <<include>>
+UC_Payment <|-- UC_UpdateScore : <<include>>
+
+Services --> UC_Credit
+Services --> UC_Payment
+Services --> UC_Penalty
+Services --> UC_Garant
+Services --> UC_ContratsDoc
+Services --> UC_Query
+Services --> UC_Stats
+Services --> UC_Tx
+Services --> UC_Tabs
+Services --> UC_SortDue
+Services --> UC_Recus
+Services --> UC_Export
+Services --> UC_Score
+Services --> UC_UpdateScore
+
+note right of UC_Query
+  Filtres : statut crédit, type (spéciale/fixe/aide),
+  retard, membre, garant, montant, pénalités,
+  recherche texte, pagination/tri.
+end note
+
+note right of UC_Stats
+  Totaux, actifs, retard, montants dus/payés,
+  pénalités dues/payées, transformations,
+  par type de crédit.
+end note
+
+@enduml
+

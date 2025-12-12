@@ -24,6 +24,14 @@ import { DepartmentRepository } from '@/repositories/geographie/DepartmentReposi
 import { CommuneRepository } from '@/repositories/geographie/CommuneRepository'
 import { DistrictRepository } from '@/repositories/geographie/DistrictRepository'
 import { QuarterRepository } from '@/repositories/geographie/QuarterRepository'
+import { ICreditDemandRepository } from '@/repositories/credit-speciale/ICreditDemandRepository'
+import { ICreditContractRepository } from '@/repositories/credit-speciale/ICreditContractRepository'
+import { ICreditPaymentRepository } from '@/repositories/credit-speciale/ICreditPaymentRepository'
+import { ICreditPenaltyRepository } from '@/repositories/credit-speciale/ICreditPenaltyRepository'
+import { CreditDemandRepository } from '@/repositories/credit-speciale/CreditDemandRepository'
+import { CreditContractRepository } from '@/repositories/credit-speciale/CreditContractRepository'
+import { CreditPaymentRepository } from '@/repositories/credit-speciale/CreditPaymentRepository'
+import { CreditPenaltyRepository } from '@/repositories/credit-speciale/CreditPenaltyRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -208,6 +216,50 @@ export class RepositoryFactory {
       this.repositories.set(key, new QuarterRepository())
     }
     return this.repositories.get(key) as QuarterRepository
+  }
+
+  /**
+   * Obtient le repository des demandes de crédit
+   */
+  static getCreditDemandRepository(): ICreditDemandRepository {
+    const key = 'CreditDemandRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CreditDemandRepository())
+    }
+    return this.repositories.get(key) as ICreditDemandRepository
+  }
+
+  /**
+   * Obtient le repository des contrats de crédit
+   */
+  static getCreditContractRepository(): ICreditContractRepository {
+    const key = 'CreditContractRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CreditContractRepository())
+    }
+    return this.repositories.get(key) as ICreditContractRepository
+  }
+
+  /**
+   * Obtient le repository des paiements de crédit
+   */
+  static getCreditPaymentRepository(): ICreditPaymentRepository {
+    const key = 'CreditPaymentRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CreditPaymentRepository())
+    }
+    return this.repositories.get(key) as ICreditPaymentRepository
+  }
+
+  /**
+   * Obtient le repository des pénalités de crédit
+   */
+  static getCreditPenaltyRepository(): ICreditPenaltyRepository {
+    const key = 'CreditPenaltyRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CreditPenaltyRepository())
+    }
+    return this.repositories.get(key) as ICreditPenaltyRepository
   }
 
   /**

@@ -1,0 +1,11 @@
+@startuml
+title Activité – Générer / télécharger contrat (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:Admin/Client clique "Télécharger contrat";
+:Service récupère données crédit;
+:Service génère ou récupère contrat PDF (Documents);
+:UI télécharge PDF;
+stop
+@enduml
+

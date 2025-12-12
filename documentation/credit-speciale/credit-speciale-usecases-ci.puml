@@ -1,0 +1,30 @@
+@startuml
+title Use cases – Package Caisse imprévue / Membership
+left to right direction
+skinparam actorStyle awesome
+
+actor "Services Crédit spéciale" as Services
+actor "Service CI/Membership" as CI
+
+usecase "Vérifier statut à jour\n(client ou garant)" as UC_CheckStatus
+usecase "Récupérer info membre/garant\n(nom, rôles, contacts)" as UC_GetMember
+usecase "Consigner justification\nsi dérogation (non à jour)" as UC_Override
+usecase "Remonter historique de fiabilité\n(pour score)" as UC_ScoreHistory
+
+Services --> UC_CheckStatus
+Services --> UC_GetMember
+Services --> UC_Override
+Services --> UC_ScoreHistory
+
+UC_CheckStatus --> CI
+UC_GetMember --> CI
+UC_Override --> CI
+UC_ScoreHistory --> CI
+
+note right of UC_Override
+  Cas particulier accepté par l'admin :
+  emprunt autorisé malgré non-conformité.
+end note
+
+@enduml
+

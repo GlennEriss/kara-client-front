@@ -1,0 +1,15 @@
+@startuml
+title Activité – Valider cohérence montant (Payments) – Crédit spéciale/fixe/aide
+start
+:Service reçoit versement;
+:Service vérifie montant versé vs montant dû;
+if (Montant cohérent ?) then (oui)
+  :Service vérifie montants partiels;
+  :Service vérifie pénalités;
+  :Service détermine statut (PAID/PARTIAL);
+else (non)
+  :Erreur montant incohérent;
+endif
+stop
+@enduml
+

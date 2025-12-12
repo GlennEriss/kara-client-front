@@ -1,0 +1,12 @@
+@startuml
+title Activité – Initialiser formulaires (Hooks) – Crédit spéciale/fixe/aide
+start
+:UI charge formulaire (demande/simulation/versement);
+:Hooks initialise formulaire (react-hook-form);
+:Hooks charge schema Zod (validation);
+:Hooks charge valeurs par défaut (type crédit, dates);
+:Hooks précharge données (membre, garant, statuts CI);
+:UI affiche formulaire initialisé;
+stop
+@enduml
+

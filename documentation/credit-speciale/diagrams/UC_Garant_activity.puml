@@ -1,0 +1,11 @@
+@startuml
+title Activité – Gérer garant (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin sélectionne garant (membre ou admin);
+:Admin saisit lien de parenté;
+:Service vérifie statut CI garant;
+:Service enregistre garant (Repo);
+:Service associe garant au crédit;
+stop
+@enduml
+

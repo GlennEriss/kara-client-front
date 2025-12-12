@@ -1,0 +1,11 @@
+@startuml
+title Activité – Consulter tableau de bord (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre tableau de bord;
+:UI charge stats globales (actifs, retard, montants, pénalités);
+:Hooks récupère agrégations (Service);
+:Service calcule stats (Repo);
+:UI affiche KPI (actifs, retard, montants dus, pénalités impayées, transformations, remboursements terminés);
+stop
+@enduml
+

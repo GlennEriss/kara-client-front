@@ -1,0 +1,29 @@
+@startuml
+title Séquence – Consulter historique des versements (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load crédit plus historique versements
+Hooks -> Repo : getById
+Repo --> Hooks : Crédit
+Hooks -> Service : getPaymentHistory
+Service -> RepoPay : query where creditId orderBy paidAt DESC
+RepoPay --> Service : Versements
+Service --> Hooks : Historique versements dates montants preuves pénalités
+Hooks --> UI : Afficher historique
+UI --> User : Tableau chronologique affiché
+
+note right of Service
+Historique : dates, montants, moyens, preuves, commentaires, notes, pénalités
+Tri chronologique plus récent en premier
+Lecture seule pour client, admin peut aussi enregistrer
+end note
+
+@enduml
+

@@ -1,0 +1,14 @@
+@startuml
+title Activité – Trier par échéance la plus proche (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre écran contrats;
+:Admin active tri "Échéance proche";
+:UI synchronise tri avec URL (query params);
+:Hooks prépare requête triée (nextDueAt ASC);
+:Service applique tri (Repo);
+:Repo exécute requête Firestore (orderBy nextDueAt ASC);
+:Repo retourne résultats triés;
+:UI affiche résultats triés;
+stop
+@enduml
+

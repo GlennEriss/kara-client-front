@@ -1,0 +1,22 @@
+@startuml
+title Activité – Enregistrer un versement (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre fiche crédit (ACTIVE);
+:Admin clique "Enregistrer versement";
+:Admin saisit versement (date/heure, moyen, montant, preuve, commentaire, note);
+:Form UI valide champs (schema);
+if (Champs valides ?) then (oui)
+  :Service enregistre versement (Repo);
+  :Service calcule pénalités (règle de 3) si retard;
+  :Service met à jour statut crédit (PAID/PARTIAL/OVERDUE);
+  :Service calcule/mise à jour score fiabilité (ponctualité/retard);
+  :Service génère reçu PDF;
+  :Documents/Storage stocke reçu;
+  :Service rémunère garant membre (2% si parrain);
+  :Notifications notifie client (reçu disponible, pénalités si applicable);
+else (non)
+  :Afficher messages d'erreur;
+endif
+stop
+@enduml
+

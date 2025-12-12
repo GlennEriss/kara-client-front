@@ -1,0 +1,50 @@
+@startuml
+title Séquence – Téléverser contrat signé (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+participant "Notifications" as Notif
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load crédit
+Hooks -> Repo : getById
+Repo --> Hooks : Crédit
+
+User -> UI : Clique "Téléverser contrat signé"
+UI -> Hooks : openUploadDialog
+Hooks --> UI : Dialogue upload
+
+User -> UI : Sélectionne fichier PDF ou image
+UI -> Hooks : validateFile
+Hooks -> Hooks : Valider type taille
+Hooks --> UI : OK ou erreur
+
+alt Fichier valide
+  User -> UI : Confirme upload
+  UI -> Hooks : uploadSignedContract
+  Hooks -> Service : uploadSignedContract
+  Service -> Docs : upload file
+  Docs -> Docs : Téléverser fichier
+  Docs -> Docs : Stocker métadonnées type version uploadedBy
+  Docs --> Service : URL fichier
+  Service -> Repo : update credit signedContractUrl status ACTIVE activatedAt
+  Repo --> Service : updated
+  Service -> Notif : contrat_activated client et admin
+  Service --> Hooks : Contrat activé
+  Hooks --> UI : Rafraîchir statut
+  UI --> User : Confirmation plus statut ACTIVE
+else Fichier invalide
+  UI --> User : Erreur upload
+end
+
+note right of Service
+Activation contrat égal remise fonds possible
+Status passe à ACTIVE après upload
+end note
+
+@enduml
+

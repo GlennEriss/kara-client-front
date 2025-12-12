@@ -1,0 +1,41 @@
+@startuml
+title Séquence – Lancer simulation standard (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Ouvre demande approuvée
+UI -> Hooks : Load demande (APPROVED)
+Hooks -> Repo : getById(demandeId)
+Repo --> Hooks : Demande
+
+Admin -> UI : Saisit paramètres (montant, taux, mensualité, 1er versement)
+UI -> Hooks : Valider champs
+Hooks --> UI : OK / erreurs
+
+Admin -> UI : Clique "Lancer simulation"
+UI -> Hooks : runStandardSimulation(params)
+Hooks -> Service : calculateStandardSimulation(montant, taux, mensualité, premierVersement, creditType)
+Service : Calculer durée = (montant + intérêts) / mensualité
+Service : Calculer intérêts totaux
+Service : Valider limites (spéciale ≤7 mois, aide ≤3 mois, fixe illimité)
+alt Dépasse limite
+  Service : Proposer montant minimum
+  Service --> Hooks : Simulation + alerte (montant min suggéré)
+  Hooks --> UI : Afficher alerte + suggestion
+else Limite respectée
+  Service : Générer tableau récap (échéancier)
+  Service --> Hooks : Simulation (durée, intérêts, tableau)
+  Hooks --> UI : Afficher simulation
+end
+UI --> Admin : Simulation affichée
+
+note right of Service
+Calculs métier : durée, intérêts, validation limites
+end note
+
+@enduml
+

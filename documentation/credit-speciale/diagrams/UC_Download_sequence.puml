@@ -1,0 +1,25 @@
+@startuml
+title Séquence – Servir / télécharger documents (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+participant "Documents / Storage" as Docs
+
+User -> UI : Demande document contrat décharge preuve
+UI -> Hooks : downloadDocument documentUrl
+Hooks -> Service : getDocument documentUrl
+Service -> Docs : getDocument documentUrl
+Docs --> Service : Blob document
+Service --> Hooks : Blob document
+Hooks --> UI : Télécharger ou afficher
+UI --> User : Document disponible
+
+note right of Service
+Documents : contrats, décharges, preuves
+Téléchargement ou affichage selon type
+end note
+
+@enduml
+

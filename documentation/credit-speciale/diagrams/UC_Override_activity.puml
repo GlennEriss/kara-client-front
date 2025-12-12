@@ -1,0 +1,9 @@
+@startuml
+title Activité – Consigner justification dérogation (CI/Membership) – Crédit spéciale/fixe/aide
+start
+:Admin accepte demande malgré non-conformité;
+:Admin saisit justification dérogation;
+:Service consigne justification (Repo);
+stop
+@enduml
+

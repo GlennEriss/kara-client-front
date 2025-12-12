@@ -1,0 +1,46 @@
+@startuml
+title Séquence – Gérer onglets + stats contrats (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Ouvre écran contrats
+UI -> Hooks : Init tabs (actifs, retard, pénalités, à jour)
+Hooks -> Service : getContractsStats()
+Service -> Repo : count where status=ACTIVE + not overdue
+Repo --> Service : countActifs
+Service -> Repo : count where status=ACTIVE + overdue
+Repo --> Service : countRetard
+Service -> Repo : count where status=ACTIVE + hasPenalties
+Repo --> Service : countPenalites
+Service -> Repo : count where status=ACTIVE + upToDate
+Repo --> Service : countAJour
+Service --> Hooks : Stats {actifs, retard, pénalités, à jour}
+Hooks --> UI : Afficher onglets avec badges
+
+Admin -> UI : Clique onglet "Actifs"
+UI -> Hooks : switchTab("actifs")
+Hooks -> Service : listContracts(status=ACTIVE, notOverdue, filters, pagination)
+Service -> Repo : query where status=ACTIVE + not overdue + filters + pagination
+Repo --> Service : Contrats actifs
+Service --> Hooks : Liste contrats
+Hooks --> UI : Afficher liste
+
+Admin -> UI : Clique onglet "Retard"
+UI -> Hooks : switchTab("retard")
+Hooks -> Service : listContracts(status=ACTIVE, overdue, filters, pagination)
+Service -> Repo : query where status=ACTIVE + overdue + filters + pagination
+Repo --> Service : Contrats en retard
+Service --> Hooks : Liste contrats
+Hooks --> UI : Afficher liste
+
+note right of Hooks
+Cache React Query par onglet pour performance
+Invalidation après mutations (versements, pénalités)
+end note
+
+@enduml
+

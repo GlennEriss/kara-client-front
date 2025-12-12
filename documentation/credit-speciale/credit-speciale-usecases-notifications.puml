@@ -1,0 +1,65 @@
+@startuml
+title Use cases – Package Notifications
+left to right direction
+skinparam actorStyle awesome
+
+actor "Services Crédit spéciale" as Services
+actor "Service de notifications" as Notif
+actor Client
+actor "Équipe Kara" as Kara
+actor Garant
+
+usecase "Notifier nouvelle demande\n(created)" as UC_New
+usecase "Notifier décision\n(APPROVED / REJECTED)" as UC_Decision
+usecase "Notifier échéance de paiement\n(J-1, J, J+1)" as UC_Due
+usecase "Notifier pénalités\n(retard, montant)" as UC_Penalites
+usecase "Notifier transformation\n(crédit fixe après 7 mois)" as UC_Transform
+usecase "Notifier blocage\n(pénalités impayées)" as UC_Blocage
+usecase "Notifier contrat signé / décharge" as UC_Doc
+usecase "Notifier contrat activé\n(après upload signé)" as UC_Activate
+usecase "Notifier reçu de paiement\n(disponible)" as UC_Recu
+usecase "Notifier admin des scores\n(variation forte)" as UC_ScoreAlert
+usecase "Notifier rémunération garant\n(2% mensuel)" as UC_RemunNotif
+
+Services --> UC_New
+Services --> UC_Decision
+Services --> UC_Due
+Services --> UC_Penalites
+Services --> UC_Transform
+Services --> UC_Blocage
+Services --> UC_Doc
+Services --> UC_Activate
+Services --> UC_Recu
+Services --> UC_ScoreAlert
+Services --> UC_RemunNotif
+
+UC_New --> Notif
+UC_Decision --> Notif
+UC_Due --> Notif
+UC_Penalites --> Notif
+UC_Transform --> Notif
+UC_Blocage --> Notif
+UC_Doc --> Notif
+UC_Activate --> Notif
+UC_Recu --> Notif
+UC_ScoreAlert --> Notif
+UC_RemunNotif --> Notif
+
+Client --> UC_Decision
+Client --> UC_Due
+Client --> UC_Penalites
+Client --> UC_Transform
+Client --> UC_Blocage
+Client --> UC_Doc
+
+Kara --> UC_New
+Kara --> UC_Decision
+Kara --> UC_Doc
+Garant --> UC_RemunNotif
+
+note right of UC_Due
+  Rappels J-1, J, J+1 pour versements.
+end note
+
+@enduml
+

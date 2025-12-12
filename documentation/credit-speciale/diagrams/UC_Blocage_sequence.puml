@@ -1,0 +1,44 @@
+@startuml
+title Séquence – Bloquer nouvelle demande si pénalités impayées (Système) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo pénalités" as RepoPen
+participant "Notifications" as Notif
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+
+== Blocage automatique Système ==
+Service -> RepoPen : getUnpaidPenalties
+RepoPen --> Service : Pénalités impayées
+alt Pénalités impayées
+  Service -> Repo : update credit blocked true blockedAt blockedReason
+  Repo --> Service : updated
+  Service -> Notif : block_notification client raison pénalités impayées
+  Notif --> Client : Notification blocage
+end
+
+== Déblocage manuel Admin ==
+Admin -> UI : Consulte crédit bloqué
+UI -> Hooks : Load crédit
+Hooks -> Repo : getById
+Repo --> Hooks : Crédit blocked true
+Hooks --> UI : Afficher statut bloqué
+
+Admin -> UI : Clique Débloquer puis saisit justification
+UI -> Hooks : unblockCredit
+Hooks -> Service : unblockCredit
+Service -> Repo : update credit blocked false unblockedAt unblockJustification
+Repo --> Service : updated
+Service --> Hooks : Crédit débloqué
+Hooks --> UI : Rafraîchir statut
+UI --> Admin : Confirmation déblocage
+
+note right of Service
+Blocage automatique si fin contrat + pénalités impayées
+Déblocage manuel par admin avec justification
+end note
+
+@enduml
+

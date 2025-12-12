@@ -1,0 +1,27 @@
+@startuml
+title Séquence – Précharger données (Hooks) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+database "Repo membres" as RepoMembres
+participant "CI/Membership" as CI
+
+User -> UI : Ouvre formulaire
+UI -> Hooks : Init form
+Hooks -> RepoMembres : Prefetch membre si admin
+RepoMembres --> Hooks : Membre
+Hooks -> RepoMembres : Prefetch garant si sélectionné
+RepoMembres --> Hooks : Garant
+Hooks -> CI : Prefetch statut CI client garant
+CI --> Hooks : Statut CI
+Hooks --> UI : Formulaire avec données préchargées
+UI --> User : Formulaire prêt
+
+note right of Hooks
+Préchargement pour performance
+Données disponibles immédiatement
+end note
+
+@enduml
+

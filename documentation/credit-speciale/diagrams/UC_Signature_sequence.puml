@@ -1,0 +1,34 @@
+@startuml
+title Séquence – Gérer signature / remise fonds (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+participant "Notifications" as Notif
+
+Admin -> UI : Téléverse contrat signé
+UI -> Hooks : uploadSignedContract creditId file
+Hooks -> Service : uploadSignedContract creditId file
+Service -> Docs : upload file
+Docs --> Service : signedContractUrl
+Service -> Repo : update credit signedContractUrl status ACTIVE activatedAt
+Repo --> Service : updated
+Service -> Service : Enregistrer remise fonds
+Service -> Repo : update credit fundsReleasedAt
+Service -> Notif : contrat_activated client fonds remis
+Notif --> Client : Notification contrat activé
+Service --> Hooks : Contrat activé fonds remis
+Hooks --> UI : Confirmation
+UI --> Admin : Contrat activé fonds remis
+
+note right of Service
+Activation contrat après upload signé
+Remise fonds enregistrée
+Status ACTIVE
+end note
+
+@enduml
+

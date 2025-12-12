@@ -1,0 +1,9 @@
+@startuml
+title Activité – Notifier décision (Notifications) – Crédit spéciale/fixe/aide
+start
+:Service valide ou refuse demande;
+:Service déclenche notification (Notifications);
+:Notifications envoie notification (client, APPROVED ou REJECTED);
+stop
+@enduml
+

@@ -1,0 +1,20 @@
+@startuml
+title Séquence – Notifier contrat signé / décharge (Notifications) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "Notifications" as Notif
+actor Client
+
+Service -> Service : Générer contrat signé ou décharge
+Service -> Notif : document_available client documentType documentUrl
+Notif -> Notif : Préparer notification document
+Notif --> Client : Notification document disponible
+
+note right of Notif
+Notification contrat signé ou décharge
+Destinataire client
+Lien téléchargement inclus
+end note
+
+@enduml
+

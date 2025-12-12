@@ -1,0 +1,34 @@
+@startuml
+title Séquence – Déclencher génération contrat et upload signé (Hooks) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+participant "Documents / Storage" as Docs
+
+Admin -> UI : Valide simulation
+UI -> Hooks : generateContract creditId
+Hooks -> Service : generateContractPDF creditId
+Service -> Docs : generatePDF données
+Docs --> Service : contractUrl
+Service --> Hooks : Contrat généré
+Hooks --> UI : Afficher lien téléchargement
+
+Admin -> UI : Téléverse contrat signé
+UI -> Hooks : uploadSignedContract creditId file
+Hooks -> Service : uploadSignedContract creditId file
+Service -> Docs : upload file
+Docs --> Service : signedContractUrl
+Service -> Service : Activer contrat
+Service --> Hooks : Contrat activé
+Hooks --> UI : Confirmation activation
+UI --> Admin : Contrat activé
+
+note right of Hooks
+Orchestration workflow contrat
+Génération puis upload puis activation
+end note
+
+@enduml
+

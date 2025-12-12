@@ -1,0 +1,23 @@
+@startuml
+title Activité – Lancer simulation standard (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre demande approuvée (APPROVED);
+:Admin saisit paramètres simulation (montant, taux, mensualité, 1er versement);
+:Form UI valide champs (schema);
+if (Champs valides ?) then (oui)
+  :Service calcule durée (montant + intérêts / mensualité);
+  :Service calcule intérêts totaux;
+  :Service valide limites (spéciale ≤7 mois, aide ≤3 mois, fixe illimité);
+  if (Dépasse limite ?) then (oui)
+    :Service propose montant minimum;
+    :UI affiche alerte + suggestion;
+  else (non)
+    :Service génère tableau récap (échéancier);
+    :UI affiche simulation (durée, intérêts, tableau);
+  endif
+else (non)
+  :Afficher messages d'erreur;
+endif
+stop
+@enduml
+

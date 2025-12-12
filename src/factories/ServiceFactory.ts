@@ -10,6 +10,8 @@ import { NotificationService } from '@/services/notifications/NotificationServic
 import { GeographieService } from '@/services/geographie/GeographieService'
 import { PlacementService } from '@/services/placement/PlacementService'
 import { DocumentService } from '@/services/documents/DocumentService'
+import { ICreditSpecialeService } from '@/services/credit-speciale/ICreditSpecialeService'
+import { CreditSpecialeService } from '@/services/credit-speciale/CreditSpecialeService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -113,6 +115,26 @@ export class ServiceFactory {
       const districtRepository = RepositoryFactory.getDistrictRepository()
       const quarterRepository = RepositoryFactory.getQuarterRepository()
       this.services.set(key, new GeographieService(provinceRepository, departmentRepository, communeRepository, districtRepository, quarterRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion du crédit spéciale
+   */
+  static getCreditSpecialeService(): ICreditSpecialeService {
+    const key = 'CreditSpecialeService'
+    if (!this.services.has(key)) {
+      const creditDemandRepository = RepositoryFactory.getCreditDemandRepository()
+      const creditContractRepository = RepositoryFactory.getCreditContractRepository()
+      const creditPaymentRepository = RepositoryFactory.getCreditPaymentRepository()
+      const creditPenaltyRepository = RepositoryFactory.getCreditPenaltyRepository()
+      this.services.set(key, new CreditSpecialeService(
+        creditDemandRepository,
+        creditContractRepository,
+        creditPaymentRepository,
+        creditPenaltyRepository
+      ))
     }
     return this.services.get(key)
   }

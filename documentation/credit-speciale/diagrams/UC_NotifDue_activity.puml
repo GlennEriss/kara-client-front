@@ -1,0 +1,15 @@
+@startuml
+title Activité – Notifier échéance de paiement (J-1/J/J+1) – Crédit spéciale/fixe/aide
+start
+:Service planifie rappels (job planifié);
+:Service détecte échéance proche (J-1, J, J+1);
+:Service récupère crédits avec échéance;
+:Notifications envoie notification (client, échéance);
+if (Échéance J+1 non payée ?) then (oui)
+  :Service calcule pénalités;
+  :Notifications notifie pénalités;
+else (non)
+endif
+stop
+@enduml
+
