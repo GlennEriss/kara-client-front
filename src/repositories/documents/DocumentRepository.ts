@@ -238,19 +238,25 @@ export class DocumentRepository implements IDocumentRepository {
      * @param {Omit<Document, 'id' | 'createdAt' | 'updatedAt'>} data - Données du document
      * @returns {Promise<Document>}
      */
-    async createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document> {
+    async createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<Document> {
         try {
             const { doc, setDoc, db, serverTimestamp } = await getFirestore();
 
-            // Générer l'ID personnalisé : MK_{documentType}_{memberId}_{ddMMyy}_{HHmm}
-            const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = String(now.getFullYear()).slice(-2);
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            
-            const documentId = `MK_${data.type}_${data.memberId}_${day}${month}${year}_${hours}${minutes}`;
+            // Utiliser l'ID personnalisé fourni, sinon générer l'ID par défaut
+            let documentId: string;
+            if (customId) {
+                documentId = customId;
+            } else {
+                // Générer l'ID personnalisé : MK_{documentType}_{memberId}_{ddMMyy}_{HHmm}
+                const now = new Date();
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const year = String(now.getFullYear()).slice(-2);
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                
+                documentId = `MK_${data.type}_${data.memberId}_${day}${month}${year}_${hours}${minutes}`;
+            }
 
 
             const documentRef = doc(db, firebaseCollectionNames.documents || "documents", documentId);

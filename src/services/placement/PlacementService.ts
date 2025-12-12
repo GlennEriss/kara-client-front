@@ -51,6 +51,30 @@ export class PlacementService {
     })
     const memberInfo = await this.enrichMemberInfo(data.benefactorId)
 
+    // Générer l'ID personnalisé au format MK_BF_matriculeMembre_date_heure
+    const member = await this.memberRepository.getMemberById(data.benefactorId)
+    if (!member) {
+      throw new Error('Membre bienfaiteur introuvable')
+    }
+    
+    // Récupérer le matricule et le formater avec padding à 4 chiffres
+    let matricule = member.matricule || member.id || data.benefactorId
+    // Extraire uniquement les chiffres du matricule et formater à 4 chiffres
+    const matriculeDigits = matricule.replace(/\D/g, '') // Garder uniquement les chiffres
+    // Si pas de chiffres trouvés, utiliser les 4 derniers caractères de l'ID
+    matricule = matriculeDigits.length > 0 
+      ? matriculeDigits.padStart(4, '0') // Padding à 4 chiffres avec des zéros à gauche
+      : String(member.id || data.benefactorId).slice(-4).padStart(4, '0')
+    
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    // Format: MK_BF_matriculeMembre_ddMMyy_HHmm (ex: MK_BF_0001_111225_1705)
+    const customPlacementId = `MK_BF_${matricule}_${day}${month}${year}_${hours}${minutes}`
+
     const placement = await this.placementRepository.create({
       ...data,
       ...memberInfo,
@@ -63,7 +87,7 @@ export class PlacementService {
       status: 'Draft',
       createdBy: adminId,
       updatedBy: adminId,
-    })
+    }, customPlacementId)
 
     // Si le membre n'a pas encore le rôle Bienfaiteur, l'ajouter
     try {
@@ -278,7 +302,44 @@ export class PlacementService {
     // Utiliser uploadDocumentFile mais adapter le chemin après
     const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, documentType)
     
-    // 2. Créer l'enregistrement du document dans Firestore
+    // 2. Générer l'ID personnalisé pour les contrats de placement au format MK_BF_matriculeMembre_date_heure
+    let customDocumentId: string | undefined
+    if (documentType === 'PLACEMENT_CONTRACT') {
+      const member = await this.memberRepository.getMemberById(benefactorId)
+      if (!member) {
+        throw new Error('Membre bienfaiteur introuvable')
+      }
+      // Récupérer le matricule et le formater avec padding à 4 chiffres
+      let matricule = member.matricule || member.id || benefactorId
+      // Extraire uniquement les chiffres du matricule et formater à 4 chiffres
+      const matriculeDigits = matricule.replace(/\D/g, '') // Garder uniquement les chiffres
+      // Si pas de chiffres trouvés, utiliser les 4 derniers caractères de l'ID
+      matricule = matriculeDigits.length > 0 
+        ? matriculeDigits.padStart(4, '0') // Padding à 4 chiffres avec des zéros à gauche
+        : String(member.id || benefactorId).slice(-4).padStart(4, '0')
+      
+      const now = new Date()
+      const day = String(now.getDate()).padStart(2, '0')
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const year = String(now.getFullYear()).slice(-2)
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      // Format: MK_BF_matriculeMembre_ddMMyy_HHmm (ex: MK_BF_0001_111225_1705)
+      customDocumentId = `MK_BF_${matricule}_${day}${month}${year}_${hours}${minutes}`
+      
+      // Log pour débogage
+      console.log('🔍 Génération ID contrat placement:', {
+        benefactorId,
+        memberMatricule: member.matricule,
+        memberId: member.id,
+        matriculeFormate: matricule,
+        customDocumentId,
+        date: `${day}${month}${year}`,
+        heure: `${hours}${minutes}`
+      })
+    }
+    
+    // 3. Créer l'enregistrement du document dans Firestore
     const documentData: Omit<import('@/types/types').Document, 'id' | 'createdAt' | 'updatedAt'> = {
       type: documentType,
       format: 'pdf',
@@ -292,7 +353,7 @@ export class PlacementService {
       updatedBy: adminId,
     }
 
-    const document = await this.documentRepository.createDocument(documentData)
+    const document = await this.documentRepository.createDocument(documentData, customDocumentId)
 
     if (!document || !document.id) {
       throw new Error('Erreur lors de la création du document')
@@ -482,6 +543,34 @@ export class PlacementService {
   }
 
   /**
+   * Génère automatiquement une quittance finale (PDF) et l'attache
+   */
+  async generateFinalQuittance(
+    placementId: string,
+    adminId: string
+  ): Promise<{ documentId: string }> {
+    const placement = await this.placementRepository.getById(placementId)
+    if (!placement) throw new Error('Placement introuvable')
+
+    const { default: jsPDF } = await import('jspdf')
+    const doc = new jsPDF()
+    doc.setFontSize(16)
+    doc.text('QUITTANCE FINALE', 105, 20, { align: 'center' })
+    doc.setFontSize(11)
+    doc.text(`Placement #${placement.id}`, 14, 40)
+    doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 14, 48)
+    doc.text(`Montant capital: ${placement.amount.toLocaleString()} FCFA`, 14, 56)
+    doc.text(`Durée: ${placement.periodMonths} mois`, 14, 64)
+    if (placement.endDate) {
+      doc.text(`Date de fin: ${new Date(placement.endDate).toLocaleDateString('fr-FR')}`, 14, 72)
+    }
+    const blob = doc.output('blob')
+    const fileName = `QUITTANCE_FINALE_${placement.id.slice(-6)}.pdf`
+    const file = new File([blob], fileName, { type: 'application/pdf' })
+    return this.uploadFinalQuittance(file, placementId, placement.benefactorId, adminId)
+  }
+
+  /**
    * Upload un avenant de retrait anticipé
    */
   async uploadEarlyExitAddendum(
@@ -515,6 +604,37 @@ export class PlacementService {
     } as any)
 
     return { documentId: document.id }
+  }
+
+  /**
+   * Clôturer un placement (remboursement final) et attacher la quittance finale
+   */
+  async closePlacement(
+    placementId: string,
+    file: File | null,
+    adminId: string
+  ): Promise<Placement> {
+    const placement = await this.placementRepository.getById(placementId)
+    if (!placement) throw new Error('Placement introuvable')
+
+    let finalDocId: string | undefined = placement.finalQuittanceDocumentId
+
+    if (file) {
+      const { documentId } = await this.uploadFinalQuittance(file, placementId, placement.benefactorId, adminId)
+      finalDocId = documentId
+    } else {
+      const { documentId } = await this.generateFinalQuittance(placementId, adminId)
+      finalDocId = documentId
+    }
+
+    const updated = await this.placementRepository.update(placementId, {
+      status: 'Closed',
+      finalQuittanceDocumentId: finalDocId,
+      updatedBy: adminId,
+      updatedAt: new Date(),
+    })
+
+    return updated
   }
 
   /**

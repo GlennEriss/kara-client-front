@@ -46,7 +46,7 @@ Ce document liste les fonctionnalités à implémenter pour aboutir au module Pl
 - [ ] Génération commissions après activation (contrat téléversé + statut Actif)
 - [ ] Paiement commission : upload preuve, statut Paid, verrou contrat
 - [ ] Échéancier et “commissions du mois” / “en retard”
-- [ ] Export/affichage reçus PDF _(receipts affichés si `receiptDocumentId` en UI)_
+****- [ ] Export/affichage reçus PDF _(receipts affichés si `receiptDocumentId` en UI)_
 
 ### F. Documents
 - [ ] Téléversement contrat PDF signé (activation) ; verrou après paiement
