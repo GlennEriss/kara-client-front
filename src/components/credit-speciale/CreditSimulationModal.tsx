@@ -170,7 +170,7 @@ export default function CreditSimulationModal({
   const onProposedSubmit = async (data: ProposedSimulationFormData) => {
     try {
       const result = await calculateProposed.mutateAsync({
-        totalAmount: data.totalAmount,
+        amount: data.totalAmount, // Montant emprunté
         duration: data.duration,
         interestRate: data.interestRate,
         firstPaymentDate: data.firstPaymentDate,
@@ -471,7 +471,7 @@ export default function CreditSimulationModal({
                         name="totalAmount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Montant à rembourser (FCFA)</FormLabel>
+                            <FormLabel>Montant emprunté (FCFA)</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -583,6 +583,7 @@ export default function CreditSimulationModal({
                 result={proposedResult}
                 creditType={creditType}
                 onUse={handleUseSimulation}
+                isProposed={true}
               />
             )}
           </TabsContent>
@@ -750,11 +751,13 @@ function customRound(value: number): number {
 function StandardSimulationResults({
   result,
   creditType,
-  onUse
+  onUse,
+  isProposed = false
 }: {
   result: StandardSimulation
   creditType: CreditType
   onUse: () => void
+  isProposed?: boolean
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   
@@ -772,8 +775,9 @@ function StandardSimulationResults({
   // Taux mensuel (pas annuel divisé par 12)
   const monthlyRate = result.interestRate / 100
   const firstDate = new Date(result.firstPaymentDate)
-  // Pour crédit spéciale, toujours afficher 7 mois même si durée calculée < 7
-  const displayDuration = creditType === 'SPECIALE' ? 7 : result.duration
+  // Pour simulation proposée : utiliser la durée spécifiée
+  // Pour simulation standard avec crédit spéciale : toujours afficher 7 mois
+  const displayDuration = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : result.duration)
 
   for (let i = 0; i < displayDuration; i++) {
     const date = new Date(firstDate)
@@ -849,7 +853,7 @@ function StandardSimulationResults({
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="text-sm text-gray-600">Durée</div>
             <div className="text-2xl font-bold text-green-900">
-              {creditType === 'SPECIALE' ? 7 : result.duration} mois
+              {displayDuration} mois
             </div>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
@@ -910,7 +914,7 @@ function StandardSimulationResults({
           <div>
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <TableIcon className="h-4 w-4" />
-              Échéancier calculé ({result.duration} mois)
+              Échéancier calculé ({displayDuration} mois)
             </h4>
             <div className="border rounded-lg overflow-hidden">
               <Table>
@@ -1126,8 +1130,9 @@ function CustomSimulationResults({
     })
   })
 
-  // Calculer l'échéancier standard (limite)
-  const standardSchedule: Array<{
+  // Calculer l'échéancier référence (exactement 7 mois)
+  // Même logique que dans la simulation standard
+  const referenceSchedule: Array<{
     month: number
     date: Date
     payment: number
@@ -1137,89 +1142,74 @@ function CustomSimulationResults({
   }> = []
 
   if (maxDuration !== Infinity) {
-    // Calculer la mensualité équitable pour répartir équitablement sur 7 mois
-    // Itération pour trouver la mensualité qui permet de répartir équitablement sur 6 mois
-    // et d'ajuster au 7ème mois pour arriver à 0
-    
+    // Recherche binaire pour trouver la mensualité optimale sur 7 mois
     let minPayment = Math.ceil(result.amount / maxDuration)
-    let maxPayment = result.amount * 2
-    let optimalEquitablePayment = maxPayment
-
-    // Recherche itérative pour trouver la mensualité équitable optimale
-    // La mensualité équitable doit permettre de répartir équitablement sur 6 mois
-    // et le 7ème mois doit rembourser le reste pour arriver à 0
+    let maxPaymentSearch = result.amount * 2
+    let optimalPayment = maxPaymentSearch
+    
     for (let iteration = 0; iteration < 50; iteration++) {
-      const testEquitablePayment = Math.ceil((minPayment + maxPayment) / 2)
+      const testPayment = Math.ceil((minPayment + maxPaymentSearch) / 2)
       let testRemaining = result.amount
-
-      // Simuler les 6 premiers mois avec la mensualité équitable
-      for (let month = 0; month < maxDuration - 1; month++) {
+      
+      // Simuler les 7 mois avec cette mensualité
+      for (let month = 0; month < maxDuration; month++) {
         const interest = testRemaining * monthlyRate
         const balanceWithInterest = testRemaining + interest
-        const payment = Math.min(testEquitablePayment, balanceWithInterest)
+        const payment = Math.min(testPayment, balanceWithInterest)
         testRemaining = balanceWithInterest - payment
-
+        
         if (testRemaining < 1) {
           testRemaining = 0
         }
       }
-
-      // Vérifier si le 7ème mois peut rembourser le reste exactement
-      const lastInterest = testRemaining * monthlyRate
-      const lastBalanceWithInterest = testRemaining + lastInterest
       
-      // On veut que le solde au 7ème mois soit remboursable (pas trop grand)
-      // et que la mensualité équitable soit raisonnable
-      if (lastBalanceWithInterest > 0 && lastBalanceWithInterest <= testEquitablePayment * 2) {
-        // La mensualité équitable est acceptable
-        optimalEquitablePayment = testEquitablePayment
-        maxPayment = testEquitablePayment - 1
-      } else if (lastBalanceWithInterest <= 0) {
-        // Le solde est déjà à 0 avant le 7ème mois, la mensualité est trop élevée
-        optimalEquitablePayment = testEquitablePayment
-        maxPayment = testEquitablePayment - 1
+      if (testRemaining <= 0) {
+        // La mensualité est suffisante, on peut essayer plus petit
+        optimalPayment = testPayment
+        maxPaymentSearch = testPayment - 1
       } else {
-        // Le solde au 7ème mois est trop grand, la mensualité est trop faible
-        minPayment = testEquitablePayment + 1
+        // La mensualité est insuffisante, il faut augmenter
+        minPayment = testPayment + 1
       }
-
-      if (minPayment > maxPayment) break
+      
+      if (minPayment > maxPaymentSearch) break
     }
-
-    // Calculer l'échéancier avec répartition équitable sur 6 mois, puis ajustement au 7ème mois
-    let standardRemaining = result.amount
+    
+    // Générer l'échéancier avec la mensualité optimale
+    let refRemaining = result.amount
 
     for (let i = 0; i < maxDuration; i++) {
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
       
       // 1. Calcul des intérêts sur le solde actuel
-      const interest = standardRemaining * monthlyRate
+      const interest = refRemaining * monthlyRate
       // 2. Nouveau solde avec intérêts
-      const balanceWithInterest = standardRemaining + interest
+      const balanceWithInterest = refRemaining + interest
       
       // 3. Versement effectué
-      // Pour les 6 premiers mois : mensualité équitable
-      // Pour le 7ème mois : ajuster pour que le solde soit à 0
       let payment: number
       if (i === maxDuration - 1) {
-        // Dernier mois : payer exactement le solde avec intérêts pour arriver à 0
-        payment = balanceWithInterest
+        // Dernier mois : ajuster pour que le solde soit exactement 0
+        payment = refRemaining // La mensualité finale = reste dû (sans intérêts)
+        refRemaining = 0
+      } else if (refRemaining < optimalPayment) {
+        // Le reste dû est inférieur à la mensualité optimale
+        payment = refRemaining
+        refRemaining = 0
       } else {
-        // 6 premiers mois : mensualité équitable
-        payment = Math.min(optimalEquitablePayment, balanceWithInterest)
+        // Mois 1 à 6 : mensualité optimale calculée
+        payment = optimalPayment
+        refRemaining = Math.max(0, balanceWithInterest - payment)
       }
-      
-      // 4. Nouveau solde après versement
-      standardRemaining = Math.max(0, balanceWithInterest - payment)
 
-      standardSchedule.push({
+      referenceSchedule.push({
         month: i + 1,
         date,
-        payment: payment,
-        interest,
-        principal: balanceWithInterest, // Capital = solde avec intérêts (avant versement)
-        remaining: standardRemaining,
+        payment: customRound(payment),
+        interest: customRound(interest),
+        principal: customRound(balanceWithInterest),
+        remaining: customRound(refRemaining),
       })
     }
   }
@@ -1300,7 +1290,9 @@ function CustomSimulationResults({
                   <TableRow>
                     <TableHead>Mois</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Montant</TableHead>
+                    <TableHead className="text-right">Mensualité</TableHead>
+                    <TableHead className="text-right">Intérêts</TableHead>
+                    <TableHead className="text-right">Montant global</TableHead>
                     <TableHead className="text-right">Reste dû</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1309,8 +1301,10 @@ function CustomSimulationResults({
                     <TableRow key={row.month}>
                       <TableCell className="font-medium">M{row.month}</TableCell>
                       <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                      <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                      <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                      <TableCell className="text-right">{customRound(row.payment).toLocaleString('fr-FR')} FCFA</TableCell>
+                      <TableCell className="text-right">{customRound(row.interest).toLocaleString('fr-FR')} FCFA</TableCell>
+                      <TableCell className="text-right">{customRound(row.principal).toLocaleString('fr-FR')} FCFA</TableCell>
+                      <TableCell className="text-right">{customRound(row.remaining).toLocaleString('fr-FR')} FCFA</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1318,12 +1312,12 @@ function CustomSimulationResults({
             </div>
           </div>
 
-          {/* Tableau limite (standard) */}
+          {/* Échéancier référence (7 mois) */}
           {maxDuration !== Infinity && (
             <div>
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <TableIcon className="h-4 w-4" />
-                Échéancier limite ({maxDuration} mois)
+                Échéancier référence ({maxDuration} mois)
               </h4>
               <div className="border rounded-lg overflow-hidden">
                 <Table>
@@ -1331,16 +1325,20 @@ function CustomSimulationResults({
                     <TableRow>
                       <TableHead>Mois</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead className="text-right">Mensualité</TableHead>
+                      <TableHead className="text-right">Intérêts</TableHead>
+                      <TableHead className="text-right">Montant global</TableHead>
                       <TableHead className="text-right">Reste dû</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {standardSchedule.map((row) => (
+                    {referenceSchedule.map((row) => (
                       <TableRow key={row.month}>
                         <TableCell className="font-medium">M{row.month}</TableCell>
                         <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                         <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                        <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                        <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
                         <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                       </TableRow>
                     ))}

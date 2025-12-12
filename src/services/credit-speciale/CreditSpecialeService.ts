@@ -456,7 +456,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     }
 
     async calculateProposedSimulation(
-        totalAmount: number,
+        amount: number, // Montant emprunté (pas le total à rembourser)
         duration: number,
         interestRate: number,
         firstPaymentDate: Date,
@@ -471,92 +471,61 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             throw new Error(`La durée maximum est de ${maxDuration} mois pour un crédit ${creditType === 'SPECIALE' ? 'spéciale' : 'aide'}`);
         }
 
-        // Recherche binaire pour trouver le montant emprunté initial
-        // qui permet d'obtenir exactement totalAmount comme total à rembourser
-        let minAmount = totalAmount / (1 + monthlyRate * duration); // Estimation minimale
-        let maxAmount = totalAmount; // Maximum : sans intérêts
-        let optimalAmount = minAmount;
-        let optimalMonthlyPayment = 0;
-        let optimalTotalInterest = 0;
+        // Recherche binaire pour trouver la mensualité optimale
+        // qui permet de rembourser le montant emprunté en exactement `duration` mois
+        let minPayment = Math.ceil(amount / duration);
+        let maxPayment = amount * 2;
+        let optimalMonthlyPayment = maxPayment;
 
-        // Recherche binaire pour trouver le montant initial optimal
         for (let iteration = 0; iteration < 50; iteration++) {
-            const testAmount = (minAmount + maxAmount) / 2;
-            
-            // Calculer la mensualité nécessaire pour rembourser testAmount sur duration mois
-            // Estimation initiale de la mensualité
-            let testMonthlyPayment = Math.ceil(testAmount / duration);
-            let testRemaining = testAmount;
-            let testTotalInterest = 0;
-            let testTotalPaid = 0;
+            const testPayment = Math.ceil((minPayment + maxPayment) / 2);
+            let testRemaining = amount;
 
-            // Ajuster la mensualité jusqu'à trouver celle qui rembourse exactement
-            for (let adjustIter = 0; adjustIter < 30; adjustIter++) {
-                testRemaining = testAmount;
-                testTotalInterest = 0;
-                testTotalPaid = 0;
+            // Simuler les `duration` mois avec cette mensualité
+            for (let month = 0; month < duration; month++) {
+                const interest = testRemaining * monthlyRate;
+                const balanceWithInterest = testRemaining + interest;
+                const payment = Math.min(testPayment, balanceWithInterest);
+                testRemaining = balanceWithInterest - payment;
 
-                for (let month = 0; month < duration; month++) {
-                    const interest = testRemaining * monthlyRate;
-                    testTotalInterest += interest;
-                    const balanceWithInterest = testRemaining + interest;
-                    const payment = Math.min(testMonthlyPayment, balanceWithInterest);
-                    testRemaining = balanceWithInterest - payment;
-                    testTotalPaid += payment;
-
-                    if (testRemaining < 1) {
-                        testRemaining = 0;
-                    }
-                }
-
-                const calculatedTotal = (duration * testMonthlyPayment) + testTotalInterest;
-                const diff = totalAmount - calculatedTotal;
-
-                if (Math.abs(diff) < 1) {
-                    break; // Trouvé
-                }
-
-                // Ajuster la mensualité
-                if (calculatedTotal < totalAmount) {
-                    testMonthlyPayment += Math.ceil(diff / duration);
-                } else {
-                    testMonthlyPayment -= Math.ceil(Math.abs(diff) / duration);
-                    if (testMonthlyPayment < Math.ceil(testAmount / duration)) {
-                        testMonthlyPayment = Math.ceil(testAmount / duration);
-                    }
+                if (testRemaining < 1) {
+                    testRemaining = 0;
                 }
             }
 
-            const calculatedTotal = (duration * testMonthlyPayment) + testTotalInterest;
-            const diff = totalAmount - calculatedTotal;
-
-            if (Math.abs(diff) < 1) {
-                optimalAmount = testAmount;
-                optimalMonthlyPayment = testMonthlyPayment;
-                optimalTotalInterest = testTotalInterest;
-                break;
-            } else if (calculatedTotal < totalAmount) {
-                minAmount = testAmount + 1;
+            if (testRemaining <= 0) {
+                // La mensualité est suffisante, on peut essayer plus petit
+                optimalMonthlyPayment = testPayment;
+                maxPayment = testPayment - 1;
             } else {
-                optimalAmount = testAmount;
-                optimalMonthlyPayment = testMonthlyPayment;
-                optimalTotalInterest = testTotalInterest;
-                maxAmount = testAmount - 1;
+                // La mensualité est insuffisante, il faut augmenter
+                minPayment = testPayment + 1;
             }
 
-            if (minAmount > maxAmount) break;
+            if (minPayment > maxPayment) break;
         }
 
-        // Recalculer avec les valeurs optimales pour obtenir les valeurs exactes
-        let finalRemaining = optimalAmount;
-        let finalTotalInterest = 0;
+        // Calculer avec la mensualité optimale pour obtenir les valeurs exactes
+        let finalRemaining = amount;
+        let totalInterest = 0;
+        let totalPaid = 0;
 
         for (let month = 0; month < duration; month++) {
             const interest = finalRemaining * monthlyRate;
-            finalTotalInterest += interest;
+            totalInterest += interest;
             const balanceWithInterest = finalRemaining + interest;
-            const payment = Math.min(optimalMonthlyPayment, balanceWithInterest);
-            finalRemaining = balanceWithInterest - payment;
+            
+            // Si c'est le dernier mois ou si le reste dû est inférieur à la mensualité
+            let payment: number;
+            if (month === duration - 1 || finalRemaining < optimalMonthlyPayment) {
+                // Payer le montant global complet (reste dû + intérêts) pour que le solde soit 0
+                payment = balanceWithInterest;
+            } else {
+                payment = optimalMonthlyPayment;
+            }
+            
+            totalPaid += payment;
+            finalRemaining = Math.max(0, balanceWithInterest - payment);
 
             if (finalRemaining < 1) {
                 finalRemaining = 0;
@@ -564,20 +533,17 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         const isValid = finalRemaining <= 0;
-        const calculatedTotalAmount = (duration * optimalMonthlyPayment) + finalTotalInterest;
+        // Total à rembourser = somme des paiements effectués
+        const totalAmount = totalPaid;
 
         return {
-            amount: Math.round(optimalAmount),
+            amount: Math.round(amount),
             interestRate,
             monthlyPayment: optimalMonthlyPayment,
             firstPaymentDate,
             duration,
-            totalAmount: calculatedTotalAmount,
+            totalAmount: Math.round(totalAmount),
             isValid,
-            ...(creditType === 'SPECIALE' && duration === 7 && finalRemaining > 0 ? {
-                remainingAtMaxDuration: finalRemaining,
-                suggestedMonthlyPayment: Math.ceil(optimalMonthlyPayment * 1.1),
-            } : {}),
         };
     }
 

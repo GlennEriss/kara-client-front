@@ -320,14 +320,14 @@ export function useProposedSimulation() {
     const service = ServiceFactory.getCreditSpecialeService()
     
     return useMutation<StandardSimulation, Error, {
-        totalAmount: number
+        amount: number // Montant emprunté
         duration: number
         interestRate: number
         firstPaymentDate: Date
         creditType: 'SPECIALE' | 'FIXE' | 'AIDE'
     }>({
-        mutationFn: ({ totalAmount, duration, interestRate, firstPaymentDate, creditType }) =>
-            service.calculateProposedSimulation(totalAmount, duration, interestRate, firstPaymentDate, creditType),
+        mutationFn: ({ amount, duration, interestRate, firstPaymentDate, creditType }) =>
+            service.calculateProposedSimulation(amount, duration, interestRate, firstPaymentDate, creditType),
     })
 }
 
