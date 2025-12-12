@@ -154,6 +154,152 @@ Offrir un module Crédit spéciale qui automatise la gestion des demandes de pr�
 
 Voir `documentation/credit-speciale/credit-speciale-classes.puml` (rendu recommandé en `credit-speciale-classes.png`) qui couvre : emprunteur (User/Member), garant (User/Admin), contrat, simulations, paiements/pénalités, scoring fiabilité, rémunération garant, documents (contrat, signé, reçu, décharge) et métadonnées `createdBy/updatedBy`.
 
+**⚠️ À mettre à jour dans le diagramme** :
+- `CreditDemand` : ajout du champ `contractId` (relation 1:1 avec `CreditContract`)
+- `CreditContract` : ajout des champs `emergencyContact` (type `EmergencyContact`) et `guarantorRemunerationPercentage` (number, 0-2%)
+- `EmergencyContact` : nouvelle classe avec les champs `lastName`, `firstName`, `phone1`, `phone2`, `relationship`, `typeId`, `idNumber`, `documentPhotoUrl`
+- Relation 1:1 entre `CreditDemand` et `CreditContract` via `contractId`
+- Types de simulation : `StandardSimulation`, `CustomSimulation` (utilise `StandardSimulation` pour la proposée)
+
+## 3.1. Système de simulations
+
+Le module propose trois types de simulations pour calculer les échéances de remboursement :
+
+### 3.1.1. Simulation standard
+
+**Objectif** : Calculer la durée de remboursement à partir d'un montant emprunté, d'un taux d'intérêt mensuel, et d'une mensualité fixe.
+
+**Paramètres d'entrée** :
+- Montant emprunté (FCFA)
+- Taux d'intérêt mensuel (%)
+- Mensualité souhaitée (FCFA)
+- Date du premier versement
+
+**Algorithme de calcul** :
+1. Pour chaque mois jusqu'au remboursement complet :
+   - Calculer les intérêts : `intérêts = reste_dû × (taux / 100)`
+   - Calculer le montant global : `montant_global = reste_dû + intérêts`
+   - Appliquer le paiement :
+     - Si `reste_dû < mensualité` : payer le `montant_global` complet (solde à 0)
+     - Sinon : payer la `mensualité` fixe
+   - Calculer le nouveau reste dû : `reste_dû = montant_global - paiement`
+
+2. **Validation des limites** :
+   - **Crédit spéciale** : Si la durée dépasse 7 mois, la simulation est invalide
+   - **Crédit aide** : Si la durée dépasse 3 mois, la simulation est invalide
+   - **Crédit fixe** : Aucune limite de durée
+
+3. **En cas de dépassement** :
+   - Calculer la mensualité optimale pour respecter la limite (recherche binaire)
+   - Proposer cette mensualité suggérée à l'utilisateur
+
+**Résultat** :
+- Durée de remboursement (en mois)
+- Total des intérêts
+- Total à rembourser (somme des mensualités réelles versées)
+- Validité (respecte les limites ou non)
+- Mensualité suggérée (si dépassement)
+
+**Échéancier référence (7 mois pour crédit spéciale)** :
+- Pour les crédits spéciaux, un deuxième tableau est généré
+- Il calcule la mensualité optimale pour rembourser exactement en 7 mois
+- Utilise une recherche binaire pour trouver la mensualité qui aboutit à un solde de 0 au 7ème mois
+- Permet de comparer la simulation réelle avec l'échéancier de référence
+
+**Exemple** :
+- Montant emprunté : 50 000 FCFA
+- Taux mensuel : 5%
+- Mensualité : 10 000 FCFA
+- Mois 1 : Intérêts = 2 500 FCFA, Montant global = 52 500 FCFA, Paiement = 10 000 FCFA, Reste = 42 500 FCFA
+- Mois 2 : Intérêts = 2 125 FCFA, Montant global = 44 625 FCFA, Paiement = 10 000 FCFA, Reste = 34 625 FCFA
+- ... jusqu'à remboursement complet
+
+### 3.1.2. Simulation personnalisée
+
+**Objectif** : Permettre à l'utilisateur de définir des montants variables pour chaque mois.
+
+**Paramètres d'entrée** :
+- Montant emprunté (FCFA)
+- Taux d'intérêt mensuel (%)
+- Liste des paiements personnalisés (montant par mois)
+- Date du premier versement
+
+**Algorithme de calcul** :
+1. Pour chaque paiement personnalisé :
+   - Calculer les intérêts sur le solde actuel : `intérêts = reste_dû × (taux / 100)`
+   - Calculer le montant global : `montant_global = reste_dû + intérêts`
+   - Appliquer le paiement personnalisé :
+     - Si `montant_global < paiement_personnalisé` : payer le `montant_global` complet
+     - Sinon : payer le `paiement_personnalisé`
+   - Calculer le nouveau reste dû
+
+2. **Validation** :
+   - Vérifier que la somme des paiements couvre le montant global (montant initial + intérêts)
+   - Afficher un avertissement si le total des paiements est insuffisant
+   - Vérifier que le nombre de mois ne dépasse pas les limites (7 pour spéciale, 3 pour aide)
+
+**Échéancier référence (7 mois pour crédit spéciale)** :
+- Génère un deuxième tableau avec mensualité optimale calculée pour 7 mois
+- Utilise une recherche binaire pour trouver la mensualité qui aboutit à un solde de 0 au 7ème mois
+- Permet de comparer avec la simulation personnalisée
+
+**Résultat** :
+- Échéancier personnalisé avec les montants définis par l'utilisateur
+- Échéancier référence sur 7 mois (pour crédit spéciale) ou 3 mois (pour crédit aide)
+- Total des intérêts
+- Total à rembourser
+- Validité
+
+### 3.1.3. Simulation proposée
+
+**Objectif** : Proposer une mensualité optimale à partir d'un montant emprunté et d'une durée souhaitée.
+
+**Paramètres d'entrée** :
+- Montant emprunté (FCFA)
+- Durée souhaitée (en mois, max 7 pour spéciale, max 3 pour aide)
+- Taux d'intérêt mensuel (%)
+- Date du premier versement
+
+**Algorithme de calcul** :
+1. Utiliser une recherche binaire pour trouver la mensualité optimale :
+   - Intervalle de recherche : `[montant / durée, montant × 2]`
+   - Pour chaque mensualité testée :
+     - Simuler le remboursement sur la durée spécifiée
+     - Vérifier si le solde final est ≤ 0
+   - Ajuster l'intervalle jusqu'à trouver la mensualité minimale qui rembourse en exactement la durée souhaitée
+
+2. Recalculer avec la mensualité optimale pour obtenir les valeurs exactes :
+   - Pour chaque mois jusqu'à la durée spécifiée :
+     - Calculer les intérêts
+     - Appliquer le paiement (dernier mois : payer le montant global complet)
+     - Calculer le nouveau reste dû
+
+**Résultat** :
+- Mensualité proposée (FCFA)
+- Échéancier calculé sur la durée spécifiée
+- Échéancier référence sur 7 mois (pour crédit spéciale) ou 3 mois (pour crédit aide)
+- Total des intérêts
+- Total à rembourser
+
+**Exemple** :
+- Montant emprunté : 100 000 FCFA
+- Durée souhaitée : 3 mois
+- Taux mensuel : 5%
+- Résultat : Mensualité proposée ≈ 35 000 FCFA pour rembourser en exactement 3 mois
+
+### 3.1.4. Règles d'arrondi
+
+Tous les montants affichés dans les tableaux de simulation utilisent une règle d'arrondi personnalisée :
+- Si la partie décimale < 0.5 : arrondir vers le bas (ex: 6 669,42 → 6 669)
+- Si la partie décimale ≥ 0.5 : arrondir vers le haut (ex: 6 669,52 → 6 670)
+
+Cette règle s'applique à :
+- Les mensualités
+- Les intérêts
+- Les montants globaux
+- Les restes dus
+- Le total à rembourser
+
 ## 4. Cas d'utilisation (Use Cases)
 
 ### UC1 – Demander un prêt (Client)
@@ -190,146 +336,223 @@ Voir `documentation/credit-speciale/credit-speciale-classes.puml` (rendu recomma
 **Objectif** : Permettre à l'admin de faire une simulation de prêt pour valider ou refuser la demande
 
 **Préconditions** :
-- Une demande de prêt existe avec le statut `PENDING`
+- Une demande de prêt existe avec le statut `APPROVED`
 - L'admin est authentifié
 
 **Scénario principal** :
-1. L'admin accède à la demande de prêt
-2. L'admin saisit les paramètres de simulation :
-   - Montant du prêt
-   - Taux d'intérêt
-   - Montant versé mensuellement
-   - Date du premier versement
-3. Le système calcule :
-   - La durée de remboursement en mois
-   - Le total des intérêts
-   - Le montant total à rembourser
-4. Le système vérifie si la durée ne dépasse pas la limite :
-   - **Crédit spéciale** : 7 mois maximum
-   - **Crédit aide** : 3 mois maximum
-   - **Crédit fixe** : Pas de limite
-5. Si la simulation est valide (ne dépasse pas la limite) :
-   - Le système propose de valider le prêt
-6. Si la simulation dépasse la limite :
-   - Le système refuse le prêt
-   - Le système propose un montant minimum qui respecte la limite
-   - Le client peut revoir son montant d'emprunt à la baisse
+1. L'admin accède à la demande de prêt approuvée
+2. L'admin clique sur "Créer le contrat" qui ouvre le modal de simulation
+3. L'admin choisit parmi trois types de simulations :
+   
+   **a) Simulation standard** :
+   - Saisit le montant emprunté, le taux d'intérêt mensuel, la mensualité souhaitée, et la date du premier versement
+   - Le système calcule automatiquement :
+     - La durée de remboursement en mois
+     - Le total des intérêts
+     - Le total à rembourser (somme des mensualités réelles)
+     - L'échéancier mois par mois
+   - Pour crédit spéciale : génère également un échéancier référence sur 7 mois avec mensualité optimale
+   - Le système vérifie si la durée ne dépasse pas la limite :
+     - **Crédit spéciale** : 7 mois maximum
+     - **Crédit aide** : 3 mois maximum
+     - **Crédit fixe** : Pas de limite
+   - Si la simulation dépasse la limite : propose une mensualité suggérée pour respecter la limite
+   
+   **b) Simulation personnalisée** :
+   - Saisit le montant emprunté, le taux d'intérêt mensuel, et la date du premier versement
+   - Ajoute des paiements personnalisés pour chaque mois (montants variables)
+   - Le système calcule automatiquement :
+     - Les intérêts pour chaque mois
+     - Le montant global restant après chaque paiement
+     - Affiche un avertissement si le total des paiements ne couvre pas le montant global
+   - Pour crédit spéciale : génère également un échéancier référence sur 7 mois avec mensualité optimale
+   
+   **c) Simulation proposée** :
+   - Saisit le montant emprunté, la durée souhaitée (max 7 pour spéciale, max 3 pour aide), le taux d'intérêt mensuel, et la date du premier versement
+   - Le système calcule automatiquement la mensualité optimale pour rembourser en exactement la durée spécifiée (recherche binaire)
+   - Génère l'échéancier calculé sur la durée spécifiée
+   - Pour crédit spéciale : génère également un échéancier référence sur 7 mois
+
+4. L'admin valide la simulation en cliquant sur "Utiliser cette simulation"
+5. Le système passe à l'étape de création du contrat (voir UC4)
 
 **Scénarios alternatifs** :
-- Si le montant minimum proposé est trop faible, l'admin peut suggérer une autre solution
-- Si le client accepte le montant minimum, on passe à l'étape suivante
+- Si la simulation standard dépasse la limite, le système propose une mensualité suggérée
+- Si la simulation personnalisée ne couvre pas le montant global, afficher un avertissement
+- L'admin peut modifier les paramètres et recalculer autant de fois que nécessaire
 
 **Postconditions** :
-- La simulation est enregistrée
-- Le statut du crédit est mis à jour (`APPROVED` ou `REJECTED`)
+- La simulation est validée et utilisée pour créer le contrat
+- Les données de simulation sont conservées pour référence
 
 ---
 
-### UC3 – Simulation personnalisée (Client/Admin)
+### UC3 – Simulation personnalisée (Admin)
 
-**Acteur** : Client ou Admin
+**Acteur** : Admin
 
 **Objectif** : Permettre de faire une simulation avec des montants variables par mois
 
 **Préconditions** :
-- Une demande de prêt existe
-- L'utilisateur est authentifié
+- Une demande de prêt existe avec le statut `APPROVED`
+- L'admin est authentifié
+- Le modal de simulation est ouvert
 
 **Scénario principal** :
-1. L'utilisateur choisit l'option "Simulation personnalisée"
-2. L'utilisateur saisit le montant qu'il peut payer pour chaque mois :
+1. L'admin sélectionne l'onglet "Simulation personnalisée" dans le modal
+2. L'admin saisit :
+   - Le montant emprunté
+   - Le taux d'intérêt mensuel
+   - La date du premier versement
+3. L'admin ajoute des paiements personnalisés pour chaque mois :
    - Mois 1 : 30 000 FCFA
    - Mois 2 : 0 FCFA
    - Mois 3 : 100 000 FCFA
-   - ... jusqu'à ce que la somme + intérêts soit totalement remboursée
-3. Le système génère deux tableaux récapitulatifs :
-   - **Tableau 1** : Simulation sur 7 mois (pour crédit spéciale) ou 3 mois (pour crédit aide)
-   - **Tableau 2** : Simulation suivant les montants d'accord du client
-4. Le système affiche les deux tableaux pour comparaison
+   - ... jusqu'à ce que le montant global (montant + intérêts) soit couvert
+4. Le système calcule en temps réel :
+   - Les intérêts pour chaque mois (appliqués sur le solde restant)
+   - Le montant global restant après chaque paiement
+   - Le total des paiements effectués
+   - Affiche un avertissement dynamique si le total des paiements ne couvre pas le montant global restant
+5. Le système génère deux tableaux récapitulatifs :
+   - **Tableau 1** : Échéancier personnalisé suivant les montants définis par l'admin
+   - **Tableau 2** : Échéancier référence sur 7 mois (pour crédit spéciale) ou 3 mois (pour crédit aide) avec mensualité optimale calculée
+6. L'admin valide la simulation en cliquant sur "Utiliser cette simulation"
 
 **Scénarios alternatifs** :
-- Si les montants saisis ne permettent pas de rembourser le prêt, afficher un avertissement
-- Si la simulation personnalisée dépasse la limite, proposer des ajustements
+- Si les montants saisis ne permettent pas de rembourser le prêt, afficher un avertissement avec le montant global restant
+- Si le nombre de mois dépasse la limite (7 pour spéciale, 3 pour aide), afficher un avertissement
+- L'admin peut ajouter ou supprimer des paiements à tout moment
 
 **Postconditions** :
 - Les deux tableaux récapitulatifs sont générés
-- La simulation personnalisée est enregistrée
+- La simulation personnalisée est validée et utilisée pour créer le contrat
 
 ---
 
-### UC4 – Enregistrer les informations du crédit (Admin)
+### UC4 – Créer le contrat (Admin) - Processus multi-étapes
 
 **Acteur** : Admin
 
-**Objectif** : Enregistrer toutes les informations nécessaires avant la validation finale du crédit
+**Objectif** : Créer un contrat de crédit à partir d'une demande approuvée en suivant un processus guidé en plusieurs étapes
 
 **Préconditions** :
-- La simulation a été validée
-- Le crédit a le statut `APPROVED`
+- Une demande de prêt existe avec le statut `APPROVED`
+- Une simulation a été validée (standard, personnalisée ou proposée)
+- L'admin est authentifié
 
 **Scénario principal** :
-1. L'admin saisit les informations du client :
-   - Nom et prénom (déjà disponibles, vérification)
-   - Numéro de téléphone
-   - Cause du crédit
-2. L'admin saisit les informations du garant :
-   - Type de garant (membre de la mutuelle ou admin)
-   - Si membre : sélection du membre
-   - Si admin : sélection de l'admin
-   - Nom et prénom du garant
-   - Lien de parenté avec le garant
-3. Le système vérifie l'éligibilité :
-   - Le client est à jour à la caisse imprévue **OU**
-   - Le garant est à jour à la caisse imprévue
-   - Si aucun des deux n'est à jour, le crédit est automatiquement refusé
-   - Exception : l'admin peut accepter manuellement si c'est un cas particulier
-4. Si éligible :
-   - Les informations sont enregistrées
-   - Le système passe à l'étape de génération du contrat
+
+**Étape 1 - Récapitulatif de la simulation** :
+1. Après validation de la simulation, le modal de création de contrat s'ouvre automatiquement
+2. Le système affiche :
+   - Les informations du client (nom, prénom, type de crédit)
+   - Le récapitulatif de la simulation validée (montant, mensualité, durée, total à rembourser)
+   - L'échéancier complet mois par mois
+   - Les informations du garant si présent
+3. L'admin vérifie les informations et clique sur "Suivant"
+
+**Étape 2 - Rémunération du parrain** (si le garant est un parrain membre) :
+1. Le système vérifie si le garant est un membre de la mutuelle qui a parrainé le client
+2. Si oui, affiche :
+   - Un tableau de rémunération montrant pour chaque mensualité :
+     - Le mois et la date
+     - La mensualité du client
+     - La rémunération du parrain (2% de la mensualité)
+   - Le total de la rémunération sur toute la durée
+3. L'admin peut modifier le pourcentage de rémunération (entre 0% et 2%)
+4. Le système recalcule automatiquement le tableau avec le nouveau pourcentage
+5. L'admin clique sur "Suivant"
+
+**Étape 3 - Contact d'urgence** :
+1. L'admin saisit les informations du contact d'urgence :
+   - Nom (obligatoire)
+   - Prénom (optionnel)
+   - Téléphone principal (obligatoire, format gabonais)
+   - Téléphone secondaire (optionnel)
+   - Lien de parenté (obligatoire, sélection depuis une liste centralisée)
+   - Type de document d'identité (obligatoire)
+   - Numéro de document (obligatoire)
+   - Photo du document (obligatoire, avec compression automatique)
+2. Le système valide en temps réel chaque champ
+3. Le système affiche un résumé du contact une fois tous les champs remplis
+4. L'admin clique sur "Suivant"
+
+**Étape 4 - Confirmation finale** :
+1. Le système affiche un récapitulatif complet :
+   - Informations du client
+   - Montant et durée du crédit
+   - Informations du garant (si présent) avec pourcentage de rémunération
+   - Informations du contact d'urgence
+2. L'admin vérifie toutes les informations
+3. L'admin clique sur "Créer le contrat"
+4. Le système :
+   - Crée le contrat avec toutes les informations
+   - Enregistre la simulation validée
+   - Enregistre le contact d'urgence
+   - Enregistre le pourcentage de rémunération du parrain
+   - Met à jour la demande avec l'ID du contrat créé (relation 1:1)
+   - Génère une notification
+   - Redirige vers la page des contrats
 
 **Scénarios alternatifs** :
-- Si le client ou le garant n'est pas à jour, afficher un message d'avertissement
-- L'admin peut forcer l'acceptation avec une justification
+- Si le garant n'est pas un parrain membre, l'étape 2 est ignorée
+- Si un champ obligatoire n'est pas rempli, le bouton "Suivant" est désactivé
+- Si une demande a déjà un contrat créé, le bouton "Créer le contrat" est remplacé par un badge "Contrat déjà créé"
 
 **Postconditions** :
-- Toutes les informations sont enregistrées
-- L'éligibilité est vérifiée et enregistrée
+- Le contrat est créé avec le statut `PENDING`
+- La demande est liée au contrat (champ `contractId`)
+- Toutes les informations sont enregistrées (simulation, contact d'urgence, rémunération parrain)
+- Le contrat peut être visualisé dans la liste des contrats
 
 ---
 
-### UC5 – Générer et signer le contrat (Admin/Client)
+### UC5 – Générer et signer le contrat (Admin)
 
-**Acteur** : Admin et Client
+**Acteur** : Admin
 
-**Objectif** : Générer un contrat, le faire signer par le client, et le téléverser
+**Objectif** : Générer le contrat PDF, le faire signer par le client, téléverser le contrat signé et activer le crédit
 
 **Préconditions** :
-- Toutes les informations du crédit sont enregistrées
-- Le crédit a le statut `APPROVED`
-- L'éligibilité est confirmée
+- Un contrat a été créé (voir UC4)
+- Le contrat a le statut `PENDING`
+- Toutes les informations sont complètes (simulation, contact d'urgence, garant)
 
 **Scénario principal** :
-1. L'admin génère le contrat PDF avec toutes les informations :
-   - Informations du client
-   - Informations du garant
+1. L'admin accède à la page de détails du contrat
+2. L'admin clique sur "Générer le contrat PDF"
+3. Le système génère automatiquement le contrat PDF avec toutes les informations :
+   - Informations du client (nom, prénom, contacts)
+   - Informations du garant (nom, prénom, relation, type)
    - Montant du prêt
-   - Taux d'intérêt
-   - Plan de remboursement
+   - Taux d'intérêt mensuel
+   - Mensualité
+   - Durée
+   - Plan de remboursement (échéancier complet)
+   - Total à rembourser
    - Conditions générales
-2. Le contrat est affiché/téléchargé
-3. Le client signe le contrat (physiquement ou électroniquement)
-4. L'admin téléverse le contrat signé dans le système
-5. Le système enregistre le document signé
-6. L'admin remet l'argent au client
-7. Le statut du crédit passe à `ACTIVE`
+   - Informations du contact d'urgence
+4. Le contrat PDF est téléchargé
+5. Le contrat est imprimé et signé par le client (physiquement)
+6. L'admin téléverse le contrat signé via le bouton "Téléverser le contrat signé"
+7. Le système :
+   - Enregistre le document signé dans Firebase Storage
+   - Met à jour le contrat avec l'URL du document signé
+   - Change le statut du contrat à `ACTIVE`
+   - Génère une notification
+8. L'admin remet l'argent au client
+9. Le système enregistre la date d'activation et la date de remise des fonds
 
 **Scénarios alternatifs** :
-- Si le contrat n'est pas signé, le crédit reste en statut `APPROVED`
-- Si le téléversement échoue, afficher un message d'erreur
+- Si le contrat n'est pas signé, le crédit reste en statut `PENDING`
+- Si le téléversement échoue, afficher un message d'erreur et permettre de réessayer
+- L'admin peut régénérer le contrat PDF à tout moment
 
 **Postconditions** :
-- Le contrat signé est enregistré dans le système
-- Le crédit a le statut `ACTIVE`
+- Le contrat signé est enregistré dans le système (champ `signedContractUrl`)
+- Le contrat a le statut `ACTIVE`
+- Les dates d'activation et de remise des fonds sont enregistrées
 - L'argent a été remis au client
 
 ---
@@ -588,11 +811,25 @@ Un membre peut obtenir un crédit si :
 ### 5.6. Rémunération du garant
 
 - Les bonus ne s'appliquent qu'aux garants qui ont apporté l'emprunteur (parrainage).  
-- Si le garant est un membre de la mutuelle, il gagne **2% du montant versé par mois par l'emprunteur**.  
-- La rémunération est calculée à chaque versement mensuel.  
-- Si le garant est un admin, aucune rémunération n'est attribuée.
+- Si le garant est un membre de la mutuelle (parrain), il peut recevoir une rémunération sur chaque mensualité versée.  
+- **Pourcentage par défaut** : 2% du montant versé par mois par l'emprunteur.  
+- **Personnalisation** : L'admin peut modifier le pourcentage lors de la création du contrat, entre 0% et 2% maximum.  
+- La rémunération est calculée à chaque versement mensuel selon le pourcentage défini.  
+- Un tableau de rémunération est généré lors de la création du contrat, montrant la rémunération pour chaque mensualité.  
+- Si le garant est un admin, aucune rémunération n'est attribuée (0%).
 
-### 5.7. Notation fiabilité emprunteur (admin uniquement)
+### 5.7. Relation demande-contrat (1:1)
+
+- **Relation** : Une demande de crédit (`CreditDemand`) ne peut avoir qu'un seul contrat (`CreditContract`) associé.
+- **Champ de liaison** : Le champ `contractId` dans `CreditDemand` établit la relation 1:1.
+- **Création** : Lors de la création d'un contrat à partir d'une demande, le système :
+  - Vérifie qu'aucun contrat n'existe déjà pour cette demande (`contractId` vide)
+  - Crée le contrat avec toutes les informations (simulation, contact d'urgence, rémunération parrain)
+  - Met à jour la demande avec l'ID du contrat créé
+- **Protection** : Si une demande a déjà un contrat (`contractId` présent), le bouton "Créer le contrat" est remplacé par un badge "Contrat déjà créé".
+- **Affichage** : Sur la page de détails d'une demande avec contrat créé, les informations du contrat sont affichées (simulations, rémunération parrain, contact d'urgence) au lieu du bouton de création.
+
+### 5.8. Notation fiabilité emprunteur (admin uniquement)
 
 - **Visibilité** : badge/note uniquement pour l'admin (jamais visible au client).  
 - **Échelle** : score sur 10, borné entre 0 et 10. Classification indicative : Fiable (≥ 8), Moyen (5 à 7.75), Risque (< 5).  
@@ -607,7 +844,7 @@ Un membre peut obtenir un crédit si :
 - **Affichage** : dans les listes (onglets demandes et contrats), fiches contrats, filtres/tri (admin).  
 - **Usage** : aide à la décision (priorisation, alerte), sans blocage automatique (sauf règles spécifiques ultérieures).
 
-### 5.8. Garant (rôle, éligibilité, rémunération)
+### 5.9. Garant (rôle, éligibilité, rémunération)
 
 - **Rôle** : le garant est obligatoire (membre ou admin), avec lien de parenté renseigné.  
 - **Éligibilité** : l'un des deux (emprunteur ou garant) doit être à jour à la caisse imprévue ; sinon refus, sauf dérogation admin.  
@@ -617,92 +854,166 @@ Un membre peut obtenir un crédit si :
 
 ## 6. Structure des données
 
-### 6.1. Type CreditSpeciale
+### 6.1. Type CreditDemand (Demande de crédit)
 
 ```typescript
 export type CreditType = 'SPECIALE' | 'FIXE' | 'AIDE'
-export type CreditStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'DEFAULTED' | 'TRANSFORMED'
+export type CreditDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
-export interface CreditSpeciale {
-  id: string
-  memberId: string
-  memberFirstName: string
-  memberLastName: string
-  memberPhone: string
+export interface CreditDemand {
+  id: string // Format: MK_DEMANDE_CSP_matricule_date_heure (ex: MK_DEMANDE_CSP_0001_111225_1706)
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
   creditType: CreditType
-  requestedAmount: number
-  interestRate: number
-  monthlyPayment: number
-  firstPaymentDate: Date
-  totalAmount: number // montant + intérêts
-  status: CreditStatus
-  guarantor: Guarantor
-  relationshipWithGuarantor: string
-  creditReason: string
-  contractDocumentId?: string
-  signedContractDocumentId?: string
-  simulationData: SimulationData
-  customSimulationData?: CustomSimulationData
-  isEligible: boolean
-  eligibilityReason?: string
-  transformedFromCreditId?: string
-  transformedAt?: Date
-  dischargeDocumentId?: string
+  amount: number
+  monthlyPaymentAmount?: number
+  cause: string
+  status: CreditDemandStatus
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  eligibilityOverride?: {
+    justification: string
+    adminId: string
+    adminName: string
+    createdAt: Date
+  }
+  adminComments?: string // Motif d'approbation ou de rejet
+  score?: number // Score de fiabilité (0-10, admin-only)
+  scoreUpdatedAt?: Date
+  contractId?: string // Relation 1:1 avec le contrat créé
   createdAt: Date
   updatedAt: Date
   createdBy: string
-  updatedBy: string
+  updatedBy?: string
 }
 ```
 
-### 6.2. Type Guarantor
+**Modifications récentes** :
+- Ajout du champ `contractId` pour établir une relation 1:1 avec `CreditContract`
+- Une demande ne peut avoir qu'un seul contrat associé
+- Le format de l'ID suit le pattern : `MK_DEMANDE_CSP_matricule_date_heure`
+
+### 6.2. Type CreditContract (Contrat de crédit)
 
 ```typescript
-export type GuarantorType = 'MEMBER' | 'ADMIN'
+export type CreditContractStatus = 'PENDING' | 'ACTIVE' | 'OVERDUE' | 'PARTIAL' | 'TRANSFORMED' | 'BLOCKED' | 'DISCHARGED' | 'CLOSED'
 
-export interface Guarantor {
-  type: GuarantorType
-  memberId?: string // si type = 'MEMBER'
-  adminId?: string // si type = 'ADMIN'
-  firstName: string
-  lastName: string
-  phone?: string
-  isUpToDate: boolean // à jour à la caisse imprévue
-}
-```
-
-### 6.3. Type SimulationData
-
-```typescript
-export interface SimulationData {
+export interface CreditContract {
+  id: string
+  demandId: string // Référence à la demande d'origine
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
+  creditType: CreditType
   amount: number
   interestRate: number
-  monthlyPayment: number
+  monthlyPaymentAmount: number
+  totalAmount: number // Montant + intérêts
+  duration: number // Durée en mois
   firstPaymentDate: Date
-  durationInMonths: number
-  totalInterest: number
-  totalAmount: number
-  isValid: boolean // ne dépasse pas la limite
-  proposedMinimumAmount?: number // si refus
+  nextDueAt?: Date
+  status: CreditContractStatus
+  amountPaid: number
+  amountRemaining: number
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  guarantorIsParrain: boolean // Si le garant a parrainé le client
+  guarantorRemunerationPercentage: number // % de la mensualité pour le parrain (0-2%)
+  emergencyContact?: EmergencyContact // Contact d'urgence
+  contractUrl?: string // URL du contrat PDF généré
+  signedContractUrl?: string // URL du contrat signé téléversé
+  dischargeUrl?: string // URL de la décharge
+  activatedAt?: Date
+  fundsReleasedAt?: Date
+  dischargedAt?: Date
+  transformedAt?: Date
+  blockedAt?: Date
+  blockedReason?: string
+  score?: number // Score de fiabilité (0-10, admin-only)
+  scoreUpdatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
 }
 ```
 
-### 6.4. Type CustomSimulationData
+**Modifications récentes** :
+- Ajout du champ `emergencyContact` pour stocker les informations du contact d'urgence
+- Ajout du champ `guarantorRemunerationPercentage` pour permettre la personnalisation du pourcentage de rémunération (0-2%)
+- Le contact d'urgence est enregistré lors de la création du contrat
+
+### 6.3. Type EmergencyContact (Contact d'urgence)
 
 ```typescript
-export interface CustomPayment {
-  monthIndex: number
-  amount: number
-  dueDate: Date
-}
+export type Relationship = 'Ami' | 'Amie' | 'Arrière-grand-mère' | 'Arrière-grand-père' | ... | 'Voisine' // 50+ options
 
-export interface CustomSimulationData {
-  payments: CustomPayment[]
-  totalAmount: number
-  durationInMonths: number
-  isValid: boolean
+export interface EmergencyContact {
+  lastName: string // Obligatoire
+  firstName?: string // Optionnel
+  phone1: string // Obligatoire, format gabonais (+241 XX XX XX XX)
+  phone2?: string // Optionnel
+  relationship: Relationship // Obligatoire, sélection depuis liste centralisée
+  typeId: string // Type de document d'identité (obligatoire)
+  idNumber: string // Numéro de document (obligatoire)
+  documentPhotoUrl: string // URL de la photo du document (obligatoire, uploadé avec compression)
 }
 ```
+
+**Caractéristiques** :
+- Les liens de parenté sont centralisés dans `src/constantes/relationship-types.ts`
+- La photo du document est compressée automatiquement avant upload
+- Validation stricte du format de téléphone gabonais
+
+### 6.4. Type StandardSimulation (Simulation standard)
+
+```typescript
+export interface StandardSimulation {
+  amount: number // Montant emprunté
+  interestRate: number // Taux d'intérêt mensuel (%)
+  monthlyPayment: number // Mensualité souhaitée
+  firstPaymentDate: Date
+  duration: number // Durée calculée (en mois)
+  totalAmount: number // Total à rembourser (somme des mensualités réelles)
+  isValid: boolean // Respecte les limites (7 mois spéciale, 3 mois aide)
+  remainingAtMaxDuration?: number // Solde restant au 7ème mois (pour crédit spéciale)
+  suggestedMonthlyPayment?: number // Mensualité suggérée pour rembourser en 7 mois
+  suggestedMinimumAmount?: number // Montant minimum suggéré (si dépasse les limites)
+}
+```
+
+### 6.5. Type CustomSimulation (Simulation personnalisée)
+
+```typescript
+export interface CustomSimulation {
+  amount: number // Montant emprunté
+  interestRate: number // Taux d'intérêt mensuel (%)
+  monthlyPayments: Array<{
+    month: number
+    amount: number
+  }> // Liste des paiements personnalisés
+  firstPaymentDate: Date
+  duration: number // Durée calculée (en mois)
+  totalAmount: number // Total à rembourser (somme des paiements + intérêts)
+  isValid: boolean
+  suggestedMinimumAmount?: number
+}
+```
+
+### 6.6. Type ProposedSimulation (Simulation proposée)
+
+**Note** : Utilise le même type que `StandardSimulation` mais avec des paramètres d'entrée différents :
+- Entrée : `amount` (montant emprunté), `duration` (durée souhaitée), `interestRate`, `firstPaymentDate`
+- Sortie : `monthlyPayment` (calculé), `duration` (identique à l'entrée), `totalAmount`
 
 ### 6.5. Type CreditPayment
 

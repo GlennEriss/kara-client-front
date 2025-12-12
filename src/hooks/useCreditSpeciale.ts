@@ -7,6 +7,7 @@ import type {
     CreditContract, 
     CreditPayment, 
     CreditPenalty,
+    GuarantorRemuneration,
     CreditDemandStatus,
     CreditContractStatus,
     StandardSimulation,
@@ -258,16 +259,17 @@ export function useCreditPaymentMutations() {
     const service = ServiceFactory.getCreditSpecialeService()
 
     const create = useMutation({
-        mutationFn: ({ data, proofFile }: { data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt' | 'proofUrl'>; proofFile?: File }) => {
+        mutationFn: ({ data, proofFile, penaltyIds }: { data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt' | 'proofUrl'>; proofFile?: File; penaltyIds?: string[] }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.createPayment({
                 ...data,
                 createdBy: user.uid,
                 updatedBy: user.uid,
-            }, proofFile)
+            }, proofFile, penaltyIds)
         },
         onSuccess: (_, variables) => {
             qc.invalidateQueries({ queryKey: ['creditPayments'] })
+            qc.invalidateQueries({ queryKey: ['creditPenalties'] })
             qc.invalidateQueries({ queryKey: ['creditContract', variables.data.creditId] })
             qc.invalidateQueries({ queryKey: ['creditContracts'] })
             toast.success('Paiement enregistré avec succès')
@@ -300,6 +302,30 @@ export function useUnpaidCreditPenaltiesByCreditId(creditId: string) {
         queryKey: ['creditPenalties', 'unpaid', 'creditId', creditId],
         queryFn: () => service.getUnpaidPenaltiesByCreditId(creditId),
         enabled: !!creditId,
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
+// ==================== RÉMUNÉRATION GARANT ====================
+
+export function useGuarantorRemunerationsByCreditId(creditId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery<GuarantorRemuneration[]>({
+        queryKey: ['guarantorRemunerations', 'creditId', creditId],
+        queryFn: () => service.getRemunerationsByCreditId(creditId),
+        enabled: !!creditId,
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
+export function useGuarantorRemunerationsByGuarantorId(guarantorId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery<GuarantorRemuneration[]>({
+        queryKey: ['guarantorRemunerations', 'guarantorId', guarantorId],
+        queryFn: () => service.getRemunerationsByGuarantorId(guarantorId),
+        enabled: !!guarantorId,
         staleTime: 2 * 60 * 1000,
     })
 }

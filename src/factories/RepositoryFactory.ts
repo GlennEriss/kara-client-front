@@ -28,10 +28,12 @@ import { ICreditDemandRepository } from '@/repositories/credit-speciale/ICreditD
 import { ICreditContractRepository } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { ICreditPaymentRepository } from '@/repositories/credit-speciale/ICreditPaymentRepository'
 import { ICreditPenaltyRepository } from '@/repositories/credit-speciale/ICreditPenaltyRepository'
+import { IGuarantorRemunerationRepository } from '@/repositories/credit-speciale/IGuarantorRemunerationRepository'
 import { CreditDemandRepository } from '@/repositories/credit-speciale/CreditDemandRepository'
 import { CreditContractRepository } from '@/repositories/credit-speciale/CreditContractRepository'
 import { CreditPaymentRepository } from '@/repositories/credit-speciale/CreditPaymentRepository'
 import { CreditPenaltyRepository } from '@/repositories/credit-speciale/CreditPenaltyRepository'
+import { GuarantorRemunerationRepository } from '@/repositories/credit-speciale/GuarantorRemunerationRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -260,6 +262,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new CreditPenaltyRepository())
     }
     return this.repositories.get(key) as ICreditPenaltyRepository
+  }
+
+  /**
+   * Obtient le repository des rémunérations de garant
+   */
+  static getGuarantorRemunerationRepository(): IGuarantorRemunerationRepository {
+    const key = 'GuarantorRemunerationRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new GuarantorRemunerationRepository())
+    }
+    return this.repositories.get(key) as IGuarantorRemunerationRepository
   }
 
   /**

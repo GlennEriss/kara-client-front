@@ -1,9 +1,10 @@
 import { ICreditSpecialeService } from "./ICreditSpecialeService";
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation } from "@/types/types";
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { ICreditPaymentRepository, CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
 import { ICreditPenaltyRepository, CreditPenaltyFilters } from "@/repositories/credit-speciale/ICreditPenaltyRepository";
+import { IGuarantorRemunerationRepository, GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
 import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
@@ -25,7 +26,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         private creditDemandRepository: ICreditDemandRepository,
         private creditContractRepository: ICreditContractRepository,
         private creditPaymentRepository: ICreditPaymentRepository,
-        private creditPenaltyRepository: ICreditPenaltyRepository
+        private creditPenaltyRepository: ICreditPenaltyRepository,
+        private guarantorRemunerationRepository: IGuarantorRemunerationRepository
     ) {
         this.notificationService = ServiceFactory.getNotificationService();
         this.contractCIRepository = RepositoryFactory.getContractCIRepository();
@@ -256,10 +258,36 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     }
 
     async updateContractStatus(id: string, status: CreditContractStatus, adminId: string): Promise<CreditContract | null> {
-        return await this.creditContractRepository.updateContract(id, {
+        const contract = await this.creditContractRepository.getContractById(id);
+        if (!contract) return null;
+
+        const updatedContract = await this.creditContractRepository.updateContract(id, {
             status,
             updatedBy: adminId,
         });
+
+        // Notification si le statut change vers TRANSFORMED (clôturé/transformé)
+        if (status === 'TRANSFORMED') {
+            try {
+                await this.notificationService.createNotification({
+                    module: 'credit_speciale',
+                    entityId: id,
+                    type: 'contract_finished',
+                    title: 'Contrat transformé',
+                    message: `Le contrat de crédit ${contract.creditType} de ${contract.clientFirstName} ${contract.clientLastName} a été transformé.`,
+                    metadata: {
+                        contractId: id,
+                        clientId: contract.clientId,
+                        creditType: contract.creditType,
+                        status,
+                    },
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification de changement de statut:', error);
+            }
+        }
+
+        return updatedContract;
     }
 
     // ==================== SIMULATIONS ====================
@@ -572,7 +600,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     // ==================== PAIEMENTS ====================
 
-    async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File): Promise<CreditPayment> {
+    async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[]): Promise<CreditPayment> {
         // Récupérer le contrat pour générer la référence
         const contract = await this.creditContractRepository.getContractById(data.creditId);
         if (!contract) {
@@ -651,8 +679,91 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 updatedBy: data.createdBy,
             });
 
+            // Notification si le contrat est terminé (DISCHARGED)
+            if (newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED') {
+                try {
+                    await this.notificationService.createNotification({
+                        module: 'credit_speciale',
+                        entityId: contract.id,
+                        type: 'contract_finished',
+                        title: 'Contrat de crédit terminé',
+                        message: `Le contrat de crédit ${contract.creditType} de ${contract.clientFirstName} ${contract.clientLastName} a été entièrement remboursé.`,
+                        metadata: {
+                            contractId: contract.id,
+                            clientId: contract.clientId,
+                            creditType: contract.creditType,
+                            totalAmount: contract.totalAmount,
+                        },
+                    });
+                } catch (error) {
+                    console.error('Erreur lors de la création de la notification de contrat terminé:', error);
+                }
+            }
+
+            // Marquer les pénalités sélectionnées comme payées
+            if (penaltyIds && penaltyIds.length > 0) {
+                for (const penaltyId of penaltyIds) {
+                    await this.creditPenaltyRepository.updatePenalty(penaltyId, {
+                        paid: true,
+                        paidAt: new Date(),
+                        updatedBy: data.createdBy,
+                    });
+                }
+            }
+
             // Calculer et créer les pénalités si nécessaire
             await this.checkAndCreatePenalties(contract.id, payment);
+
+            // Calculer et créer la rémunération du garant si applicable
+            if (contract.guarantorIsParrain && 
+                contract.guarantorIsMember && 
+                contract.guarantorId && 
+                contract.guarantorRemunerationPercentage > 0) {
+                
+                const remunerationAmount = Math.round(
+                    (payment.amount * contract.guarantorRemunerationPercentage) / 100
+                );
+
+                if (remunerationAmount > 0) {
+                    // Calculer le mois correspondant au paiement
+                    const firstPaymentDate = new Date(contract.firstPaymentDate);
+                    const paymentDate = new Date(payment.paymentDate);
+                    const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
+                                     (paymentDate.getMonth() - firstPaymentDate.getMonth());
+                    const month = Math.max(1, monthsDiff + 1);
+
+                    await this.guarantorRemunerationRepository.createRemuneration({
+                        creditId: contract.id,
+                        guarantorId: contract.guarantorId,
+                        paymentId: payment.id,
+                        amount: remunerationAmount,
+                        month,
+                        createdBy: data.createdBy,
+                        updatedBy: data.createdBy,
+                    });
+
+                    // Notification pour le garant
+                    try {
+                        await this.notificationService.createNotification({
+                            module: 'credit_speciale',
+                            entityId: contract.id,
+                            type: 'reminder', // Utiliser 'reminder' en attendant l'ajout de 'guarantor_remuneration' dans NotificationType
+                            title: 'Rémunération reçue',
+                            message: `Vous avez reçu ${remunerationAmount.toLocaleString('fr-FR')} FCFA de rémunération pour le crédit de ${contract.clientFirstName} ${contract.clientLastName}`,
+                            metadata: {
+                                contractId: contract.id,
+                                paymentId: payment.id,
+                                amount: remunerationAmount,
+                                month,
+                                guarantorId: contract.guarantorId, // ID du garant dans metadata pour filtrage
+                                notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
+                            },
+                        });
+                    } catch (error) {
+                        console.error('Erreur lors de la création de la notification de rémunération:', error);
+                    }
+                }
+            }
 
             // Générer automatiquement le reçu PDF
             try {
@@ -893,7 +1004,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             });
 
             if (!existingPenalty && penaltyAmount > 0) {
-                await this.createPenalty({
+                const penalty = await this.createPenalty({
                     creditId,
                     amount: penaltyAmount,
                     daysLate,
@@ -903,6 +1014,27 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     createdBy: payment.createdBy,
                     updatedBy: payment.createdBy,
                 });
+
+                // Notification pour les admins : pénalité créée
+                try {
+                    await this.notificationService.createNotification({
+                        module: 'credit_speciale',
+                        entityId: creditId,
+                        type: 'reminder',
+                        title: 'Pénalité appliquée',
+                        message: `Une pénalité de ${penaltyAmount.toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard).`,
+                        metadata: {
+                            contractId: creditId,
+                            penaltyId: penalty.id,
+                            clientId: contract.clientId,
+                            amount: penaltyAmount,
+                            daysLate,
+                            dueDate: dueDate.toISOString(),
+                        },
+                    });
+                } catch (error) {
+                    console.error('Erreur lors de la création de la notification de pénalité:', error);
+                }
             }
         }
     }
@@ -934,9 +1066,44 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         return await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(creditId);
     }
 
+    // ==================== RÉMUNÉRATION GARANT ====================
+
+    async getRemunerationsByCreditId(creditId: string): Promise<GuarantorRemuneration[]> {
+        return await this.guarantorRemunerationRepository.getRemunerationsByCreditId(creditId);
+    }
+
+    async getRemunerationsByGuarantorId(guarantorId: string): Promise<GuarantorRemuneration[]> {
+        return await this.guarantorRemunerationRepository.getRemunerationsByGuarantorId(guarantorId);
+    }
+
+    async getRemunerationsWithFilters(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemuneration[]> {
+        return await this.guarantorRemunerationRepository.getRemunerationsWithFilters(filters);
+    }
+
     // ==================== ÉLIGIBILITÉ ====================
 
     async checkEligibility(clientId: string, guarantorId?: string): Promise<{ eligible: boolean; reason?: string }> {
+        // Vérifier si le client a des pénalités impayées en fin de contrat
+        const allClientContracts = await this.creditContractRepository.getContractsWithFilters({
+            clientId,
+        });
+        
+        // Filtrer les contrats terminés (DISCHARGED, CLOSED, TRANSFORMED)
+        const finishedContracts = allClientContracts.filter(c => 
+            c.status === 'DISCHARGED' || c.status === 'CLOSED' || c.status === 'TRANSFORMED'
+        );
+        
+        for (const contract of finishedContracts) {
+            const unpaidPenalties = await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contract.id);
+            if (unpaidPenalties.length > 0) {
+                const totalUnpaidPenalties = unpaidPenalties.reduce((sum, p) => sum + p.amount, 0);
+                return {
+                    eligible: false,
+                    reason: `Le client a des pénalités impayées (${totalUnpaidPenalties.toLocaleString('fr-FR')} FCFA) sur un contrat précédent. Veuillez régulariser ces pénalités avant de créer une nouvelle demande.`,
+                };
+            }
+        }
+
         // Vérifier si le client est à jour à la caisse imprévue
         const clientContracts = await this.contractCIRepository.getContractsByMemberId(clientId);
         const activeClientContracts = clientContracts.filter(c => c.status === 'ACTIVE');
