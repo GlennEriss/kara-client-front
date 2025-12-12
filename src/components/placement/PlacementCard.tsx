@@ -41,7 +41,6 @@ export default function PlacementCard({
     Active: 'Actif',
     Closed: 'Clos',
     EarlyExit: 'Sortie anticipée',
-    Canceled: 'Annulé',
   }
 
   return (
@@ -183,7 +182,7 @@ export default function PlacementCard({
         </div>
 
         <div className="flex justify-end gap-2 pt-2 flex-wrap">
-          {placement.status === 'Active' && onOpenClick && (
+          {onOpenClick && (
             <Button
               size="sm"
               variant="outline"

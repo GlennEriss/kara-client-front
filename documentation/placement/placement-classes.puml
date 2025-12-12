@@ -80,7 +80,6 @@ enum PlacementStatus {
   Active
   Closed
   EarlyExit
-  Canceled
 }
 
 enum CommissionStatus {

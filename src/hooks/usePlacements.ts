@@ -59,11 +59,20 @@ export function usePlacementMutations() {
   })
 
   const requestEarlyExit = useMutation({
-    mutationFn: ({ placementId, commissionDue, payoutAmount, adminId }: { placementId: string; commissionDue: number; payoutAmount: number; adminId: string }) =>
-      service.requestEarlyExit(placementId, { commissionDue, payoutAmount }, adminId),
+    mutationFn: ({ placementId, commissionDue, payoutAmount, reason, documentPdf, benefactorId, adminId }: { 
+      placementId: string
+      commissionDue: number
+      payoutAmount: number
+      reason?: string
+      documentPdf?: File
+      benefactorId: string
+      adminId: string 
+    }) =>
+      service.requestEarlyExit(placementId, { commissionDue, payoutAmount, reason, documentPdf }, benefactorId, adminId),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId] })
+      qc.invalidateQueries({ queryKey: ['placement', variables.placementId, 'early-exit'] })
     },
   })
 
