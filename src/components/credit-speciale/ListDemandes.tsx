@@ -35,6 +35,7 @@ import CreateCreditDemandModal from './CreateCreditDemandModal'
 import ValidateDemandModal from './ValidateDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import CreditSimulationModal from './CreditSimulationModal'
+import ContractCreationModal from './ContractCreationModal'
 import StatisticsCreditDemandes from './StatisticsCreditDemandes'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import type { StandardSimulation, CustomSimulation } from '@/types/types'
@@ -261,6 +262,15 @@ const ListDemandes = () => {
   }>({
     isOpen: false,
     demand: null,
+  })
+  const [contractCreationState, setContractCreationState] = useState<{
+    isOpen: boolean
+    demand: CreditDemand | null
+    simulation: StandardSimulation | CustomSimulation | null
+  }>({
+    isOpen: false,
+    demand: null,
+    simulation: null,
   })
   const { createFromDemand } = useCreditContractMutations()
 
@@ -831,24 +841,31 @@ const ListDemandes = () => {
                       </div>
                     )}
                     {demande.status === 'APPROVED' && (
-                      <Button
-                        size="sm"
-                        onClick={() => setSimulationModalState({ isOpen: true, demand: demande })}
-                        disabled={createFromDemand.isPending}
-                        className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
-                      >
-                        {createFromDemand.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                            Création...
-                          </>
-                        ) : (
-                          <>
-                            <Calculator className="h-4 w-4 mr-1" />
-                            Créer le contrat
-                          </>
-                        )}
-                      </Button>
+                      demande.contractId ? (
+                        <Badge className="w-full justify-center py-2 bg-green-100 text-green-700 border border-green-300">
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Contrat déjà créé
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => setSimulationModalState({ isOpen: true, demand: demande })}
+                          disabled={createFromDemand.isPending}
+                          className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          {createFromDemand.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              Création...
+                            </>
+                          ) : (
+                            <>
+                              <Calculator className="h-4 w-4 mr-1" />
+                              Créer le contrat
+                            </>
+                          )}
+                        </Button>
+                      )
                     )}
                     {demande.status === 'REJECTED' && (
                       <Button
@@ -978,7 +995,7 @@ const ListDemandes = () => {
         }}
       />
 
-      {/* Modal de simulation et création de contrat */}
+      {/* Modal de simulation */}
       {simulationModalState.demand && (
         <CreditSimulationModal
           isOpen={simulationModalState.isOpen}
@@ -986,34 +1003,25 @@ const ListDemandes = () => {
           creditType={simulationModalState.demand.creditType}
           initialAmount={simulationModalState.demand.amount}
           initialMonthlyPayment={simulationModalState.demand.monthlyPaymentAmount}
-          onSimulationComplete={async (simulation: StandardSimulation | CustomSimulation) => {
-            try {
-              // Convertir la simulation en format attendu par createFromDemand
-              const simulationData = {
-                interestRate: simulation.interestRate,
-                monthlyPaymentAmount: 'monthlyPayment' in simulation 
-                  ? simulation.monthlyPayment 
-                  : simulation.monthlyPayments.length > 0 
-                    ? simulation.monthlyPayments[0].amount 
-                    : simulation.amount / simulation.duration,
-                duration: simulation.duration,
-                firstPaymentDate: simulation.firstPaymentDate,
-                totalAmount: simulation.totalAmount,
-              }
-
-              await createFromDemand.mutateAsync({
-                demandId: simulationModalState.demand!.id,
-                simulationData,
-              })
-
-              toast.success('Contrat créé avec succès')
-              setSimulationModalState({ isOpen: false, demand: null })
-              router.push(routes.admin.creditSpecialeContrats)
-            } catch (error: any) {
-              console.error('Erreur lors de la création du contrat:', error)
-              toast.error(error?.message || 'Erreur lors de la création du contrat')
-            }
+          onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
+            // Fermer le modal de simulation et ouvrir le modal de création de contrat
+            setSimulationModalState({ isOpen: false, demand: null })
+            setContractCreationState({
+              isOpen: true,
+              demand: simulationModalState.demand,
+              simulation,
+            })
           }}
+        />
+      )}
+
+      {/* Modal de création de contrat multi-étapes */}
+      {contractCreationState.demand && contractCreationState.simulation && (
+        <ContractCreationModal
+          isOpen={contractCreationState.isOpen}
+          onClose={() => setContractCreationState({ isOpen: false, demand: null, simulation: null })}
+          demand={contractCreationState.demand}
+          simulation={contractCreationState.simulation}
         />
       )}
     </div>

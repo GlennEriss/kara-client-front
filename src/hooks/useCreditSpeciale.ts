@@ -15,6 +15,7 @@ import type {
 import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import type { CreditPaymentFilters } from '@/repositories/credit-speciale/ICreditPaymentRepository'
+import type { EmergencyContact } from '@/schemas/emergency-contact.schema'
 
 // ==================== DEMANDES ====================
 
@@ -144,16 +145,35 @@ export function useCreditContractMutations() {
                 duration: number
                 firstPaymentDate: Date
                 totalAmount: number
+                emergencyContact?: EmergencyContact
+                guarantorRemunerationPercentage?: number
             }
         }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.createContractFromDemand(demandId, user.uid, simulationData)
         },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ['creditContracts'] })
-            qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
-            qc.invalidateQueries({ queryKey: ['creditDemands'] })
-            toast.success('Contrat créé avec succès')
+        onSuccess: async (contract, variables) => {
+            // Mise à jour optimiste : mettre à jour toutes les queries qui contiennent cette demande
+            qc.setQueriesData(
+                { queryKey: ['creditDemands'] },
+                (oldData: CreditDemand[] | undefined) => {
+                    if (!oldData) return oldData
+                    return oldData.map(demand => 
+                        demand.id === variables.demandId 
+                            ? { ...demand, contractId: contract.id }
+                            : demand
+                    )
+                }
+            )
+            // Invalider toutes les queries liées pour s'assurer que tout est à jour
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+                qc.invalidateQueries({ queryKey: ['creditDemands'] }),
+                qc.invalidateQueries({ queryKey: ['creditDemandsStats'] }),
+            ])
+            // Refetch explicite pour mettre à jour immédiatement
+            await qc.refetchQueries({ queryKey: ['creditDemands'] })
         },
         onError: (error: any) => {
             toast.error(error?.message || 'Erreur lors de la création du contrat')

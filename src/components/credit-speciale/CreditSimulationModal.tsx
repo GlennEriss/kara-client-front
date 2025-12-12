@@ -776,12 +776,17 @@ function StandardSimulationResults({
   const monthlyRate = result.interestRate / 100
   const firstDate = new Date(result.firstPaymentDate)
   // Pour simulation proposée : utiliser la durée spécifiée
-  // Pour simulation standard avec crédit spéciale : toujours afficher 7 mois
-  const displayDuration = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : result.duration)
+  // Pour simulation standard : calculer jusqu'à ce que le solde soit 0 (max 7 mois pour crédit spéciale)
+  const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : result.duration)
 
-  for (let i = 0; i < displayDuration; i++) {
+  for (let i = 0; i < maxIterations; i++) {
     const date = new Date(firstDate)
     date.setMonth(date.getMonth() + i)
+    
+    // Si le solde est déjà à 0, ne pas ajouter de ligne
+    if (remaining <= 0) {
+      break
+    }
     
     // 1. Calcul des intérêts sur le solde actuel
     const interest = remaining * monthlyRate
@@ -819,6 +824,9 @@ function StandardSimulationResults({
       remaining: customRound(remaining), // Arrondir le reste dû selon la règle personnalisée
     })
   }
+  
+  // La durée réelle est le nombre de lignes dans l'échéancier (avec paiements non nuls)
+  const displayDuration = schedule.length
 
   return (
     <Card>

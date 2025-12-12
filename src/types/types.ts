@@ -1295,6 +1295,7 @@ export interface CreditDemand {
   adminComments?: string // Commentaires/motif d'approbation ou de rejet
   score?: number // Score de fiabilité (0-10, admin-only)
   scoreUpdatedAt?: Date
+  contractId?: string // Relation 1:1 avec le contrat (une demande = un seul contrat)
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1328,6 +1329,8 @@ export interface CreditContract {
   guarantorRelation?: string
   guarantorIsMember: boolean
   guarantorIsParrain: boolean // Si le garant a parrainé le client
+  guarantorRemunerationPercentage: number // % de la mensualité pour le parrain (2% par défaut)
+  emergencyContact?: EmergencyContact // Contact d'urgence
   contractUrl?: string // URL du contrat PDF généré
   signedContractUrl?: string // URL du contrat signé téléversé
   dischargeUrl?: string // URL de la décharge

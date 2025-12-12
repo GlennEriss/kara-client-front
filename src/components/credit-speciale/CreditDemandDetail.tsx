@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   ArrowLeft,
   User,
@@ -28,9 +29,20 @@ import ReopenDemandModal from './ReopenDemandModal'
 import CreditSimulationModal from './CreditSimulationModal'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import { useCreditContractMutations, useCreditContract } from '@/hooks/useCreditSpeciale'
 import { toast } from 'sonner'
-import type { StandardSimulation, CustomSimulation } from '@/types/types'
+import type { StandardSimulation, CustomSimulation, CreditContract } from '@/types/types'
+import ContractCreationModal from './ContractCreationModal'
+import Image from 'next/image'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Percent, Users, Phone, ExternalLink } from 'lucide-react'
 
 interface CreditDemandDetailProps {
   demand: CreditDemand
@@ -54,6 +66,16 @@ const getCreditTypeLabel = (type: string) => {
   return labels[type] || type
 }
 
+// Fonction d'arrondi personnalisée
+const customRound = (num: number): number => {
+  const decimalPart = num - Math.floor(num)
+  if (decimalPart >= 0.5) {
+    return Math.ceil(num)
+  } else {
+    return Math.floor(num)
+  }
+}
+
 export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) {
   const router = useRouter()
   const [validateModalState, setValidateModalState] = useState<{
@@ -73,12 +95,122 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
   }>({
     isOpen: false,
   })
+  const [contractCreationState, setContractCreationState] = useState<{
+    isOpen: boolean
+    simulation: StandardSimulation | CustomSimulation | null
+  }>({
+    isOpen: false,
+    simulation: null,
+  })
   const { createFromDemand } = useCreditContractMutations()
+  
+  // Récupérer le contrat si il existe
+  const { data: contract, isLoading: isLoadingContract } = useCreditContract(demand.contractId || '')
 
   const statusConfig = getStatusConfig(demand.status)
   const formatDate = (date: Date | undefined) => {
     if (!date) return 'N/A'
     return format(new Date(date), 'dd MMMM yyyy', { locale: fr })
+  }
+
+  // Calculer l'échéancier à partir du contrat
+  const calculateSchedule = (contract: CreditContract, duration?: number, monthlyPayment?: number) => {
+    const monthlyRate = contract.interestRate / 100
+    const firstDate = new Date(contract.firstPaymentDate)
+    const paymentAmount = monthlyPayment || contract.monthlyPaymentAmount
+    const maxDuration = duration || contract.duration
+    
+    let remaining = contract.amount
+    const items: Array<{
+      month: number
+      date: Date
+      payment: number
+      interest: number
+      principal: number
+      remaining: number
+    }> = []
+
+    for (let i = 0; i < maxDuration; i++) {
+      if (remaining <= 0) break
+
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      const interest = remaining * monthlyRate
+      const balanceWithInterest = remaining + interest
+      
+      let payment: number
+      if (remaining < paymentAmount) {
+        payment = balanceWithInterest // Payer le montant global complet
+        remaining = 0
+      } else {
+        payment = paymentAmount
+        remaining = Math.max(0, balanceWithInterest - payment)
+      }
+
+      items.push({
+        month: i + 1,
+        date,
+        payment: customRound(payment),
+        interest: customRound(interest),
+        principal: customRound(balanceWithInterest),
+        remaining: customRound(remaining),
+      })
+    }
+
+    return items
+  }
+
+  // Calculer la mensualité optimale pour 7 mois (recherche binaire)
+  const calculateOptimalMonthlyPaymentFor7Months = (contract: CreditContract): number => {
+    const monthlyRate = contract.interestRate / 100
+    const amount = contract.amount
+    
+    let minPayment = Math.ceil(amount / 7)
+    let maxPayment = amount * 2
+    let optimalPayment = maxPayment
+
+    for (let iteration = 0; iteration < 50; iteration++) {
+      const testPayment = Math.ceil((minPayment + maxPayment) / 2)
+      let testRemaining = amount
+      
+      for (let month = 0; month < 7; month++) {
+        const interest = testRemaining * monthlyRate
+        const balanceWithInterest = testRemaining + interest
+        const payment = Math.min(testPayment, balanceWithInterest)
+        testRemaining = balanceWithInterest - payment
+        
+        if (testRemaining < 1) {
+          testRemaining = 0
+        }
+      }
+      
+      if (testRemaining <= 0) {
+        optimalPayment = testPayment
+        maxPayment = testPayment - 1
+      } else {
+        minPayment = testPayment + 1
+      }
+      
+      if (minPayment > maxPayment) break
+    }
+
+    return optimalPayment
+  }
+
+  // Calculer le tableau de rémunération du parrain
+  const calculateGuarantorRemunerationSchedule = (contract: CreditContract) => {
+    if (!contract.guarantorIsParrain || !contract.guarantorRemunerationPercentage) return []
+    
+    const schedule = calculateSchedule(contract)
+    const percentage = contract.guarantorRemunerationPercentage
+    
+    return schedule.map(item => ({
+      month: item.month,
+      date: item.date,
+      monthlyPayment: item.payment,
+      guarantorAmount: customRound(item.payment * percentage / 100),
+    }))
   }
 
   return (
@@ -314,8 +446,239 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
           </Card>
         )}
 
+        {/* Informations du contrat créé */}
+        {demand.status === 'APPROVED' && demand.contractId && (
+          isLoadingContract ? (
+            <Card className="border-0 shadow-xl">
+              <CardContent className="p-6 text-center">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                <p className="text-gray-600">Chargement des informations du contrat...</p>
+              </CardContent>
+            </Card>
+          ) : contract && (
+          <>
+            {/* Badge et lien vers le contrat */}
+            <Card className="border-0 shadow-xl border-green-200 bg-green-50/50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-green-100 text-green-700 border border-green-300 px-4 py-2">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Contrat déjà créé
+                    </Badge>
+                    <span className="text-sm text-gray-600">ID: {contract.id}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/credit-speciale/contrats/${contract.id}`)}
+                    className="flex items-center gap-2"
+                  >
+                    Voir le contrat
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tableaux de simulations */}
+            <Card className="border-0 shadow-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  Échéancier calculé ({contract.duration} mois)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mois</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Mensualité</TableHead>
+                        <TableHead className="text-right">Intérêts</TableHead>
+                        <TableHead className="text-right">Montant global</TableHead>
+                        <TableHead className="text-right">Reste dû</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {calculateSchedule(contract).map((row) => (
+                        <TableRow key={row.month}>
+                          <TableCell className="font-medium">M{row.month}</TableCell>
+                          <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                          <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Échéancier référence (7 mois pour crédit spéciale) */}
+            {contract.creditType === 'SPECIALE' && (
+              <Card className="border-0 shadow-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5" />
+                    Échéancier référence (7 mois)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Mois</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Mensualité</TableHead>
+                          <TableHead className="text-right">Intérêts</TableHead>
+                          <TableHead className="text-right">Montant global</TableHead>
+                          <TableHead className="text-right">Reste dû</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {calculateSchedule(
+                          contract, 
+                          7, 
+                          calculateOptimalMonthlyPaymentFor7Months(contract)
+                        ).map((row) => (
+                          <TableRow key={row.month}>
+                            <TableCell className="font-medium">M{row.month}</TableCell>
+                            <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                            <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                            <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                            <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Rémunération du parrain */}
+            {contract.guarantorIsParrain && contract.guarantorRemunerationPercentage && (
+              <Card className="border-0 shadow-xl border-purple-200 bg-purple-50/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-800">
+                    <Users className="h-5 w-5" />
+                    Rémunération du parrain ({contract.guarantorRemunerationPercentage}%)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Alert className="border-purple-200 bg-purple-100">
+                      <Users className="h-4 w-4 text-purple-600" />
+                      <AlertDescription className="text-purple-800">
+                        <strong>{contract.guarantorFirstName} {contract.guarantorLastName}</strong> est le parrain du client et recevra une rémunération de {contract.guarantorRemunerationPercentage}% sur chaque mensualité payée.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Mois</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Mensualité client</TableHead>
+                          <TableHead className="text-right">Rémunération parrain ({contract.guarantorRemunerationPercentage}%)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {calculateGuarantorRemunerationSchedule(contract).map((row) => (
+                          <TableRow key={row.month}>
+                            <TableCell className="font-medium">M{row.month}</TableCell>
+                            <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell className="text-right">{row.monthlyPayment.toLocaleString('fr-FR')} FCFA</TableCell>
+                            <TableCell className="text-right text-purple-600 font-medium">
+                              {row.guarantorAmount.toLocaleString('fr-FR')} FCFA
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="mt-4 p-4 bg-purple-100 rounded-lg flex items-center justify-between">
+                    <span className="font-medium text-purple-800">Total rémunération parrain:</span>
+                    <span className="text-xl font-bold text-purple-600">
+                      {calculateGuarantorRemunerationSchedule(contract).reduce(
+                        (sum, item) => sum + item.guarantorAmount, 
+                        0
+                      ).toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Contact d'urgence */}
+            {contract.emergencyContact && (
+              <Card className="border-0 shadow-xl border-blue-200 bg-blue-50/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-800">
+                    <Phone className="h-5 w-5" />
+                    Contact d'urgence
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Nom complet</p>
+                    <p className="text-lg font-semibold">
+                      {contract.emergencyContact.lastName} {contract.emergencyContact.firstName}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Téléphone principal</p>
+                    <p className="text-lg font-semibold">{contract.emergencyContact.phone1}</p>
+                  </div>
+                  {contract.emergencyContact.phone2 && (
+                    <div>
+                      <p className="text-sm text-gray-600">Téléphone secondaire</p>
+                      <p className="text-lg font-semibold">{contract.emergencyContact.phone2}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-gray-600">Lien de parenté</p>
+                    <p className="text-lg font-semibold">{contract.emergencyContact.relationship}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Type de document</p>
+                    <p className="text-lg font-semibold">{contract.emergencyContact.typeId}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Numéro de document</p>
+                    <p className="text-lg font-semibold">{contract.emergencyContact.idNumber}</p>
+                  </div>
+                  {contract.emergencyContact.documentPhotoUrl && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2">Photo du document</p>
+                      <div className="relative w-full max-w-md border-2 border-blue-300 rounded-lg overflow-hidden bg-white">
+                        <Image
+                          src={contract.emergencyContact.documentPhotoUrl}
+                          alt="Document d'identité du contact d'urgence"
+                          width={600}
+                          height={800}
+                          className="w-full h-auto object-contain"
+                          unoptimized
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </>
+          )
+        )}
+
         {/* Action de création de contrat */}
-        {demand.status === 'APPROVED' && (
+        {demand.status === 'APPROVED' && !demand.contractId && (
           <Card className="border-0 shadow-xl">
             <CardContent className="p-6">
               <Button
@@ -376,41 +739,32 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
         }}
       />
 
-      {/* Modal de simulation et création de contrat */}
+      {/* Modal de simulation */}
       <CreditSimulationModal
         isOpen={simulationModalState.isOpen}
         onClose={() => setSimulationModalState({ isOpen: false })}
         creditType={demand.creditType}
         initialAmount={demand.amount}
         initialMonthlyPayment={demand.monthlyPaymentAmount}
-        onSimulationComplete={async (simulation: StandardSimulation | CustomSimulation) => {
-          try {
-            // Convertir la simulation en format attendu par createFromDemand
-            const simulationData = {
-              interestRate: simulation.interestRate,
-              monthlyPaymentAmount: 'monthlyPayment' in simulation 
-                ? simulation.monthlyPayment 
-                : simulation.monthlyPayments.length > 0 
-                  ? simulation.monthlyPayments[0].amount 
-                  : simulation.amount / simulation.duration,
-              duration: simulation.duration,
-              firstPaymentDate: simulation.firstPaymentDate,
-              totalAmount: simulation.totalAmount,
-            }
-
-            await createFromDemand.mutateAsync({
-              demandId: demand.id,
-              simulationData,
-            })
-
-            toast.success('Contrat créé avec succès')
-            router.push(routes.admin.creditSpecialeContrats)
-          } catch (error: any) {
-            console.error('Erreur lors de la création du contrat:', error)
-            toast.error(error?.message || 'Erreur lors de la création du contrat')
-          }
+        onSimulationComplete={(simulation: StandardSimulation | CustomSimulation) => {
+          // Fermer le modal de simulation et ouvrir le modal de création de contrat
+          setSimulationModalState({ isOpen: false })
+          setContractCreationState({
+            isOpen: true,
+            simulation,
+          })
         }}
       />
+
+      {/* Modal de création de contrat multi-étapes */}
+      {contractCreationState.simulation && (
+        <ContractCreationModal
+          isOpen={contractCreationState.isOpen}
+          onClose={() => setContractCreationState({ isOpen: false, simulation: null })}
+          demand={demand}
+          simulation={contractCreationState.simulation}
+        />
+      )}
     </div>
   )
 }

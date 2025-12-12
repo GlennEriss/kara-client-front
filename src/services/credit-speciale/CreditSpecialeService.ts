@@ -11,6 +11,7 @@ import { IDocumentRepository } from "@/repositories/documents/IDocumentRepositor
 import { RepositoryFactory } from "@/factories/RepositoryFactory";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
+import { EmergencyContact } from "@/schemas/emergency-contact.schema";
 
 export class CreditSpecialeService implements ICreditSpecialeService {
     readonly name = "CreditSpecialeService";
@@ -152,11 +153,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             duration: number;
             firstPaymentDate: Date;
             totalAmount: number;
+            emergencyContact?: EmergencyContact;
+            guarantorRemunerationPercentage?: number;
         }
     ): Promise<CreditContract> {
         const demand = await this.creditDemandRepository.getDemandById(demandId);
         if (!demand || demand.status !== 'APPROVED') {
             throw new Error('La demande doit être approuvée pour créer un contrat');
+        }
+
+        // Vérifier si un contrat existe déjà pour cette demande
+        if (demand.contractId) {
+            throw new Error('Un contrat a déjà été créé pour cette demande');
         }
 
         // Vérifier si le garant est parrain
@@ -200,11 +208,19 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             guarantorRelation: demand.guarantorRelation,
             guarantorIsMember: demand.guarantorIsMember,
             guarantorIsParrain,
+            guarantorRemunerationPercentage: simulationData.guarantorRemunerationPercentage || (guarantorIsParrain ? 2 : 0),
+            emergencyContact: simulationData.emergencyContact,
             createdBy: adminId,
             updatedBy: adminId,
         };
 
         const createdContract = await this.creditContractRepository.createContract(contract);
+
+        // Mettre à jour la demande avec l'ID du contrat (relation 1:1)
+        await this.creditDemandRepository.updateDemand(demandId, {
+            contractId: createdContract.id,
+            updatedBy: adminId,
+        });
 
         // Notification
         try {
@@ -313,17 +329,27 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (creditType === 'SPECIALE' && maxDuration === 7) {
             duration = 7; // Toujours 7 mois pour crédit spéciale
             
-            // Recalculer les intérêts totaux et le solde pour les 7 mois complets
-            // (indépendamment des paiements effectués)
+            // Recalculer les mensualités, intérêts et le solde pour les 7 mois complets
             let testRemaining = amount;
             let totalInterestFor7Months = 0;
+            let totalMensualitesFor7Months = 0; // Somme des mensualités affichées (pas les montants globaux)
             
             for (let month = 0; month < 7; month++) {
                 const interest = testRemaining * monthlyRate;
                 totalInterestFor7Months += interest;
                 const balanceWithInterest = testRemaining + interest;
-                const payment = Math.min(monthlyPayment, balanceWithInterest);
-                testRemaining = balanceWithInterest - payment;
+                
+                // Mensualité affichée : si le reste dû est inférieur à la mensualité, c'est le reste dû
+                let mensualite: number;
+                if (testRemaining < monthlyPayment) {
+                    mensualite = testRemaining; // Affiche le reste dû dans la colonne "Mensualité"
+                } else {
+                    mensualite = monthlyPayment;
+                }
+                
+                totalMensualitesFor7Months += mensualite;
+                // Le paiement réel est le montant global pour solder le compte
+                testRemaining = Math.max(0, balanceWithInterest - (testRemaining < monthlyPayment ? balanceWithInterest : monthlyPayment));
                 
                 if (testRemaining < 1) {
                     testRemaining = 0;
@@ -333,8 +359,9 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // Utiliser le solde calculé sur exactement 7 mois
             remainingAtMaxDuration = testRemaining;
             
-            // Total à rembourser = somme des 7 mensualités + intérêts totaux sur 7 mois
+            // Mettre à jour les totaux avec les valeurs réelles
             totalInterest = totalInterestFor7Months;
+            totalPaid = totalMensualitesFor7Months; // Somme des mensualités affichées
             
             // Si au 7ème mois il reste un solde, calculer la mensualité minimale nécessaire
             if (remainingAtMaxDuration > 0) {
@@ -378,12 +405,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
         }
         
-        // Total à rembourser = somme des mensualités + intérêts totaux
-        // Pour crédit spéciale : (durée × mensualité) + intérêts totaux
-        // Pour autres : montant emprunté + intérêts totaux
-        const totalAmount = creditType === 'SPECIALE' && maxDuration === 7 
-            ? (duration * monthlyPayment) + totalInterest  // Somme des mensualités + intérêts totaux
-            : amount + totalInterest;                       // Montant emprunté + intérêts totaux
+        // Total à rembourser = somme des mensualités + somme des intérêts (arrondi)
+        const totalAmount = Math.round(totalPaid + totalInterest);
 
         return {
             amount,
