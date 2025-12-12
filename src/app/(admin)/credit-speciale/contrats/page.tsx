@@ -1,5 +1,19 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ListContrats from '@/components/credit-speciale/ListContrats'
+import { Skeleton } from '@/components/ui/skeleton'
+
+function ListContratsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="h-12 bg-gray-200 rounded animate-pulse" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Skeleton key={i} className="h-48 w-full" />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function ContratsPage() {
   return (
@@ -15,8 +29,10 @@ export default function ContratsPage() {
           </div>
         </div>
 
-        {/* Composant principal */}
-        <ListContrats />
+        {/* Composant principal avec Suspense */}
+        <Suspense fallback={<ListContratsSkeleton />}>
+          <ListContrats />
+        </Suspense>
       </div>
     </div>
   )
