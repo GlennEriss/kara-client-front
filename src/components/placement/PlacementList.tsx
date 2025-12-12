@@ -1361,7 +1361,7 @@ export default function PlacementList() {
                         setPayCommissionPlacementId(p.id)
                         setPayCommissionId(commissionId)
                       }}
-                      onOpenClick={p.status === 'Active' ? () => router.push(`/placements/${p.id}`) : undefined}
+                      onOpenClick={() => router.push(`/placements/${p.id}`)}
                       onEditClick={p.status === 'Draft' ? () => {
                         setEditingPlacementId(p.id)
                         setIsCreateOpen(true)

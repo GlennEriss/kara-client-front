@@ -281,13 +281,58 @@ export class PlacementService {
 
   async requestEarlyExit(
     placementId: string,
-    payload: Pick<EarlyExitPlacement, 'commissionDue' | 'payoutAmount'>,
+    payload: Pick<EarlyExitPlacement, 'commissionDue' | 'payoutAmount'> & { reason?: string; documentPdf?: File },
+    benefactorId: string,
     adminId: string
   ): Promise<EarlyExitPlacement> {
+    let documentPdfId: string | undefined
+
+    // Téléverser le document PDF si fourni
+    if (payload.documentPdf) {
+      const { url, path, size } = await this.documentRepository.uploadDocumentFile(
+        payload.documentPdf,
+        benefactorId,
+        'PLACEMENT_EARLY_EXIT_DOCUMENT'
+      )
+
+      // Générer un ID personnalisé incluant le placementId
+      const now = new Date()
+      const day = String(now.getDate()).padStart(2, '0')
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const year = String(now.getFullYear()).slice(-2)
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const customDocumentId = `MK_PLACEMENT_EARLY_EXIT_DOCUMENT_${placementId.slice(-8).toUpperCase()}_${day}${month}${year}_${hours}${minutes}`
+
+      const document = await this.documentRepository.createDocument(
+        {
+          type: 'PLACEMENT_EARLY_EXIT_DOCUMENT',
+          format: 'pdf',
+          libelle: `Document de retrait anticipé signé - Placement ${placementId}`,
+          path,
+          url,
+          size,
+          memberId: benefactorId,
+          contractId: placementId,
+          createdBy: adminId,
+          updatedBy: adminId,
+        },
+        customDocumentId
+      )
+
+      if (!document?.id) {
+        throw new Error('Erreur lors de la création du document PDF')
+      }
+
+      documentPdfId = document.id
+    }
+
     const earlyExit = await this.placementRepository.saveEarlyExit(placementId, {
       placementId,
       commissionDue: payload.commissionDue,
       payoutAmount: payload.payoutAmount,
+      reason: payload.reason,
+      documentPdfId,
       requestedAt: new Date(),
       createdBy: adminId,
     })
@@ -295,7 +340,6 @@ export class PlacementService {
 
     // Notifier la demande de retrait anticipé
     await this.notifyEarlyExitRequest(placementId, earlyExit, adminId)
-
     // Générer et attacher automatiquement l'avenant de retrait anticipé
     try {
       await this.generateEarlyExitAddendum(placementId, adminId)
@@ -525,6 +569,15 @@ export class PlacementService {
   ): Promise<{ documentId: string; earlyExit: EarlyExitPlacement }> {
     const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, 'PLACEMENT_EARLY_EXIT_QUITTANCE')
     
+    // Générer un ID personnalisé incluant le placementId pour faciliter la recherche
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const customDocumentId = `MK_PLACEMENT_EARLY_EXIT_QUITTANCE_${placementId.slice(-8)}_${day}${month}${year}_${hours}${minutes}`
+    
     const document = await this.documentRepository.createDocument({
       type: 'PLACEMENT_EARLY_EXIT_QUITTANCE',
       format: 'pdf',
@@ -536,7 +589,7 @@ export class PlacementService {
       contractId: placementId,
       createdBy: adminId,
       updatedBy: adminId,
-    })
+    }, customDocumentId)
 
     if (!document?.id) {
       throw new Error('Erreur lors de la création du document')
@@ -576,6 +629,15 @@ export class PlacementService {
   ): Promise<{ documentId: string }> {
     const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, 'PLACEMENT_FINAL_QUITTANCE')
 
+    // Générer un ID personnalisé incluant le placementId pour faciliter la recherche
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const customDocumentId = `MK_PLACEMENT_FINAL_QUITTANCE_${placementId.slice(-8)}_${day}${month}${year}_${hours}${minutes}`
+
     const document = await this.documentRepository.createDocument({
       type: 'PLACEMENT_FINAL_QUITTANCE',
       format: 'pdf',
@@ -587,7 +649,7 @@ export class PlacementService {
       contractId: placementId,
       createdBy: adminId,
       updatedBy: adminId,
-    })
+    }, customDocumentId)
 
     if (!document?.id) {
       throw new Error('Erreur lors de la création de la quittance finale')
@@ -640,6 +702,15 @@ export class PlacementService {
   ): Promise<{ documentId: string }> {
     const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, 'PLACEMENT_EARLY_EXIT_ADDENDUM')
 
+    // Générer un ID personnalisé incluant le placementId pour faciliter la recherche
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const customDocumentId = `MK_PLACEMENT_EARLY_EXIT_ADDENDUM_${placementId.slice(-8)}_${day}${month}${year}_${hours}${minutes}`
+
     const document = await this.documentRepository.createDocument({
       type: 'PLACEMENT_EARLY_EXIT_ADDENDUM',
       format: 'pdf',
@@ -651,7 +722,7 @@ export class PlacementService {
       contractId: placementId,
       createdBy: adminId,
       updatedBy: adminId,
-    })
+    }, customDocumentId)
 
     if (!document?.id) {
       throw new Error('Erreur lors de la création de l\'avenant de retrait anticipé')
@@ -670,25 +741,40 @@ export class PlacementService {
    */
   async closePlacement(
     placementId: string,
-    file: File | null,
+    file: File,
+    closingReason: string,
     adminId: string
   ): Promise<Placement> {
     const placement = await this.placementRepository.getById(placementId)
     if (!placement) throw new Error('Placement introuvable')
 
-    let finalDocId: string | undefined = placement.finalQuittanceDocumentId
-
-    if (file) {
-      const { documentId } = await this.uploadFinalQuittance(file, placementId, placement.benefactorId, adminId)
-      finalDocId = documentId
-    } else {
-      const { documentId } = await this.generateFinalQuittance(placementId, adminId)
-      finalDocId = documentId
+    // Valider le motif de clôture
+    if (!closingReason || closingReason.trim().length < 10) {
+      throw new Error('Le motif de clôture est requis (minimum 10 caractères)')
     }
+
+    // Valider que le fichier est fourni
+    if (!file) {
+      throw new Error('La quittance finale est requise')
+    }
+
+    // Valider le type de fichier
+    if (file.type !== 'application/pdf') {
+      throw new Error('Le fichier doit être un PDF')
+    }
+
+    // Valider la taille du fichier (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('La taille du fichier ne peut pas dépasser 10MB')
+    }
+
+    // Téléverser la quittance finale
+    const { documentId } = await this.uploadFinalQuittance(file, placementId, placement.benefactorId, adminId)
 
     const updated = await this.placementRepository.update(placementId, {
       status: 'Closed',
-      finalQuittanceDocumentId: finalDocId,
+      finalQuittanceDocumentId: documentId,
+      closingReason: closingReason.trim(),
       updatedBy: adminId,
       updatedAt: new Date(),
     })
