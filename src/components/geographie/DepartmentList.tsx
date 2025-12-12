@@ -9,13 +9,13 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { citySchema, type CityFormData } from '@/schemas/geographie.schema'
-import { useCities, useCityMutations, useProvinces } from '@/hooks/useGeographie'
+import { departmentSchema, type DepartmentFormData } from '@/schemas/geographie.schema'
+import { useDepartments, useDepartmentMutations, useProvinces } from '@/hooks/useGeographie'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, Loader2 } from 'lucide-react'
-import type { City } from '@/types/types'
+import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, Loader2, Download } from 'lucide-react'
+import type { Department } from '@/types/types'
 
-function CitySkeleton() {
+function DepartmentSkeleton() {
   return (
     <Card className="h-full">
       <CardContent className="p-4">
@@ -28,77 +28,92 @@ function CitySkeleton() {
   )
 }
 
-export default function CityList() {
+export default function DepartmentList() {
   const [search, setSearch] = useState('')
   const [selectedProvinceId, setSelectedProvinceId] = useState<string>('all')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
-  const [cityToDelete, setCityToDelete] = useState<City | null>(null)
-  const [editingCity, setEditingCity] = useState<City | null>(null)
+  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null)
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
 
   const { data: provinces = [] } = useProvinces()
-  const { data: cities = [], isLoading, error, refetch } = useCities(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
-  const { create, update, remove } = useCityMutations()
+  const { data: departments = [], isLoading, error, refetch } = useDepartments(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
+  const { create, update, remove } = useDepartmentMutations()
 
-  const form = useForm<CityFormData>({
-    resolver: zodResolver(citySchema),
-    defaultValues: { provinceId: '', name: '', postalCode: undefined, displayOrder: undefined },
+  const form = useForm<DepartmentFormData>({
+    resolver: zodResolver(departmentSchema),
+    defaultValues: { provinceId: '', name: '', code: undefined },
   })
 
-  const filteredCities = useMemo(() => {
-    let filtered = cities
+  const filteredDepartments = useMemo(() => {
+    let filtered = departments
     if (search.trim()) {
       const searchLower = search.toLowerCase()
       filtered = filtered.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchLower) ||
-          c.postalCode?.toLowerCase().includes(searchLower)
+        (d) =>
+          d.name.toLowerCase().includes(searchLower) ||
+          d.code?.toLowerCase().includes(searchLower)
       )
     }
     return filtered
-  }, [cities, search])
+  }, [departments, search])
 
   const openCreate = () => {
-    setEditingCity(null)
-    form.reset({ provinceId: '', name: '', postalCode: undefined, displayOrder: undefined })
+    setEditingDepartment(null)
+    form.reset({ provinceId: '', name: '', code: undefined })
     setIsCreateOpen(true)
   }
 
-  const openEdit = (city: City) => {
-    setEditingCity(city)
+  const openEdit = (department: Department) => {
+    setEditingDepartment(department)
     form.reset({
-      provinceId: city.provinceId,
-      name: city.name,
-      postalCode: city.postalCode ?? undefined,
-      displayOrder: city.displayOrder ?? undefined,
+      provinceId: department.provinceId,
+      name: department.name,
+      code: department.code ?? undefined,
     })
     setIsCreateOpen(true)
   }
 
-  const submitCity = async (values: CityFormData) => {
+  const submitDepartment = async (values: DepartmentFormData) => {
     try {
-      if (editingCity) {
-        await update.mutateAsync({ id: editingCity.id, data: values })
+      if (editingDepartment) {
+        await update.mutateAsync({ id: editingDepartment.id, data: values })
       } else {
         await create.mutateAsync(values)
       }
       setIsCreateOpen(false)
-      // Le refetch est géré automatiquement par le hook via refetchQueries
     } catch (e: any) {
       // L'erreur est déjà gérée dans le hook avec toast
     }
   }
 
   const confirmDelete = async () => {
-    if (!cityToDelete) return
+    if (!departmentToDelete) return
     try {
-      await remove.mutateAsync(cityToDelete.id)
+      await remove.mutateAsync(departmentToDelete.id)
       setIsDeleteOpen(false)
-      setCityToDelete(null)
-      // Le refetch est géré automatiquement par le hook via refetchQueries
+      setDepartmentToDelete(null)
     } catch (e: any) {
       // L'erreur est déjà gérée dans le hook avec toast
     }
+  }
+
+  const exportCsv = () => {
+    const headers = ['Département', 'Code', 'Province']
+    const rows = filteredDepartments.map((department) => {
+      const province = provinces.find((p) => p.id === department.provinceId)
+      return [department.name, department.code || '', province?.name || '']
+    })
+    const csv = [headers, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'departements.csv'
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -106,15 +121,18 @@ export default function CityList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Villes</h2>
-          <p className="text-gray-600 mt-1">{filteredCities.length} ville(s)</p>
+          <h2 className="text-2xl font-bold text-gray-900">Départements</h2>
+          <p className="text-gray-600 mt-1">{filteredDepartments.length} département(s)</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredDepartments.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
           </Button>
           <Button size="sm" onClick={openCreate} className="bg-[#234D65] hover:bg-[#234D65]/90 text-white">
-            <Plus className="h-4 w-4 mr-2" /> Nouvelle Ville
+            <Plus className="h-4 w-4 mr-2" /> Nouveau Département
           </Button>
         </div>
       </div>
@@ -128,7 +146,7 @@ export default function CityList() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher par nom ou code postal..."
+                placeholder="Rechercher par nom ou code..."
                 className="pl-9"
               />
             </div>
@@ -153,46 +171,41 @@ export default function CityList() {
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>
-            Une erreur est survenue lors du chargement des villes
+            Une erreur est survenue lors du chargement des départements
           </AlertDescription>
         </Alert>
       ) : isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <CitySkeleton key={i} />
+            <DepartmentSkeleton key={i} />
           ))}
         </div>
-      ) : filteredCities.length > 0 ? (
+      ) : filteredDepartments.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredCities.map((city) => {
-            const province = provinces.find((p) => p.id === city.provinceId)
+          {filteredDepartments.map((department) => {
+            const province = provinces.find((p) => p.id === department.provinceId)
             return (
-              <Card key={city.id} className="h-full hover:shadow-md transition-shadow">
+              <Card key={department.id} className="h-full hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-9 w-9 rounded-lg bg-green-50 flex items-center justify-center">
-                        <Building2 className="w-4 h-4 text-green-600" />
+                      <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <Building2 className="w-4 h-4 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{city.name}</div>
+                        <div className="font-medium text-gray-900">{department.name}</div>
                         <div className="text-sm text-gray-500">{province?.name}</div>
-                        {city.postalCode && (
-                          <div className="text-xs text-gray-400">{city.postalCode}</div>
+                        {department.code && (
+                          <div className="text-xs text-gray-400">{department.code}</div>
                         )}
                       </div>
                     </div>
                   </div>
-                  {city.displayOrder !== undefined && (
-                    <div className="text-xs text-gray-500 mb-3">
-                      Ordre d'affichage: {city.displayOrder}
-                    </div>
-                  )}
                   <div className="mt-4 flex items-center justify-end gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => openEdit(city)}
+                      onClick={() => openEdit(department)}
                       className="h-8 w-8 p-0"
                     >
                       <Edit3 className="w-4 h-4" />
@@ -201,7 +214,7 @@ export default function CityList() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setCityToDelete(city)
+                        setDepartmentToDelete(department)
                         setIsDeleteOpen(true)
                       }}
                       className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
@@ -217,7 +230,7 @@ export default function CityList() {
       ) : (
         <Card>
           <CardContent className="text-center py-12">
-            Aucune ville trouvée
+            Aucun département trouvé
           </CardContent>
         </Card>
       )}
@@ -226,11 +239,11 @@ export default function CityList() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingCity ? 'Modifier une ville' : 'Nouvelle ville'}</DialogTitle>
-            <DialogDescription>Renseignez les informations de la ville</DialogDescription>
+            <DialogTitle>{editingDepartment ? 'Modifier un département' : 'Nouveau département'}</DialogTitle>
+            <DialogDescription>Renseignez les informations du département</DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitCity)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(submitDepartment)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="provinceId"
@@ -263,7 +276,7 @@ export default function CityList() {
                   <FormItem>
                     <FormLabel>Nom</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Libreville" />
+                      <Input {...field} placeholder="Nom du département" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -272,35 +285,12 @@ export default function CityList() {
 
               <FormField
                 control={form.control}
-                name="postalCode"
+                name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Code postal (optionnel)</FormLabel>
+                    <FormLabel>Code (optionnel)</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value ?? ''} placeholder="00000" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ordre d'affichage (optionnel)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
-                          field.onChange(isNaN(value as number) ? undefined : value)
-                        }}
-                        placeholder="1"
-                      />
+                      <Input {...field} value={field.value ?? ''} placeholder="CODE" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -329,10 +319,10 @@ export default function CityList() {
           <DialogHeader>
             <DialogTitle>Confirmer la suppression</DialogTitle>
             <DialogDescription>
-              Supprimer définitivement "{cityToDelete?.name}" ?
+              Supprimer définitivement "{departmentToDelete?.name}" ?
               <br />
               <span className="text-red-600 font-medium">
-                Cette action supprimera également tous les arrondissements associés.
+                Cette action supprimera également toutes les communes associées.
               </span>
             </DialogDescription>
           </DialogHeader>

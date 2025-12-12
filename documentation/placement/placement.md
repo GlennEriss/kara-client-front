@@ -106,16 +106,63 @@ Le diagramme PlantUML est dans `documentation/placement/placement-usecases.puml`
 ### Diagramme de classes
 Le diagramme de classes du module Placement (users/admins via rôles, placement, commissions, retrait anticipé, documents, traçabilité createdBy/updatedBy) est défini dans `documentation/placement/placement-classes.puml` et peut être rendu via PlantUML (ex. `placement-classes.png`) puis inclus dans la documentation.  
 
+Éléments à ajuster dans le diagramme de classes :  
+- `Placement` : champs montant numérique, mode de règlement, durée (mois), statut (Brouillon/Actif/Clos/Sortie anticipée/Annulé), dates dépendantes du mode (date 1er versement OU date début), lien contrat, contact urgent (nom, téléphone, lien), bienfaiteur (membre + rôle).  
+- `CommissionPaymentPlacement` : montants numériques, statut, date échéance, preuve, paiement.  
+- `EarlyExitPlacement` : montant commission due, payout, quittance.  
+- `Document` : réutilisation des types (contrat, preuve, quittance).  
+- Traduction des statuts et liens vers membre/roles.  
+
 ### Diagrammes de séquence (use cases)
 Les séquences principales (préqualification/offre, simulation/contrat, cycle de commission, retrait anticipé, archivage) respectant les packages de l’architecture sont définies dans `documentation/placement/placement-sequences.puml` et peuvent être rendues via PlantUML (ex. `placement-sequences.png`) puis incluses dans la documentation.  
 
-### Statistiques et exports
-- **Stats** : reprendre le design des stats du module Membres (`src/components/memberships/MembershipList.tsx`) et des pages `src/app/(admin)/memberships/page.tsx` / `src/app/(admin)/caisse-imprevue/page.tsx` pour offrir un tableau de bord placements (total placements, actifs, en retrait anticipé, montants engagés, commissions dues/payées, répartition par mode de règlement, top bienfaiteurs).  
-- **Exports** : permettre l’export PDF et Excel de la liste des placements (filtrée) et de la liste des bienfaiteurs (filtrée) depuis l’UI placements.  
+### Statistiques, onglets, listes et exports (alignement Caisse Spéciale / Caisse Imprévue / Assurances)
+- **Onglets de la vue liste** (mêmes patterns que `ListContracts.tsx` et `ListContractsCISection.tsx`) :  
+  - `Tous les placements` (par défaut)  
+  - `Mensuel (commissions mensuelles + capital fin)`  
+  - `Final (capital + commissions à la fin)`  
+  - `Commissions du mois` (placements avec commission due ce mois)  
+  - `En retard` (commissions dues dépassées)  
+  - Proposer si besoin : `Actifs`, `Brouillons`, `Clôturés`, `Retrait anticipé`  
+- **Stats (même design que Caisse Imprévue / Caisse Spéciale, carrousel + cartes)** :  
+  - Total placements, Montant engagé, Actifs, Brouillons, Clôturés, Retraits anticipés  
+  - Commissions dues, Commissions payées, Montant commissions payées / total commissions  
+  - Répartition par mode de règlement (camembert, inspiré de `VehicleInsuranceStats`)  
+  - Répartition par statut (camembert) et Top bienfaiteurs (montant cumulé, nombre de placements)  
+- **Filtres** : recherche (nom/prénom/matricule), statut, mode de règlement, période, date du mois en cours pour l’onglet “Commissions du mois”, retard (échéances passées non payées).  
+- **Listes** : pagination et cards alignées avec les caisses :  
+  - Nom + prénom du bienfaiteur, téléphone, contact urgent  
+  - Montant, taux, durée (mois), mode  
+  - Prochaine commission (si mensuel) ou date finale (si capital+commission fin)  
+  - Bouton téléversement contrat (pas de bouton “Détails” par défaut)  
+  - Traduction des statuts : Draft → Brouillon, Active → Actif, Closed → Clos, EarlyExit → Sortie anticipée, Canceled → Annulé  
+  - Actions : en Brouillon, permettre modification + suppression (confirm modal) ; pas de bouton “Retrait anticipé” sur la liste  
+- **Exports** : PDF/Excel pour la liste des placements filtrés et la liste des bienfaiteurs filtrés.  
+
+### Formulaire (cohérence et données manquantes)
+- **Mode de règlement dépendant des dates** :  
+  - Mensuel + capital fin : champ “Date du 1er versement de commission” ; fin = date 1er versement + durée (mois)  
+  - Capital + commissions fin : champ “Date de début de contrat” ; fin = date début + durée (mois)  
+- **Contact urgent** : réutiliser la structure du contact d’urgence (voir `src/components/caisse-imprevue/Step3.tsx`) et l’intégrer au formulaire placement.  
+- **Rôles et sélection** : recherche membre (nom, prénom, matricule), ajout rôle « Bienfaiteur » si absent.  
+
+### Activation, verrouillage contrat et page Détails (alignée sur Caisse Imprévue)
+- **Conditions d’activation** : un placement devient Actif seulement si (1) le contrat PDF signé est téléversé ET (2) la période est commencée (date 1er versement ou date début ≤ aujourd’hui).  
+- **Verrou contrat** : dès qu’une commission est payée, le contrat PDF n’est plus modifiable.  
+- **Page Détails (design `caisse-imprevue/contrats/[id]`)** :  
+  - En-tête : badges type de placement + statut (traduit), bouton “Ouvrir” (si Actif).  
+  - Bloc infos : ID contrat, montant/date prochaine commission, date fin, coordonnées (téléphone, contact urgent).  
+  - Stats du contrat : montants payés/restants, commissions payées/due, répartition, gauge progression :  
+    - Mode mensuel : progression sur les échéances payées vs total.  
+    - Mode final : progression temporelle jusqu’à l’échéance finale (capital+commissions).  
+  - Historique des versements (timeline) avec reçus/preuves PDF téléchargeables.  
+  - Échéancier : liste des échéances mensuelles cliquables pour payer ; si payé, voir/télécharger le reçu.  
+  - Capital (fin / retrait anticipé) : enregistrement remboursement final, génération PDF (quittance finale), et cas retrait anticipé (avenant + quittance sortie).  
+  - Bouton “Contact urgent” (modal) pour afficher les infos saisies.  
 
 ### Sélection et mise à jour des bienfaiteurs
 - **Recherche** : sélection du bienfaiteur via recherche (nom, prénom, matricule) avec autocomplétion, sur la base des membres existants.  
 - **Rôles** : lors de la création d’un placement, si le membre n’a pas le rôle « Bienfaiteur », l’ajouter à sa liste de rôles.  
-- **Uniformité UI** : conserver le look & feel des vues existantes (cards, stats, pagination) pour le module placements, cohérent avec Membres et Caisse Imprévue.  
+- **Uniformité UI** : conserver le look & feel des vues existantes (cards, stats, pagination) pour le module placements, cohérent avec Membres, Caisse Imprévue et Caisse Spéciale.  
 
 

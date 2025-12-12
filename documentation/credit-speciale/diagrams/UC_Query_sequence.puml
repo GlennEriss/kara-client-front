@@ -1,0 +1,25 @@
+@startuml
+title Séquence – Requêtes filtrées (Repositories) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Firestore" as FS
+
+Service -> Repo : query
+Repo -> Repo : Construire requête Firestore
+Repo -> Repo : Appliquer where clauses statut type membreId garantId overdue searchText
+Repo -> Repo : Appliquer pagination page limit
+Repo -> Repo : Appliquer tri orderBy
+Repo -> FS : execute query
+FS --> Repo : Résultats Firestore
+Repo -> Repo : Transformer résultats format
+Repo --> Service : Résultats paginés
+
+note right of Repo
+Requêtes Firestore optimisées
+Filtres, pagination, tri
+Transformation format pour Service
+end note
+
+@enduml
+

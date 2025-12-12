@@ -1,0 +1,11 @@
+@startuml
+title Activité – Agrégations statistiques (Repositories) – Crédit spéciale/fixe/aide
+start
+:Service demande statistiques;
+:Repo exécute requêtes groupées (count, sum);
+:Repo calcule totaux (actifs, retard, montants, pénalités);
+:Repo calcule par type (spéciale/fixe/aide);
+:Repo retourne agrégations;
+stop
+@enduml
+

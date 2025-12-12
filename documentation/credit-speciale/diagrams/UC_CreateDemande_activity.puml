@@ -1,0 +1,22 @@
+@startuml
+title Activité – Créer une demande pour un client (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre l'écran "Créer demande";
+:Admin sélectionne le client (recherche membre);
+:Admin saisit montant + type de crédit;
+:Admin saisit mode de remboursement souhaité (mensualité);
+:Admin sélectionne garant (membre ou admin) + lien parenté;
+:Admin saisit cause du crédit;
+:Form UI valide champs (schema);
+if (Champs valides ?) then (oui)
+  :Envoyer la demande (status=PENDING);
+  :Tracer createdBy=admin / timestamps;
+  :Associer garant sélectionné;
+  :Vérifier CI (client/garant) pour pré-afficher l'éligibilité;
+else (non)
+  :Afficher messages d'erreur;
+endif
+:Confirmer la création;
+stop
+@enduml
+

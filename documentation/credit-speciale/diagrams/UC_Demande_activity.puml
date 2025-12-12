@@ -1,0 +1,19 @@
+@startuml
+title Activité – Saisir une demande de prêt (Client) – Crédit spéciale/fixe/aide
+start
+:Client ouvre l'écran "Nouvelle demande";
+:Client saisit montant + type de crédit;
+:Client saisit mode de remboursement souhaité (mensualité);
+:Form UI valide champs (schema);
+if (Champs valides ?) then (oui)
+  :Envoyer la demande (status=PENDING);
+  :Tracer createdBy=client / timestamps;
+  :Associer garant sélectionné si fourni;
+  :Vérifier CI (client/garant) pour pré-afficher l'éligibilité;
+else (non)
+  :Afficher messages d'erreur;
+endif
+:Confirmer la création et notifier l'admin;
+stop
+@enduml
+

@@ -1,0 +1,19 @@
+@startuml
+title Séquence – Récupérer info membre/garant (CI/Membership) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "CI/Membership" as CI
+database "Repo CI" as RepoCI
+
+Service -> CI : getMemberInfo memberId
+CI -> RepoCI : getMember memberId
+RepoCI --> CI : Membre nom rôles contacts
+CI --> Service : Info membre nom rôles contacts
+
+note right of CI
+Info membre : nom, rôles, contacts
+Utilisé pour affichage et validation
+end note
+
+@enduml
+

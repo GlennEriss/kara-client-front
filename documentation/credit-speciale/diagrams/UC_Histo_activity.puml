@@ -1,0 +1,10 @@
+@startuml
+title Activité – Consulter historique général (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:UI charge historique (demandes, statuts, notifications, versements);
+:Service récupère historique (Repo);
+:UI affiche historique chronologique (demandes, statuts, notifications, versements);
+stop
+@enduml
+

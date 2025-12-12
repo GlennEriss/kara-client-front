@@ -25,9 +25,16 @@ export const firebaseCollectionNames = {
     placements: "placements",
     // Géographie
     provinces: "provinces",
-    cities: "cities",
+    departments: "departments",
+    communes: "communes",
     districts: "districts",
     quarters: "quarters",
+    // Crédit spéciale
+    creditDemands: "creditDemands",
+    creditContracts: "creditContracts",
+    creditPayments: "creditPayments",
+    creditPenalties: "creditPenalties",
+    guarantorRemunerations: "guarantorRemunerations",
 }
 
 // Export également en majuscules pour compatibilité

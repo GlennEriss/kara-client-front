@@ -1,0 +1,22 @@
+@startuml
+title Séquence – Tracer date/heure remise et référence paiement (Payments) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo paiements" as RepoPay
+participant "Paiement / Preuves" as Pay
+
+Service -> Service : Enregistrer versement
+Service -> Pay : logPayment date heure référence
+Pay -> Pay : Tracer date heure remise
+Pay -> Pay : Générer référence paiement unique
+Pay --> Service : Référence paiement
+Service -> RepoPay : insert payment date heure référence
+RepoPay --> Service : paymentId
+
+note right of Pay
+Tracé : date heure remise, référence unique
+Traçabilité complète des paiements
+end note
+
+@enduml
+

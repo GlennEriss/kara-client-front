@@ -1,0 +1,20 @@
+@startuml
+title Activité – Gérer pagination / filtres / recherche (Hooks) – Crédit spéciale/fixe/aide
+start
+:UI charge écran listes;
+:Hooks lit URL query params (filtres, page, limit);
+:Hooks initialise filtres depuis URL;
+:Hooks prépare requête (filtres + pagination);
+:Hooks synchronise URL avec état (bidirectionnel);
+:Hooks invalide cache React Query si nécessaire;
+:Service exécute requête (Repo);
+:UI affiche résultats paginés;
+if (User modifie filtres/pagination ?) then (oui)
+  :Mettre à jour URL;
+  :Invalider cache;
+  :Relancer requête;
+else (non)
+endif
+stop
+@enduml
+

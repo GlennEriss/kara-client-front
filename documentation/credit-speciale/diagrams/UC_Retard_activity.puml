@@ -1,0 +1,11 @@
+@startuml
+title Activité – Gérer retard et statut (Système) – Crédit spéciale/fixe/aide
+start
+:Service détecte retard (dueAt < now);
+:Service calcule pénalités (règle de 3);
+:Service met à jour statut (OVERDUE, PARTIAL);
+:Service enregistre statut (Repo);
+:Notifications notifie client (retard, pénalités);
+stop
+@enduml
+

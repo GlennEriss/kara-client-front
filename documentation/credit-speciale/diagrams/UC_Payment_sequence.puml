@@ -1,0 +1,59 @@
+@startuml
+title Séquence – Enregistrer un versement (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+participant "Documents / Storage" as Docs
+participant "Notifications" as Notif
+participant "Paiement / Preuves" as Pay
+
+Admin -> UI : Ouvre fiche crédit ACTIVE
+UI -> Hooks : Load crédit + versements
+Hooks -> Repo : getById
+Repo --> Hooks : Crédit
+
+Admin -> UI : Clique "Enregistrer versement"
+UI -> Hooks : openPaymentForm
+Hooks --> UI : Formulaire
+
+Admin -> UI : Saisit date/heure moyen montant preuve commentaire note
+UI -> Hooks : Valider champs
+Hooks --> UI : OK / erreurs
+
+Admin -> UI : Soumettre
+UI -> Hooks : recordPayment
+Hooks -> Service : recordPayment
+Service -> Pay : validateAmount
+Pay --> Service : OK / erreur
+Service -> RepoPay : insert payment
+RepoPay --> Service : paymentId
+Service -> Service : Calculer pénalités règle de 3 si retard
+Service -> Repo : update credit statut montantVersé nextDueAt
+Repo --> Service : updated
+Service -> Service : Calculer/mettre à jour score fiabilité ponctualité retard
+Service -> Repo : update score
+Repo --> Service : updated
+Service -> Docs : generateReceiptPDF
+Docs --> Service : URL reçu
+Service -> Repo : update payment receiptUrl
+Service -> Service : Rémunérer garant membre 2 pourcent si parrain
+Service -> Repo : update garant remuneration
+Service -> Notif : payment_received client reçu disponible
+alt Pénalités calculées
+  Service -> Notif : penalties_notification client montant choix payer ou non
+end
+Service --> Hooks : Versement enregistré
+Hooks --> UI : Rafraîchir crédit + versements
+UI --> Admin : Confirmation
+
+note right of Service
+Calculs métier : pénalités règle de 3, score ponctualité retard
+Rémunération garant : 2 pourcent du montant versé mensuel si parrain
+end note
+
+@enduml
+

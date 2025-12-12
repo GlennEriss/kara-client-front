@@ -1,0 +1,36 @@
+@startuml
+title Séquence – Consulter tableau de bord (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Ouvre tableau de bord
+UI -> Hooks : Load dashboard stats
+Hooks -> Service : getDashboardStats
+Service -> Repo : count actifs
+Repo --> Service : countActifs
+Service -> Repo : count retard
+Repo --> Service : countRetard
+Service -> Repo : sum montants dus
+Repo --> Service : totalDus
+Service -> Repo : sum pénalités impayées
+Repo --> Service : totalPenalites
+Service -> Repo : count transformations
+Repo --> Service : countTransformations
+Service -> Repo : count remboursements terminés
+Repo --> Service : countTermines
+Service --> Hooks : Stats dashboard
+Hooks --> UI : Afficher KPI
+UI --> Admin : Tableau de bord affiché
+
+note right of Service
+KPI : actifs, retard, montants dus,
+pénalités impayées, transformations,
+remboursements terminés
+end note
+
+@enduml
+

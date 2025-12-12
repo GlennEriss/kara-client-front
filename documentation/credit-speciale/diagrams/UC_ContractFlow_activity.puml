@@ -1,0 +1,12 @@
+@startuml
+title Activité – Déclencher génération contrat et upload signé (Hooks) – Crédit spéciale/fixe/aide
+start
+:Admin valide simulation;
+:Hooks déclenche génération contrat (Service);
+:Service génère contrat PDF (Documents);
+:Admin téléverse contrat signé;
+:Hooks déclenche activation (Service);
+:Service active contrat;
+stop
+@enduml
+

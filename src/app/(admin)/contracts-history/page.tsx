@@ -58,6 +58,12 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   PLACEMENT_CONTRACT: 'Contrat de placement',
   PLACEMENT_COMMISSION_PROOF: 'Preuve de commission placement',
   PLACEMENT_EARLY_EXIT_QUITTANCE: 'Quittance de retrait anticipé placement',
+  PLACEMENT_FINAL_QUITTANCE: 'Quittance finale placement',
+  PLACEMENT_EARLY_EXIT_ADDENDUM: 'Avenant retrait anticipé placement',
+  CREDIT_SPECIALE_CONTRACT: 'Contrat crédit spéciale',
+  CREDIT_SPECIALE_CONTRACT_SIGNED: 'Contrat crédit spéciale signé',
+  CREDIT_SPECIALE_RECEIPT: 'Reçu de paiement crédit spéciale',
+  CREDIT_SPECIALE_DISCHARGE: 'Décharge crédit spéciale',
 }
 
 // Labels pour les formats

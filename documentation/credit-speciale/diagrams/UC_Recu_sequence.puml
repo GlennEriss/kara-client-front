@@ -1,0 +1,28 @@
+@startuml
+title Séquence – Générer reçu de paiement (PDF) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo paiements" as RepoPay
+participant "Documents / Storage" as Docs
+participant "Notifications" as Notif
+
+Service -> Service : Enregistrer versement
+Service -> RepoPay : insert payment données versement
+RepoPay --> Service : paymentId
+Service -> Docs : generateReceiptPDF
+Service -> Docs : Générer PDF reçu template plus données versement
+Docs -> Docs : Stocker PDF metadata type version createdBy
+Docs --> Service : URL reçu
+Service -> RepoPay : update payment receiptUrl
+RepoPay --> Service : updated
+Service -> Notif : receipt_notification client reçu disponible
+Notif --> Client : Notification reçu
+
+note right of Service
+Reçu généré automatiquement après chaque versement
+Stocké dans Documents/Storage
+Lien associé au versement
+end note
+
+@enduml
+

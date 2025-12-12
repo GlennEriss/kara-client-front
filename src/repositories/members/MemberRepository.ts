@@ -161,13 +161,14 @@ export class MemberRepository implements IMemberRepository {
     /**
      * Met à jour la liste des rôles d'un membre
      */
-    async updateMemberRoles(memberId: string, roles: string[]): Promise<void> {
+    async updateMemberRoles(memberId: string, roles: string[], adminId: string): Promise<void> {
         try {
             const { doc, db, updateDoc, serverTimestamp } = await getFirestore();
             const userRef = doc(db, firebaseCollectionNames.users || "users", memberId);
             await updateDoc(userRef, {
                 roles,
-                updatedAt: serverTimestamp()
+                updatedAt: serverTimestamp(),
+                updatedBy: adminId
             });
         } catch (error) {
             console.error("Erreur lors de la mise à jour des rôles du membre:", error);

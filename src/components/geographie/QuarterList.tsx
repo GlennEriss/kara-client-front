@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { quarterSchema, type QuarterFormData } from '@/schemas/geographie.schema'
-import { useQuarters, useQuarterMutations, useDistricts, useCities, useProvinces } from '@/hooks/useGeographie'
+import { useQuarters, useQuarterMutations, useDistricts, useCommunes, useDepartments, useProvinces } from '@/hooks/useGeographie'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Home, RefreshCw, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Home, RefreshCw, Loader2, Download } from 'lucide-react'
 import type { Quarter } from '@/types/types'
 
 function QuarterSkeleton() {
@@ -30,6 +30,9 @@ function QuarterSkeleton() {
 
 export default function QuarterList() {
   const [search, setSearch] = useState('')
+  const [selectedProvinceId, setSelectedProvinceId] = useState<string>('all')
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('all')
+  const [selectedCommuneId, setSelectedCommuneId] = useState<string>('all')
   const [selectedDistrictId, setSelectedDistrictId] = useState<string>('all')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -37,15 +40,25 @@ export default function QuarterList() {
   const [editingQuarter, setEditingQuarter] = useState<Quarter | null>(null)
 
   const { data: provinces = [] } = useProvinces()
-  const { data: cities = [] } = useCities()
-  const { data: districts = [] } = useDistricts()
+  const { data: departments = [] } = useDepartments(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
+  const { data: communes = [] } = useCommunes(selectedDepartmentId === 'all' ? undefined : selectedDepartmentId)
+  const { data: districts = [] } = useDistricts(selectedCommuneId === 'all' ? undefined : selectedCommuneId)
   const { data: quarters = [], isLoading, error, refetch } = useQuarters(selectedDistrictId === 'all' ? undefined : selectedDistrictId)
   const { create, update, remove } = useQuarterMutations()
 
   const form = useForm<QuarterFormData>({
     resolver: zodResolver(quarterSchema),
-    defaultValues: { districtId: '', name: '', displayOrder: undefined },
+    defaultValues: { districtId: '', name: '' },
   })
+
+  // Sélections hiérarchiques pour le formulaire
+  const [formProvinceId, setFormProvinceId] = useState<string>('all')
+  const [formDepartmentId, setFormDepartmentId] = useState<string>('all')
+  const [formCommuneId, setFormCommuneId] = useState<string>('all')
+
+  const departmentsForForm = useDepartments(formProvinceId === 'all' ? undefined : formProvinceId).data || []
+  const communesForForm = useCommunes(formDepartmentId === 'all' ? undefined : formDepartmentId).data || []
+  const districtsForForm = useDistricts(formCommuneId === 'all' ? undefined : formCommuneId).data || []
 
   const filteredQuarters = useMemo(() => {
     let filtered = quarters
@@ -58,16 +71,25 @@ export default function QuarterList() {
 
   const openCreate = () => {
     setEditingQuarter(null)
-    form.reset({ districtId: '', name: '', displayOrder: undefined })
+    form.reset({ districtId: '', name: '' })
+    setFormProvinceId('all')
+    setFormDepartmentId('all')
+    setFormCommuneId('all')
     setIsCreateOpen(true)
   }
 
   const openEdit = (quarter: Quarter) => {
     setEditingQuarter(quarter)
+    const district = districts.find((d) => d.id === quarter.districtId)
+    const commune = district ? communes.find((c) => c.id === district.communeId) : null
+    const department = commune ? departments.find((d) => d.id === commune.departmentId) : null
+    const province = department ? provinces.find((p) => p.id === department.provinceId) : null
+    setFormProvinceId(province?.id || 'all')
+    setFormDepartmentId(department?.id || 'all')
+    setFormCommuneId(commune?.id || 'all')
     form.reset({
       districtId: quarter.districtId,
       name: quarter.name,
-      displayOrder: quarter.displayOrder ?? undefined,
     })
     setIsCreateOpen(true)
   }
@@ -98,6 +120,33 @@ export default function QuarterList() {
     }
   }
 
+  const exportCsv = () => {
+    const headers = ['Quartier', 'Arrondissement', 'Commune', 'Département', 'Province']
+    const rows = filteredQuarters.map((quarter) => {
+      const district = districts.find((d) => d.id === quarter.districtId)
+      const commune = district ? communes.find((c) => c.id === district.communeId) : null
+      const department = commune ? departments.find((d) => d.id === commune.departmentId) : null
+      const province = department ? provinces.find((p) => p.id === department.provinceId) : null
+      return [
+        quarter.name,
+        district?.name || '',
+        commune?.name || '',
+        department?.name || '',
+        province?.name || '',
+      ]
+    })
+    const csv = [headers, ...rows]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'quartiers.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -107,6 +156,9 @@ export default function QuarterList() {
           <p className="text-gray-600 mt-1">{filteredQuarters.length} quartier(s)</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredQuarters.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
           </Button>
@@ -129,18 +181,86 @@ export default function QuarterList() {
                 className="pl-9"
               />
             </div>
+            <Select
+              value={selectedProvinceId}
+              onValueChange={(value) => {
+                setSelectedProvinceId(value)
+                setSelectedDepartmentId('all')
+                setSelectedCommuneId('all')
+                setSelectedDistrictId('all')
+              }}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Toutes les provinces" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les provinces</SelectItem>
+                {provinces.map((province) => (
+                  <SelectItem key={province.id} value={province.id}>
+                    {province.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedDepartmentId}
+              onValueChange={(value) => {
+                setSelectedDepartmentId(value)
+                setSelectedCommuneId('all')
+                setSelectedDistrictId('all')
+              }}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Tous les départements" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les départements</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedCommuneId}
+              onValueChange={(value) => {
+                setSelectedCommuneId(value)
+                setSelectedDistrictId('all')
+              }}
+            >
+              <SelectTrigger className="w-[240px]">
+                <SelectValue placeholder="Toutes les communes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les communes</SelectItem>
+                {communes.map((commune) => {
+                  const department = departments.find((d) => d.id === commune.departmentId)
+                  const province = department ? provinces.find((p) => p.id === department.provinceId) : null
+                  return (
+                    <SelectItem key={commune.id} value={commune.id}>
+                      {commune.name} {department && `(${department.name})`} {province && `- ${province.name}`}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+
             <Select value={selectedDistrictId} onValueChange={setSelectedDistrictId}>
-              <SelectTrigger className="w-[250px]">
+              <SelectTrigger className="w-[260px]">
                 <SelectValue placeholder="Tous les arrondissements" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les arrondissements</SelectItem>
                 {districts.map((district) => {
-                  const city = cities.find((c) => c.id === district.cityId)
-                  const province = city ? provinces.find((p) => p.id === city.provinceId) : null
+                  const commune = communes.find((c) => c.id === district.communeId)
+                  const department = commune ? departments.find((d) => d.id === commune.departmentId) : null
+                  const province = department ? provinces.find((p) => p.id === department.provinceId) : null
                   return (
                     <SelectItem key={district.id} value={district.id}>
-                      {district.name} - {city?.name} {province && `(${province.name})`}
+                      {district.name} - {commune?.name} {department && `(${department.name})`} {province && `- ${province.name}`}
                     </SelectItem>
                   )
                 })}
@@ -167,8 +287,9 @@ export default function QuarterList() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredQuarters.map((quarter) => {
             const district = districts.find((d) => d.id === quarter.districtId)
-            const city = district ? cities.find((c) => c.id === district.cityId) : null
-            const province = city ? provinces.find((p) => p.id === city.provinceId) : null
+            const commune = district ? communes.find((c) => c.id === district.communeId) : null
+            const department = commune ? departments.find((d) => d.id === commune.departmentId) : null
+            const province = department ? provinces.find((p) => p.id === department.provinceId) : null
             return (
               <Card key={quarter.id} className="h-full hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
@@ -180,16 +301,11 @@ export default function QuarterList() {
                       <div>
                         <div className="font-medium text-gray-900">{quarter.name}</div>
                         <div className="text-sm text-gray-500">
-                          {district?.name} - {city?.name} {province && `(${province.name})`}
+                          {district?.name} - {commune?.name} {department && `(${department.name})`} {province && `- ${province.name}`}
                         </div>
                       </div>
                     </div>
                   </div>
-                  {quarter.displayOrder !== undefined && (
-                    <div className="text-xs text-gray-500 mb-3">
-                      Ordre d'affichage: {quarter.displayOrder}
-                    </div>
-                  )}
                   <div className="mt-4 flex items-center justify-end gap-2">
                     <Button
                       variant="ghost"
@@ -239,24 +355,93 @@ export default function QuarterList() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Arrondissement</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un arrondissement" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {districts.map((district) => {
-                          const city = cities.find((c) => c.id === district.cityId)
-                          const province = city ? provinces.find((p) => p.id === city.provinceId) : null
-                          return (
-                            <SelectItem key={district.id} value={district.id}>
-                              {district.name} - {city?.name} {province && `(${province.name})`}
+                    <div className="grid gap-3">
+                      <Select
+                        value={formProvinceId}
+                        onValueChange={(value) => {
+                          setFormProvinceId(value)
+                          setFormDepartmentId('all')
+                          setFormCommuneId('all')
+                          field.onChange('')
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Province" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Sélectionner une province</SelectItem>
+                          {provinces.map((province) => (
+                            <SelectItem key={province.id} value={province.id}>
+                              {province.name}
                             </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={formDepartmentId}
+                        onValueChange={(value) => {
+                          setFormDepartmentId(value)
+                          setFormCommuneId('all')
+                          field.onChange('')
+                        }}
+                        disabled={formProvinceId === 'all'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Département" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Sélectionner un département</SelectItem>
+                          {departmentsForForm.map((department) => (
+                            <SelectItem key={department.id} value={department.id}>
+                              {department.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={formCommuneId}
+                        onValueChange={(value) => {
+                          setFormCommuneId(value)
+                          field.onChange('')
+                        }}
+                        disabled={formDepartmentId === 'all'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Commune" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="all">Sélectionner une commune</SelectItem>
+                          {communesForForm.map((commune) => (
+                            <SelectItem key={commune.id} value={commune.id}>
+                              {commune.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select onValueChange={field.onChange} value={field.value} disabled={formCommuneId === 'all'}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner un arrondissement" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {districtsForForm.map((district) => (
+                            <SelectItem key={district.id} value={district.id}>
+                              {district.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -276,28 +461,6 @@ export default function QuarterList() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ordre d'affichage (optionnel)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
-                          field.onChange(isNaN(value as number) ? undefined : value)
-                        }}
-                        placeholder="1"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -338,4 +501,6 @@ export default function QuarterList() {
     </div>
   )
 }
+
+
 

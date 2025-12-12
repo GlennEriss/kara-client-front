@@ -1,0 +1,40 @@
+@startuml
+title Séquence – Rémunérer garant membre (Système/Garant) – Crédit spéciale/fixe/aide
+
+actor Garant
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo rémunérations" as RepoRemun
+participant "Notifications" as Notif
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+
+== Calcul automatique après versement ==
+Service -> Repo : getById
+Repo --> Service : Crédit plus garant
+alt Garant membre ou parrain
+  Service -> RepoRemun : insert remuneration
+  RepoRemun --> Service : remunerationId
+  Service -> Notif : remuneration_notification garant montant période
+  Notif --> Garant : Notification rémunération
+else Garant admin
+end
+
+== Garant consulte rémunérations ==
+Garant -> UI : Ouvre Mes rémunérations
+UI -> Hooks : Load rémunérations garant
+Hooks -> Service : getRemunerationsByGuarantor
+Service -> RepoRemun : query where garantId
+RepoRemun --> Service : Rémunérations
+Service --> Hooks : Historique rémunérations
+Hooks --> UI : Afficher historique montants périodes crédits
+UI --> Garant : Historique affiché
+
+note right of Service
+Rémunération : 2% du montant versé mensuel
+Uniquement garant membre/parrain
+Historique consultable par garant et admin
+end note
+
+@enduml
+

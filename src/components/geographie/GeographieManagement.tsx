@@ -2,7 +2,8 @@
 import React, { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ProvinceList from './ProvinceList'
-import CityList from './CityList'
+import DepartmentList from './DepartmentList'
+import CommuneList from './CommuneList'
 import DistrictList from './DistrictList'
 import QuarterList from './QuarterList'
 import { MapPin } from 'lucide-react'
@@ -21,15 +22,16 @@ export default function GeographieManagement() {
           <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
             Gestion Géographique
           </h1>
-          <p className="text-gray-600 mt-1">Gérez les provinces, villes, arrondissements et quartiers</p>
+          <p className="text-gray-600 mt-1">Gérez les provinces, départements, communes, arrondissements et quartiers</p>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="provinces">Provinces</TabsTrigger>
-          <TabsTrigger value="cities">Villes</TabsTrigger>
+          <TabsTrigger value="departments">Départements</TabsTrigger>
+          <TabsTrigger value="communes">Communes</TabsTrigger>
           <TabsTrigger value="districts">Arrondissements</TabsTrigger>
           <TabsTrigger value="quarters">Quartiers</TabsTrigger>
         </TabsList>
@@ -38,8 +40,12 @@ export default function GeographieManagement() {
           <ProvinceList />
         </TabsContent>
 
-        <TabsContent value="cities" className="mt-6">
-          <CityList />
+        <TabsContent value="departments" className="mt-6">
+          <DepartmentList />
+        </TabsContent>
+
+        <TabsContent value="communes" className="mt-6">
+          <CommuneList />
         </TabsContent>
 
         <TabsContent value="districts" className="mt-6">

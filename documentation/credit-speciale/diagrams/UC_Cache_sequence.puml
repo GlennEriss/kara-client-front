@@ -1,0 +1,29 @@
+@startuml
+title Séquence – Invalider / rafraîchir cache après mutation (Hooks) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+participant "React Query" as RQ
+
+User -> UI : Exécute action création ou update
+UI -> Hooks : mutate
+Hooks -> Service : create ou update
+Service --> Hooks : Résultat mutation
+Hooks -> RQ : invalidateQueries
+RQ -> RQ : Invalider cache query keys
+Hooks -> RQ : refetchQueries
+RQ -> RQ : Rafraîchir données
+RQ --> Hooks : Données à jour
+Hooks --> UI : Rafraîchir affichage
+UI --> User : Données à jour affichées
+
+note right of Hooks
+Invalidation cache après mutations
+Rafraîchissement automatique des données
+Garantit cohérence UI
+end note
+
+@enduml
+

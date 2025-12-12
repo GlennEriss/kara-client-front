@@ -1,0 +1,29 @@
+@startuml
+title Séquence – Transformer en crédit fixe après 7 mois (Système) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+participant "Notifications" as Notif
+
+== Job automatique planifié ==
+Service -> Repo : query where type SPECIALE status ACTIVE createdAt avant 7mois montantVersé avant montantTotal
+Repo --> Service : Crédits à transformer
+loop Pour chaque crédit
+  Service -> RepoPay : getTotalPaid
+  RepoPay --> Service : Montant versé
+  alt Non remboursé après 7 mois
+    Service -> Repo : update credit type FIXE status TRANSFORMED transformedAt échéancier recalculé
+    Repo --> Service : updated
+    Service -> Notif : transform_notification client crédit fixe
+  end
+end
+
+note right of Service
+Transformation automatique après 7 mois non remboursé
+Suppression intérêts, recalcul échéancier
+Status TRANSFORMED
+end note
+
+@enduml
+

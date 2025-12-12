@@ -1,0 +1,41 @@
+@startuml
+title Séquence – Créer une demande pour un client (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+participant "CI/Membership" as CI
+database "Repo crédits" as Repo
+database "Repo membres" as RepoMembres
+participant "Notifications" as Notif
+
+Admin -> UI : Ouvre formulaire création demande
+UI -> Hooks : Init form (schema, default type)
+Hooks -> RepoMembres : Prefetch liste membres (recherche)
+RepoMembres --> Hooks : Liste membres
+Hooks -> CI : Prefetch statut client/garant
+CI --> Hooks : Statut CI
+
+Admin -> UI : Sélectionne client, saisit montant, type,\nmensualité, garant, lien parenté, cause
+UI -> Hooks : Valider champs
+Hooks --> UI : OK / erreurs
+
+Admin -> UI : Soumettre
+UI -> Hooks : onSubmit
+Hooks -> Service : createRequest(dto, createdBy=admin)
+Service -> Repo : insert credit (status=PENDING,\ncreditType, mensualité, garantId, lienParenté,\ncause, createdBy=admin)
+Repo --> Service : id, timestamps
+Service -> Notif : new_request (client + admin)
+Service -> CI : vérifier éligibilité préliminaire (client/garant)
+CI --> Service : statut CI
+Service --> Hooks : demande créée (id, statut)
+Hooks --> UI : afficher confirmation
+UI --> Admin : Confirmation + statut PENDING
+
+note right of Service
+Respect architecture : UI -> Hooks -> Service -> Repo/CI/Notif
+end note
+
+@enduml
+

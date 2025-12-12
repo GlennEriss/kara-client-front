@@ -1,0 +1,20 @@
+@startuml
+title Activité – Téléverser contrat signé (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:Admin/Client clique "Téléverser contrat signé";
+:UI ouvre dialogue upload (PDF/image);
+:Admin/Client sélectionne fichier;
+:UI valide fichier (type, taille);
+if (Fichier valide ?) then (oui)
+  :Documents/Storage téléverse fichier;
+  :Documents/Storage stocke métadonnées (type, version, uploadedBy);
+  :Service met à jour crédit (signedContractUrl, status=ACTIVE);
+  :Service active contrat (remise fonds possible);
+  :Notifications notifie contrat activé;
+else (non)
+  :Afficher erreur upload;
+endif
+stop
+@enduml
+

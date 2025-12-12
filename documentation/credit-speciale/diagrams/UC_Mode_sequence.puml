@@ -1,0 +1,28 @@
+@startuml
+title Séquence – Enregistrer moyen de paiement (Payments) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo paiements" as RepoPay
+participant "Paiement / Preuves" as Pay
+
+Admin -> UI : Sélectionne moyen paiement espèces mobile money virement
+UI -> Hooks : recordPayment moyen
+Hooks -> Service : recordPayment moyen
+Service -> Pay : validatePaymentMode moyen
+Pay --> Service : OK
+Service -> RepoPay : insert payment moyen
+RepoPay --> Service : paymentId
+Service --> Hooks : Moyen enregistré
+Hooks --> UI : Confirmation
+UI --> Admin : Moyen enregistré
+
+note right of Pay
+Moyens : espèces, mobile money, virement
+Validation selon règles métier
+end note
+
+@enduml
+

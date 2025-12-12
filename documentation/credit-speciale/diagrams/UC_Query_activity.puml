@@ -1,0 +1,13 @@
+@startuml
+title Activité – Requêtes filtrées (Repositories) – Crédit spéciale/fixe/aide
+start
+:Service demande requête filtrée;
+:Repo construit requête Firestore (where clauses);
+:Repo applique filtres (statut, type, membre, garant, retard, texte);
+:Repo applique pagination (page, limit);
+:Repo applique tri (orderBy);
+:Repo exécute requête Firestore;
+:Repo retourne résultats paginés;
+stop
+@enduml
+

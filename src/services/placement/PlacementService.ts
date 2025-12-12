@@ -1,4 +1,4 @@
-import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementStatus, CommissionStatus, PlacementDocumentType } from '@/types/types'
+import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementStatus, CommissionStatus, PlacementDocumentType, User } from '@/types/types'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { DocumentService } from '@/services/documents/DocumentService'
@@ -12,13 +12,82 @@ export class PlacementService {
     private memberRepository: IMemberRepository
   ) {}
 
+  /**
+   * Calcule les champs dérivés (endDate, nextCommissionDate) selon le mode et la période
+   */
+  private computeDates(payload: { startDate?: Date; periodMonths: number; payoutMode: PayoutMode }) {
+    const start = payload.startDate ? new Date(payload.startDate) : new Date()
+    const end = new Date(start)
+    end.setMonth(end.getMonth() + (payload.periodMonths > 0 ? payload.periodMonths - 1 : 0))
+
+    const nextCommissionDate =
+      payload.payoutMode === 'MonthlyCommission_CapitalEnd' ? start : end
+
+    return { startDate: start, endDate: end, nextCommissionDate }
+  }
+
+  /**
+   * Récupère les informations du membre pour préremplir nom et téléphone
+   */
+  private async enrichMemberInfo(benefactorId: string): Promise<Pick<Placement, 'benefactorName' | 'benefactorPhone'>> {
+    try {
+      const member = await this.memberRepository.getMemberById(benefactorId) as unknown as User | null
+      if (member) {
+        const name = `${member.lastName ?? ''} ${member.firstName ?? ''}`.trim()
+        const phone = Array.isArray(member.contacts) && member.contacts.length > 0 ? member.contacts[0] : undefined
+        return { benefactorName: name || undefined, benefactorPhone: phone }
+      }
+    } catch (error) {
+      console.warn('Impossible de récupérer les infos du membre', error)
+    }
+    return { benefactorName: undefined, benefactorPhone: undefined }
+  }
+
   async createPlacement(data: Omit<Placement, 'id' | 'createdAt' | 'updatedAt' | 'status'>, adminId: string): Promise<Placement> {
+    const dates = this.computeDates({
+      startDate: data.startDate,
+      periodMonths: data.periodMonths,
+      payoutMode: data.payoutMode,
+    })
+    const memberInfo = await this.enrichMemberInfo(data.benefactorId)
+
+    // Générer l'ID personnalisé au format MK_BF_matriculeMembre_date_heure
+    const member = await this.memberRepository.getMemberById(data.benefactorId)
+    if (!member) {
+      throw new Error('Membre bienfaiteur introuvable')
+    }
+    
+    // Récupérer le matricule et le formater avec padding à 4 chiffres
+    let matricule = member.matricule || member.id || data.benefactorId
+    // Extraire uniquement les chiffres du matricule et formater à 4 chiffres
+    const matriculeDigits = matricule.replace(/\D/g, '') // Garder uniquement les chiffres
+    // Si pas de chiffres trouvés, utiliser les 4 derniers caractères de l'ID
+    matricule = matriculeDigits.length > 0 
+      ? matriculeDigits.padStart(4, '0') // Padding à 4 chiffres avec des zéros à gauche
+      : String(member.id || data.benefactorId).slice(-4).padStart(4, '0')
+    
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    // Format: MK_BF_matriculeMembre_ddMMyy_HHmm (ex: MK_BF_0001_111225_1705)
+    const customPlacementId = `MK_BF_${matricule}_${day}${month}${year}_${hours}${minutes}`
+
     const placement = await this.placementRepository.create({
       ...data,
+      ...memberInfo,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+      nextCommissionDate: dates.nextCommissionDate,
+      amount: Number((data as any).amount) || 0,
+      rate: Number((data as any).rate) || 0,
+      periodMonths: Number((data as any).periodMonths) || 0,
       status: 'Draft',
       createdBy: adminId,
       updatedBy: adminId,
-    })
+    }, customPlacementId)
 
     // Si le membre n'a pas encore le rôle Bienfaiteur, l'ajouter
     try {
@@ -26,7 +95,7 @@ export class PlacementService {
       if (member) {
         const roles = member.roles || []
         if (!roles.includes('Bienfaiteur')) {
-          await this.memberRepository.updateMemberRoles(member.id as string, [...roles, 'Bienfaiteur'])
+          await this.memberRepository.updateMemberRoles(member.id as string, [...roles, 'Bienfaiteur'], adminId)
         }
       }
     } catch (error) {
@@ -86,11 +155,35 @@ export class PlacementService {
     // Créer toutes les commissions
     if (commissions.length > 0) {
       await this.placementRepository.createCommissions(placement.id, commissions)
+      await this.recalculatePlacementCommissionStatus(placement.id)
     }
   }
 
   async updatePlacement(id: string, data: Partial<Placement>, adminId: string): Promise<Placement> {
-    return this.placementRepository.update(id, { ...data, updatedBy: adminId })
+    let computed = {}
+    if (data.startDate || data.periodMonths || data.payoutMode) {
+      const existing = await this.placementRepository.getById(id)
+      const base = existing || {} as Placement
+      const dates = this.computeDates({
+        startDate: data.startDate ?? base.startDate,
+        periodMonths: data.periodMonths ?? base.periodMonths,
+        payoutMode: data.payoutMode ?? base.payoutMode,
+      })
+      computed = {
+        startDate: dates.startDate,
+        endDate: dates.endDate,
+        nextCommissionDate: dates.nextCommissionDate,
+      }
+    }
+
+    return this.placementRepository.update(id, { 
+      ...data,
+      ...computed,
+      amount: data.amount !== undefined ? Number((data as any).amount) || 0 : undefined,
+      rate: data.rate !== undefined ? Number((data as any).rate) || 0 : undefined,
+      periodMonths: data.periodMonths !== undefined ? Number((data as any).periodMonths) || 0 : undefined,
+      updatedBy: adminId 
+    })
   }
 
   async listPlacements(): Promise<Placement[]> {
@@ -167,6 +260,14 @@ export class PlacementService {
       createdBy: adminId,
     })
     await this.placementRepository.update(placementId, { status: 'EarlyExit', updatedBy: adminId } as any)
+
+    // Générer et attacher automatiquement l'avenant de retrait anticipé
+    try {
+      await this.generateEarlyExitAddendum(placementId, adminId)
+    } catch (err) {
+      console.error('Erreur lors de la génération automatique de l’avenant de retrait anticipé', err)
+    }
+
     return earlyExit
   }
 
@@ -184,6 +285,15 @@ export class PlacementService {
     documentType: PlacementDocumentType,
     adminId: string
   ): Promise<{ documentId: string; placement: Placement }> {
+    // Verrou : si au moins une commission payée, on bloque la modification du contrat
+    if (documentType === 'PLACEMENT_CONTRACT') {
+      const commissions = await this.placementRepository.listCommissions(placementId)
+      const hasPaid = commissions.some(c => c.status === 'Paid')
+      if (hasPaid) {
+        throw new Error('Contrat verrouillé après le premier paiement de commission')
+      }
+    }
+
     // 1. Upload du fichier vers Firebase Storage avec chemin spécifique aux placements
     const timestamp = Date.now()
     const fileName = `${timestamp}_${documentType}_${file.name}`
@@ -192,7 +302,44 @@ export class PlacementService {
     // Utiliser uploadDocumentFile mais adapter le chemin après
     const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, documentType)
     
-    // 2. Créer l'enregistrement du document dans Firestore
+    // 2. Générer l'ID personnalisé pour les contrats de placement au format MK_BF_matriculeMembre_date_heure
+    let customDocumentId: string | undefined
+    if (documentType === 'PLACEMENT_CONTRACT') {
+      const member = await this.memberRepository.getMemberById(benefactorId)
+      if (!member) {
+        throw new Error('Membre bienfaiteur introuvable')
+      }
+      // Récupérer le matricule et le formater avec padding à 4 chiffres
+      let matricule = member.matricule || member.id || benefactorId
+      // Extraire uniquement les chiffres du matricule et formater à 4 chiffres
+      const matriculeDigits = matricule.replace(/\D/g, '') // Garder uniquement les chiffres
+      // Si pas de chiffres trouvés, utiliser les 4 derniers caractères de l'ID
+      matricule = matriculeDigits.length > 0 
+        ? matriculeDigits.padStart(4, '0') // Padding à 4 chiffres avec des zéros à gauche
+        : String(member.id || benefactorId).slice(-4).padStart(4, '0')
+      
+      const now = new Date()
+      const day = String(now.getDate()).padStart(2, '0')
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const year = String(now.getFullYear()).slice(-2)
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      // Format: MK_BF_matriculeMembre_ddMMyy_HHmm (ex: MK_BF_0001_111225_1705)
+      customDocumentId = `MK_BF_${matricule}_${day}${month}${year}_${hours}${minutes}`
+      
+      // Log pour débogage
+      console.log('🔍 Génération ID contrat placement:', {
+        benefactorId,
+        memberMatricule: member.matricule,
+        memberId: member.id,
+        matriculeFormate: matricule,
+        customDocumentId,
+        date: `${day}${month}${year}`,
+        heure: `${hours}${minutes}`
+      })
+    }
+    
+    // 3. Créer l'enregistrement du document dans Firestore
     const documentData: Omit<import('@/types/types').Document, 'id' | 'createdAt' | 'updatedAt'> = {
       type: documentType,
       format: 'pdf',
@@ -206,7 +353,7 @@ export class PlacementService {
       updatedBy: adminId,
     }
 
-    const document = await this.documentRepository.createDocument(documentData)
+    const document = await this.documentRepository.createDocument(documentData, customDocumentId)
 
     if (!document || !document.id) {
       throw new Error('Erreur lors de la création du document')
@@ -299,8 +446,11 @@ export class PlacementService {
       status: 'Paid',
       paidAt: paidDate,
       proofDocumentId: documentId,
+      receiptDocumentId: documentId, // on utilise le même document comme reçu
       updatedBy: adminId,
     })
+
+    await this.recalculatePlacementCommissionStatus(placementId)
 
     return { documentId, commission }
   }
@@ -347,7 +497,178 @@ export class PlacementService {
       updatedBy: adminId,
     })
 
+    // Mettre à jour le placement avec l'ID de quittance
+    await this.placementRepository.update(placementId, {
+      earlyExitQuittanceDocumentId: document.id,
+      updatedBy: adminId,
+    } as any)
+
     return { documentId: document.id, earlyExit }
+  }
+
+  /**
+   * Upload une quittance finale de placement
+   */
+  async uploadFinalQuittance(
+    file: File,
+    placementId: string,
+    benefactorId: string,
+    adminId: string
+  ): Promise<{ documentId: string }> {
+    const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, 'PLACEMENT_FINAL_QUITTANCE')
+
+    const document = await this.documentRepository.createDocument({
+      type: 'PLACEMENT_FINAL_QUITTANCE',
+      format: 'pdf',
+      libelle: `Quittance finale - Placement ${placementId}`,
+      path,
+      url,
+      size,
+      memberId: benefactorId,
+      contractId: placementId,
+      createdBy: adminId,
+      updatedBy: adminId,
+    })
+
+    if (!document?.id) {
+      throw new Error('Erreur lors de la création de la quittance finale')
+    }
+
+    await this.placementRepository.update(placementId, {
+      finalQuittanceDocumentId: document.id,
+      updatedBy: adminId,
+    } as any)
+
+    return { documentId: document.id }
+  }
+
+  /**
+   * Génère automatiquement une quittance finale (PDF) et l'attache
+   */
+  async generateFinalQuittance(
+    placementId: string,
+    adminId: string
+  ): Promise<{ documentId: string }> {
+    const placement = await this.placementRepository.getById(placementId)
+    if (!placement) throw new Error('Placement introuvable')
+
+    const { default: jsPDF } = await import('jspdf')
+    const doc = new jsPDF()
+    doc.setFontSize(16)
+    doc.text('QUITTANCE FINALE', 105, 20, { align: 'center' })
+    doc.setFontSize(11)
+    doc.text(`Placement #${placement.id}`, 14, 40)
+    doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 14, 48)
+    doc.text(`Montant capital: ${placement.amount.toLocaleString()} FCFA`, 14, 56)
+    doc.text(`Durée: ${placement.periodMonths} mois`, 14, 64)
+    if (placement.endDate) {
+      doc.text(`Date de fin: ${new Date(placement.endDate).toLocaleDateString('fr-FR')}`, 14, 72)
+    }
+    const blob = doc.output('blob')
+    const fileName = `QUITTANCE_FINALE_${placement.id.slice(-6)}.pdf`
+    const file = new File([blob], fileName, { type: 'application/pdf' })
+    return this.uploadFinalQuittance(file, placementId, placement.benefactorId, adminId)
+  }
+
+  /**
+   * Upload un avenant de retrait anticipé
+   */
+  async uploadEarlyExitAddendum(
+    file: File,
+    placementId: string,
+    benefactorId: string,
+    adminId: string
+  ): Promise<{ documentId: string }> {
+    const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, 'PLACEMENT_EARLY_EXIT_ADDENDUM')
+
+    const document = await this.documentRepository.createDocument({
+      type: 'PLACEMENT_EARLY_EXIT_ADDENDUM',
+      format: 'pdf',
+      libelle: `Avenant retrait anticipé - Placement ${placementId}`,
+      path,
+      url,
+      size,
+      memberId: benefactorId,
+      contractId: placementId,
+      createdBy: adminId,
+      updatedBy: adminId,
+    })
+
+    if (!document?.id) {
+      throw new Error('Erreur lors de la création de l\'avenant de retrait anticipé')
+    }
+
+    await this.placementRepository.update(placementId, {
+      earlyExitAddendumDocumentId: document.id,
+      updatedBy: adminId,
+    } as any)
+
+    return { documentId: document.id }
+  }
+
+  /**
+   * Clôturer un placement (remboursement final) et attacher la quittance finale
+   */
+  async closePlacement(
+    placementId: string,
+    file: File | null,
+    adminId: string
+  ): Promise<Placement> {
+    const placement = await this.placementRepository.getById(placementId)
+    if (!placement) throw new Error('Placement introuvable')
+
+    let finalDocId: string | undefined = placement.finalQuittanceDocumentId
+
+    if (file) {
+      const { documentId } = await this.uploadFinalQuittance(file, placementId, placement.benefactorId, adminId)
+      finalDocId = documentId
+    } else {
+      const { documentId } = await this.generateFinalQuittance(placementId, adminId)
+      finalDocId = documentId
+    }
+
+    const updated = await this.placementRepository.update(placementId, {
+      status: 'Closed',
+      finalQuittanceDocumentId: finalDocId,
+      updatedBy: adminId,
+      updatedAt: new Date(),
+    })
+
+    return updated
+  }
+
+  /**
+   * Génère et attache automatiquement l'avenant de retrait anticipé (PDF)
+   */
+  async generateEarlyExitAddendum(
+    placementId: string,
+    adminId: string
+  ): Promise<{ documentId: string }> {
+    const placement = await this.placementRepository.getById(placementId)
+    if (!placement) throw new Error('Placement introuvable')
+    const earlyExit = await this.placementRepository.getEarlyExit(placementId)
+    if (!earlyExit) throw new Error('Retrait anticipé introuvable')
+
+    // Génération simplifiée de l'avenant en PDF (texte de base)
+    const { default: jsPDF } = await import('jspdf')
+    const doc = new jsPDF()
+    doc.setFontSize(16)
+    doc.text('AVENANT DE RETRAIT ANTICIPÉ', 105, 20, { align: 'center' })
+    doc.setFontSize(11)
+    doc.text(`Placement #${placement.id}`, 14, 40)
+    doc.text(`Bienfaiteur: ${placement.benefactorName || placement.benefactorId}`, 14, 48)
+    doc.text(`Montant: ${placement.amount.toLocaleString()} FCFA`, 14, 56)
+    doc.text(`Période: ${placement.periodMonths} mois`, 14, 64)
+    doc.text(`Demande de retrait: ${earlyExit.requestedAt.toLocaleDateString()}`, 14, 72)
+    doc.text(`Commission due: ${earlyExit.commissionDue.toLocaleString()} FCFA`, 14, 80)
+    doc.text(`Montant à verser: ${earlyExit.payoutAmount.toLocaleString()} FCFA`, 14, 88)
+
+    const blob = doc.output('blob')
+    const fileName = `AVENANT_SORTIE_${placement.id.slice(-6)}.pdf`
+    const file = new File([blob], fileName, { type: 'application/pdf' })
+
+    const res = await this.uploadEarlyExitAddendum(file, placementId, placement.benefactorId, adminId)
+    return { documentId: res.documentId }
   }
 
   /**
@@ -409,7 +730,8 @@ export class PlacementService {
 
     // Calculer les statistiques de base
     for (const placement of placements) {
-      stats.totalAmount += placement.amount
+      const amount = Number((placement as any).amount) || 0
+      stats.totalAmount += amount
       
       if (placement.status === 'Draft') stats.draft++
       else if (placement.status === 'Active') stats.active++
@@ -417,6 +739,9 @@ export class PlacementService {
       else if (placement.status === 'EarlyExit') stats.earlyExit++
       else if (placement.status === 'Canceled') stats.canceled++
 
+      if (stats.payoutModeDistribution[placement.payoutMode] === undefined) {
+        stats.payoutModeDistribution[placement.payoutMode] = 0
+      }
       stats.payoutModeDistribution[placement.payoutMode]++
     }
 
@@ -424,14 +749,14 @@ export class PlacementService {
     for (const placement of placements) {
       try {
         const commissions = await this.placementRepository.listCommissions(placement.id)
-        stats.totalCommissionsAmount += commissions.reduce((sum, c) => sum + c.amount, 0)
+        stats.totalCommissionsAmount += commissions.reduce((sum, c) => sum + (Number((c as any).amount) || 0), 0)
         
         for (const commission of commissions) {
           if (commission.status === 'Due') {
             stats.commissionsDue++
           } else if (commission.status === 'Paid') {
             stats.commissionsPaid++
-            stats.paidCommissionsAmount += commission.amount
+            stats.paidCommissionsAmount += Number((commission as any).amount) || 0
           }
         }
       } catch (error) {
@@ -442,9 +767,10 @@ export class PlacementService {
     // Calculer les top bienfaiteurs
     const benefactorMap = new Map<string, { totalAmount: number; placementCount: number }>()
     for (const placement of placements) {
+      const amount = Number((placement as any).amount) || 0
       const existing = benefactorMap.get(placement.benefactorId) || { totalAmount: 0, placementCount: 0 }
       benefactorMap.set(placement.benefactorId, {
-        totalAmount: existing.totalAmount + placement.amount,
+        totalAmount: existing.totalAmount + amount,
         placementCount: existing.placementCount + 1,
       })
     }
@@ -455,6 +781,21 @@ export class PlacementService {
       .slice(0, 10) // Top 10
 
     return stats
+  }
+
+  /**
+   * Recalcule la prochaine échéance due et le flag en retard pour un placement
+   */
+  private async recalculatePlacementCommissionStatus(placementId: string): Promise<void> {
+    const commissions = await this.placementRepository.listCommissions(placementId)
+    const due = commissions.filter(c => c.status === 'Due').sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+    const nextDue = due[0]?.dueDate
+    const hasOverdue = due.some(c => c.dueDate.getTime() < Date.now())
+    await this.placementRepository.update(placementId, {
+      nextCommissionDate: nextDue,
+      hasOverdueCommission: hasOverdue,
+      updatedAt: new Date(),
+    } as any)
   }
 }
 

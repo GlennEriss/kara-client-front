@@ -13,20 +13,33 @@ export const provinceSchema = z.object({
     .min(1, 'Le nom est requis')
     .max(100, 'Le nom ne peut pas dépasser 100 caractères')
     .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
-  displayOrder: z
-    .number()
-    .int('L\'ordre d\'affichage doit être un entier')
-    .min(0, 'L\'ordre d\'affichage doit être positif')
-    .optional()
-    .nullable(),
 })
 
 export type ProvinceFormData = z.infer<typeof provinceSchema>
 
-// ================== SCHÉMA VILLE ==================
+// ================== SCHÉMA DÉPARTEMENT ==================
 
-export const citySchema = z.object({
+export const departmentSchema = z.object({
   provinceId: z.string().min(1, 'La province est requise'),
+  name: z
+    .string()
+    .min(1, 'Le nom est requis')
+    .max(100, 'Le nom ne peut pas dépasser 100 caractères')
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+  code: z
+    .string()
+    .max(50, 'Le code ne peut pas dépasser 50 caractères')
+    .regex(/^[A-Z0-9_]*$/, 'Le code doit contenir uniquement des majuscules, chiffres et underscores')
+    .optional()
+    .nullable(),
+})
+
+export type DepartmentFormData = z.infer<typeof departmentSchema>
+
+// ================== SCHÉMA COMMUNE ==================
+
+export const communeSchema = z.object({
+  departmentId: z.string().min(1, 'Le département est requis'),
   name: z
     .string()
     .min(1, 'Le nom est requis')
@@ -38,38 +51,31 @@ export const citySchema = z.object({
     .regex(/^[A-Z0-9\s-]*$/, 'Le code postal contient des caractères invalides')
     .optional()
     .nullable(),
-  displayOrder: z
-    .number()
-    .int('L\'ordre d\'affichage doit être un entier')
-    .min(0, 'L\'ordre d\'affichage doit être positif')
+  alias: z
+    .string()
+    .max(50, 'L\'alias ne peut pas dépasser 50 caractères')
     .optional()
     .nullable(),
 })
 
-export type CityFormData = z.infer<typeof citySchema>
+export type CommuneFormData = z.infer<typeof communeSchema>
 
 // ================== SCHÉMA ARRONDISSEMENT ==================
 
 export const districtSchema = z.object({
-  cityId: z.string().min(1, 'La ville est requise'),
+  communeId: z.string().min(1, 'La commune est requise'),
   name: z
     .string()
     .min(1, 'Le nom est requis')
     .max(100, 'Le nom ne peut pas dépasser 100 caractères')
     .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
-  displayOrder: z
-    .number()
-    .int('L\'ordre d\'affichage doit être un entier')
-    .min(0, 'L\'ordre d\'affichage doit être positif')
-    .optional()
-    .nullable(),
 })
 
 export type DistrictFormData = z.infer<typeof districtSchema>
 
 // Schéma pour création en masse d'arrondissements
 export const districtBulkCreateSchema = z.object({
-  cityId: z.string().min(1, 'La ville est requise'),
+  communeId: z.string().min(1, 'La commune est requise'),
   count: z
     .number()
     .int('Le nombre doit être un entier')
@@ -88,12 +94,6 @@ export const quarterSchema = z.object({
     .min(1, 'Le nom est requis')
     .max(100, 'Le nom ne peut pas dépasser 100 caractères')
     .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
-  displayOrder: z
-    .number()
-    .int('L\'ordre d\'affichage doit être un entier')
-    .min(0, 'L\'ordre d\'affichage doit être positif')
-    .optional()
-    .nullable(),
 })
 
 export type QuarterFormData = z.infer<typeof quarterSchema>

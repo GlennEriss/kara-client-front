@@ -1,0 +1,18 @@
+@startuml
+title Activité – Vérifier éligibilité (client/garant à jour CI) – Crédit spéciale/fixe/aide
+start
+:Service reçoit demande ou validation;
+:Service récupère statut CI client;
+:Service récupère statut CI garant;
+if (Client à jour CI ?) then (oui)
+  :Éligible;
+else (Garant à jour CI ?) then (oui)
+  :Éligible;
+else (Dérogation admin ?) then (oui)
+  :Éligible (avec justification);
+else (non)
+  :Non éligible;
+endif
+stop
+@enduml
+

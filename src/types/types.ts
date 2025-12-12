@@ -219,7 +219,7 @@ export interface MembershipRequestAction {
 /**
  * Module d'origine de la notification
  */
-export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur' | 'placement'
+export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur' | 'placement' | 'credit_speciale'
 
 /**
  * Type de notification
@@ -1217,6 +1217,12 @@ export type DocumentType =
   | 'PLACEMENT_CONTRACT'           // Contrat de placement
   | 'PLACEMENT_COMMISSION_PROOF'   // Preuve de commission placement
   | 'PLACEMENT_EARLY_EXIT_QUITTANCE' // Quittance de retrait anticipé placement
+  | 'PLACEMENT_FINAL_QUITTANCE'      // Quittance finale placement
+  | 'PLACEMENT_EARLY_EXIT_ADDENDUM'   // Avenant retrait anticipé placement
+  | 'CREDIT_SPECIALE_CONTRACT'     // Contrat crédit spéciale
+  | 'CREDIT_SPECIALE_CONTRACT_SIGNED' // Contrat crédit spéciale signé
+  | 'CREDIT_SPECIALE_RECEIPT'      // Reçu de paiement crédit spéciale
+  | 'CREDIT_SPECIALE_DISCHARGE'    // Décharge crédit spéciale
 
 /**
  * Formats de documents possibles
@@ -1227,6 +1233,208 @@ export type DocumentFormat =
   | 'excel'
   | 'image'
   | 'text'
+
+// ================== TYPES POUR CRÉDIT SPÉCIALE / FIXE / AIDE ==================
+
+/**
+ * Types de crédit possibles
+ */
+export type CreditType = 'SPECIALE' | 'FIXE' | 'AIDE'
+
+/**
+ * Statut d'une demande de crédit
+ */
+export type CreditDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+/**
+ * Statut d'un contrat de crédit
+ */
+export type CreditContractStatus = 
+  | 'DRAFT'           // Brouillon (demande créée, pas encore validée)
+  | 'PENDING'          // En attente de validation
+  | 'APPROVED'         // Approuvé, en attente de simulation
+  | 'SIMULATED'        // Simulation effectuée, en attente de contrat
+  | 'ACTIVE'           // Contrat signé et actif
+  | 'OVERDUE'          // En retard de paiement
+  | 'PARTIAL'          // Partiellement remboursé
+  | 'TRANSFORMED'      // Transformé en crédit fixe après 7 mois
+  | 'BLOCKED'          // Bloqué (pénalités impayées)
+  | 'DISCHARGED'       // Déchargé (remboursement complet)
+  | 'CLOSED'           // Clos
+
+/**
+ * Moyen de paiement pour crédit spéciale
+ */
+export type CreditPaymentMode = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CHEQUE'
+
+/**
+ * Type pour une demande de crédit
+ */
+export interface CreditDemand {
+  id: string
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
+  creditType: CreditType
+  amount: number
+  monthlyPaymentAmount?: number
+  cause: string
+  status: CreditDemandStatus
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  eligibilityOverride?: {
+    justification: string
+    adminId: string
+    adminName: string
+    createdAt: Date
+  }
+  adminComments?: string // Commentaires/motif d'approbation ou de rejet
+  score?: number // Score de fiabilité (0-10, admin-only)
+  scoreUpdatedAt?: Date
+  contractId?: string // Relation 1:1 avec le contrat (une demande = un seul contrat)
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour un contrat de crédit
+ */
+export interface CreditContract {
+  id: string
+  demandId: string
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
+  creditType: CreditType
+  amount: number
+  interestRate: number
+  monthlyPaymentAmount: number
+  totalAmount: number // Montant + intérêts
+  duration: number // Durée en mois
+  firstPaymentDate: Date
+  nextDueAt?: Date
+  status: CreditContractStatus
+  amountPaid: number
+  amountRemaining: number
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  guarantorIsParrain: boolean // Si le garant a parrainé le client
+  guarantorRemunerationPercentage: number // % de la mensualité pour le parrain (2% par défaut)
+  emergencyContact?: EmergencyContact // Contact d'urgence
+  contractUrl?: string // URL du contrat PDF généré
+  signedContractUrl?: string // URL du contrat signé téléversé
+  dischargeUrl?: string // URL de la décharge
+  activatedAt?: Date
+  fundsReleasedAt?: Date
+  dischargedAt?: Date
+  transformedAt?: Date
+  blockedAt?: Date
+  blockedReason?: string
+  score?: number // Score de fiabilité (0-10, admin-only)
+  scoreUpdatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour un versement de crédit
+ */
+export interface CreditPayment {
+  id: string
+  creditId: string
+  amount: number
+  paymentDate: Date
+  paymentTime: string
+  mode: CreditPaymentMode
+  proofUrl?: string
+  comment?: string
+  note?: number // Note sur 10
+  reference?: string // Référence unique du paiement
+  receiptUrl?: string // URL du reçu PDF
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour une pénalité
+ */
+export interface CreditPenalty {
+  id: string
+  creditId: string
+  amount: number
+  daysLate: number
+  dueDate: Date
+  paid: boolean
+  paidAt?: Date
+  reported: boolean // Si le client a choisi de reporter
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour la rémunération du garant
+ */
+export interface GuarantorRemuneration {
+  id: string
+  creditId: string
+  guarantorId: string
+  paymentId: string
+  amount: number // 2% du montant versé mensuel
+  month: number // Mois concerné
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Type pour une simulation standard
+ */
+export interface StandardSimulation {
+  remainingAtMaxDuration?: number // Solde restant au 7ème mois pour crédit spéciale
+  suggestedMonthlyPayment?: number // Mensualité suggérée pour rembourser en 7 mois
+  amount: number
+  interestRate: number
+  monthlyPayment: number
+  firstPaymentDate: Date
+  duration: number // Calculé
+  totalAmount: number // Montant + intérêts
+  isValid: boolean // Si respecte les limites (7 mois spéciale, 3 mois aide)
+  suggestedMinimumAmount?: number // Si dépasse les limites
+}
+
+/**
+ * Type pour une simulation personnalisée
+ */
+export interface CustomSimulation {
+  amount: number
+  interestRate: number
+  monthlyPayments: Array<{
+    month: number
+    amount: number
+  }>
+  firstPaymentDate: Date
+  duration: number // Calculé
+  totalAmount: number // Montant + intérêts
+  isValid: boolean
+  suggestedMinimumAmount?: number
+}
 
 /**
  * Interface pour un document
@@ -1527,11 +1735,23 @@ export type CommissionStatus = 'Due' | 'Paid' | 'Partial' | 'Canceled'
 export type PayoutMode = 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End'
 
 // Types de documents placement : on réutilise DocumentType existant en ajoutant si besoin des variantes placement
-export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE'
+export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE' | 'PLACEMENT_FINAL_QUITTANCE' | 'PLACEMENT_EARLY_EXIT_ADDENDUM'
 
 export interface Placement {
   id: string
   benefactorId: string // User.id avec rôle Bienfaiteur
+  benefactorName?: string
+  benefactorPhone?: string
+  urgentContact?: {
+    name: string
+    firstName?: string
+    phone: string
+    phone2?: string
+    relationship?: string
+    idNumber?: string
+    typeId?: string
+    documentPhotoUrl?: string
+  }
   amount: number
   rate: number // taux de commission
   periodMonths: number // 1..7
@@ -1539,7 +1759,12 @@ export interface Placement {
   status: PlacementStatus
   startDate?: Date
   endDate?: Date
+  nextCommissionDate?: Date
+  hasOverdueCommission?: boolean
   contractDocumentId?: string // Référence Document.id
+  finalQuittanceDocumentId?: string
+  earlyExitQuittanceDocumentId?: string
+  earlyExitAddendumDocumentId?: string
   createdAt: Date
   updatedAt: Date
   createdBy: string // User.id (Admin)
@@ -1553,6 +1778,7 @@ export interface CommissionPaymentPlacement {
   amount: number
   status: CommissionStatus
   proofDocumentId?: string // Document.id
+  receiptDocumentId?: string // Reçu / quittance payée
   paidAt?: Date
   createdAt: Date
   updatedAt: Date
@@ -1681,7 +1907,6 @@ export interface Province {
   id: string
   code: string // Code unique (ex: "ESTuaire", "OGOUE_MARITIME")
   name: string
-  displayOrder?: number
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1689,14 +1914,13 @@ export interface Province {
 }
 
 /**
- * Ville - Entité géographique de niveau 2 (appartient à une Province)
+ * Département - Entité géographique de niveau 2 (appartient à une Province)
  */
-export interface City {
+export interface Department {
   id: string
   provinceId: string
   name: string
-  postalCode?: string
-  displayOrder?: number
+  code?: string
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1704,13 +1928,27 @@ export interface City {
 }
 
 /**
- * Arrondissement - Entité géographique de niveau 3 (appartient à une Ville)
+ * Commune (ou Ville) - Entité géographique de niveau 3 (appartient à un Département)
+ */
+export interface Commune {
+  id: string
+  departmentId: string
+  name: string
+  postalCode?: string
+  alias?: string // "Ville" si applicable
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
+ * Arrondissement - Entité géographique de niveau 4 (appartient à une Commune)
  */
 export interface District {
   id: string
-  cityId: string
+  communeId: string
   name: string
-  displayOrder?: number
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -1718,13 +1956,12 @@ export interface District {
 }
 
 /**
- * Quartier - Entité géographique de niveau 4 (appartient à un Arrondissement)
+ * Quartier - Entité géographique de niveau 5 (appartient à un Arrondissement)
  */
 export interface Quarter {
   id: string
   districtId: string
   name: string
-  displayOrder?: number
   createdAt: Date
   updatedAt: Date
   createdBy: string

@@ -58,13 +58,12 @@ export class DistrictRepository implements IRepository {
       const data = snapshot.data()
       return {
         id: snapshot.id,
-        cityId: data.cityId,
+        communeId: data.communeId || data.cityId, // Support migration depuis cityId
         name: data.name,
-        displayOrder: data.displayOrder ?? null,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
         createdBy: data.createdBy,
-        updatedBy: data.updatedBy ?? null,
+        updatedBy: data.updatedBy ?? undefined,
       }
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'arrondissement:', error)
@@ -73,18 +72,16 @@ export class DistrictRepository implements IRepository {
   }
 
   /**
-   * Récupère tous les arrondissements d'une ville
+   * Récupère tous les arrondissements d'une commune
    */
-  async getByCityId(cityId: string, orderByField: 'name' | 'displayOrder' = 'displayOrder'): Promise<District[]> {
+  async getByCommuneId(communeId: string): Promise<District[]> {
     try {
       const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.districts || 'districts')
 
-      // Toujours trier par 'name' dans Firestore car displayOrder peut être absent
-      // On fera le tri par displayOrder côté client si nécessaire
       const q = query(
         collectionRef,
-        where('cityId', '==', cityId),
+        where('communeId', '==', communeId),
         orderBy('name', 'asc')
       )
 
@@ -95,35 +92,14 @@ export class DistrictRepository implements IRepository {
         const data = doc.data()
         districts.push({
           id: doc.id,
-          cityId: data.cityId,
+          communeId: data.communeId || data.cityId, // Support migration
           name: data.name,
-          displayOrder: data.displayOrder ?? null,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           createdBy: data.createdBy,
-          updatedBy: data.updatedBy ?? null,
+          updatedBy: data.updatedBy ?? undefined,
         })
       })
-
-      // Trier côté client si nécessaire
-      if (orderByField === 'displayOrder') {
-        districts.sort((a, b) => {
-          // Les éléments avec displayOrder en premier
-          const aOrder = a.displayOrder ?? undefined
-          const bOrder = b.displayOrder ?? undefined
-          if (aOrder !== undefined && bOrder !== undefined) {
-            if (aOrder !== bOrder) {
-              return aOrder - bOrder
-            }
-          } else if (aOrder !== undefined) {
-            return -1
-          } else if (bOrder !== undefined) {
-            return 1
-          }
-          // Si les deux n'ont pas de displayOrder, trier par nom
-          return a.name.localeCompare(b.name)
-        })
-      }
 
       return districts
     } catch (error) {
@@ -133,15 +109,13 @@ export class DistrictRepository implements IRepository {
   }
 
   /**
-   * Récupère tous les arrondissements
+   * Récupère tous les arrondissements (tri alphabétique)
    */
-  async getAll(orderByField: 'name' | 'displayOrder' = 'displayOrder'): Promise<District[]> {
+  async getAll(): Promise<District[]> {
     try {
       const { collection, query, orderBy, getDocs, db } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.districts || 'districts')
 
-      // Toujours trier par 'name' dans Firestore car displayOrder peut être absent
-      // On fera le tri par displayOrder côté client si nécessaire
       const q = query(collectionRef, orderBy('name', 'asc'))
 
       const snapshot = await getDocs(q)
@@ -151,35 +125,14 @@ export class DistrictRepository implements IRepository {
         const data = doc.data()
         districts.push({
           id: doc.id,
-          cityId: data.cityId,
+          communeId: data.communeId || data.cityId, // Support migration
           name: data.name,
-          displayOrder: data.displayOrder ?? null,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           createdBy: data.createdBy,
-          updatedBy: data.updatedBy ?? null,
+          updatedBy: data.updatedBy ?? undefined,
         })
       })
-
-      // Trier côté client si nécessaire
-      if (orderByField === 'displayOrder') {
-        districts.sort((a, b) => {
-          // Les éléments avec displayOrder en premier
-          const aOrder = a.displayOrder ?? undefined
-          const bOrder = b.displayOrder ?? undefined
-          if (aOrder !== undefined && bOrder !== undefined) {
-            if (aOrder !== bOrder) {
-              return aOrder - bOrder
-            }
-          } else if (aOrder !== undefined) {
-            return -1
-          } else if (bOrder !== undefined) {
-            return 1
-          }
-          // Si les deux n'ont pas de displayOrder, trier par nom
-          return a.name.localeCompare(b.name)
-        })
-      }
 
       return districts
     } catch (error) {
@@ -238,16 +191,16 @@ export class DistrictRepository implements IRepository {
   /**
    * Recherche des arrondissements par nom
    */
-  async searchByName(searchTerm: string, cityId?: string): Promise<District[]> {
+  async searchByName(searchTerm: string, communeId?: string): Promise<District[]> {
     try {
       const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.districts || 'districts')
 
       let q
-      if (cityId) {
+      if (communeId) {
         q = query(
           collectionRef,
-          where('cityId', '==', cityId),
+          where('communeId', '==', communeId),
           orderBy('name', 'asc')
         )
       } else {
@@ -265,13 +218,12 @@ export class DistrictRepository implements IRepository {
         if (name.includes(searchLower)) {
           districts.push({
             id: doc.id,
-            cityId: data.cityId,
+            communeId: data.communeId || data.cityId, // Support migration
             name: data.name,
-            displayOrder: data.displayOrder ?? null,
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date(),
             createdBy: data.createdBy,
-            updatedBy: data.updatedBy ?? null,
+            updatedBy: data.updatedBy ?? undefined,
           })
         }
       })

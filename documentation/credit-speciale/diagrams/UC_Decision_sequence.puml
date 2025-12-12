@@ -1,0 +1,19 @@
+@startuml
+title Séquence – Notifier décision (Notifications) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "Notifications" as Notif
+actor Client
+
+Service -> Service : Valider ou refuser demande
+Service -> Notif : decision client APPROVED ou REJECTED demandeId
+Notif -> Notif : Préparer notification décision
+Notif --> Client : Notification APPROVED ou REJECTED
+
+note right of Notif
+Notification décision validation ou refus
+Destinataire client
+end note
+
+@enduml
+

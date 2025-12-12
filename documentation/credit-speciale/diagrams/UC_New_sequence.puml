@@ -1,0 +1,19 @@
+@startuml
+title Séquence – Notifier nouvelle demande (Notifications) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "Notifications" as Notif
+actor Admin
+
+Service -> Service : Créer nouvelle demande
+Service -> Notif : new_request admin demandeId
+Notif -> Notif : Préparer notification nouvelle demande
+Notif --> Admin : Notification nouvelle demande
+
+note right of Notif
+Notification automatique nouvelle demande
+Destinataire admin
+end note
+
+@enduml
+
