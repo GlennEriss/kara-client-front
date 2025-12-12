@@ -29,6 +29,7 @@ import PayCommissionModal, { CommissionPaymentFormData } from '@/components/plac
 import ViewPlacementDocumentModal from '@/components/placement/ViewPlacementDocumentModal'
 import PlacementFinalQuittanceModal from '@/components/placement/PlacementFinalQuittanceModal'
 import PlacementEarlyExitQuittanceModal from '@/components/placement/PlacementEarlyExitQuittanceModal'
+import CommissionReceiptModal from '@/components/placement/CommissionReceiptModal'
 import type { CommissionPaymentPlacement } from '@/types/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -97,7 +98,8 @@ const { data: earlyExit } = useEarlyExit(id)
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [payCommissionId, setPayCommissionId] = useState<string | null>(null)
-const [viewProofId, setViewProofId] = useState<string | null>(null)
+  const [viewProofId, setViewProofId] = useState<string | null>(null)
+  const [viewReceiptCommissionId, setViewReceiptCommissionId] = useState<string | null>(null)
 const [showFinalQuittance, setShowFinalQuittance] = useState(false)
 const [showEarlyExitQuittance, setShowEarlyExitQuittance] = useState(false)
 const [showUrgentModal, setShowUrgentModal] = useState(false)
@@ -109,6 +111,7 @@ const [isGeneratingAddendum, setIsGeneratingAddendum] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
 const [showCloseModal, setShowCloseModal] = useState(false)
 const [closeFile, setCloseFile] = useState<File | null>(null)
+  const [commissionViewFormat, setCommissionViewFormat] = useState<'cards' | 'timeline' | 'table'>('cards')
 
   const payoutLabel = useMemo(() => {
     if (placement?.payoutMode === 'MonthlyCommission_CapitalEnd') return 'Commission mensuelle + capital à la fin'
@@ -497,14 +500,98 @@ const commissionStatusLabel = (status: string) => {
         <Card className="border-0 shadow-md">
           <CardHeader className="flex items-center justify-between">
             <CardTitle className="text-lg font-bold text-gray-900">Commissions</CardTitle>
+            {commissions.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={commissionViewFormat === 'cards' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCommissionViewFormat('cards')}
+                  className="text-xs"
+                >
+                  Cartes
+                </Button>
+                <Button
+                  variant={commissionViewFormat === 'timeline' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCommissionViewFormat('timeline')}
+                  className="text-xs"
+                >
+                  Timeline
+                </Button>
+                <Button
+                  variant={commissionViewFormat === 'table' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCommissionViewFormat('table')}
+                  className="text-xs"
+                >
+                  Tableau
+                </Button>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-0">
             {commissions.length === 0 ? (
               <div className="p-6 text-sm text-gray-600">Aucune commission générée (placement en brouillon ou contrat manquant).</div>
             ) : (
-              <>
-                <div className="p-4 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-800 mb-3">Timeline</p>
+              <div className="p-4">
+                {commissionViewFormat === 'cards' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {sortedCommissions.map((c) => {
+                      const isPaid = c.status === 'Paid'
+                      const isOverdue = c.status === 'Due' && new Date(c.dueDate).getTime() < Date.now()
+                      return (
+                        <Card key={`sched-${c.id}`} className="border border-gray-100 shadow-sm">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-gray-500">Échéance</p>
+                                <p className="text-sm font-semibold text-gray-900">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</p>
+                              </div>
+                              <span
+                                className={cn(
+                                  'px-2 py-1 text-[11px] rounded-full font-semibold',
+                                  isPaid
+                                    ? 'bg-green-100 text-green-700'
+                                    : isOverdue
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-amber-100 text-amber-700'
+                                )}
+                              >
+                                {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 font-semibold">{c.amount.toLocaleString()} FCFA</p>
+                            <div className="flex items-center gap-2">
+                              {isPaid && c.proofDocumentId && (
+                                <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewProofId(c.proofDocumentId!)}>
+                                  <FileText className="h-4 w-4 mr-1" /> Voir preuve
+                                </Button>
+                              )}
+                              {isPaid && c.receiptDocumentId && (
+                                <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewReceiptCommissionId(c.id)}>
+                                  <FileText className="h-4 w-4 mr-1" /> Reçu
+                                </Button>
+                              )}
+                              {!isPaid && placement.status === 'Active' && (
+                                <Button variant="outline" size="sm" className="text-xs" onClick={() => setPayCommissionId(c.id)}>
+                                  Payer
+                                </Button>
+                              )}
+                              {!isPaid && placement.status !== 'Active' && (
+                                <span className="text-[11px] text-gray-400">Activer pour payer</span>
+                              )}
+                              {isPaid && !c.proofDocumentId && (
+                                <span className="text-[11px] text-gray-400">Preuve manquante</span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {commissionViewFormat === 'timeline' && (
                   <div className="space-y-4">
                     {sortedCommissions.map((c) => {
                       const isPaid = c.status === 'Paid'
@@ -518,7 +605,9 @@ const commissionStatusLabel = (status: string) => {
                                 isPaid ? 'border-green-500 bg-green-100' : isOverdue ? 'border-red-500 bg-red-100' : 'border-amber-400 bg-amber-50'
                               )}
                             />
-                            <div className="flex-1 w-px bg-gray-200 h-full" />
+                            {sortedCommissions.indexOf(c) < sortedCommissions.length - 1 && (
+                              <div className="flex-1 w-px bg-gray-200 h-full min-h-[40px]" />
+                            )}
                           </div>
                           <div className="flex-1 rounded-lg border border-gray-100 bg-white shadow-sm p-3">
                             <div className="flex items-center justify-between">
@@ -559,9 +648,14 @@ const commissionStatusLabel = (status: string) => {
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 px-2"
-                                  onClick={() => setViewProofId(c.receiptDocumentId!)}
+                                  onClick={() => setViewReceiptCommissionId(c.id)}
                                 >
                                   <FileText className="h-4 w-4 mr-1" /> Reçu
+                                </Button>
+                              )}
+                              {!isPaid && placement.status === 'Active' && (
+                                <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => setPayCommissionId(c.id)}>
+                                  Payer
                                 </Button>
                               )}
                             </div>
@@ -570,124 +664,73 @@ const commissionStatusLabel = (status: string) => {
                       )
                     })}
                   </div>
-                </div>
+                )}
 
-                <div className="p-4 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-gray-800 mb-3">Échéancier cliquable</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {sortedCommissions.map((c) => {
-                      const isPaid = c.status === 'Paid'
-                      const isOverdue = c.status === 'Due' && new Date(c.dueDate).getTime() < Date.now()
-                      return (
-                        <Card key={`sched-${c.id}`} className="border border-gray-100 shadow-sm">
-                          <CardContent className="p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-xs text-gray-500">Échéance</p>
-                                <p className="text-sm font-semibold text-gray-900">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</p>
-                              </div>
+                {commissionViewFormat === 'table' && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-100 text-sm">
+                      <thead className="bg-gray-50 text-gray-600">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold">Échéance</th>
+                          <th className="px-4 py-3 text-left font-semibold">Montant</th>
+                          <th className="px-4 py-3 text-left font-semibold">Statut</th>
+                          <th className="px-4 py-3 text-left font-semibold">Preuve</th>
+                          <th className="px-4 py-3 text-left font-semibold">Reçu/Quittance</th>
+                          <th className="px-4 py-3 text-left font-semibold">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {commissions.map((c) => (
+                          <tr key={c.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 text-gray-800">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-900">{c.amount.toLocaleString()} FCFA</td>
+                            <td className="px-4 py-3">
                               <span
-                                className={cn(
-                                  'px-2 py-1 text-[11px] rounded-full font-semibold',
-                                  isPaid
+                                className={`px-2 py-1 text-xs rounded-full ${
+                                  c.status === 'Paid'
                                     ? 'bg-green-100 text-green-700'
-                                    : isOverdue
-                                    ? 'bg-red-100 text-red-700'
-                                    : 'bg-amber-100 text-amber-700'
-                                )}
+                                    : c.status === 'Due'
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
                               >
-                                {isPaid ? 'Payée' : isOverdue ? 'En retard' : 'À payer'}
+                                {commissionStatusLabel(c.status)}
                               </span>
-                            </div>
-                            <p className="text-sm text-gray-700 font-semibold">{c.amount.toLocaleString()} FCFA</p>
-                            <div className="flex items-center gap-2">
-                              {isPaid && c.proofDocumentId && (
-                                <Button variant="secondary" size="sm" className="text-xs" onClick={() => setViewProofId(c.proofDocumentId!)}>
-                                  <FileText className="h-4 w-4 mr-1" /> Voir preuve
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.proofDocumentId ? (
+                                <Button variant="ghost" size="sm" onClick={() => setViewProofId(c.proofDocumentId!)}>
+                                  <FileText className="h-4 w-4 mr-1" /> Voir
                                 </Button>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
                               )}
-                              {!isPaid && placement.status === 'Active' && (
-                                <Button variant="outline" size="sm" className="text-xs" onClick={() => setPayCommissionId(c.id)}>
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.receiptDocumentId ? (
+                                <Button variant="ghost" size="sm" onClick={() => setViewReceiptCommissionId(c.id)}>
+                                  <FileText className="h-4 w-4 mr-1" /> Ouvrir
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.status === 'Due' && placement.status === 'Active' ? (
+                                <Button size="sm" variant="outline" onClick={() => setPayCommissionId(c.id)}>
                                   Payer
                                 </Button>
+                              ) : (
+                                <span className="text-xs text-gray-500">—</span>
                               )}
-                              {!isPaid && placement.status !== 'Active' && (
-                                <span className="text-[11px] text-gray-400">Activer pour payer</span>
-                              )}
-                              {isPaid && !c.proofDocumentId && (
-                                <span className="text-[11px] text-gray-400">Preuve manquante</span>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-100 text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold">Échéance</th>
-                      <th className="px-4 py-3 text-left font-semibold">Montant</th>
-                      <th className="px-4 py-3 text-left font-semibold">Statut</th>
-                      <th className="px-4 py-3 text-left font-semibold">Preuve</th>
-                        <th className="px-4 py-3 text-left font-semibold">Reçu/Quittance</th>
-                      <th className="px-4 py-3 text-left font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {commissions.map((c) => (
-                      <tr key={c.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 text-gray-800">{new Date(c.dueDate).toLocaleDateString('fr-FR')}</td>
-                        <td className="px-4 py-3 font-semibold text-gray-900">{c.amount.toLocaleString()} FCFA</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-1 text-xs rounded-full ${
-                              c.status === 'Paid'
-                                ? 'bg-green-100 text-green-700'
-                                : c.status === 'Due'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {commissionStatusLabel(c.status)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {c.proofDocumentId ? (
-                            <Button variant="ghost" size="sm" onClick={() => setViewProofId(c.proofDocumentId!)}>
-                              <FileText className="h-4 w-4 mr-1" /> Voir
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-gray-400">—</span>
-                          )}
-                        </td>
-                          <td className="px-4 py-3">
-                            {c.receiptDocumentId ? (
-                              <Button variant="ghost" size="sm" onClick={() => setViewProofId(c.receiptDocumentId!)}>
-                                <FileText className="h-4 w-4 mr-1" /> Ouvrir
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-gray-400">—</span>
-                            )}
-                          </td>
-                        <td className="px-4 py-3">
-                          {c.status === 'Due' && placement.status === 'Active' ? (
-                            <Button size="sm" variant="outline" onClick={() => setPayCommissionId(c.id)}>
-                              Payer
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-gray-500">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                )}
               </div>
-              </>
             )}
           </CardContent>
         </Card>
@@ -735,6 +778,18 @@ const commissionStatusLabel = (status: string) => {
           title="Preuve de commission"
         />
       )}
+
+      {viewReceiptCommissionId && placement && (() => {
+        const commission = commissions.find(c => c.id === viewReceiptCommissionId)
+        return commission ? (
+          <CommissionReceiptModal
+            isOpen={!!viewReceiptCommissionId}
+            onClose={() => setViewReceiptCommissionId(null)}
+            placement={placement}
+            commission={commission}
+          />
+        ) : null
+      })()}
 
       {showFinalQuittance && (
         <PlacementFinalQuittanceModal
