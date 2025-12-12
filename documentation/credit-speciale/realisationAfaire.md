@@ -13,6 +13,19 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 
 ## 2. Backlog de fonctionnalités à implémenter
 
+### 2.0 Statistiques intégrées dans les pages (Admin)
+- [x] Statistiques sur la page Demandes : total, en attente, approuvées, rejetées, par type (spéciale/fixe/aide).  
+  - Use case : UC_Stats (Repositories/Services)  
+  - Diagrammes : activité [`diagrams/UC_Stats_activity.puml`](./diagrams/UC_Stats_activity.puml), séquence [`diagrams/UC_Stats_sequence.puml`](./diagrams/UC_Stats_sequence.puml)
+  - Implémentation : Composant `StatisticsCreditDemandes` intégré dans `ListDemandes.tsx`, stats filtrées par onglet actif (all/pending/approved)
+- [x] Statistiques sur la page Contrats : total, actifs, en retard, partiels, montant restant, pénalités, transformés, déchargés.  
+  - Use case : UC_Stats (Repositories/Services)  
+  - Diagrammes : activité [`diagrams/UC_Stats_activity.puml`](./diagrams/UC_Stats_activity.puml), séquence [`diagrams/UC_Stats_sequence.puml`](./diagrams/UC_Stats_sequence.puml)
+  - Implémentation : Composant `StatisticsCreditContrats` intégré dans `ListContrats.tsx`, stats filtrées par onglet actif (all/overdue)
+- [x] Carrousel de statistiques avec drag/swipe : affichage responsive des KPI dans chaque page avec navigation.  
+  - Use case : UC_Stats (UI)  
+  - Implémentation : Hook `useCarousel` réutilisé depuis `StatisticsCI.tsx`, stats affichées dans un carrousel horizontal avec navigation par chevrons
+
 ### 2.1 Demandes (workflow + UI)
 - [ ] Onglets et stats demandes : pending / approved / rejected ; tri par échéance proche.  
   - Use case : UC_TabsDemandes / UC_Validation (admin)  
@@ -20,6 +33,9 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 - [ ] Filtres/recherche : statut, type (spéciale/fixe/aide), membre, garant, date, retard, texte.  
   - Use case : UC_Filtre (UI), UC_Filtre (services/repos)  
   - Diagrammes : activité [`diagrams/UC_Filtre_activity.puml`](./diagrams/UC_Filtre_activity.puml), séquence [`diagrams/UC_Filtre_sequence.puml`](./diagrams/UC_Filtre_sequence.puml)
+- [ ] Pagination et synchronisation URL : filtres, page, limit synchronisés avec query params.  
+  - Use case : UC_Pagination (Hooks/UI)  
+  - Diagrammes : activité [`diagrams/UC_Pagination_activity.puml`](./diagrams/UC_Pagination_activity.puml), séquence [`diagrams/UC_Pagination_sequence.puml`](./diagrams/UC_Pagination_sequence.puml)
 - [ ] Création demande par admin (client peut saisir mais pas simuler ni payer).  
   - Use case : `credit-speciale-usecases-nouveau-client.puml` (UC_Demande) / `credit-speciale-usecases-nouveau-admin.puml` (UC_CreateDemande)  
   - Diagrammes : activité [`diagrams/UC_Demande_activity.puml`](./diagrams/UC_Demande_activity.puml), séquence [`diagrams/UC_Demande_sequence.puml`](./diagrams/UC_Demande_sequence.puml), activité [`diagrams/UC_CreateDemande_activity.puml`](./diagrams/UC_CreateDemande_activity.puml), séquence [`diagrams/UC_CreateDemande_sequence.puml`](./diagrams/UC_CreateDemande_sequence.puml)
@@ -42,23 +58,29 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
   - Diagrammes : intégré dans UC_SimuStd et UC_SimuPerso
 
 ### 2.3 Contrats
-- [ ] Onglets contrats + stats : actifs, retard, pénalités, à jour ; tri par échéance proche.  
+- [x] Onglets contrats + stats : actifs, retard, pénalités, à jour ; tri par échéance proche.  
   - Use case : UC_TabsContrats (UI/Services), UC_SortDue (UI/Hooks/Services)  
   - Diagrammes : activité [`diagrams/UC_TabsContrats_activity.puml`](./diagrams/UC_TabsContrats_activity.puml), séquence [`diagrams/UC_TabsContrats_sequence.puml`](./diagrams/UC_TabsContrats_sequence.puml), activité [`diagrams/UC_SortDue_activity.puml`](./diagrams/UC_SortDue_activity.puml), séquence [`diagrams/UC_SortDue_sequence.puml`](./diagrams/UC_SortDue_sequence.puml)
-- [ ] Statut actif seulement après upload du PDF signé ; contrat vierge générable pour signature.  
+  - Implémentation : Composant `ListContrats.tsx` avec onglets (Tous/En retard), statistiques intégrées via `StatisticsCreditContrats`, tri par échéance pour l'onglet "En retard", synchronisation URL pour pagination et filtres
+- [ ] Statut actif seulement après upload du PDF signé ; contrat vierge générable pour signature ; remise d'argent au client après activation.  
   - Use case : UC_Contrat (UI/Services/Documents), UC_UploadContrat (UI/Services/Documents), UC_ContratVierge (Services/Documents), UC_Signature (Services), UC_Activate (Système), UC_DlContrat (UI/Services/Documents), UC_ContratSigne (UI/Services/Documents)  
   - Diagrammes : activité [`diagrams/UC_Contrat_activity.puml`](./diagrams/UC_Contrat_activity.puml), séquence [`diagrams/UC_Contrat_sequence.puml`](./diagrams/UC_Contrat_sequence.puml), activité [`diagrams/UC_UploadContrat_activity.puml`](./diagrams/UC_UploadContrat_activity.puml), séquence [`diagrams/UC_UploadContrat_sequence.puml`](./diagrams/UC_UploadContrat_sequence.puml), activité [`diagrams/UC_Signature_activity.puml`](./diagrams/UC_Signature_activity.puml), séquence [`diagrams/UC_Signature_sequence.puml`](./diagrams/UC_Signature_sequence.puml), activité [`diagrams/UC_Activate_activity.puml`](./diagrams/UC_Activate_activity.puml), séquence [`diagrams/UC_Activate_sequence.puml`](./diagrams/UC_Activate_sequence.puml), activité [`diagrams/UC_DlContrat_activity.puml`](./diagrams/UC_DlContrat_activity.puml), séquence [`diagrams/UC_DlContrat_sequence.puml`](./diagrams/UC_DlContrat_sequence.puml), activité [`diagrams/UC_ContratSigne_activity.puml`](./diagrams/UC_ContratSigne_activity.puml), séquence [`diagrams/UC_ContratSigne_sequence.puml`](./diagrams/UC_ContratSigne_sequence.puml)
-- [ ] Export listes contrats (PDF / Excel).  
+- [x] Export listes contrats (PDF / Excel).  
   - Use case : UC_ExportContrats (UI/Services)  
   - Diagrammes : activité [`diagrams/UC_ExportContrats_activity.puml`](./diagrams/UC_ExportContrats_activity.puml), séquence [`diagrams/UC_ExportContrats_sequence.puml`](./diagrams/UC_ExportContrats_sequence.puml)
-- [ ] Fiche contrat : stats (montant, durée, versé, reste), pénalités, scoring, garant/parrain, documents (contrat, signé, décharge), reçus.  
+  - Implémentation : Fonctions `exportToExcel()` et `exportToPDF()` dans `ListContrats.tsx`, export avec en-têtes fusionnés, colonnes formatées, filtrage par onglet actif
+- [x] Fiche contrat : stats (montant, durée, versé, reste), pénalités, scoring, garant/parrain, documents (contrat, signé, décharge), reçus.  
   - Use case : UC_StatsContrat (UI), UC_HistoPay (UI/Services), UC_Decharge (Services/Documents), UC_Fiche (UI), UC_Dashboard (UI), UC_Recus (UI/Services), UC_Histo (UI/Services)  
   - Diagrammes : activité [`diagrams/UC_HistoPay_activity.puml`](./diagrams/UC_HistoPay_activity.puml), séquence [`diagrams/UC_HistoPay_sequence.puml`](./diagrams/UC_HistoPay_sequence.puml), activité [`diagrams/UC_Decharge_activity.puml`](./diagrams/UC_Decharge_activity.puml), séquence [`diagrams/UC_Decharge_sequence.puml`](./diagrams/UC_Decharge_sequence.puml), activité [`diagrams/UC_StatsContrat_activity.puml`](./diagrams/UC_StatsContrat_activity.puml), séquence [`diagrams/UC_StatsContrat_sequence.puml`](./diagrams/UC_StatsContrat_sequence.puml), activité [`diagrams/UC_Fiche_activity.puml`](./diagrams/UC_Fiche_activity.puml), séquence [`diagrams/UC_Fiche_sequence.puml`](./diagrams/UC_Fiche_sequence.puml), activité [`diagrams/UC_Dashboard_activity.puml`](./diagrams/UC_Dashboard_activity.puml), séquence [`diagrams/UC_Dashboard_sequence.puml`](./diagrams/UC_Dashboard_sequence.puml), activité [`diagrams/UC_Recus_activity.puml`](./diagrams/UC_Recus_activity.puml), séquence [`diagrams/UC_Recus_sequence.puml`](./diagrams/UC_Recus_sequence.puml), activité [`diagrams/UC_Histo_activity.puml`](./diagrams/UC_Histo_activity.puml), séquence [`diagrams/UC_Histo_sequence.puml`](./diagrams/UC_Histo_sequence.puml)
+  - Implémentation : Composant `CreditContractDetail.tsx` avec affichage des stats, historique des paiements, pénalités, scoring, informations garant, modals pour paiements et reçus
 
 ### 2.4 Versements / pénalités / reçus
 - [ ] Saisie paiement (admin) : date/heure, moyen, montant, preuve, commentaire, note.  
   - Use case : UC_Payment (UI/Services), UC_Recu (Services/Documents), UC_UploadPreuve (Documents), UC_Mode (Payments), UC_Proof (Payments), UC_ValidateAmount (Payments), UC_Log (Payments)  
   - Diagrammes : activité [`diagrams/UC_Payment_activity.puml`](./diagrams/UC_Payment_activity.puml), séquence [`diagrams/UC_Payment_sequence.puml`](./diagrams/UC_Payment_sequence.puml), activité [`diagrams/UC_Recu_activity.puml`](./diagrams/UC_Recu_activity.puml), séquence [`diagrams/UC_Recu_sequence.puml`](./diagrams/UC_Recu_sequence.puml), activité [`diagrams/UC_UploadPreuve_activity.puml`](./diagrams/UC_UploadPreuve_activity.puml), séquence [`diagrams/UC_UploadPreuve_sequence.puml`](./diagrams/UC_UploadPreuve_sequence.puml), activité [`diagrams/UC_Mode_activity.puml`](./diagrams/UC_Mode_activity.puml), séquence [`diagrams/UC_Mode_sequence.puml`](./diagrams/UC_Mode_sequence.puml), activité [`diagrams/UC_Proof_activity.puml`](./diagrams/UC_Proof_activity.puml), séquence [`diagrams/UC_Proof_sequence.puml`](./diagrams/UC_Proof_sequence.puml), activité [`diagrams/UC_ValidateAmount_activity.puml`](./diagrams/UC_ValidateAmount_activity.puml), séquence [`diagrams/UC_ValidateAmount_sequence.puml`](./diagrams/UC_ValidateAmount_sequence.puml), activité [`diagrams/UC_Log_activity.puml`](./diagrams/UC_Log_activity.puml), séquence [`diagrams/UC_Log_sequence.puml`](./diagrams/UC_Log_sequence.puml)
+- [ ] Génération référence unique de paiement : traçabilité date/heure remise et référence unique.  
+  - Use case : UC_Log (Payments)  
+  - Diagrammes : activité [`diagrams/UC_Log_activity.puml`](./diagrams/UC_Log_activity.puml), séquence [`diagrams/UC_Log_sequence.puml`](./diagrams/UC_Log_sequence.puml)
 - [ ] Calcul pénalités (règle de 3) + choix du client (payer ou non) + report si impayées.  
   - Use case : UC_Penalites (UI/Services), UC_Retard (Système/Services)  
   - Diagrammes : activité [`diagrams/UC_Penalites_activity.puml`](./diagrams/UC_Penalites_activity.puml), séquence [`diagrams/UC_Penalites_sequence.puml`](./diagrams/UC_Penalites_sequence.puml), activité [`diagrams/UC_Retard_activity.puml`](./diagrams/UC_Retard_activity.puml), séquence [`diagrams/UC_Retard_sequence.puml`](./diagrams/UC_Retard_sequence.puml)
@@ -68,9 +90,12 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 - [ ] Historique des versements (dates, montants, preuves, pénalités) consultable côté admin et client (lecture).  
   - Use case : UC_HistoPay (UI/Services)  
   - Diagrammes : activité [`diagrams/UC_HistoPay_activity.puml`](./diagrams/UC_HistoPay_activity.puml), séquence [`diagrams/UC_HistoPay_sequence.puml`](./diagrams/UC_HistoPay_sequence.puml)
+- [ ] Historique général (demandes, statuts, notifications, versements) consultable côté admin et client (lecture).  
+  - Use case : UC_Histo (UI/Services)  
+  - Diagrammes : activité [`diagrams/UC_Histo_activity.puml`](./diagrams/UC_Histo_activity.puml), séquence [`diagrams/UC_Histo_sequence.puml`](./diagrams/UC_Histo_sequence.puml)
 
 ### 2.5 Transformation / blocage
-- [ ] Job/logiciel : transformer en crédit fixe après 7 mois non remboursé (suppression intérêts, statut TRANSFORMED).  
+- [ ] Job planifié (quotidien) : transformer automatiquement en crédit fixe après 7 mois non remboursé (suppression intérêts, statut TRANSFORMED).  
   - Use case : UC_Transform (Système/Services)  
   - Diagrammes : activité [`diagrams/UC_Transform_activity.puml`](./diagrams/UC_Transform_activity.puml), séquence [`diagrams/UC_Transform_sequence.puml`](./diagrams/UC_Transform_sequence.puml)
 - [ ] Blocage nouvelle demande si pénalités impayées en fin de contrat (sauf dérogation admin).  
@@ -87,9 +112,12 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 - [ ] Pas de rémunération si garant admin.  
   - Use case : UC_RemunGarant (Services)  
   - Diagrammes : intégré dans UC_RemunGarant
+- [ ] Vue rémunération garant : interface pour le garant (membre) pour consulter ses rémunérations (historique, montants, périodes).  
+  - Use case : UC_RemunGarant (UI/Hooks)  
+  - Diagrammes : activité [`diagrams/UC_RemunGarant_activity.puml`](./diagrams/UC_RemunGarant_activity.puml), séquence [`diagrams/UC_RemunGarant_sequence.puml`](./diagrams/UC_RemunGarant_sequence.puml)
 
 ### 2.7 Notifications
-- [ ] Échéances J-1 / J / J+1.  
+- [ ] Échéances J-1 / J / J+1 : job planifié (quotidien) pour détecter les échéances proches et notifier automatiquement le client.  
   - Use case : UC_NotifDue (Système/Notifications)  
   - Diagrammes : activité [`diagrams/UC_NotifDue_activity.puml`](./diagrams/UC_NotifDue_activity.puml), séquence [`diagrams/UC_NotifDue_sequence.puml`](./diagrams/UC_NotifDue_sequence.puml)
 - [ ] Pénalités, transformation, blocage, contrat signé/activé, décharge, reçus paiement, rémunération garant.  
@@ -106,6 +134,37 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 - [ ] Mise à jour à chaque paiement et en fin de contrat ; affichage dans listes/onglets/fiches admin ; filtres/tri possibles.  
   - Use case : UC_UpdateScore (Services), UC_ShowScore (Services/UI)  
   - Diagrammes : intégré dans UC_Scoring et UC_Payment
+- [ ] Remonter historique de fiabilité : calcul historique crédits précédents pour score initial.  
+  - Use case : UC_ScoreHistory (CI/Membership)  
+  - Diagrammes : activité [`diagrams/UC_ScoreHistory_activity.puml`](./diagrams/UC_ScoreHistory_activity.puml), séquence [`diagrams/UC_ScoreHistory_sequence.puml`](./diagrams/UC_ScoreHistory_sequence.puml)
+
+### 2.9 Espace client (lecture seule)
+- [ ] Saisir une demande de prêt (client connecté) : montant, type, mensualité souhaitée.  
+  - Use case : UC_SelfDemande (UI/Client)  
+  - Diagrammes : activité [`diagrams/UC_Demande_activity.puml`](./diagrams/UC_Demande_activity.puml), séquence [`diagrams/UC_Demande_sequence.puml`](./diagrams/UC_Demande_sequence.puml)
+- [ ] Consulter sa fiche crédit (lecture seule) : stats, versements, pénalités, documents.  
+  - Use case : UC_Fiche (UI/Client)  
+  - Diagrammes : activité [`diagrams/UC_Fiche_activity.puml`](./diagrams/UC_Fiche_activity.puml), séquence [`diagrams/UC_Fiche_sequence.puml`](./diagrams/UC_Fiche_sequence.puml)
+- [ ] Consulter historique des versements (lecture seule).  
+  - Use case : UC_HistoPay (UI/Client)  
+  - Diagrammes : intégré dans UC_HistoPay
+- [ ] Consulter pénalités et retard (lecture seule, indicateurs, badges).  
+  - Use case : UC_Penalites (UI/Client)  
+  - Diagrammes : intégré dans UC_Penalites
+- [ ] Télécharger/consulter contrat et reçus (lecture seule).  
+  - Use case : UC_DlContrat, UC_ContratSigne, UC_Recus (UI/Client)  
+  - Diagrammes : intégré dans UC_DlContrat, UC_ContratSigne, UC_Recus
+
+### 2.10 Archivage et traçabilité
+- [ ] Archivage automatique de tous les documents : contrat, contrat signé, preuves de versement, décharge.  
+  - Use case : UC_Archive (Système/Documents)  
+  - Diagrammes : intégré dans les use cases de documents
+- [ ] Conservation historique complet : demandes, statuts, notifications, versements, pénalités, rémunérations.  
+  - Use case : UC_Histo (Système/Repositories)  
+  - Diagrammes : intégré dans UC_Histo
+- [ ] Indexation métadonnées documents : type, version, createdBy, timestamps pour recherche et traçabilité.  
+  - Use case : UC_Meta (Documents/Storage)  
+  - Diagrammes : activité [`diagrams/UC_Meta_activity.puml`](./diagrams/UC_Meta_activity.puml), séquence [`diagrams/UC_Meta_sequence.puml`](./diagrams/UC_Meta_sequence.puml)
 
 ## 3. Impacts architecturaux
 - Repositories / Services : filtres onglets (demandes, contrats), tri nextDueAt, scoring, pénalités, rémunération garant, exports, reçus, documents (contrat vierge/signé/décharge/reçu), createdBy/updatedBy.  

@@ -29,6 +29,12 @@ export const firebaseCollectionNames = {
     communes: "communes",
     districts: "districts",
     quarters: "quarters",
+    // Crédit spéciale
+    creditDemands: "creditDemands",
+    creditContracts: "creditContracts",
+    creditPayments: "creditPayments",
+    creditPenalties: "creditPenalties",
+    guarantorRemunerations: "guarantorRemunerations",
 }
 
 // Export également en majuscules pour compatibilité

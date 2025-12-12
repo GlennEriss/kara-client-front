@@ -219,7 +219,7 @@ export interface MembershipRequestAction {
 /**
  * Module d'origine de la notification
  */
-export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur' | 'placement'
+export type NotificationModule = 'memberships' | 'vehicule' | 'caisse_speciale' | 'caisse_imprevue' | 'bienfaiteur' | 'placement' | 'credit_speciale'
 
 /**
  * Type de notification
@@ -1292,6 +1292,7 @@ export interface CreditDemand {
     adminName: string
     createdAt: Date
   }
+  adminComments?: string // Commentaires/motif d'approbation ou de rejet
   score?: number // Score de fiabilité (0-10, admin-only)
   scoreUpdatedAt?: Date
   createdAt: Date
@@ -1403,6 +1404,8 @@ export interface GuarantorRemuneration {
  * Type pour une simulation standard
  */
 export interface StandardSimulation {
+  remainingAtMaxDuration?: number // Solde restant au 7ème mois pour crédit spéciale
+  suggestedMonthlyPayment?: number // Mensualité suggérée pour rembourser en 7 mois
   amount: number
   interestRate: number
   monthlyPayment: number

@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { EmergencyContactCI } from '@/types/types'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
 import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeLabel } from '@/constantes/document-types'
+import { RELATIONSHIP_OPTIONS } from '@/constantes/relationship-types'
 import { getStorageInstance } from '@/firebase/storage'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { toast } from 'sonner'
@@ -20,29 +21,6 @@ interface EmergencyContactCIFormProps {
   emergencyContact?: EmergencyContactCI
   onUpdate: (field: string, value: any) => void
 }
-
-// Options pour les liens de parenté
-const RELATIONSHIP_OPTIONS: SelectOption[] = [
-  { value: 'Ami', label: 'Ami' },
-  { value: 'Amie', label: 'Amie' },
-  { value: 'Autre', label: 'Autre' },
-  { value: 'Conjoint', label: 'Conjoint' },
-  { value: 'Conjointe', label: 'Conjointe' },
-  { value: 'Cousin', label: 'Cousin' },
-  { value: 'Cousine', label: 'Cousine' },
-  { value: 'Fille', label: 'Fille' },
-  { value: 'Fils', label: 'Fils' },
-  { value: 'Frère', label: 'Frère' },
-  { value: 'Grand-mère', label: 'Grand-mère' },
-  { value: 'Grand-père', label: 'Grand-père' },
-  { value: 'Mère', label: 'Mère' },
-  { value: 'Neveu', label: 'Neveu' },
-  { value: 'Nièce', label: 'Nièce' },
-  { value: 'Oncle', label: 'Oncle' },
-  { value: 'Père', label: 'Père' },
-  { value: 'Sœur', label: 'Sœur' },
-  { value: 'Tante', label: 'Tante' },
-]
 
 export default function EmergencyContactCIForm({ emergencyContact, onUpdate }: EmergencyContactCIFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})

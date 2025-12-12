@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,13 +18,30 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  RotateCcw,
+  Calculator,
+  Loader2,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
 import { CreditDemand, CreditDemandStatus } from '@/types/types'
+import { useCreditDemands, useCreditDemandsStats, useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
+import type { CreditDemandFilters } from '@/repositories/credit-speciale/ICreditDemandRepository'
+import CreateCreditDemandModal from './CreateCreditDemandModal'
+import ValidateDemandModal from './ValidateDemandModal'
+import ReopenDemandModal from './ReopenDemandModal'
+import CreditSimulationModal from './CreditSimulationModal'
+import StatisticsCreditDemandes from './StatisticsCreditDemandes'
+import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import type { StandardSimulation, CustomSimulation } from '@/types/types'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Eye, Calendar } from 'lucide-react'
+import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
+import { useMember } from '@/hooks/useMembers'
 
 type ViewMode = 'grid' | 'list'
 
@@ -52,51 +69,79 @@ const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
 const DemandFilters = ({
   filters,
   onFiltersChange,
-  onReset
+  onReset,
+  onStatusChange,
+  activeTab
 }: {
   filters: any
   onFiltersChange: (filters: any) => void
   onReset: () => void
+  onStatusChange?: (status: string) => void
+  activeTab: 'all' | 'pending' | 'approved' | 'rejected'
 }) => {
+  const { data: selectedClient } = useMember(filters.clientId)
+  const { data: selectedGuarantor } = useMember(filters.guarantorId)
+
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
+        {/* En-tête */}
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
               <Filter className="h-6 w-6 text-white" />
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-              <p className="text-gray-600">Affinez votre recherche</p>
+              <p className="text-gray-600 text-sm">Affinez votre recherche</p>
             </div>
           </div>
+          <Button
+            variant="outline"
+            onClick={onReset}
+            size="sm"
+            className="px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Réinitialiser
+          </Button>
+          </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+        {/* Grille de filtres organisée */}
+        <div className="space-y-4">
+          {/* Ligne 1: Recherche générale */}
+          <div className={`grid grid-cols-1 ${activeTab === 'all' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher une demande..."
-                className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full sm:w-auto transition-all duration-200"
+                className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
                 value={filters.search || ''}
                 onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
               />
             </div>
-
+            {activeTab === 'all' && (
             <select
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+                className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.status || 'all'}
-              onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
+                onChange={(e) => {
+                  const newStatus = e.target.value
+                  onFiltersChange({ ...filters, status: newStatus })
+                  // Synchroniser l'onglet actif avec le filtre de statut
+                  if (onStatusChange) {
+                    onStatusChange(newStatus)
+                  }
+                }}
             >
               <option value="all">Tous les statuts</option>
               <option value="PENDING">En attente</option>
               <option value="APPROVED">Approuvée</option>
               <option value="REJECTED">Refusée</option>
             </select>
-
+            )}
             <select
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+              className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.creditType || 'all'}
               onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value })}
             >
@@ -105,15 +150,60 @@ const DemandFilters = ({
               <option value="FIXE">Fixe</option>
               <option value="AIDE">Aide</option>
             </select>
+          </div>
 
-            <Button
-              variant="outline"
-              onClick={onReset}
-              className="px-4 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 hover:scale-105"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Réinitialiser
-            </Button>
+          {/* Ligne 2: Membres (Client et Garant) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Client</label>
+              <MemberSearchInput
+                value={filters.clientId || ''}
+                onChange={(memberId) => onFiltersChange({ ...filters, clientId: memberId })}
+                placeholder="Rechercher un client..."
+                label=""
+                isRequired={false}
+                initialDisplayName={selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : ''}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Garant</label>
+              <MemberSearchInput
+                value={filters.guarantorId || ''}
+                onChange={(memberId) => onFiltersChange({ ...filters, guarantorId: memberId })}
+                placeholder="Rechercher un garant..."
+                label=""
+                isRequired={false}
+                initialDisplayName={selectedGuarantor ? `${selectedGuarantor.firstName} ${selectedGuarantor.lastName}` : ''}
+              />
+            </div>
+          </div>
+
+          {/* Ligne 3: Dates */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Date de début</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="date"
+                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+                  value={filters.dateFrom || ''}
+                  onChange={(e) => onFiltersChange({ ...filters, dateFrom: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Date de fin</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="date"
+                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+                  value={filters.dateTo || ''}
+                  onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>
@@ -123,23 +213,117 @@ const DemandFilters = ({
 
 // Composant principal
 const ListDemandes = () => {
-  // États
-  const [filters, setFilters] = useState({
-    search: '',
-    status: 'all',
-    creditType: 'all'
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Initialiser les états depuis l'URL
+  const [filters, setFilters] = useState<{
+    search: string
+    status: string
+    creditType: string
+    clientId: string
+    guarantorId: string
+    dateFrom: string
+    dateTo: string
+  }>({
+    search: searchParams.get('search') || '',
+    status: searchParams.get('status') || 'all',
+    creditType: searchParams.get('creditType') || 'all',
+    clientId: searchParams.get('clientId') || '',
+    guarantorId: searchParams.get('guarantorId') || '',
+    dateFrom: searchParams.get('dateFrom') || '',
+    dateTo: searchParams.get('dateTo') || '',
   })
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(12)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [isLoading, setIsLoading] = useState(false)
-  const [demandes, setDemandes] = useState<CreditDemand[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
+  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>((searchParams.get('tab') as 'all' | 'pending' | 'approved' | 'rejected') || 'all')
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [validateModalState, setValidateModalState] = useState<{
+    isOpen: boolean
+    demand: CreditDemand | null
+    action: 'approve' | 'reject'
+  }>({
+    isOpen: false,
+    demand: null,
+    action: 'approve',
+  })
+  const [reopenModalState, setReopenModalState] = useState<{
+    isOpen: boolean
+    demand: CreditDemand | null
+  }>({
+    isOpen: false,
+    demand: null,
+  })
+  const [simulationModalState, setSimulationModalState] = useState<{
+    isOpen: boolean
+    demand: CreditDemand | null
+  }>({
+    isOpen: false,
+    demand: null,
+  })
+  const { createFromDemand } = useCreditContractMutations()
+
+  // Synchroniser l'URL avec l'état
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filters.search) params.set('search', filters.search)
+    if (filters.status !== 'all') params.set('status', filters.status)
+    if (filters.creditType !== 'all') params.set('creditType', filters.creditType)
+    if (filters.clientId) params.set('clientId', filters.clientId)
+    if (filters.guarantorId) params.set('guarantorId', filters.guarantorId)
+    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
+    if (filters.dateTo) params.set('dateTo', filters.dateTo)
+    if (currentPage > 1) params.set('page', currentPage.toString())
+    if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
+    if (viewMode !== 'grid') params.set('view', viewMode)
+    if (activeTab !== 'all') params.set('tab', activeTab)
+    
+    const queryString = params.toString()
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
+    
+    if (window.location.search !== `?${queryString}`) {
+      router.replace(newUrl, { scroll: false })
+    }
+  }, [filters, currentPage, itemsPerPage, viewMode, activeTab, router])
+
+  // Hooks pour récupérer les données
+  // Le filtre de statut dans le formulaire a la priorité sur l'onglet actif
+  const getStatusFilter = () => {
+    // Si un filtre de statut est défini dans le formulaire, l'utiliser
+    if (filters.status && filters.status !== 'all') {
+      return filters.status as CreditDemandStatus
+    }
+    // Sinon, utiliser l'onglet actif
+    return activeTab === 'all' 
+      ? 'all' 
+      : activeTab === 'pending' 
+        ? 'PENDING' 
+        : activeTab === 'approved'
+          ? 'APPROVED'
+          : 'REJECTED'
+  }
+
+  const queryFilters: CreditDemandFilters = {
+    status: getStatusFilter(),
+    creditType: filters.creditType === 'all' ? 'all' : filters.creditType as any,
+    search: filters.search || undefined,
+    clientId: filters.clientId || undefined,
+    guarantorId: filters.guarantorId || undefined,
+    dateFrom: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
+    dateTo: filters.dateTo ? new Date(filters.dateTo) : undefined,
+    page: currentPage,
+    limit: itemsPerPage,
+  }
+
+  const { data: demandes = [], isLoading, error } = useCreditDemands(queryFilters)
+  const { data: statsData } = useCreditDemandsStats(queryFilters)
+  const { updateStatus } = useCreditDemandMutations()
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [filters])
+  }, [filters.search, filters.status, filters.creditType, filters.clientId, filters.guarantorId, filters.dateFrom, filters.dateTo, activeTab])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: any) => {
@@ -148,7 +332,15 @@ const ListDemandes = () => {
   }
 
   const handleResetFilters = () => {
-    setFilters({ search: '', status: 'all', creditType: 'all' })
+    setFilters({ 
+      search: '', 
+      status: 'all', 
+      creditType: 'all',
+      clientId: '',
+      guarantorId: '',
+      dateFrom: '',
+      dateTo: '',
+    })
     setCurrentPage(1)
   }
 
@@ -158,15 +350,145 @@ const ListDemandes = () => {
   }
 
   const handleRefresh = async () => {
-    setIsLoading(true)
-    setError(null)
-    // TODO: Implémenter le refetch
-    setTimeout(() => setIsLoading(false), 1000)
+    // Le refetch est géré automatiquement par React Query
+  }
+
+  const formatAmount = (amount: number): string => {
+    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
+  const buildExportRows = () => {
+    return filteredDemandes.map((demande: CreditDemand) => [
+      demande.id,
+      getCreditTypeLabel(demande.creditType),
+      `${demande.clientFirstName} ${demande.clientLastName}`,
+      getStatusLabel(demande.status),
+      formatAmount(demande.amount),
+      demande.guarantorId ? `${demande.guarantorFirstName} ${demande.guarantorLastName}` : 'Aucun',
+      demande.guarantorIsMember ? 'Oui' : 'Non',
+      demande.createdAt ? new Date(demande.createdAt).toLocaleDateString('fr-FR') : '',
+      demande.updatedAt ? new Date(demande.updatedAt).toLocaleDateString('fr-FR') : '',
+    ])
   }
 
   const exportToExcel = async () => {
-    // TODO: Implémenter l'export
-    toast.info('Export en cours de développement')
+    if (!demandes || demandes.length === 0) {
+      toast.error('Aucune demande à exporter')
+      return
+    }
+
+    try {
+      const XLSX = await import('xlsx')
+      const rows = buildExportRows()
+      
+      const headers = [
+        'ID',
+        'Type de crédit',
+        'Client',
+        'Statut',
+        'Montant (FCFA)',
+        'Garant',
+        'Garant membre',
+        'Date de création',
+        'Dernière mise à jour',
+      ]
+
+      const tabLabel = activeTab === 'all' 
+        ? 'Toutes' 
+        : activeTab === 'pending' 
+          ? 'En attente' 
+          : activeTab === 'approved'
+            ? 'Approuvées'
+            : 'Rejetées'
+      const sheetData = [
+        ['LISTE DES DEMANDES DE CRÉDIT SPÉCIALE'],
+        [`Onglet: ${tabLabel}`],
+        [`Généré le ${new Date().toLocaleDateString('fr-FR')}`],
+        [],
+        headers,
+        ...rows,
+      ]
+
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData)
+      
+      // Fusionner les cellules pour les en-têtes
+      worksheet['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } },
+      ]
+
+      // Définir la largeur des colonnes
+      worksheet['!cols'] = headers.map(() => ({ wch: 20 }))
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Demandes')
+      
+      const filename = `demandes_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      XLSX.writeFile(workbook, filename)
+      toast.success('Export Excel généré')
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel:', error)
+      toast.error('Erreur lors de l\'export Excel')
+    }
+  }
+
+  const exportToPDF = async () => {
+    if (!demandes || demandes.length === 0) {
+      toast.error('Aucune demande à exporter')
+      return
+    }
+
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.text('Liste des Demandes de Crédit Spéciale', 14, 14)
+      doc.setFontSize(10)
+      const tabLabel = activeTab === 'all' 
+        ? 'Toutes' 
+        : activeTab === 'pending' 
+          ? 'En attente' 
+          : activeTab === 'approved'
+            ? 'Approuvées'
+            : 'Rejetées'
+      doc.text(`Onglet: ${tabLabel}`, 14, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
+      doc.text(`Total: ${demandes.length} demande(s)`, 14, 28)
+
+      const rows = buildExportRows()
+      const headers = [
+        'ID',
+        'Type',
+        'Client',
+        'Statut',
+        'Montant',
+        'Garant',
+        'Garant membre',
+        'Date création',
+        'Dernière MAJ',
+      ]
+
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 32,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        margin: { top: 32 },
+      })
+
+      const filename = `demandes_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
+      doc.save(filename)
+      toast.success('Export PDF généré')
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error)
+      toast.error('Erreur lors de l\'export PDF')
+    }
   }
 
   // Fonctions utilitaires
@@ -197,30 +519,8 @@ const ListDemandes = () => {
     return labels[type as keyof typeof labels] || type
   }
 
-  // Filtrage des demandes
-  const filteredDemandes = React.useMemo(() => {
-    let filtered = demandes
-
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase()
-      filtered = filtered.filter((d) =>
-        d.id.toLowerCase().includes(searchLower) ||
-        d.clientFirstName.toLowerCase().includes(searchLower) ||
-        d.clientLastName.toLowerCase().includes(searchLower) ||
-        d.clientContacts.some(c => c.toLowerCase().includes(searchLower))
-      )
-    }
-
-    if (filters.status !== 'all') {
-      filtered = filtered.filter((d) => d.status === filters.status)
-    }
-
-    if (filters.creditType !== 'all') {
-      filtered = filtered.filter((d) => d.creditType === filters.creditType)
-    }
-
-    return filtered
-  }, [demandes, filters])
+  // Les demandes sont déjà filtrées par le hook
+  const filteredDemandes = demandes
 
   // Pagination
   const totalPages = Math.ceil(filteredDemandes.length / itemsPerPage)
@@ -230,21 +530,27 @@ const ListDemandes = () => {
 
   // Stats
   const stats = React.useMemo(() => {
-    const total = demandes.length
-    const pending = demandes.filter((d) => d.status === 'PENDING').length
-    const approved = demandes.filter((d) => d.status === 'APPROVED').length
-    const rejected = demandes.filter((d) => d.status === 'REJECTED').length
-
-    return {
-      total,
-      pending,
-      approved,
-      rejected,
-      pendingPercentage: total > 0 ? (pending / total) * 100 : 0,
-      approvedPercentage: total > 0 ? (approved / total) * 100 : 0,
-      rejectedPercentage: total > 0 ? (rejected / total) * 100 : 0,
+    if (statsData) {
+      return {
+        total: statsData.total,
+        pending: statsData.pending,
+        approved: statsData.approved,
+        rejected: statsData.rejected,
+        pendingPercentage: statsData.total > 0 ? (statsData.pending / statsData.total) * 100 : 0,
+        approvedPercentage: statsData.total > 0 ? (statsData.approved / statsData.total) * 100 : 0,
+        rejectedPercentage: statsData.total > 0 ? (statsData.rejected / statsData.total) * 100 : 0,
+      }
     }
-  }, [demandes])
+    return {
+      total: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      pendingPercentage: 0,
+      approvedPercentage: 0,
+      rejectedPercentage: 0,
+    }
+  }, [statsData])
 
   // Gestion des erreurs
   if (error) {
@@ -253,7 +559,7 @@ const ListDemandes = () => {
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des demandes : {error}
+            Une erreur est survenue lors du chargement des demandes : {error instanceof Error ? error.message : 'Erreur inconnue'}
             <Button
               variant="link"
               className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"
@@ -270,8 +576,8 @@ const ListDemandes = () => {
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Onglets pour filtrer par statut */}
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-3">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'pending' | 'approved' | 'rejected')} className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Toutes ({stats.total})
@@ -284,14 +590,44 @@ const ListDemandes = () => {
             <CheckCircle className="h-4 w-4" />
             Approuvées ({stats.approved})
           </TabsTrigger>
+          <TabsTrigger value="rejected" className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            Rejetées ({stats.rejected})
+          </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Statistiques */}
+      <StatisticsCreditDemandes 
+        status={
+          activeTab === 'all' 
+            ? undefined 
+            : activeTab === 'pending' 
+              ? 'PENDING' 
+              : activeTab === 'approved'
+                ? 'APPROVED'
+                : 'REJECTED'
+        } 
+      />
 
       {/* Filtres */}
       <DemandFilters
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        activeTab={activeTab}
+        onStatusChange={(status) => {
+          // Synchroniser l'onglet actif avec le filtre de statut
+          if (status === 'all') {
+            setActiveTab('all')
+          } else if (status === 'PENDING') {
+            setActiveTab('pending')
+          } else if (status === 'APPROVED') {
+            setActiveTab('approved')
+          } else if (status === 'REJECTED') {
+            setActiveTab('rejected')
+          }
+        }}
       />
 
       {/* Barre d'actions moderne */}
@@ -314,7 +650,7 @@ const ListDemandes = () => {
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Boutons de vue modernes */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
+              <div className="items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
@@ -365,8 +701,19 @@ const ListDemandes = () => {
               </Button>
 
               <Button
+                variant="outline"
                 size="sm"
-                onClick={() => {/* TODO: Naviguer vers création */}}
+                onClick={exportToPDF}
+                disabled={filteredDemandes.length === 0}
+                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Exporter PDF
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => setIsCreateModalOpen(true)}
                 className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -403,7 +750,16 @@ const ListDemandes = () => {
                 <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 className="font-mono text-sm font-bold text-gray-900">#{demande.id.slice(-6)}</h3>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <h3 className="font-mono text-sm font-bold text-gray-900 cursor-help">#{demande.id.slice(-6)}</h3>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="font-mono text-xs">{demande.id}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 mt-1">
                         {getCreditTypeLabel(demande.creditType)}
                       </span>
@@ -429,7 +785,12 @@ const ListDemandes = () => {
                     {demande.guarantorId && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Garant:</span>
+                        <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900">{demande.guarantorFirstName} {demande.guarantorLastName}</span>
+                          {demande.guarantorIsMember && (
+                            <Badge className="bg-blue-100 text-blue-700 text-xs">Membre</Badge>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -448,11 +809,62 @@ const ListDemandes = () => {
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100 mt-auto">
+                  <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
+                    {demande.status === 'PENDING' && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
+                          className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approuver
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'reject' })}
+                          className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Rejeter
+                        </Button>
+                      </div>
+                    )}
+                    {demande.status === 'APPROVED' && (
+                      <Button
+                        size="sm"
+                        onClick={() => setSimulationModalState({ isOpen: true, demand: demande })}
+                        disabled={createFromDemand.isPending}
+                        className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        {createFromDemand.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            Création...
+                          </>
+                        ) : (
+                          <>
+                            <Calculator className="h-4 w-4 mr-1" />
+                            Créer le contrat
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    {demande.status === 'REJECTED' && (
+                      <Button
+                        size="sm"
+                        onClick={() => setReopenModalState({ isOpen: true, demand: demande })}
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Réouvrir
+                      </Button>
+                    )}
                     <Button
-                      onClick={() => {/* TODO: Naviguer vers détails */}}
+                      onClick={() => router.push(`/credit-speciale/demandes/${demande.id}`)}
                       className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                     >
+                      <Eye className="h-4 w-4" />
                       Voir détails
                     </Button>
                   </div>
@@ -527,7 +939,7 @@ const ListDemandes = () => {
                   </Button>
                 )}
                 <Button 
-                  onClick={() => {/* TODO: Naviguer vers création */}}
+                  onClick={() => setIsCreateModalOpen(true)}
                   className="h-12 px-6 bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -537,6 +949,72 @@ const ListDemandes = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Modal de création */}
+      <CreateCreditDemandModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      {/* Modal de validation/rejet */}
+      <ValidateDemandModal
+        isOpen={validateModalState.isOpen}
+        onClose={() => setValidateModalState({ isOpen: false, demand: null, action: 'approve' })}
+        demand={validateModalState.demand}
+        action={validateModalState.action}
+        onSuccess={() => {
+          // Le cache React Query sera invalidé automatiquement par le hook
+        }}
+      />
+
+      {/* Modal de réouverture */}
+      <ReopenDemandModal
+        isOpen={reopenModalState.isOpen}
+        onClose={() => setReopenModalState({ isOpen: false, demand: null })}
+        demand={reopenModalState.demand}
+        onSuccess={() => {
+          // Le cache React Query sera invalidé automatiquement par le hook
+        }}
+      />
+
+      {/* Modal de simulation et création de contrat */}
+      {simulationModalState.demand && (
+        <CreditSimulationModal
+          isOpen={simulationModalState.isOpen}
+          onClose={() => setSimulationModalState({ isOpen: false, demand: null })}
+          creditType={simulationModalState.demand.creditType}
+          initialAmount={simulationModalState.demand.amount}
+          initialMonthlyPayment={simulationModalState.demand.monthlyPaymentAmount}
+          onSimulationComplete={async (simulation: StandardSimulation | CustomSimulation) => {
+            try {
+              // Convertir la simulation en format attendu par createFromDemand
+              const simulationData = {
+                interestRate: simulation.interestRate,
+                monthlyPaymentAmount: 'monthlyPayment' in simulation 
+                  ? simulation.monthlyPayment 
+                  : simulation.monthlyPayments.length > 0 
+                    ? simulation.monthlyPayments[0].amount 
+                    : simulation.amount / simulation.duration,
+                duration: simulation.duration,
+                firstPaymentDate: simulation.firstPaymentDate,
+                totalAmount: simulation.totalAmount,
+              }
+
+              await createFromDemand.mutateAsync({
+                demandId: simulationModalState.demand!.id,
+                simulationData,
+              })
+
+              toast.success('Contrat créé avec succès')
+              setSimulationModalState({ isOpen: false, demand: null })
+              router.push(routes.admin.creditSpecialeContrats)
+            } catch (error: any) {
+              console.error('Erreur lors de la création du contrat:', error)
+              toast.error(error?.message || 'Erreur lors de la création du contrat')
+            }
+          }}
+        />
       )}
     </div>
   )

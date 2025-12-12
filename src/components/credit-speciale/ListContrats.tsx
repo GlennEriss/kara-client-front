@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,6 +30,9 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
 import { CreditContract, CreditContractStatus } from '@/types/types'
+import { useCreditContracts, useCreditContractsStats } from '@/hooks/useCreditSpeciale'
+import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
+import StatisticsCreditContrats from './StatisticsCreditContrats'
 
 type ViewMode = 'grid' | 'list'
 
@@ -66,31 +69,43 @@ const ContractFilters = ({
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
+        {/* En-tête */}
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
               <Filter className="h-6 w-6 text-white" />
             </div>
             <div>
               <h3 className="text-xl font-bold text-gray-900">Filtres</h3>
-              <p className="text-gray-600">Affinez votre recherche</p>
+              <p className="text-gray-600 text-sm">Affinez votre recherche</p>
             </div>
           </div>
+          <Button
+            variant="outline"
+            onClick={onReset}
+            size="sm"
+            className="px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Réinitialiser
+          </Button>
+          </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+        {/* Grille de filtres organisée */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Rechercher un contrat..."
-                className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] w-full sm:w-auto transition-all duration-200"
+              className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
                 value={filters.search || ''}
                 onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
               />
             </div>
 
             <select
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+            className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.status || 'all'}
               onChange={(e) => onFiltersChange({ ...filters, status: e.target.value })}
             >
@@ -105,7 +120,7 @@ const ContractFilters = ({
             </select>
 
             <select
-              className="px-4 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
+            className="px-4 py-2.5 w-full border border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-[#234D65] focus:border-[#234D65] transition-all duration-200"
               value={filters.creditType || 'all'}
               onChange={(e) => onFiltersChange({ ...filters, creditType: e.target.value })}
             >
@@ -114,16 +129,6 @@ const ContractFilters = ({
               <option value="FIXE">Fixe</option>
               <option value="AIDE">Aide</option>
             </select>
-
-            <Button
-              variant="outline"
-              onClick={onReset}
-              className="px-4 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 hover:scale-105"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Réinitialiser
-            </Button>
-          </div>
         </div>
       </CardContent>
     </Card>
@@ -133,28 +138,62 @@ const ContractFilters = ({
 // Composant principal
 const ListContrats = () => {
   const router = useRouter()
+  const searchParams = useSearchParams()
   
-  // État pour l'onglet actif
-  const [activeTab, setActiveTab] = useState<'all' | 'overdue'>('all')
-  
-  // États
-  const [filters, setFilters] = useState({
-    search: '',
-    status: 'all',
-    creditType: 'all'
+  // Initialiser les états depuis l'URL
+  const [activeTab, setActiveTab] = useState<'all' | 'overdue'>((searchParams.get('tab') as 'all' | 'overdue') || 'all')
+  const [filters, setFilters] = useState<{
+    search: string
+    status: string
+    creditType: string
+  }>({
+    search: searchParams.get('search') || '',
+    status: searchParams.get('status') || 'all',
+    creditType: searchParams.get('creditType') || 'all'
   })
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(12)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
+  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isExporting, setIsExporting] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [contrats, setContrats] = useState<CreditContract[]>([])
-  const [error, setError] = useState<string | null>(null)
+
+  // Synchroniser l'URL avec l'état
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filters.search) params.set('search', filters.search)
+    if (filters.status !== 'all') params.set('status', filters.status)
+    if (filters.creditType !== 'all') params.set('creditType', filters.creditType)
+    if (currentPage > 1) params.set('page', currentPage.toString())
+    if (itemsPerPage !== 12) params.set('limit', itemsPerPage.toString())
+    if (viewMode !== 'grid') params.set('view', viewMode)
+    if (activeTab !== 'all') params.set('tab', activeTab)
+    
+    const queryString = params.toString()
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
+    
+    if (window.location.search !== `?${queryString}`) {
+      router.replace(newUrl, { scroll: false })
+    }
+  }, [filters, currentPage, itemsPerPage, viewMode, activeTab, router])
+
+  // Hooks pour récupérer les données
+  const queryFilters: CreditContractFilters = {
+    status: filters.status === 'all' ? 'all' : filters.status as any,
+    creditType: filters.creditType === 'all' ? 'all' : filters.creditType as any,
+    search: filters.search || undefined,
+    overdueOnly: activeTab === 'overdue',
+    page: currentPage,
+    limit: itemsPerPage,
+    orderByField: activeTab === 'overdue' ? 'nextDueAt' : 'createdAt',
+    orderByDirection: activeTab === 'overdue' ? 'asc' : 'desc',
+  }
+
+  const { data: contrats = [], isLoading, error } = useCreditContracts(queryFilters)
+  const { data: statsData } = useCreditContractsStats(queryFilters)
 
   // Reset page when filters or tab change
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [filters, activeTab])
+  }, [filters.search, filters.status, filters.creditType, activeTab])
 
   // Gestionnaires d'événements
   const handleFiltersChange = (newFilters: any) => {
@@ -173,25 +212,130 @@ const ListContrats = () => {
   }
 
   const handleRefresh = async () => {
-    setIsLoading(true)
-    setError(null)
-    // TODO: Implémenter le refetch
-    setTimeout(() => setIsLoading(false), 1000)
+    // Le refetch est géré automatiquement par React Query
   }
 
   const exportToExcel = async () => {
-    if (filteredContrats.length === 0) {
+    if (!contrats || contrats.length === 0) {
       toast.error('Aucun contrat à exporter')
       return
     }
 
     setIsExporting(true)
     try {
-      // TODO: Implémenter l'export Excel
-      toast.success('Export réussi !')
+      const XLSX = await import('xlsx')
+      const rows = buildExportRows()
+      
+      const headers = [
+        'ID',
+        'Type de crédit',
+        'Client',
+        'Statut',
+        'Montant emprunté (FCFA)',
+        'Montant total (FCFA)',
+        'Durée (mois)',
+        'Mensualité (FCFA)',
+        'Montant versé (FCFA)',
+        'Montant restant (FCFA)',
+        'Garant',
+        'Garant membre',
+        'Date premier versement',
+        'Prochaine échéance',
+        'Date de création',
+      ]
+
+      const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
+      const sheetData = [
+        ['LISTE DES CONTRATS DE CRÉDIT SPÉCIALE'],
+        [`Onglet: ${tabLabel}`],
+        [`Généré le ${new Date().toLocaleDateString('fr-FR')}`],
+        [],
+        headers,
+        ...rows,
+      ]
+
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData)
+      
+      // Fusionner les cellules pour les en-têtes
+      worksheet['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } },
+      ]
+
+      // Définir la largeur des colonnes
+      worksheet['!cols'] = headers.map(() => ({ wch: 20 }))
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Contrats')
+      
+      const filename = `contrats_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.xlsx`
+      XLSX.writeFile(workbook, filename)
+      toast.success('Export Excel généré')
     } catch (error) {
-      console.error('Erreur lors de l\'export:', error)
-      toast.error('Erreur lors de l\'export')
+      console.error('Erreur lors de l\'export Excel:', error)
+      toast.error('Erreur lors de l\'export Excel')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const exportToPDF = async () => {
+    if (!contrats || contrats.length === 0) {
+      toast.error('Aucun contrat à exporter')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.text('Liste des Contrats de Crédit Spéciale', 14, 14)
+      doc.setFontSize(10)
+      const tabLabel = activeTab === 'all' ? 'Tous' : 'En retard'
+      doc.text(`Onglet: ${tabLabel}`, 14, 20)
+      doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 24)
+      doc.text(`Total: ${contrats.length} contrat(s)`, 14, 28)
+
+      const rows = buildExportRows()
+      const headers = [
+        'ID',
+        'Type',
+        'Client',
+        'Statut',
+        'Montant',
+        'Total',
+        'Durée',
+        'Mensualité',
+        'Versé',
+        'Restant',
+        'Garant',
+        'Garant membre',
+        '1er versement',
+        'Prochaine échéance',
+        'Date création',
+      ]
+
+      autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: 32,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        margin: { top: 32 },
+      })
+
+      const filename = `contrats_credit_${activeTab}_${new Date().toISOString().slice(0, 10)}.pdf`
+      doc.save(filename)
+      toast.success('Export PDF généré')
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error)
+      toast.error('Erreur lors de l\'export PDF')
     } finally {
       setIsExporting(false)
     }
@@ -266,35 +410,33 @@ const ListContrats = () => {
     return false
   }
 
-  // Filtrage des contrats
-  const filteredContrats = React.useMemo(() => {
-    let contracts = contrats
+  // Les contrats sont déjà filtrés par le hook
+  const filteredContrats = contrats
 
-    // Filtrer par retard si l'onglet "Retard" est actif
-    if (activeTab === 'overdue') {
-      contracts = contracts.filter((c) => isContractOverdue(c))
-    }
+  // Fonction pour construire les lignes d'export
+  const formatAmount = (amount: number): string => {
+    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
 
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase()
-      contracts = contracts.filter((c) =>
-        c.id.toLowerCase().includes(searchLower) ||
-        c.clientFirstName.toLowerCase().includes(searchLower) ||
-        c.clientLastName.toLowerCase().includes(searchLower) ||
-        c.clientContacts.some(contact => contact.toLowerCase().includes(searchLower))
-      )
-    }
-
-    if (filters.status !== 'all') {
-      contracts = contracts.filter((c) => c.status === filters.status)
-    }
-
-    if (filters.creditType !== 'all') {
-      contracts = contracts.filter((c) => c.creditType === filters.creditType)
-    }
-
-    return contracts
-  }, [contrats, filters, activeTab])
+  const buildExportRows = () => {
+    return filteredContrats.map((contrat: CreditContract) => [
+      contrat.id,
+      getCreditTypeLabel(contrat.creditType),
+      `${contrat.clientFirstName} ${contrat.clientLastName}`,
+      getStatusLabel(contrat.status),
+      formatAmount(contrat.amount),
+      formatAmount(contrat.totalAmount),
+      contrat.duration,
+      formatAmount(contrat.monthlyPaymentAmount),
+      formatAmount(contrat.amountPaid),
+      formatAmount(contrat.amountRemaining),
+      contrat.guarantorId ? `${contrat.guarantorFirstName} ${contrat.guarantorLastName}` : 'Aucun',
+      contrat.guarantorIsMember ? 'Oui' : 'Non',
+      contrat.firstPaymentDate ? new Date(contrat.firstPaymentDate).toLocaleDateString('fr-FR') : '',
+      contrat.nextDueAt ? new Date(contrat.nextDueAt).toLocaleDateString('fr-FR') : '',
+      contrat.createdAt ? new Date(contrat.createdAt).toLocaleDateString('fr-FR') : '',
+    ])
+  }
 
   // Pagination
   const totalPages = Math.ceil(filteredContrats.length / itemsPerPage)
@@ -304,24 +446,27 @@ const ListContrats = () => {
 
   // Stats
   const stats = React.useMemo(() => {
-    const dataSource = activeTab === 'overdue' ? filteredContrats : contrats
-
-    const total = dataSource.length
-    const active = dataSource.filter((c) => c.status === 'ACTIVE').length
-    const overdue = dataSource.filter((c) => isContractOverdue(c)).length
-    const blocked = dataSource.filter((c) => c.status === 'BLOCKED').length
-    const discharged = dataSource.filter((c) => c.status === 'DISCHARGED').length
-
-    return {
-      total,
-      active,
-      overdue,
-      blocked,
-      discharged,
-      activePercentage: total > 0 ? (active / total) * 100 : 0,
-      overduePercentage: total > 0 ? (overdue / total) * 100 : 0,
+    if (statsData) {
+      return {
+        total: statsData.total,
+        active: statsData.active,
+        overdue: statsData.overdue,
+        blocked: statsData.blocked,
+        discharged: statsData.discharged,
+        activePercentage: statsData.total > 0 ? (statsData.active / statsData.total) * 100 : 0,
+        overduePercentage: statsData.total > 0 ? (statsData.overdue / statsData.total) * 100 : 0,
+      }
     }
-  }, [contrats, activeTab, filteredContrats])
+    return {
+      total: 0,
+      active: 0,
+      overdue: 0,
+      blocked: 0,
+      discharged: 0,
+      activePercentage: 0,
+      overduePercentage: 0,
+    }
+  }, [statsData])
 
   // Gestion des erreurs
   if (error) {
@@ -330,7 +475,7 @@ const ListContrats = () => {
         <Alert className="border-0 bg-gradient-to-r from-red-50 to-rose-50 shadow-lg">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <AlertDescription className="text-red-700 font-medium">
-            Une erreur est survenue lors du chargement des contrats : {error}
+            Une erreur est survenue lors du chargement des contrats : {error instanceof Error ? error.message : 'Erreur inconnue'}
             <Button
               variant="link"
               className="p-0 h-auto ml-2 text-red-700 underline font-bold hover:text-red-800"
@@ -360,6 +505,9 @@ const ListContrats = () => {
         </TabsList>
       </Tabs>
 
+      {/* Statistiques */}
+      <StatisticsCreditContrats overdueOnly={activeTab === 'overdue'} />
+
       {/* Filtres */}
       <ContractFilters
         filters={filters}
@@ -387,7 +535,7 @@ const ListContrats = () => {
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Boutons de vue modernes */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex">
+              <div className="hidden md:flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
                 <Button
                   variant={viewMode === 'grid' ? 'default' : 'ghost'}
                   size="sm"
@@ -442,6 +590,26 @@ const ListContrats = () => {
                   <>
                     <Download className="w-4 h-4 mr-2" />
                     Exporter Excel
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToPDF}
+                disabled={isExporting || filteredContrats.length === 0}
+                className="h-12 sm:h-10 w-full sm:w-auto px-4 bg-white border-2 border-red-300 hover:border-red-400 hover:bg-red-50 text-red-700 hover:text-red-800 transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
+                    Export...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Exporter PDF
                   </>
                 )}
               </Button>
@@ -555,7 +723,7 @@ const ListContrats = () => {
 
                   <div className="pt-3 border-t border-gray-100 mt-auto">
                     <Button
-                      onClick={() => {/* TODO: Naviguer vers détails */}}
+                      onClick={() => router.push(`/credit-speciale/contrats/${contract.id}`)}
                       className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
                     >
                       <Eye className="h-4 w-4" />
