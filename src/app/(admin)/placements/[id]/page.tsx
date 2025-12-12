@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   ArrowLeft,
   AlertCircle,
@@ -31,6 +32,7 @@ import PlacementEarlyExitQuittanceModal from '@/components/placement/PlacementEa
 import type { CommissionPaymentPlacement } from '@/types/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useQueryClient } from '@tanstack/react-query'
 
 function PayCommissionWrapper({
   placementId,
@@ -90,6 +92,7 @@ export default function PlacementDetailsPage() {
   const { data: placement, isLoading, isError, error } = usePlacement(id)
   const { data: commissions = [], refetch: refetchCommissions } = usePlacementCommissions(id)
 const { data: earlyExit } = useEarlyExit(id)
+  const qc = useQueryClient()
 
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
@@ -103,6 +106,9 @@ const [earlyExitAddendumId, setEarlyExitAddendumId] = useState<string | null>(nu
 const [earlyExitQuittanceId, setEarlyExitQuittanceId] = useState<string | null>(null)
 const [showAddendumUpload, setShowAddendumUpload] = useState(false)
 const [isGeneratingAddendum, setIsGeneratingAddendum] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+const [showCloseModal, setShowCloseModal] = useState(false)
+const [closeFile, setCloseFile] = useState<File | null>(null)
 
   const payoutLabel = useMemo(() => {
     if (placement?.payoutMode === 'MonthlyCommission_CapitalEnd') return 'Commission mensuelle + capital à la fin'
@@ -192,9 +198,11 @@ const commissionStatusLabel = (status: string) => {
     )
   }
 
-  const nextDate = placement.nextCommissionDate
-    ? new Date(placement.nextCommissionDate).toLocaleDateString('fr-FR')
-    : '-'
+  const dueSorted = [...commissions].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+  const derivedStart = placement.startDate || dueSorted[0]?.dueDate
+  const derivedEnd = placement.endDate || dueSorted[dueSorted.length - 1]?.dueDate
+  const derivedNext = placement.nextCommissionDate || dueSorted.find(c => c.status === 'Due')?.dueDate
+  const nextDate = derivedNext ? new Date(derivedNext).toLocaleDateString('fr-FR') : '-'
   const hasContract = !!placement.contractDocumentId
 
   return (
@@ -259,11 +267,11 @@ const commissionStatusLabel = (status: string) => {
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>Début: {placement.startDate ? new Date(placement.startDate).toLocaleDateString('fr-FR') : '-'}</span>
+                  <span>Début: {derivedStart ? new Date(derivedStart).toLocaleDateString('fr-FR') : '-'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>Fin: {placement.endDate ? new Date(placement.endDate).toLocaleDateString('fr-FR') : '-'}</span>
+                  <span>Fin: {derivedEnd ? new Date(derivedEnd).toLocaleDateString('fr-FR') : '-'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-gray-400" />
@@ -369,6 +377,13 @@ const commissionStatusLabel = (status: string) => {
               disabled={placement.status !== 'Closed' && placement.status !== 'Active'}
             >
               Quittance finale
+            </Button>
+            <Button
+              variant="default"
+              disabled={placement.status === 'Closed'}
+              onClick={() => setShowCloseModal(true)}
+            >
+              Clôturer le placement
             </Button>
             <Button
               variant="secondary"
@@ -786,6 +801,49 @@ const commissionStatusLabel = (status: string) => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Clôture placement */}
+      <Dialog open={showCloseModal} onOpenChange={setShowCloseModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clôturer le placement</DialogTitle>
+            <DialogDescription>Téléversez la quittance finale (optionnel) puis confirmez.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setCloseFile(e.target.files?.[0] || null)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowCloseModal(false)}>Annuler</Button>
+              <Button
+                onClick={async () => {
+                  if (!user?.uid) return
+                  setIsClosing(true)
+                  try {
+                    const { ServiceFactory } = await import('@/factories/ServiceFactory')
+                    const service = ServiceFactory.getPlacementService()
+                    const updated = await service.closePlacement(placement.id, closeFile, user.uid)
+                    await qc.invalidateQueries({ queryKey: ['placement', placement.id] })
+                    setFinalQuittanceId(updated.finalQuittanceDocumentId || null)
+                    toast.success('Placement clôturé')
+                  } catch (e: any) {
+                    toast.error(e?.message || 'Erreur lors de la clôture')
+                  } finally {
+                    setIsClosing(false)
+                    setShowCloseModal(false)
+                    setCloseFile(null)
+                  }
+                }}
+                disabled={isClosing}
+              >
+                {isClosing ? 'Clôture...' : 'Clôturer'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
