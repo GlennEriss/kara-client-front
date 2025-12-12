@@ -18,97 +18,172 @@ class Admin
 Member --|> User
 Admin --|> User
 
-class EmergencyContact {
-  name: string
-  phone: string
-  relation: string
-}
-
-class CreditSpecialeContract {
+class CreditDemand {
   id: string
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
   creditType: 'SPECIALE' | 'FIXE' | 'AIDE'
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'DEFAULTED' | 'TRANSFORMED'
-  requestedAmount: number
-  interestRate: number
-  monthlyPayment: number
-  firstPaymentDate: Date
-  monthsPlanned: number
-  totalAmount: number
-  simulationType: 'STANDARD' | 'CUSTOM'
-  isEligible: boolean
-  eligibilityReason?: string
-  transformedAt?: Date
-  contractDocumentId?: string
-  signedContractDocumentId?: string
-  dischargeDocumentId?: string
+  amount: number
+  monthlyPaymentAmount?: number
+  cause: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  eligibilityOverride?: EligibilityOverride
+  adminComments?: string
+  score?: number
+  scoreUpdatedAt?: Date
+  contractId?: string
   createdAt: Date
   updatedAt: Date
   createdBy: string
-  updatedBy: string
+  updatedBy?: string
 }
 
-class SimulationData {
+class EligibilityOverride {
+  justification: string
+  adminId: string
+  adminName: string
+  createdAt: Date
+}
+
+class CreditContract {
+  id: string
+  demandId: string
+  clientId: string
+  clientFirstName: string
+  clientLastName: string
+  clientContacts: string[]
+  creditType: 'SPECIALE' | 'FIXE' | 'AIDE'
+  amount: number
+  interestRate: number
+  monthlyPaymentAmount: number
+  totalAmount: number
+  duration: number
+  firstPaymentDate: Date
+  nextDueAt?: Date
+  status: CreditContractStatus
+  amountPaid: number
+  amountRemaining: number
+  guarantorId?: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorRelation?: string
+  guarantorIsMember: boolean
+  guarantorIsParrain: boolean
+  guarantorRemunerationPercentage: number
+  emergencyContact?: EmergencyContact
+  contractUrl?: string
+  signedContractUrl?: string
+  dischargeUrl?: string
+  activatedAt?: Date
+  fundsReleasedAt?: Date
+  dischargedAt?: Date
+  transformedAt?: Date
+  blockedAt?: Date
+  blockedReason?: string
+  score?: number
+  scoreUpdatedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+class EmergencyContact {
+  lastName: string
+  firstName?: string
+  phone1: string
+  phone2?: string
+  relationship: Relationship
+  typeId: string
+  idNumber: string
+  documentPhotoUrl: string
+}
+
+class StandardSimulation {
   amount: number
   interestRate: number
   monthlyPayment: number
   firstPaymentDate: Date
-  durationInMonths: number
-  totalInterest: number
+  duration: number
   totalAmount: number
   isValid: boolean
-  proposedMinimumAmount?: number
+  remainingAtMaxDuration?: number
+  suggestedMonthlyPayment?: number
+  suggestedMinimumAmount?: number
+}
+
+class CustomSimulation {
+  amount: number
+  interestRate: number
+  monthlyPayments: CustomPayment[]
+  firstPaymentDate: Date
+  duration: number
+  totalAmount: number
+  isValid: boolean
+  suggestedMinimumAmount?: number
 }
 
 class CustomPayment {
-  monthIndex: number
+  month: number
   amount: number
-  dueDate: Date
-}
-
-class CustomSimulationData {
-  payments: CustomPayment[*]
-  totalAmount: number
-  durationInMonths: number
-  isValid: boolean
 }
 
 class CreditPayment {
   id: string
-  contractId: string
-  monthIndex: number
-  dueDate: Date
+  creditId: string
   amount: number
-  paidAmount: number
-  penaltyAmount: number
-  status: 'DUE' | 'PAID' | 'PARTIAL' | 'OVERDUE'
-  paidAt?: Date
-  paymentMethod?: string
-  proofDocumentId?: string
-  receiptDocumentId?: string
+  paymentDate: Date
+  paymentTime: string
+  mode: 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CHEQUE'
+  proofUrl?: string
   comment?: string
-  rating?: number
-  daysLate?: number
-  penaltyPaid: boolean
+  note?: number
+  reference?: string
+  receiptUrl?: string
   createdAt: Date
   updatedAt: Date
   createdBy: string
-  updatedBy: string
+  updatedBy?: string
 }
 
-class GuarantorReward {
+class CreditPenalty {
   id: string
-  contractId: string
-  paymentId: string
-  guarantorId: string
-  rate: number = 0.02
+  creditId: string
   amount: number
+  daysLate: number
+  dueDate: Date
+  paid: boolean
+  paidAt?: Date
+  reported: boolean
   createdAt: Date
+  updatedAt: Date
   createdBy: string
+  updatedBy?: string
+}
+
+class GuarantorRemuneration {
+  id: string
+  creditId: string
+  guarantorId: string
+  paymentId: string
+  amount: number
+  month: number
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
 }
 
 class ReliabilityScore {
   userId: string
-  score: number  // 0..10
+  score: number
   lastComputedAt: Date
 }
 
@@ -121,35 +196,115 @@ class Document {
   createdBy: string
 }
 
-User "1" -- "0..*" CreditSpecialeContract : emprunteur
-User "0..1" -- "0..*" CreditSpecialeContract : garant\n(membre ou admin)
-CreditSpecialeContract "1" o-- "1" EmergencyContact
-CreditSpecialeContract "1" o-- "1" SimulationData
-CreditSpecialeContract "0..1" o-- "1" CustomSimulationData
-CreditSpecialeContract "1" --> "0..*" CreditPayment
-CreditPayment "0..1" --> Document : proof/receipt
-CreditSpecialeContract "0..1" --> Document : contrat/signé/décharge
-CreditPayment "0..*" --> GuarantorReward : génère
-User "1" --> "0..*" ReliabilityScore : score fiabilité (admin-only)
-User "1" --> "0..*" GuarantorReward : rémunérations
+' Relations principales
+User "1" -- "0..*" CreditDemand : emprunteur
+User "0..1" -- "0..*" CreditDemand : garant\n(membre ou admin)
+CreditDemand "1" o-- "0..1" EligibilityOverride : eligibilityOverride
 
-note right of Document
-  Ajouter des types pour le module :
-  - CREDIT_CS_CONTRACT
-  - CREDIT_CS_CONTRACT_SIGNED
-  - CREDIT_CS_RECEIPT
-  - CREDIT_CS_DISCHARGE
+' Relation 1:1 entre demande et contrat
+CreditDemand "1" ||--|| CreditContract : contractId\n(une demande = un contrat max)
+CreditContract "1" --> "1" CreditDemand : demandId\n(référence)
+
+CreditContract "1" o-- "0..1" EmergencyContact : emergencyContact
+CreditContract "1" --> "0..*" CreditPayment : paiements
+CreditContract "1" --> "0..*" CreditPenalty : pénalités
+CreditPayment "0..1" --> Document : proof/receipt
+CreditContract "0..1" --> Document : contrat/signé/décharge
+CreditPayment "0..*" --> "0..*" GuarantorRemuneration : génère
+User "1" --> "0..*" ReliabilityScore : score fiabilité\n(admin-only)
+User "1" --> "0..*" GuarantorRemuneration : rémunérations
+
+note right of CreditDemand
+  Une demande peut avoir
+  au maximum un contrat
+  (relation 1:1 via contractId)
+  
+  Format ID: MK_DEMANDE_CSP_
+  matricule_date_heure
 end note
 
-note right of GuarantorReward
+note right of CreditContract
+  Créé à partir d'une demande
+  approuvée via le workflow
+  multi-étapes:
+  1. Simulation
+  2. Rémunération parrain
+  3. Contact urgence
+  4. Confirmation
+  
+  Statuts possibles:
+  PENDING, ACTIVE, OVERDUE,
+  PARTIAL, TRANSFORMED,
+  BLOCKED, DISCHARGED, CLOSED
+end note
+
+note right of EmergencyContact
+  Champs obligatoires:
+  - lastName
+  - phone1
+  - relationship
+  - typeId
+  - idNumber
+  - documentPhotoUrl
+end note
+
+note right of CreditPenalty
+  Calcul: règle de 3
+  pénalité = (montant mensuel
+  × jours de retard) / 30
+  
+  Le client peut choisir
+  de payer ou reporter
+end note
+
+note right of GuarantorRemuneration
   2% du montant versé mensuel
-  uniquement si garant = membre/parrain.
+  par défaut, modifiable entre
+  0% et 2% lors de la création
+  
+  Uniquement si garant = membre
+  et guarantorIsParrain = true
+end note
+
+note right of CreditPayment
+  Format référence: MK_PAIEMENT_CSP_
+  matricule_date_heure
+  
+  Génération automatique du
+  reçu PDF avec preuve
+end note
+
+note right of Document
+  Types pour le module :
+  - CREDIT_SPECIALE_CONTRACT
+  - CREDIT_SPECIALE_CONTRACT_SIGNED
+  - CREDIT_SPECIALE_RECEIPT
+  - CREDIT_SPECIALE_DISCHARGE
 end note
 
 note right of ReliabilityScore
   Calcul 0..10, visible admin,
-  maj à chaque paiement.
+  mis à jour à chaque paiement
+  et en fin de contrat
+end note
+
+note right of StandardSimulation
+  Utilisée lors de la création
+  du contrat pour calculer:
+  - Durée de remboursement
+  - Total à rembourser
+  - Échéancier
+  
+  Types: standard, proposée
+end note
+
+note right of CustomSimulation
+  Simulation personnalisée avec
+  montants variables par mois
+  
+  Génère 2 tableaux:
+  - Échéancier personnalisé
+  - Échéancier référence (7 mois)
 end note
 
 @enduml
-

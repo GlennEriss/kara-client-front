@@ -12,6 +12,7 @@ import { PlacementService } from '@/services/placement/PlacementService'
 import { DocumentService } from '@/services/documents/DocumentService'
 import { ICreditSpecialeService } from '@/services/credit-speciale/ICreditSpecialeService'
 import { CreditSpecialeService } from '@/services/credit-speciale/CreditSpecialeService'
+import { MembershipService } from '@/services/memberships/MembershipService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -129,12 +130,25 @@ export class ServiceFactory {
       const creditContractRepository = RepositoryFactory.getCreditContractRepository()
       const creditPaymentRepository = RepositoryFactory.getCreditPaymentRepository()
       const creditPenaltyRepository = RepositoryFactory.getCreditPenaltyRepository()
+      const guarantorRemunerationRepository = RepositoryFactory.getGuarantorRemunerationRepository()
       this.services.set(key, new CreditSpecialeService(
         creditDemandRepository,
         creditContractRepository,
         creditPaymentRepository,
-        creditPenaltyRepository
+        creditPenaltyRepository,
+        guarantorRemunerationRepository
       ))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des membres/demandes d'adhésion
+   */
+  static getMembershipService(): MembershipService {
+    const key = 'MembershipService'
+    if (!this.services.has(key)) {
+      this.services.set(key, new MembershipService())
     }
     return this.services.get(key)
   }

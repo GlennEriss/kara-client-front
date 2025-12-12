@@ -387,6 +387,26 @@ export class CaisseImprevueService implements ICaisseImprevueService {
 
             const support = await this.supportCIRepository.createSupport(contractId, supportData)
 
+            // Notification pour les admins : demande de support créée
+            try {
+                await this.notificationService.createNotification({
+                    module: 'caisse_imprevue',
+                    entityId: contractId,
+                    type: 'reminder',
+                    title: 'Demande de support créée',
+                    message: `Une demande de support de ${amount.toLocaleString('fr-FR')} FCFA a été créée pour le contrat de ${contract.memberFirstName} ${contract.memberLastName}.`,
+                    metadata: {
+                        contractId,
+                        supportId: support.id,
+                        memberId: contract.memberId,
+                        amount,
+                        documentId: document.id,
+                    },
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification de support:', error);
+            }
+
             return support
         } catch (error) {
             console.error('Erreur lors de la demande de support:', error)
@@ -472,6 +492,28 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             // 4. Si entièrement remboursé, mettre à jour le statut
             if (newAmountRemaining <= 0) {
                 await this.supportCIRepository.updateSupportStatus(contractId, supportId, 'REPAID', new Date())
+                
+                // Notification si le support est entièrement remboursé
+                try {
+                    const contract = await this.contractCIRepository.getContractById(contractId);
+                    if (contract) {
+                        await this.notificationService.createNotification({
+                            module: 'caisse_imprevue',
+                            entityId: contractId,
+                            type: 'reminder',
+                            title: 'Support entièrement remboursé',
+                            message: `Le support de ${support.amount.toLocaleString('fr-FR')} FCFA pour le contrat de ${contract.memberFirstName} ${contract.memberLastName} a été entièrement remboursé.`,
+                            metadata: {
+                                contractId,
+                                supportId,
+                                memberId: contract.memberId,
+                                totalAmount: support.amount,
+                            },
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la création de la notification de remboursement complet:', error);
+                }
             }
         } catch (error) {
             console.error('Erreur lors de l\'enregistrement du remboursement:', error)
