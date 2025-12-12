@@ -789,7 +789,7 @@ export class PlacementService {
   private async recalculatePlacementCommissionStatus(placementId: string): Promise<void> {
     const commissions = await this.placementRepository.listCommissions(placementId)
     const due = commissions.filter(c => c.status === 'Due').sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-    const nextDue = due[0]?.dueDate
+    const nextDue = due[0]?.dueDate || null
     const hasOverdue = due.some(c => c.dueDate.getTime() < Date.now())
     await this.placementRepository.update(placementId, {
       nextCommissionDate: nextDue,
