@@ -1,0 +1,41 @@
+@startuml
+title Séquence – Exporter listes contrats (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "Documents / Storage" as Docs
+
+Admin -> UI : Ouvre écran contrats filtres appliqués
+UI -> Hooks : Load contrats filtres pagination
+Hooks -> Service : listContracts
+Service -> Repo : query where status ACTIVE + filtres + pagination
+Repo --> Service : Contrats
+Service --> Hooks : Contrats
+Hooks --> UI : Afficher contrats
+
+Admin -> UI : Clique "Exporter PDF ou Excel"
+UI -> Hooks : exportContracts format filtres
+Hooks -> Service : exportContracts format filtres
+Service -> Repo : query all where status ACTIVE + filtres sans pagination
+Repo --> Service : Tous contrats filtrés
+alt Format PDF
+  Service -> Docs : generatePDFExport contrats format contrats
+  Docs --> Service : Blob PDF
+else Format Excel
+  Service -> Docs : generateExcelExport contrats format contrats
+  Docs --> Service : Blob Excel
+end
+Service --> Hooks : Blob fichier
+Hooks --> UI : Télécharger fichier
+UI --> Admin : Fichier export téléchargé
+
+note right of Service
+Export sans pagination : tous les contrats filtrés
+Format : colonnes (statut, type, membre, garant, montant, versé, reste, dates, etc.)
+end note
+
+@enduml
+

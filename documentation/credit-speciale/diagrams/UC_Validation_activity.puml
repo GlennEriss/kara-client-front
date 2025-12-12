@@ -1,0 +1,27 @@
+@startuml
+title Activité – Valider ou refuser une demande (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin consulte la demande (PENDING);
+:Admin vérifie éligibilité (client/garant à jour CI);
+if (Éligible ?) then (oui)
+  :Admin valide la demande;
+  :Mettre à jour status=APPROVED;
+  :Tracer updatedBy=admin / timestamps;
+  :Notifier le client (APPROVED);
+  :Déclencher simulation auto (si besoin);
+else (non)
+  if (Dérogation admin ?) then (oui)
+    :Admin saisit justification dérogation;
+    :Mettre à jour status=APPROVED;
+    :Tracer updatedBy=admin / justification;
+    :Notifier le client (APPROVED);
+  else (non)
+    :Admin refuse la demande;
+    :Mettre à jour status=REJECTED;
+    :Tracer updatedBy=admin / raison;
+    :Notifier le client (REJECTED);
+  endif
+endif
+stop
+@enduml
+

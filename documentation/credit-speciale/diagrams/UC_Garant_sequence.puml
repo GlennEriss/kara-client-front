@@ -1,0 +1,29 @@
+@startuml
+title Séquence – Gérer garant (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+participant "CI/Membership" as CI
+
+Admin -> UI : Sélectionne garant membre ou admin
+UI -> Hooks : selectGuarantor garantId lienParenté
+Hooks -> Service : setGuarantor creditId garantId lienParenté
+Service -> CI : checkStatus garantId
+CI --> Service : Statut CI garant
+Service -> Repo : update credit garantId lienParenté
+Repo --> Service : updated
+Service --> Hooks : Garant associé
+Hooks --> UI : Confirmation
+UI --> Admin : Garant enregistré
+
+note right of Service
+Garant : membre ou admin
+Lien parenté obligatoire
+Vérification statut CI
+end note
+
+@enduml
+

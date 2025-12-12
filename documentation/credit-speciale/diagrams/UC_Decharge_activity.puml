@@ -1,0 +1,12 @@
+@startuml
+title Activité – Générer décharge (Admin) – Crédit spéciale/fixe/aide
+start
+:Service détecte crédit remboursé intégralement;
+:Service vérifie statut (montantVersé = montantTotal);
+:Service génère décharge PDF (template + données);
+:Documents/Storage stocke PDF (metadata);
+:Service met à jour crédit (status=DISCHARGED);
+:Notifications notifie client (décharge disponible);
+stop
+@enduml
+

@@ -617,6 +617,7 @@ export default function PlacementList() {
       active: stats.active,
       closed: stats.closed,
       earlyExit: stats.early,
+      canceled: 0,
       commissionsDue: 0,
       commissionsPaid: 0,
       totalCommissionsAmount: 0,
@@ -710,7 +711,7 @@ export default function PlacementList() {
   }, [placementStats])
 
   const statusPieData = useMemo(() => {
-    const data = placementStats || { draft: stats.draft, active: stats.active, closed: stats.closed, earlyExit: stats.early }
+    const data = placementStats || { draft: stats.draft, active: stats.active, closed: stats.closed, earlyExit: stats.early, canceled: 0 }
     return [
       { name: 'Actifs', value: data.active || 0, fill: '#10b981' },
       { name: 'Brouillons', value: data.draft || 0, fill: '#f59e0b' },
@@ -2070,6 +2071,7 @@ export default function PlacementList() {
               Active: 'Actif',
               Closed: 'Clos',
               EarlyExit: 'Sortie anticipée',
+              Canceled: 'Annulé',
             }
             
             const genderLabel = (gender?: string) => {

@@ -1,0 +1,18 @@
+@startuml
+title Activité – Exporter listes contrats (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin ouvre écran contrats (avec filtres appliqués);
+:Admin clique "Exporter (PDF/Excel)";
+:UI prépare données export (filtres, pagination);
+:Hooks prépare format export (PDF ou Excel);
+:Service récupère données contrats (Repo avec filtres);
+:Service formate données export;
+if (Format PDF ?) then (oui)
+  :Documents/Storage génère PDF (tableau contrats);
+else (Excel)
+  :Documents/Storage génère Excel (feuille contrats);
+endif
+:UI télécharge fichier export;
+stop
+@enduml
+

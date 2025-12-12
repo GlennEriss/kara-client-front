@@ -1,0 +1,10 @@
+@startuml
+title Activité – Tracer date/heure remise et référence paiement (Payments) – Crédit spéciale/fixe/aide
+start
+:Service enregistre versement;
+:Service trace date/heure remise;
+:Service génère référence paiement;
+:Service enregistre trace (Repo);
+stop
+@enduml
+

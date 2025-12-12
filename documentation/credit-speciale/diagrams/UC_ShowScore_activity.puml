@@ -1,0 +1,9 @@
+@startuml
+title Activité – Afficher score sur demande/contrat (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin consulte demande ou contrat;
+:Service récupère score (Repo);
+:UI affiche badge score (admin-only);
+stop
+@enduml
+

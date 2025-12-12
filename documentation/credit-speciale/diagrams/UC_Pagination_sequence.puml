@@ -1,0 +1,46 @@
+@startuml
+title Séquence – Gérer pagination / filtres / recherche (Hooks) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+User -> UI : Ouvre écran listes
+UI -> Hooks : Init pagination filtres
+Hooks -> Hooks : Lire URL query params filtres page limit
+Hooks -> Hooks : Initialiser filtres depuis URL
+Hooks -> Service : listCredits
+Service -> Repo : query where filtres plus pagination
+Repo --> Service : Résultats paginés
+Service --> Hooks : Résultats
+Hooks --> UI : Afficher résultats
+
+User -> UI : Modifie filtres
+UI -> Hooks : updateFilters
+Hooks -> Hooks : Mettre à jour URL query params
+Hooks -> Hooks : Invalider cache React Query
+Hooks -> Service : listCredits
+Service -> Repo : query where newFilters plus pagination
+Repo --> Service : Nouveaux résultats
+Service --> Hooks : Résultats
+Hooks --> UI : Afficher nouveaux résultats
+
+User -> UI : Change page
+UI -> Hooks : updatePagination
+Hooks -> Hooks : Mettre à jour URL query params
+Hooks -> Service : listCredits
+Service -> Repo : query plus newPagination
+Repo --> Service : Nouvelle page
+Service --> Hooks : Résultats
+Hooks --> UI : Afficher nouvelle page
+
+note right of Hooks
+Sync URL bidirectionnel URL vers état
+Cache React Query pour performance
+Invalidation après mutations
+end note
+
+@enduml
+

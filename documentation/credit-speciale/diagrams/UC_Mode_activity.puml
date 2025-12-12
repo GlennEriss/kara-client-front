@@ -1,0 +1,9 @@
+@startuml
+title Activité – Enregistrer moyen de paiement (Payments) – Crédit spéciale/fixe/aide
+start
+:Admin enregistre versement;
+:Admin sélectionne moyen de paiement (espèces, mobile money, virement);
+:Service enregistre moyen (Repo);
+stop
+@enduml
+

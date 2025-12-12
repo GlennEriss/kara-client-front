@@ -1,0 +1,18 @@
+@startuml
+title Activité – Générer contrat PDF (Admin) – Crédit spéciale/fixe/aide
+start
+:Admin valide simulation et garant;
+:Admin clique "Générer contrat";
+:Service récupère données crédit (montant, taux, durée, garant, échéancier);
+:Service génère contrat PDF (template + données);
+:Documents/Storage stocke PDF (metadata: type, version, createdBy);
+:UI affiche lien téléchargement;
+if (Admin veut contrat vierge ?) then (oui)
+  :Service génère contrat vierge (non rempli);
+  :Documents/Storage stocke PDF vierge;
+  :UI affiche lien téléchargement vierge;
+else (non)
+endif
+stop
+@enduml
+

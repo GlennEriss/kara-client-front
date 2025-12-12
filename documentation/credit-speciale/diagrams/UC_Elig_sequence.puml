@@ -1,0 +1,34 @@
+@startuml
+title Séquence – Vérifier éligibilité (client/garant à jour CI) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "CI/Membership" as CI
+database "Repo crédits" as Repo
+
+Service -> Repo : getById
+Repo --> Service : Crédit clientId garantId
+Service -> CI : checkStatus clientId
+CI --> Service : Statut CI client à jour ou non à jour
+alt Client à jour CI
+  Service -> Service : Éligible client à jour
+else Client non à jour CI
+  Service -> CI : checkStatus garantId
+  CI --> Service : Statut CI garant à jour ou non à jour
+  alt Garant à jour CI
+    Service -> Service : Éligible garant à jour
+  else Garant non à jour CI
+    alt Dérogation admin
+      Service -> Service : Éligible avec justification dérogation
+    else Non éligible
+      Service -> Service : Non éligible client et garant non à jour
+    end
+  end
+end
+
+note right of Service
+Éligibilité : client OU garant à jour CI
+Dérogation admin possible avec justification
+end note
+
+@enduml
+

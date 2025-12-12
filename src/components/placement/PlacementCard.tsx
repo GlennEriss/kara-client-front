@@ -41,6 +41,7 @@ export default function PlacementCard({
     Active: 'Actif',
     Closed: 'Clos',
     EarlyExit: 'Sortie anticipée',
+    Canceled: 'Annulé',
   }
 
   return (

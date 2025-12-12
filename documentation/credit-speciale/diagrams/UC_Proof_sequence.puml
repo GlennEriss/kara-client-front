@@ -1,0 +1,32 @@
+@startuml
+title Séquence – Associer preuve de paiement (Payments) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo paiements" as RepoPay
+participant "Paiement / Preuves" as Pay
+participant "Documents / Storage" as Docs
+
+Admin -> UI : Téléverse preuve reçu ou capture
+UI -> Hooks : uploadProof paymentId file
+Hooks -> Service : uploadProof paymentId file
+Service -> Pay : validateProof file
+Pay --> Service : OK
+Service -> Docs : upload file
+Docs --> Service : proofUrl
+Service -> RepoPay : update payment proofUrl
+RepoPay --> Service : updated
+Service --> Hooks : Preuve associée
+Hooks --> UI : Confirmation
+UI --> Admin : Preuve associée
+
+note right of Pay
+Preuve : reçu capture image
+Validation format et taille
+Association au versement
+end note
+
+@enduml
+

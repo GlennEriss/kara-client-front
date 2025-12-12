@@ -1,0 +1,41 @@
+@startuml
+title Séquence – Calculer score fiabilité emprunteur (Système) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+database "Repo pénalités" as RepoPen
+participant "UI / Pages (Admin)" as UI
+participant "Hooks / Mediators" as Hooks
+
+== Calcul automatique après paiement ==
+Service -> Service : Détecter paiement enregistré
+Service -> Service : Charger historique paiements 6 derniers mois
+Service -> RepoPay : getByCreditId
+RepoPay --> Service : Paiements
+Service -> Service : Calculer score base 5 sur 10
+Service -> Service : Appliquer règles ponctualité retard
+Service -> RepoPen : getUnpaidPenalties
+RepoPen --> Service : Pénalités impayées
+Service -> Service : Appliquer pénalités impayées
+Service -> Service : Appliquer facteur récence 6 mois fois 0.5
+Service -> Service : Borner score 0 à 10
+Service -> Repo : update credit score scoreUpdatedAt
+Repo --> Service : updated
+
+== Affichage score Admin only ==
+UI -> Hooks : Load crédit admin
+Hooks -> Repo : getById
+Repo --> Hooks : Crédit plus score
+Hooks --> UI : Afficher badge score admin-only
+UI -> UI : Badge visible uniquement admin jamais client
+
+note right of Service
+Score 0-10 calculé automatiquement
+Règles : jour J plus1, J+1 plus0.5, avant J plus0.5, après J+1 moins0.25 par jour
+Pénalités : fin impayées moins0.5, courantes moins0.25
+Visible uniquement admin jamais client
+end note
+
+@enduml
+

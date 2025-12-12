@@ -3,14 +3,26 @@ import { PlacementRepository } from '@/repositories/placement/PlacementRepositor
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { DocumentService } from '@/services/documents/DocumentService'
 import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { NotificationService } from '@/services/notifications/NotificationService'
 
 export class PlacementService {
+  private notificationService: NotificationService
+
   constructor(
     private placementRepository: PlacementRepository,
     private documentService: DocumentService,
     private documentRepository: IDocumentRepository,
-    private memberRepository: IMemberRepository
-  ) {}
+    private memberRepository: IMemberRepository,
+    notificationService?: NotificationService // Optionnel pour éviter dépendance circulaire
+  ) {
+    // Initialiser NotificationService si non fourni
+    if (!notificationService) {
+      this.notificationService = ServiceFactory.getNotificationService()
+    } else {
+      this.notificationService = notificationService
+    }
+  }
 
   /**
    * Calcule les champs dérivés (endDate, nextCommissionDate) selon le mode et la période
@@ -203,12 +215,32 @@ export class PlacementService {
   }
 
   async payCommission(placementId: string, commissionId: string, data: Partial<CommissionPaymentPlacement>, adminId: string): Promise<CommissionPaymentPlacement> {
-    return this.placementRepository.updateCommission(placementId, commissionId, {
+    const commission = await this.placementRepository.updateCommission(placementId, commissionId, {
       ...data,
       status: data.status ?? 'Paid',
       paidAt: data.paidAt ?? new Date(),
       updatedBy: adminId,
     })
+
+    // Vérifier si toutes les commissions sont payées
+    const allCommissions = await this.placementRepository.listCommissions(placementId)
+    const allPaid = allCommissions.every(c => c.status === 'Paid')
+    
+    if (allPaid) {
+      const placement = await this.placementRepository.getById(placementId)
+      if (placement && placement.status === 'Active') {
+        // Marquer le placement comme terminé
+        await this.placementRepository.update(placementId, {
+          status: 'Closed',
+          updatedBy: adminId,
+        } as any)
+        
+        // Notifier la complétion du placement
+        await this.notifyPlacementCompleted(placement, adminId)
+      }
+    }
+    
+    return commission
   }
 
   /**
@@ -306,6 +338,8 @@ export class PlacementService {
     })
     await this.placementRepository.update(placementId, { status: 'EarlyExit', updatedBy: adminId } as any)
 
+    // Notifier la demande de retrait anticipé
+    await this.notifyEarlyExitRequest(placementId, earlyExit, adminId)
     // Générer et attacher automatiquement l'avenant de retrait anticipé
     try {
       await this.generateEarlyExitAddendum(placementId, adminId)
@@ -421,6 +455,12 @@ export class PlacementService {
     // Si on vient d'activer un placement (passage de Draft -> Active), générer les commissions
     if (documentType === 'PLACEMENT_CONTRACT' && existingPlacement?.status === 'Draft') {
       await this.generateCommissions(updatedPlacement, adminId)
+      
+      // Notifier l'activation du placement
+      await this.notifyPlacementActivated(updatedPlacement, adminId)
+      
+      // Planifier les notifications d'échéance de commissions
+      await this.scheduleCommissionReminders(updatedPlacement, adminId)
     }
 
     return {
@@ -496,6 +536,24 @@ export class PlacementService {
     })
 
     await this.recalculatePlacementCommissionStatus(placementId)
+
+    // Vérifier si toutes les commissions sont payées
+    const allCommissions = await this.placementRepository.listCommissions(placementId)
+    const allPaid = allCommissions.every(c => c.status === 'Paid')
+    
+    if (allPaid) {
+      const placement = await this.placementRepository.getById(placementId)
+      if (placement && placement.status === 'Active') {
+        // Marquer le placement comme terminé
+        await this.placementRepository.update(placementId, {
+          status: 'Closed',
+          updatedBy: adminId,
+        } as any)
+        
+        // Notifier la complétion du placement
+        await this.notifyPlacementCompleted(placement, adminId)
+      }
+    }
 
     return { documentId, commission }
   }
@@ -786,6 +844,7 @@ export class PlacementService {
     active: number
     closed: number
     earlyExit: number
+    canceled: number
     commissionsDue: number
     commissionsPaid: number
     totalCommissionsAmount: number
@@ -802,6 +861,7 @@ export class PlacementService {
       active: 0,
       closed: 0,
       earlyExit: 0,
+      canceled: 0,
       commissionsDue: 0,
       commissionsPaid: 0,
       totalCommissionsAmount: 0,
@@ -822,6 +882,7 @@ export class PlacementService {
       else if (placement.status === 'Active') stats.active++
       else if (placement.status === 'Closed') stats.closed++
       else if (placement.status === 'EarlyExit') stats.earlyExit++
+      else if (placement.status === 'Canceled') stats.canceled++
 
       if (stats.payoutModeDistribution[placement.payoutMode] === undefined) {
         stats.payoutModeDistribution[placement.payoutMode] = 0
@@ -880,6 +941,167 @@ export class PlacementService {
       hasOverdueCommission: hasOverdue,
       updatedAt: new Date(),
     } as any)
+  }
+
+  // ========== Méthodes privées de notification ==========
+
+  /**
+   * Notifie l'activation d'un placement (contrat téléversé)
+   */
+  private async notifyPlacementActivated(placement: Placement, adminId: string): Promise<void> {
+    try {
+      const member = await this.memberRepository.getMemberById(placement.benefactorId) as unknown as User | null
+      const memberName = member 
+        ? `${member.firstName || ''} ${member.lastName || ''}`.trim() 
+        : placement.benefactorName || placement.benefactorId
+
+      await this.notificationService.createNotification({
+        module: 'placement',
+        entityId: placement.id,
+        type: 'placement_activated',
+        title: 'Placement activé',
+        message: `Le placement #${placement.id.slice(0, 8)} de ${memberName} a été activé. Montant : ${placement.amount.toLocaleString('fr-FR')} FCFA, Taux : ${placement.rate}%, Période : ${placement.periodMonths} mois.`,
+        metadata: {
+          placementId: placement.id,
+          benefactorId: placement.benefactorId,
+          amount: placement.amount,
+          rate: placement.rate,
+          periodMonths: placement.periodMonths,
+          payoutMode: placement.payoutMode,
+        },
+      })
+    } catch (error) {
+      console.error('Erreur lors de la création de la notification d\'activation:', error)
+    }
+  }
+
+  /**
+   * Planifie les notifications de rappel pour chaque échéance de commission
+   */
+  private async scheduleCommissionReminders(placement: Placement, adminId: string): Promise<void> {
+    try {
+      const commissions = await this.placementRepository.listCommissions(placement.id)
+      const member = await this.memberRepository.getMemberById(placement.benefactorId) as unknown as User | null
+      const memberName = member 
+        ? `${member.firstName || ''} ${member.lastName || ''}`.trim() 
+        : placement.benefactorName || placement.benefactorId
+
+      for (const commission of commissions) {
+        // Créer une notification programmée pour J-3 (3 jours avant l'échéance)
+        const reminderDate = new Date(commission.dueDate)
+        reminderDate.setDate(reminderDate.getDate() - 3)
+
+        // Ne créer la notification que si la date de rappel est dans le futur
+        if (reminderDate > new Date()) {
+          await this.notificationService.createNotification({
+            module: 'placement',
+            entityId: placement.id,
+            type: 'commission_due_reminder',
+            title: 'Rappel : Échéance de commission',
+            message: `Échéance de commission pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Montant : ${commission.amount.toLocaleString('fr-FR')} FCFA. Date d'échéance : ${commission.dueDate.toLocaleDateString('fr-FR')}.`,
+            metadata: {
+              placementId: placement.id,
+              commissionId: commission.id,
+              benefactorId: placement.benefactorId,
+              dueDate: commission.dueDate.toISOString(),
+              amount: commission.amount,
+              daysBefore: 3,
+            },
+            scheduledAt: reminderDate,
+          })
+        }
+
+        // Optionnel : Créer une notification pour le jour J (échéance)
+        const dueDate = new Date(commission.dueDate)
+        dueDate.setHours(9, 0, 0, 0) // 9h du matin le jour de l'échéance
+
+        if (dueDate > new Date()) {
+          await this.notificationService.createNotification({
+            module: 'placement',
+            entityId: placement.id,
+            type: 'commission_due_reminder',
+            title: 'Échéance de commission aujourd\'hui',
+            message: `Échéance de commission aujourd'hui pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Montant : ${commission.amount.toLocaleString('fr-FR')} FCFA.`,
+            metadata: {
+              placementId: placement.id,
+              commissionId: commission.id,
+              benefactorId: placement.benefactorId,
+              dueDate: commission.dueDate.toISOString(),
+              amount: commission.amount,
+              daysBefore: 0,
+            },
+            scheduledAt: dueDate,
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la planification des rappels de commission:', error)
+    }
+  }
+
+  /**
+   * Notifie une demande de retrait anticipé
+   */
+  private async notifyEarlyExitRequest(
+    placementId: string,
+    earlyExit: EarlyExitPlacement,
+    adminId: string
+  ): Promise<void> {
+    try {
+      const placement = await this.placementRepository.getById(placementId)
+      if (!placement) return
+
+      const member = await this.memberRepository.getMemberById(placement.benefactorId) as unknown as User | null
+      const memberName = member 
+        ? `${member.firstName || ''} ${member.lastName || ''}`.trim() 
+        : placement.benefactorName || placement.benefactorId
+
+      await this.notificationService.createNotification({
+        module: 'placement',
+        entityId: placementId,
+        type: 'early_exit_request',
+        title: 'Demande de retrait anticipé',
+        message: `Demande de retrait anticipé pour le placement #${placement.id.slice(0, 8)} de ${memberName}. Commission due : ${earlyExit.commissionDue.toLocaleString('fr-FR')} FCFA, Montant à verser : ${earlyExit.payoutAmount.toLocaleString('fr-FR')} FCFA.`,
+        metadata: {
+          placementId: placement.id,
+          earlyExitId: earlyExit.id,
+          benefactorId: placement.benefactorId,
+          commissionDue: earlyExit.commissionDue,
+          payoutAmount: earlyExit.payoutAmount,
+          requestedAt: earlyExit.requestedAt.toISOString(),
+        },
+      })
+    } catch (error) {
+      console.error('Erreur lors de la création de la notification de retrait anticipé:', error)
+    }
+  }
+
+  /**
+   * Notifie la complétion d'un placement (toutes commissions payées)
+   */
+  private async notifyPlacementCompleted(placement: Placement, adminId: string): Promise<void> {
+    try {
+      const member = await this.memberRepository.getMemberById(placement.benefactorId) as unknown as User | null
+      const memberName = member 
+        ? `${member.firstName || ''} ${member.lastName || ''}`.trim() 
+        : placement.benefactorName || placement.benefactorId
+
+      await this.notificationService.createNotification({
+        module: 'placement',
+        entityId: placement.id,
+        type: 'placement_completed',
+        title: 'Placement terminé',
+        message: `Le placement #${placement.id.slice(0, 8)} de ${memberName} est terminé. Toutes les commissions ont été payées. Montant total : ${placement.amount.toLocaleString('fr-FR')} FCFA.`,
+        metadata: {
+          placementId: placement.id,
+          benefactorId: placement.benefactorId,
+          amount: placement.amount,
+          completedAt: new Date().toISOString(),
+        },
+      })
+    } catch (error) {
+      console.error('Erreur lors de la création de la notification de complétion:', error)
+    }
   }
 }
 

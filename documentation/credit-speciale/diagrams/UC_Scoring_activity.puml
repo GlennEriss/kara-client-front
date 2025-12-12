@@ -1,0 +1,34 @@
+@startuml
+title Activité – Calculer score fiabilité emprunteur (Système) – Crédit spéciale/fixe/aide
+start
+:Service détecte paiement enregistré;
+:Service calcule score base 5/10;
+if (Paiement jour J ?) then (oui)
+  :Score plus 1;
+else (non)
+  if (Paiement J+1 ?) then (oui)
+    :Score plus 0.5;
+  else (non)
+    if (Paiement avant J ?) then (oui)
+      :Score plus 0.5;
+    else (non)
+      if (Paiement après J+1 ?) then (oui)
+        :Score moins 0.25 fois jours retard;
+      endif
+    endif
+  endif
+endif
+if (Pénalités fin impayées ?) then (oui)
+  :Score moins 0.5;
+else (non)
+  if (Pénalités courantes ?) then (oui)
+    :Score moins 0.25;
+  endif
+endif
+:Service applique facteur récence 6 mois fois 0.5;
+:Service borne score 0-10;
+:Service enregistre score Repo;
+:Service expose score aux écrans admin badge;
+stop
+@enduml
+

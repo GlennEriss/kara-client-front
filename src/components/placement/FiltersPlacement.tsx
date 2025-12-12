@@ -26,6 +26,7 @@ const STATUS_LABELS: Record<PlacementStatus | 'all', string> = {
   Draft: 'Brouillon',
   Active: 'Actif',
   Closed: 'Clos',
+  Canceled: 'Annulé',
   EarlyExit: 'Sortie anticipée',
 }
 

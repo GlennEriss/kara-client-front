@@ -1,0 +1,9 @@
+@startuml
+title Activité – Récupérer info membre/garant (CI/Membership) – Crédit spéciale/fixe/aide
+start
+:Service demande info membre;
+:CI récupère info membre (nom, rôles, contacts);
+:CI retourne info membre;
+stop
+@enduml
+

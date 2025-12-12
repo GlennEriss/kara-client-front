@@ -1,0 +1,31 @@
+@startuml
+title Séquence – Valider les champs (Hooks) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Schemas Zod" as Schema
+
+User -> UI : Saisit données formulaire
+UI -> Hooks : validate data
+Hooks -> Schema : validate schema
+Schema --> Hooks : OK ou erreurs schema
+alt Champs valides
+  Hooks -> Hooks : Valider règles métier
+  alt Règles métier OK
+    Hooks --> UI : Validation OK
+  else Règles métier KO
+    Hooks --> UI : Erreurs règles métier
+  end
+else Champs invalides
+  Hooks --> UI : Erreurs schema
+end
+UI --> User : Résultat validation
+
+note right of Hooks
+Validation schema Zod puis règles métier
+Erreurs affichées en temps réel
+end note
+
+@enduml
+

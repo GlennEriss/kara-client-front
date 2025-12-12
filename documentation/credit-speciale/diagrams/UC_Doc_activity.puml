@@ -1,0 +1,9 @@
+@startuml
+title Activité – Notifier contrat signé / décharge (Notifications) – Crédit spéciale/fixe/aide
+start
+:Service génère contrat signé ou décharge;
+:Service déclenche notification (Notifications);
+:Notifications envoie notification (client, document disponible);
+stop
+@enduml
+

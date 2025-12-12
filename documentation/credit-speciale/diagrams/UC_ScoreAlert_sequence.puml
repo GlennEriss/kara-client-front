@@ -1,0 +1,23 @@
+@startuml
+title Séquence – Notifier admin des scores variation forte (Notifications) – Crédit spéciale/fixe/aide
+
+participant "Service Crédit spéciale" as Service
+participant "Notifications" as Notif
+actor Admin
+
+Service -> Service : Calculer score
+Service -> Service : Détecter variation forte seuil
+alt Variation forte détectée
+  Service -> Notif : score_alert admin creditId ancienScore nouveauScore variation
+  Notif -> Notif : Préparer alerte score
+  Notif --> Admin : Alerte variation score
+end
+
+note right of Notif
+Alerte si variation score importante
+Destinataire admin uniquement
+Seuil configurable
+end note
+
+@enduml
+

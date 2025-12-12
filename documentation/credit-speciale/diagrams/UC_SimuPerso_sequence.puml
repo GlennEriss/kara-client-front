@@ -1,0 +1,36 @@
+@startuml
+title Séquence – Lancer simulation personnalisée (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Ouvre demande approuvée
+UI -> Hooks : Load demande (APPROVED)
+Hooks -> Repo : getById(demandeId)
+Repo --> Hooks : Demande
+
+Admin -> UI : Saisit montants par mois (tableau variable)
+UI -> Hooks : Valider champs (somme totale)
+Hooks --> UI : OK / erreurs
+
+Admin -> UI : Clique "Lancer simulation personnalisée"
+UI -> Hooks : runCustomSimulation(montantsParMois)
+Hooks -> Service : calculateCustomSimulation(montant, taux, montantsParMois, premierVersement, creditType)
+Service : Calculer durée réelle (jusqu'à remboursement complet)
+Service : Calculer intérêts totaux
+Service : Générer tableau personnalisé (échéancier variable)
+Service : Générer tableau limite (7/3 mois standard) pour comparaison
+Service --> Hooks : Simulations (personnalisé + limite)
+Hooks --> UI : Afficher 2 tableaux
+UI --> Admin : Tableaux récap affichés
+
+note right of Service
+Tableau personnalisé : suit les montants variables
+Tableau limite : standard sur 7/3 mois pour comparaison
+end note
+
+@enduml
+

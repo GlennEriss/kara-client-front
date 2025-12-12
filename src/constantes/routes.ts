@@ -14,6 +14,7 @@ const routes = {
         membershipSubscription: (id: string) => `/memberships/${id}/subscriptions`,
         membershipFilleuls: (id: string) => `/memberships/${id}/filleuls`,
         membershipDocuments: (id: string) => `/memberships/${id}/documents`,
+        membershipRemunerations: (id: string) => `/memberships/${id}/remunerations`,
         membershipAdd: '/memberships/add',
         groups: '/groups',
         groupDetails: (id: string) => `/groups/${id}`,
@@ -32,6 +33,10 @@ const routes = {
         caisseSpecialeContractPayments: (id: string) => `/caisse-speciale/contrats/${id}/versements`,
         caisseSpecialeCreateContract: '/caisse-speciale/create',
         caisseSpecialeSettings: '/caisse-speciale/settings',
+        // Crédit spéciale (module dédié)
+        creditSpeciale: '/credit-speciale',
+        creditSpecialeDemandes: '/credit-speciale/demandes',
+        creditSpecialeContrats: '/credit-speciale/contrats',
         // Caisse Imprévue
         caisseImprevueCreateContract: '/caisse-imprevue/create',
         caisseImprevueContractDetails: (id: string) => `/caisse-imprevue/contrats/${id}`,

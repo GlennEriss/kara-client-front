@@ -1,0 +1,12 @@
+@startuml
+title Activité – Consulter historique des versements (Admin/Client) – Crédit spéciale/fixe/aide
+start
+:Admin/Client ouvre fiche crédit;
+:UI charge historique versements;
+:Hooks récupère versements (Repo);
+:Service liste versements (dates, montants, preuves, pénalités);
+:Repo exécute requête (where creditId);
+:UI affiche historique (tableau chronologique);
+stop
+@enduml
+

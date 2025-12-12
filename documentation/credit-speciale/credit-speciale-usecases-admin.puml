@@ -1,0 +1,79 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor "Équipe Kara (Admin)" as Admin
+
+usecase "Demander au client comment\nil souhaite rembourser le prêt" as UC2
+usecase "Faire une simulation\n(montant, taux, intérêts, date 1er versement)" as UC4
+usecase "Valider le prêt si simulation\n≤ 7 mois, sinon refuser" as UC5
+usecase "Proposer un montant minimum\nqui ne dépasse pas 7 mois" as UC6
+usecase "Générer 2 tableaux récapitulatifs\n(7 mois vs tarifs d'accord client)" as UC8
+usecase "Enregistrer les infos du client\n(nom, prénom, téléphone, cause)" as UC9
+usecase "Enregistrer le garant\n(membre ou admin) et lien de parenté" as UC9b
+usecase "Vérifier l'éligibilité\n(client ou garant à jour CI)" as UC10
+usecase "Générer un contrat" as UC11
+usecase "Téléverser le contrat signé\net remettre l'argent au client" as UC13
+usecase "Enregistrer les versements\n(date, heure, moyen, montant, preuve, commentaire, notation)" as UC14
+usecase "Transformer en crédit fixe\nun crédit non remboursé après 7 mois" as UC15
+usecase "Calculer les pénalités\n(règle de 3 : montant mensuel/30 × jours retard)" as UC16
+usecase "Notifier le client des pénalités\net laisser le choix de remboursement" as UC17
+usecase "Bloquer une nouvelle demande\nsi pénalités impayées en fin de contrat" as UC18
+usecase "Générer une décharge\nen fin de remboursement" as UC19
+usecase "Rémunérer le garant membre\n(2% du taux mensuel)" as UC20
+
+Admin --> UC2
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC8
+Admin --> UC9
+Admin --> UC9b
+Admin --> UC10
+Admin --> UC11
+Admin --> UC13
+Admin --> UC14
+Admin --> UC15
+Admin --> UC16
+Admin --> UC17
+Admin --> UC18
+Admin --> UC19
+Admin --> UC20
+
+note right of UC4
+  Simulation manuelle :
+  montant, taux pour voir les intérêts,
+  montant versé, date du 1er versement
+end note
+
+note right of UC5
+  Validation si simulation ≤ 7 mois
+  Refus si simulation > 7 mois
+end note
+
+note right of UC10
+  Enregistrer uniquement si :
+  - Client à jour à la caisse imprévue OU
+  - Garant à jour à la caisse imprévue
+  Refus automatique si jamais fait de module
+  sauf cas particulier accepté par l'admin
+end note
+
+note right of UC15
+  Transformation manuelle après 7 mois
+  Enlever les intérêts
+end note
+
+note right of UC16
+  Exemple : doit payer 10 000 FCFA le 9 décembre
+  et paye après 3 jours
+  Calcul : (10 000 / 30) × 3 = pénalité
+end note
+
+note right of UC20
+  Si le garant est un membre de la mutuelle,
+  il gagne 2% du taux mensuel
+end note
+
+@enduml
+

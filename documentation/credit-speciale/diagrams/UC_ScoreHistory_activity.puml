@@ -1,0 +1,10 @@
+@startuml
+title Activité – Remonter historique de fiabilité (CI/Membership) – Crédit spéciale/fixe/aide
+start
+:Service demande historique fiabilité;
+:CI récupère historique crédits précédents;
+:CI calcule historique fiabilité;
+:CI retourne historique (pour score);
+stop
+@enduml
+

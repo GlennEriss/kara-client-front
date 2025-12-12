@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
 import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeLabel } from '@/constantes/document-types'
+import { RELATIONSHIP_OPTIONS } from '@/constantes/relationship-types'
 import { getStorageInstance } from '@/firebase/storage'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { toast } from 'sonner'
@@ -21,60 +22,6 @@ interface EmergencyContactFormProps {
   emergencyContact?: EmergencyContact
   onUpdate: (field: string, value: any) => void
 }
-
-// Options pour les liens de parenté (triées par ordre alphabétique)
-const RELATIONSHIP_OPTIONS = [
-  { value: 'Ami', label: 'Ami' },
-  { value: 'Amie', label: 'Amie' },
-  { value: 'Arrière-grand-mère', label: 'Arrière-grand-mère' },
-  { value: 'Arrière-grand-père', label: 'Arrière-grand-père' },
-  { value: 'Arrière-petite-fille', label: 'Arrière-petite-fille' },
-  { value: 'Arrière-petit-fils', label: 'Arrière-petit-fils' },
-  { value: 'Autre', label: 'Autre' },
-  { value: 'Beau-fils', label: 'Beau-fils' },
-  { value: 'Beau-frère', label: 'Beau-frère' },
-  { value: 'Beau-père', label: 'Beau-père' },
-  { value: 'Belle-fille', label: 'Belle-fille' },
-  { value: 'Belle-mère', label: 'Belle-mère' },
-  { value: 'Belle-sœur', label: 'Belle-sœur' },
-  { value: 'Collègue', label: 'Collègue' },
-  { value: 'Compagne', label: 'Compagne' },
-  { value: 'Compagnon', label: 'Compagnon' },
-  { value: 'Conjointe', label: 'Conjointe' },
-  { value: 'Conjoint', label: 'Conjoint' },
-  { value: 'Cousin', label: 'Cousin' },
-  { value: 'Cousine', label: 'Cousine' },
-  { value: 'Curateur', label: 'Curateur' },
-  { value: 'Curatrice', label: 'Curatrice' },
-  { value: 'Demi-frère', label: 'Demi-frère' },
-  { value: 'Demi-sœur', label: 'Demi-sœur' },
-  { value: 'Épouse', label: 'Épouse' },
-  { value: 'Époux', label: 'Époux' },
-  { value: 'Famille d\'accueil', label: 'Famille d\'accueil' },
-  { value: 'Fiancé', label: 'Fiancé' },
-  { value: 'Fiancée', label: 'Fiancée' },
-  { value: 'Fille', label: 'Fille' },
-  { value: 'Filleul', label: 'Filleul' },
-  { value: 'Filleule', label: 'Filleule' },
-  { value: 'Frère', label: 'Frère' },
-  { value: 'Grand-mère', label: 'Grand-mère' },
-  { value: 'Grand-père', label: 'Grand-père' },
-  { value: 'Marraine', label: 'Marraine' },
-  { value: 'Mère', label: 'Mère' },
-  { value: 'Neveu', label: 'Neveu' },
-  { value: 'Nièce', label: 'Nièce' },
-  { value: 'Oncle', label: 'Oncle' },
-  { value: 'Parrain', label: 'Parrain' },
-  { value: 'Petite-fille', label: 'Petite-fille' },
-  { value: 'Petit-fils', label: 'Petit-fils' },
-  { value: 'Père', label: 'Père' },
-  { value: 'Sœur', label: 'Sœur' },
-  { value: 'Tante', label: 'Tante' },
-  { value: 'Tutrice', label: 'Tutrice' },
-  { value: 'Tuteur', label: 'Tuteur' },
-  { value: 'Voisin', label: 'Voisin' },
-  { value: 'Voisine', label: 'Voisine' }
-]
 
 export default function EmergencyContactForm({ emergencyContact, onUpdate }: EmergencyContactFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})

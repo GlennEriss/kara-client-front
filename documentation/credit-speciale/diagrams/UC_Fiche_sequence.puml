@@ -1,0 +1,28 @@
+@startuml
+title Séquence – Voir la fiche crédit (Admin/Client) – Crédit spéciale/fixe/aide
+
+actor User
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+database "Repo paiements" as RepoPay
+
+User -> UI : Ouvre fiche crédit
+UI -> Hooks : Load fiche crédit
+Hooks -> Service : getCreditDetails creditId
+Service -> Repo : getById creditId
+Repo --> Service : Crédit garantId
+Service -> RepoPay : getByCreditId creditId
+RepoPay --> Service : Versements
+Service --> Hooks : Détails crédit versements garant pénalités
+Hooks --> UI : Afficher fiche complète
+UI --> User : Fiche crédit affichée
+
+note right of Service
+Fiche inclut : montant, durée, versé, reste,
+garant, pénalités, scoring admin-only, documents
+end note
+
+@enduml
+

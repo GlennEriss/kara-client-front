@@ -1,0 +1,34 @@
+@startuml
+title Séquence – Trier par échéance la plus proche (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Ouvre écran contrats
+UI -> Hooks : Load contrats (filtres, pagination)
+Hooks -> Service : listContracts(filters, pagination)
+Service -> Repo : query where (filtres) + pagination
+Repo --> Service : Contrats
+Service --> Hooks : Contrats
+Hooks --> UI : Afficher contrats
+
+Admin -> UI : Active tri "Échéance proche"
+UI -> Hooks : setSort("nextDueAt", "ASC")
+Hooks -> UI : Sync URL (query params sortBy=nextDueAt&sortOrder=ASC)
+Hooks -> Service : listContracts(filters, pagination, sortBy="nextDueAt", sortOrder="ASC")
+Service -> Repo : query where (filtres) + orderBy nextDueAt ASC + pagination
+Repo --> Service : Contrats triés
+Service --> Hooks : Contrats triés
+Hooks --> UI : Afficher résultats triés
+UI --> Admin : Contrats triés par échéance
+
+note right of Hooks
+Tri par nextDueAt ASC (échéance la plus proche en premier)
+Sync URL garantit partage d'état
+end note
+
+@enduml
+

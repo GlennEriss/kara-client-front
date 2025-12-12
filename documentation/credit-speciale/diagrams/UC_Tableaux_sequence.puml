@@ -1,0 +1,31 @@
+@startuml
+title Séquence – Générer tableaux récap (limite vs personnalisé) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+
+Admin -> UI : Lance simulation standard ou personnalisée
+UI -> Hooks : runSimulation
+Hooks -> Service : calculateSimulation
+Service -> Service : Calculer échéancier
+Service -> Service : Générer tableau limite 7 ou 3 mois standard
+alt Simulation personnalisée
+  Service -> Service : Générer tableau personnalisé montants variables
+  Service --> Hooks : Simulations limite plus personnalisé
+  Hooks --> UI : Afficher 2 tableaux
+else Simulation standard
+  Service --> Hooks : Simulation limite uniquement
+  Hooks --> UI : Afficher tableau limite
+end
+UI --> Admin : Tableaux affichés
+
+note right of Service
+Tableau limite : standard sur 7/3 mois
+Tableau personnalisé : suit montants variables
+Comparaison possible pour décision
+end note
+
+@enduml
+

@@ -1,0 +1,26 @@
+@startuml
+title Séquence – Afficher score sur demande/contrat (Admin) – Crédit spéciale/fixe/aide
+
+actor Admin
+participant "UI / Pages" as UI
+participant "Hooks / Mediators" as Hooks
+participant "Service Crédit spéciale" as Service
+database "Repo crédits" as Repo
+
+Admin -> UI : Consulte demande ou contrat
+UI -> Hooks : Load crédit
+Hooks -> Service : getCreditWithScore creditId
+Service -> Repo : getById creditId
+Repo --> Service : Crédit score
+Service --> Hooks : Crédit score
+Hooks --> UI : Afficher badge score admin-only
+UI --> Admin : Score affiché
+
+note right of Service
+Score visible uniquement admin
+Jamais affiché au client
+Badge avec couleur selon score
+end note
+
+@enduml
+

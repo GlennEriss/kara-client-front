@@ -1,0 +1,10 @@
+@startuml
+title Activité – Vérifier statut à jour CI (CI/Membership) – Crédit spéciale/fixe/aide
+start
+:Service demande vérification statut;
+:CI récupère membre (client ou garant);
+:CI vérifie statut caisse imprévue (à jour / non à jour);
+:CI retourne statut;
+stop
+@enduml
+
