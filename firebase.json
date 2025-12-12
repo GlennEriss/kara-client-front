@@ -1,4 +1,19 @@
 {
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
   "emulators": {
     "auth": {
       "port": 9099
@@ -8,6 +23,9 @@
     },
     "storage": {
       "port": 9097
+    },
+    "functions": {
+      "port": 5001
     },
     "ui": {
       "enabled": true

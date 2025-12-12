@@ -3,11 +3,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
     getMembershipRequestsPaginated, 
-    updateMembershipRequestStatus,
     getMembershipRequestById,
     renewSecurityCode,
     updateMembershipPayment
 } from '@/db/membership.db'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
 import type { 
     MembershipRequestStatus, 
@@ -71,10 +71,11 @@ export function useMembershipRequest(requestId: string, enabled = true) {
 }
 
 /**
- * Hook pour mettre à jour le statut d'une demande d'adhésion
+ * Hook pour mettre à jour le statut d'une demande d'adhésion (avec notification)
  */
 export function useUpdateMembershipRequestStatus() {
     const queryClient = useQueryClient();
+    const membershipService = ServiceFactory.getMembershipService();
 
     return useMutation({
         mutationFn: async (params: {
@@ -85,7 +86,7 @@ export function useUpdateMembershipRequestStatus() {
             motifReject?: string;
         }) => {
             const { requestId, newStatus, reviewedBy, reviewNote, motifReject } = params;
-            const success = await updateMembershipRequestStatus(
+            const success = await membershipService.updateMembershipRequestStatus(
                 requestId,
                 newStatus,
                 reviewedBy,
@@ -106,6 +107,10 @@ export function useUpdateMembershipRequestStatus() {
             });
             queryClient.invalidateQueries({ 
                 queryKey: ['membershipRequest', variables.requestId] 
+            });
+            // Rafraîchir les notifications
+            queryClient.invalidateQueries({ 
+                queryKey: ['notifications'] 
             });
         },
         onError: (error) => {

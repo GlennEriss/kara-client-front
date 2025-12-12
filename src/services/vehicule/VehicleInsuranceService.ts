@@ -1,5 +1,7 @@
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
+import { NotificationService } from '@/services/notifications/NotificationService'
 import { VehicleInsurance, VehicleInsuranceFilters, VehicleInsuranceListResult, VehicleInsuranceStats, VehicleInsuranceStatus } from '@/types/types'
 import { VehicleInsuranceFormValues } from '@/schemas/vehicule.schema'
 
@@ -9,7 +11,11 @@ type CreatePayload = VehicleInsuranceFormValues & {
 }
 
 export class VehicleInsuranceService {
-  constructor(private readonly repository: VehicleInsuranceRepository = RepositoryFactory.getVehicleInsuranceRepository()) {}
+  private notificationService: NotificationService
+
+  constructor(private readonly repository: VehicleInsuranceRepository = RepositoryFactory.getVehicleInsuranceRepository()) {
+    this.notificationService = ServiceFactory.getNotificationService()
+  }
 
   list(filters?: VehicleInsuranceFilters, page: number = 1, pageSize: number = 12): Promise<VehicleInsuranceListResult> {
     return this.repository.list(filters, page, pageSize)
@@ -82,7 +88,34 @@ export class VehicleInsuranceService {
     // On garde les null car Firestore les accepte
     const cleanedEntity = this.removeUndefinedFields(entity)
 
-    return this.repository.create(cleanedEntity as Omit<VehicleInsurance, 'id'>)
+    const insuranceId = await this.repository.create(cleanedEntity as Omit<VehicleInsurance, 'id'>)
+
+    // Notification pour les admins : nouvelle assurance créée
+    try {
+      const holderName = payload.holderType === 'member'
+        ? `${payload.memberFirstName} ${payload.memberLastName}`
+        : `${payload.nonMemberFirstName} ${payload.nonMemberLastName}`
+      
+      await this.notificationService.createNotification({
+        module: 'vehicule',
+        entityId: insuranceId,
+        type: 'contract_created',
+        title: 'Nouvelle assurance véhicule créée',
+        message: `Une nouvelle assurance véhicule a été créée pour ${holderName}. Véhicule : ${payload.vehicleBrand} ${payload.vehicleModel} (${payload.plateNumber}).`,
+        metadata: {
+          insuranceId,
+          holderType: payload.holderType,
+          memberId: payload.holderType === 'member' ? payload.memberId : undefined,
+          plateNumber: payload.plateNumber,
+          endDate: payload.endDate.toISOString(),
+          premiumAmount: payload.premiumAmount,
+        },
+      })
+    } catch (error) {
+      console.error('Erreur lors de la création de la notification:', error)
+    }
+
+    return insuranceId
   }
 
 
@@ -195,6 +228,32 @@ export class VehicleInsuranceService {
       updatedAt: new Date(),
       updatedBy: adminId,
     })
+
+    // Notification pour les admins : assurance renouvelée
+    try {
+      const holderName = current.holderType === 'member'
+        ? `${current.memberFirstName} ${current.memberLastName}`
+        : `${current.nonMemberFirstName} ${current.nonMemberLastName}`
+      
+      await this.notificationService.createNotification({
+        module: 'vehicule',
+        entityId: id,
+        type: 'contract_created',
+        title: 'Assurance véhicule renouvelée',
+        message: `L'assurance véhicule de ${holderName} (${current.plateNumber}) a été renouvelée. Nouvelle date d'expiration : ${data.endDate.toLocaleDateString('fr-FR')}.`,
+        metadata: {
+          insuranceId: id,
+          holderType: current.holderType,
+          memberId: current.memberId,
+          plateNumber: current.plateNumber,
+          endDate: data.endDate.toISOString(),
+          premiumAmount: data.premiumAmount,
+          renewalCount,
+        },
+      })
+    } catch (error) {
+      console.error('Erreur lors de la création de la notification de renouvellement:', error)
+    }
   }
 
   async markExpired(id: string, adminId: string): Promise<void> {

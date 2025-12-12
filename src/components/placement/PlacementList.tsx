@@ -355,9 +355,19 @@ export default function PlacementList() {
     if (activeTab === 'brouillons') return filtered.filter(p => p.status === 'Draft')
     if (activeTab === 'clos') return filtered.filter(p => p.status === 'Closed')
     if (activeTab === 'early') return filtered.filter(p => p.status === 'EarlyExit')
-    // Commissions du mois / En retard : approximation (à affiner avec échéancier)
+    // Commissions du mois : placements actifs dont la prochaine échéance est dans le mois actuel
     if (activeTab === 'month') {
-      return filtered.filter(p => p.payoutMode === 'MonthlyCommission_CapitalEnd' && p.status === 'Active')
+      const now = new Date()
+      const sameMonth = (d?: any) => {
+        if (!d) return false
+        const date = typeof d === 'string' ? new Date(d) : d
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
+      }
+      return filtered.filter(p => {
+        if (p.status !== 'Active') return false
+        // Vérifier si la prochaine échéance est dans le mois actuel
+        return sameMonth((p as any).nextCommissionDate)
+      })
     }
     if (activeTab === 'late') {
       const today = new Date()

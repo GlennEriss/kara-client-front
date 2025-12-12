@@ -1,8 +1,9 @@
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation } from "@/types/types";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
 import { CreditPenaltyFilters } from "@/repositories/credit-speciale/ICreditPenaltyRepository";
+import { GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
 
 export interface ICreditSpecialeService {
     // Demandes
@@ -39,7 +40,7 @@ export interface ICreditSpecialeService {
     calculateProposedSimulation(totalAmount: number, duration: number, interestRate: number, firstPaymentDate: Date, creditType: CreditType): Promise<StandardSimulation>;
     
     // Paiements
-    createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File): Promise<CreditPayment>;
+    createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[]): Promise<CreditPayment>;
     getPaymentsByCreditId(creditId: string): Promise<CreditPayment[]>;
     getPaymentsWithFilters(filters?: CreditPaymentFilters): Promise<CreditPayment[]>;
     
@@ -48,6 +49,11 @@ export interface ICreditSpecialeService {
     createPenalty(data: Omit<CreditPenalty, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditPenalty>;
     getPenaltiesByCreditId(creditId: string): Promise<CreditPenalty[]>;
     getUnpaidPenaltiesByCreditId(creditId: string): Promise<CreditPenalty[]>;
+    
+    // Rémunération garant
+    getRemunerationsByCreditId(creditId: string): Promise<GuarantorRemuneration[]>;
+    getRemunerationsByGuarantorId(guarantorId: string): Promise<GuarantorRemuneration[]>;
+    getRemunerationsWithFilters(filters?: GuarantorRemunerationFilters): Promise<GuarantorRemuneration[]>;
     
     // Éligibilité
     checkEligibility(clientId: string, guarantorId?: string): Promise<{ eligible: boolean; reason?: string }>;

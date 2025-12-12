@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -46,13 +46,47 @@ interface CreditContractDetailProps {
   contract: CreditContract
 }
 
-// Hook personnalisé pour le carousel avec drag/swipe
-const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
+// Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
+const StatsCard = ({
+  title,
+  value,
+  subtitle,
+  color,
+  icon: Icon
+}: {
+  title: string
+  value: number | string
+  subtitle?: string
+  color: string
+  icon: React.ComponentType<any>
+}) => {
+  return (
+    <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
+      <CardContent className="p-4">
+        <div className="flex items-center space-x-3">
+          <div className={`p-2.5 rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover:scale-110`} style={{ backgroundColor: `${color}15`, color: color }}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-600 uppercase tracking-wider">{title}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-0.5">{value}</p>
+            {subtitle && (
+              <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Hook personnalisé pour le carousel avec drag/swipe (même que StatisticsCreditDemandes)
+const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [startPos, setStartPos] = useState(0)
   const [translateX, setTranslateX] = useState(0)
-  const containerRef = React.useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const maxIndex = Math.max(0, itemCount - itemsPerView)
 
@@ -69,6 +103,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
     setIsDragging(true)
     setStartPos(clientX)
   }
+  
   const handleMove = (clientX: number) => {
     if (!isDragging || !containerRef.current) return
     const diff = clientX - startPos
@@ -78,6 +113,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
     const clampedPercentage = Math.max(-maxDrag, Math.min(maxDrag, percentage))
     setTranslateX(-currentIndex * (100 / itemsPerView) + clampedPercentage)
   }
+  
   const handleEnd = () => {
     if (!isDragging || !containerRef.current) return
     const dragDistance = translateX + currentIndex * (100 / itemsPerView)
@@ -92,166 +128,151 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
     setIsDragging(false)
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => { e.preventDefault(); handleStart(e.clientX) }
-  const handleMouseMove = (e: React.MouseEvent) => { handleMove(e.clientX) }
-  const handleMouseUp = () => { handleEnd() }
   const handleTouchStart = (e: React.TouchEvent) => { handleStart(e.touches[0].clientX) }
   const handleTouchMove = (e: React.TouchEvent) => { handleMove(e.touches[0].clientX) }
   const handleTouchEnd = () => { handleEnd() }
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isDragging) return
     const handleGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX)
     const handleGlobalMouseUp = () => handleEnd()
-    const handleGlobalTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) handleMove(e.touches[0].clientX)
-    }
-    const handleGlobalTouchEnd = () => handleEnd()
-
     document.addEventListener('mousemove', handleGlobalMouseMove)
     document.addEventListener('mouseup', handleGlobalMouseUp)
-    document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false })
-    document.addEventListener('touchend', handleGlobalTouchEnd)
-
     return () => {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
-      document.removeEventListener('touchmove', handleGlobalTouchMove)
-      document.removeEventListener('touchend', handleGlobalTouchEnd)
     }
-  }, [isDragging, currentIndex, translateX, startPos])
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
 
   return {
     currentIndex,
+    goTo,
     goNext,
     goPrev,
-    goTo,
-    containerRef,
+    canGoPrev: currentIndex > 0,
+    canGoNext: currentIndex < maxIndex,
     translateX,
-    isDragging,
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
+    containerRef,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
-    canGoPrev: currentIndex > 0,
-    canGoNext: currentIndex < maxIndex,
+    isDragging,
   }
 }
 
-// Carrousel de statistiques
+// Carrousel de statistiques (même design que StatisticsCreditDemandes)
 const ContractStatsCarousel = ({ contract }: { contract: CreditContract }) => {
-  const stats = [
+  const [itemsPerView, setItemsPerView] = useState(1)
+  
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth
+      if (w >= 1280) setItemsPerView(4)
+      else if (w >= 1024) setItemsPerView(3)
+      else if (w >= 768) setItemsPerView(2)
+      else setItemsPerView(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  const statsData = [
     {
-      label: 'Montant emprunté',
+      title: 'Montant emprunté',
       value: contract.amount.toLocaleString('fr-FR'),
-      unit: 'FCFA',
-      icon: DollarSign,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: '#3b82f6',
+      icon: DollarSign
     },
     {
-      label: 'Montant versé',
+      title: 'Montant versé',
       value: contract.amountPaid.toLocaleString('fr-FR'),
-      unit: 'FCFA',
-      icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: '#10b981',
+      icon: CheckCircle
     },
     {
-      label: 'Montant restant',
+      title: 'Montant restant',
       value: contract.amountRemaining.toLocaleString('fr-FR'),
-      unit: 'FCFA',
-      icon: Clock,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      color: '#f59e0b',
+      icon: Clock
     },
     {
-      label: 'Pourcentage remboursé',
+      title: 'Pourcentage remboursé',
       value: contract.totalAmount > 0 
-        ? ((contract.amountPaid / contract.totalAmount) * 100).toFixed(1)
-        : '0',
-      unit: '%',
-      icon: TrendingUp,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+        ? `${((contract.amountPaid / contract.totalAmount) * 100).toFixed(1)}%`
+        : '0%',
+      color: '#8b5cf6',
+      icon: TrendingUp
     },
   ]
 
-  const carousel = useCarousel(stats.length, 1)
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const { 
+    currentIndex, 
+    goNext, 
+    goPrev, 
+    canGoPrev, 
+    canGoNext, 
+    translateX, 
+    containerRef, 
+    handleTouchStart, 
+    handleTouchMove, 
+    handleTouchEnd, 
+    isDragging 
+  } = useCarouselStats(statsData.length, itemsPerView)
 
   return (
-    <div className="relative w-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
-        {stats.length > 1 && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={carousel.goPrev}
-              disabled={!carousel.canGoPrev}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={carousel.goNext}
-              disabled={!carousel.canGoNext}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+    <div className="relative">
+      <div className="absolute top-1/2 -translate-y-1/2 left-0 z-10">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className={cn(
+            'h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300',
+            canGoPrev ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed'
+          )} 
+          onClick={goPrev} 
+          disabled={!canGoPrev}
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
       </div>
-      <div
-        ref={carousel.containerRef}
-        className="overflow-hidden"
-        onMouseDown={carousel.handleMouseDown}
-        onMouseMove={carousel.handleMouseMove}
-        onMouseUp={carousel.handleMouseUp}
-        onTouchStart={carousel.handleTouchStart}
-        onTouchMove={carousel.handleTouchMove}
-        onTouchEnd={carousel.handleTouchEnd}
-        style={{
-          cursor: carousel.isDragging ? 'grabbing' : 'grab',
-          touchAction: 'pan-y',
-        }}
+      <div className="absolute top-1/2 -translate-y-1/2 right-0 z-10">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className={cn(
+            'h-10 w-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border-0 transition-all duration-300',
+            canGoNext ? 'hover:bg-white hover:scale-110 text-gray-700' : 'opacity-50 cursor-not-allowed'
+          )} 
+          onClick={goNext} 
+          disabled={!canGoNext}
+        >
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      </div>
+      <div 
+        ref={containerRef} 
+        className="ml-8 mr-8 overflow-hidden py-2" 
+        onTouchStart={handleTouchStart} 
+        onTouchMove={handleTouchMove} 
+        onTouchEnd={handleTouchEnd}
       >
-        <div
-          className="flex transition-transform duration-300 ease-out"
-          style={{
-            transform: `translateX(${carousel.translateX}%)`,
+        <div 
+          className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} 
+          style={{ 
+            transform: `translateX(${translateX}%)`, 
+            cursor: isDragging ? 'grabbing' : 'grab' 
           }}
         >
-          {stats.map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <div key={index} className="w-full flex-shrink-0 px-2">
-                <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-bold text-gray-900">{stat.value}</span>
-                          <span className="text-sm text-gray-500">{stat.unit}</span>
-                        </div>
-                      </div>
-                      <div className={cn('p-3 rounded-full', stat.bgColor)}>
-                        <Icon className={cn('h-6 w-6', stat.color)} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )
-          })}
+          {statsData.map((stat, index) => (
+            <div 
+              key={index} 
+              className="flex-shrink-0" 
+              style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}
+            >
+              <StatsCard {...stat} />
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -323,8 +344,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           </Badge>
         </div>
 
-        {/* Carrousel de statistiques */}
-        <ContractStatsCarousel contract={contract} />
+        {/* Statistiques */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
+          <ContractStatsCarousel contract={contract} />
+        </div>
 
         {/* Informations principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
