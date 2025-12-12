@@ -9,10 +9,14 @@ export class PlacementRepository implements IRepository {
 
   private collectionName = firebaseCollectionNames.placements || 'placements'
 
-  async create(data: Omit<Placement, 'id' | 'createdAt' | 'updatedAt'>): Promise<Placement> {
-    const { collection, addDoc, db, serverTimestamp, doc, getDoc } = await getFirestore()
-    const colRef = collection(db, this.collectionName)
-    const docRef = await addDoc(colRef, {
+  async create(data: Omit<Placement, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<Placement> {
+    const { doc, setDoc, db, serverTimestamp, getDoc } = await getFirestore()
+    
+    // Utiliser l'ID personnalisé fourni, sinon générer un ID automatique
+    const placementId = customId || `placement_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const docRef = doc(db, this.collectionName, placementId)
+    
+    await setDoc(docRef, {
       ...data,
       amount: Number((data as any).amount) || 0,
       rate: Number((data as any).rate) || 0,
@@ -20,7 +24,8 @@ export class PlacementRepository implements IRepository {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
-    const snap = await getDoc(doc(db, this.collectionName, docRef.id))
+    
+    const snap = await getDoc(docRef)
     const payload = snap.data()
     if (!payload) throw new Error('Placement introuvable après création')
     return {
@@ -69,6 +74,8 @@ export class PlacementRepository implements IRepository {
       amount: Number((d as any).amount) || 0,
       rate: Number((d as any).rate) || 0,
       periodMonths: Number((d as any).periodMonths) || 0,
+      startDate: d.startDate?.toDate ? d.startDate.toDate() : d.startDate,
+      endDate: d.endDate?.toDate ? d.endDate.toDate() : d.endDate,
       nextCommissionDate: d?.nextCommissionDate?.toDate ? d.nextCommissionDate.toDate() : d?.nextCommissionDate,
       hasOverdueCommission: d.hasOverdueCommission ?? false,
       finalQuittanceDocumentId: d.finalQuittanceDocumentId,

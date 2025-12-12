@@ -58,6 +58,10 @@ Ce document décrit **les fonctionnalités à implémenter** pour le système de
     - Modifier `MembershipService` pour créer des notifications lors de la création/mise à jour de demandes
     - Tester le flux complet
     - **Documentation** : Voir [`NF7_INTEGRATION_MEMBERSHIP_SERVICE.md`](./NF7_INTEGRATION_MEMBERSHIP_SERVICE.md) pour les détails d'implémentation
+  - **Placement** :
+    - Voir la documentation dédiée : [`../placement/placement.md`](../placement/placement.md) et la note d'intégration : [`NF8_INTEGRATION_PLACEMENT_SERVICE.md`](./NF8_INTEGRATION_PLACEMENT_SERVICE.md)
+    - Implémenter les notifications : activation placement, rappel échéance commission (due/overdue), sortie anticipée, clôture
+    - Traçabilité : createdBy/updatedBy, IDs placement/commission, canal utilisé
   - **Véhicules** : (à venir)
   - **Caisse Spéciale** : (à venir)
   - **Bienfaiteur** : (à venir)

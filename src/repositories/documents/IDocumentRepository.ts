@@ -46,7 +46,7 @@ export interface PaginatedDocuments {
 }
 
 export interface IDocumentRepository extends IRepository {
-    createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document>;
+    createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<Document>;
     getDocumentById(id: string): Promise<Document | null>;
     getDocumentsByContractId(contractId: string): Promise<Document[]>;
     getDocumentsByMemberId(memberId: string): Promise<Document[]>;

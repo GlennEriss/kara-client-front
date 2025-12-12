@@ -3,16 +3,19 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Clock, CheckCircle, DollarSign, AlertCircle, Trash2, ExternalLink, Phone, User } from 'lucide-react'
+import { Clock, CheckCircle, DollarSign, AlertCircle, Trash2, ExternalLink, Phone, User, Upload, FileText, Eye, Edit } from 'lucide-react'
 import type { Placement, CommissionPaymentPlacement } from '@/types/types'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 
 interface PlacementCardProps {
   placement: Placement
-  onDetailsClick: () => void
+  onDetailsClick?: () => void
   onPayCommissionClick: (commissionId: string) => void
   onDeleteClick?: () => void
   onOpenClick?: () => void
+  onUploadContractClick?: () => void
+  onViewContractClick?: () => void
+  onEditClick?: () => void
 }
 
 export default function PlacementCard({
@@ -21,6 +24,9 @@ export default function PlacementCard({
   onPayCommissionClick,
   onDeleteClick,
   onOpenClick,
+  onUploadContractClick,
+  onViewContractClick,
+  onEditClick,
 }: PlacementCardProps) {
   const { data: commissions = [] } = usePlacementCommissions(placement.id)
   
@@ -168,7 +174,7 @@ export default function PlacementCard({
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-gray-400" />
             <div>
-              <p className="text-xs text-gray-500">Mode</p>
+              <p className="text-xs text-gray-500">Type</p>
               <p className="font-bold text-gray-800 text-xs">
                 {placement.payoutMode === 'MonthlyCommission_CapitalEnd' ? 'Mensuel' : 'Final'}
               </p>
@@ -176,7 +182,7 @@ export default function PlacementCard({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-2 flex-wrap">
           {placement.status === 'Active' && onOpenClick && (
             <Button
               size="sm"
@@ -186,6 +192,17 @@ export default function PlacementCard({
             >
               <ExternalLink className="w-4 h-4 mr-1" />
               Ouvrir
+            </Button>
+          )}
+          {placement.status === 'Draft' && onEditClick && (
+            <Button
+              size="sm"
+              variant="default"
+              className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={onEditClick}
+            >
+              <Edit className="w-4 h-4 mr-1" />
+              Modifier
             </Button>
           )}
           {placement.status === 'Draft' && onDeleteClick && (
@@ -199,14 +216,41 @@ export default function PlacementCard({
               Supprimer
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="secondary"
-            className="text-xs"
-            onClick={onDetailsClick}
-          >
-            Détails
-          </Button>
+          {/* Bouton Téléverser le contrat si pas de contrat */}
+          {!placement.contractDocumentId && onUploadContractClick && (
+            <Button
+              size="sm"
+              variant="default"
+              className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={onUploadContractClick}
+            >
+              <Upload className="w-4 h-4 mr-1" />
+              Téléverser
+            </Button>
+          )}
+          {/* Bouton Voir le document si contrat existe */}
+          {placement.contractDocumentId && onViewContractClick && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={onViewContractClick}
+            >
+              <Eye className="w-4 h-4 mr-1" />
+              Voir le document
+            </Button>
+          )}
+          {/* Bouton Détails seulement pour les placements actifs avec contrat (pour voir commissions, etc.) */}
+          {placement.status === 'Active' && placement.contractDocumentId && onDetailsClick && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="text-xs"
+              onClick={onDetailsClick}
+            >
+              Détails
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
