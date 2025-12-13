@@ -37,7 +37,7 @@ export interface CreditContractStats {
 }
 
 export interface ICreditContractRepository extends IRepository {
-    createContract(data: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditContract>;
+    createContract(data: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CreditContract>;
     getContractById(id: string): Promise<CreditContract | null>;
     getAllContracts(): Promise<CreditContract[]>;
     getContractsWithFilters(filters?: CreditContractFilters): Promise<CreditContract[]>;

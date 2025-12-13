@@ -197,7 +197,7 @@ export const creditPaymentModeEnum = z.enum(['CASH', 'MOBILE_MONEY', 'BANK_TRANS
 export const creditPaymentSchema = z.object({
   creditId: z.string().min(1, 'L\'ID du crédit est requis'),
   amount: z.number()
-    .min(100, 'Le montant minimum est de 100 FCFA')
+    .min(0, 'Le montant ne peut pas être négatif')
     .max(10000000, 'Le montant maximum est de 10 000 000 FCFA'),
   paymentDate: z.date(),
   paymentTime: z.string()

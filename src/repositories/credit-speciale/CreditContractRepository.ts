@@ -7,9 +7,9 @@ const getFirestore = () => import("@/firebase/firestore");
 export class CreditContractRepository implements ICreditContractRepository {
     readonly name = "CreditContractRepository";
 
-    async createContract(data: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditContract> {
+    async createContract(data: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CreditContract> {
         try {
-            const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, doc, setDoc, db, serverTimestamp } = await getFirestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -18,13 +18,17 @@ export class CreditContractRepository implements ICreditContractRepository {
                 }
             });
 
-            const docRef = await addDoc(collection(db, firebaseCollectionNames.creditContracts || "creditContracts"), {
+            // Utiliser l'ID personnalisé si fourni, sinon générer un ID automatique
+            const contractId = customId || doc(collection(db, firebaseCollectionNames.creditContracts || "creditContracts")).id;
+            const contractRef = doc(db, firebaseCollectionNames.creditContracts || "creditContracts", contractId);
+
+            await setDoc(contractRef, {
                 ...cleanData,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
 
-            const created = await this.getContractById(docRef.id);
+            const created = await this.getContractById(contractId);
             if (!created) {
                 throw new Error("Erreur lors de la récupération du contrat créé");
             }

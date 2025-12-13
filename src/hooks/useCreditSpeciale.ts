@@ -7,6 +7,7 @@ import type {
     CreditContract, 
     CreditPayment, 
     CreditPenalty,
+    CreditInstallment,
     GuarantorRemuneration,
     CreditDemandStatus,
     CreditContractStatus,
@@ -230,6 +231,19 @@ export function useCreditContractMutations() {
     return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract }
 }
 
+// ==================== ÉCHÉANCES (INSTALLMENTS) ====================
+
+export function useCreditInstallmentsByCreditId(creditId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery<CreditInstallment[]>({
+        queryKey: ['creditInstallments', 'creditId', creditId],
+        queryFn: () => service.getInstallmentsByCreditId(creditId),
+        enabled: !!creditId,
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
 // ==================== PAIEMENTS ====================
 
 export function useCreditPayments(filters?: CreditPaymentFilters) {
@@ -326,6 +340,19 @@ export function useGuarantorRemunerationsByGuarantorId(guarantorId: string) {
         queryKey: ['guarantorRemunerations', 'guarantorId', guarantorId],
         queryFn: () => service.getRemunerationsByGuarantorId(guarantorId),
         enabled: !!guarantorId,
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
+// ==================== HISTORIQUE ====================
+
+export function useCreditHistory(contractId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery({
+        queryKey: ['creditHistory', contractId],
+        queryFn: () => service.getCreditHistory(contractId),
+        enabled: !!contractId,
         staleTime: 2 * 60 * 1000,
     })
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -8,6 +8,7 @@ const overdueCommissions_1 = require("./scheduled/overdueCommissions");
 const creditPaymentDue_1 = require("./scheduled/creditPaymentDue");
 const ciPaymentDue_1 = require("./scheduled/ciPaymentDue");
 const vehicleInsuranceExpiring_1 = require("./scheduled/vehicleInsuranceExpiring");
+const transformCreditSpeciale_1 = require("./scheduled/transformCreditSpeciale");
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
 exports.dailyBirthdayNotifications = (0, scheduler_1.onSchedule)({
@@ -73,6 +74,17 @@ exports.dailyVehicleInsuranceExpiring = (0, scheduler_1.onSchedule)({
 }, async (event) => {
     console.log('Démarrage du job quotidien pour les assurances véhicules qui expirent');
     await (0, vehicleInsuranceExpiring_1.checkAndNotifyVehicleInsuranceExpiring)();
+    console.log('Job terminé avec succès');
+});
+// Job quotidien à 11h00 pour transformer les crédits spéciaux en crédit fixe après 7 mois
+exports.dailyTransformCreditSpeciale = (0, scheduler_1.onSchedule)({
+    schedule: '0 11 * * *', // 11h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+}, async (event) => {
+    console.log('Démarrage du job quotidien pour la transformation des crédits spéciaux en crédit fixe');
+    await (0, transformCreditSpeciale_1.transformCreditSpecialeToFixe)();
     console.log('Job terminé avec succès');
 });
 //# sourceMappingURL=index.js.map

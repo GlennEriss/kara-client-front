@@ -5,6 +5,7 @@ import { checkAndNotifyOverdueCommissions } from './scheduled/overdueCommissions
 import { checkAndNotifyCreditPaymentDue } from './scheduled/creditPaymentDue'
 import { checkAndNotifyCIPaymentDue } from './scheduled/ciPaymentDue'
 import { checkAndNotifyVehicleInsuranceExpiring } from './scheduled/vehicleInsuranceExpiring'
+import { transformCreditSpecialeToFixe } from './scheduled/transformCreditSpeciale'
 
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
@@ -93,6 +94,21 @@ export const dailyVehicleInsuranceExpiring = onSchedule(
   async (event) => {
     console.log('Démarrage du job quotidien pour les assurances véhicules qui expirent')
     await checkAndNotifyVehicleInsuranceExpiring()
+    console.log('Job terminé avec succès')
+  }
+)
+
+// Job quotidien à 11h00 pour transformer les crédits spéciaux en crédit fixe après 7 mois
+export const dailyTransformCreditSpeciale = onSchedule(
+  {
+    schedule: '0 11 * * *', // 11h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+  },
+  async (event) => {
+    console.log('Démarrage du job quotidien pour la transformation des crédits spéciaux en crédit fixe')
+    await transformCreditSpecialeToFixe()
     console.log('Job terminé avec succès')
   }
 )

@@ -1,4 +1,4 @@
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
@@ -39,6 +39,9 @@ export interface ICreditSpecialeService {
     calculateCustomSimulation(amount: number, interestRate: number, monthlyPayments: Array<{ month: number; amount: number }>, firstPaymentDate: Date, creditType: CreditType): Promise<CustomSimulation>;
     calculateProposedSimulation(totalAmount: number, duration: number, interestRate: number, firstPaymentDate: Date, creditType: CreditType): Promise<StandardSimulation>;
     
+    // Échéances (Installments)
+    getInstallmentsByCreditId(creditId: string): Promise<CreditInstallment[]>;
+    
     // Paiements
     createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[]): Promise<CreditPayment>;
     getPaymentsByCreditId(creditId: string): Promise<CreditPayment[]>;
@@ -49,6 +52,7 @@ export interface ICreditSpecialeService {
     createPenalty(data: Omit<CreditPenalty, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditPenalty>;
     getPenaltiesByCreditId(creditId: string): Promise<CreditPenalty[]>;
     getUnpaidPenaltiesByCreditId(creditId: string): Promise<CreditPenalty[]>;
+    checkAndCreateMissingPenalties(creditId: string): Promise<void>;
     
     // Rémunération garant
     getRemunerationsByCreditId(creditId: string): Promise<GuarantorRemuneration[]>;
@@ -57,5 +61,14 @@ export interface ICreditSpecialeService {
     
     // Éligibilité
     checkEligibility(clientId: string, guarantorId?: string): Promise<{ eligible: boolean; reason?: string }>;
+    
+    // Historique
+    getCreditHistory(contractId: string): Promise<{
+        demand: CreditDemand | null;
+        contract: CreditContract | null;
+        payments: CreditPayment[];
+        penalties: CreditPenalty[];
+        notifications: Notification[];
+    }>;
 }
 
