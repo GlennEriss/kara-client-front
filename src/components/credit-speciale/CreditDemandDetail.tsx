@@ -108,9 +108,27 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
   const { data: contract, isLoading: isLoadingContract } = useCreditContract(demand.contractId || '')
 
   const statusConfig = getStatusConfig(demand.status)
-  const formatDate = (date: Date | undefined) => {
+  const formatDate = (date: Date | undefined | null | any) => {
     if (!date) return 'N/A'
-    return format(new Date(date), 'dd MMMM yyyy', { locale: fr })
+    try {
+      // Handle Firestore Timestamps
+      if (date && typeof date.toDate === 'function') {
+        const dateObj = date.toDate()
+        if (isNaN(dateObj.getTime())) {
+          return 'Date invalide'
+        }
+        return format(dateObj, 'dd MMMM yyyy', { locale: fr })
+      }
+      // Handle Date objects or date strings/numbers
+      const dateObj = date instanceof Date ? date : new Date(date)
+      if (isNaN(dateObj.getTime())) {
+        return 'Date invalide'
+      }
+      return format(dateObj, 'dd MMMM yyyy', { locale: fr })
+    } catch (error) {
+      console.error('Error formatting date:', error, date)
+      return 'Date invalide'
+    }
   }
 
   // Calculer l'échéancier à partir du contrat
@@ -139,22 +157,26 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
       const interest = remaining * monthlyRate
       const balanceWithInterest = remaining + interest
       
+      // paymentAmount représente le capital (mensualité de base), le montant total à payer = capital + intérêts
       let payment: number
       if (remaining < paymentAmount) {
         payment = balanceWithInterest // Payer le montant global complet
         remaining = 0
       } else {
-        payment = paymentAmount
+        // Le montant total à payer = capital (paymentAmount) + intérêts
+        const totalPaymentAmount = paymentAmount + interest
+        // S'assurer qu'on ne dépasse pas balanceWithInterest
+        payment = Math.min(totalPaymentAmount, balanceWithInterest)
         remaining = Math.max(0, balanceWithInterest - payment)
       }
 
       items.push({
         month: i + 1,
         date,
-        payment: customRound(payment),
-        interest: customRound(interest),
-        principal: customRound(balanceWithInterest),
-        remaining: customRound(remaining),
+        payment: customRound(payment), // Montant total à payer (capital + intérêts) - affiché dans "Mensualité"
+        interest: customRound(interest), // Intérêts - affiché dans "Intérêts"
+        principal: customRound(balanceWithInterest), // Montant global avant paiement - affiché dans "Montant global"
+        remaining: customRound(remaining), // Reste dû après paiement
       })
     }
 
@@ -177,7 +199,9 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
       for (let month = 0; month < 7; month++) {
         const interest = testRemaining * monthlyRate
         const balanceWithInterest = testRemaining + interest
-        const payment = Math.min(testPayment, balanceWithInterest)
+        // testPayment représente le capital, le montant total à payer = capital + intérêts
+        const totalPaymentAmount = testPayment + interest
+        const payment = Math.min(totalPaymentAmount, balanceWithInterest)
         testRemaining = balanceWithInterest - payment
         
         if (testRemaining < 1) {

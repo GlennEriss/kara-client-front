@@ -1,9 +1,10 @@
 import { ICreditSpecialeService } from "./ICreditSpecialeService";
-import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation } from "@/types/types";
+import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInstallment, GuarantorRemuneration, CreditDemandStatus, CreditContractStatus, CreditType, StandardSimulation, CustomSimulation, Notification } from "@/types/types";
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { ICreditPaymentRepository, CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
 import { ICreditPenaltyRepository, CreditPenaltyFilters } from "@/repositories/credit-speciale/ICreditPenaltyRepository";
+import { ICreditInstallmentRepository } from "@/repositories/credit-speciale/ICreditInstallmentRepository";
 import { IGuarantorRemunerationRepository, GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
 import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
@@ -22,6 +23,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     private memberRepository: IMemberRepository;
     private documentRepository: IDocumentRepository;
 
+    private creditInstallmentRepository: ICreditInstallmentRepository;
+
     constructor(
         private creditDemandRepository: ICreditDemandRepository,
         private creditContractRepository: ICreditContractRepository,
@@ -34,6 +37,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         this.paymentCIRepository = RepositoryFactory.getPaymentCIRepository();
         this.memberRepository = RepositoryFactory.getMemberRepository();
         this.documentRepository = RepositoryFactory.getDocumentRepository();
+        this.creditInstallmentRepository = RepositoryFactory.getCreditInstallmentRepository();
     }
 
     // ==================== DEMANDES ====================
@@ -63,7 +67,17 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Générer l'ID au format: MK_DEMANDE_CSP_matricule_date_heure
         const customId = `MK_DEMANDE_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
 
-        const demand = await this.creditDemandRepository.createDemand(data, customId);
+        // Calculer le score initial basé sur l'historique des crédits précédents
+        const initialScore = await this.calculateInitialScore(data.clientId);
+
+        // Ajouter le score initial à la demande
+        const demandData = {
+            ...data,
+            score: initialScore,
+            scoreUpdatedAt: new Date(),
+        };
+
+        const demand = await this.creditDemandRepository.createDemand(demandData, customId);
         
         // Notification pour les admins
         try {
@@ -187,6 +201,35 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const nextDueAt = new Date(simulationData.firstPaymentDate);
         nextDueAt.setMonth(nextDueAt.getMonth() + 1);
 
+        // Utiliser le score de la demande s'il existe, sinon calculer le score initial basé sur l'historique
+        const initialScore = demand.score !== undefined && demand.score !== null
+            ? demand.score
+            : await this.calculateInitialScore(demand.clientId);
+
+        // Générer l'ID personnalisé au format: MK_CSP_matricule_date_heure
+        const member = await this.memberRepository.getMemberById(demand.clientId);
+        if (!member || !member.matricule) {
+            throw new Error('Membre non trouvé ou matricule manquant');
+        }
+
+        // Extraire la partie numérique du matricule (ex: "0001" depuis "0001.MK.040825")
+        const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
+        const matriculeFormatted = matriculePart.padStart(4, '0');
+
+        // Générer la date et l'heure au format demandé
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = String(now.getFullYear()).slice(-2);
+        const dateFormatted = `${day}${month}${year}`;
+        
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const timeFormatted = `${hours}${minutes}`;
+
+        // Générer l'ID au format: MK_CSP_matricule_date_heure
+        const customContractId = `MK_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+
         const contract: Omit<CreditContract, 'id' | 'createdAt' | 'updatedAt'> = {
             demandId: demand.id,
             clientId: demand.clientId,
@@ -204,6 +247,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             status: 'PENDING',
             amountPaid: 0,
             amountRemaining: simulationData.totalAmount,
+            score: initialScore,
+            scoreUpdatedAt: new Date(),
             guarantorId: demand.guarantorId,
             guarantorFirstName: demand.guarantorFirstName,
             guarantorLastName: demand.guarantorLastName,
@@ -216,7 +261,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             updatedBy: adminId,
         };
 
-        const createdContract = await this.creditContractRepository.createContract(contract);
+        const createdContract = await this.creditContractRepository.createContract(contract, customContractId);
+
+        // Générer les échéances pour ce contrat
+        await this.generateInstallmentsForContract(createdContract, adminId);
 
         // Mettre à jour la demande avec l'ID du contrat (relation 1:1)
         await this.creditDemandRepository.updateDemand(demandId, {
@@ -598,6 +646,71 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         };
     }
 
+    // ==================== ÉCHÉANCES (INSTALLMENTS) ====================
+
+    /**
+     * Génère toutes les échéances pour un contrat de crédit
+     */
+    async generateInstallmentsForContract(contract: CreditContract, adminId: string): Promise<CreditInstallment[]> {
+        const monthlyRate = contract.interestRate / 100;
+        const firstDate = new Date(contract.firstPaymentDate);
+        const paymentAmount = contract.monthlyPaymentAmount;
+        const duration = contract.duration;
+        
+        let remaining = contract.amount;
+        const installments: Array<Omit<CreditInstallment, 'id' | 'createdAt' | 'updatedAt'>> = [];
+
+        for (let i = 0; i < duration; i++) {
+            if (remaining <= 0 && contract.creditType !== 'SPECIALE') break;
+
+            const dueDate = new Date(firstDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            const interest = remaining * monthlyRate;
+            const balanceWithInterest = remaining + interest;
+            
+            // paymentAmount représente le capital (mensualité de base), le montant total à payer = capital + intérêts
+            let principalAmount: number;
+            let totalAmount: number;
+            
+            if (remaining < paymentAmount) {
+                // Dernière échéance ou solde restant inférieur à la mensualité
+                totalAmount = balanceWithInterest;
+                principalAmount = remaining;
+                remaining = 0;
+            } else {
+                // Le montant total à payer = capital (paymentAmount) + intérêts
+                const totalPaymentAmount = paymentAmount + interest;
+                // S'assurer qu'on ne dépasse pas balanceWithInterest
+                totalAmount = Math.min(totalPaymentAmount, balanceWithInterest);
+                principalAmount = paymentAmount; // Le capital est toujours paymentAmount
+                remaining = Math.max(0, balanceWithInterest - totalAmount);
+            }
+
+            // Arrondir pour éviter les erreurs de virgule flottante
+            if (remaining < 1) {
+                remaining = 0;
+            }
+
+            installments.push({
+                creditId: contract.id,
+                installmentNumber: i + 1,
+                dueDate,
+                principalAmount: Math.round(principalAmount),
+                interestAmount: Math.round(interest),
+                totalAmount: Math.round(totalAmount),
+                paidAmount: 0,
+                remainingAmount: Math.round(totalAmount),
+                status: i === 0 ? 'DUE' : 'PENDING',
+                createdBy: adminId,
+                updatedBy: adminId,
+            });
+        }
+
+        return await this.creditInstallmentRepository.createInstallments(installments);
+    }
+
     // ==================== PAIEMENTS ====================
 
     async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[]): Promise<CreditPayment> {
@@ -647,40 +760,195 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
         }
 
-        // Créer le paiement avec l'URL de la preuve et la référence
+        // Récupérer toutes les échéances pour ce contrat
+        let installments = await this.creditInstallmentRepository.getInstallmentsByCreditId(contract.id);
+        
+        // Si aucune échéance n'existe, les générer automatiquement
+        if (installments.length === 0) {
+            console.warn(`Aucune échéance trouvée pour le contrat ${contract.id}. Génération automatique des échéances...`);
+            installments = await this.generateInstallmentsForContract(contract, data.createdBy);
+            
+            if (installments.length === 0) {
+                throw new Error('Impossible de générer les échéances pour ce contrat. Veuillez vérifier les paramètres du contrat.');
+            }
+        }
+
+        // Trouver l'échéance en cours (la première non payée)
+        const currentInstallment = installments.find(i => i.status !== 'PAID' && i.remainingAmount > 0) || installments[0];
+        
+        // Créer le paiement avec l'URL de la preuve, la référence et l'ID de l'échéance
         const paymentData = {
             ...data,
+            installmentId: currentInstallment.id,
             proofUrl,
             reference,
+            principalAmount: 0, // Sera calculé lors de l'application du paiement
+            interestAmount: 0, // Sera calculé lors de l'application du paiement
+            penaltyAmount: 0, // Sera calculé si des pénalités sont payées
         };
         const payment = await this.creditPaymentRepository.createPayment(paymentData);
         
-        // Mettre à jour le contrat et calculer le score
-        if (contract) {
-            const newAmountPaid = contract.amountPaid + payment.amount;
-            const newAmountRemaining = contract.totalAmount - newAmountPaid;
-            
-            let newStatus = contract.status;
-            if (newAmountRemaining <= 0) {
-                newStatus = 'DISCHARGED';
-            } else if (newAmountPaid > 0 && newAmountPaid < contract.totalAmount) {
-                newStatus = 'PARTIAL';
+        // Traiter le paiement sur les échéances
+        const isPenaltyOnlyPayment = payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement');
+        let remainingPaymentAmount = isPenaltyOnlyPayment ? 0 : payment.amount;
+        let totalPrincipalPaid = 0;
+        let totalInterestPaid = 0;
+        let targetInstallment: CreditInstallment | null = currentInstallment;
+
+        // Si ce n'est pas un paiement de pénalités uniquement, appliquer le paiement aux échéances
+        if (!isPenaltyOnlyPayment && remainingPaymentAmount > 0) {
+            // Trouver l'échéance à payer (celle qui est due ou en retard)
+            const paymentDate = new Date(payment.paymentDate);
+            paymentDate.setHours(0, 0, 0, 0);
+
+            // Chercher l'échéance due ou en retard
+            const overdueOrDueInstallments = installments
+                .filter(i => i.status !== 'PAID' && i.remainingAmount > 0)
+                .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+            if (overdueOrDueInstallments.length > 0) {
+                targetInstallment = overdueOrDueInstallments[0];
+                
+                // Appliquer le paiement à cette échéance et aux suivantes si nécessaire
+                for (const installment of overdueOrDueInstallments) {
+                    if (remainingPaymentAmount <= 0) break;
+
+                    const amountToPay = Math.min(remainingPaymentAmount, installment.remainingAmount);
+                    
+                    // Calculer combien d'intérêts et de principal ont déjà été payés
+                    const interestPaid = Math.min(installment.paidAmount, installment.interestAmount);
+                    const principalPaid = Math.max(0, installment.paidAmount - installment.interestAmount);
+                    
+                    // Calculer combien d'intérêts et de principal restent à payer
+                    const interestRemaining = Math.max(0, installment.interestAmount - interestPaid);
+                    const principalRemaining = installment.remainingAmount - interestRemaining;
+                    
+                    // Payer d'abord les intérêts restants, puis le principal
+                    const interestPart = Math.min(amountToPay, interestRemaining);
+                    const principalPart = Math.min(amountToPay - interestPart, principalRemaining);
+
+                    totalPrincipalPaid += principalPart;
+                    totalInterestPaid += interestPart;
+                    remainingPaymentAmount -= amountToPay;
+
+                    const newPaidAmount = installment.paidAmount + amountToPay;
+                    const newRemainingAmount = installment.remainingAmount - amountToPay;
+                    let newStatus: CreditInstallment['status'] = installment.status;
+
+                    if (newRemainingAmount <= 0) {
+                        newStatus = 'PAID';
+                    } else if (newPaidAmount > 0) {
+                        newStatus = 'PARTIAL';
+                    }
+
+                    await this.creditInstallmentRepository.updateInstallment(installment.id, {
+                        paidAmount: newPaidAmount,
+                        remainingAmount: newRemainingAmount,
+                        status: newStatus,
+                        paidAt: newRemainingAmount <= 0 ? new Date() : undefined,
+                        paymentId: newRemainingAmount <= 0 ? payment.id : undefined,
+                        updatedBy: data.createdBy,
+                    });
+                }
+                
+                // Mettre à jour le paiement avec les montants totaux (principal + intérêts) pour toutes les échéances payées
+                await this.creditPaymentRepository.updatePayment(payment.id, {
+                    installmentId: targetInstallment.id,
+                    principalAmount: totalPrincipalPaid,
+                    interestAmount: totalInterestPaid,
+                });
+            }
+        }
+
+        // Traiter les pénalités si sélectionnées
+        let totalPenaltyAmount = 0;
+        if (penaltyIds && penaltyIds.length > 0) {
+            for (const penaltyId of penaltyIds) {
+                const penalty = await this.creditPenaltyRepository.getPenaltyById(penaltyId);
+                if (penalty && !penalty.paid) {
+                    totalPenaltyAmount += penalty.amount;
+                    await this.creditPenaltyRepository.updatePenalty(penaltyId, {
+                        paid: true,
+                        paidAt: new Date(),
+                        paymentId: payment.id,
+                        updatedBy: data.createdBy,
+                    });
+                }
+            }
+            // Mettre à jour le paiement avec le montant des pénalités
+            await this.creditPaymentRepository.updatePayment(payment.id, {
+                penaltyAmount: totalPenaltyAmount,
+            });
+        }
+
+        // Calculer et créer les pénalités pour l'échéance payée si nécessaire
+        if (targetInstallment && !isPenaltyOnlyPayment) {
+            await this.checkAndCreatePenaltiesForInstallment(targetInstallment, payment);
+        }
+
+        // Mettre à jour le contrat avec les totaux
+        const allInstallments = await this.creditInstallmentRepository.getInstallmentsByCreditId(contract.id);
+        const totalPaid = allInstallments.reduce((sum, i) => sum + i.paidAmount, 0);
+        const totalRemaining = allInstallments.reduce((sum, i) => sum + i.remainingAmount, 0);
+        
+        let newStatus = contract.status;
+        if (totalRemaining <= 0) {
+            newStatus = 'DISCHARGED';
+        } else if (totalPaid > 0 && totalPaid < contract.totalAmount) {
+            newStatus = 'PARTIAL';
+        }
+
+        // Calculer le nouveau score uniquement si ce n'est pas un paiement de pénalités uniquement
+        const newScore = isPenaltyOnlyPayment 
+            ? contract.score || 5
+            : await this.calculateScore(contract.id, payment);
+        const oldScore = contract.score || 5;
+        const scoreVariation = isPenaltyOnlyPayment ? 0 : newScore - oldScore;
+
+        // Mettre à jour nextDueAt avec la prochaine échéance due
+        const nextDueInstallment = await this.creditInstallmentRepository.getNextDueInstallment(contract.id);
+        const nextDueAt = nextDueInstallment ? nextDueInstallment.dueDate : undefined;
+
+        await this.creditContractRepository.updateContract(contract.id, {
+            amountPaid: totalPaid,
+            amountRemaining: totalRemaining,
+            status: newStatus,
+            nextDueAt,
+            score: newScore,
+            scoreUpdatedAt: new Date(),
+            updatedBy: data.createdBy,
+        });
+
+        // Alerte score si variation forte (≥ 2 points ou ≤ -2 points)
+        if (Math.abs(scoreVariation) >= 2) {
+                try {
+                    const variationLabel = scoreVariation > 0 ? 'augmentation' : 'baisse';
+                    const variationEmoji = scoreVariation > 0 ? '📈' : '📉';
+                    
+                    await this.notificationService.createNotification({
+                        module: 'credit_speciale',
+                        entityId: contract.id,
+                        type: 'reminder',
+                        title: `${variationEmoji} Alerte : Variation importante du score`,
+                        message: `Le score de fiabilité du contrat de crédit ${contract.creditType} de ${contract.clientFirstName} ${contract.clientLastName} a connu une ${variationLabel} importante : ${oldScore.toFixed(1)} → ${newScore.toFixed(1)} (${scoreVariation > 0 ? '+' : ''}${scoreVariation.toFixed(1)} point${Math.abs(scoreVariation) > 1 ? 's' : ''}).`,
+                        metadata: {
+                            contractId: contract.id,
+                            clientId: contract.clientId,
+                            creditType: contract.creditType,
+                            oldScore,
+                            newScore,
+                            scoreVariation,
+                            paymentId: payment.id,
+                            paymentDate: payment.paymentDate.toISOString(),
+                        },
+                    });
+                } catch (error) {
+                    console.error('Erreur lors de la création de la notification d\'alerte score:', error);
+                }
             }
 
-            // Calculer le nouveau score
-            const newScore = await this.calculateScore(contract.id, payment);
-
-            await this.creditContractRepository.updateContract(contract.id, {
-                amountPaid: newAmountPaid,
-                amountRemaining: newAmountRemaining,
-                status: newStatus,
-                score: newScore,
-                scoreUpdatedAt: new Date(),
-                updatedBy: data.createdBy,
-            });
-
-            // Notification si le contrat est terminé (DISCHARGED)
-            if (newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED') {
+        // Notification si le contrat est terminé (DISCHARGED)
+        if (newStatus === 'DISCHARGED' && contract.status !== 'DISCHARGED') {
                 try {
                     await this.notificationService.createNotification({
                         module: 'credit_speciale',
@@ -700,8 +968,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 }
             }
 
-            // Marquer les pénalités sélectionnées comme payées
-            if (penaltyIds && penaltyIds.length > 0) {
+        // Marquer les pénalités sélectionnées comme payées
+        if (penaltyIds && penaltyIds.length > 0) {
                 for (const penaltyId of penaltyIds) {
                     await this.creditPenaltyRepository.updatePenalty(penaltyId, {
                         paid: true,
@@ -711,11 +979,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 }
             }
 
-            // Calculer et créer les pénalités si nécessaire
-            await this.checkAndCreatePenalties(contract.id, payment);
+        // Les pénalités sont déjà calculées dans la nouvelle logique basée sur les installments
 
-            // Calculer et créer la rémunération du garant si applicable
-            if (contract.guarantorIsParrain && 
+        // Calculer et créer la rémunération du garant si applicable
+        if (contract.guarantorIsParrain && 
                 contract.guarantorIsMember && 
                 contract.guarantorId && 
                 contract.guarantorRemunerationPercentage > 0) {
@@ -765,19 +1032,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 }
             }
 
-            // Générer automatiquement le reçu PDF
-            try {
-                const receiptUrl = await this.generatePaymentReceiptPDF(payment, contract);
-                if (receiptUrl) {
-                    // Mettre à jour le paiement avec l'URL du reçu
-                    await this.creditPaymentRepository.updatePayment(payment.id, {
-                        receiptUrl,
-                    });
-                }
-            } catch (error) {
-                console.error('Erreur lors de la génération du reçu PDF:', error);
-                // Ne pas faire échouer la création du paiement si le reçu échoue
+        // Générer automatiquement le reçu PDF
+        try {
+            const receiptUrl = await this.generatePaymentReceiptPDF(payment, contract);
+            if (receiptUrl) {
+                // Mettre à jour le paiement avec l'URL du reçu
+                await this.creditPaymentRepository.updatePayment(payment.id, {
+                    receiptUrl,
+                });
             }
+        } catch (error) {
+            console.error('Erreur lors de la génération du reçu PDF:', error);
+            // Ne pas faire échouer la création du paiement si le reçu échoue
         }
 
         return payment;
@@ -935,18 +1201,98 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     // ==================== SCORING ====================
 
+    /**
+     * Calcule le score initial basé sur l'historique des crédits précédents du client
+     * @param clientId ID du client
+     * @returns Score initial (0-10), ou 5 par défaut si aucun historique
+     */
+    async calculateInitialScore(clientId: string): Promise<number> {
+        try {
+            // Récupérer tous les contrats précédents du client (terminés ou actifs)
+            const previousContracts = await this.creditContractRepository.getContractsWithFilters({
+                clientId,
+            });
+
+            // Filtrer les contrats qui ont un score (terminés ou en cours avec paiements)
+            const contractsWithScore = previousContracts.filter(
+                contract => contract.score !== undefined && contract.score !== null
+            );
+
+            if (contractsWithScore.length === 0) {
+                // Aucun historique, retourner le score de base
+                return 5;
+            }
+
+            // Calculer le score moyen pondéré par récence
+            // Les contrats récents (moins de 12 mois) ont un poids de 1.0
+            // Les contrats plus anciens (12-24 mois) ont un poids de 0.7
+            // Les contrats très anciens (>24 mois) ont un poids de 0.5
+            const now = new Date();
+            let totalWeightedScore = 0;
+            let totalWeight = 0;
+
+            for (const contract of contractsWithScore) {
+                const contractEndDate = contract.status === 'DISCHARGED' || contract.status === 'CLOSED' || contract.status === 'TRANSFORMED'
+                    ? (contract.updatedAt || contract.createdAt)
+                    : now;
+
+                const monthsSinceEnd = Math.floor(
+                    (now.getTime() - new Date(contractEndDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
+                );
+
+                let weight = 1.0;
+                if (monthsSinceEnd > 24) {
+                    weight = 0.5;
+                } else if (monthsSinceEnd > 12) {
+                    weight = 0.7;
+                }
+
+                const contractScore = contract.score || 5;
+                totalWeightedScore += contractScore * weight;
+                totalWeight += weight;
+            }
+
+            if (totalWeight === 0) {
+                return 5;
+            }
+
+            // Calculer la moyenne pondérée
+            const averageScore = totalWeightedScore / totalWeight;
+
+            // Appliquer les bornes (0-10) et arrondir à 1 décimale
+            const initialScore = Math.max(0, Math.min(10, averageScore));
+            return Math.round(initialScore * 10) / 10;
+        } catch (error) {
+            console.error('Erreur lors du calcul du score initial basé sur l\'historique:', error);
+            // En cas d'erreur, retourner le score de base
+            return 5;
+        }
+    }
+
     async calculateScore(creditId: string, payment: CreditPayment): Promise<number> {
         const contract = await this.creditContractRepository.getContractById(creditId);
         if (!contract) return 5; // Score de base
 
         const baseScore = contract.score || 5;
-        const now = new Date();
         const paymentDate = new Date(payment.paymentDate);
-        const nextDueAt = contract.nextDueAt ? new Date(contract.nextDueAt) : null;
+        
+        // Utiliser l'échéance liée au paiement si disponible
+        let dueDate: Date | null = null;
+        if (payment.installmentId) {
+            const installment = await this.creditInstallmentRepository.getInstallmentById(payment.installmentId);
+            if (installment) {
+                dueDate = new Date(installment.dueDate);
+            }
+        }
+        
+        // Sinon, utiliser nextDueAt du contrat
+        if (!dueDate) {
+            dueDate = contract.nextDueAt ? new Date(contract.nextDueAt) : null;
+        }
 
-        if (!nextDueAt) return baseScore;
+        if (!dueDate) return baseScore;
 
-        const daysDiff = Math.floor((paymentDate.getTime() - nextDueAt.getTime()) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.floor((paymentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
 
         let scoreChange = 0;
 
@@ -985,58 +1331,203 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     // ==================== PÉNALITÉS ====================
 
-    async checkAndCreatePenalties(creditId: string, payment: CreditPayment): Promise<void> {
-        const contract = await this.creditContractRepository.getContractById(creditId);
-        if (!contract || !contract.nextDueAt) return;
+    /**
+     * Vérifie et crée les pénalités pour une échéance spécifique
+     */
+    async checkAndCreatePenaltiesForInstallment(installment: CreditInstallment, payment: CreditPayment): Promise<void> {
+        const contract = await this.creditContractRepository.getContractById(installment.creditId);
+        if (!contract) return;
 
-        const now = new Date();
-        const dueDate = new Date(contract.nextDueAt);
-        const daysLate = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        // Ignorer si l'échéance est déjà payée ou si le paiement est uniquement pour pénalités
+        if (installment.status === 'PAID' || installment.remainingAmount <= 0) {
+            return;
+        }
 
+        const paymentDate = new Date(payment.paymentDate);
+        paymentDate.setHours(0, 0, 0, 0);
+        const dueDate = new Date(installment.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+
+        // Calculer le nombre de jours de retard
+        const daysLate = Math.floor((paymentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Si le paiement est en retard, créer une pénalité
         if (daysLate > 0) {
-            const penaltyAmount = await this.calculatePenalties(creditId, daysLate, contract.monthlyPaymentAmount);
+            const penaltyAmount = await this.calculatePenalties(installment.creditId, daysLate, installment.totalAmount);
             
-            // Vérifier si une pénalité existe déjà pour cette échéance
-            const existingPenalties = await this.getPenaltiesByCreditId(creditId);
-            const existingPenalty = existingPenalties.find(p => {
-                const pDueDate = new Date(p.dueDate);
-                return pDueDate.getTime() === dueDate.getTime() && !p.paid;
-            });
+            if (penaltyAmount > 0) {
+                // Vérifier si une pénalité existe déjà pour cette échéance
+                const existingPenalties = await this.getPenaltiesByCreditId(installment.creditId);
+                const existingPenalty = existingPenalties.find(p => 
+                    p.installmentId === installment.id && !p.paid
+                );
 
-            if (!existingPenalty && penaltyAmount > 0) {
-                const penalty = await this.createPenalty({
-                    creditId,
-                    amount: penaltyAmount,
-                    daysLate,
-                    dueDate,
-                    paid: false,
-                    reported: false,
-                    createdBy: payment.createdBy,
-                    updatedBy: payment.createdBy,
-                });
-
-                // Notification pour les admins : pénalité créée
-                try {
-                    await this.notificationService.createNotification({
-                        module: 'credit_speciale',
-                        entityId: creditId,
-                        type: 'reminder',
-                        title: 'Pénalité appliquée',
-                        message: `Une pénalité de ${penaltyAmount.toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard).`,
-                        metadata: {
-                            contractId: creditId,
-                            penaltyId: penalty.id,
-                            clientId: contract.clientId,
-                            amount: penaltyAmount,
-                            daysLate,
-                            dueDate: dueDate.toISOString(),
-                        },
+                if (!existingPenalty) {
+                    const penalty = await this.createPenalty({
+                        creditId: installment.creditId,
+                        installmentId: installment.id,
+                        amount: penaltyAmount,
+                        daysLate,
+                        dueDate: installment.dueDate,
+                        paid: false,
+                        reported: false,
+                        createdBy: payment.createdBy,
+                        updatedBy: payment.createdBy,
                     });
-                } catch (error) {
-                    console.error('Erreur lors de la création de la notification de pénalité:', error);
+
+                    // Notification pour les admins : pénalité créée
+                    try {
+                        await this.notificationService.createNotification({
+                            module: 'credit_speciale',
+                            entityId: installment.creditId,
+                            type: 'reminder',
+                            title: 'Pénalité appliquée',
+                            message: `Une pénalité de ${penaltyAmount.toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard sur l'échéance du ${dueDate.toLocaleDateString('fr-FR')}).`,
+                            metadata: {
+                                contractId: installment.creditId,
+                                installmentId: installment.id,
+                                penaltyId: penalty.id,
+                                clientId: contract.clientId,
+                                amount: penaltyAmount,
+                                daysLate,
+                                dueDate: dueDate.toISOString(),
+                            },
+                        });
+                    } catch (error) {
+                        console.error('Erreur lors de la création de la notification de pénalité:', error);
+                    }
                 }
             }
         }
+    }
+
+    async checkAndCreatePenalties(creditId: string, payment: CreditPayment): Promise<void> {
+        const contract = await this.creditContractRepository.getContractById(creditId);
+        if (!contract) return;
+
+        // Ignorer les paiements de pénalités uniquement
+        if (payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement')) {
+            return;
+        }
+
+        // Récupérer tous les paiements pour calculer le montant cumulé
+        const allPayments = await this.getPaymentsByCreditId(creditId);
+        const sortedPayments = allPayments
+            .filter(p => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
+            .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+        
+        // Calculer les échéances pour identifier laquelle vient d'être payée
+        const monthlyRate = contract.interestRate / 100;
+        const firstDate = new Date(contract.firstPaymentDate);
+        const paymentAmount = contract.monthlyPaymentAmount;
+        const maxDuration = contract.duration;
+        
+        let remaining = contract.amount;
+        let accumulatedPaid = 0;
+        const paymentDate = new Date(payment.paymentDate);
+        paymentDate.setHours(0, 0, 0, 0);
+
+        // Trouver quelle échéance vient d'être payée
+        for (let i = 0; i < maxDuration; i++) {
+            if (remaining <= 0 && contract.creditType !== 'SPECIALE') break;
+
+            const dueDate = new Date(firstDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            const interest = remaining * monthlyRate;
+            const balanceWithInterest = remaining + interest;
+            
+            let expectedPayment: number;
+            if (remaining < paymentAmount) {
+                expectedPayment = balanceWithInterest;
+                remaining = 0;
+            } else {
+                expectedPayment = paymentAmount;
+                remaining = Math.max(0, balanceWithInterest - expectedPayment);
+            }
+
+            // Calculer le montant payé cumulé jusqu'à maintenant (avant ce paiement)
+            const paidBeforeThisPayment = sortedPayments
+                .filter(p => new Date(p.paymentDate).getTime() < paymentDate.getTime())
+                .reduce((sum, p) => sum + (p.amount > 0 ? p.amount : 0), 0);
+            
+            const expectedTotalForThisDue = accumulatedPaid + expectedPayment;
+            
+            // Vérifier si cette échéance vient d'être payée avec ce paiement
+            const paidAfterThisPayment = paidBeforeThisPayment + payment.amount;
+            const isThisDueJustPaid = paidAfterThisPayment >= expectedTotalForThisDue && 
+                                     paidBeforeThisPayment < expectedTotalForThisDue;
+
+            if (isThisDueJustPaid) {
+                // Calculer le retard pour cette échéance
+                const daysLate = Math.floor((paymentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                if (daysLate > 0) {
+                    const penaltyAmount = await this.calculatePenalties(creditId, daysLate, expectedPayment);
+                    
+                    // Vérifier si une pénalité existe déjà pour cette échéance
+                    const existingPenalties = await this.getPenaltiesByCreditId(creditId);
+                    const existingPenalty = existingPenalties.find(p => {
+                        const pDueDate = new Date(p.dueDate);
+                        pDueDate.setHours(0, 0, 0, 0);
+                        return Math.abs(pDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000 && !p.paid;
+                    });
+
+                    if (!existingPenalty && penaltyAmount > 0) {
+                        // Trouver l'installment correspondant à cette date d'échéance
+                        const installments = await this.creditInstallmentRepository.getInstallmentsByCreditId(creditId);
+                        const matchingInstallment = installments.find(inst => {
+                            const instDueDate = new Date(inst.dueDate);
+                            instDueDate.setHours(0, 0, 0, 0);
+                            return Math.abs(instDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000;
+                        });
+
+                        const penalty = await this.createPenalty({
+                            creditId,
+                            installmentId: matchingInstallment?.id || '',
+                            amount: penaltyAmount,
+                            daysLate,
+                            dueDate,
+                            paid: false,
+                            reported: false,
+                            createdBy: payment.createdBy,
+                            updatedBy: payment.createdBy,
+                        });
+
+                        // Notification pour les admins : pénalité créée
+                        try {
+                            await this.notificationService.createNotification({
+                                module: 'credit_speciale',
+                                entityId: creditId,
+                                type: 'reminder',
+                                title: 'Pénalité appliquée',
+                                message: `Une pénalité de ${penaltyAmount.toLocaleString('fr-FR')} FCFA a été appliquée au contrat de ${contract.clientFirstName} ${contract.clientLastName} (${daysLate} jour(s) de retard sur l'échéance du ${dueDate.toLocaleDateString('fr-FR')}).`,
+                                metadata: {
+                                    contractId: creditId,
+                                    penaltyId: penalty.id,
+                                    clientId: contract.clientId,
+                                    amount: penaltyAmount,
+                                    daysLate,
+                                    dueDate: dueDate.toISOString(),
+                                },
+                            });
+                        } catch (error) {
+                            console.error('Erreur lors de la création de la notification de pénalité:', error);
+                        }
+                    }
+                }
+                break; // On a trouvé l'échéance payée, on peut arrêter
+            }
+
+            accumulatedPaid += expectedPayment;
+        }
+    }
+
+    // ==================== ÉCHÉANCES (INSTALLMENTS) ====================
+
+    async getInstallmentsByCreditId(creditId: string): Promise<CreditInstallment[]> {
+        return await this.creditInstallmentRepository.getInstallmentsByCreditId(creditId);
     }
 
     async getPaymentsByCreditId(creditId: string): Promise<CreditPayment[]> {
@@ -1052,6 +1543,118 @@ export class CreditSpecialeService implements ICreditSpecialeService {
     async calculatePenalties(creditId: string, daysLate: number, monthlyPaymentAmount: number): Promise<number> {
         // Règle de 3 : pénalité = (montant mensuel * jours de retard) / 30
         return (monthlyPaymentAmount * daysLate) / 30;
+    }
+
+    /**
+     * Vérifie et crée les pénalités manquantes pour toutes les échéances passées
+     * Cette fonction peut être appelée pour s'assurer que toutes les pénalités sont créées
+     */
+    async checkAndCreateMissingPenalties(creditId: string): Promise<void> {
+        const contract = await this.creditContractRepository.getContractById(creditId);
+        if (!contract) return;
+
+        // Récupérer tous les paiements et pénalités existantes
+        const allPayments = await this.getPaymentsByCreditId(creditId);
+        const existingPenalties = await this.getPenaltiesByCreditId(creditId);
+        
+        const sortedPayments = allPayments
+            .filter(p => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
+            .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+        
+        // Calculer les échéances (même logique que dans calculateStandardSimulation)
+        const monthlyRate = contract.interestRate / 100;
+        const firstDate = new Date(contract.firstPaymentDate);
+        const paymentAmount = contract.monthlyPaymentAmount;
+        const maxDuration = contract.duration;
+        
+        let remaining = contract.amount;
+        let accumulatedPaid = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Parcourir toutes les échéances
+        for (let i = 0; i < maxDuration; i++) {
+            if (remaining <= 0 && contract.creditType !== 'SPECIALE') break;
+
+            const dueDate = new Date(firstDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            const interest = remaining * monthlyRate;
+            const balanceWithInterest = remaining + interest;
+            
+            let expectedPayment: number;
+            if (remaining < paymentAmount) {
+                expectedPayment = balanceWithInterest;
+                remaining = 0;
+            } else {
+                expectedPayment = paymentAmount;
+                remaining = Math.max(0, balanceWithInterest - expectedPayment);
+            }
+
+            // Calculer le montant payé cumulé jusqu'à maintenant
+            let tempAccumulated = 0;
+            let paymentDateForThisDue: Date | null = null;
+            
+            for (const p of sortedPayments) {
+                tempAccumulated += p.amount;
+                // Si ce paiement couvre cette échéance
+                if (tempAccumulated >= accumulatedPaid + expectedPayment && !paymentDateForThisDue) {
+                    paymentDateForThisDue = new Date(p.paymentDate);
+                    paymentDateForThisDue.setHours(0, 0, 0, 0);
+                }
+            }
+
+            const expectedTotalForThisDue = accumulatedPaid + expectedPayment;
+            const isPaid = tempAccumulated >= expectedTotalForThisDue;
+
+            // Si l'échéance est passée et payée en retard, créer une pénalité si elle n'existe pas
+            if (dueDate < today && isPaid && paymentDateForThisDue && paymentDateForThisDue > dueDate) {
+                const daysLate = Math.floor((paymentDateForThisDue.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (daysLate > 0) {
+                    // Vérifier si une pénalité existe déjà pour cette échéance (payée ou non)
+                    const hasPenalty = existingPenalties.some(p => {
+                        const pDueDate = new Date(p.dueDate);
+                        pDueDate.setHours(0, 0, 0, 0);
+                        return Math.abs(pDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000;
+                    });
+
+                    // Ne créer une pénalité que si aucune n'existe déjà pour cette échéance
+                    if (!hasPenalty) {
+                        const penaltyAmount = await this.calculatePenalties(creditId, daysLate, expectedPayment);
+                        
+                        if (penaltyAmount > 0) {
+                            try {
+                                // Trouver l'installment correspondant à cette date d'échéance
+                                const installments = await this.creditInstallmentRepository.getInstallmentsByCreditId(creditId);
+                                const matchingInstallment = installments.find(inst => {
+                                    const instDueDate = new Date(inst.dueDate);
+                                    instDueDate.setHours(0, 0, 0, 0);
+                                    return Math.abs(instDueDate.getTime() - dueDate.getTime()) < 24 * 60 * 60 * 1000;
+                                });
+
+                                await this.createPenalty({
+                                    creditId,
+                                    installmentId: matchingInstallment?.id || '',
+                                    amount: penaltyAmount,
+                                    daysLate,
+                                    dueDate,
+                                    paid: false,
+                                    reported: false,
+                                    createdBy: contract.createdBy,
+                                    updatedBy: contract.createdBy,
+                                });
+                            } catch (error) {
+                                console.error(`Erreur lors de la création de la pénalité pour l'échéance du ${dueDate.toLocaleDateString('fr-FR')}:`, error);
+                            }
+                        }
+                    }
+                }
+            }
+
+            accumulatedPaid += expectedPayment;
+        }
     }
 
     async createPenalty(data: Omit<CreditPenalty, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditPenalty> {
@@ -1187,7 +1790,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     // ==================== GÉNÉRATION ET UPLOAD DE CONTRATS PDF ====================
 
-    async generateContractPDF(contractId: string, blank: boolean = false): Promise<{ url: string; path: string; documentId: string }> {
+    async generateContractPDF(contractId: string, blank?: boolean): Promise<{ url: string; path: string; documentId: string }> {
         const contract = await this.creditContractRepository.getContractById(contractId);
         if (!contract) {
             throw new Error('Contrat introuvable');
@@ -1280,6 +1883,69 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         return updatedContract;
+    }
+
+    // ==================== HISTORIQUE ====================
+
+    /**
+     * Récupère l'historique complet d'un crédit (demande, contrat, paiements, pénalités, notifications)
+     */
+    async getCreditHistory(contractId: string): Promise<{
+        demand: CreditDemand | null;
+        contract: CreditContract | null;
+        payments: CreditPayment[];
+        penalties: CreditPenalty[];
+        notifications: Notification[];
+    }> {
+        try {
+            // Récupérer le contrat
+            const contract = await this.creditContractRepository.getContractById(contractId);
+            if (!contract) {
+                throw new Error('Contrat introuvable');
+            }
+
+            // Récupérer la demande associée
+            let demand: CreditDemand | null = null;
+            if (contract.demandId) {
+                demand = await this.creditDemandRepository.getDemandById(contract.demandId);
+            }
+
+            // Récupérer les paiements
+            const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
+
+            // Récupérer les pénalités
+            const penalties = await this.creditPenaltyRepository.getPenaltiesByCreditId(contractId);
+
+            // Récupérer les notifications liées au contrat et à la demande
+            // On récupère toutes les notifications du module credit_speciale et on filtre
+            const allNotifications = await this.notificationService.getNotifications({
+                module: 'credit_speciale',
+            });
+
+            // Filtrer les notifications pertinentes (liées au contrat, à la demande ou au client de ce contrat)
+            const relevantNotifications = allNotifications.filter(notif => {
+                const metadata = notif.metadata || {};
+                // Vérifier si la notification concerne ce contrat spécifique
+                return (
+                    notif.entityId === contractId ||
+                    (contract.demandId && notif.entityId === contract.demandId) ||
+                    metadata.contractId === contractId ||
+                    (contract.demandId && metadata.demandId === contract.demandId) ||
+                    metadata.clientId === contract.clientId
+                );
+            });
+
+            return {
+                demand,
+                contract,
+                payments,
+                penalties,
+                notifications: relevantNotifications,
+            };
+        } catch (error) {
+            console.error('Erreur lors de la récupération de l\'historique:', error);
+            throw error;
+        }
     }
 }
 

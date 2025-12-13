@@ -1349,12 +1349,38 @@ export interface CreditContract {
 }
 
 /**
+ * Type pour une échéance de crédit (installment)
+ */
+export interface CreditInstallment {
+  id: string
+  creditId: string
+  installmentNumber: number // Numéro de l'échéance (1, 2, 3, ...)
+  dueDate: Date // Date d'échéance
+  principalAmount: number // Montant du capital pour cette échéance
+  interestAmount: number // Montant des intérêts pour cette échéance
+  totalAmount: number // Montant total à payer (principal + intérêts)
+  paidAmount: number // Montant payé pour cette échéance
+  remainingAmount: number // Montant restant à payer
+  status: 'PENDING' | 'DUE' | 'PARTIAL' | 'PAID' | 'OVERDUE' // Statut de l'échéance
+  paidAt?: Date // Date de paiement complet
+  paymentId?: string // ID du paiement qui a complété cette échéance
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string
+  updatedBy?: string
+}
+
+/**
  * Type pour un versement de crédit
  */
 export interface CreditPayment {
   id: string
   creditId: string
-  amount: number
+  installmentId?: string // ID de l'échéance à laquelle ce paiement est lié
+  amount: number // Montant total du paiement
+  principalAmount: number // Montant du capital payé
+  interestAmount: number // Montant des intérêts payés
+  penaltyAmount: number // Montant des pénalités payées (si applicable)
   paymentDate: Date
   paymentTime: string
   mode: CreditPaymentMode
@@ -1375,11 +1401,13 @@ export interface CreditPayment {
 export interface CreditPenalty {
   id: string
   creditId: string
+  installmentId: string // ID de l'échéance concernée
   amount: number
   daysLate: number
-  dueDate: Date
+  dueDate: Date // Date d'échéance de l'installment
   paid: boolean
   paidAt?: Date
+  paymentId?: string // ID du paiement qui a payé cette pénalité
   reported: boolean // Si le client a choisi de reporter
   createdAt: Date
   updatedAt: Date

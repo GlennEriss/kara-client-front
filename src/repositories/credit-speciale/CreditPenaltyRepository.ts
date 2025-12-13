@@ -18,13 +18,20 @@ export class CreditPenaltyRepository implements ICreditPenaltyRepository {
                 }
             });
 
-            const docRef = await addDoc(collection(db, firebaseCollectionNames.creditPenalties || "creditPenalties"), {
+            // Ne pas inclure paidAt si la pénalité n'est pas payée
+            const penaltyData: any = {
                 ...cleanData,
                 dueDate: data.dueDate instanceof Date ? data.dueDate : new Date(data.dueDate),
-                paidAt: data.paidAt ? (data.paidAt instanceof Date ? data.paidAt : new Date(data.paidAt)) : undefined,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-            });
+            };
+
+            // Ajouter paidAt uniquement si la pénalité est payée et que paidAt est défini
+            if (data.paid && data.paidAt) {
+                penaltyData.paidAt = data.paidAt instanceof Date ? data.paidAt : new Date(data.paidAt);
+            }
+
+            const docRef = await addDoc(collection(db, firebaseCollectionNames.creditPenalties || "creditPenalties"), penaltyData);
 
             const created = await this.getPenaltyById(docRef.id);
             if (!created) {
