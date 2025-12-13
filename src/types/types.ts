@@ -1219,7 +1219,7 @@ export type DocumentType =
   | 'PLACEMENT_EARLY_EXIT_QUITTANCE' // Quittance de retrait anticipé placement
   | 'PLACEMENT_FINAL_QUITTANCE'      // Quittance finale placement
   | 'PLACEMENT_EARLY_EXIT_ADDENDUM'   // Avenant retrait anticipé placement
-  | 'PLACEMENT_EARLY_EXIT_DOCUMENT'   // Document de retrait anticipé signé
+  | 'PLACEMENT_EARLY_EXIT_DOCUMENT'   // Document PDF signé de retrait anticipé
   | 'CREDIT_SPECIALE_CONTRACT'     // Contrat crédit spéciale
   | 'CREDIT_SPECIALE_CONTRACT_SIGNED' // Contrat crédit spéciale signé
   | 'CREDIT_SPECIALE_RECEIPT'      // Reçu de paiement crédit spéciale
@@ -1764,7 +1764,7 @@ export type CommissionStatus = 'Due' | 'Paid' | 'Partial' | 'Canceled'
 export type PayoutMode = 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End'
 
 // Types de documents placement : on réutilise DocumentType existant en ajoutant si besoin des variantes placement
-export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE' | 'PLACEMENT_FINAL_QUITTANCE' | 'PLACEMENT_EARLY_EXIT_ADDENDUM'
+export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE' | 'PLACEMENT_FINAL_QUITTANCE' | 'PLACEMENT_EARLY_EXIT_ADDENDUM' | 'PLACEMENT_EARLY_EXIT_DOCUMENT'
 
 export interface Placement {
   id: string
@@ -1794,6 +1794,7 @@ export interface Placement {
   finalQuittanceDocumentId?: string
   earlyExitQuittanceDocumentId?: string
   earlyExitAddendumDocumentId?: string
+  closingReason?: string // Motif de clôture du placement
   createdAt: Date
   updatedAt: Date
   createdBy: string // User.id (Admin)
@@ -1822,6 +1823,8 @@ export interface EarlyExitPlacement {
   validatedAt?: Date
   commissionDue: number
   payoutAmount: number
+  reason?: string // Motif du retrait anticipé
+  documentPdfId?: string // Document.id du PDF de retrait anticipé signé
   quittanceDocumentId?: string // Document.id
   createdAt: Date
   updatedAt: Date

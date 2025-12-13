@@ -68,7 +68,7 @@ export function usePlacementMutations() {
       benefactorId: string
       adminId: string 
     }) =>
-      service.requestEarlyExit(placementId, { commissionDue, payoutAmount }, adminId),
+      service.requestEarlyExit(placementId, { commissionDue, payoutAmount, reason, documentPdf }, benefactorId, adminId),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['placement', variables.placementId] })

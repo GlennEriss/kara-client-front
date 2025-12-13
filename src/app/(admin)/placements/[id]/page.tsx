@@ -988,7 +988,7 @@ const commissionStatusLabel = (status: string) => {
                   try {
                     const { ServiceFactory } = await import('@/factories/ServiceFactory')
                     const service = ServiceFactory.getPlacementService()
-                    const updated = await service.closePlacement(placement.id, closeFile, user.uid)
+                    const updated = await service.closePlacement(placement.id, closeFile, closingReason.trim(), user.uid)
                     await qc.invalidateQueries({ queryKey: ['placement', placement.id] })
                     setFinalQuittanceId(updated.finalQuittanceDocumentId || null)
                     toast.success('Placement clôturé')
