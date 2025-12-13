@@ -32,6 +32,7 @@ export const firebaseCollectionNames = {
     // Crédit spéciale
     creditDemands: "creditDemands",
     creditContracts: "creditContracts",
+    creditInstallments: "creditInstallments",
     creditPayments: "creditPayments",
     creditPenalties: "creditPenalties",
     guarantorRemunerations: "guarantorRemunerations",

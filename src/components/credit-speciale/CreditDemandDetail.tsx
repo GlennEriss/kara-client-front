@@ -108,9 +108,27 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
   const { data: contract, isLoading: isLoadingContract } = useCreditContract(demand.contractId || '')
 
   const statusConfig = getStatusConfig(demand.status)
-  const formatDate = (date: Date | undefined) => {
+  const formatDate = (date: Date | undefined | null | any) => {
     if (!date) return 'N/A'
-    return format(new Date(date), 'dd MMMM yyyy', { locale: fr })
+    try {
+      // Handle Firestore Timestamps
+      if (date && typeof date.toDate === 'function') {
+        const dateObj = date.toDate()
+        if (isNaN(dateObj.getTime())) {
+          return 'Date invalide'
+        }
+        return format(dateObj, 'dd MMMM yyyy', { locale: fr })
+      }
+      // Handle Date objects or date strings/numbers
+      const dateObj = date instanceof Date ? date : new Date(date)
+      if (isNaN(dateObj.getTime())) {
+        return 'Date invalide'
+      }
+      return format(dateObj, 'dd MMMM yyyy', { locale: fr })
+    } catch (error) {
+      console.error('Error formatting date:', error, date)
+      return 'Date invalide'
+    }
   }
 
   // Calculer l'échéancier à partir du contrat
@@ -139,21 +157,74 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
       const interest = remaining * monthlyRate
       const balanceWithInterest = remaining + interest
       
+      // paymentAmount représente le capital (mensualité de base), le montant total à payer = capital + intérêts
       let payment: number
       if (remaining < paymentAmount) {
         payment = balanceWithInterest // Payer le montant global complet
         remaining = 0
       } else {
-        payment = paymentAmount
+        // Le montant total à payer = capital (paymentAmount) + intérêts
+        const totalPaymentAmount = paymentAmount + interest
+        // S'assurer qu'on ne dépasse pas balanceWithInterest
+        payment = Math.min(totalPaymentAmount, balanceWithInterest)
         remaining = Math.max(0, balanceWithInterest - payment)
       }
 
       items.push({
         month: i + 1,
         date,
+        payment: customRound(payment), // Montant total à payer (capital + intérêts) - affiché dans "Mensualité"
+        interest: customRound(interest), // Intérêts - affiché dans "Intérêts"
+        principal: customRound(balanceWithInterest), // Montant global avant paiement - affiché dans "Montant global"
+        remaining: customRound(remaining), // Reste dû après paiement
+      })
+    }
+
+    return items
+  }
+
+  // Calculer l'échéancier de référence sans intérêts (exactement 7 mois)
+  const calculateReferenceScheduleWithoutInterest = (contract: CreditContract) => {
+    const firstDate = new Date(contract.firstPaymentDate)
+    // Mensualité de référence arrondie à l'inférieur pour les 6 premiers mois
+    const monthlyPaymentRef = Math.floor(contract.amount / 7)
+    let remaining = contract.amount
+    
+    const items: Array<{
+      month: number
+      date: Date
+      payment: number
+      interest: number
+      principal: number
+      remaining: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      // Échéancier sans intérêts : pas d'intérêts, juste le capital
+      const interest = 0
+      const principal = remaining // Montant global = reste dû (pas d'intérêts ajoutés)
+      
+      // Versement effectué
+      let payment: number
+      if (i === 6) {
+        // Dernier mois : payer le reste dû exactement (pour que le total soit exactement le montant emprunté)
+        payment = remaining
+        remaining = 0
+      } else {
+        // Mois 1 à 6 : mensualité de référence arrondie à l'inférieur
+        payment = monthlyPaymentRef
+        remaining = Math.max(0, remaining - payment)
+      }
+
+      items.push({
+        month: i + 1,
+        date,
         payment: customRound(payment),
-        interest: customRound(interest),
-        principal: customRound(balanceWithInterest),
+        interest: customRound(interest), // Toujours 0 pour l'échéancier de référence
+        principal: customRound(principal), // Montant global = reste dû (sans intérêts)
         remaining: customRound(remaining),
       })
     }
@@ -177,7 +248,9 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
       for (let month = 0; month < 7; month++) {
         const interest = testRemaining * monthlyRate
         const balanceWithInterest = testRemaining + interest
-        const payment = Math.min(testPayment, balanceWithInterest)
+        // testPayment représente le capital, le montant total à payer = capital + intérêts
+        const totalPaymentAmount = testPayment + interest
+        const payment = Math.min(totalPaymentAmount, balanceWithInterest)
         testRemaining = balanceWithInterest - payment
         
         if (testRemaining < 1) {
@@ -541,11 +614,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {calculateSchedule(
-                          contract, 
-                          7, 
-                          calculateOptimalMonthlyPaymentFor7Months(contract)
-                        ).map((row) => (
+                        {calculateReferenceScheduleWithoutInterest(contract).map((row) => (
                           <TableRow key={row.month}>
                             <TableCell className="font-medium">M{row.month}</TableCell>
                             <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>

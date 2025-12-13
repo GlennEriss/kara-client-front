@@ -28,11 +28,13 @@ import { ICreditDemandRepository } from '@/repositories/credit-speciale/ICreditD
 import { ICreditContractRepository } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { ICreditPaymentRepository } from '@/repositories/credit-speciale/ICreditPaymentRepository'
 import { ICreditPenaltyRepository } from '@/repositories/credit-speciale/ICreditPenaltyRepository'
+import { ICreditInstallmentRepository } from '@/repositories/credit-speciale/ICreditInstallmentRepository'
 import { IGuarantorRemunerationRepository } from '@/repositories/credit-speciale/IGuarantorRemunerationRepository'
 import { CreditDemandRepository } from '@/repositories/credit-speciale/CreditDemandRepository'
 import { CreditContractRepository } from '@/repositories/credit-speciale/CreditContractRepository'
 import { CreditPaymentRepository } from '@/repositories/credit-speciale/CreditPaymentRepository'
 import { CreditPenaltyRepository } from '@/repositories/credit-speciale/CreditPenaltyRepository'
+import { CreditInstallmentRepository } from '@/repositories/credit-speciale/CreditInstallmentRepository'
 import { GuarantorRemunerationRepository } from '@/repositories/credit-speciale/GuarantorRemunerationRepository'
 
 /**
@@ -262,6 +264,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new CreditPenaltyRepository())
     }
     return this.repositories.get(key) as ICreditPenaltyRepository
+  }
+
+  /**
+   * Obtient le repository des échéances de crédit
+   */
+  static getCreditInstallmentRepository(): ICreditInstallmentRepository {
+    const key = 'CreditInstallmentRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CreditInstallmentRepository())
+    }
+    return this.repositories.get(key) as ICreditInstallmentRepository
   }
 
   /**

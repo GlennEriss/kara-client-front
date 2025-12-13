@@ -749,110 +749,7 @@ export default function PlacementList() {
       const cardContentStyles = cardContent ? window.getComputedStyle(cardContent as Element) : null
       const svgStyles = window.getComputedStyle(svg as Element)
       
-      fetch('http://127.0.0.1:7242/ingest/651bd099-3e16-4c82-b2aa-41ea3a582b70', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'PlacementList.tsx:pieChartDebug',
-          message: 'Dimensions du conteneur du graphique',
-          data: {
-            container: {
-              width: containerRect.width,
-              height: containerRect.height,
-              overflow: containerStyles.overflow,
-              overflowX: containerStyles.overflowX,
-              overflowY: containerStyles.overflowY,
-            },
-            cardContent: cardContentRect ? {
-              width: cardContentRect.width,
-              height: cardContentRect.height,
-              overflow: cardContentStyles?.overflow,
-              overflowX: cardContentStyles?.overflowX,
-              overflowY: cardContentStyles?.overflowY,
-            } : null,
-            responsiveContainer: responsiveContainerRect ? {
-              width: responsiveContainerRect.width,
-              height: responsiveContainerRect.height,
-            } : null,
-            svg: svgRect ? {
-              width: svgRect.width,
-              height: svgRect.height,
-              viewBox: (svg as SVGElement)?.getAttribute('viewBox'),
-              overflow: svgStyles.overflow,
-            } : null,
-            labelCount: labels.length,
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {})
-      
-      labels.forEach((label, index) => {
-        const labelRect = label.getBoundingClientRect()
-        const labelText = label.textContent
-        const labelStyles = window.getComputedStyle(label)
-        
-        fetch('http://127.0.0.1:7242/ingest/651bd099-3e16-4c82-b2aa-41ea3a582b70', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'PlacementList.tsx:pieChartLabelDebug',
-            message: `Position du label ${index}`,
-            data: {
-              index,
-              text: labelText,
-              position: {
-                left: labelRect.left,
-                top: labelRect.top,
-                width: labelRect.width,
-                height: labelRect.height,
-                right: labelRect.right,
-                bottom: labelRect.bottom,
-              },
-              relativeToContainer: {
-                left: labelRect.left - (containerRect.left || 0),
-                top: labelRect.top - (containerRect.top || 0),
-              },
-              relativeToSvg: svgRect ? {
-                left: labelRect.left - svgRect.left,
-                top: labelRect.top - svgRect.top,
-              } : null,
-              relativeToCardContent: cardContentRect ? {
-                left: labelRect.left - cardContentRect.left,
-                top: labelRect.top - cardContentRect.top,
-              } : null,
-              styles: {
-                fontSize: labelStyles.fontSize,
-                textAnchor: labelStyles.textAnchor || (label as SVGTextElement).getAttribute('text-anchor'),
-                x: (label as SVGTextElement).getAttribute('x'),
-                y: (label as SVGTextElement).getAttribute('y'),
-              },
-              isOutsideContainer: labelRect.left < containerRect.left || 
-                                 labelRect.right > containerRect.right ||
-                                 labelRect.top < containerRect.top ||
-                                 labelRect.bottom > containerRect.bottom,
-              isOutsideSvg: svgRect ? (
-                labelRect.left < svgRect.left ||
-                labelRect.right > svgRect.right ||
-                labelRect.top < svgRect.top ||
-                labelRect.bottom > svgRect.bottom
-              ) : null,
-              isOutsideCardContent: cardContentRect ? (
-                labelRect.left < cardContentRect.left ||
-                labelRect.right > cardContentRect.right ||
-                labelRect.top < cardContentRect.top ||
-                labelRect.bottom > cardContentRect.bottom
-              ) : null,
-            },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'B'
-          })
-        }).catch(() => {})
-      })
+      // Appels fetch de débogage supprimés pour éviter les erreurs
     }
     
     // Attendre que le graphique soit rendu
@@ -998,11 +895,14 @@ export default function PlacementList() {
 
   const submitEarlyExit = async (values: EarlyExitFormData) => {
     if (!user?.uid || !earlyExitPlacementId) return
+    const placement = placements.find(p => p.id === earlyExitPlacementId)
+    if (!placement) return
     try {
       await requestEarlyExit.mutateAsync({
         placementId: earlyExitPlacementId,
         commissionDue: values.commissionDue,
         payoutAmount: values.payoutAmount,
+        benefactorId: placement.benefactorId,
         adminId: user.uid,
       })
       earlyExitForm.reset()

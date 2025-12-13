@@ -33,8 +33,70 @@ import { CreditContract, CreditContractStatus } from '@/types/types'
 import { useCreditContracts, useCreditContractsStats } from '@/hooks/useCreditSpeciale'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import StatisticsCreditContrats from './StatisticsCreditContrats'
+import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
+import { Shield, CheckCircle2 } from 'lucide-react'
 
 type ViewMode = 'grid' | 'list'
+
+// Composant pour afficher les infos garant avec statut CI
+const GuarantorInfo = ({ 
+  guarantorId, 
+  guarantorFirstName, 
+  guarantorLastName, 
+  guarantorIsMember 
+}: { 
+  guarantorId: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorIsMember?: boolean
+}) => {
+  const { isUpToDate, hasActiveContract, isLoading } = useMemberCIStatus(guarantorIsMember ? guarantorId : undefined)
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-500 flex items-center gap-1">
+          <Shield className="h-3.5 w-3.5" />
+          Garant:
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-gray-900">
+            {guarantorFirstName} {guarantorLastName}
+          </span>
+          {guarantorIsMember && (
+            <Badge className="bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
+          )}
+        </div>
+      </div>
+      {guarantorIsMember && !isLoading && (
+        <div className="flex items-center justify-between text-xs pl-5">
+          <span className="text-gray-400">Statut CI:</span>
+          <div className="flex items-center gap-1.5">
+            {hasActiveContract ? (
+              <>
+                {isUpToDate ? (
+                  <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    À jour
+                  </Badge>
+                ) : (
+                  <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    En retard
+                  </Badge>
+                )}
+              </>
+            ) : (
+              <Badge className="bg-gray-50 text-gray-500 border border-gray-300 text-xs">
+                Pas de contrat CI
+              </Badge>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
@@ -415,7 +477,8 @@ const ListContrats = () => {
 
   // Fonction pour construire les lignes d'export
   const formatAmount = (amount: number): string => {
-    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+    const roundedAmount = Math.round(amount)
+    return roundedAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   }
 
   const buildExportRows = () => {
@@ -690,7 +753,7 @@ const ListContrats = () => {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Reste:</span>
                       <span className="font-semibold text-orange-600">
-                        {contract.amountRemaining.toLocaleString('fr-FR')} FCFA
+                        {Math.round(contract.amountRemaining).toLocaleString('fr-FR')} FCFA
                       </span>
                     </div>
 
@@ -706,19 +769,28 @@ const ListContrats = () => {
                       </div>
                     )}
 
-                    {contract.score !== undefined && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Score:</span>
-                        <Badge className={cn(
-                          "font-semibold",
-                          contract.score >= 8 ? "bg-green-100 text-green-700" :
-                          contract.score >= 5 ? "bg-yellow-100 text-yellow-700" :
-                          "bg-red-100 text-red-700"
-                        )}>
-                          {contract.score}/10
-                        </Badge>
-                      </div>
+                    {contract.guarantorId && (
+                      <GuarantorInfo 
+                        guarantorId={contract.guarantorId}
+                        guarantorFirstName={contract.guarantorFirstName}
+                        guarantorLastName={contract.guarantorLastName}
+                        guarantorIsMember={contract.guarantorIsMember}
+                      />
                     )}
+
+                    {/* Score toujours affiché pour admin */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Score:</span>
+                      <Badge className={cn(
+                        "font-bold text-sm px-2.5 py-1",
+                        contract.score !== undefined && contract.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
+                        contract.score !== undefined && contract.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
+                        contract.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
+                        "bg-gray-100 text-gray-500 border border-gray-300"
+                      )}>
+                        {contract.score !== undefined ? `${contract.score}/10` : 'N/A'}
+                      </Badge>
+                    </div>
                   </div>
 
                   <div className="pt-3 border-t border-gray-100 mt-auto">

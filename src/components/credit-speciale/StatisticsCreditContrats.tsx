@@ -189,7 +189,7 @@ export default function StatisticsCreditContrats({ status, overdueOnly }: Statis
     },
     { 
       title: 'Montant restant', 
-      value: new Intl.NumberFormat('fr-FR').format(stats.totalRemaining), 
+      value: Math.round(stats.totalRemaining).toLocaleString('fr-FR'), 
       color: '#ef4444', 
       icon: DollarSign
     },

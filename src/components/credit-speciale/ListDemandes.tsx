@@ -43,8 +43,70 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, Calendar } from 'lucide-react'
 import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
 import { useMember } from '@/hooks/useMembers'
+import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
+import { Shield, CheckCircle2 } from 'lucide-react'
 
 type ViewMode = 'grid' | 'list'
+
+// Composant pour afficher les infos garant avec statut CI
+const GuarantorInfo = ({ 
+  guarantorId, 
+  guarantorFirstName, 
+  guarantorLastName, 
+  guarantorIsMember 
+}: { 
+  guarantorId: string
+  guarantorFirstName?: string
+  guarantorLastName?: string
+  guarantorIsMember?: boolean
+}) => {
+  const { isUpToDate, hasActiveContract, isLoading } = useMemberCIStatus(guarantorIsMember ? guarantorId : undefined)
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-gray-500 flex items-center gap-1">
+          <Shield className="h-3.5 w-3.5" />
+          Garant:
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-gray-900">
+            {guarantorFirstName} {guarantorLastName}
+          </span>
+          {guarantorIsMember && (
+            <Badge className="bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
+          )}
+        </div>
+      </div>
+      {guarantorIsMember && !isLoading && (
+        <div className="flex items-center justify-between text-xs pl-5">
+          <span className="text-gray-400">Statut CI:</span>
+          <div className="flex items-center gap-1.5">
+            {hasActiveContract ? (
+              <>
+                {isUpToDate ? (
+                  <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    À jour
+                  </Badge>
+                ) : (
+                  <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    En retard
+                  </Badge>
+                )}
+              </>
+            ) : (
+              <Badge className="bg-gray-50 text-gray-500 border border-gray-300 text-xs">
+                Pas de contrat CI
+              </Badge>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Composant skeleton moderne
 const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
@@ -793,30 +855,27 @@ const ListDemandes = () => {
                     </div>
 
                     {demande.guarantorId && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Garant:</span>
-                        <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{demande.guarantorFirstName} {demande.guarantorLastName}</span>
-                          {demande.guarantorIsMember && (
-                            <Badge className="bg-blue-100 text-blue-700 text-xs">Membre</Badge>
-                          )}
-                        </div>
-                      </div>
+                      <GuarantorInfo 
+                        guarantorId={demande.guarantorId}
+                        guarantorFirstName={demande.guarantorFirstName}
+                        guarantorLastName={demande.guarantorLastName}
+                        guarantorIsMember={demande.guarantorIsMember}
+                      />
                     )}
 
-                    {demande.score !== undefined && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500">Score:</span>
-                        <Badge className={cn(
-                          "font-semibold",
-                          demande.score >= 8 ? "bg-green-100 text-green-700" :
-                          demande.score >= 5 ? "bg-yellow-100 text-yellow-700" :
-                          "bg-red-100 text-red-700"
-                        )}>
-                          {demande.score}/10
-                        </Badge>
-                      </div>
-                    )}
+                    {/* Score toujours affiché pour admin */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Score:</span>
+                      <Badge className={cn(
+                        "font-bold text-sm px-2.5 py-1",
+                        demande.score !== undefined && demande.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
+                        demande.score !== undefined && demande.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
+                        demande.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
+                        "bg-gray-100 text-gray-500 border border-gray-300"
+                      )}>
+                        {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
+                      </Badge>
+                    </div>
                   </div>
 
                   <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
