@@ -608,6 +608,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                           <TableHead>Mois</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead className="text-right">Mensualité</TableHead>
+                          <TableHead className="text-right">Intérêts</TableHead>
                           <TableHead className="text-right">Montant global</TableHead>
                           <TableHead className="text-right">Reste dû</TableHead>
                         </TableRow>
@@ -618,6 +619,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                             <TableCell className="font-medium">M{row.month}</TableCell>
                             <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                             <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                            <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                             <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
                             <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                           </TableRow>

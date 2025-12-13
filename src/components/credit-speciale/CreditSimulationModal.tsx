@@ -794,17 +794,22 @@ function StandardSimulationResults({
     const balanceWithInterest = remaining + interest
     
     // 3. Versement effectué
-    // Si le montant global est inférieur à la mensualité souhaitée,
-    // alors la dernière mensualité = montant global (capital + intérêts)
+    // Si le reste dû (sans intérêts) est inférieur à la mensualité souhaitée,
+    // alors la mensualité réelle affichée = reste dû (sans intérêts)
+    // Le montant global = reste dû + intérêts = mensualité réelle + intérêts
+    // Pour que le nouveau solde soit 0, on doit payer le montant global complet
     let payment: number
     
-    if (balanceWithInterest < result.monthlyPayment) {
-      // Le montant global est inférieur à la mensualité souhaitée
-      // La dernière mensualité = montant global (capital + intérêts)
-      payment = balanceWithInterest
+    if (remaining < result.monthlyPayment) {
+      // Le reste dû est inférieur à la mensualité souhaitée
+      // La mensualité réelle affichée = reste dû (sans intérêts)
+      // Mais on paie le montant global complet (reste dû + intérêts) pour que le solde soit à 0
+      payment = remaining // On affiche le reste dû dans la colonne "Mensualité"
+      // Mais le paiement réel sera balanceWithInterest pour que remaining = 0
+      // Donc on ajuste remaining directement
       remaining = 0
     } else {
-      // Le montant global est supérieur ou égal à la mensualité souhaitée
+      // Le reste dû est supérieur ou égal à la mensualité souhaitée
       payment = result.monthlyPayment
       // 4. Nouveau solde après versement
       remaining = Math.max(0, balanceWithInterest - payment)
@@ -822,57 +827,6 @@ function StandardSimulationResults({
   
   // La durée réelle est le nombre de lignes dans l'échéancier (avec paiements non nuls)
   const displayDuration = schedule.length
-
-  // Calculer les stats pour l'échéancier calculé
-  const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
-  const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
-
-  // Calculer l'échéancier de référence pour obtenir ses stats (uniquement pour crédit spéciale)
-  const calculateReferenceSchedule = () => {
-    if (creditType !== 'SPECIALE' || maxDuration !== 7) return []
-    
-    const refFirstDate = new Date(result.firstPaymentDate)
-    const monthlyPaymentRef = Math.floor(result.amount / 7)
-    let refRemaining = result.amount
-    const referenceSchedule: Array<{
-      month: number
-      date: Date
-      payment: number
-      interest: number
-      principal: number
-      remaining: number
-    }> = []
-
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(refFirstDate)
-      date.setMonth(date.getMonth() + i)
-      const interest = 0
-      const principal = refRemaining
-      let payment: number
-      if (i === 6) {
-        payment = refRemaining
-        refRemaining = 0
-      } else {
-        payment = monthlyPaymentRef
-        refRemaining = Math.max(0, refRemaining - payment)
-      }
-      referenceSchedule.push({
-        month: i + 1,
-        date,
-        payment: customRound(payment),
-        interest: customRound(interest),
-        principal: customRound(principal),
-        remaining: customRound(refRemaining),
-      })
-    }
-    return referenceSchedule
-  }
-
-  const referenceSchedule = calculateReferenceSchedule()
-  
-  // Calculer les stats pour l'échéancier référence
-  const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
-  const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
 
   return (
     <Card>
@@ -896,79 +850,32 @@ function StandardSimulationResults({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Deux cartes de résumé */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Carte 1: Échéancier calculé */}
-          <Card className="border-2 border-blue-200">
-            <CardHeader className="bg-blue-50">
-              <CardTitle className="text-lg text-blue-900">Échéancier calculé</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Montant</div>
-                  <div className="text-xl font-bold text-blue-900">
-                    {result.amount.toLocaleString('fr-FR')} FCFA
-                  </div>
-                </div>
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Durée</div>
-                  <div className="text-xl font-bold text-green-900">
-                    {displayDuration} mois
-                  </div>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Mensualité</div>
-                  <div className="text-xl font-bold text-purple-900">
-                    {customRound(calculatedAverageMonthly).toLocaleString('fr-FR')} FCFA
-                  </div>
-                </div>
-                <div className="p-3 bg-orange-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Total à rembourser</div>
-                  <div className="text-xl font-bold text-orange-900">
-                    {customRound(calculatedTotalAmount).toLocaleString('fr-FR')} FCFA
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Carte 2: Échéancier référence */}
-          {creditType === 'SPECIALE' && maxDuration === 7 && (
-            <Card className="border-2 border-indigo-200">
-              <CardHeader className="bg-indigo-50">
-                <CardTitle className="text-lg text-indigo-900">Échéancier référence</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Montant</div>
-                    <div className="text-xl font-bold text-blue-900">
-                      {result.amount.toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Durée</div>
-                    <div className="text-xl font-bold text-green-900">
-                      7 mois
-                    </div>
-                  </div>
-                  <div className="p-3 bg-purple-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Mensualité</div>
-                    <div className="text-xl font-bold text-purple-900">
-                      {customRound(referenceAverageMonthly).toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                  <div className="p-3 bg-orange-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Total à rembourser</div>
-                    <div className="text-xl font-bold text-orange-900">
-                      {customRound(referenceTotalAmount).toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        {/* Résumé */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-sm text-gray-600">Montant</div>
+            <div className="text-2xl font-bold text-blue-900">
+              {result.amount.toLocaleString('fr-FR')} FCFA
+            </div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-sm text-gray-600">Durée</div>
+            <div className="text-2xl font-bold text-green-900">
+              {displayDuration} mois
+            </div>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="text-sm text-gray-600">Mensualité</div>
+            <div className="text-2xl font-bold text-purple-900">
+              {result.monthlyPayment.toLocaleString('fr-FR')} FCFA
+            </div>
+          </div>
+          <div className="p-4 bg-orange-50 rounded-lg">
+            <div className="text-sm text-gray-600">Total à rembourser</div>
+            <div className="text-2xl font-bold text-orange-900">
+              {result.totalAmount.toLocaleString('fr-FR')} FCFA
+            </div>
+          </div>
         </div>
 
         {(!result.isValid || (creditType === 'SPECIALE' && result.remainingAtMaxDuration !== undefined && result.remainingAtMaxDuration > 0)) && (
@@ -1059,20 +966,110 @@ function StandardSimulationResults({
                       <TableHead>Mois</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Mensualité</TableHead>
+                      <TableHead className="text-right">Intérêts</TableHead>
                       <TableHead className="text-right">Montant global</TableHead>
                       <TableHead className="text-right">Reste dû</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {referenceSchedule.map((row) => (
-                      <TableRow key={row.month}>
-                        <TableCell className="font-medium">M{row.month}</TableCell>
-                        <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                        <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                        <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
-                        <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
-                      </TableRow>
-                    ))}
+                    {(() => {
+                      // Calculer l'échéancier de référence sur exactement 7 mois
+                      // Indépendamment de la mensualité souhaitée
+                      // On cherche la mensualité qui permet de rembourser en exactement 7 mois
+                      const referenceSchedule: Array<{
+                        month: number
+                        date: Date
+                        payment: number
+                        interest: number
+                        principal: number
+                        remaining: number
+                      }> = []
+
+                      const refMonthlyRate = result.interestRate / 100
+                      const refFirstDate = new Date(result.firstPaymentDate)
+                      
+                      // Recherche binaire pour trouver la mensualité optimale sur 7 mois
+                      let minPayment = Math.ceil(result.amount / 7)
+                      let maxPayment = result.amount * 2
+                      let optimalPayment = maxPayment
+                      
+                      for (let iteration = 0; iteration < 50; iteration++) {
+                        const testPayment = Math.ceil((minPayment + maxPayment) / 2)
+                        let testRemaining = result.amount
+                        
+                        // Simuler les 7 mois avec cette mensualité
+                        for (let month = 0; month < 7; month++) {
+                          const interest = testRemaining * refMonthlyRate
+                          const balanceWithInterest = testRemaining + interest
+                          const payment = Math.min(testPayment, balanceWithInterest)
+                          testRemaining = balanceWithInterest - payment
+                          
+                          if (testRemaining < 1) {
+                            testRemaining = 0
+                          }
+                        }
+                        
+                        if (testRemaining <= 0) {
+                          // La mensualité est suffisante, on peut essayer plus petit
+                          optimalPayment = testPayment
+                          maxPayment = testPayment - 1
+                        } else {
+                          // La mensualité est insuffisante, il faut augmenter
+                          minPayment = testPayment + 1
+                        }
+                        
+                        if (minPayment > maxPayment) break
+                      }
+                      
+                      // Générer l'échéancier avec la mensualité optimale
+                      let refRemaining = result.amount
+
+                      for (let i = 0; i < 7; i++) {
+                        const date = new Date(refFirstDate)
+                        date.setMonth(date.getMonth() + i)
+                        
+                        // 1. Calcul des intérêts sur le solde actuel
+                        const interest = refRemaining * refMonthlyRate
+                        // 2. Nouveau solde avec intérêts
+                        const balanceWithInterest = refRemaining + interest
+                        
+                        // 3. Versement effectué
+                        let payment: number
+                        if (i === 6) {
+                          // Dernier mois : ajuster pour que le solde soit exactement 0
+                          payment = refRemaining // La mensualité finale = reste dû (sans intérêts)
+                          refRemaining = 0
+                        } else if (refRemaining < optimalPayment) {
+                          // Le reste dû est inférieur à la mensualité optimale
+                          payment = refRemaining
+                          refRemaining = 0
+                        } else {
+                          // Mois 1 à 6 : mensualité optimale calculée
+                          payment = optimalPayment
+                          refRemaining = Math.max(0, balanceWithInterest - payment)
+                        }
+
+                        referenceSchedule.push({
+                          month: i + 1,
+                          date,
+                          payment: customRound(payment),
+                          interest: customRound(interest),
+                          principal: customRound(balanceWithInterest),
+                          remaining: customRound(refRemaining),
+                        })
+                      }
+
+                      return referenceSchedule.map((row) => (
+                        <TableRow key={row.month}>
+                          <TableCell className="font-medium">M{row.month}</TableCell>
+                          <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                          <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                        </TableRow>
+                      ))
+                    })()}
                   </TableBody>
                 </Table>
               </div>
@@ -1141,8 +1138,8 @@ function CustomSimulationResults({
     })
   })
 
-  // Calculer l'échéancier référence (exactement 7 mois) SANS INTÉRÊTS
-  // Mensualité = montant emprunté / durée
+  // Calculer l'échéancier référence (exactement 7 mois)
+  // Même logique que dans la simulation standard
   const referenceSchedule: Array<{
     month: number
     date: Date
@@ -1153,50 +1150,77 @@ function CustomSimulationResults({
   }> = []
 
   if (maxDuration !== Infinity) {
-    // Mensualité de référence sans intérêts (arrondie à l'inférieur pour les mois précédents)
-    const monthlyPaymentRef = Math.floor(result.amount / maxDuration)
+    // Recherche binaire pour trouver la mensualité optimale sur 7 mois
+    let minPayment = Math.ceil(result.amount / maxDuration)
+    let maxPaymentSearch = result.amount * 2
+    let optimalPayment = maxPaymentSearch
     
-    // Générer l'échéancier sans intérêts
+    for (let iteration = 0; iteration < 50; iteration++) {
+      const testPayment = Math.ceil((minPayment + maxPaymentSearch) / 2)
+      let testRemaining = result.amount
+      
+      // Simuler les 7 mois avec cette mensualité
+      for (let month = 0; month < maxDuration; month++) {
+        const interest = testRemaining * monthlyRate
+        const balanceWithInterest = testRemaining + interest
+        const payment = Math.min(testPayment, balanceWithInterest)
+        testRemaining = balanceWithInterest - payment
+        
+        if (testRemaining < 1) {
+          testRemaining = 0
+        }
+      }
+      
+      if (testRemaining <= 0) {
+        // La mensualité est suffisante, on peut essayer plus petit
+        optimalPayment = testPayment
+        maxPaymentSearch = testPayment - 1
+      } else {
+        // La mensualité est insuffisante, il faut augmenter
+        minPayment = testPayment + 1
+      }
+      
+      if (minPayment > maxPaymentSearch) break
+    }
+    
+    // Générer l'échéancier avec la mensualité optimale
     let refRemaining = result.amount
 
     for (let i = 0; i < maxDuration; i++) {
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
       
-      // Échéancier sans intérêts : pas d'intérêts, juste le capital
-      const interest = 0
-      const principal = refRemaining // Montant global = reste dû (pas d'intérêts ajoutés)
+      // 1. Calcul des intérêts sur le solde actuel
+      const interest = refRemaining * monthlyRate
+      // 2. Nouveau solde avec intérêts
+      const balanceWithInterest = refRemaining + interest
       
-      // Versement effectué
+      // 3. Versement effectué
       let payment: number
       if (i === maxDuration - 1) {
-        // Dernier mois : payer le reste dû exactement (pour que le total soit exactement le montant emprunté)
+        // Dernier mois : ajuster pour que le solde soit exactement 0
+        payment = refRemaining // La mensualité finale = reste dû (sans intérêts)
+        refRemaining = 0
+      } else if (refRemaining < optimalPayment) {
+        // Le reste dû est inférieur à la mensualité optimale
         payment = refRemaining
         refRemaining = 0
       } else {
-        // Mois précédents : mensualité de référence arrondie à l'inférieur
-        payment = monthlyPaymentRef
-        refRemaining = Math.max(0, refRemaining - payment)
+        // Mois 1 à 6 : mensualité optimale calculée
+        payment = optimalPayment
+        refRemaining = Math.max(0, balanceWithInterest - payment)
       }
 
       referenceSchedule.push({
         month: i + 1,
         date,
         payment: customRound(payment),
-        interest: customRound(interest), // Toujours 0 pour l'échéancier de référence
-        principal: customRound(principal), // Montant global = reste dû (sans intérêts)
+        interest: customRound(interest),
+        principal: customRound(balanceWithInterest),
         remaining: customRound(refRemaining),
       })
     }
   }
-
-  // Calculer les stats pour l'échéancier calculé
-  const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
-  const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
-  
-  // Calculer les stats pour l'échéancier référence
-  const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
-  const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
 
   return (
     <Card>
@@ -1220,79 +1244,32 @@ function CustomSimulationResults({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Deux cartes de résumé */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Carte 1: Échéancier calculé */}
-          <Card className="border-2 border-blue-200">
-            <CardHeader className="bg-blue-50">
-              <CardTitle className="text-lg text-blue-900">Échéancier calculé</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Montant</div>
-                  <div className="text-xl font-bold text-blue-900">
-                    {result.amount.toLocaleString('fr-FR')} FCFA
-                  </div>
-                </div>
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Durée</div>
-                  <div className="text-xl font-bold text-green-900">
-                    {result.duration} mois
-                  </div>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Mensualité</div>
-                  <div className="text-xl font-bold text-purple-900">
-                    {customRound(calculatedAverageMonthly).toLocaleString('fr-FR')} FCFA
-                  </div>
-                </div>
-                <div className="p-3 bg-orange-50 rounded-lg">
-                  <div className="text-xs text-gray-600">Total à rembourser</div>
-                  <div className="text-xl font-bold text-orange-900">
-                    {customRound(calculatedTotalAmount).toLocaleString('fr-FR')} FCFA
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Carte 2: Échéancier référence */}
-          {maxDuration !== Infinity && (
-            <Card className="border-2 border-indigo-200">
-              <CardHeader className="bg-indigo-50">
-                <CardTitle className="text-lg text-indigo-900">Échéancier référence</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Montant</div>
-                    <div className="text-xl font-bold text-blue-900">
-                      {result.amount.toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Durée</div>
-                    <div className="text-xl font-bold text-green-900">
-                      {maxDuration} mois
-                    </div>
-                  </div>
-                  <div className="p-3 bg-purple-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Mensualité</div>
-                    <div className="text-xl font-bold text-purple-900">
-                      {customRound(referenceAverageMonthly).toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                  <div className="p-3 bg-orange-50 rounded-lg">
-                    <div className="text-xs text-gray-600">Total à rembourser</div>
-                    <div className="text-xl font-bold text-orange-900">
-                      {customRound(referenceTotalAmount).toLocaleString('fr-FR')} FCFA
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        {/* Résumé */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="text-sm text-gray-600">Montant</div>
+            <div className="text-2xl font-bold text-blue-900">
+              {result.amount.toLocaleString('fr-FR')} FCFA
+            </div>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <div className="text-sm text-gray-600">Durée</div>
+            <div className="text-2xl font-bold text-green-900">
+              {result.duration} mois
+            </div>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="text-sm text-gray-600">Total versé</div>
+            <div className="text-2xl font-bold text-purple-900">
+              {result.monthlyPayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString('fr-FR')} FCFA
+            </div>
+          </div>
+          <div className="p-4 bg-orange-50 rounded-lg">
+            <div className="text-sm text-gray-600">Total à rembourser</div>
+            <div className="text-2xl font-bold text-orange-900">
+              {result.totalAmount.toLocaleString('fr-FR')} FCFA
+            </div>
+          </div>
         </div>
 
         {!result.isValid && (
@@ -1357,6 +1334,7 @@ function CustomSimulationResults({
                       <TableHead>Mois</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Mensualité</TableHead>
+                      <TableHead className="text-right">Intérêts</TableHead>
                       <TableHead className="text-right">Montant global</TableHead>
                       <TableHead className="text-right">Reste dû</TableHead>
                     </TableRow>
@@ -1367,6 +1345,7 @@ function CustomSimulationResults({
                         <TableCell className="font-medium">M{row.month}</TableCell>
                         <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                         <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                        <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                         <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
                         <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                       </TableRow>

@@ -327,6 +327,9 @@ export default function CreditPaymentModal({
         data: {
           ...data,
           amount: penaltyOnlyMode ? 0 : data.amount, // Montant à 0 si mode pénalités uniquement
+          principalAmount: 0, // Sera calculé par le service
+          interestAmount: 0, // Sera calculé par le service
+          penaltyAmount: totalSelectedPenalties, // Montant des pénalités sélectionnées
           note: finalNote,
           comment: penaltyOnlyMode 
             ? `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`

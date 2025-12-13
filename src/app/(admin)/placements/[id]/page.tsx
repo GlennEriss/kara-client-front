@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   ArrowLeft,
   AlertCircle,
@@ -21,6 +22,7 @@ import {
   Calendar,
   Phone,
   User,
+  X,
 } from 'lucide-react'
 import { usePlacement, usePlacementCommissions, useEarlyExit } from '@/hooks/usePlacements'
 import { useAuth } from '@/hooks/useAuth'
@@ -30,6 +32,7 @@ import ViewPlacementDocumentModal from '@/components/placement/ViewPlacementDocu
 import PlacementFinalQuittanceModal from '@/components/placement/PlacementFinalQuittanceModal'
 import PlacementEarlyExitQuittanceModal from '@/components/placement/PlacementEarlyExitQuittanceModal'
 import CommissionReceiptModal from '@/components/placement/CommissionReceiptModal'
+import EarlyExitForm from '@/components/placement/EarlyExitForm'
 import type { CommissionPaymentPlacement } from '@/types/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -111,7 +114,9 @@ const [isGeneratingAddendum, setIsGeneratingAddendum] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
 const [showCloseModal, setShowCloseModal] = useState(false)
 const [closeFile, setCloseFile] = useState<File | null>(null)
+const [closingReason, setClosingReason] = useState('')
   const [commissionViewFormat, setCommissionViewFormat] = useState<'cards' | 'timeline' | 'table'>('cards')
+  const [showEarlyExitForm, setShowEarlyExitForm] = useState(false)
 
   const payoutLabel = useMemo(() => {
     if (placement?.payoutMode === 'MonthlyCommission_CapitalEnd') return 'Commission mensuelle + capital à la fin'
@@ -140,7 +145,6 @@ const [closeFile, setCloseFile] = useState<File | null>(null)
       Active: 'Actif',
       Closed: 'Clos',
       EarlyExit: 'Sortie anticipée',
-      Canceled: 'Annulé',
     }
     return placement?.status ? map[placement.status] || placement.status : ''
   }, [placement?.status])
@@ -234,7 +238,7 @@ const commissionStatusLabel = (status: string) => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Retour
             </Button>
-            {!hasContract && (
+            {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
               <Button
                 onClick={() => setIsUploadOpen(true)}
                 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white"
@@ -373,38 +377,49 @@ const commissionStatusLabel = (status: string) => {
           <CardHeader>
             <CardTitle className="text-lg font-bold text-gray-900">Capital / Sortie anticipée</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowFinalQuittance(true)}
-              disabled={placement.status !== 'Closed' && placement.status !== 'Active'}
-            >
-              Quittance finale
-            </Button>
-            <Button
-              variant="default"
-              disabled={placement.status === 'Closed'}
-              onClick={() => setShowCloseModal(true)}
-            >
-              Clôturer le placement
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setShowEarlyExitQuittance(true)}
-              disabled={!earlyExit}
-            >
-              Quittance sortie anticipée
-            </Button>
-            {earlyExit && (
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-3">
               <Button
                 variant="outline"
-                onClick={() => setShowAddendumUpload(true)}
+                onClick={() => setShowFinalQuittance(true)}
+                disabled={placement.status !== 'Closed' && placement.status !== 'Active'}
               >
-                Avenant retrait anticipé
+                Quittance finale
               </Button>
-            )}
+              <Button
+                variant="default"
+                disabled={placement.status === 'Closed'}
+                onClick={() => setShowCloseModal(true)}
+              >
+                Clôturer le placement
+              </Button>
+              {!earlyExit && placement.status === 'Active' && (
+                <Button
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  onClick={() => setShowEarlyExitForm(true)}
+                >
+                  Demander retrait anticipé
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => setShowEarlyExitQuittance(true)}
+                disabled={!earlyExit}
+              >
+                Quittance sortie anticipée
+              </Button>
+              {earlyExit && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddendumUpload(true)}
+                >
+                  Avenant retrait anticipé
+                </Button>
+              )}
+            </div>
             {!earlyExit && (
-              <span className="text-xs text-gray-500 mt-1">Aucune sortie anticipée enregistrée.</span>
+              <p className="text-xs text-gray-500">Aucune sortie anticipée enregistrée.</p>
             )}
           </CardContent>
         </Card>
@@ -482,10 +497,12 @@ const commissionStatusLabel = (status: string) => {
             <CardContent className="p-4 space-y-2">
               <p className="text-xs uppercase text-gray-500 font-semibold">Actions</p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => setIsUploadOpen(true)} disabled={!user?.uid}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Téléverser contrat
-                </Button>
+                {!hasContract && placement.status !== 'Closed' && placement.status !== 'EarlyExit' && (
+                  <Button size="sm" variant="outline" onClick={() => setIsUploadOpen(true)} disabled={!user?.uid}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Téléverser contrat
+                  </Button>
+                )}
                 {placement.contractDocumentId && (
                   <Button size="sm" variant="secondary" onClick={() => setIsViewOpen(true)}>
                     <FileText className="h-4 w-4 mr-2" />
@@ -830,6 +847,28 @@ const commissionStatusLabel = (status: string) => {
         />
       )}
 
+      {/* Modal de demande de retrait anticipé */}
+      {showEarlyExitForm && placement && (
+        <Dialog open={showEarlyExitForm} onOpenChange={setShowEarlyExitForm}>
+          <DialogContent className="sm:max-w-lg max-w-[95vw]">
+            <DialogHeader>
+              <DialogTitle>Demander un retrait anticipé</DialogTitle>
+              <DialogDescription>
+                Les montants sont calculés automatiquement selon la règle : commission d'un mois si au moins 1 mois écoulé, sinon 0 commission.
+              </DialogDescription>
+            </DialogHeader>
+            <EarlyExitForm 
+              placementId={placement.id} 
+              onClose={() => {
+                setShowEarlyExitForm(false)
+                qc.invalidateQueries({ queryKey: ['earlyExit', placement.id] })
+                qc.invalidateQueries({ queryKey: ['placement', placement.id] })
+              }} 
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
       {showUrgentModal && placement.urgentContact && (
         <Dialog open={showUrgentModal} onOpenChange={setShowUrgentModal}>
           <DialogContent>
@@ -859,22 +898,92 @@ const commissionStatusLabel = (status: string) => {
 
       {/* Clôture placement */}
       <Dialog open={showCloseModal} onOpenChange={setShowCloseModal}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Clôturer le placement</DialogTitle>
-            <DialogDescription>Téléversez la quittance finale (optionnel) puis confirmez.</DialogDescription>
+            <DialogDescription>
+              Indiquez le motif de clôture et téléversez la quittance finale.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => setCloseFile(e.target.files?.[0] || null)}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowCloseModal(false)}>Annuler</Button>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="closing-reason" className="text-sm font-medium">
+                Motif de clôture *
+              </label>
+              <Textarea
+                id="closing-reason"
+                placeholder="Décrivez la raison de la clôture du placement (minimum 10 caractères)"
+                className="min-h-[100px]"
+                value={closingReason}
+                onChange={(e) => setClosingReason(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">
+                Minimum 10 caractères, maximum 500 caractères
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="final-quittance" className="text-sm font-medium">
+                Quittance finale *
+              </label>
+              <Input
+                id="final-quittance"
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => setCloseFile(e.target.files?.[0] || null)}
+              />
+              <p className="text-xs text-gray-500">
+                Téléversez la quittance finale signée du placement. Format accepté : PDF uniquement, taille maximale : 10 MB.
+              </p>
+              {closeFile && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+                  <FileText className="h-4 w-4 text-gray-600" />
+                  <span className="text-sm text-gray-700 flex-1">{closeFile.name}</span>
+                  <span className="text-xs text-gray-500">
+                    {(closeFile.size / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => setCloseFile(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowCloseModal(false)
+                  setClosingReason('')
+                  setCloseFile(null)
+                }}
+                disabled={isClosing}
+              >
+                Annuler
+              </Button>
               <Button
                 onClick={async () => {
                   if (!user?.uid) return
+                  if (!closingReason || closingReason.trim().length < 10) {
+                    toast.error('Le motif de clôture est requis (minimum 10 caractères)')
+                    return
+                  }
+                  if (!closeFile) {
+                    toast.error('La quittance finale est requise')
+                    return
+                  }
+                  if (closeFile.type !== 'application/pdf') {
+                    toast.error('Le fichier doit être un PDF')
+                    return
+                  }
+                  if (closeFile.size > 10 * 1024 * 1024) {
+                    toast.error('La taille du fichier ne peut pas dépasser 10MB')
+                    return
+                  }
                   setIsClosing(true)
                   try {
                     const { ServiceFactory } = await import('@/factories/ServiceFactory')
@@ -883,15 +992,16 @@ const commissionStatusLabel = (status: string) => {
                     await qc.invalidateQueries({ queryKey: ['placement', placement.id] })
                     setFinalQuittanceId(updated.finalQuittanceDocumentId || null)
                     toast.success('Placement clôturé')
+                    setShowCloseModal(false)
+                    setClosingReason('')
+                    setCloseFile(null)
                   } catch (e: any) {
                     toast.error(e?.message || 'Erreur lors de la clôture')
                   } finally {
                     setIsClosing(false)
-                    setShowCloseModal(false)
-                    setCloseFile(null)
                   }
                 }}
-                disabled={isClosing}
+                disabled={isClosing || !closeFile}
               >
                 {isClosing ? 'Clôture...' : 'Clôturer'}
               </Button>
