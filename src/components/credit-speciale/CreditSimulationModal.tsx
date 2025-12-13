@@ -794,22 +794,17 @@ function StandardSimulationResults({
     const balanceWithInterest = remaining + interest
     
     // 3. Versement effectué
-    // Si le reste dû (sans intérêts) est inférieur à la mensualité souhaitée,
-    // alors la mensualité réelle affichée = reste dû (sans intérêts)
-    // Le montant global = reste dû + intérêts = mensualité réelle + intérêts
-    // Pour que le nouveau solde soit 0, on doit payer le montant global complet
+    // Si le montant global est inférieur à la mensualité souhaitée,
+    // alors la dernière mensualité = montant global (capital + intérêts)
     let payment: number
     
-    if (remaining < result.monthlyPayment) {
-      // Le reste dû est inférieur à la mensualité souhaitée
-      // La mensualité réelle affichée = reste dû (sans intérêts)
-      // Mais on paie le montant global complet (reste dû + intérêts) pour que le solde soit à 0
-      payment = remaining // On affiche le reste dû dans la colonne "Mensualité"
-      // Mais le paiement réel sera balanceWithInterest pour que remaining = 0
-      // Donc on ajuste remaining directement
+    if (balanceWithInterest < result.monthlyPayment) {
+      // Le montant global est inférieur à la mensualité souhaitée
+      // La dernière mensualité = montant global (capital + intérêts)
+      payment = balanceWithInterest
       remaining = 0
     } else {
-      // Le reste dû est supérieur ou égal à la mensualité souhaitée
+      // Le montant global est supérieur ou égal à la mensualité souhaitée
       payment = result.monthlyPayment
       // 4. Nouveau solde après versement
       remaining = Math.max(0, balanceWithInterest - payment)
@@ -966,16 +961,14 @@ function StandardSimulationResults({
                       <TableHead>Mois</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Mensualité</TableHead>
-                      <TableHead className="text-right">Intérêts</TableHead>
                       <TableHead className="text-right">Montant global</TableHead>
                       <TableHead className="text-right">Reste dû</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {(() => {
-                      // Calculer l'échéancier de référence sur exactement 7 mois
-                      // Indépendamment de la mensualité souhaitée
-                      // On cherche la mensualité qui permet de rembourser en exactement 7 mois
+                      // Calculer l'échéancier de référence sur exactement 7 mois SANS INTÉRÊTS
+                      // Mensualité = montant emprunté / 7
                       const referenceSchedule: Array<{
                         month: number
                         date: Date
@@ -985,76 +978,40 @@ function StandardSimulationResults({
                         remaining: number
                       }> = []
 
-                      const refMonthlyRate = result.interestRate / 100
                       const refFirstDate = new Date(result.firstPaymentDate)
                       
-                      // Recherche binaire pour trouver la mensualité optimale sur 7 mois
-                      let minPayment = Math.ceil(result.amount / 7)
-                      let maxPayment = result.amount * 2
-                      let optimalPayment = maxPayment
+                      // Mensualité de référence sans intérêts (arrondie à l'inférieur pour les 6 premiers mois)
+                      const monthlyPaymentRef = Math.floor(result.amount / 7)
                       
-                      for (let iteration = 0; iteration < 50; iteration++) {
-                        const testPayment = Math.ceil((minPayment + maxPayment) / 2)
-                        let testRemaining = result.amount
-                        
-                        // Simuler les 7 mois avec cette mensualité
-                        for (let month = 0; month < 7; month++) {
-                          const interest = testRemaining * refMonthlyRate
-                          const balanceWithInterest = testRemaining + interest
-                          const payment = Math.min(testPayment, balanceWithInterest)
-                          testRemaining = balanceWithInterest - payment
-                          
-                          if (testRemaining < 1) {
-                            testRemaining = 0
-                          }
-                        }
-                        
-                        if (testRemaining <= 0) {
-                          // La mensualité est suffisante, on peut essayer plus petit
-                          optimalPayment = testPayment
-                          maxPayment = testPayment - 1
-                        } else {
-                          // La mensualité est insuffisante, il faut augmenter
-                          minPayment = testPayment + 1
-                        }
-                        
-                        if (minPayment > maxPayment) break
-                      }
-                      
-                      // Générer l'échéancier avec la mensualité optimale
+                      // Générer l'échéancier sans intérêts
                       let refRemaining = result.amount
 
                       for (let i = 0; i < 7; i++) {
                         const date = new Date(refFirstDate)
                         date.setMonth(date.getMonth() + i)
                         
-                        // 1. Calcul des intérêts sur le solde actuel
-                        const interest = refRemaining * refMonthlyRate
-                        // 2. Nouveau solde avec intérêts
-                        const balanceWithInterest = refRemaining + interest
+                        // Échéancier sans intérêts : pas d'intérêts, juste le capital
+                        const interest = 0
+                        const principal = refRemaining // Montant global = reste dû (pas d'intérêts ajoutés)
                         
-                        // 3. Versement effectué
+                        // Versement effectué
                         let payment: number
                         if (i === 6) {
-                          // Dernier mois : ajuster pour que le solde soit exactement 0
-                          payment = refRemaining // La mensualité finale = reste dû (sans intérêts)
-                          refRemaining = 0
-                        } else if (refRemaining < optimalPayment) {
-                          // Le reste dû est inférieur à la mensualité optimale
+                          // Dernier mois : payer le reste dû exactement (pour que le total soit exactement le montant emprunté)
                           payment = refRemaining
                           refRemaining = 0
                         } else {
-                          // Mois 1 à 6 : mensualité optimale calculée
-                          payment = optimalPayment
-                          refRemaining = Math.max(0, balanceWithInterest - payment)
+                          // Mois 1 à 6 : mensualité de référence arrondie à l'inférieur
+                          payment = monthlyPaymentRef
+                          refRemaining = Math.max(0, refRemaining - payment)
                         }
 
                         referenceSchedule.push({
                           month: i + 1,
                           date,
                           payment: customRound(payment),
-                          interest: customRound(interest),
-                          principal: customRound(balanceWithInterest),
+                          interest: customRound(interest), // Toujours 0 pour l'échéancier de référence
+                          principal: customRound(principal), // Montant global = reste dû (sans intérêts)
                           remaining: customRound(refRemaining),
                         })
                       }
@@ -1064,7 +1021,6 @@ function StandardSimulationResults({
                           <TableCell className="font-medium">M{row.month}</TableCell>
                           <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                           <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                          <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                           <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
                           <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                         </TableRow>
@@ -1138,8 +1094,8 @@ function CustomSimulationResults({
     })
   })
 
-  // Calculer l'échéancier référence (exactement 7 mois)
-  // Même logique que dans la simulation standard
+  // Calculer l'échéancier référence (exactement 7 mois) SANS INTÉRÊTS
+  // Mensualité = montant emprunté / durée
   const referenceSchedule: Array<{
     month: number
     date: Date
@@ -1150,73 +1106,38 @@ function CustomSimulationResults({
   }> = []
 
   if (maxDuration !== Infinity) {
-    // Recherche binaire pour trouver la mensualité optimale sur 7 mois
-    let minPayment = Math.ceil(result.amount / maxDuration)
-    let maxPaymentSearch = result.amount * 2
-    let optimalPayment = maxPaymentSearch
+    // Mensualité de référence sans intérêts (arrondie à l'inférieur pour les mois précédents)
+    const monthlyPaymentRef = Math.floor(result.amount / maxDuration)
     
-    for (let iteration = 0; iteration < 50; iteration++) {
-      const testPayment = Math.ceil((minPayment + maxPaymentSearch) / 2)
-      let testRemaining = result.amount
-      
-      // Simuler les 7 mois avec cette mensualité
-      for (let month = 0; month < maxDuration; month++) {
-        const interest = testRemaining * monthlyRate
-        const balanceWithInterest = testRemaining + interest
-        const payment = Math.min(testPayment, balanceWithInterest)
-        testRemaining = balanceWithInterest - payment
-        
-        if (testRemaining < 1) {
-          testRemaining = 0
-        }
-      }
-      
-      if (testRemaining <= 0) {
-        // La mensualité est suffisante, on peut essayer plus petit
-        optimalPayment = testPayment
-        maxPaymentSearch = testPayment - 1
-      } else {
-        // La mensualité est insuffisante, il faut augmenter
-        minPayment = testPayment + 1
-      }
-      
-      if (minPayment > maxPaymentSearch) break
-    }
-    
-    // Générer l'échéancier avec la mensualité optimale
+    // Générer l'échéancier sans intérêts
     let refRemaining = result.amount
 
     for (let i = 0; i < maxDuration; i++) {
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
       
-      // 1. Calcul des intérêts sur le solde actuel
-      const interest = refRemaining * monthlyRate
-      // 2. Nouveau solde avec intérêts
-      const balanceWithInterest = refRemaining + interest
+      // Échéancier sans intérêts : pas d'intérêts, juste le capital
+      const interest = 0
+      const principal = refRemaining // Montant global = reste dû (pas d'intérêts ajoutés)
       
-      // 3. Versement effectué
+      // Versement effectué
       let payment: number
       if (i === maxDuration - 1) {
-        // Dernier mois : ajuster pour que le solde soit exactement 0
-        payment = refRemaining // La mensualité finale = reste dû (sans intérêts)
-        refRemaining = 0
-      } else if (refRemaining < optimalPayment) {
-        // Le reste dû est inférieur à la mensualité optimale
+        // Dernier mois : payer le reste dû exactement (pour que le total soit exactement le montant emprunté)
         payment = refRemaining
         refRemaining = 0
       } else {
-        // Mois 1 à 6 : mensualité optimale calculée
-        payment = optimalPayment
-        refRemaining = Math.max(0, balanceWithInterest - payment)
+        // Mois précédents : mensualité de référence arrondie à l'inférieur
+        payment = monthlyPaymentRef
+        refRemaining = Math.max(0, refRemaining - payment)
       }
 
       referenceSchedule.push({
         month: i + 1,
         date,
         payment: customRound(payment),
-        interest: customRound(interest),
-        principal: customRound(balanceWithInterest),
+        interest: customRound(interest), // Toujours 0 pour l'échéancier de référence
+        principal: customRound(principal), // Montant global = reste dû (sans intérêts)
         remaining: customRound(refRemaining),
       })
     }
@@ -1334,7 +1255,6 @@ function CustomSimulationResults({
                       <TableHead>Mois</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Mensualité</TableHead>
-                      <TableHead className="text-right">Intérêts</TableHead>
                       <TableHead className="text-right">Montant global</TableHead>
                       <TableHead className="text-right">Reste dû</TableHead>
                     </TableRow>
@@ -1345,7 +1265,6 @@ function CustomSimulationResults({
                         <TableCell className="font-medium">M{row.month}</TableCell>
                         <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                         <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                        <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                         <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
                         <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                       </TableRow>

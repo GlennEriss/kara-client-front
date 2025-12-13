@@ -183,6 +183,55 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
     return items
   }
 
+  // Calculer l'échéancier de référence sans intérêts (exactement 7 mois)
+  const calculateReferenceScheduleWithoutInterest = (contract: CreditContract) => {
+    const firstDate = new Date(contract.firstPaymentDate)
+    // Mensualité de référence arrondie à l'inférieur pour les 6 premiers mois
+    const monthlyPaymentRef = Math.floor(contract.amount / 7)
+    let remaining = contract.amount
+    
+    const items: Array<{
+      month: number
+      date: Date
+      payment: number
+      interest: number
+      principal: number
+      remaining: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      // Échéancier sans intérêts : pas d'intérêts, juste le capital
+      const interest = 0
+      const principal = remaining // Montant global = reste dû (pas d'intérêts ajoutés)
+      
+      // Versement effectué
+      let payment: number
+      if (i === 6) {
+        // Dernier mois : payer le reste dû exactement (pour que le total soit exactement le montant emprunté)
+        payment = remaining
+        remaining = 0
+      } else {
+        // Mois 1 à 6 : mensualité de référence arrondie à l'inférieur
+        payment = monthlyPaymentRef
+        remaining = Math.max(0, remaining - payment)
+      }
+
+      items.push({
+        month: i + 1,
+        date,
+        payment: customRound(payment),
+        interest: customRound(interest), // Toujours 0 pour l'échéancier de référence
+        principal: customRound(principal), // Montant global = reste dû (sans intérêts)
+        remaining: customRound(remaining),
+      })
+    }
+
+    return items
+  }
+
   // Calculer la mensualité optimale pour 7 mois (recherche binaire)
   const calculateOptimalMonthlyPaymentFor7Months = (contract: CreditContract): number => {
     const monthlyRate = contract.interestRate / 100
@@ -559,22 +608,16 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                           <TableHead>Mois</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead className="text-right">Mensualité</TableHead>
-                          <TableHead className="text-right">Intérêts</TableHead>
                           <TableHead className="text-right">Montant global</TableHead>
                           <TableHead className="text-right">Reste dû</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {calculateSchedule(
-                          contract, 
-                          7, 
-                          calculateOptimalMonthlyPaymentFor7Months(contract)
-                        ).map((row) => (
+                        {calculateReferenceScheduleWithoutInterest(contract).map((row) => (
                           <TableRow key={row.month}>
                             <TableCell className="font-medium">M{row.month}</TableCell>
                             <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                             <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                            <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
                             <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
                             <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                           </TableRow>

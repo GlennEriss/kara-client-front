@@ -372,12 +372,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 const interest = remainingAmount * monthlyRate;
                 // 2. Ajout des intérêts au solde
                 const balanceWithInterest = remainingAmount + interest;
-                // 3. Soustraction du versement
-                const payment = Math.min(monthlyPayment, balanceWithInterest);
+                // 3. Versement effectué : si le montant global est inférieur à la mensualité, payer le montant global
+                const payment = balanceWithInterest < monthlyPayment ? balanceWithInterest : monthlyPayment;
                 remainingAmount = balanceWithInterest - payment;
                 
                 totalInterest += interest;
-                totalPaid += payment;
+                totalPaid += payment; // Somme des mensualités affichées (qui incluent déjà les intérêts)
                 duration++;
                 
                 // Arrondir pour éviter les erreurs de virgule flottante
@@ -415,17 +415,17 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 totalInterestFor7Months += interest;
                 const balanceWithInterest = testRemaining + interest;
                 
-                // Mensualité affichée : si le reste dû est inférieur à la mensualité, c'est le reste dû
+                // Mensualité affichée : si le montant global est inférieur à la mensualité, c'est le montant global
                 let mensualite: number;
-                if (testRemaining < monthlyPayment) {
-                    mensualite = testRemaining; // Affiche le reste dû dans la colonne "Mensualité"
+                if (balanceWithInterest < monthlyPayment) {
+                    mensualite = balanceWithInterest; // La dernière mensualité = montant global (capital + intérêts)
                 } else {
                     mensualite = monthlyPayment;
                 }
                 
                 totalMensualitesFor7Months += mensualite;
-                // Le paiement réel est le montant global pour solder le compte
-                testRemaining = Math.max(0, balanceWithInterest - (testRemaining < monthlyPayment ? balanceWithInterest : monthlyPayment));
+                // Le paiement réel est la mensualité affichée
+                testRemaining = Math.max(0, balanceWithInterest - mensualite);
                 
                 if (testRemaining < 1) {
                     testRemaining = 0;
@@ -437,7 +437,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             
             // Mettre à jour les totaux avec les valeurs réelles
             totalInterest = totalInterestFor7Months;
-            totalPaid = totalMensualitesFor7Months; // Somme des mensualités affichées
+            totalPaid = totalMensualitesFor7Months; // Somme des mensualités affichées (qui incluent déjà les intérêts)
             
             // Si au 7ème mois il reste un solde, calculer la mensualité minimale nécessaire
             if (remainingAtMaxDuration > 0) {
@@ -481,8 +481,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
         }
         
-        // Total à rembourser = somme des mensualités + somme des intérêts (arrondi)
-        const totalAmount = Math.round(totalPaid + totalInterest);
+        // Total à rembourser = somme des mensualités affichées (qui incluent déjà les intérêts)
+        const totalAmount = Math.round(totalPaid);
 
         return {
             amount,
@@ -536,9 +536,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
         });
 
-        // Total à rembourser = somme des mensualités prévues + intérêts totaux
-        const totalMonthlyPayments = monthlyPayments.reduce((sum, p) => sum + p.amount, 0);
-        const totalAmount = totalMonthlyPayments + totalInterest;
+        // Total à rembourser = somme des mensualités prévues (qui sont déjà les montants totaux à payer)
+        const totalAmount = totalPaid;
         const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity;
         const isValid = duration <= maxDuration && remainingAmount <= 0;
 
