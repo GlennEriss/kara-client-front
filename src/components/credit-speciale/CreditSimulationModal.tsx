@@ -823,6 +823,57 @@ function StandardSimulationResults({
   // La durée réelle est le nombre de lignes dans l'échéancier (avec paiements non nuls)
   const displayDuration = schedule.length
 
+  // Calculer les stats pour l'échéancier calculé
+  const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
+  const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
+
+  // Calculer l'échéancier de référence pour obtenir ses stats (uniquement pour crédit spéciale)
+  const calculateReferenceSchedule = () => {
+    if (creditType !== 'SPECIALE' || maxDuration !== 7) return []
+    
+    const refFirstDate = new Date(result.firstPaymentDate)
+    const monthlyPaymentRef = Math.floor(result.amount / 7)
+    let refRemaining = result.amount
+    const referenceSchedule: Array<{
+      month: number
+      date: Date
+      payment: number
+      interest: number
+      principal: number
+      remaining: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(refFirstDate)
+      date.setMonth(date.getMonth() + i)
+      const interest = 0
+      const principal = refRemaining
+      let payment: number
+      if (i === 6) {
+        payment = refRemaining
+        refRemaining = 0
+      } else {
+        payment = monthlyPaymentRef
+        refRemaining = Math.max(0, refRemaining - payment)
+      }
+      referenceSchedule.push({
+        month: i + 1,
+        date,
+        payment: customRound(payment),
+        interest: customRound(interest),
+        principal: customRound(principal),
+        remaining: customRound(refRemaining),
+      })
+    }
+    return referenceSchedule
+  }
+
+  const referenceSchedule = calculateReferenceSchedule()
+  
+  // Calculer les stats pour l'échéancier référence
+  const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
+  const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
+
   return (
     <Card>
       <CardHeader>
@@ -845,32 +896,79 @@ function StandardSimulationResults({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Résumé */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <div className="text-sm text-gray-600">Montant</div>
-            <div className="text-2xl font-bold text-blue-900">
-              {result.amount.toLocaleString('fr-FR')} FCFA
-            </div>
-          </div>
-          <div className="p-4 bg-green-50 rounded-lg">
-            <div className="text-sm text-gray-600">Durée</div>
-            <div className="text-2xl font-bold text-green-900">
-              {displayDuration} mois
-            </div>
-          </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <div className="text-sm text-gray-600">Mensualité</div>
-            <div className="text-2xl font-bold text-purple-900">
-              {result.monthlyPayment.toLocaleString('fr-FR')} FCFA
-            </div>
-          </div>
-          <div className="p-4 bg-orange-50 rounded-lg">
-            <div className="text-sm text-gray-600">Total à rembourser</div>
-            <div className="text-2xl font-bold text-orange-900">
-              {result.totalAmount.toLocaleString('fr-FR')} FCFA
-            </div>
-          </div>
+        {/* Deux cartes de résumé */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Carte 1: Échéancier calculé */}
+          <Card className="border-2 border-blue-200">
+            <CardHeader className="bg-blue-50">
+              <CardTitle className="text-lg text-blue-900">Échéancier calculé</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Montant</div>
+                  <div className="text-xl font-bold text-blue-900">
+                    {result.amount.toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Durée</div>
+                  <div className="text-xl font-bold text-green-900">
+                    {displayDuration} mois
+                  </div>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Mensualité</div>
+                  <div className="text-xl font-bold text-purple-900">
+                    {customRound(calculatedAverageMonthly).toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Total à rembourser</div>
+                  <div className="text-xl font-bold text-orange-900">
+                    {customRound(calculatedTotalAmount).toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Carte 2: Échéancier référence */}
+          {creditType === 'SPECIALE' && maxDuration === 7 && (
+            <Card className="border-2 border-indigo-200">
+              <CardHeader className="bg-indigo-50">
+                <CardTitle className="text-lg text-indigo-900">Échéancier référence</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Montant</div>
+                    <div className="text-xl font-bold text-blue-900">
+                      {result.amount.toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Durée</div>
+                    <div className="text-xl font-bold text-green-900">
+                      7 mois
+                    </div>
+                  </div>
+                  <div className="p-3 bg-purple-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Mensualité</div>
+                    <div className="text-xl font-bold text-purple-900">
+                      {customRound(referenceAverageMonthly).toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Total à rembourser</div>
+                    <div className="text-xl font-bold text-orange-900">
+                      {customRound(referenceTotalAmount).toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {(!result.isValid || (creditType === 'SPECIALE' && result.remainingAtMaxDuration !== undefined && result.remainingAtMaxDuration > 0)) && (
@@ -966,66 +1064,15 @@ function StandardSimulationResults({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(() => {
-                      // Calculer l'échéancier de référence sur exactement 7 mois SANS INTÉRÊTS
-                      // Mensualité = montant emprunté / 7
-                      const referenceSchedule: Array<{
-                        month: number
-                        date: Date
-                        payment: number
-                        interest: number
-                        principal: number
-                        remaining: number
-                      }> = []
-
-                      const refFirstDate = new Date(result.firstPaymentDate)
-                      
-                      // Mensualité de référence sans intérêts (arrondie à l'inférieur pour les 6 premiers mois)
-                      const monthlyPaymentRef = Math.floor(result.amount / 7)
-                      
-                      // Générer l'échéancier sans intérêts
-                      let refRemaining = result.amount
-
-                      for (let i = 0; i < 7; i++) {
-                        const date = new Date(refFirstDate)
-                        date.setMonth(date.getMonth() + i)
-                        
-                        // Échéancier sans intérêts : pas d'intérêts, juste le capital
-                        const interest = 0
-                        const principal = refRemaining // Montant global = reste dû (pas d'intérêts ajoutés)
-                        
-                        // Versement effectué
-                        let payment: number
-                        if (i === 6) {
-                          // Dernier mois : payer le reste dû exactement (pour que le total soit exactement le montant emprunté)
-                          payment = refRemaining
-                          refRemaining = 0
-                        } else {
-                          // Mois 1 à 6 : mensualité de référence arrondie à l'inférieur
-                          payment = monthlyPaymentRef
-                          refRemaining = Math.max(0, refRemaining - payment)
-                        }
-
-                        referenceSchedule.push({
-                          month: i + 1,
-                          date,
-                          payment: customRound(payment),
-                          interest: customRound(interest), // Toujours 0 pour l'échéancier de référence
-                          principal: customRound(principal), // Montant global = reste dû (sans intérêts)
-                          remaining: customRound(refRemaining),
-                        })
-                      }
-
-                      return referenceSchedule.map((row) => (
-                        <TableRow key={row.month}>
-                          <TableCell className="font-medium">M{row.month}</TableCell>
-                          <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                          <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                          <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
-                          <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
-                        </TableRow>
-                      ))
-                    })()}
+                    {referenceSchedule.map((row) => (
+                      <TableRow key={row.month}>
+                        <TableCell className="font-medium">M{row.month}</TableCell>
+                        <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                        <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                        <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                        <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
@@ -1143,6 +1190,14 @@ function CustomSimulationResults({
     }
   }
 
+  // Calculer les stats pour l'échéancier calculé
+  const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
+  const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
+  
+  // Calculer les stats pour l'échéancier référence
+  const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
+  const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
+
   return (
     <Card>
       <CardHeader>
@@ -1165,32 +1220,79 @@ function CustomSimulationResults({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Résumé */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <div className="text-sm text-gray-600">Montant</div>
-            <div className="text-2xl font-bold text-blue-900">
-              {result.amount.toLocaleString('fr-FR')} FCFA
-            </div>
-          </div>
-          <div className="p-4 bg-green-50 rounded-lg">
-            <div className="text-sm text-gray-600">Durée</div>
-            <div className="text-2xl font-bold text-green-900">
-              {result.duration} mois
-            </div>
-          </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <div className="text-sm text-gray-600">Total versé</div>
-            <div className="text-2xl font-bold text-purple-900">
-              {result.monthlyPayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString('fr-FR')} FCFA
-            </div>
-          </div>
-          <div className="p-4 bg-orange-50 rounded-lg">
-            <div className="text-sm text-gray-600">Total à rembourser</div>
-            <div className="text-2xl font-bold text-orange-900">
-              {result.totalAmount.toLocaleString('fr-FR')} FCFA
-            </div>
-          </div>
+        {/* Deux cartes de résumé */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Carte 1: Échéancier calculé */}
+          <Card className="border-2 border-blue-200">
+            <CardHeader className="bg-blue-50">
+              <CardTitle className="text-lg text-blue-900">Échéancier calculé</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Montant</div>
+                  <div className="text-xl font-bold text-blue-900">
+                    {result.amount.toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Durée</div>
+                  <div className="text-xl font-bold text-green-900">
+                    {result.duration} mois
+                  </div>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Mensualité</div>
+                  <div className="text-xl font-bold text-purple-900">
+                    {customRound(calculatedAverageMonthly).toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Total à rembourser</div>
+                  <div className="text-xl font-bold text-orange-900">
+                    {customRound(calculatedTotalAmount).toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Carte 2: Échéancier référence */}
+          {maxDuration !== Infinity && (
+            <Card className="border-2 border-indigo-200">
+              <CardHeader className="bg-indigo-50">
+                <CardTitle className="text-lg text-indigo-900">Échéancier référence</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Montant</div>
+                    <div className="text-xl font-bold text-blue-900">
+                      {result.amount.toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Durée</div>
+                    <div className="text-xl font-bold text-green-900">
+                      {maxDuration} mois
+                    </div>
+                  </div>
+                  <div className="p-3 bg-purple-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Mensualité</div>
+                    <div className="text-xl font-bold text-purple-900">
+                      {customRound(referenceAverageMonthly).toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <div className="text-xs text-gray-600">Total à rembourser</div>
+                    <div className="text-xl font-bold text-orange-900">
+                      {customRound(referenceTotalAmount).toLocaleString('fr-FR')} FCFA
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {!result.isValid && (
