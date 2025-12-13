@@ -7,6 +7,8 @@ const routes = {
     },
     admin: {
         dashboard: '/dashboard',
+        // Calendrier
+        calendrier: '/calendrier',
         membershipRequests: '/membership-requests',
         membershipRequestDetails: (id: string) => `/membership-requests/${id}`,
         memberships: '/memberships',

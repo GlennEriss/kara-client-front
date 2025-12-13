@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin, FileText, CreditCard } from "lucide-react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin, FileText, CreditCard, Calendar } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -48,6 +48,11 @@ const adminMenuItems: SidebarItem[] = [
         title: "Tableau de bord",
         url: "/dashboard",
         icon: Home,
+    },
+    {
+        title: "Calendrier",
+        url: routes.admin.calendrier,
+        icon: Calendar,
     },
     {
         title: "Demandes d'adhésion",
