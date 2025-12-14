@@ -3,7 +3,6 @@
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 import type { DayCommissions } from "@/hooks/useCalendarPlacement"
 
 interface CalendarDayPlacementProps {
@@ -15,19 +14,27 @@ interface CalendarDayPlacementProps {
 }
 
 const COLOR_CLASSES = {
-  green: "bg-green-50 border-green-300 hover:bg-green-100",
-  orange: "bg-orange-50 border-orange-300 hover:bg-orange-100",
-  yellow: "bg-yellow-50 border-yellow-300 hover:bg-yellow-100",
-  red: "bg-red-50 border-red-300 hover:bg-red-100",
-  gray: "bg-gray-50 border-gray-200 hover:bg-gray-100",
+  green: "bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200 hover:from-emerald-100 hover:to-emerald-200/50 hover:border-emerald-300 hover:shadow-emerald-100",
+  orange: "bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200 hover:from-orange-100 hover:to-orange-200/50 hover:border-orange-300 hover:shadow-orange-100",
+  yellow: "bg-gradient-to-br from-amber-50 to-yellow-100/50 border-amber-200 hover:from-amber-100 hover:to-yellow-200/50 hover:border-amber-300 hover:shadow-amber-100",
+  red: "bg-gradient-to-br from-red-50 to-rose-100/50 border-red-200 hover:from-red-100 hover:to-rose-200/50 hover:border-red-300 hover:shadow-red-100",
+  gray: "bg-gradient-to-br from-gray-50 to-slate-100/50 border-gray-200 hover:from-gray-100 hover:to-slate-200/50 hover:border-gray-300",
 }
 
 const COLOR_BADGE_CLASSES = {
-  green: "bg-green-500",
-  orange: "bg-orange-500",
-  yellow: "bg-yellow-500",
-  red: "bg-red-500",
-  gray: "bg-gray-400",
+  green: "bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30",
+  orange: "bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg shadow-orange-500/30",
+  yellow: "bg-gradient-to-r from-amber-500 to-yellow-500 shadow-lg shadow-amber-500/30",
+  red: "bg-gradient-to-r from-red-500 to-rose-600 shadow-lg shadow-red-500/30",
+  gray: "bg-gradient-to-r from-gray-400 to-slate-500 shadow-lg shadow-gray-400/30",
+}
+
+const COLOR_TEXT_CLASSES = {
+  green: "text-emerald-700",
+  orange: "text-orange-700",
+  yellow: "text-amber-700",
+  red: "text-red-700",
+  gray: "text-gray-600",
 }
 
 export function CalendarDayPlacement({
@@ -44,52 +51,92 @@ export function CalendarDayPlacement({
     <button
       onClick={onClick}
       className={cn(
-        "relative min-h-[100px] p-2 border rounded-lg transition-all duration-200 text-left",
-        isCurrentMonth ? "text-gray-900" : "text-gray-400",
-        isToday && "ring-2 ring-blue-500 ring-offset-2",
+        "group relative min-h-[110px] p-3 border-2 rounded-xl transition-all duration-300 text-left",
+        "hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.02]",
+        "focus:outline-none focus:ring-2 focus:ring-[#234D65]/20 focus:ring-offset-2",
+        isCurrentMonth ? "text-gray-900" : "text-gray-400 opacity-60",
+        isToday && "ring-2 ring-[#234D65] ring-offset-2 shadow-lg",
         hasCommissions
           ? COLOR_CLASSES[color]
-          : "bg-white border-gray-200 hover:bg-gray-50"
+          : "bg-white border-gray-100 hover:bg-gray-50/80 hover:border-gray-200"
       )}
     >
-      <div className="flex items-center justify-between mb-1">
+      {/* Indicateur de jour avec commissions */}
+      {hasCommissions && (
+        <div className={cn(
+          "absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white transform group-hover:scale-110 transition-transform",
+          COLOR_BADGE_CLASSES[color]
+        )}>
+          {dayCommissions.count}
+        </div>
+      )}
+
+      {/* Numéro du jour */}
+      <div className="flex items-center justify-between mb-2">
         <span
           className={cn(
-            "text-sm font-semibold",
-            isToday && "text-blue-600"
+            "flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold transition-colors",
+            isToday 
+              ? "bg-[#234D65] text-white shadow-md" 
+              : hasCommissions 
+                ? COLOR_TEXT_CLASSES[color]
+                : "text-gray-700"
           )}
         >
           {format(day, "d", { locale: fr })}
         </span>
-        {hasCommissions && (
-          <Badge
-            className={cn(
-              "h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs font-bold text-white",
-              COLOR_BADGE_CLASSES[color]
-            )}
-          >
-            {dayCommissions.count}
-          </Badge>
-        )}
       </div>
 
+      {/* Informations des commissions */}
       {hasCommissions && (
-        <div className="space-y-1 mt-2">
-          <div className="text-xs font-medium text-gray-700">
-            {dayCommissions.totalAmount.toLocaleString("fr-FR")} FCFA
+        <div className="space-y-1.5">
+          <div className={cn(
+            "text-xs font-semibold",
+            COLOR_TEXT_CLASSES[color]
+          )}>
+            {dayCommissions.totalAmount.toLocaleString("fr-FR")} F
           </div>
-          {dayCommissions.paidAmount > 0 && (
-            <div className="text-xs text-green-600">
-              Payé: {dayCommissions.paidAmount.toLocaleString("fr-FR")} FCFA
-            </div>
-          )}
-          {dayCommissions.remainingAmount > 0 && (
-            <div className="text-xs text-orange-600">
-              Reste: {dayCommissions.remainingAmount.toLocaleString("fr-FR")} FCFA
-            </div>
-          )}
+          
+          {/* Barre de progression */}
+          <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full rounded-full transition-all duration-500",
+                color === 'green' ? "bg-gradient-to-r from-emerald-400 to-emerald-500" :
+                color === 'orange' ? "bg-gradient-to-r from-orange-400 to-orange-500" :
+                color === 'yellow' ? "bg-gradient-to-r from-amber-400 to-yellow-500" :
+                color === 'red' ? "bg-gradient-to-r from-red-400 to-rose-500" :
+                "bg-gradient-to-r from-gray-400 to-slate-500"
+              )}
+              style={{ 
+                width: `${dayCommissions.totalAmount > 0 
+                  ? (dayCommissions.paidAmount / dayCommissions.totalAmount) * 100 
+                  : 0}%` 
+              }}
+            />
+          </div>
+
+          {/* Détails */}
+          <div className="flex items-center justify-between text-[10px]">
+            {dayCommissions.paidAmount > 0 && (
+              <span className="text-emerald-600 font-medium">
+                ✓ {dayCommissions.paidAmount.toLocaleString("fr-FR")}
+              </span>
+            )}
+            {dayCommissions.remainingAmount > 0 && (
+              <span className="text-orange-600 font-medium">
+                ◷ {dayCommissions.remainingAmount.toLocaleString("fr-FR")}
+              </span>
+            )}
+          </div>
         </div>
       )}
+
+      {/* Effet de survol */}
+      <div className={cn(
+        "absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none",
+        "bg-gradient-to-t from-black/5 to-transparent"
+      )} />
     </button>
   )
 }

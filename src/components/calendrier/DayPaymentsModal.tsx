@@ -2,16 +2,14 @@
 
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { X } from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { Calendar, Wallet, ChevronRight, CheckCircle2, Clock, AlertCircle, XCircle, Users } from "lucide-react"
 import type { DayPayments, CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
 import type { CaisseType } from "@/services/caisse/types"
 
@@ -22,18 +20,48 @@ interface DayPaymentsModalProps {
   onPaymentClick: (payment: CalendarPaymentItem) => void
 }
 
-const CAISSE_TYPE_LABELS: Record<CaisseType, string> = {
-  JOURNALIERE: "Journalier",
-  STANDARD: "Standard",
-  LIBRE: "Libre",
+const CAISSE_TYPE_CONFIG: Record<CaisseType, { label: string; color: string; icon: typeof Calendar }> = {
+  JOURNALIERE: { label: "Journalier", color: "blue", icon: Calendar },
+  STANDARD: { label: "Standard", color: "purple", icon: Wallet },
+  LIBRE: { label: "Libre", color: "amber", icon: Users },
 }
 
-const COLOR_BADGE_CLASSES = {
-  green: "bg-green-500 text-white",
-  orange: "bg-orange-500 text-white",
-  yellow: "bg-yellow-500 text-white",
-  red: "bg-red-500 text-white",
-  gray: "bg-gray-400 text-white",
+const COLOR_CONFIG = {
+  green: { 
+    bg: "bg-gradient-to-r from-emerald-50 to-green-50", 
+    border: "border-emerald-200",
+    badge: "bg-emerald-500",
+    text: "text-emerald-700",
+    icon: CheckCircle2
+  },
+  orange: { 
+    bg: "bg-gradient-to-r from-orange-50 to-amber-50", 
+    border: "border-orange-200",
+    badge: "bg-orange-500",
+    text: "text-orange-700",
+    icon: Clock
+  },
+  yellow: { 
+    bg: "bg-gradient-to-r from-amber-50 to-yellow-50", 
+    border: "border-amber-200",
+    badge: "bg-amber-500",
+    text: "text-amber-700",
+    icon: Clock
+  },
+  red: { 
+    bg: "bg-gradient-to-r from-red-50 to-rose-50", 
+    border: "border-red-200",
+    badge: "bg-red-500",
+    text: "text-red-700",
+    icon: AlertCircle
+  },
+  gray: { 
+    bg: "bg-gradient-to-r from-gray-50 to-slate-50", 
+    border: "border-gray-200",
+    badge: "bg-gray-400",
+    text: "text-gray-600",
+    icon: XCircle
+  },
 }
 
 const STATUS_LABELS = {
@@ -61,90 +89,173 @@ export function DayPaymentsModal({
     {} as Record<CaisseType, CalendarPaymentItem[]>
   )
 
+  const progressPercentage = dayPayments.totalAmount > 0 
+    ? (dayPayments.paidAmount / dayPayments.totalAmount) * 100 
+    : 0
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>
-            Versements du {format(dayPayments.date, "EEEE d MMMM yyyy", { locale: fr })}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[85vh] p-0 overflow-hidden rounded-2xl">
+        {/* En-tête avec dégradé */}
+        <div className="bg-gradient-to-r from-[#234D65] via-[#2c5a73] to-[#1a3a4d] p-6 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-3">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="text-xl font-bold capitalize">
+                  {format(dayPayments.date, "EEEE d MMMM yyyy", { locale: fr })}
+                </div>
+                <div className="text-sm text-white/70 font-normal mt-0.5">
+                  {dayPayments.count} versement{dayPayments.count > 1 ? 's' : ''} à traiter
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Résumé */}
-          <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <div className="text-sm text-gray-600">Total</div>
-              <div className="text-lg font-bold">
-                {dayPayments.totalAmount.toLocaleString("fr-FR")} FCFA
+          {/* Statistiques */}
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="text-xs text-white/60 uppercase tracking-wide">Total</div>
+              <div className="text-xl font-bold mt-1">
+                {dayPayments.totalAmount.toLocaleString("fr-FR")}
+                <span className="text-sm font-normal ml-1">F</span>
               </div>
             </div>
-            <div>
-              <div className="text-sm text-gray-600">Payé</div>
-              <div className="text-lg font-bold text-green-600">
-                {dayPayments.paidAmount.toLocaleString("fr-FR")} FCFA
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="text-xs text-emerald-300 uppercase tracking-wide">Payé</div>
+              <div className="text-xl font-bold text-emerald-300 mt-1">
+                {dayPayments.paidAmount.toLocaleString("fr-FR")}
+                <span className="text-sm font-normal ml-1">F</span>
               </div>
             </div>
-            <div>
-              <div className="text-sm text-gray-600">Reste</div>
-              <div className="text-lg font-bold text-orange-600">
-                {dayPayments.remainingAmount.toLocaleString("fr-FR")} FCFA
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+              <div className="text-xs text-orange-300 uppercase tracking-wide">Reste</div>
+              <div className="text-xl font-bold text-orange-300 mt-1">
+                {dayPayments.remainingAmount.toLocaleString("fr-FR")}
+                <span className="text-sm font-normal ml-1">F</span>
               </div>
             </div>
           </div>
 
-          {/* Liste des versements groupés par type */}
-          <div className="max-h-[400px] overflow-y-auto space-y-6">
-              {(Object.keys(groupedByType) as CaisseType[]).map((type) => (
+          {/* Barre de progression */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-xs text-white/60 mb-2">
+              <span>Progression</span>
+              <span>{Math.round(progressPercentage)}%</span>
+            </div>
+            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-emerald-400 to-green-400 rounded-full transition-all duration-500"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Liste des versements */}
+        <div className="p-6 max-h-[400px] overflow-y-auto">
+          <div className="space-y-6">
+            {(Object.keys(groupedByType) as CaisseType[]).map((type) => {
+              const config = CAISSE_TYPE_CONFIG[type]
+              const Icon = config.icon
+              
+              return (
                 <div key={type}>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                    {CAISSE_TYPE_LABELS[type]} ({groupedByType[type].length})
-                  </h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-lg",
+                      config.color === "blue" ? "bg-blue-100 text-blue-600" : 
+                      config.color === "purple" ? "bg-purple-100 text-purple-600" :
+                      "bg-amber-100 text-amber-600"
+                    )}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {config.label}
+                    </h3>
+                    <span className={cn(
+                      "text-xs px-2 py-0.5 rounded-full",
+                      config.color === "blue" ? "bg-blue-100 text-blue-700" : 
+                      config.color === "purple" ? "bg-purple-100 text-purple-700" :
+                      "bg-amber-100 text-amber-700"
+                    )}>
+                      {groupedByType[type].length}
+                    </span>
+                  </div>
+                  
                   <div className="space-y-2">
-                    {groupedByType[type].map((payment) => (
-                      <button
-                        key={payment.id}
-                        onClick={() => onPaymentClick(payment)}
-                        className="w-full p-3 border rounded-lg hover:bg-gray-50 transition-colors text-left"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">
-                                {payment.memberDisplayName ||
-                                  payment.groupDisplayName ||
-                                  "Membre inconnu"}
-                              </span>
-                              <Badge
-                                className={cn(
-                                  "text-xs",
-                                  COLOR_BADGE_CLASSES[payment.color]
-                                )}
-                              >
-                                {STATUS_LABELS[payment.status]}
-                              </Badge>
+                    {groupedByType[type].map((payment) => {
+                      const colorConfig = COLOR_CONFIG[payment.color]
+                      const StatusIcon = colorConfig.icon
+                      
+                      return (
+                        <button
+                          key={payment.id}
+                          onClick={() => onPaymentClick(payment)}
+                          className={cn(
+                            "group w-full p-4 rounded-xl border-2 transition-all duration-300 text-left",
+                            "hover:shadow-lg hover:-translate-y-0.5",
+                            colorConfig.bg,
+                            colorConfig.border
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              {/* Avatar/Icône */}
+                              <div className={cn(
+                                "flex items-center justify-center w-10 h-10 rounded-full text-white shadow-lg",
+                                colorConfig.badge
+                              )}>
+                                <StatusIcon className="h-5 w-5" />
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-gray-900 truncate">
+                                    {payment.memberDisplayName ||
+                                      payment.groupDisplayName ||
+                                      "Membre inconnu"}
+                                  </span>
+                                  <span className={cn(
+                                    "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium",
+                                    colorConfig.badge,
+                                    "text-white"
+                                  )}>
+                                    {STATUS_LABELS[payment.status]}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-sm">
+                                  <span className={cn("font-bold", colorConfig.text)}>
+                                    {payment.amount.toLocaleString("fr-FR")} FCFA
+                                  </span>
+                                  {payment.dueMonthIndex !== undefined && (
+                                    <>
+                                      <span className="text-gray-400">•</span>
+                                      <span className="text-gray-500 text-xs">
+                                        Mois {payment.dueMonthIndex + 1}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-600">
-                              Montant: {payment.amount.toLocaleString("fr-FR")} FCFA
-                              {payment.dueMonthIndex !== undefined && (
-                                <span className="ml-2">
-                                  • Mois {payment.dueMonthIndex + 1}
-                                </span>
-                              )}
-                            </div>
+                            
+                            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" />
                           </div>
-                          <Button variant="ghost" size="sm">
-                            Voir détails
-                          </Button>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
-              ))}
+              )
+            })}
           </div>
         </div>
       </DialogContent>
     </Dialog>
   )
 }
+
+export default DayPaymentsModal
