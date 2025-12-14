@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -11,6 +11,7 @@ import { CommissionSidebarActionsPlacement } from "./CommissionSidebarActionsPla
 import PayCommissionModal, { CommissionPaymentFormData } from "@/components/placement/PayCommissionModal"
 import { useCommissionReceiptPlacement } from "@/hooks/useCommissionReceiptPlacement"
 import type { CalendarCommissionItem } from "@/hooks/useCalendarPlacement"
+import { X } from "lucide-react"
 
 interface CommissionSidebarPlacementProps {
   commission: CalendarCommissionItem
@@ -60,7 +61,6 @@ export function CommissionSidebarPlacement({
         user.uid
       )
 
-      // Invalider les requêtes pour rafraîchir les données
       await queryClient.invalidateQueries({
         queryKey: ["calendar-placements"],
       })
@@ -99,7 +99,21 @@ export function CommissionSidebarPlacement({
 
   return (
     <>
-      <div className="fixed right-0 top-0 h-full w-[500px] bg-white shadow-2xl z-50 flex flex-col">
+      {/* Sidebar avec animation */}
+      <div 
+        className="fixed right-0 top-0 h-full w-full sm:w-[500px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300"
+        style={{
+          boxShadow: '-10px 0 50px -12px rgba(0, 0, 0, 0.25)'
+        }}
+      >
+        {/* Bouton fermer mobile */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 left-4 sm:hidden z-10 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
         {/* En-tête fixe */}
         <div className="flex-shrink-0">
           <CommissionSidebarHeaderPlacement
@@ -109,7 +123,7 @@ export function CommissionSidebarPlacement({
         </div>
 
         {/* Contenu scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50/50 to-white">
           <CommissionSidebarContentPlacement
             commission={commission}
             showReceipt={showReceipt}
@@ -118,7 +132,7 @@ export function CommissionSidebarPlacement({
         </div>
 
         {/* Actions fixes en bas */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 border-t border-gray-100">
           <CommissionSidebarActionsPlacement
             commission={commission}
             onRecordPayment={handleRecordPayment}
@@ -129,9 +143,9 @@ export function CommissionSidebarPlacement({
         </div>
       </div>
 
-      {/* Overlay */}
+      {/* Overlay avec animation */}
       <div
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-in fade-in duration-300"
         onClick={onClose}
       />
 
