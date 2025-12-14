@@ -103,8 +103,6 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
         queryKey: ["contract", payment.contract.id],
       })
 
-      // Fermer la sidebar et la rouvrir pour rafraîchir les données
-      // Note: En production, on pourrait simplement mettre à jour l'état local
       onClose()
     } catch (error: any) {
       console.error("Erreur lors de l'enregistrement du paiement:", error)
@@ -132,20 +130,22 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Sidebar */}
-      <div
-        className={cn(
-          "fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-xl z-50 flex flex-col",
-          "animate-in slide-in-from-right duration-300"
-        )}
+      {/* Sidebar avec animation */}
+      <div 
+        className="fixed right-0 top-0 h-full w-full sm:w-[500px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300"
+        style={{
+          boxShadow: '-10px 0 50px -12px rgba(0, 0, 0, 0.25)'
+        }}
       >
-        {/* Zone 1 : En-tête fixe */}
+        {/* Bouton fermer mobile */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 left-4 sm:hidden z-10 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        {/* En-tête fixe */}
         <div className="flex-shrink-0">
           <PaymentSidebarHeader
             payment={payment}
@@ -157,8 +157,8 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
           />
         </div>
 
-        {/* Zone 2 : Contenu scrollable */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Contenu scrollable */}
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50/50 to-white">
           <PaymentSidebarContent
             payment={payment}
             showReceipt={showReceipt}
@@ -166,8 +166,8 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
           />
         </div>
 
-        {/* Zone 3 : Actions fixes */}
-        <div className="flex-shrink-0 border-t">
+        {/* Actions fixes en bas */}
+        <div className="flex-shrink-0 border-t border-gray-100">
           <PaymentSidebarActions
             payment={payment}
             onRecordPayment={handleRecordPayment}
@@ -177,6 +177,12 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
           />
         </div>
       </div>
+
+      {/* Overlay avec animation */}
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-in fade-in duration-300"
+        onClick={onClose}
+      />
 
       {/* Modal de paiement */}
       <PaymentCSModal
