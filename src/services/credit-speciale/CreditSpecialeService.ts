@@ -832,20 +832,16 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
                     const newPaidAmount = installment.paidAmount + amountToPay;
                     const newRemainingAmount = installment.remainingAmount - amountToPay;
-                    let newStatus: CreditInstallment['status'] = installment.status;
-
-                    if (newRemainingAmount <= 0) {
-                        newStatus = 'PAID';
-                    } else if (newPaidAmount > 0) {
-                        newStatus = 'PARTIAL';
-                    }
+                    // Si un paiement est enregistré, l'échéance est considérée comme payée (fermée)
+                    // Le "montant à payer" est une référence, pas une obligation
+                    let newStatus: CreditInstallment['status'] = 'PAID';
 
                     await this.creditInstallmentRepository.updateInstallment(installment.id, {
                         paidAmount: newPaidAmount,
                         remainingAmount: newRemainingAmount,
                         status: newStatus,
-                        paidAt: newRemainingAmount <= 0 ? new Date() : undefined,
-                        paymentId: newRemainingAmount <= 0 ? payment.id : undefined,
+                        paidAt: new Date(), // Toujours marquer comme payé à la date du paiement
+                        paymentId: payment.id, // Toujours lier le paiement
                         updatedBy: data.createdBy,
                     });
                 }

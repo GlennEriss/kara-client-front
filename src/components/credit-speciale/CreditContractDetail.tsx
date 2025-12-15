@@ -69,7 +69,7 @@ interface DueItem {
   interest: number
   principal: number
   remaining: number
-  status: 'PAID' | 'PARTIAL' | 'DUE' | 'FUTURE'
+  status: 'PAID' | 'DUE' | 'FUTURE'
   paidAmount?: number
   paymentDate?: Date
   installmentId?: string // ID de l'échéance pour lier les paiements
@@ -409,35 +409,57 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       let resteDuPrecedent = contract.amount // Pour calculer les intérêts
       let montantGlobal = contract.amount * monthlyRate + contract.amount
       
+      // Utiliser contract.monthlyPaymentAmount pour recalculer avec la bonne logique
+      const monthlyPayment = contract.monthlyPaymentAmount
+      
       return installments.map((installment) => {
-        // Déterminer le statut correct en gérant PARTIAL
-        let finalStatus: 'PAID' | 'PARTIAL' | 'DUE' | 'FUTURE' = 'FUTURE'
+        // Déterminer le statut : si un paiement a été fait, l'échéance est PAYÉE
+        let finalStatus: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
         
-        if (installment.status === 'PAID') {
+        // Si l'échéance a reçu un paiement (même partiel), elle est considérée comme PAYÉE
+        if (installment.status === 'PAID' || installment.paidAmount > 0) {
           finalStatus = 'PAID'
-        } else if (installment.status === 'PARTIAL') {
-          finalStatus = 'PARTIAL' // Conserver le statut PARTIAL
         } else if (installment.status === 'DUE' || installment.status === 'OVERDUE') {
           finalStatus = 'DUE'
         } else {
-          // Vérifier si toutes les échéances précédentes sont payées
+          // Vérifier si toutes les échéances précédentes sont payées (ont reçu un paiement)
           const previousInstallments = installments.filter(inst => 
             inst.installmentNumber < installment.installmentNumber
           )
+          // Une échéance précédente est considérée comme "payée" si elle a reçu un paiement
           const allPreviousPaid = previousInstallments.every(inst => 
-            inst.status === 'PAID'
+            inst.status === 'PAID' || inst.paidAmount > 0
           )
           finalStatus = allPreviousPaid ? 'DUE' : 'FUTURE'
         }
 
-        // Calculer selon la formule
+        // Calculer selon la formule (même logique que la simulation)
         // montantGlobal est déjà calculé pour ce mois (avant paiement)
         const currentMontantGlobal = montantGlobal
-        const payment = installment.totalAmount // Mensualité
-        const resteDu = currentMontantGlobal - payment // Reste dû = MontantGlobal - Mensualité
         
         // Calculer les intérêts pour l'affichage (sur le reste dû précédent)
         const interest = resteDuPrecedent * monthlyRate
+        
+        // Calculer le paiement selon la même logique que la simulation
+        let payment: number
+        let resteDu: number
+        
+        if (monthlyPayment > currentMontantGlobal) {
+          // Si la mensualité prédéfinie est supérieure au montant global,
+          // la mensualité affichée doit être le montant global (capital + intérêts)
+          payment = currentMontantGlobal
+          resteDu = 0
+        } else if (resteDuPrecedent < monthlyPayment) {
+          // Le reste dû est inférieur à la mensualité souhaitée
+          // La mensualité affichée = reste dû (sans intérêts)
+          payment = resteDuPrecedent
+          resteDu = 0
+        } else {
+          // Le reste dû est supérieur ou égal à la mensualité souhaitée
+          payment = monthlyPayment
+          // Reste dû = MontantGlobal - Mensualité
+          resteDu = currentMontantGlobal - payment
+        }
         
         // Pour le mois suivant, montantGlobal = resteDu * taux + resteDu
         const nextMontantGlobal = resteDu * monthlyRate + resteDu
@@ -449,7 +471,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         return {
           month: installment.installmentNumber,
           date: new Date(installment.dueDate),
-          payment: customRound(payment), // Mensualité
+          payment: customRound(payment), // Mensualité recalculée avec la bonne logique
           interest: customRound(interest),
           principal: customRound(currentMontantGlobal), // Montant global (avant paiement)
           remaining: customRound(resteDu), // Reste dû = MontantGlobal - Mensualité
@@ -494,15 +516,22 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       // Calculer les intérêts pour l'affichage (sur le reste dû précédent)
       const interest = resteDuPrecedent * monthlyRate
       
-      // paymentAmount représente la mensualité
+      // Calculer le paiement selon la même logique que la simulation
       let payment: number
       let resteDu: number
       
-      if (montantGlobal <= paymentAmount) {
-        // Dernière échéance : payer le montant global complet
+      if (paymentAmount > montantGlobal) {
+        // Si la mensualité prédéfinie est supérieure au montant global,
+        // la mensualité affichée doit être le montant global (capital + intérêts)
         payment = montantGlobal
         resteDu = 0
+      } else if (resteDuPrecedent < paymentAmount) {
+        // Le reste dû est inférieur à la mensualité souhaitée
+        // La mensualité affichée = reste dû (sans intérêts)
+        payment = resteDuPrecedent
+        resteDu = 0
       } else {
+        // Le reste dû est supérieur ou égal à la mensualité souhaitée
         payment = paymentAmount
         // Reste dû = MontantGlobal - Mensualité
         resteDu = montantGlobal - paymentAmount
@@ -514,12 +543,12 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       // Mettre à jour pour le prochain mois
       resteDuPrecedent = resteDu
 
-      // Déterminer le statut de cette échéance
-      let status: 'PAID' | 'PARTIAL' | 'DUE' | 'FUTURE' = 'FUTURE'
+      // Déterminer le statut : si un paiement a été fait pour cette échéance, elle est PAYÉE
+      let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
       let paidAmount = 0
       let paymentDate: Date | undefined
 
-      // Vérifier si cette échéance est payée
+      // Vérifier si un paiement a été fait pour cette échéance
       // Utiliser une tolérance pour les arrondis (1 FCFA)
       const expectedTotalForThisDue = accumulatedPaid + payment
       const tolerance = 1
@@ -529,38 +558,25 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       const roundedExpectedTotal = Math.round(expectedTotalForThisDue)
       const roundedAccumulatedPaid = Math.round(accumulatedPaid)
       
-      // Calculer le montant payé pour cette échéance spécifique
-      const paidForThisDue = Math.max(0, roundedTotalPaid - roundedAccumulatedPaid)
-      
-      if (roundedTotalPaid >= roundedExpectedTotal - tolerance) {
-        // Échéance complètement payée
+      // Si un paiement a été fait pour cette échéance (même partiel), elle est PAYÉE
+      if (roundedTotalPaid > roundedAccumulatedPaid + tolerance) {
+        // Un paiement a été fait pour cette échéance
         status = 'PAID'
-        paidAmount = payment
+        // Calculer le montant payé pour cette échéance
+        paidAmount = Math.min(roundedTotalPaid - roundedAccumulatedPaid, payment)
         // Trouver le paiement qui correspond à cette échéance
-        let tempAccumulated = accumulatedPaid
-        for (const p of sortedPayments) {
-          tempAccumulated += p.amount
-          if (tempAccumulated >= expectedTotalForThisDue - tolerance) {
-            paymentDate = new Date(p.paymentDate)
-            break
-          }
-        }
-        accumulatedPaid += payment
-      } else if (paidForThisDue > 0 && paidForThisDue < payment) {
-        // Échéance partiellement payée
-        status = 'PARTIAL'
-        paidAmount = paidForThisDue
-        // Trouver le dernier paiement qui a contribué à cette échéance
         let tempAccumulated = accumulatedPaid
         for (const p of sortedPayments) {
           if (tempAccumulated >= roundedAccumulatedPaid) {
             paymentDate = new Date(p.paymentDate)
+            break
           }
           tempAccumulated += p.amount
           if (tempAccumulated > roundedTotalPaid) break
         }
+        accumulatedPaid = roundedTotalPaid // Mettre à jour pour la prochaine échéance
       } else {
-        // Cette échéance n'est pas encore payée
+        // Aucun paiement n'a été fait pour cette échéance
         // Vérifier si toutes les échéances précédentes sont payées
         if (roundedTotalPaid >= roundedAccumulatedPaid - tolerance) {
           // Toutes les précédentes sont payées, cette échéance est DUE
@@ -579,7 +595,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         principal: customRound(montantGlobal), // Montant global
         remaining: customRound(resteDu), // Reste dû = MontantGlobal - Mensualité
         status,
-        paidAmount: status === 'PAID' ? paidAmount : undefined,
+        paidAmount: status === 'PAID' && paidAmount > 0 ? paidAmount : undefined,
         paymentDate,
       })
       
@@ -591,8 +607,8 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   }
 
   const dueItems = calculateDueItems()
-  // Trouver la prochaine échéance payable : DUE ou PARTIAL (partiellement payée)
-  const nextDueIndex = dueItems.findIndex(item => item.status === 'DUE' || item.status === 'PARTIAL')
+  // Trouver la prochaine échéance payable : DUE
+  const nextDueIndex = dueItems.findIndex(item => item.status === 'DUE')
 
   // Calculer le montant restant basé sur les paiements réels
   // nouveauMontantRestant = MontantRestant - montantVerser
@@ -648,10 +664,22 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       // Pour chaque paiement, trouver l'installment correspondant
       for (const payment of realPayments) {
         // Chercher l'installment qui a été payé par ce paiement
-        const installment = installments.find(inst => 
-          inst.paymentId === payment.id || 
-          (inst.status === 'PAID' && Math.abs(new Date(inst.paidAt || 0).getTime() - new Date(payment.paymentDate).getTime()) < 24 * 60 * 60 * 1000)
-        )
+        // Priorité 1: utiliser payment.installmentId si disponible
+        // Priorité 2: utiliser inst.paymentId
+        // Priorité 3: utiliser la date la plus proche
+        let installment = payment.installmentId 
+          ? installments.find(inst => inst.id === payment.installmentId)
+          : undefined
+        
+        if (!installment) {
+          installment = installments.find(inst => inst.paymentId === payment.id)
+        }
+        
+        if (!installment) {
+          installment = installments.find(inst =>
+            inst.status === 'PAID' && Math.abs(new Date(inst.paidAt || 0).getTime() - new Date(payment.paymentDate).getTime()) < 24 * 60 * 60 * 1000
+          )
+        }
         
         if (installment) {
           // Utiliser le numéro d'échéance de l'installment
@@ -983,10 +1011,9 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   // Permettre les paiements si le contrat est ACTIVE ou PARTIAL
                   const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL'
                   // Permettre de payer si :
-                  // - L'échéance est DUE ou PARTIAL (partiellement payée)
+                  // - L'échéance est DUE
                   // - C'est la prochaine échéance payable (nextDueIndex)
-                  // - Ou si l'échéance est PARTIAL, on peut toujours la payer pour compléter
-                  const isPayable = (item.status === 'DUE' || item.status === 'PARTIAL') && 
+                  const isPayable = item.status === 'DUE' && 
                                    (nextDueIndex >= 0 && index === nextDueIndex)
                   const isDisabled = !canMakePayments || 
                                    item.status === 'FUTURE' || 
@@ -995,8 +1022,6 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   
                   const statusConfig = item.status === 'PAID' 
                     ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
-                    : item.status === 'PARTIAL'
-                    ? { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: Clock, label: 'Partiel' }
                     : item.status === 'DUE'
                     ? { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', icon: Clock, label: 'À payer' }
                     : { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'À venir' }
@@ -1042,10 +1067,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             </span>
                           </div>
 
-                          {/* Afficher montant versé si inférieur au montant à payer */}
+                          {/* Afficher montant versé si différent du montant à payer (sur échéances payées) */}
                           {(() => {
-                            const paidForMonth = paymentsByMonth.get(item.month) || 0
-                            if (paidForMonth > 0 && paidForMonth < item.payment) {
+                            const paidForMonth = paymentsByMonth.get(item.month) || item.paidAmount || 0
+                            // Afficher "Montant versé" si l'échéance est payée et le montant versé est différent du montant à payer
+                            if (item.status === 'PAID' && paidForMonth > 0 && Math.abs(paidForMonth - item.payment) > 1) {
                               return (
                                 <div className="flex items-center justify-between text-sm mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
                                   <span className="text-yellow-700 font-medium">Montant versé:</span>
@@ -1073,7 +1099,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             </div>
                           )}
 
-                          {(item.status === 'DUE' || item.status === 'PARTIAL') && (
+                          {item.status === 'DUE' && (
                             <Button
                               onClick={() => {
                                 setSelectedDueIndex(index)
@@ -1083,7 +1109,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                               disabled={isDisabled}
                             >
                               <HandCoins className="h-4 w-4 mr-2" />
-                              {item.status === 'PARTIAL' ? 'Compléter le paiement' : 'Payer cette échéance'}
+                              Payer cette échéance
                             </Button>
                           )}
 
@@ -1361,12 +1387,14 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {guarantorRemunerations.map((remuneration) => {
+                              {[...guarantorRemunerations]
+                                .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
+                                .map((remuneration) => {
                                 // Trouver le paiement associé pour obtenir le montant
                                 const associatedPayment = payments.find(p => p.id === remuneration.paymentId)
                                 const paymentAmount = associatedPayment?.amount || 0
                                 const commissionPercentage = contract.guarantorRemunerationPercentage || 0
-                                
+
                                 return (
                                   <TableRow key={remuneration.id}>
                                     <TableCell className="font-medium">M{remuneration.month}</TableCell>
