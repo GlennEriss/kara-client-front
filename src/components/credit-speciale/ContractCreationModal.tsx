@@ -148,6 +148,51 @@ export default function ContractCreationModal({
     return items
   }, [simulation])
 
+  // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
+  const referenceSchedule = useMemo(() => {
+    if (demand.creditType !== 'SPECIALE') return []
+    
+    const result = simulation
+    const monthlyRate = result.interestRate / 100
+    const firstDate = new Date(result.firstPaymentDate)
+    
+    // Calculer le montant global avec intérêts composés sur exactement 7 mois
+    let lastMontant = result.amount
+    for (let i = 1; i <= 7; i++) {
+      lastMontant = lastMontant * monthlyRate + lastMontant
+    }
+    
+    // Le montant global après 7 mois d'intérêts composés
+    const montantGlobal = lastMontant
+    
+    // Diviser ce montant global par 7 pour obtenir la mensualité
+    const monthlyPaymentRaw = montantGlobal / 7
+    
+    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
+    const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5 
+      ? Math.ceil(monthlyPaymentRaw) 
+      : Math.floor(monthlyPaymentRaw)
+    
+    // Générer l'échéancier avec cette mensualité (identique pour les 7 mois)
+    const referenceSchedule: Array<{
+      month: number
+      date: Date
+      payment: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      referenceSchedule.push({
+        month: i + 1,
+        date,
+        payment: monthlyPaymentRef,
+      })
+    }
+    return referenceSchedule
+  }, [simulation, demand.creditType])
+
   // Calculer le tableau de rémunération du parrain (pourcentage personnalisé de chaque mensualité)
   const guarantorRemunerationSchedule = useMemo(() => {
     if (!guarantorIsParrain) return []
@@ -355,30 +400,62 @@ export default function ContractCreationModal({
               </CardContent>
             </Card>
 
-            {/* Échéancier */}
-            <div className="max-h-60 overflow-y-auto border rounded-lg">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white">
-                  <TableRow>
-                    <TableHead>Mois</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Mensualité</TableHead>
-                    <TableHead className="text-right">Intérêts</TableHead>
-                    <TableHead className="text-right">Reste dû</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {schedule.map((row) => (
-                    <TableRow key={row.month}>
-                      <TableCell className="font-medium">M{row.month}</TableCell>
-                      <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                      <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                      <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
-                      <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            {/* Échéancier calculé */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-3 text-sm">Échéancier calculé ({schedule.length} mois)</h4>
+                <div className="max-h-60 overflow-y-auto border rounded-lg">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-white">
+                      <TableRow>
+                        <TableHead>Mois</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Mensualité</TableHead>
+                        <TableHead className="text-right">Intérêts</TableHead>
+                        <TableHead className="text-right">Reste dû</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {schedule.map((row) => (
+                        <TableRow key={row.month}>
+                          <TableCell className="font-medium">M{row.month}</TableCell>
+                          <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                          <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Échéancier référence (pour crédit spéciale uniquement) */}
+              {demand.creditType === 'SPECIALE' && referenceSchedule.length > 0 && (
+                <div className="lg:max-w-md">
+                  <h4 className="font-semibold mb-3 text-sm">Échéancier référence (7 mois)</h4>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Mois</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Mensualité</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {referenceSchedule.map((row) => (
+                          <TableRow key={row.month}>
+                            <TableCell className="font-medium">M{row.month}</TableCell>
+                            <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Info garant si présent */}
