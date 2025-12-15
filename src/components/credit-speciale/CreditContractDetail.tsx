@@ -731,6 +731,131 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
 
   const paymentsByMonth = getPaymentsByMonth()
 
+  // Calculer l'échéancier actuel basé sur les versements réels
+  const calculateActualSchedule = (): DueItem[] => {
+    const monthlyRate = contract.interestRate / 100
+    const firstDate = new Date(contract.firstPaymentDate)
+    const maxDuration = contract.duration
+    
+    // Calcul selon la formule : montantGlobal = montantGlobal * taux + montantGlobal
+    let resteDuPrecedent = contract.amount // Pour calculer les intérêts
+    let montantGlobal = contract.amount * monthlyRate + contract.amount // Mois 1
+    const items: DueItem[] = []
+
+    // Créer un map des paiements par mois
+    const paymentsByMonthMap = getPaymentsByMonth()
+
+    // Trier les paiements par date pour trouver les dates de paiement
+    const sortedPayments = [...payments]
+      .filter(p => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
+      .sort((a, b) => 
+        new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
+      )
+
+    for (let i = 0; i < maxDuration; i++) {
+      if (montantGlobal <= 0) break
+
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      // Calculer les intérêts pour l'affichage (sur le reste dû précédent)
+      const interest = resteDuPrecedent * monthlyRate
+      
+      // Récupérer le montant réellement payé pour ce mois
+      const actualPayment = paymentsByMonthMap.get(i + 1) || 0
+      
+      // Si un paiement réel a été fait, utiliser ce montant
+      // Sinon, utiliser la mensualité théorique
+      const monthlyPayment = contract.monthlyPaymentAmount
+      let payment: number
+      let resteDu: number
+      
+      if (actualPayment > 0) {
+        // Utiliser le montant réellement payé
+        payment = actualPayment
+        // Calculer le reste dû après ce paiement réel
+        if (payment >= montantGlobal) {
+          resteDu = 0
+        } else {
+          resteDu = montantGlobal - payment
+        }
+      } else {
+        // Pas de paiement réel, utiliser la logique théorique
+        if (monthlyPayment > montantGlobal) {
+          payment = montantGlobal
+          resteDu = 0
+        } else if (resteDuPrecedent < monthlyPayment) {
+          payment = resteDuPrecedent
+          resteDu = 0
+        } else {
+          payment = monthlyPayment
+          resteDu = montantGlobal - payment
+        }
+      }
+      
+      // Pour le mois suivant, montantGlobal = resteDu * taux + resteDu
+      const nextMontantGlobal = resteDu * monthlyRate + resteDu
+      
+      // Mettre à jour pour le prochain mois
+      resteDuPrecedent = resteDu
+
+      // Déterminer le statut : si un paiement a été fait, l'échéance est PAYÉE
+      let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
+      let paymentDate: Date | undefined
+
+      if (actualPayment > 0) {
+        status = 'PAID'
+        // Trouver la date du paiement pour ce mois
+        // Chercher dans les installments d'abord
+        const installmentForMonth = installments.find(inst => inst.installmentNumber === i + 1)
+        if (installmentForMonth && installmentForMonth.paidAt) {
+          paymentDate = new Date(installmentForMonth.paidAt)
+        } else {
+          // Sinon, chercher dans les paiements
+          const paymentForThisMonth = sortedPayments.find(p => {
+            const paymentDateObj = new Date(p.paymentDate)
+            const monthsDiff = (paymentDateObj.getFullYear() - firstDate.getFullYear()) * 12 +
+                              (paymentDateObj.getMonth() - firstDate.getMonth())
+            const paymentMonth = Math.max(1, monthsDiff + 1)
+            return paymentMonth === i + 1
+          })
+          if (paymentForThisMonth) {
+            paymentDate = new Date(paymentForThisMonth.paymentDate)
+          }
+        }
+      } else {
+        // Vérifier si toutes les échéances précédentes ont reçu un paiement
+        let allPreviousPaid = true
+        for (let j = 0; j < i; j++) {
+          if ((paymentsByMonthMap.get(j + 1) || 0) === 0) {
+            allPreviousPaid = false
+            break
+          }
+        }
+        status = allPreviousPaid ? 'DUE' : 'FUTURE'
+      }
+
+      items.push({
+        month: i + 1,
+        date,
+        payment: customRound(payment),
+        interest: customRound(interest),
+        principal: customRound(montantGlobal), // Montant global avant paiement
+        remaining: customRound(resteDu),
+        status,
+        paidAmount: actualPayment > 0 ? actualPayment : undefined,
+        paymentDate,
+      })
+      
+      // Mettre à jour montantGlobal pour le mois suivant
+      montantGlobal = nextMontantGlobal
+    }
+
+    return items.filter(item => item.payment > 0) // Filtrer les lignes avec paiement à 0
+  }
+
+  const actualSchedule = calculateActualSchedule()
+
   // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
   const calculateReferenceSchedule = () => {
     if (contract.creditType !== 'SPECIALE') return []
@@ -1267,12 +1392,83 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
               {/* Onglet Simulations */}
               <TabsContent value="simulations" className="p-6 space-y-6 m-0">
                 <div className="space-y-6">
+                  {/* Échéancier actuel */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Échéancier actuel ({actualSchedule.length} mois)
+                      </h3>
+                    </div>
+                    {/* Légende de coloration */}
+                    <div className="mb-3 flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
+                        <span className="text-gray-600">Échéance payée</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
+                        <span className="text-gray-600">Échéance non payée</span>
+                      </div>
+                    </div>
+                    <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Mois</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Mensualité</TableHead>
+                            <TableHead className="text-right">Intérêts</TableHead>
+                            <TableHead className="text-right">Montant global</TableHead>
+                            <TableHead className="text-right">Reste dû</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {actualSchedule.map((row) => {
+                            // Vert si l'échéance est payée
+                            const rowColor = row.status === 'PAID'
+                              ? 'bg-green-50 hover:bg-green-100'
+                              : ''
+                            
+                            return (
+                              <TableRow key={row.month} className={rowColor}>
+                                <TableCell className="font-medium">M{row.month}</TableCell>
+                                <TableCell>{formatDate(row.date)}</TableCell>
+                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
                   {/* Échéancier calculé */}
                   <div>
-                    <h3 className="font-semibold mb-3 flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Échéancier calculé ({dueItems.filter(row => row.payment > 0).length} mois)
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Échéancier calculé ({dueItems.filter(row => row.payment > 0).length} mois)
+                      </h3>
+                    </div>
+                    {/* Légende de coloration */}
+                    <div className="mb-3 flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
+                        <span className="text-gray-600">Montant versé ≥ mensualité</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-red-50 border border-red-200 rounded"></div>
+                        <span className="text-gray-600">0 &lt; montant versé &lt; mensualité</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
+                        <span className="text-gray-600">Aucun versement</span>
+                      </div>
+                    </div>
                     <div className="border rounded-lg overflow-x-auto">
                       <Table>
                         <TableHeader>
