@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils'
 import { CreditContract, CreditPayment, CreditPenalty, CreditInstallment, CreditContractStatus } from '@/types/types'
 import routes from '@/constantes/routes'
 import { toast } from 'sonner'
-import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId } from '@/hooks/useCreditSpeciale'
 import CreditPaymentModal from './CreditPaymentModal'
 import PaymentReceiptModal from './PaymentReceiptModal'
 import CreditHistoryTimeline from './CreditHistoryTimeline'
@@ -45,6 +45,8 @@ import { fr } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -187,7 +189,7 @@ const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
 }
 
 // Carrousel de statistiques (même design que StatisticsCreditDemandes)
-const ContractStatsCarousel = ({ contract, penalties = [] }: { contract: CreditContract; penalties?: CreditPenalty[] }) => {
+const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number }) => {
   const [itemsPerView, setItemsPerView] = useState(1)
   
   useEffect(() => {
@@ -224,7 +226,7 @@ const ContractStatsCarousel = ({ contract, penalties = [] }: { contract: CreditC
     },
     {
       title: 'Montant restant',
-      value: Math.round(contract.amountRemaining).toLocaleString('fr-FR'),
+      value: Math.round(realRemainingAmount).toLocaleString('fr-FR'),
       color: '#f59e0b',
       icon: Clock
     },
@@ -344,6 +346,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
 export default function CreditContractDetail({ contract }: CreditContractDetailProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<'payments' | 'simulations' | 'guarantor'>('payments')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<CreditPayment | null>(null)
@@ -355,10 +358,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [isCompressing, setIsCompressing] = useState(false)
   const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
 
-  // Récupérer les paiements, pénalités et échéances
+  // Récupérer les paiements, pénalités, échéances et rémunérations du garant
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
   const { data: penalties = [], isLoading: isLoadingPenalties } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
+  const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
   const queryClient = useQueryClient()
 
   // Vérifier et créer les pénalités manquantes au chargement
@@ -396,8 +400,14 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
 
   // Calculer les échéances - utiliser les installments réels si disponibles, sinon calculer
   const calculateDueItems = (): DueItem[] => {
-    // Si on a des installments réels, les utiliser
+    // Si on a des installments réels, recalculer selon la formule correcte
     if (installments.length > 0 && !isLoadingInstallments) {
+      const monthlyRate = contract.interestRate / 100
+      // Calcul selon la formule : montantGlobal = montantGlobal * taux + montantGlobal
+      // Mois 1: montantGlobal = Montant emprunté * taux + montant emprunté
+      let resteDuPrecedent = contract.amount // Pour calculer les intérêts
+      let montantGlobal = contract.amount * monthlyRate + contract.amount
+      
       return installments.map((installment) => {
         let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
         
@@ -409,14 +419,49 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           status = 'FUTURE'
         }
 
+        // Déterminer le statut correct
+        let finalStatus: 'PAID' | 'DUE' | 'FUTURE' = status
+        if (installment.status === 'PARTIAL') {
+          finalStatus = 'DUE' // Si partiellement payé, c'est DUE
+        } else if (installment.status === 'PAID') {
+          finalStatus = 'PAID'
+        } else if (installment.status === 'DUE' || installment.status === 'OVERDUE') {
+          finalStatus = 'DUE'
+        } else {
+          // Vérifier si toutes les échéances précédentes sont payées
+          const previousInstallments = installments.filter(inst => 
+            inst.installmentNumber < installment.installmentNumber
+          )
+          const allPreviousPaid = previousInstallments.every(inst => 
+            inst.status === 'PAID'
+          )
+          finalStatus = allPreviousPaid ? 'DUE' : 'FUTURE'
+        }
+
+        // Calculer selon la formule
+        // montantGlobal est déjà calculé pour ce mois (avant paiement)
+        const currentMontantGlobal = montantGlobal
+        const payment = installment.totalAmount // Mensualité
+        const resteDu = currentMontantGlobal - payment // Reste dû = MontantGlobal - Mensualité
+        
+        // Calculer les intérêts pour l'affichage (sur le reste dû précédent)
+        const interest = resteDuPrecedent * monthlyRate
+        
+        // Pour le mois suivant, montantGlobal = resteDu * taux + resteDu
+        const nextMontantGlobal = resteDu * monthlyRate + resteDu
+        
+        // Mettre à jour pour le prochain installment
+        resteDuPrecedent = resteDu
+        montantGlobal = nextMontantGlobal
+        
         return {
           month: installment.installmentNumber,
           date: new Date(installment.dueDate),
-          payment: installment.totalAmount, // Montant total (principal + intérêts)
-          interest: installment.interestAmount,
-          principal: installment.principalAmount,
-          remaining: installment.remainingAmount,
-          status,
+          payment: customRound(payment), // Mensualité
+          interest: customRound(interest),
+          principal: customRound(currentMontantGlobal), // Montant global (avant paiement)
+          remaining: customRound(resteDu), // Reste dû = MontantGlobal - Mensualité
+          status: finalStatus,
           paidAmount: installment.paidAmount > 0 ? installment.paidAmount : undefined,
           paymentDate: installment.paidAt ? new Date(installment.paidAt) : undefined,
         }
@@ -429,7 +474,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     const paymentAmount = contract.monthlyPaymentAmount
     const maxDuration = contract.duration
     
-    let remaining = contract.amount
+    // Calcul selon la formule : montantGlobal = montantGlobal * taux + montantGlobal
+    // Mois 1: montantGlobal = Montant emprunté * taux + montant emprunté
+    // Mois 2+: montantGlobal = resteDu * taux + resteDu
+    let resteDuPrecedent = contract.amount // Pour calculer les intérêts
+    let montantGlobal = contract.amount * monthlyRate + contract.amount // Mois 1
     const items: DueItem[] = []
 
     // Trier les paiements par date (exclure les paiements de pénalités uniquement du calcul)
@@ -444,31 +493,33 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     let accumulatedPaid = 0
 
     for (let i = 0; i < maxDuration; i++) {
-      if (remaining <= 0) break
+      if (montantGlobal <= 0) break
 
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
       
-      const interest = remaining * monthlyRate
-      const balanceWithInterest = remaining + interest
+      // Calculer les intérêts pour l'affichage (sur le reste dû précédent)
+      const interest = resteDuPrecedent * monthlyRate
       
-      // paymentAmount représente le capital (mensualité de base), le montant total à payer = capital + intérêts
+      // paymentAmount représente la mensualité
       let payment: number
-      let principalPart: number
+      let resteDu: number
       
-      if (remaining < paymentAmount) {
-        // Dernière échéance : payer le solde complet avec intérêts
-        payment = balanceWithInterest
-        principalPart = remaining
-        remaining = 0
+      if (montantGlobal <= paymentAmount) {
+        // Dernière échéance : payer le montant global complet
+        payment = montantGlobal
+        resteDu = 0
       } else {
-        // Le montant total à payer = capital (paymentAmount) + intérêts
-        const totalPaymentAmount = paymentAmount + interest
-        // S'assurer qu'on ne dépasse pas balanceWithInterest
-        payment = Math.min(totalPaymentAmount, balanceWithInterest)
-        principalPart = paymentAmount // Le capital est toujours paymentAmount
-        remaining = Math.max(0, balanceWithInterest - payment)
+        payment = paymentAmount
+        // Reste dû = MontantGlobal - Mensualité
+        resteDu = montantGlobal - paymentAmount
       }
+      
+      // Pour le mois suivant, montantGlobal = resteDu * taux + resteDu
+      const nextMontantGlobal = resteDu * monthlyRate + resteDu
+      
+      // Mettre à jour pour le prochain mois
+      resteDuPrecedent = resteDu
 
       // Déterminer le statut de cette échéance
       let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
@@ -515,14 +566,17 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       items.push({
         month: i + 1,
         date,
-        payment: customRound(payment), // Montant total à payer (principal + intérêts)
+        payment: customRound(payment), // Mensualité
         interest: customRound(interest),
-        principal: customRound(principalPart), // Partie principale du paiement
-        remaining: customRound(remaining),
+        principal: customRound(montantGlobal), // Montant global
+        remaining: customRound(resteDu), // Reste dû = MontantGlobal - Mensualité
         status,
         paidAmount: status === 'PAID' ? paidAmount : undefined,
         paymentDate,
       })
+      
+      // Mettre à jour montantGlobal pour le mois suivant
+      montantGlobal = nextMontantGlobal
     }
 
     return items
@@ -530,6 +584,161 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
 
   const dueItems = calculateDueItems()
   const nextDueIndex = dueItems.findIndex(item => item.status === 'DUE')
+
+  // Calculer le montant restant basé sur les paiements réels
+  // nouveauMontantRestant = MontantRestant - montantVerser
+  // MontantRestant = nouveauMontantRestant * taux + nouveauMontantRestant
+  const calculateRealRemainingAmount = (): number => {
+    // Filtrer les paiements de mensualités (exclure les pénalités uniquement)
+    const realPayments = payments.filter(p => 
+      p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+    )
+    
+    if (realPayments.length === 0) {
+      // Pas de paiement, le montant restant est le montant initial avec intérêts
+      const monthlyRate = contract.interestRate / 100
+      return contract.amount * (1 + monthlyRate)
+    }
+
+    // Trier les paiements par date
+    const sortedPayments = [...realPayments].sort((a, b) => 
+      new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
+    )
+
+    // Calculer le montant restant en appliquant la formule pour chaque paiement
+    let remaining = contract.amount
+    const monthlyRate = contract.interestRate / 100
+
+    for (const payment of sortedPayments) {
+      // Calculer les intérêts sur le montant restant avant le paiement
+      const interest = remaining * monthlyRate
+      const totalWithInterest = remaining + interest
+      
+      // Soustraire le montant versé
+      remaining = Math.max(0, totalWithInterest - payment.amount)
+    }
+
+    // Appliquer les intérêts sur le montant restant actuel
+    const currentInterest = remaining * monthlyRate
+    return remaining + currentInterest
+  }
+
+  const realRemainingAmount = calculateRealRemainingAmount()
+
+  // Mapper les paiements aux échéances (mois) pour savoir combien a été versé pour chaque échéance
+  const getPaymentsByMonth = (): Map<number, number> => {
+    const paymentsByMonth = new Map<number, number>()
+    
+    // Filtrer les paiements de mensualités
+    const realPayments = payments.filter(p => 
+      p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+    )
+
+    // Si on a des installments, utiliser leur relation avec les paiements
+    if (installments.length > 0 && !isLoadingInstallments) {
+      // Pour chaque paiement, trouver l'installment correspondant
+      for (const payment of realPayments) {
+        // Chercher l'installment qui a été payé par ce paiement
+        const installment = installments.find(inst => 
+          inst.paymentId === payment.id || 
+          (inst.status === 'PAID' && Math.abs(new Date(inst.paidAt || 0).getTime() - new Date(payment.paymentDate).getTime()) < 24 * 60 * 60 * 1000)
+        )
+        
+        if (installment) {
+          // Utiliser le numéro d'échéance de l'installment
+          const month = installment.installmentNumber
+          const currentAmount = paymentsByMonth.get(month) || 0
+          paymentsByMonth.set(month, currentAmount + payment.amount)
+        } else {
+          // Si pas d'installment trouvé, utiliser la logique de fallback
+          // Trouver l'installment le plus proche en date
+          const paymentDate = new Date(payment.paymentDate)
+          let closestInstallment = installments[0]
+          let minDiff = Infinity
+          
+          for (const inst of installments) {
+            const diff = Math.abs(new Date(inst.dueDate).getTime() - paymentDate.getTime())
+            if (diff < minDiff) {
+              minDiff = diff
+              closestInstallment = inst
+            }
+          }
+          
+          if (closestInstallment && minDiff < 30 * 24 * 60 * 60 * 1000) { // Dans les 30 jours
+            const month = closestInstallment.installmentNumber
+            const currentAmount = paymentsByMonth.get(month) || 0
+            paymentsByMonth.set(month, currentAmount + payment.amount)
+          }
+        }
+      }
+    } else {
+      // Fallback : utiliser la logique basée sur les dates
+      const firstDate = new Date(contract.firstPaymentDate)
+      
+      for (const payment of realPayments) {
+        const paymentDate = new Date(payment.paymentDate)
+        
+        // Calculer le mois correspondant (1-based) en fonction de la date de première échéance
+        const monthsDiff = (paymentDate.getFullYear() - firstDate.getFullYear()) * 12 + 
+                          (paymentDate.getMonth() - firstDate.getMonth())
+        const month = Math.max(1, monthsDiff + 1)
+        
+        // Accumuler le montant versé pour ce mois
+        const currentAmount = paymentsByMonth.get(month) || 0
+        paymentsByMonth.set(month, currentAmount + payment.amount)
+      }
+    }
+
+    return paymentsByMonth
+  }
+
+  const paymentsByMonth = getPaymentsByMonth()
+
+  // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
+  const calculateReferenceSchedule = () => {
+    if (contract.creditType !== 'SPECIALE') return []
+    
+    const monthlyRate = contract.interestRate / 100
+    const firstDate = new Date(contract.firstPaymentDate)
+    
+    // Calculer le montant global avec intérêts composés sur exactement 7 mois
+    let lastMontant = contract.amount
+    for (let i = 1; i <= 7; i++) {
+      lastMontant = lastMontant * monthlyRate + lastMontant
+    }
+    
+    // Le montant global après 7 mois d'intérêts composés
+    const montantGlobal = lastMontant
+    
+    // Diviser ce montant global par 7 pour obtenir la mensualité
+    const monthlyPaymentRaw = montantGlobal / 7
+    
+    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
+    const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5 
+      ? Math.ceil(monthlyPaymentRaw) 
+      : Math.floor(monthlyPaymentRaw)
+    
+    // Générer l'échéancier avec cette mensualité (identique pour les 7 mois)
+    const referenceSchedule: Array<{
+      month: number
+      date: Date
+      payment: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      referenceSchedule.push({
+        month: i + 1,
+        date,
+        payment: monthlyPaymentRef,
+      })
+    }
+    return referenceSchedule
+  }
+
+  const referenceSchedule = calculateReferenceSchedule()
   
   // Debug: log pour comprendre le problème
   useEffect(() => {
@@ -589,7 +798,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         {/* Statistiques */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
-          <ContractStatsCarousel contract={contract} penalties={penalties} />
+          <ContractStatsCarousel contract={contract} penalties={penalties} realRemainingAmount={realRemainingAmount} />
         </div>
 
         {/* Informations principales */}
@@ -700,19 +909,36 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           </CardContent>
         </Card>
 
-        {/* Échéancier de paiement */}
+        {/* Onglets */}
         <Card className="border-0 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
-            <CardTitle className="flex items-center gap-2 text-indigo-700">
-              <CalendarDays className="h-5 w-5" />
-              Échéancier de paiement
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {isLoadingPayments ? (
-              <div className="text-center py-8 text-gray-500">Chargement...</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CardContent className="p-0">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'simulations' | 'guarantor')} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
+                <TabsTrigger value="payments" className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4" />
+                  Versements
+                </TabsTrigger>
+                <TabsTrigger value="simulations" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Simulations
+                </TabsTrigger>
+                <TabsTrigger value="guarantor" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Commission du garant
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Onglet Versements */}
+              <TabsContent value="payments" className="p-6 space-y-6 m-0">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5" />
+                    Échéancier de paiement
+                  </h3>
+                  {isLoadingPayments ? (
+                    <div className="text-center py-8 text-gray-500">Chargement...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {dueItems.map((item, index) => {
                   // Désactiver si le contrat n'est pas actif ou partiel, si l'échéance est future, ou si ce n'est pas la prochaine échéance à payer
                   // nextDueIndex peut être -1 si aucune échéance DUE n'est trouvée, donc on vérifie >= 0
@@ -769,6 +995,22 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                               {item.payment.toLocaleString('fr-FR')} FCFA
                             </span>
                           </div>
+
+                          {/* Afficher montant versé si inférieur au montant à payer */}
+                          {(() => {
+                            const paidForMonth = paymentsByMonth.get(item.month) || 0
+                            if (paidForMonth > 0 && paidForMonth < item.payment) {
+                              return (
+                                <div className="flex items-center justify-between text-sm mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                  <span className="text-yellow-700 font-medium">Montant versé:</span>
+                                  <span className="font-semibold text-yellow-800">
+                                    {paidForMonth.toLocaleString('fr-FR')} FCFA
+                                  </span>
+                                </div>
+                              )
+                            }
+                            return null
+                          })()}
                           
                           {/* Détail principal + intérêts */}
                           <div className="flex items-center justify-between text-xs text-gray-500 mt-1 pt-1 border-t border-gray-200">
@@ -816,139 +1058,329 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                       </CardContent>
                     </Card>
                   )
-                })}
-              </div>
-            )}
-
-            {/* Information */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>ℹ️ Information :</strong> Les échéances doivent être payées dans l'ordre. Vous ne pouvez payer une échéance que si toutes les précédentes sont payées.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Historique des versements */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Historique des versements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingPayments ? (
-              <div className="text-center py-8 text-gray-500">Chargement...</div>
-            ) : payments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Aucun versement enregistré</div>
-            ) : (
-              <div className="space-y-3">
-                {payments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => {
-                      setSelectedPayment(payment)
-                      setShowReceiptModal(true)
-                    }}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <span className="font-semibold">
-                          {formatDateTime(payment.paymentDate, payment.paymentTime)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
-                          <>
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                              Pénalités uniquement
-                            </Badge>
-                            <span>Mode : {payment.mode}</span>
-                            {payment.note !== undefined && (
-                              <span>Note pénalités : {payment.note}/10</span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
-                            <span>Mode : {payment.mode}</span>
-                            {payment.note !== undefined && (
-                              <span>Note : {payment.note}/10</span>
-                            )}
-                          </>
-                        )}
-                      </div>
+                    })}
                     </div>
-                    <Receipt className="h-5 w-5 text-gray-400" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  )}
 
-        {/* Pénalités */}
-        {penalties.length > 0 && (
-          <Card className="border-0 shadow-xl">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-orange-600" />
-                  Pénalités
-                </CardTitle>
-                {penalties.filter(p => !p.paid).length > 0 && (
-                  <Button
-                    onClick={() => {
-                      setSelectedDueIndex(null) // Pas d'échéance spécifique pour les pénalités
-                      setPenaltyOnlyMode(true) // Activer le mode pénalités uniquement
-                      setShowPaymentModal(true)
-                    }}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    <HandCoins className="h-4 w-4 mr-2" />
-                    Payer les pénalités
-                  </Button>
+                  {/* Information */}
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      <strong>ℹ️ Information :</strong> Les échéances doivent être payées dans l'ordre. Vous ne pouvez payer une échéance que si toutes les précédentes sont payées.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Historique des versements */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Historique des versements
+                  </h3>
+                  {isLoadingPayments ? (
+                    <div className="text-center py-8 text-gray-500">Chargement...</div>
+                  ) : payments.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">Aucun versement enregistré</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {payments.map((payment) => (
+                        <div
+                          key={payment.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => {
+                            setSelectedPayment(payment)
+                            setShowReceiptModal(true)
+                          }}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Calendar className="h-4 w-4 text-gray-500" />
+                              <span className="font-semibold">
+                                {formatDateTime(payment.paymentDate, payment.paymentTime)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
+                                <>
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                    Pénalités uniquement
+                                  </Badge>
+                                  <span>Mode : {payment.mode}</span>
+                                  {payment.note !== undefined && (
+                                    <span>Note pénalités : {payment.note}/10</span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
+                                  <span>Mode : {payment.mode}</span>
+                                  {payment.note !== undefined && (
+                                    <span>Note : {payment.note}/10</span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <Receipt className="h-5 w-5 text-gray-400" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pénalités */}
+                {penalties.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                        Pénalités
+                      </h3>
+                      {penalties.filter(p => !p.paid).length > 0 && (
+                        <Button
+                          onClick={() => {
+                            setSelectedDueIndex(null) // Pas d'échéance spécifique pour les pénalités
+                            setPenaltyOnlyMode(true) // Activer le mode pénalités uniquement
+                            setShowPaymentModal(true)
+                          }}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          <HandCoins className="h-4 w-4 mr-2" />
+                          Payer les pénalités
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {penalties.map((penalty) => (
+                        <div
+                          key={penalty.id}
+                          className={cn(
+                            'flex items-center justify-between p-4 border rounded-lg',
+                            penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                          )}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold">
+                                {penalty.amount.toLocaleString('fr-FR')} FCFA
+                              </span>
+                              {penalty.paid ? (
+                                <Badge className="bg-green-100 text-green-700">Payée</Badge>
+                              ) : (
+                                <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <span>Retard : {penalty.daysLate} jours</span>
+                              <span className="ml-4">Échéance : {formatDate(penalty.dueDate)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {penalties.map((penalty) => (
-                  <div
-                    key={penalty.id}
-                    className={cn(
-                      'flex items-center justify-between p-4 border rounded-lg',
-                      penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
-                    )}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold">
-                          {penalty.amount.toLocaleString('fr-FR')} FCFA
-                        </span>
-                        {penalty.paid ? (
-                          <Badge className="bg-green-100 text-green-700">Payée</Badge>
-                        ) : (
-                          <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        <span>Retard : {penalty.daysLate} jours</span>
-                        <span className="ml-4">Échéance : {formatDate(penalty.dueDate)}</span>
-                      </div>
+
+                {/* Historique complet */}
+                <CreditHistoryTimeline contractId={contract.id} />
+              </TabsContent>
+
+              {/* Onglet Simulations */}
+              <TabsContent value="simulations" className="p-6 space-y-6 m-0">
+                <div className="space-y-6">
+                  {/* Échéancier calculé */}
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Échéancier calculé ({dueItems.filter(row => row.payment > 0).length} mois)
+                    </h3>
+                    <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Mois</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Mensualité</TableHead>
+                            <TableHead className="text-right">Intérêts</TableHead>
+                            <TableHead className="text-right">Montant global</TableHead>
+                            <TableHead className="text-right">Reste dû</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dueItems
+                            .filter(row => row.payment > 0) // Filtrer les lignes avec mensualité à 0
+                            .map((row) => {
+                            // Utiliser le montant payé de l'échéance si disponible, sinon utiliser paymentsByMonth
+                            const paidForMonth = row.paidAmount !== undefined 
+                              ? row.paidAmount 
+                              : (paymentsByMonth.get(row.month) || 0)
+                            
+                            // Vert si montant versé >= mensualité, rouge sinon (reste vert si > mensualité)
+                            const rowColor = paidForMonth >= row.payment 
+                              ? 'bg-green-50 hover:bg-green-100' 
+                              : paidForMonth > 0 
+                              ? 'bg-red-50 hover:bg-red-100' 
+                              : ''
+                            
+                            return (
+                              <TableRow key={row.month} className={rowColor}>
+                                <TableCell className="font-medium">M{row.month}</TableCell>
+                                <TableCell>{formatDate(row.date)}</TableCell>
+                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Historique complet */}
-        <CreditHistoryTimeline contractId={contract.id} />
+                  {/* Échéancier référence (pour crédit spéciale uniquement) */}
+                  {contract.creditType === 'SPECIALE' && referenceSchedule.length > 0 && (
+                    <div className="lg:max-w-md">
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Échéancier référence (7 mois)
+                      </h3>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Mois</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead className="text-right">Mensualité</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {referenceSchedule.map((row) => (
+                              <TableRow key={row.month}>
+                                <TableCell className="font-medium">M{row.month}</TableCell>
+                                <TableCell>{formatDate(row.date)}</TableCell>
+                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Onglet Commission du garant */}
+              <TabsContent value="guarantor" className="p-6 m-0">
+                {contract.guarantorId && contract.guarantorIsMember && contract.guarantorRemunerationPercentage !== undefined && contract.guarantorRemunerationPercentage > 0 ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Shield className="h-5 w-5" />
+                        Commission du garant
+                      </h3>
+                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-700">
+                          <strong>Garant :</strong> {contract.guarantorFirstName} {contract.guarantorLastName}
+                        </p>
+                        {contract.guarantorRemunerationPercentage !== undefined && (
+                          <p className="text-sm text-blue-700 mt-1">
+                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% par mensualité versée
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {isLoadingRemunerations ? (
+                      <div className="text-center py-8 text-gray-500">Chargement...</div>
+                    ) : guarantorRemunerations.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">Aucune commission enregistrée</div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Mois</TableHead>
+                                <TableHead>Montant versé</TableHead>
+                                <TableHead className="text-right">Pourcentage de commission</TableHead>
+                                <TableHead className="text-right">Somme due</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {guarantorRemunerations.map((remuneration) => {
+                                // Trouver le paiement associé pour obtenir le montant
+                                const associatedPayment = payments.find(p => p.id === remuneration.paymentId)
+                                const paymentAmount = associatedPayment?.amount || 0
+                                const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+                                
+                                return (
+                                  <TableRow key={remuneration.id}>
+                                    <TableCell className="font-medium">M{remuneration.month}</TableCell>
+                                    <TableCell>{paymentAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                    <TableCell className="text-right">{commissionPercentage}%</TableCell>
+                                    <TableCell className="text-right font-semibold">{remuneration.amount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                        <div className="p-4 bg-gray-50 border rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold">Total des commissions :</span>
+                            <span className="text-xl font-bold text-[#234D65]">
+                              {guarantorRemunerations.reduce((sum, r) => sum + r.amount, 0).toLocaleString('fr-FR')} FCFA
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {!contract.guarantorId ? (
+                      <div className="text-center py-8">
+                        <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600 font-medium">Aucun garant associé à ce contrat</p>
+                        <p className="text-sm text-gray-500 mt-2">Aucune commission n'est applicable</p>
+                      </div>
+                    ) : !contract.guarantorIsMember ? (
+                      <div className="text-center py-8">
+                        <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600 font-medium mb-2">
+                          Garant : {contract.guarantorFirstName} {contract.guarantorLastName}
+                        </p>
+                        <div className="max-w-md mx-auto p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-800 mb-2">
+                            <strong>ℹ️ Pourquoi aucune commission ?</strong>
+                          </p>
+                          <p className="text-sm text-blue-700 text-left">
+                            Le garant n'est pas un membre de la mutuelle. Seuls les garants qui sont des membres de la mutuelle peuvent recevoir une commission.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600 font-medium mb-2">
+                          Garant : {contract.guarantorFirstName} {contract.guarantorLastName}
+                        </p>
+                        <div className="max-w-md mx-auto p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-800 mb-2">
+                            <strong>ℹ️ Pourquoi aucune commission ?</strong>
+                          </p>
+                          <p className="text-sm text-blue-700 text-left">
+                            Le garant est un membre mais aucune commission n'a été configurée pour ce contrat (taux de commission : 0%).
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         {/* Documents */}
         <Card className="border-0 shadow-xl">
@@ -1058,10 +1490,12 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         defaultPaymentDate={selectedDueIndex !== null ? dueItems[selectedDueIndex]?.date : undefined}
         defaultPenaltyOnlyMode={penaltyOnlyMode}
         onSuccess={() => {
-          // Invalider explicitement le cache des pénalités pour rafraîchir l'affichage
+          // Invalider explicitement le cache pour rafraîchir l'affichage
           queryClient.invalidateQueries({ queryKey: ['creditPenalties', contract.id] })
           queryClient.invalidateQueries({ queryKey: ['creditContract', contract.id] })
           queryClient.invalidateQueries({ queryKey: ['creditPayments', contract.id] })
+          queryClient.invalidateQueries({ queryKey: ['creditInstallments', contract.id] })
+          queryClient.invalidateQueries({ queryKey: ['guarantorRemunerations', contract.id] })
           setSelectedDueIndex(null)
           setPenaltyOnlyMode(false)
         }}

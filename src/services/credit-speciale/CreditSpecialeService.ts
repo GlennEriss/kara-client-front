@@ -255,7 +255,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             guarantorRelation: demand.guarantorRelation,
             guarantorIsMember: demand.guarantorIsMember,
             guarantorIsParrain,
-            guarantorRemunerationPercentage: simulationData.guarantorRemunerationPercentage || (guarantorIsParrain ? 2 : 0),
+            guarantorRemunerationPercentage: simulationData.guarantorRemunerationPercentage || (demand.guarantorIsMember ? 2 : 0),
             emergencyContact: simulationData.emergencyContact,
             createdBy: adminId,
             updatedBy: adminId,
@@ -981,8 +981,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         // Les pénalités sont déjà calculées dans la nouvelle logique basée sur les installments
 
         // Calculer et créer la rémunération du garant si applicable
-        if (contract.guarantorIsParrain && 
-                contract.guarantorIsMember && 
+        if (contract.guarantorIsMember && 
                 contract.guarantorId && 
                 contract.guarantorRemunerationPercentage > 0) {
                 

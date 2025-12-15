@@ -1026,7 +1026,7 @@ function StandardSimulationResults({
           <div>
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <TableIcon className="h-4 w-4" />
-              Échéancier calculé ({displayDuration} mois)
+              Échéancier calculé ({schedule.filter(row => row.payment > 0).length} mois)
             </h4>
             <div className="border rounded-lg overflow-hidden">
               <Table>
@@ -1041,7 +1041,9 @@ function StandardSimulationResults({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedule.map((row) => (
+                  {schedule
+                    .filter(row => row.payment > 0) // Filtrer les lignes avec mensualité à 0
+                    .map((row) => (
                     <TableRow key={row.month}>
                       <TableCell className="font-medium">M{row.month}</TableCell>
                       <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
@@ -1329,7 +1331,9 @@ function CustomSimulationResults({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedule.map((row) => (
+                  {schedule
+                    .filter(row => row.payment > 0) // Filtrer les lignes avec mensualité à 0
+                    .map((row) => (
                     <TableRow key={row.month}>
                       <TableCell className="font-medium">M{row.month}</TableCell>
                       <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
