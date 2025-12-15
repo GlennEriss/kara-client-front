@@ -772,13 +772,59 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
         }
 
-        // Trouver l'échéance en cours (la première non payée)
-        const currentInstallment = installments.find(i => i.status !== 'PAID' && i.remainingAmount > 0) || installments[0];
+        // Trouver l'échéance à payer
+        // Priorité 1: utiliser l'installmentId fourni dans les données
+        // Priorité 2: utiliser la première échéance non payée
+        console.log('[CreditSpecialeService] Création de paiement - installmentId fourni:', data.installmentId);
+        console.log('[CreditSpecialeService] Nombre d\'échéances disponibles:', installments.length);
+        console.log('[CreditSpecialeService] Échéances:', installments.map(i => ({
+            id: i.id,
+            installmentNumber: i.installmentNumber,
+            status: i.status,
+            remainingAmount: i.remainingAmount,
+            paidAmount: i.paidAmount
+        })));
+        
+        let targetInstallment: CreditInstallment | null = null;
+        
+        if (data.installmentId) {
+            // Utiliser l'échéance spécifiée
+            targetInstallment = installments.find(i => i.id === data.installmentId) || null;
+            console.log('[CreditSpecialeService] Échéance trouvée avec installmentId:', targetInstallment ? {
+                id: targetInstallment.id,
+                installmentNumber: targetInstallment.installmentNumber,
+                status: targetInstallment.status
+            } : 'AUCUNE');
+        }
+        
+        // Si aucune échéance spécifique n'a été trouvée, utiliser la première non payée
+        if (!targetInstallment) {
+            console.log('[CreditSpecialeService] Aucune échéance spécifique trouvée, recherche de la première non payée...');
+            targetInstallment = installments.find(i => i.status !== 'PAID' && i.remainingAmount > 0) || installments[0];
+            console.log('[CreditSpecialeService] Échéance sélectionnée (fallback):', targetInstallment ? {
+                id: targetInstallment.id,
+                installmentNumber: targetInstallment.installmentNumber,
+                status: targetInstallment.status
+            } : 'AUCUNE');
+        }
+        
+        if (!targetInstallment) {
+            console.error('[CreditSpecialeService] ERREUR: Aucune échéance trouvée pour ce contrat');
+            throw new Error('Aucune échéance trouvée pour ce contrat');
+        }
+        
+        console.log('[CreditSpecialeService] Échéance cible finale:', {
+            id: targetInstallment.id,
+            installmentNumber: targetInstallment.installmentNumber,
+            status: targetInstallment.status,
+            remainingAmount: targetInstallment.remainingAmount,
+            paidAmount: targetInstallment.paidAmount
+        });
         
         // Créer le paiement avec l'URL de la preuve, la référence et l'ID de l'échéance
         const paymentData = {
             ...data,
-            installmentId: currentInstallment.id,
+            installmentId: targetInstallment.id,
             proofUrl,
             reference,
             principalAmount: 0, // Sera calculé lors de l'application du paiement
@@ -792,35 +838,99 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         let remainingPaymentAmount = isPenaltyOnlyPayment ? 0 : payment.amount;
         let totalPrincipalPaid = 0;
         let totalInterestPaid = 0;
-        let targetInstallment: CreditInstallment | null = currentInstallment;
 
         // Si ce n'est pas un paiement de pénalités uniquement, appliquer le paiement aux échéances
         if (!isPenaltyOnlyPayment && remainingPaymentAmount > 0) {
-            // Trouver l'échéance à payer (celle qui est due ou en retard)
-            const paymentDate = new Date(payment.paymentDate);
-            paymentDate.setHours(0, 0, 0, 0);
+            console.log('[CreditSpecialeService] Application du paiement - Montant restant:', remainingPaymentAmount);
+            console.log('[CreditSpecialeService] installmentId fourni dans data:', data.installmentId);
+            
+            // Si un installmentId spécifique a été fourni, commencer par cette échéance
+            // Sinon, utiliser la logique normale (première échéance due)
+            let overdueOrDueInstallments: CreditInstallment[];
+            
+            if (data.installmentId && targetInstallment) {
+                console.log('[CreditSpecialeService] Utilisation de l\'échéance spécifiée (installmentId:', data.installmentId, ')');
+                // Commencer par l'échéance spécifiée, puis continuer avec les suivantes si nécessaire
+                const startIndex = installments.findIndex(i => i.id === targetInstallment!.id);
+                console.log('[CreditSpecialeService] Index de départ:', startIndex);
+                
+                // Si l'échéance spécifiée a remainingAmount = 0 mais status != PAID, l'inclure quand même
+                // (cas où l'échéance a été créée avec remainingAmount = 0 mais n'a pas encore été payée)
+                overdueOrDueInstallments = installments
+                    .slice(startIndex)
+                    .filter(i => {
+                        // Inclure l'échéance si :
+                        // 1. Elle n'est pas déjà payée (status !== 'PAID')
+                        // 2. ET (elle a un montant restant > 0 OU c'est l'échéance spécifiée)
+                        const isTargetInstallment = i.id === targetInstallment!.id;
+                        return i.status !== 'PAID' && (i.remainingAmount > 0 || isTargetInstallment);
+                    })
+                    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+                console.log('[CreditSpecialeService] Échéances éligibles (à partir de l\'index', startIndex, '):', overdueOrDueInstallments.map(i => ({
+                    id: i.id,
+                    installmentNumber: i.installmentNumber,
+                    status: i.status,
+                    remainingAmount: i.remainingAmount
+                })));
+            } else {
+                console.log('[CreditSpecialeService] Utilisation de la logique normale (première échéance due)');
+                // Logique normale : chercher l'échéance due ou en retard
+                const paymentDate = new Date(payment.paymentDate);
+                paymentDate.setHours(0, 0, 0, 0);
 
-            // Chercher l'échéance due ou en retard
-            const overdueOrDueInstallments = installments
-                .filter(i => i.status !== 'PAID' && i.remainingAmount > 0)
-                .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+                overdueOrDueInstallments = installments
+                    .filter(i => i.status !== 'PAID' && i.remainingAmount > 0)
+                    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+                console.log('[CreditSpecialeService] Échéances éligibles (logique normale):', overdueOrDueInstallments.map(i => ({
+                    id: i.id,
+                    installmentNumber: i.installmentNumber,
+                    status: i.status,
+                    remainingAmount: i.remainingAmount
+                })));
+            }
 
             if (overdueOrDueInstallments.length > 0) {
                 targetInstallment = overdueOrDueInstallments[0];
+                console.log('[CreditSpecialeService] Échéance cible pour le paiement:', {
+                    id: targetInstallment.id,
+                    installmentNumber: targetInstallment.installmentNumber,
+                    status: targetInstallment.status,
+                    remainingAmount: targetInstallment.remainingAmount
+                });
                 
                 // Appliquer le paiement à cette échéance et aux suivantes si nécessaire
+                console.log('[CreditSpecialeService] Application du paiement sur', overdueOrDueInstallments.length, 'échéance(s)');
                 for (const installment of overdueOrDueInstallments) {
-                    if (remainingPaymentAmount <= 0) break;
+                    if (remainingPaymentAmount <= 0) {
+                        console.log('[CreditSpecialeService] Montant restant épuisé, arrêt du traitement');
+                        break;
+                    }
 
-                    const amountToPay = Math.min(remainingPaymentAmount, installment.remainingAmount);
+                    // Si remainingAmount est 0 mais que l'échéance n'est pas payée, calculer le montant total attendu
+                    // (cas où l'échéance a été créée avec remainingAmount = 0)
+                    let installmentTotalAmount = installment.remainingAmount;
+                    if (installmentTotalAmount <= 0 && installment.status !== 'PAID') {
+                        // Calculer le montant total attendu : interestAmount + principalAmount
+                        // Si ces valeurs ne sont pas disponibles, utiliser le montant du paiement comme référence
+                        installmentTotalAmount = installment.interestAmount + (installment.totalAmount - installment.interestAmount);
+                        // Si toujours 0, utiliser le montant du paiement comme fallback
+                        if (installmentTotalAmount <= 0) {
+                            installmentTotalAmount = remainingPaymentAmount;
+                        }
+                    }
+                    
+                    const amountToPay = Math.min(remainingPaymentAmount, installmentTotalAmount > 0 ? installmentTotalAmount : remainingPaymentAmount);
+                    console.log('[CreditSpecialeService] Traitement échéance', installment.installmentNumber, '- Montant à payer:', amountToPay, '- Restant avant:', installment.remainingAmount, '- Total échéance calculé:', installmentTotalAmount);
                     
                     // Calculer combien d'intérêts et de principal ont déjà été payés
                     const interestPaid = Math.min(installment.paidAmount, installment.interestAmount);
                     const principalPaid = Math.max(0, installment.paidAmount - installment.interestAmount);
                     
                     // Calculer combien d'intérêts et de principal restent à payer
+                    // Si remainingAmount est 0, utiliser le total calculé
+                    const effectiveRemainingAmount = installment.remainingAmount > 0 ? installment.remainingAmount : installmentTotalAmount;
                     const interestRemaining = Math.max(0, installment.interestAmount - interestPaid);
-                    const principalRemaining = installment.remainingAmount - interestRemaining;
+                    const principalRemaining = effectiveRemainingAmount - interestRemaining;
                     
                     // Payer d'abord les intérêts restants, puis le principal
                     const interestPart = Math.min(amountToPay, interestRemaining);
@@ -831,11 +941,23 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     remainingPaymentAmount -= amountToPay;
 
                     const newPaidAmount = installment.paidAmount + amountToPay;
-                    const newRemainingAmount = installment.remainingAmount - amountToPay;
+                    // Si remainingAmount était 0, calculer le nouveau remainingAmount basé sur le totalAmount
+                    // Sinon, soustraire le montant payé du remainingAmount
+                    let newRemainingAmount: number;
+                    if (installment.remainingAmount <= 0 && installment.status !== 'PAID') {
+                        // L'échéance avait remainingAmount = 0 mais n'était pas payée
+                        // Calculer le nouveau remainingAmount : totalAmount - newPaidAmount
+                        newRemainingAmount = Math.max(0, installmentTotalAmount - newPaidAmount);
+                    } else {
+                        // Cas normal : soustraire le montant payé
+                        newRemainingAmount = Math.max(0, installment.remainingAmount - amountToPay);
+                    }
+                    
                     // Si un paiement est enregistré, l'échéance est considérée comme payée (fermée)
                     // Le "montant à payer" est une référence, pas une obligation
                     let newStatus: CreditInstallment['status'] = 'PAID';
 
+                    console.log('[CreditSpecialeService] Mise à jour échéance', installment.installmentNumber, '- Nouveau statut: PAID, Montant payé:', newPaidAmount, '- Restant:', newRemainingAmount, '- TotalAmount original:', installment.totalAmount);
                     await this.creditInstallmentRepository.updateInstallment(installment.id, {
                         paidAmount: newPaidAmount,
                         remainingAmount: newRemainingAmount,
@@ -844,6 +966,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         paymentId: payment.id, // Toujours lier le paiement
                         updatedBy: data.createdBy,
                     });
+                    console.log('[CreditSpecialeService] Échéance', installment.installmentNumber, 'mise à jour avec succès');
                 }
                 
                 // Mettre à jour le paiement avec les montants totaux (principal + intérêts) pour toutes les échéances payées
