@@ -1021,14 +1021,14 @@ function StandardSimulationResults({
         )}
 
         {/* Tableaux comparatifs */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {/* Tableau calculé */}
           <div>
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <TableIcon className="h-4 w-4" />
               Échéancier calculé ({schedule.filter(row => row.payment > 0).length} mois)
             </h4>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1060,7 +1060,7 @@ function StandardSimulationResults({
 
           {/* Tableau référence 7 mois (pour crédit spéciale uniquement) */}
           {creditType === 'SPECIALE' && maxDuration === 7 && (
-            <div>
+            <div className="lg:max-w-md">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <TableIcon className="h-4 w-4" />
                 Échéancier référence (7 mois)
@@ -1311,14 +1311,14 @@ function CustomSimulationResults({
         )}
 
         {/* Tableaux comparatifs */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {/* Tableau personnalisé */}
           <div>
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <TableIcon className="h-4 w-4" />
               Échéancier personnalisé
             </h4>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1350,7 +1350,7 @@ function CustomSimulationResults({
 
           {/* Échéancier référence (maxDuration mois) */}
           {maxDuration !== Infinity && (
-            <div>
+            <div className="lg:max-w-md">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <TableIcon className="h-4 w-4" />
                 Échéancier référence ({maxDuration} mois)

@@ -990,12 +990,44 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 );
 
                 if (remunerationAmount > 0) {
-                    // Calculer le mois correspondant au paiement
-                    const firstPaymentDate = new Date(contract.firstPaymentDate);
-                    const paymentDate = new Date(payment.paymentDate);
-                    const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
-                                     (paymentDate.getMonth() - firstPaymentDate.getMonth());
-                    const month = Math.max(1, monthsDiff + 1);
+                    // Déterminer le mois en fonction de l'échéance réellement payée
+                    // Si le paiement a été appliqué à plusieurs échéances, utiliser la première échéance qui a reçu un paiement
+                    let month: number;
+                    
+                    // Récupérer toutes les échéances mises à jour après le paiement
+                    const updatedInstallments = await this.creditInstallmentRepository.getInstallmentsByCreditId(contract.id);
+                    
+                    // Trouver l'échéance qui correspond au paiement
+                    // Priorité 1 : Utiliser payment.installmentId si disponible
+                    if (payment.installmentId) {
+                        const installment = updatedInstallments.find(inst => inst.id === payment.installmentId);
+                        if (installment && installment.installmentNumber) {
+                            month = installment.installmentNumber;
+                        } else {
+                            // Fallback : utiliser targetInstallment
+                            month = targetInstallment?.installmentNumber || 1;
+                        }
+                    } else if (targetInstallment && targetInstallment.installmentNumber) {
+                        // Priorité 2 : Utiliser targetInstallment
+                        month = targetInstallment.installmentNumber;
+                    } else {
+                        // Priorité 3 : Trouver la première échéance qui a été partiellement ou complètement payée par ce paiement
+                        // Chercher l'échéance qui a été mise à jour récemment et qui correspond au paiement
+                        const recentlyUpdatedInstallment = updatedInstallments
+                            .filter(inst => inst.status === 'PARTIAL' || inst.status === 'PAID')
+                            .sort((a, b) => a.installmentNumber - b.installmentNumber)[0];
+                        
+                        if (recentlyUpdatedInstallment && recentlyUpdatedInstallment.installmentNumber) {
+                            month = recentlyUpdatedInstallment.installmentNumber;
+                        } else {
+                            // Dernier fallback : calculer à partir de la date
+                            const firstPaymentDate = new Date(contract.firstPaymentDate);
+                            const paymentDate = new Date(payment.paymentDate);
+                            const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
+                                             (paymentDate.getMonth() - firstPaymentDate.getMonth());
+                            month = Math.max(1, monthsDiff + 1);
+                        }
+                    }
 
                     await this.guarantorRemunerationRepository.createRemuneration({
                         creditId: contract.id,

@@ -123,15 +123,28 @@ export default function ContractCreationModal({
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
       
+      // 1. Calcul des intérêts sur le solde actuel
       const interest = remaining * monthlyRate
+      // 2. Montant global = reste dû + intérêts
       const balanceWithInterest = remaining + interest
       
+      // 3. Versement effectué (même logique que dans CreditSimulationModal)
       let payment: number
-      if (remaining < monthlyPayment) {
+      
+      if (monthlyPayment > balanceWithInterest) {
+        // Si la mensualité prédéfinie est supérieure au montant global,
+        // la mensualité affichée doit être le montant global (capital + intérêts)
+        payment = balanceWithInterest
+        remaining = 0
+      } else if (remaining < monthlyPayment) {
+        // Le reste dû est inférieur à la mensualité souhaitée
+        // La mensualité affichée = reste dû (sans intérêts)
         payment = remaining
         remaining = 0
       } else {
+        // Le reste dû est supérieur ou égal à la mensualité souhaitée
         payment = monthlyPayment
+        // 4. Nouveau solde après versement
         remaining = Math.max(0, balanceWithInterest - payment)
       }
 
