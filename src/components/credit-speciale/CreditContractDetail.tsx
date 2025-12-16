@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils'
 import { CreditContract, CreditPayment, CreditPenalty, CreditInstallment, CreditContractStatus } from '@/types/types'
 import routes from '@/constantes/routes'
 import { toast } from 'sonner'
-import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId } from '@/hooks/useCreditSpeciale'
 import CreditPaymentModal from './CreditPaymentModal'
 import PaymentReceiptModal from './PaymentReceiptModal'
 import CreditHistoryTimeline from './CreditHistoryTimeline'
@@ -45,6 +45,8 @@ import { fr } from 'date-fns/locale'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 interface CreditContractDetailProps {
   contract: CreditContract
@@ -70,6 +72,7 @@ interface DueItem {
   status: 'PAID' | 'DUE' | 'FUTURE'
   paidAmount?: number
   paymentDate?: Date
+  installmentId?: string // ID de l'échéance pour lier les paiements
 }
 
 // Composant pour les statistiques modernes (même design que StatisticsCreditDemandes)
@@ -187,7 +190,7 @@ const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
 }
 
 // Carrousel de statistiques (même design que StatisticsCreditDemandes)
-const ContractStatsCarousel = ({ contract, penalties = [] }: { contract: CreditContract; penalties?: CreditPenalty[] }) => {
+const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number }) => {
   const [itemsPerView, setItemsPerView] = useState(1)
   
   useEffect(() => {
@@ -224,17 +227,17 @@ const ContractStatsCarousel = ({ contract, penalties = [] }: { contract: CreditC
     },
     {
       title: 'Montant restant',
-      value: Math.round(contract.amountRemaining).toLocaleString('fr-FR'),
+      value: Math.round(realRemainingAmount).toLocaleString('fr-FR'),
       color: '#f59e0b',
       icon: Clock
     },
     {
       title: 'Pourcentage remboursé',
-      value: contract.totalAmount > 0 
-        ? `${((contract.amountPaid / contract.totalAmount) * 100).toFixed(1)}%`
+      value: totalAmountToRepay > 0 
+        ? `${((totalPaidFromSchedule / totalAmountToRepay) * 100).toFixed(1)}%`
         : '0%',
-      subtitle: contract.totalAmount > 0 
-        ? `${contract.amountPaid.toLocaleString('fr-FR')} / ${Math.round(contract.totalAmount).toLocaleString('fr-FR')} FCFA`
+      subtitle: totalAmountToRepay > 0 
+        ? `${Math.round(totalPaidFromSchedule).toLocaleString('fr-FR')} / ${Math.round(totalAmountToRepay).toLocaleString('fr-FR')} FCFA`
         : 'Aucun paiement enregistré',
       color: '#8b5cf6',
       icon: TrendingUp
@@ -344,6 +347,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
 export default function CreditContractDetail({ contract }: CreditContractDetailProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState<'payments' | 'simulations' | 'guarantor'>('payments')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<CreditPayment | null>(null)
@@ -355,10 +359,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [isCompressing, setIsCompressing] = useState(false)
   const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
 
-  // Récupérer les paiements, pénalités et échéances
+  // Récupérer les paiements, pénalités, échéances et rémunérations du garant
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
   const { data: penalties = [], isLoading: isLoadingPenalties } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
+  const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
   const queryClient = useQueryClient()
 
   // Vérifier et créer les pénalités manquantes au chargement
@@ -394,42 +399,58 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     return `${format(dateObj, 'dd MMMM yyyy', { locale: fr })} à ${time}`
   }
 
-  // Calculer les échéances - utiliser les installments réels si disponibles, sinon calculer
-  const calculateDueItems = (): DueItem[] => {
-    // Si on a des installments réels, les utiliser
-    if (installments.length > 0 && !isLoadingInstallments) {
-      return installments.map((installment) => {
-        let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
-        
-        if (installment.status === 'PAID') {
-          status = 'PAID'
-        } else if (installment.status === 'DUE' || installment.status === 'OVERDUE') {
-          status = 'DUE'
-        } else {
-          status = 'FUTURE'
-        }
+  // Mapper les paiements aux échéances (mois) pour savoir combien a été versé pour chaque échéance
+  // Utiliser l'ID du paiement qui contient le numéro du mois (M1, M2, etc.)
+  const getPaymentsByMonth = (): Map<number, number> => {
+    const paymentsByMonth = new Map<number, number>()
+    
+    // Filtrer les paiements de mensualités
+    const realPayments = payments.filter(p => 
+      p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+    )
 
-        return {
-          month: installment.installmentNumber,
-          date: new Date(installment.dueDate),
-          payment: installment.totalAmount, // Montant total (principal + intérêts)
-          interest: installment.interestAmount,
-          principal: installment.principalAmount,
-          remaining: installment.remainingAmount,
-          status,
-          paidAmount: installment.paidAmount > 0 ? installment.paidAmount : undefined,
-          paymentDate: installment.paidAt ? new Date(installment.paidAt) : undefined,
+    for (const payment of realPayments) {
+      // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
+      // Exemple: M1_MK_CSP_2663_151225_1510 -> mois = 1
+      let month: number | undefined
+      
+      if (payment.id) {
+        const match = payment.id.match(/^M(\d+)_/)
+        if (match) {
+          month = parseInt(match[1], 10)
         }
-      })
+      }
+      
+      // Si on n'a pas pu extraire le mois depuis l'ID, utiliser la date comme fallback
+      if (!month || isNaN(month)) {
+        const firstDate = new Date(contract.firstPaymentDate)
+        const paymentDate = new Date(payment.paymentDate)
+        const monthsDiff = (paymentDate.getFullYear() - firstDate.getFullYear()) * 12 + 
+                          (paymentDate.getMonth() - firstDate.getMonth())
+        month = Math.max(1, monthsDiff + 1)
+      }
+      
+      // Accumuler le montant versé pour ce mois
+      const currentAmount = paymentsByMonth.get(month) || 0
+      paymentsByMonth.set(month, currentAmount + payment.amount)
     }
 
-    // Fallback : calculer manuellement si pas d'installments
+    return paymentsByMonth
+  }
+
+  // Calculer les échéances - toujours calculer théoriquement sans utiliser les installments
+  const calculateDueItems = (): DueItem[] => {
+    // Ne plus utiliser les installments - toujours calculer théoriquement
     const monthlyRate = contract.interestRate / 100
     const firstDate = new Date(contract.firstPaymentDate)
     const paymentAmount = contract.monthlyPaymentAmount
     const maxDuration = contract.duration
     
-    let remaining = contract.amount
+    // Calcul selon la formule : montantGlobal = montantGlobal * taux + montantGlobal
+    // Mois 1: montantGlobal = Montant emprunté * taux + montant emprunté
+    // Mois 2+: montantGlobal = resteDu * taux + resteDu
+    let resteDuPrecedent = contract.amount // Pour calculer les intérêts
+    let montantGlobal = contract.amount * monthlyRate + contract.amount // Mois 1
     const items: DueItem[] = []
 
     // Trier les paiements par date (exclure les paiements de pénalités uniquement du calcul)
@@ -439,97 +460,370 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
       )
 
-    // Calculer le total payé (uniquement les paiements de mensualités, pas les pénalités)
-    const totalPaid = sortedPayments.reduce((sum, p) => sum + p.amount, 0)
-    let accumulatedPaid = 0
+    // Créer un map des paiements par mois pour vérifier le statut de chaque échéance
+    const paymentsByMonthMap = getPaymentsByMonth()
 
-    for (let i = 0; i < maxDuration; i++) {
-      if (remaining <= 0) break
-
+    let monthIndex = 0
+    // Continuer jusqu'à ce que le reste dû soit 0 ou qu'on atteigne une limite raisonnable (ex: 20 mois)
+    while (montantGlobal > 0 && monthIndex < 20) {
       const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
+      date.setMonth(date.getMonth() + monthIndex)
       
-      const interest = remaining * monthlyRate
-      const balanceWithInterest = remaining + interest
+      // À partir du 8ème mois (index 7), plus d'intérêts
+      const isAfterMonth7 = monthIndex >= 7
       
-      // paymentAmount représente le capital (mensualité de base), le montant total à payer = capital + intérêts
+      // Calculer les intérêts pour l'affichage
+      // Après le 7ème mois, les intérêts sont à 0
+      const interest = isAfterMonth7 ? 0 : resteDuPrecedent * monthlyRate
+      
+      // Calculer le paiement selon la même logique que la simulation
       let payment: number
-      let principalPart: number
+      let resteDu: number
       
-      if (remaining < paymentAmount) {
-        // Dernière échéance : payer le solde complet avec intérêts
-        payment = balanceWithInterest
-        principalPart = remaining
-        remaining = 0
+      if (paymentAmount > montantGlobal) {
+        // Si la mensualité prédéfinie est supérieure au montant global,
+        // la mensualité affichée doit être le montant global (capital + intérêts)
+        payment = montantGlobal
+        resteDu = 0
+      } else if (resteDuPrecedent < paymentAmount && !isAfterMonth7) {
+        // Le reste dû est inférieur à la mensualité souhaitée (seulement avant le 8ème mois)
+        // La mensualité affichée = reste dû (sans intérêts)
+        payment = resteDuPrecedent
+        resteDu = 0
       } else {
-        // Le montant total à payer = capital (paymentAmount) + intérêts
-        const totalPaymentAmount = paymentAmount + interest
-        // S'assurer qu'on ne dépasse pas balanceWithInterest
-        payment = Math.min(totalPaymentAmount, balanceWithInterest)
-        principalPart = paymentAmount // Le capital est toujours paymentAmount
-        remaining = Math.max(0, balanceWithInterest - payment)
+        // Le reste dû est supérieur ou égal à la mensualité souhaitée
+        payment = paymentAmount
+        // Reste dû = MontantGlobal - Mensualité
+        resteDu = montantGlobal - paymentAmount
+      }
+      
+      // Pour le mois suivant
+      if (isAfterMonth7) {
+        // Après le 7ème mois : plus d'intérêts, montantGlobal = resteDu (sans intérêts)
+        montantGlobal = resteDu
+        resteDuPrecedent = resteDu
+      } else {
+        // Jusqu'au 7ème mois : appliquer les intérêts
+        montantGlobal = resteDu * monthlyRate + resteDu
+        resteDuPrecedent = resteDu
       }
 
-      // Déterminer le statut de cette échéance
+      // Déterminer le statut : utiliser paymentsByMonthMap pour vérifier si un paiement existe pour ce mois spécifique
       let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
       let paidAmount = 0
       let paymentDate: Date | undefined
 
-      // Vérifier si cette échéance est payée
-      // Utiliser une tolérance pour les arrondis (1 FCFA)
-      const expectedTotalForThisDue = accumulatedPaid + payment
-      const tolerance = 1
-      
-      // Arrondir les valeurs pour la comparaison
-      const roundedTotalPaid = Math.round(totalPaid)
-      const roundedExpectedTotal = Math.round(expectedTotalForThisDue)
-      const roundedAccumulatedPaid = Math.round(accumulatedPaid)
-      
-      if (roundedTotalPaid >= roundedExpectedTotal - tolerance) {
+      const currentMonth = monthIndex + 1
+      const paidForThisMonth = paymentsByMonthMap.get(currentMonth) || 0
+
+      if (paidForThisMonth > 0) {
+        // Un paiement a été fait pour ce mois spécifique
         status = 'PAID'
-        paidAmount = payment
-        // Trouver le paiement qui correspond à cette échéance
-        let tempAccumulated = accumulatedPaid
-        for (const p of sortedPayments) {
-          tempAccumulated += p.amount
-          if (tempAccumulated >= expectedTotalForThisDue - tolerance) {
-            paymentDate = new Date(p.paymentDate)
+        paidAmount = paidForThisMonth
+        // Trouver le paiement qui correspond à ce mois en utilisant l'ID
+        const paymentForThisMonth = sortedPayments.find(p => {
+          // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
+          if (p.id) {
+            const match = p.id.match(/^M(\d+)_/)
+            if (match) {
+              const paymentMonth = parseInt(match[1], 10)
+              return paymentMonth === currentMonth
+            }
+          }
+          return false
+        })
+        if (paymentForThisMonth) {
+          paymentDate = new Date(paymentForThisMonth.paymentDate)
+        }
+      } else {
+        // Aucun paiement pour ce mois
+        // Vérifier si toutes les échéances précédentes ont reçu un paiement
+        let allPreviousPaid = true
+        for (let j = 0; j < monthIndex; j++) {
+          if ((paymentsByMonthMap.get(j + 1) || 0) === 0) {
+            allPreviousPaid = false
             break
           }
         }
-        accumulatedPaid += payment
-      } else {
-        // Cette échéance n'est pas encore payée
-        // Vérifier si toutes les échéances précédentes sont payées
-        // Si totalPaid >= accumulatedPaid, cela signifie que toutes les échéances précédentes sont payées
-        // (car accumulatedPaid contient la somme de toutes les échéances précédentes qui sont payées)
-        if (roundedTotalPaid >= roundedAccumulatedPaid - tolerance) {
-          // Toutes les précédentes sont payées, cette échéance est DUE
-          status = 'DUE'
-        } else {
-          // Au moins une échéance précédente n'est pas payée, cette échéance est FUTURE
-          status = 'FUTURE'
-        }
+        status = allPreviousPaid ? 'DUE' : 'FUTURE'
       }
 
       items.push({
-        month: i + 1,
+        month: monthIndex + 1,
         date,
-        payment: customRound(payment), // Montant total à payer (principal + intérêts)
+        payment: customRound(payment), // Mensualité
         interest: customRound(interest),
-        principal: customRound(principalPart), // Partie principale du paiement
-        remaining: customRound(remaining),
+        principal: customRound(montantGlobal), // Montant global
+        remaining: customRound(resteDu), // Reste dû = MontantGlobal - Mensualité
         status,
-        paidAmount: status === 'PAID' ? paidAmount : undefined,
+        paidAmount: status === 'PAID' && paidAmount > 0 ? paidAmount : undefined,
         paymentDate,
       })
+      
+      monthIndex++
+      
+      // Arrêter si le reste dû est 0 et qu'on a dépassé la durée initiale
+      if (resteDu <= 0 && monthIndex >= maxDuration) {
+        break
+      }
     }
 
     return items
   }
 
+  // Calculer les échéances pour l'affichage
+  // actualSchedule sera calculé après et utilisé pour déterminer les mois supplémentaires
   const dueItems = calculateDueItems()
-  const nextDueIndex = dueItems.findIndex(item => item.status === 'DUE')
+
+  // Calculer le montant restant basé sur les paiements réels
+  // nouveauMontantRestant = MontantRestant - montantVerser
+  // MontantRestant = nouveauMontantRestant * taux + nouveauMontantRestant
+  const calculateRealRemainingAmount = (): number => {
+    // Filtrer les paiements de mensualités (exclure les pénalités uniquement)
+    const realPayments = payments.filter(p => 
+      p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+    )
+    
+    if (realPayments.length === 0) {
+      // Pas de paiement, le montant restant est le montant initial avec intérêts
+      const monthlyRate = contract.interestRate / 100
+      return contract.amount * (1 + monthlyRate)
+    }
+
+    // Trier les paiements par date
+    const sortedPayments = [...realPayments].sort((a, b) => 
+      new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
+    )
+
+    // Calculer le montant restant en appliquant la formule pour chaque paiement
+    let remaining = contract.amount
+    const monthlyRate = contract.interestRate / 100
+
+    for (const payment of sortedPayments) {
+      // Calculer les intérêts sur le montant restant avant le paiement
+      const interest = remaining * monthlyRate
+      const totalWithInterest = remaining + interest
+      
+      // Soustraire le montant versé
+      remaining = Math.max(0, totalWithInterest - payment.amount)
+    }
+
+    // Appliquer les intérêts sur le montant restant actuel
+    const currentInterest = remaining * monthlyRate
+    return remaining + currentInterest
+  }
+
+  const paymentsByMonth = getPaymentsByMonth()
+
+  // Calculer l'échéancier actuel basé sur les versements réels
+  const calculateActualSchedule = (): DueItem[] => {
+    const monthlyRate = contract.interestRate / 100
+    const firstDate = new Date(contract.firstPaymentDate)
+    const maxDuration = contract.duration
+    
+    // Calcul selon la formule : montantGlobal = montantGlobal * taux + montantGlobal
+    // Commencer avec le montant initial
+    let currentRemaining = contract.amount // Montant restant avant intérêts
+    const items: DueItem[] = []
+
+    // Créer un map des paiements par mois
+    const paymentsByMonthMap = getPaymentsByMonth()
+
+    // Trier les paiements par date pour trouver les dates de paiement
+    const sortedPayments = [...payments]
+      .filter(p => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
+      .sort((a, b) => 
+        new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
+      )
+
+    const monthlyPayment = contract.monthlyPaymentAmount
+    let monthIndex = 0
+    
+    // Continuer jusqu'à ce que le reste dû soit 0 ou qu'on atteigne une limite raisonnable (ex: 20 mois)
+    while (currentRemaining > 0 && monthIndex < 20) {
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + monthIndex)
+      
+      // À partir du 8ème mois (index 7), plus d'intérêts
+      const isAfterMonth7 = monthIndex >= 7
+      
+      // Calculer le montant global pour ce mois : currentRemaining + intérêts
+      const interest = isAfterMonth7 ? 0 : currentRemaining * monthlyRate
+      const montantGlobal = currentRemaining + interest
+      
+      // Récupérer le montant réellement payé pour ce mois
+      const actualPayment = paymentsByMonthMap.get(monthIndex + 1) || 0
+      
+      // Si un paiement réel a été fait, utiliser ce montant
+      // Sinon, utiliser la mensualité théorique
+      let payment: number
+      let resteDu: number
+      
+      if (actualPayment > 0) {
+        // Utiliser le montant réellement payé
+        payment = actualPayment
+        // Calculer le reste dû après ce paiement réel
+        if (payment >= montantGlobal) {
+          resteDu = 0
+        } else {
+          resteDu = montantGlobal - payment
+        }
+      } else {
+        // Pas de paiement réel, utiliser la logique théorique
+        if (monthlyPayment > montantGlobal) {
+          payment = montantGlobal
+          resteDu = 0
+        } else if (currentRemaining < monthlyPayment && !isAfterMonth7) {
+          payment = currentRemaining
+          resteDu = 0
+        } else {
+          payment = monthlyPayment
+          resteDu = montantGlobal - payment
+        }
+      }
+      
+      // Déterminer le statut : si un paiement a été fait, l'échéance est PAYÉE
+      let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
+      let paymentDate: Date | undefined
+
+      if (actualPayment > 0) {
+        status = 'PAID'
+        // Trouver la date du paiement pour ce mois en utilisant l'ID du paiement
+        const currentMonth = monthIndex + 1
+        const paymentForThisMonth = sortedPayments.find(p => {
+          // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
+          if (p.id) {
+            const match = p.id.match(/^M(\d+)_/)
+            if (match) {
+              const paymentMonth = parseInt(match[1], 10)
+              return paymentMonth === currentMonth
+            }
+          }
+          // Fallback : utiliser la date si l'ID ne contient pas le format attendu
+          const paymentDateObj = new Date(p.paymentDate)
+          const monthsDiff = (paymentDateObj.getFullYear() - firstDate.getFullYear()) * 12 +
+                            (paymentDateObj.getMonth() - firstDate.getMonth())
+          const paymentMonthFromDate = Math.max(1, monthsDiff + 1)
+          return paymentMonthFromDate === currentMonth
+        })
+        if (paymentForThisMonth) {
+          paymentDate = new Date(paymentForThisMonth.paymentDate)
+        }
+      } else {
+        // Vérifier si toutes les échéances précédentes ont reçu un paiement
+        let allPreviousPaid = true
+        for (let j = 0; j < monthIndex; j++) {
+          if ((paymentsByMonthMap.get(j + 1) || 0) === 0) {
+            allPreviousPaid = false
+            break
+          }
+        }
+        status = allPreviousPaid ? 'DUE' : 'FUTURE'
+      }
+
+      items.push({
+        month: monthIndex + 1,
+        date,
+        payment: customRound(payment),
+        interest: customRound(interest),
+        principal: customRound(montantGlobal), // Montant global avant paiement
+        remaining: customRound(resteDu),
+        status,
+        paidAmount: actualPayment > 0 ? actualPayment : undefined,
+        paymentDate,
+      })
+      
+      // Mettre à jour currentRemaining pour le mois suivant : utiliser le reste dû après paiement
+      // Le reste dû devient la base pour le mois suivant (sans intérêts, on les ajoutera au début du prochain tour)
+      currentRemaining = resteDu
+      
+      monthIndex++
+      
+      // Arrêter si le reste dû est 0 et qu'on a dépassé la durée initiale
+      if (resteDu <= 0 && monthIndex >= maxDuration) {
+        break
+      }
+    }
+
+    // Debug: log pour comprendre le problème
+    console.log('[calculateActualSchedule] Échéancier actuel calculé:', items.map(item => ({
+      month: item.month,
+      payment: item.payment,
+      actualPayment: paymentsByMonthMap.get(item.month) || 0,
+      status: item.status
+    })))
+    console.log('[calculateActualSchedule] Paiements par mois:', Array.from(paymentsByMonthMap.entries()))
+
+    return items.filter(item => item.payment > 0) // Filtrer les lignes avec paiement à 0
+  }
+
+  const actualSchedule = calculateActualSchedule()
+
+  // Trouver la prochaine échéance payable : DUE (utiliser actualSchedule comme source de vérité)
+  const nextDueIndex = actualSchedule.findIndex(item => item.status === 'DUE')
+
+  // Créer un map de l'échéancier actuel par mois pour accès rapide
+  const actualScheduleByMonth = new Map<number, DueItem>()
+  actualSchedule.forEach(item => {
+    actualScheduleByMonth.set(item.month, item)
+  })
+
+  // Calculer le montant total payé à partir de l'échéancier actuel
+  const totalPaidFromSchedule = actualSchedule
+    .filter(item => item.status === 'PAID')
+    .reduce((sum, item) => sum + (item.paidAmount || item.payment || 0), 0)
+  
+  // Le montant total à rembourser = somme de toutes les mensualités de l'échéancier actuel
+  const totalAmountToRepay = actualSchedule.reduce((sum, item) => sum + item.payment, 0)
+
+  // Calculer le montant restant : valeur totale due - valeur versée
+  const realRemainingAmount = totalAmountToRepay - totalPaidFromSchedule
+
+  // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
+  const calculateReferenceSchedule = () => {
+    if (contract.creditType !== 'SPECIALE') return []
+    
+    const monthlyRate = contract.interestRate / 100
+    const firstDate = new Date(contract.firstPaymentDate)
+    
+    // Calculer le montant global avec intérêts composés sur exactement 7 mois
+    let lastMontant = contract.amount
+    for (let i = 1; i <= 7; i++) {
+      lastMontant = lastMontant * monthlyRate + lastMontant
+    }
+    
+    // Le montant global après 7 mois d'intérêts composés
+    const montantGlobal = lastMontant
+    
+    // Diviser ce montant global par 7 pour obtenir la mensualité
+    const monthlyPaymentRaw = montantGlobal / 7
+    
+    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
+    const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5 
+      ? Math.ceil(monthlyPaymentRaw) 
+      : Math.floor(monthlyPaymentRaw)
+    
+    // Générer l'échéancier avec cette mensualité (identique pour les 7 mois)
+    const referenceSchedule: Array<{
+      month: number
+      date: Date
+      payment: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      referenceSchedule.push({
+        month: i + 1,
+        date,
+        payment: monthlyPaymentRef,
+      })
+    }
+    return referenceSchedule
+  }
+
+  const referenceSchedule = calculateReferenceSchedule()
   
   // Debug: log pour comprendre le problème
   useEffect(() => {
@@ -549,23 +843,42 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   // Fonction pour récupérer le paiement sélectionné pour le reçu
   const getSelectedPaymentForReceipt = (): CreditPayment | null => {
     if (selectedDueIndexForReceipt === null) return null
-    
-    const dueItem = dueItems[selectedDueIndexForReceipt]
-    if (!dueItem || !dueItem.paymentDate) return null
 
-    // Utiliser la date de paiement stockée dans l'échéance pour trouver le paiement correspondant
-    const duePaymentDate = new Date(dueItem.paymentDate)
-    duePaymentDate.setHours(0, 0, 0, 0)
+    const dueItem = actualSchedule[selectedDueIndexForReceipt]
+    if (!dueItem) return null
 
-    // Trouver le paiement qui correspond à cette date
-    const matchingPayment = payments.find(p => {
-      const paymentDate = new Date(p.paymentDate)
-      paymentDate.setHours(0, 0, 0, 0)
-      // Comparer les dates (tolérance de 1 jour pour les différences d'heure)
-      return Math.abs(paymentDate.getTime() - duePaymentDate.getTime()) <= 24 * 60 * 60 * 1000
+    // Trouver le paiement qui correspond à ce mois en utilisant l'ID
+    const paymentForThisMonth = payments.find(p => {
+      // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
+      if (p.id) {
+        const match = p.id.match(/^M(\d+)_/)
+        if (match) {
+          const paymentMonth = parseInt(match[1], 10)
+          return paymentMonth === dueItem.month
+        }
+      }
+      return false
     })
 
-    return matchingPayment || null
+    if (paymentForThisMonth) return paymentForThisMonth
+
+    // Fallback : utiliser la date de paiement si disponible
+    if (dueItem.paymentDate) {
+      const duePaymentDate = new Date(dueItem.paymentDate)
+      duePaymentDate.setHours(0, 0, 0, 0)
+
+      // Trouver le paiement qui correspond à cette date
+      const matchingPayment = payments.find(p => {
+        const paymentDate = new Date(p.paymentDate)
+        paymentDate.setHours(0, 0, 0, 0)
+        // Comparer les dates (tolérance de 1 jour)
+        return Math.abs(paymentDate.getTime() - duePaymentDate.getTime()) <= 24 * 60 * 60 * 1000
+      })
+
+      if (matchingPayment) return matchingPayment
+    }
+
+    return null
   }
 
   return (
@@ -589,7 +902,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         {/* Statistiques */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
-          <ContractStatsCarousel contract={contract} penalties={penalties} />
+          <ContractStatsCarousel 
+            contract={contract} 
+            penalties={penalties} 
+            realRemainingAmount={realRemainingAmount}
+            totalPaidFromSchedule={totalPaidFromSchedule}
+            totalAmountToRepay={totalAmountToRepay}
+          />
         </div>
 
         {/* Informations principales */}
@@ -700,28 +1019,85 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           </CardContent>
         </Card>
 
-        {/* Échéancier de paiement */}
+        {/* Onglets */}
         <Card className="border-0 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 border-b">
-            <CardTitle className="flex items-center gap-2 text-indigo-700">
-              <CalendarDays className="h-5 w-5" />
-              Échéancier de paiement
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {isLoadingPayments ? (
-              <div className="text-center py-8 text-gray-500">Chargement...</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dueItems.map((item, index) => {
-                  // Désactiver si le contrat n'est pas actif ou partiel, si l'échéance est future, ou si ce n'est pas la prochaine échéance à payer
-                  // nextDueIndex peut être -1 si aucune échéance DUE n'est trouvée, donc on vérifie >= 0
-                  // Permettre les paiements si le contrat est ACTIVE ou PARTIAL
-                  const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL'
+          <CardContent className="p-0">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'payments' | 'simulations' | 'guarantor')} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 rounded-none border-b">
+                <TabsTrigger value="payments" className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4" />
+                  Versements
+                </TabsTrigger>
+                <TabsTrigger value="simulations" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Simulations
+                </TabsTrigger>
+                <TabsTrigger value="guarantor" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Commission du garant
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Onglet Versements */}
+              <TabsContent value="payments" className="p-6 space-y-6 m-0">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5" />
+                    Échéancier de paiement
+                  </h3>
+                  {isLoadingPayments ? (
+                    <div className="text-center py-8 text-gray-500">Chargement...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {actualSchedule.map((item, index) => {
+                  // Permettre les paiements si le contrat est ACTIVE, PARTIAL, ou s'il reste des échéances à payer
+                  // Même si le contrat est DISCHARGED, on peut avoir des échéances restantes à payer
+                  const hasUnpaidInstallments = actualSchedule.some(i => i.status === 'DUE' || i.status === 'FUTURE')
+                  const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments
+                  
+                  // Vérifier si toutes les échéances précédentes sont payées
+                  let allPreviousPaid = true
+                  const previousStatuses: string[] = []
+                  for (let j = 0; j < index; j++) {
+                    previousStatuses.push(`M${actualSchedule[j].month}:${actualSchedule[j].status}`)
+                    if (actualSchedule[j].status !== 'PAID') {
+                      allPreviousPaid = false
+                    }
+                  }
+                  
+                  // Permettre de payer si :
+                  // - L'échéance est DUE
+                  // - Toutes les échéances précédentes sont payées
+                  const isPayable = item.status === 'DUE' && allPreviousPaid
+                  
                   const isDisabled = !canMakePayments || 
                                    item.status === 'FUTURE' || 
-                                   (item.status === 'DUE' && nextDueIndex >= 0 && index !== nextDueIndex) ||
-                                   (item.status === 'PAID')
+                                   item.status === 'PAID' ||
+                                   !isPayable
+                  
+                  // Log de débogage pour l'échéance 8
+                  if (item.month === 8) {
+                    console.log('[CreditContractDetail] Debug Échéance 8:', {
+                      month: item.month,
+                      index,
+                      status: item.status,
+                      canMakePayments,
+                      contractStatus: contract.status,
+                      hasUnpaidInstallments,
+                      allPreviousPaid,
+                      previousStatuses,
+                      isPayable,
+                      isDisabled,
+                      reasons: {
+                        notCanMakePayments: !canMakePayments,
+                        isFuture: item.status === 'FUTURE',
+                        isPaid: item.status === 'PAID',
+                        notIsPayable: !isPayable
+                      },
+                      actualScheduleLength: actualSchedule.length,
+                      actualScheduleItems: actualSchedule.map(i => ({ month: i.month, status: i.status }))
+                    })
+                  }
                   
                   const statusConfig = item.status === 'PAID' 
                     ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
@@ -766,9 +1142,28 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Montant à payer:</span>
                             <span className="font-semibold text-gray-900">
-                              {item.payment.toLocaleString('fr-FR')} FCFA
+                              {item.payment.toLocaleString('fr-FR') + ' FCFA'}
                             </span>
                           </div>
+
+                          {/* Afficher montant versé si différent du montant à payer (sur échéances payées) */}
+                          {(() => {
+                            // Toujours utiliser le montant théorique de l'échéance pour "Montant à payer"
+                            const amountToPay = item.payment
+                            const paidForMonth = paymentsByMonth.get(item.month) || item.paidAmount || 0
+                            // Afficher "Montant versé" si l'échéance est payée et le montant versé est différent du montant à payer
+                            if (item.status === 'PAID' && paidForMonth > 0 && Math.abs(paidForMonth - amountToPay) > 1) {
+                              return (
+                                <div className="flex items-center justify-between text-sm mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                  <span className="text-yellow-700 font-medium">Montant versé:</span>
+                                  <span className="font-semibold text-yellow-800">
+                                    {paidForMonth.toLocaleString('fr-FR')} FCFA
+                                  </span>
+                                </div>
+                              )
+                            }
+                            return null
+                          })()}
                           
                           {/* Détail principal + intérêts */}
                           <div className="flex items-center justify-between text-xs text-gray-500 mt-1 pt-1 border-t border-gray-200">
@@ -788,6 +1183,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           {item.status === 'DUE' && (
                             <Button
                               onClick={() => {
+                                console.log('[CreditContractDetail] Clic sur "Payer cette échéance" - Échéance:', {
+                                  month: item.month,
+                                  installmentId: item.installmentId,
+                                  index: index,
+                                  payment: item.payment,
+                                  status: item.status
+                                });
                                 setSelectedDueIndex(index)
                                 setShowPaymentModal(true)
                               }}
@@ -816,139 +1218,416 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                       </CardContent>
                     </Card>
                   )
-                })}
-              </div>
-            )}
-
-            {/* Information */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>ℹ️ Information :</strong> Les échéances doivent être payées dans l'ordre. Vous ne pouvez payer une échéance que si toutes les précédentes sont payées.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Historique des versements */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Historique des versements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingPayments ? (
-              <div className="text-center py-8 text-gray-500">Chargement...</div>
-            ) : payments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Aucun versement enregistré</div>
-            ) : (
-              <div className="space-y-3">
-                {payments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => {
-                      setSelectedPayment(payment)
-                      setShowReceiptModal(true)
-                    }}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <span className="font-semibold">
-                          {formatDateTime(payment.paymentDate, payment.paymentTime)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
-                          <>
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                              Pénalités uniquement
-                            </Badge>
-                            <span>Mode : {payment.mode}</span>
-                            {payment.note !== undefined && (
-                              <span>Note pénalités : {payment.note}/10</span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
-                            <span>Mode : {payment.mode}</span>
-                            {payment.note !== undefined && (
-                              <span>Note : {payment.note}/10</span>
-                            )}
-                          </>
-                        )}
-                      </div>
+                    })}
                     </div>
-                    <Receipt className="h-5 w-5 text-gray-400" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  )}
 
-        {/* Pénalités */}
-        {penalties.length > 0 && (
-          <Card className="border-0 shadow-xl">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-orange-600" />
-                  Pénalités
-                </CardTitle>
-                {penalties.filter(p => !p.paid).length > 0 && (
-                  <Button
-                    onClick={() => {
-                      setSelectedDueIndex(null) // Pas d'échéance spécifique pour les pénalités
-                      setPenaltyOnlyMode(true) // Activer le mode pénalités uniquement
-                      setShowPaymentModal(true)
-                    }}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    <HandCoins className="h-4 w-4 mr-2" />
-                    Payer les pénalités
-                  </Button>
+                  {/* Information */}
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      <strong>ℹ️ Information :</strong> Les échéances doivent être payées dans l'ordre. Vous ne pouvez payer une échéance que si toutes les précédentes sont payées.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Historique des versements */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Historique des versements
+                  </h3>
+                  {isLoadingPayments ? (
+                    <div className="text-center py-8 text-gray-500">Chargement...</div>
+                  ) : payments.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">Aucun versement enregistré</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {payments.map((payment) => {
+                        // Trouver l'échéance correspondante à ce paiement en utilisant l'ID du paiement
+                        let relatedDueItem = null
+                        if (payment.id) {
+                          // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
+                          const match = payment.id.match(/^M(\d+)_/)
+                          if (match) {
+                            const paymentMonth = parseInt(match[1], 10)
+                            relatedDueItem = actualSchedule.find(item => item.month === paymentMonth) || null
+                          }
+                        }
+                        
+                        return (
+                        <div
+                          key={payment.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => {
+                            setSelectedPayment(payment)
+                            setSelectedDueIndexForReceipt(relatedDueItem ? actualSchedule.findIndex(item => item.month === relatedDueItem.month) : null)
+                            setShowReceiptModal(true)
+                          }}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Calendar className="h-4 w-4 text-gray-500" />
+                              <span className="font-semibold">
+                                {formatDateTime(payment.paymentDate, payment.paymentTime)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
+                                <>
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                    Pénalités uniquement
+                                  </Badge>
+                                  <span>Mode : {payment.mode}</span>
+                                  {payment.note !== undefined && (
+                                    <span>Note pénalités : {payment.note}/10</span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
+                                  <span>Mode : {payment.mode}</span>
+                                  {payment.note !== undefined && (
+                                    <span>Note : {payment.note}/10</span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <Receipt className="h-5 w-5 text-gray-400" />
+                        </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pénalités */}
+                {penalties.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-orange-600" />
+                        Pénalités
+                      </h3>
+                      {penalties.filter(p => !p.paid).length > 0 && (
+                        <Button
+                          onClick={() => {
+                            setSelectedDueIndex(null) // Pas d'échéance spécifique pour les pénalités
+                            setPenaltyOnlyMode(true) // Activer le mode pénalités uniquement
+                            setShowPaymentModal(true)
+                          }}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          <HandCoins className="h-4 w-4 mr-2" />
+                          Payer les pénalités
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {penalties.map((penalty) => (
+                        <div
+                          key={penalty.id}
+                          className={cn(
+                            'flex items-center justify-between p-4 border rounded-lg',
+                            penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                          )}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold">
+                                {penalty.amount.toLocaleString('fr-FR')} FCFA
+                              </span>
+                              {penalty.paid ? (
+                                <Badge className="bg-green-100 text-green-700">Payée</Badge>
+                              ) : (
+                                <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <span>Retard : {penalty.daysLate} jours</span>
+                              <span className="ml-4">Échéance : {formatDate(penalty.dueDate)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {penalties.map((penalty) => (
-                  <div
-                    key={penalty.id}
-                    className={cn(
-                      'flex items-center justify-between p-4 border rounded-lg',
-                      penalty.paid ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
-                    )}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold">
-                          {penalty.amount.toLocaleString('fr-FR')} FCFA
-                        </span>
-                        {penalty.paid ? (
-                          <Badge className="bg-green-100 text-green-700">Payée</Badge>
-                        ) : (
-                          <Badge className="bg-orange-100 text-orange-700">Impayée</Badge>
-                        )}
+
+                {/* Historique complet */}
+                <CreditHistoryTimeline contractId={contract.id} />
+              </TabsContent>
+
+              {/* Onglet Simulations */}
+              <TabsContent value="simulations" className="p-6 space-y-6 m-0">
+                <div className="space-y-6">
+                  {/* Échéancier actuel */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Échéancier actuel ({actualSchedule.length} mois)
+                      </h3>
+                    </div>
+                    {/* Légende de coloration */}
+                    <div className="mb-3 flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
+                        <span className="text-gray-600">Échéance payée</span>
                       </div>
-                      <div className="text-sm text-gray-600">
-                        <span>Retard : {penalty.daysLate} jours</span>
-                        <span className="ml-4">Échéance : {formatDate(penalty.dueDate)}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
+                        <span className="text-gray-600">Échéance non payée</span>
                       </div>
                     </div>
+                    <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Mois</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Mensualité</TableHead>
+                            <TableHead className="text-right">Intérêts</TableHead>
+                            <TableHead className="text-right">Montant global</TableHead>
+                            <TableHead className="text-right">Reste dû</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {actualSchedule.map((row) => {
+                            // Vert si l'échéance est payée
+                            const rowColor = row.status === 'PAID'
+                              ? 'bg-green-50 hover:bg-green-100'
+                              : ''
+                            
+                            return (
+                              <TableRow key={row.month} className={rowColor}>
+                                <TableCell className="font-medium">M{row.month}</TableCell>
+                                <TableCell>{formatDate(row.date)}</TableCell>
+                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Historique complet */}
-        <CreditHistoryTimeline contractId={contract.id} />
+                  {/* Échéancier calculé */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Échéancier calculé ({dueItems.filter(row => row.payment > 0).length} mois)
+                      </h3>
+                    </div>
+                    {/* Légende de coloration */}
+                    <div className="mb-3 flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
+                        <span className="text-gray-600">Montant versé ≥ mensualité</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-red-50 border border-red-200 rounded"></div>
+                        <span className="text-gray-600">0 &lt; montant versé &lt; mensualité</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
+                        <span className="text-gray-600">Aucun versement</span>
+                      </div>
+                    </div>
+                    <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Mois</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Mensualité</TableHead>
+                            <TableHead className="text-right">Intérêts</TableHead>
+                            <TableHead className="text-right">Montant global</TableHead>
+                            <TableHead className="text-right">Reste dû</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dueItems
+                            .filter(row => row.payment > 0) // Filtrer les lignes avec mensualité à 0
+                            .map((row) => {
+                            // Utiliser le montant payé de l'échéance si disponible, sinon utiliser paymentsByMonth
+                            const paidForMonth = row.paidAmount !== undefined 
+                              ? row.paidAmount 
+                              : (paymentsByMonth.get(row.month) || 0)
+                            
+                            // Vert si montant versé >= mensualité, rouge sinon (reste vert si > mensualité)
+                            const rowColor = paidForMonth >= row.payment 
+                              ? 'bg-green-50 hover:bg-green-100' 
+                              : paidForMonth > 0 
+                              ? 'bg-red-50 hover:bg-red-100' 
+                              : ''
+                            
+                            return (
+                              <TableRow key={row.month} className={rowColor}>
+                                <TableCell className="font-medium">M{row.month}</TableCell>
+                                <TableCell>{formatDate(row.date)}</TableCell>
+                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
+                                <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  {/* Échéancier référence (pour crédit spéciale uniquement) */}
+                  {contract.creditType === 'SPECIALE' && referenceSchedule.length > 0 && (
+                    <div className="lg:max-w-md">
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Échéancier référence (7 mois)
+                      </h3>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Mois</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead className="text-right">Mensualité</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {referenceSchedule.map((row) => (
+                              <TableRow key={row.month}>
+                                <TableCell className="font-medium">M{row.month}</TableCell>
+                                <TableCell>{formatDate(row.date)}</TableCell>
+                                <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Onglet Commission du garant */}
+              <TabsContent value="guarantor" className="p-6 m-0">
+                {contract.guarantorId && contract.guarantorIsMember && contract.guarantorRemunerationPercentage !== undefined && contract.guarantorRemunerationPercentage > 0 ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Shield className="h-5 w-5" />
+                        Commission du garant
+                      </h3>
+                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-700">
+                          <strong>Garant :</strong> {contract.guarantorFirstName} {contract.guarantorLastName}
+                        </p>
+                        {contract.guarantorRemunerationPercentage !== undefined && (
+                          <p className="text-sm text-blue-700 mt-1">
+                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% par mensualité versée
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {isLoadingRemunerations ? (
+                      <div className="text-center py-8 text-gray-500">Chargement...</div>
+                    ) : guarantorRemunerations.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">Aucune commission enregistrée</div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Mois</TableHead>
+                                <TableHead>Montant versé</TableHead>
+                                <TableHead className="text-right">Pourcentage de commission</TableHead>
+                                <TableHead className="text-right">Somme due</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {[...guarantorRemunerations]
+                                .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
+                                .map((remuneration) => {
+                                // Trouver le paiement associé pour obtenir le montant
+                                const associatedPayment = payments.find(p => p.id === remuneration.paymentId)
+                                const paymentAmount = associatedPayment?.amount || 0
+                                const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+
+                                return (
+                                  <TableRow key={remuneration.id}>
+                                    <TableCell className="font-medium">M{remuneration.month}</TableCell>
+                                    <TableCell>{paymentAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                    <TableCell className="text-right">{commissionPercentage}%</TableCell>
+                                    <TableCell className="text-right font-semibold">{remuneration.amount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                        <div className="p-4 bg-gray-50 border rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold">Total des commissions :</span>
+                            <span className="text-xl font-bold text-[#234D65]">
+                              {guarantorRemunerations.reduce((sum, r) => sum + r.amount, 0).toLocaleString('fr-FR')} FCFA
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {!contract.guarantorId ? (
+                      <div className="text-center py-8">
+                        <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600 font-medium">Aucun garant associé à ce contrat</p>
+                        <p className="text-sm text-gray-500 mt-2">Aucune commission n'est applicable</p>
+                      </div>
+                    ) : !contract.guarantorIsMember ? (
+                      <div className="text-center py-8">
+                        <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600 font-medium mb-2">
+                          Garant : {contract.guarantorFirstName} {contract.guarantorLastName}
+                        </p>
+                        <div className="max-w-md mx-auto p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-800 mb-2">
+                            <strong>ℹ️ Pourquoi aucune commission ?</strong>
+                          </p>
+                          <p className="text-sm text-blue-700 text-left">
+                            Le garant n'est pas un membre de la mutuelle. Seuls les garants qui sont des membres de la mutuelle peuvent recevoir une commission.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-600 font-medium mb-2">
+                          Garant : {contract.guarantorFirstName} {contract.guarantorLastName}
+                        </p>
+                        <div className="max-w-md mx-auto p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-800 mb-2">
+                            <strong>ℹ️ Pourquoi aucune commission ?</strong>
+                          </p>
+                          <p className="text-sm text-blue-700 text-left">
+                            Le garant est un membre mais aucune commission n'a été configurée pour ce contrat (taux de commission : 0%).
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         {/* Documents */}
         <Card className="border-0 shadow-xl">
@@ -1054,27 +1733,65 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           setPenaltyOnlyMode(false)
         }}
         creditId={contract.id}
-        defaultAmount={selectedDueIndex !== null ? dueItems[selectedDueIndex]?.payment : contract.monthlyPaymentAmount}
-        defaultPaymentDate={selectedDueIndex !== null ? dueItems[selectedDueIndex]?.date : undefined}
+        defaultAmount={selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount}
+        defaultPaymentDate={selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.date : undefined}
         defaultPenaltyOnlyMode={penaltyOnlyMode}
-        onSuccess={() => {
-          // Invalider explicitement le cache des pénalités pour rafraîchir l'affichage
-          queryClient.invalidateQueries({ queryKey: ['creditPenalties', contract.id] })
-          queryClient.invalidateQueries({ queryKey: ['creditContract', contract.id] })
-          queryClient.invalidateQueries({ queryKey: ['creditPayments', contract.id] })
+        installmentId={(() => {
+          const installmentId = selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.installmentId : undefined;
+          console.log('[CreditContractDetail] Ouverture du modal de paiement - selectedDueIndex:', selectedDueIndex, 'installmentId:', installmentId, 'dueItem:', selectedDueIndex !== null ? actualSchedule[selectedDueIndex] : null);
+          return installmentId;
+        })()}
+        installmentNumber={(() => {
+          const month = selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined;
+          console.log('[CreditContractDetail] Passage de installmentNumber au modal:', {
+            selectedDueIndex,
+            month,
+            actualScheduleLength: actualSchedule.length,
+            actualScheduleItem: selectedDueIndex !== null ? actualSchedule[selectedDueIndex] : null
+          });
+          return month;
+        })()}
+        onSuccess={async () => {
+          console.log('[CreditContractDetail] onSuccess du paiement - Invalidation des queries...')
+          // Invalider explicitement le cache pour rafraîchir l'affichage
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['creditPenalties', 'creditId', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['creditContract', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['creditPayments', 'creditId', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['creditInstallments', 'creditId', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['guarantorRemunerations', 'creditId', contract.id] }),
+            queryClient.invalidateQueries({ queryKey: ['creditContracts'] }),
+            queryClient.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+          ])
+          console.log('[CreditContractDetail] Refetch des queries...')
+          // Refetch explicite pour mettre à jour immédiatement
+          const [paymentsResult, installmentsResult, contractResult] = await Promise.all([
+            queryClient.refetchQueries({ queryKey: ['creditPayments', 'creditId', contract.id] }),
+            queryClient.refetchQueries({ queryKey: ['creditInstallments', 'creditId', contract.id] }),
+            queryClient.refetchQueries({ queryKey: ['creditContract', contract.id] }),
+            queryClient.refetchQueries({ queryKey: ['creditPenalties', 'creditId', contract.id] }),
+            queryClient.refetchQueries({ queryKey: ['guarantorRemunerations', 'creditId', contract.id] }),
+          ])
+          console.log('[CreditContractDetail] Refetch terminé - Payments:', paymentsResult, 'Installments:', installmentsResult, 'Contract:', contractResult)
           setSelectedDueIndex(null)
           setPenaltyOnlyMode(false)
         }}
       />
-      {getSelectedPaymentForReceipt() && (
+      {((getSelectedPaymentForReceipt() && selectedDueIndexForReceipt !== null) || selectedPayment) && (
         <PaymentReceiptModal
           isOpen={showReceiptModal}
           onClose={() => {
             setShowReceiptModal(false)
             setSelectedDueIndexForReceipt(null)
+            setSelectedPayment(null)
           }}
           contract={contract}
-          payment={getSelectedPaymentForReceipt()!}
+          payment={selectedPayment || getSelectedPaymentForReceipt()!}
+          installmentNumber={
+            selectedPayment && selectedPayment.installmentId
+              ? (installments.find(inst => inst.id === selectedPayment.installmentId)?.installmentNumber)
+              : (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
+          }
         />
       )}
 

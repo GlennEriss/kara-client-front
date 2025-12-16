@@ -7,9 +7,9 @@ const getFirestore = () => import("@/firebase/firestore");
 export class CreditPaymentRepository implements ICreditPaymentRepository {
     readonly name = "CreditPaymentRepository";
 
-    async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditPayment> {
+    async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CreditPayment> {
         try {
-            const { collection, addDoc, db, serverTimestamp } = await getFirestore();
+            const { collection, addDoc, doc, setDoc, db, serverTimestamp } = await getFirestore();
 
             const cleanData: any = { ...data };
             Object.keys(cleanData).forEach((key) => {
@@ -18,12 +18,23 @@ export class CreditPaymentRepository implements ICreditPaymentRepository {
                 }
             });
 
-            const docRef = await addDoc(collection(db, firebaseCollectionNames.creditPayments || "creditPayments"), {
+            const paymentData = {
                 ...cleanData,
                 paymentDate: data.paymentDate instanceof Date ? data.paymentDate : new Date(data.paymentDate),
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-            });
+            };
+
+            let docRef;
+            if (customId) {
+                // Utiliser un ID personnalisé
+                const paymentRef = doc(db, firebaseCollectionNames.creditPayments || "creditPayments", customId);
+                await setDoc(paymentRef, paymentData);
+                docRef = { id: customId };
+            } else {
+                // Générer un ID automatique
+                docRef = await addDoc(collection(db, firebaseCollectionNames.creditPayments || "creditPayments"), paymentData);
+            }
 
             const created = await this.getPaymentById(docRef.id);
             if (!created) {

@@ -36,6 +36,8 @@ import { creditPaymentFormSchema, type CreditPaymentFormInput } from '@/schemas/
 import { useCreditPaymentMutations, useCreditContract, useCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
 import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface CreditPaymentModalProps {
   isOpen: boolean
@@ -45,6 +47,8 @@ interface CreditPaymentModalProps {
   defaultPaymentDate?: Date // Date de l'échéance pour calculer le retard
   onSuccess?: () => void
   defaultPenaltyOnlyMode?: boolean // Activer le mode "pénalités uniquement" par défaut
+  installmentId?: string // ID de l'échéance spécifique à payer
+  installmentNumber?: number // Numéro du mois de l'échéance (M1, M2, etc.)
 }
 
 // Fonction pour calculer la note automatique selon le retard (jours de retard)
@@ -105,6 +109,8 @@ export default function CreditPaymentModal({
   defaultPaymentDate,
   onSuccess,
   defaultPenaltyOnlyMode = false,
+  installmentId,
+  installmentNumber,
 }: CreditPaymentModalProps) {
   const [proofFile, setProofFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
@@ -117,6 +123,7 @@ export default function CreditPaymentModal({
   const { create: createPayment } = useCreditPaymentMutations()
   const { data: contract } = useCreditContract(creditId)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(creditId)
+  const queryClient = useQueryClient()
 
   // Calculer le retard en jours si une date d'échéance est fournie
   const calculateDelay = useMemo(() => {
@@ -161,15 +168,28 @@ export default function CreditPaymentModal({
     }
   }, [defaultAmount, form])
 
-  // Réinitialiser les pénalités sélectionnées quand le modal s'ouvre
+  // Nettoyer les pénalités rétroactives et réinitialiser les pénalités sélectionnées quand le modal s'ouvre
   useEffect(() => {
     if (isOpen) {
+      // Nettoyer les pénalités rétroactives avant d'afficher la liste
+      const service = ServiceFactory.getCreditSpecialeService()
+      service.checkAndCreateMissingPenalties(creditId)
+        .then(() => {
+          // Rafraîchir les pénalités après nettoyage
+          queryClient.invalidateQueries({ queryKey: ['creditPenalties', creditId] })
+        })
+        .catch((error: unknown) => {
+          console.error('Erreur lors du nettoyage des pénalités rétroactives:', error)
+        })
+      
       setSelectedPenalties([])
       setPenaltyOnlyMode(defaultPenaltyOnlyMode)
       setPenaltyNote(undefined)
       // Mettre à jour la date de paiement, la note et le commentaire selon le retard
       if (defaultPaymentDate) {
-        form.setValue('paymentDate', defaultPaymentDate)
+        // Convertir la date en format YYYY-MM-DD pour l'input date
+        const dateStr = format(defaultPaymentDate, 'yyyy-MM-dd')
+        form.setValue('paymentDate', dateStr as any)
       } else {
         form.setValue('paymentDate', new Date())
       }
@@ -289,7 +309,13 @@ export default function CreditPaymentModal({
   }
 
   const onSubmit = async (data: CreditPaymentFormInput) => {
-    console.log('onSubmit appelé', { data, penaltyOnlyMode, selectedPenalties })
+    console.log('[CreditPaymentModal] onSubmit appelé', { 
+      data, 
+      penaltyOnlyMode, 
+      selectedPenalties,
+      installmentId,
+      creditId 
+    })
     
     // La preuve de paiement est optionnelle mais recommandée
     // if (!proofFile) {
@@ -323,22 +349,36 @@ export default function CreditPaymentModal({
         ? (penaltyNote ?? 10) // Note par défaut 10 pour pénalités si non spécifiée
         : (data.note ?? 10) // Note par défaut 10 pour paiement normal si non spécifiée
       
+      const paymentData = {
+        ...data,
+        amount: penaltyOnlyMode ? 0 : data.amount, // Montant à 0 si mode pénalités uniquement
+        principalAmount: 0, // Sera calculé par le service
+        interestAmount: 0, // Sera calculé par le service
+        penaltyAmount: totalSelectedPenalties, // Montant des pénalités sélectionnées
+        note: finalNote,
+        comment: penaltyOnlyMode
+          ? `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`
+          : data.comment,
+        createdBy: user.uid,
+        installmentId: installmentId, // Passer l'ID de l'échéance spécifique
+      };
+      
+      console.log('[CreditPaymentModal] Données du paiement à envoyer:', {
+        ...paymentData,
+        installmentId: paymentData.installmentId,
+        amount: paymentData.amount,
+        creditId: paymentData.creditId,
+        installmentNumber: installmentNumber, // Log pour vérifier
+      });
+      
       await createPayment.mutateAsync({
-        data: {
-          ...data,
-          amount: penaltyOnlyMode ? 0 : data.amount, // Montant à 0 si mode pénalités uniquement
-          principalAmount: 0, // Sera calculé par le service
-          interestAmount: 0, // Sera calculé par le service
-          penaltyAmount: totalSelectedPenalties, // Montant des pénalités sélectionnées
-          note: finalNote,
-          comment: penaltyOnlyMode 
-            ? `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`
-            : data.comment,
-          createdBy: user.uid,
-        },
+        data: paymentData,
         proofFile,
         penaltyIds: selectedPenalties, // Passer les pénalités sélectionnées
+        installmentNumber: installmentNumber, // Passer le numéro du mois
       })
+      
+      console.log('[CreditPaymentModal] Paiement créé avec succès');
 
       form.reset()
       setProofFile(undefined)

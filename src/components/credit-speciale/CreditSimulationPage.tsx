@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -28,9 +27,6 @@ import {
   AlertTriangle, 
   CheckCircle, 
   TrendingUp,
-  Calendar,
-  DollarSign,
-  Percent,
   Table as TableIcon
 } from 'lucide-react'
 import type { CreditType, StandardSimulation, CustomSimulation } from '@/types/types'
@@ -43,23 +39,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-interface CreditSimulationModalProps {
-  isOpen: boolean
-  onClose: () => void
-  creditType: CreditType
-  initialAmount?: number
-  initialMonthlyPayment?: number
-  onSimulationComplete?: (simulation: StandardSimulation | CustomSimulation) => void
-}
-
-export default function CreditSimulationModal({
-  isOpen,
-  onClose,
-  creditType,
-  initialAmount,
-  initialMonthlyPayment,
-  onSimulationComplete
-}: CreditSimulationModalProps) {
+export default function CreditSimulationPage() {
+  const [creditType, setCreditType] = useState<CreditType>('SPECIALE')
   const [simulationType, setSimulationType] = useState<'standard' | 'custom' | 'proposed'>('standard')
   const [standardResult, setStandardResult] = useState<StandardSimulation | null>(null)
   const [customResult, setCustomResult] = useState<CustomSimulation | null>(null)
@@ -68,72 +49,71 @@ export default function CreditSimulationModal({
   
   const { calculateStandard, calculateCustom, calculateProposed } = useSimulations()
 
-  const standardForm = useForm({
-    resolver: zodResolver(standardSimulationSchema) as any,
+  const standardForm = useForm<StandardSimulationFormData>({
+    resolver: zodResolver(standardSimulationSchema),
     defaultValues: {
-      amount: initialAmount || 0,
+      amount: 0,
       interestRate: 0,
-      monthlyPayment: initialMonthlyPayment || 0,
+      monthlyPayment: 0,
       firstPaymentDate: new Date(),
-      creditType,
+      creditType: 'SPECIALE' as const,
     },
     mode: 'onChange',
   })
 
-  const customForm = useForm({
-    resolver: zodResolver(customSimulationSchema) as any,
+  const customForm = useForm<CustomSimulationFormData>({
+    resolver: zodResolver(customSimulationSchema),
     defaultValues: {
-      amount: initialAmount || 0,
+      amount: 0,
       interestRate: 0,
       monthlyPayments: [],
       firstPaymentDate: new Date(),
-      creditType,
+      creditType: 'SPECIALE' as const,
     },
     mode: 'onChange',
   })
 
-  const proposedForm = useForm({
-    resolver: zodResolver(proposedSimulationSchema) as any,
+  const proposedForm = useForm<ProposedSimulationFormData>({
+    resolver: zodResolver(proposedSimulationSchema),
     defaultValues: {
       totalAmount: 0,
       duration: 1,
       interestRate: 0,
       firstPaymentDate: new Date(),
-      creditType,
+      creditType: 'SPECIALE' as const,
     },
     mode: 'onChange',
   })
 
-  // Réinitialiser les formulaires quand le modal s'ouvre
+  // Réinitialiser les formulaires quand le type de crédit change
   useEffect(() => {
-    if (isOpen) {
-      standardForm.reset({
-        amount: initialAmount || 0,
-        interestRate: 0,
-        monthlyPayment: initialMonthlyPayment || 0,
-        firstPaymentDate: new Date(),
-        creditType,
-      })
-      customForm.reset({
-        amount: initialAmount || 0,
-        interestRate: 0,
-        monthlyPayments: [],
-        firstPaymentDate: new Date(),
-        creditType,
-      })
-      proposedForm.reset({
-        totalAmount: 0,
-        duration: 1,
-        interestRate: 0,
-        firstPaymentDate: new Date(),
-        creditType,
-      })
-      setStandardResult(null)
-      setCustomResult(null)
-      setProposedResult(null)
-      setShowResults(false)
-    }
-  }, [isOpen, initialAmount, initialMonthlyPayment, creditType])
+    standardForm.reset({
+      amount: 0,
+      interestRate: 0,
+      monthlyPayment: 0,
+      firstPaymentDate: new Date(),
+      creditType: creditType as 'SPECIALE' | 'FIXE' | 'AIDE',
+    })
+    customForm.reset({
+      amount: 0,
+      interestRate: 0,
+      monthlyPayments: [],
+      firstPaymentDate: new Date(),
+      creditType: creditType as 'SPECIALE' | 'FIXE' | 'AIDE',
+    })
+    proposedForm.reset({
+      totalAmount: 0,
+      duration: 1,
+      interestRate: 0,
+      firstPaymentDate: new Date(),
+      creditType: creditType as 'SPECIALE' | 'FIXE' | 'AIDE',
+    })
+    setStandardResult(null)
+    setCustomResult(null)
+    setProposedResult(null)
+    setShowResults(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditType])
 
   const onStandardSubmit = async (data: StandardSimulationFormData) => {
     try {
@@ -170,7 +150,7 @@ export default function CreditSimulationModal({
   const onProposedSubmit = async (data: ProposedSimulationFormData) => {
     try {
       const result = await calculateProposed.mutateAsync({
-        amount: data.totalAmount, // Montant emprunté
+        amount: data.totalAmount,
         duration: data.duration,
         interestRate: data.interestRate,
         firstPaymentDate: data.firstPaymentDate,
@@ -183,413 +163,479 @@ export default function CreditSimulationModal({
     }
   }
 
-  const handleUseSimulation = () => {
-    const result = simulationType === 'standard' ? standardResult : simulationType === 'custom' ? customResult : proposedResult
-    if (result && onSimulationComplete) {
-      onSimulationComplete(result)
-    }
-    onClose()
+  const handleReset = () => {
+    setStandardResult(null)
+    setCustomResult(null)
+    setProposedResult(null)
+    setShowResults(false)
+    standardForm.reset({
+      amount: 0,
+      interestRate: 0,
+      monthlyPayment: 0,
+      firstPaymentDate: new Date(),
+      creditType,
+    })
+    customForm.reset({
+      amount: 0,
+      interestRate: 0,
+      monthlyPayments: [],
+      firstPaymentDate: new Date(),
+      creditType,
+    })
+    proposedForm.reset({
+      totalAmount: 0,
+      duration: 1,
+      interestRate: 0,
+      firstPaymentDate: new Date(),
+      creditType,
+    })
   }
 
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   const creditTypeLabel = creditType === 'SPECIALE' ? 'Spéciale' : creditType === 'FIXE' ? 'Fixe' : 'Aide'
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!max-w-[90vw] !w-[90vw] max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-[#224D62] flex items-center gap-2">
-            <Calculator className="h-6 w-6" />
-            Simulation de crédit {creditTypeLabel}
-          </DialogTitle>
-          <DialogDescription>
-            Calculez les conditions de remboursement pour ce crédit
-          </DialogDescription>
-        </DialogHeader>
+    <div className="space-y-6">
+      {/* Sélection du type de crédit */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            Type de crédit
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={creditType} onValueChange={(value) => setCreditType(value as CreditType)}>
+            <SelectTrigger className="w-full md:w-[300px]">
+              <SelectValue placeholder="Sélectionner un type de crédit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="SPECIALE">Crédit Spéciale</SelectItem>
+              <SelectItem value="FIXE">Crédit Fixe</SelectItem>
+              <SelectItem value="AIDE">Crédit Aide</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
-        <Tabs value={simulationType} onValueChange={(v) => {
-          setSimulationType(v as 'standard' | 'custom' | 'proposed')
-          setShowResults(false)
-          setStandardResult(null)
-          setCustomResult(null)
-          setProposedResult(null)
-        }}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="standard">Simulation standard</TabsTrigger>
-            <TabsTrigger value="custom">Simulation personnalisée</TabsTrigger>
-            <TabsTrigger value="proposed">Simulation proposée</TabsTrigger>
-          </TabsList>
+      <Tabs value={simulationType} onValueChange={(v) => {
+        setSimulationType(v as 'standard' | 'custom' | 'proposed')
+        setShowResults(false)
+        setStandardResult(null)
+        setCustomResult(null)
+        setProposedResult(null)
+      }}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="standard">Simulation standard</TabsTrigger>
+          <TabsTrigger value="custom">Simulation personnalisée</TabsTrigger>
+          <TabsTrigger value="proposed">Simulation proposée</TabsTrigger>
+        </TabsList>
 
-          {/* Simulation standard */}
-          <TabsContent value="standard" className="space-y-6">
-            <Form {...standardForm}>
-              <form onSubmit={standardForm.handleSubmit(onStandardSubmit)} className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Paramètres de la simulation</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={standardForm.control}
-                        name="amount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Montant emprunté (FCFA)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="Ex: 500000"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={standardForm.control}
-                        name="interestRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.1"
-                                placeholder="Ex: 5.5"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={standardForm.control}
-                        name="monthlyPayment"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="Ex: 100000"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={standardForm.control}
-                        name="firstPaymentDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Date du premier versement</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
-                                value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
-                                onChange={(e) => field.onChange(new Date(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {creditType !== 'FIXE' && (
-                      <Alert>
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          Limite de durée : {maxDuration} mois maximum pour un crédit {creditTypeLabel.toLowerCase()}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    <Button
-                      type="submit"
-                      disabled={calculateStandard.isPending}
-                      className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-                    >
-                      {calculateStandard.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Calcul en cours...
-                        </>
-                      ) : (
-                        <>
-                          <Calculator className="h-4 w-4 mr-2" />
-                          Calculer la simulation
-                        </>
+        {/* Simulation standard */}
+        <TabsContent value="standard" className="space-y-6">
+          <Form {...standardForm}>
+            <form onSubmit={standardForm.handleSubmit(onStandardSubmit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Paramètres de la simulation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={standardForm.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Montant emprunté (FCFA)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Ex: 500000"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </form>
-            </Form>
-
-            {/* Résultats simulation standard */}
-            {showResults && standardResult && (
-              <StandardSimulationResults
-                result={standardResult}
-                creditType={creditType}
-                onUse={handleUseSimulation}
-              />
-            )}
-          </TabsContent>
-
-          {/* Simulation personnalisée */}
-          <TabsContent value="custom" className="space-y-6">
-            <Form {...customForm}>
-              <form onSubmit={customForm.handleSubmit(onCustomSubmit)} className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Paramètres de la simulation</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={customForm.control}
-                        name="amount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Montant emprunté (FCFA)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="Ex: 500000"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={customForm.control}
-                        name="interestRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.1"
-                                placeholder="Ex: 5.5"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={customForm.control}
-                        name="firstPaymentDate"
-                        render={({ field }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel>Date du premier versement</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
-                                value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
-                                onChange={(e) => field.onChange(new Date(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <CustomPaymentsInput
-                      form={customForm}
-                      maxDuration={maxDuration}
-                      creditType={creditType}
                     />
 
-                    <Button
-                      type="submit"
-                      disabled={calculateCustom.isPending}
-                      className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-                    >
-                      {calculateCustom.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Calcul en cours...
-                        </>
-                      ) : (
-                        <>
-                          <Calculator className="h-4 w-4 mr-2" />
-                          Calculer la simulation
-                        </>
+                    <FormField
+                      control={standardForm.control}
+                      name="interestRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="Ex: 5.5"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </form>
-            </Form>
+                    />
 
-            {/* Résultats simulation personnalisée */}
-            {showResults && customResult && (
-              <CustomSimulationResults
-                result={customResult}
-                creditType={creditType}
-                onUse={handleUseSimulation}
-              />
-            )}
-          </TabsContent>
+                    <FormField
+                      control={standardForm.control}
+                      name="monthlyPayment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mensualité souhaitée (FCFA)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Ex: 100000"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-          {/* Simulation proposée */}
-          <TabsContent value="proposed" className="space-y-6">
-            <Form {...proposedForm}>
-              <form onSubmit={proposedForm.handleSubmit(onProposedSubmit)} className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Paramètres de la simulation</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={proposedForm.control}
-                        name="totalAmount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Montant emprunté (FCFA)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="Ex: 100000"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <FormField
+                      control={standardForm.control}
+                      name="firstPaymentDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date du premier versement</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
+                              onChange={(e) => field.onChange(new Date(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                      <FormField
-                        control={proposedForm.control}
-                        name="duration"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nombre de mois (0 à 7 max)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                min="1"
-                                max={creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : 120}
-                                placeholder="Ex: 3"
-                                {...field}
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <FormField
+                      control={standardForm.control}
+                      name="creditType"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input type="hidden" {...field} value={creditType} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                      <FormField
-                        control={proposedForm.control}
-                        name="interestRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.1"
-                                placeholder="Ex: 10"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                  {creditType !== 'FIXE' && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Limite de durée : {maxDuration} mois maximum pour un crédit {creditTypeLabel.toLowerCase()}
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
-                      <FormField
-                        control={proposedForm.control}
-                        name="firstPaymentDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Date du premier versement</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
-                                value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
-                                onChange={(e) => field.onChange(new Date(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {creditType !== 'FIXE' && (
-                      <Alert>
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          Limite de durée : {creditType === 'SPECIALE' ? 7 : 3} mois maximum pour un crédit {creditType === 'SPECIALE' ? 'spéciale' : 'aide'}
-                        </AlertDescription>
-                      </Alert>
+                  <Button
+                    type="submit"
+                    disabled={calculateStandard.isPending}
+                    className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                  >
+                    {calculateStandard.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Calcul en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Calculer la simulation
+                      </>
                     )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
 
-                    <Button
-                      type="submit"
-                      disabled={calculateProposed.isPending}
-                      className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
-                    >
-                      {calculateProposed.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Calcul en cours...
-                        </>
-                      ) : (
-                        <>
-                          <Calculator className="h-4 w-4 mr-2" />
-                          Calculer la simulation
-                        </>
+          {/* Résultats simulation standard */}
+          {showResults && standardResult && (
+            <StandardSimulationResults
+              result={standardResult}
+              creditType={creditType}
+              onReset={handleReset}
+            />
+          )}
+        </TabsContent>
+
+        {/* Simulation personnalisée */}
+        <TabsContent value="custom" className="space-y-6">
+          <Form {...customForm}>
+            <form onSubmit={customForm.handleSubmit(onCustomSubmit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Paramètres de la simulation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={customForm.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Montant emprunté (FCFA)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Ex: 500000"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </form>
-            </Form>
+                    />
 
-            {/* Résultats simulation proposée */}
-            {showResults && proposedResult && (
-              <StandardSimulationResults
-                result={proposedResult}
-                creditType={creditType}
-                onUse={handleUseSimulation}
-                isProposed={true}
-              />
-            )}
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+                    <FormField
+                      control={customForm.control}
+                      name="interestRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="Ex: 5.5"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={customForm.control}
+                      name="firstPaymentDate"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Date du premier versement</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
+                              onChange={(e) => field.onChange(new Date(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={customForm.control}
+                      name="creditType"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input type="hidden" {...field} value={creditType} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <CustomPaymentsInput
+                    form={customForm}
+                    maxDuration={maxDuration}
+                    creditType={creditType}
+                  />
+
+                  <Button
+                    type="submit"
+                    disabled={calculateCustom.isPending}
+                    className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                  >
+                    {calculateCustom.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Calcul en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Calculer la simulation
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
+
+          {/* Résultats simulation personnalisée */}
+          {showResults && customResult && (
+            <CustomSimulationResults
+              result={customResult}
+              creditType={creditType}
+              onReset={handleReset}
+            />
+          )}
+        </TabsContent>
+
+        {/* Simulation proposée */}
+        <TabsContent value="proposed" className="space-y-6">
+          <Form {...proposedForm}>
+            <form onSubmit={proposedForm.handleSubmit(onProposedSubmit)} className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Paramètres de la simulation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={proposedForm.control}
+                      name="totalAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Montant emprunté (FCFA)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="Ex: 100000"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={proposedForm.control}
+                      name="duration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre de mois (0 à 7 max)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              max={creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : 120}
+                              placeholder="Ex: 3"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={proposedForm.control}
+                      name="interestRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Taux d'intérêt mensuel (%)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="Ex: 10"
+                              {...field}
+                              onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={proposedForm.control}
+                      name="firstPaymentDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date du premier versement</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value).toISOString().split('T')[0] : ''}
+                              onChange={(e) => field.onChange(new Date(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={proposedForm.control}
+                      name="creditType"
+                      render={({ field }) => (
+                        <FormItem className="hidden">
+                          <FormControl>
+                            <Input type="hidden" {...field} value={creditType} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {creditType !== 'FIXE' && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Limite de durée : {creditType === 'SPECIALE' ? 7 : 3} mois maximum pour un crédit {creditType === 'SPECIALE' ? 'spéciale' : 'aide'}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={calculateProposed.isPending}
+                    className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                  >
+                    {calculateProposed.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Calcul en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Calculer la simulation
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
+
+          {/* Résultats simulation proposée */}
+          {showResults && proposedResult && (
+            <StandardSimulationResults
+              result={proposedResult}
+              creditType={creditType}
+              onReset={handleReset}
+              isProposed={true}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
 
@@ -608,6 +654,7 @@ function CustomPaymentsInput({
   useEffect(() => {
     const currentPayments = form.watch('monthlyPayments') || []
     setPayments(currentPayments)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.watch('monthlyPayments')])
 
   const addPayment = () => {
@@ -640,15 +687,11 @@ function CustomPaymentsInput({
   const monthlyRate = interestRate / 100
   
   // Calculer le montant global restant avec les intérêts composés
-  // Pour chaque mois : solde + intérêts - paiement
   let remainingBalance = creditAmount
   payments.forEach((payment) => {
-    // Ajouter les intérêts au solde
     const balanceWithInterest = remainingBalance * (1 + monthlyRate)
-    // Soustraire le paiement
     remainingBalance = Math.max(0, balanceWithInterest - payment.amount)
   })
-  // Arrondir le montant global restant
   const globalRemainingAmount = customRound(remainingBalance)
 
   return (
@@ -736,8 +779,6 @@ function CustomPaymentsInput({
 }
 
 // Fonction d'arrondi personnalisée
-// Si la partie décimale < 0.5, on garde l'entier
-// Si la partie décimale >= 0.5, on arrondit à l'entier supérieur
 function customRound(value: number): number {
   const decimal = value % 1
   if (decimal < 0.5) {
@@ -751,12 +792,12 @@ function customRound(value: number): number {
 function StandardSimulationResults({
   result,
   creditType,
-  onUse,
+  onReset,
   isProposed = false
 }: {
   result: StandardSimulation
   creditType: CreditType
-  onUse: () => void
+  onReset: () => void
   isProposed?: boolean
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
@@ -772,93 +813,65 @@ function StandardSimulationResults({
   }> = []
 
   let remaining = result.amount
-  // Taux mensuel (pas annuel divisé par 12)
   const monthlyRate = result.interestRate / 100
   const firstDate = new Date(result.firstPaymentDate)
-  // Pour simulation proposée : utiliser la durée spécifiée
-  // Pour simulation standard : calculer jusqu'à ce que le solde soit 0 (max 7 mois pour crédit spéciale)
   const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : result.duration)
 
   for (let i = 0; i < maxIterations; i++) {
     const date = new Date(firstDate)
     date.setMonth(date.getMonth() + i)
     
-    // Si le solde est déjà à 0, ne pas ajouter de ligne
     if (remaining <= 0) {
       break
     }
     
-    // 1. Calcul des intérêts sur le solde actuel
     const interest = remaining * monthlyRate
-    // 2. Montant global = reste dû + intérêts
     const balanceWithInterest = remaining + interest
     
-    // 3. Versement effectué
     let payment: number
     
     if (result.monthlyPayment > balanceWithInterest) {
-      // Si la mensualité prédéfinie est supérieure au montant global,
-      // la mensualité affichée doit être le montant global (capital + intérêts)
       payment = balanceWithInterest
       remaining = 0
     } else if (remaining < result.monthlyPayment) {
-      // Le reste dû est inférieur à la mensualité souhaitée
-      // La mensualité affichée = reste dû (sans intérêts)
       payment = remaining
       remaining = 0
     } else {
-      // Le reste dû est supérieur ou égal à la mensualité souhaitée
       payment = result.monthlyPayment
-      // 4. Nouveau solde après versement
       remaining = Math.max(0, balanceWithInterest - payment)
     }
 
     schedule.push({
       month: i + 1,
       date,
-      payment: customRound(payment), // Arrondir la mensualité selon la règle personnalisée
-      interest: customRound(interest), // Arrondir les intérêts selon la règle personnalisée
-      principal: customRound(balanceWithInterest), // Arrondir le montant global selon la règle personnalisée
-      remaining: customRound(remaining), // Arrondir le reste dû selon la règle personnalisée
+      payment: customRound(payment),
+      interest: customRound(interest),
+      principal: customRound(balanceWithInterest),
+      remaining: customRound(remaining),
     })
   }
   
-  // La durée réelle est le nombre de lignes dans l'échéancier (avec paiements non nuls)
   const displayDuration = schedule.length
-
-  // Calculer les stats pour l'échéancier calculé
   const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
   const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
 
-  // Calculer l'échéancier de référence pour obtenir ses stats (uniquement pour crédit spéciale)
   const calculateReferenceSchedule = () => {
     if (creditType !== 'SPECIALE' || maxDuration !== 7) return []
     
     const refFirstDate = new Date(result.firstPaymentDate)
     const monthlyRate = result.interestRate / 100
     
-    // Calculer le montant global avec intérêts composés sur exactement 7 mois
-    // lastMontant = montant initial
-    // Pour i de 1 à 7 : lastMontant = lastMontant * taux + lastMontant
-    // Le montant global est le montant du 7ème mois sans soustraction
     let lastMontant = result.amount
     for (let i = 1; i <= 7; i++) {
       lastMontant = lastMontant * monthlyRate + lastMontant
     }
     
-    // Le montant global après 7 mois d'intérêts composés
     const montantGlobal = lastMontant
-    
-    // Diviser ce montant global par 7 pour obtenir la mensualité
     const monthlyPaymentRaw = montantGlobal / 7
-    
-    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
-    // Exemple : 10003.5 -> 10004, 10003.4 -> 10003
     const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5 
       ? Math.ceil(monthlyPaymentRaw) 
       : Math.floor(monthlyPaymentRaw)
     
-    // Générer l'échéancier avec cette mensualité (identique pour les 7 mois)
     const referenceSchedule: Array<{
       month: number
       date: Date
@@ -869,7 +882,6 @@ function StandardSimulationResults({
       const date = new Date(refFirstDate)
       date.setMonth(date.getMonth() + i)
       
-      // Toutes les mensualités sont identiques (315 812 FCFA)
       referenceSchedule.push({
         month: i + 1,
         date,
@@ -880,8 +892,6 @@ function StandardSimulationResults({
   }
 
   const referenceSchedule = calculateReferenceSchedule()
-  
-  // Calculer les stats pour l'échéancier référence
   const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
   const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
 
@@ -893,17 +903,22 @@ function StandardSimulationResults({
             <TrendingUp className="h-5 w-5" />
             Résultats de la simulation
           </CardTitle>
-          {result.isValid ? (
-            <Badge className="bg-green-100 text-green-800 border-green-300">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Valide
-            </Badge>
-          ) : (
-            <Badge variant="destructive">
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              Limite dépassée
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {result.isValid ? (
+              <Badge className="bg-green-100 text-green-800 border-green-300">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Valide
+              </Badge>
+            ) : (
+              <Badge variant="destructive">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Limite dépassée
+              </Badge>
+            )}
+            <Button variant="outline" size="sm" onClick={onReset}>
+              Nouvelle simulation
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -1007,13 +1022,6 @@ function StandardSimulationResults({
                   <div>
                     La durée calculée ({result.duration} mois) dépasse la limite autorisée ({maxDuration} mois) pour un crédit {creditType === 'SPECIALE' ? 'spéciale' : 'aide'}.
                   </div>
-                  {result.suggestedMinimumAmount && (
-                    <div className="mt-2">
-                      <strong>Suggestion :</strong> Augmentez la mensualité à au moins{' '}
-                      {Math.ceil(result.suggestedMinimumAmount / result.duration).toLocaleString('fr-FR')} FCFA
-                      {' '}ou réduisez le montant à {result.suggestedMinimumAmount.toLocaleString('fr-FR')} FCFA
-                    </div>
-                  )}
                 </>
               )}
             </AlertDescription>
@@ -1088,13 +1096,6 @@ function StandardSimulationResults({
             </div>
           )}
         </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={onUse}>
-            Utiliser cette simulation
-          </Button>
-        </div>
       </CardContent>
     </Card>
   )
@@ -1104,11 +1105,11 @@ function StandardSimulationResults({
 function CustomSimulationResults({
   result,
   creditType,
-  onUse
+  onReset
 }: {
   result: CustomSimulation
   creditType: CreditType
-  onUse: () => void
+  onReset: () => void
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   
@@ -1123,7 +1124,6 @@ function CustomSimulationResults({
   }> = []
 
   let remaining = result.amount
-  // Taux mensuel (pas annuel divisé par 12)
   const monthlyRate = result.interestRate / 100
   const firstDate = new Date(result.firstPaymentDate)
 
@@ -1131,13 +1131,9 @@ function CustomSimulationResults({
     const date = new Date(firstDate)
     date.setMonth(date.getMonth() + index)
     
-    // 1. Calcul des intérêts sur le solde actuel
     const interest = remaining * monthlyRate
-    // 2. Nouveau solde avec intérêts
     const balanceWithInterest = remaining + interest
-    // 3. Versement effectué
     const actualPayment = Math.min(payment.amount, balanceWithInterest)
-    // 4. Nouveau solde après versement
     remaining = Math.max(0, balanceWithInterest - actualPayment)
 
     schedule.push({
@@ -1145,13 +1141,11 @@ function CustomSimulationResults({
       date,
       payment: actualPayment,
       interest,
-      principal: balanceWithInterest, // Capital = solde avec intérêts (avant versement)
+      principal: balanceWithInterest,
       remaining,
     })
   })
 
-  // Calculer l'échéancier référence (exactement maxDuration mois)
-  // Même logique que dans la simulation standard
   const referenceSchedule: Array<{
     month: number
     date: Date
@@ -1159,28 +1153,17 @@ function CustomSimulationResults({
   }> = []
 
   if (maxDuration !== Infinity) {
-    // Calculer le montant global avec intérêts composés sur exactement maxDuration mois
-    // lastMontant = montant initial
-    // Pour i de 1 à maxDuration : lastMontant = lastMontant * taux + lastMontant
-    // Le montant global est le montant du dernier mois sans soustraction
     let lastMontant = result.amount
     for (let i = 1; i <= maxDuration; i++) {
       lastMontant = lastMontant * monthlyRate + lastMontant
     }
     
-    // Le montant global après maxDuration mois d'intérêts composés
     const montantGlobal = lastMontant
-    
-    // Diviser ce montant global par maxDuration pour obtenir la mensualité
     const monthlyPaymentRaw = montantGlobal / maxDuration
-    
-    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
-    // Exemple : 10003.5 -> 10004, 10003.4 -> 10003
     const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5 
       ? Math.ceil(monthlyPaymentRaw) 
       : Math.floor(monthlyPaymentRaw)
     
-    // Générer l'échéancier avec cette mensualité (identique pour tous les mois)
     for (let i = 0; i < maxDuration; i++) {
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
@@ -1193,11 +1176,8 @@ function CustomSimulationResults({
     }
   }
 
-  // Calculer les stats pour l'échéancier calculé
   const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
   const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
-  
-  // Calculer les stats pour l'échéancier référence
   const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
   const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
 
@@ -1209,17 +1189,22 @@ function CustomSimulationResults({
             <TrendingUp className="h-5 w-5" />
             Résultats de la simulation
           </CardTitle>
-          {result.isValid ? (
-            <Badge className="bg-green-100 text-green-800 border-green-300">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Valide
-            </Badge>
-          ) : (
-            <Badge variant="destructive">
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              Limite dépassée
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {result.isValid ? (
+              <Badge className="bg-green-100 text-green-800 border-green-300">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Valide
+              </Badge>
+            ) : (
+              <Badge variant="destructive">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Limite dépassée
+              </Badge>
+            )}
+            <Button variant="outline" size="sm" onClick={onReset}>
+              Nouvelle simulation
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -1331,9 +1316,7 @@ function CustomSimulationResults({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedule
-                    .filter(row => row.payment > 0) // Filtrer les lignes avec mensualité à 0
-                    .map((row) => (
+                  {schedule.map((row) => (
                     <TableRow key={row.month}>
                       <TableCell className="font-medium">M{row.month}</TableCell>
                       <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
@@ -1378,15 +1361,7 @@ function CustomSimulationResults({
             </div>
           )}
         </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={onUse}>
-            Utiliser cette simulation
-          </Button>
-        </div>
       </CardContent>
     </Card>
   )
 }
-

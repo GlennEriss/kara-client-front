@@ -154,19 +154,28 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
       
+      // 1. Calcul des intérêts sur le solde actuel
       const interest = remaining * monthlyRate
+      // 2. Montant global = reste dû + intérêts
       const balanceWithInterest = remaining + interest
-      
-      // paymentAmount représente le capital (mensualité de base), le montant total à payer = capital + intérêts
+
+      // 3. Versement effectué (même logique que dans CreditSimulationModal)
       let payment: number
-      if (remaining < paymentAmount) {
-        payment = balanceWithInterest // Payer le montant global complet
+      
+      if (paymentAmount > balanceWithInterest) {
+        // Si la mensualité prédéfinie est supérieure au montant global,
+        // la mensualité affichée doit être le montant global (capital + intérêts)
+        payment = balanceWithInterest
+        remaining = 0
+      } else if (remaining < paymentAmount) {
+        // Le reste dû est inférieur à la mensualité souhaitée
+        // La mensualité affichée = reste dû (sans intérêts)
+        payment = remaining
         remaining = 0
       } else {
-        // Le montant total à payer = capital (paymentAmount) + intérêts
-        const totalPaymentAmount = paymentAmount + interest
-        // S'assurer qu'on ne dépasse pas balanceWithInterest
-        payment = Math.min(totalPaymentAmount, balanceWithInterest)
+        // Le reste dû est supérieur ou égal à la mensualité souhaitée
+        payment = paymentAmount
+        // 4. Nouveau solde après versement
         remaining = Math.max(0, balanceWithInterest - payment)
       }
 
@@ -183,13 +192,29 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
     return items
   }
 
-  // Calculer l'échéancier de référence sans intérêts (exactement 7 mois)
+  // Calculer l'échéancier de référence (même logique que dans CreditSimulationModal)
   const calculateReferenceScheduleWithoutInterest = (contract: CreditContract) => {
     const firstDate = new Date(contract.firstPaymentDate)
-    // Mensualité de référence arrondie à l'inférieur pour les 6 premiers mois
-    const monthlyPaymentRef = Math.floor(contract.amount / 7)
-    let remaining = contract.amount
-    
+    const monthlyRate = contract.interestRate / 100
+
+    // Calculer le montant global avec intérêts composés sur exactement 7 mois (même logique que dans CreditSimulationModal)
+    let lastMontant = contract.amount
+    for (let i = 1; i <= 7; i++) {
+      lastMontant = lastMontant * monthlyRate + lastMontant
+    }
+
+    // Le montant global après 7 mois d'intérêts composés
+    const montantGlobal = lastMontant
+
+    // Diviser ce montant global par 7 pour obtenir la mensualité
+    const monthlyPaymentRaw = montantGlobal / 7
+
+    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
+    const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5
+      ? Math.ceil(monthlyPaymentRaw)
+      : Math.floor(monthlyPaymentRaw)
+
+    // Générer l'échéancier avec cette mensualité (identique pour les 7 mois)
     const items: Array<{
       month: number
       date: Date
@@ -202,30 +227,14 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
     for (let i = 0; i < 7; i++) {
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
-      
-      // Échéancier sans intérêts : pas d'intérêts, juste le capital
-      const interest = 0
-      const principal = remaining // Montant global = reste dû (pas d'intérêts ajoutés)
-      
-      // Versement effectué
-      let payment: number
-      if (i === 6) {
-        // Dernier mois : payer le reste dû exactement (pour que le total soit exactement le montant emprunté)
-        payment = remaining
-        remaining = 0
-      } else {
-        // Mois 1 à 6 : mensualité de référence arrondie à l'inférieur
-        payment = monthlyPaymentRef
-        remaining = Math.max(0, remaining - payment)
-      }
 
       items.push({
         month: i + 1,
         date,
-        payment: customRound(payment),
-        interest: customRound(interest), // Toujours 0 pour l'échéancier de référence
-        principal: customRound(principal), // Montant global = reste dû (sans intérêts)
-        remaining: customRound(remaining),
+        payment: customRound(monthlyPaymentRef),
+        interest: 0, // Pas d'intérêts affichés dans l'échéancier référence
+        principal: 0, // Pas de montant global affiché dans l'échéancier référence
+        remaining: 0, // Pas de reste dû affiché dans l'échéancier référence
       })
     }
 
@@ -608,9 +617,6 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                           <TableHead>Mois</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead className="text-right">Mensualité</TableHead>
-                          <TableHead className="text-right">Intérêts</TableHead>
-                          <TableHead className="text-right">Montant global</TableHead>
-                          <TableHead className="text-right">Reste dû</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -619,9 +625,6 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                             <TableCell className="font-medium">M{row.month}</TableCell>
                             <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
                             <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                            <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
-                            <TableCell className="text-right">{row.principal.toLocaleString('fr-FR')} FCFA</TableCell>
-                            <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
