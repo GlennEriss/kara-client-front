@@ -801,6 +801,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         if (installmentNumber !== undefined && installmentNumber > 0) {
             // Utiliser le numéro de mois fourni directement
             monthNumber = installmentNumber;
+            console.log('[CreditSpecialeService] Utilisation du installmentNumber fourni:', monthNumber);
         } else {
             // Calculer le mois à partir de la date de paiement et de la première date de paiement
             const firstPaymentDate = new Date(contract.firstPaymentDate);
@@ -808,11 +809,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
                               (paymentDate.getMonth() - firstPaymentDate.getMonth());
             monthNumber = Math.max(1, monthsDiff + 1);
+            console.log('[CreditSpecialeService] Calcul du mois à partir de la date:', {
+                firstPaymentDate: firstPaymentDate.toISOString(),
+                paymentDate: paymentDate.toISOString(),
+                monthsDiff,
+                monthNumber
+            });
         }
         
         // Générer l'ID personnalisé au format M{mois}_{idContrat}
         // Utiliser l'ID complet du contrat
         const customPaymentId = `M${monthNumber}_${contract.id}`;
+        console.log('[CreditSpecialeService] ID du paiement généré:', customPaymentId);
         
         // Créer le paiement
         const paymentData = {

@@ -353,7 +353,8 @@ export default function CreditPaymentModal({
         ...paymentData,
         installmentId: paymentData.installmentId,
         amount: paymentData.amount,
-        creditId: paymentData.creditId
+        creditId: paymentData.creditId,
+        installmentNumber: installmentNumber, // Log pour vérifier
       });
       
       await createPayment.mutateAsync({

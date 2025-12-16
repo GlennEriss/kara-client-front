@@ -190,7 +190,7 @@ const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
 }
 
 // Carrousel de statistiques (même design que StatisticsCreditDemandes)
-const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number }) => {
+const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number }) => {
   const [itemsPerView, setItemsPerView] = useState(1)
   
   useEffect(() => {
@@ -233,11 +233,11 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount }
     },
     {
       title: 'Pourcentage remboursé',
-      value: contract.totalAmount > 0 
-        ? `${((contract.amountPaid / contract.totalAmount) * 100).toFixed(1)}%`
+      value: totalAmountToRepay > 0 
+        ? `${((totalPaidFromSchedule / totalAmountToRepay) * 100).toFixed(1)}%`
         : '0%',
-      subtitle: contract.totalAmount > 0 
-        ? `${contract.amountPaid.toLocaleString('fr-FR')} / ${Math.round(contract.totalAmount).toLocaleString('fr-FR')} FCFA`
+      subtitle: totalAmountToRepay > 0 
+        ? `${Math.round(totalPaidFromSchedule).toLocaleString('fr-FR')} / ${Math.round(totalAmountToRepay).toLocaleString('fr-FR')} FCFA`
         : 'Aucun paiement enregistré',
       color: '#8b5cf6',
       icon: TrendingUp
@@ -613,8 +613,6 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     return remaining + currentInterest
   }
 
-  const realRemainingAmount = calculateRealRemainingAmount()
-
   const paymentsByMonth = getPaymentsByMonth()
 
   // Calculer l'échéancier actuel basé sur les versements réels
@@ -770,6 +768,17 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     actualScheduleByMonth.set(item.month, item)
   })
 
+  // Calculer le montant total payé à partir de l'échéancier actuel
+  const totalPaidFromSchedule = actualSchedule
+    .filter(item => item.status === 'PAID')
+    .reduce((sum, item) => sum + (item.paidAmount || item.payment || 0), 0)
+  
+  // Le montant total à rembourser = somme de toutes les mensualités de l'échéancier actuel
+  const totalAmountToRepay = actualSchedule.reduce((sum, item) => sum + item.payment, 0)
+
+  // Calculer le montant restant : valeur totale due - valeur versée
+  const realRemainingAmount = totalAmountToRepay - totalPaidFromSchedule
+
   // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
   const calculateReferenceSchedule = () => {
     if (contract.creditType !== 'SPECIALE') return []
@@ -835,50 +844,38 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const getSelectedPaymentForReceipt = (): CreditPayment | null => {
     if (selectedDueIndexForReceipt === null) return null
 
-    const dueItem = dueItems[selectedDueIndexForReceipt]
+    const dueItem = actualSchedule[selectedDueIndexForReceipt]
     if (!dueItem) return null
 
-    // Si on a un installmentId, utiliser celui-ci pour trouver le paiement
-    if (dueItem.installmentId) {
-      // Trouver le paiement qui correspond à cet installment
-      const matchingPayment = payments.find(p => p.installmentId === dueItem.installmentId)
-      if (matchingPayment) return matchingPayment
-    }
+    // Trouver le paiement qui correspond à ce mois en utilisant l'ID
+    const paymentForThisMonth = payments.find(p => {
+      // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
+      if (p.id) {
+        const match = p.id.match(/^M(\d+)_/)
+        if (match) {
+          const paymentMonth = parseInt(match[1], 10)
+          return paymentMonth === dueItem.month
+        }
+      }
+      return false
+    })
+
+    if (paymentForThisMonth) return paymentForThisMonth
 
     // Fallback : utiliser la date de paiement si disponible
     if (dueItem.paymentDate) {
       const duePaymentDate = new Date(dueItem.paymentDate)
       duePaymentDate.setHours(0, 0, 0, 0)
 
-      // Trouver le paiement qui correspond à cette date et à cet installment si possible
+      // Trouver le paiement qui correspond à cette date
       const matchingPayment = payments.find(p => {
         const paymentDate = new Date(p.paymentDate)
         paymentDate.setHours(0, 0, 0, 0)
-        // Si le paiement a un installmentId, vérifier qu'il correspond
-        if (p.installmentId && dueItem.installmentId) {
-          return p.installmentId === dueItem.installmentId
-        }
-        // Sinon, comparer les dates (tolérance de 1 jour)
+        // Comparer les dates (tolérance de 1 jour)
         return Math.abs(paymentDate.getTime() - duePaymentDate.getTime()) <= 24 * 60 * 60 * 1000
       })
 
       if (matchingPayment) return matchingPayment
-    }
-
-    // Dernier fallback : trouver le premier paiement qui pourrait correspondre à cette échéance
-    // en utilisant les installments
-    if (dueItem.installmentId && installments.length > 0) {
-      const installment = installments.find(inst => inst.id === dueItem.installmentId)
-      if (installment) {
-        // Trouver les paiements qui ont été appliqués à cet installment
-        const paymentsForInstallment = payments.filter(p => p.installmentId === installment.id)
-        if (paymentsForInstallment.length > 0) {
-          // Retourner le dernier paiement pour cet installment
-          return paymentsForInstallment.sort((a, b) => 
-            new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
-          )[0]
-        }
-      }
     }
 
     return null
@@ -905,7 +902,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         {/* Statistiques */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800">Statistiques</h3>
-          <ContractStatsCarousel contract={contract} penalties={penalties} realRemainingAmount={realRemainingAmount} />
+          <ContractStatsCarousel 
+            contract={contract} 
+            penalties={penalties} 
+            realRemainingAmount={realRemainingAmount}
+            totalPaidFromSchedule={totalPaidFromSchedule}
+            totalAmountToRepay={totalAmountToRepay}
+          />
         </div>
 
         {/* Informations principales */}
@@ -1047,17 +1050,54 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {actualSchedule.map((item, index) => {
-                  // Permettre les paiements si le contrat est ACTIVE ou PARTIAL
-                  const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL'
+                  // Permettre les paiements si le contrat est ACTIVE, PARTIAL, ou s'il reste des échéances à payer
+                  // Même si le contrat est DISCHARGED, on peut avoir des échéances restantes à payer
+                  const hasUnpaidInstallments = actualSchedule.some(i => i.status === 'DUE' || i.status === 'FUTURE')
+                  const canMakePayments = contract.status === 'ACTIVE' || contract.status === 'PARTIAL' || hasUnpaidInstallments
+                  
+                  // Vérifier si toutes les échéances précédentes sont payées
+                  let allPreviousPaid = true
+                  const previousStatuses: string[] = []
+                  for (let j = 0; j < index; j++) {
+                    previousStatuses.push(`M${actualSchedule[j].month}:${actualSchedule[j].status}`)
+                    if (actualSchedule[j].status !== 'PAID') {
+                      allPreviousPaid = false
+                    }
+                  }
+                  
                   // Permettre de payer si :
                   // - L'échéance est DUE
-                  // - C'est la prochaine échéance payable (nextDueIndex)
-                  const isPayable = item.status === 'DUE' && 
-                                   (nextDueIndex >= 0 && index === nextDueIndex)
+                  // - Toutes les échéances précédentes sont payées
+                  const isPayable = item.status === 'DUE' && allPreviousPaid
+                  
                   const isDisabled = !canMakePayments || 
                                    item.status === 'FUTURE' || 
                                    item.status === 'PAID' ||
                                    !isPayable
+                  
+                  // Log de débogage pour l'échéance 8
+                  if (item.month === 8) {
+                    console.log('[CreditContractDetail] Debug Échéance 8:', {
+                      month: item.month,
+                      index,
+                      status: item.status,
+                      canMakePayments,
+                      contractStatus: contract.status,
+                      hasUnpaidInstallments,
+                      allPreviousPaid,
+                      previousStatuses,
+                      isPayable,
+                      isDisabled,
+                      reasons: {
+                        notCanMakePayments: !canMakePayments,
+                        isFuture: item.status === 'FUTURE',
+                        isPaid: item.status === 'PAID',
+                        notIsPayable: !isPayable
+                      },
+                      actualScheduleLength: actualSchedule.length,
+                      actualScheduleItems: actualSchedule.map(i => ({ month: i.month, status: i.status }))
+                    })
+                  }
                   
                   const statusConfig = item.status === 'PAID' 
                     ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
@@ -1203,10 +1243,16 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   ) : (
                     <div className="space-y-3">
                       {payments.map((payment) => {
-                        // Trouver l'échéance correspondante à ce paiement
-                        const relatedDueItem = payment.installmentId 
-                          ? dueItems.find(item => item.installmentId === payment.installmentId)
-                          : null
+                        // Trouver l'échéance correspondante à ce paiement en utilisant l'ID du paiement
+                        let relatedDueItem = null
+                        if (payment.id) {
+                          // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
+                          const match = payment.id.match(/^M(\d+)_/)
+                          if (match) {
+                            const paymentMonth = parseInt(match[1], 10)
+                            relatedDueItem = actualSchedule.find(item => item.month === paymentMonth) || null
+                          }
+                        }
                         
                         return (
                         <div
@@ -1214,7 +1260,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
                           onClick={() => {
                             setSelectedPayment(payment)
-                            setSelectedDueIndexForReceipt(relatedDueItem ? dueItems.findIndex(item => item.month === relatedDueItem.month) : null)
+                            setSelectedDueIndexForReceipt(relatedDueItem ? actualSchedule.findIndex(item => item.month === relatedDueItem.month) : null)
                             setShowReceiptModal(true)
                           }}
                         >
@@ -1687,15 +1733,24 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           setPenaltyOnlyMode(false)
         }}
         creditId={contract.id}
-        defaultAmount={selectedDueIndex !== null ? dueItems[selectedDueIndex]?.payment : contract.monthlyPaymentAmount}
-        defaultPaymentDate={selectedDueIndex !== null ? dueItems[selectedDueIndex]?.date : undefined}
+        defaultAmount={selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.payment : contract.monthlyPaymentAmount}
+        defaultPaymentDate={selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.date : undefined}
         defaultPenaltyOnlyMode={penaltyOnlyMode}
         installmentId={(() => {
-          const installmentId = selectedDueIndex !== null ? dueItems[selectedDueIndex]?.installmentId : undefined;
-          console.log('[CreditContractDetail] Ouverture du modal de paiement - selectedDueIndex:', selectedDueIndex, 'installmentId:', installmentId, 'dueItem:', selectedDueIndex !== null ? dueItems[selectedDueIndex] : null);
+          const installmentId = selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.installmentId : undefined;
+          console.log('[CreditContractDetail] Ouverture du modal de paiement - selectedDueIndex:', selectedDueIndex, 'installmentId:', installmentId, 'dueItem:', selectedDueIndex !== null ? actualSchedule[selectedDueIndex] : null);
           return installmentId;
         })()}
-        installmentNumber={selectedDueIndex !== null ? dueItems[selectedDueIndex]?.month : undefined}
+        installmentNumber={(() => {
+          const month = selectedDueIndex !== null ? actualSchedule[selectedDueIndex]?.month : undefined;
+          console.log('[CreditContractDetail] Passage de installmentNumber au modal:', {
+            selectedDueIndex,
+            month,
+            actualScheduleLength: actualSchedule.length,
+            actualScheduleItem: selectedDueIndex !== null ? actualSchedule[selectedDueIndex] : null
+          });
+          return month;
+        })()}
         onSuccess={async () => {
           console.log('[CreditContractDetail] onSuccess du paiement - Invalidation des queries...')
           // Invalider explicitement le cache pour rafraîchir l'affichage
@@ -1735,7 +1790,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           installmentNumber={
             selectedPayment && selectedPayment.installmentId
               ? (installments.find(inst => inst.id === selectedPayment.installmentId)?.installmentNumber)
-              : (selectedDueIndexForReceipt !== null ? dueItems[selectedDueIndexForReceipt]?.month : undefined)
+              : (selectedDueIndexForReceipt !== null ? actualSchedule[selectedDueIndexForReceipt]?.month : undefined)
           }
         />
       )}
