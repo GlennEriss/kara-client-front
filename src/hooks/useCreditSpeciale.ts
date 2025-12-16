@@ -273,13 +273,13 @@ export function useCreditPaymentMutations() {
     const service = ServiceFactory.getCreditSpecialeService()
 
     const create = useMutation({
-        mutationFn: ({ data, proofFile, penaltyIds }: { data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt' | 'proofUrl'>; proofFile?: File; penaltyIds?: string[] }) => {
+        mutationFn: ({ data, proofFile, penaltyIds, installmentNumber }: { data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt' | 'proofUrl'>; proofFile?: File; penaltyIds?: string[]; installmentNumber?: number }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
             return service.createPayment({
                 ...data,
                 createdBy: user.uid,
                 updatedBy: user.uid,
-            }, proofFile, penaltyIds)
+            }, proofFile, penaltyIds, installmentNumber)
         },
         onSuccess: async (_, variables) => {
             const creditId = variables.data.creditId

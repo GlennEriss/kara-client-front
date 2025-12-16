@@ -24,7 +24,7 @@ export interface CreditPaymentStats {
 }
 
 export interface ICreditPaymentRepository extends IRepository {
-    createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreditPayment>;
+    createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, customId?: string): Promise<CreditPayment>;
     getPaymentById(id: string): Promise<CreditPayment | null>;
     getAllPayments(): Promise<CreditPayment[]>;
     getPaymentsWithFilters(filters?: CreditPaymentFilters): Promise<CreditPayment[]>;

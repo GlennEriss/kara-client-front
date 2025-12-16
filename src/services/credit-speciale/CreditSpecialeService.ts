@@ -263,8 +263,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         const createdContract = await this.creditContractRepository.createContract(contract, customContractId);
 
-        // Générer les échéances pour ce contrat
-        await this.generateInstallmentsForContract(createdContract, adminId);
+        // Ne plus créer les installments - ils seront calculés dynamiquement à partir des paiements
 
         // Mettre à jour la demande avec l'ID du contrat (relation 1:1)
         await this.creditDemandRepository.updateDemand(demandId, {
@@ -712,7 +711,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     // ==================== PAIEMENTS ====================
 
-    async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[]): Promise<CreditPayment> {
+    async createPayment(data: Omit<CreditPayment, 'id' | 'createdAt' | 'updatedAt'>, proofFile?: File, penaltyIds?: string[], installmentNumber?: number): Promise<CreditPayment> {
         // Récupérer le contrat pour générer la référence
         const contract = await this.creditContractRepository.getContractById(data.creditId);
         if (!contract) {
@@ -759,225 +758,73 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
         }
 
-        // Récupérer toutes les échéances pour ce contrat
-        let installments = await this.creditInstallmentRepository.getInstallmentsByCreditId(contract.id);
+        // Ne plus utiliser les installments - calculer directement à partir des paiements
+        // Récupérer tous les paiements existants pour calculer le reste dû
+        const allPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
+        const realPayments = allPayments.filter(p => 
+            p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+        );
         
-        // Si aucune échéance n'existe, les générer automatiquement
-        if (installments.length === 0) {
-            console.warn(`Aucune échéance trouvée pour le contrat ${contract.id}. Génération automatique des échéances...`);
-            installments = await this.generateInstallmentsForContract(contract, data.createdBy);
+        // Calculer le montant total payé et le reste dû en appliquant la formule
+        const monthlyRate = contract.interestRate / 100;
+        let remaining = contract.amount;
+        
+        // Appliquer la formule pour chaque paiement : nouveauMontantRestant = MontantRestant - montantVerser
+        // MontantRestant = nouveauMontantRestant * taux + nouveauMontantRestant
+        const sortedPayments = [...realPayments].sort((a, b) => 
+            new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
+        );
+        
+        for (const existingPayment of sortedPayments) {
+            // Calculer les intérêts sur le montant restant avant le paiement
+            const interest = remaining * monthlyRate;
+            const totalWithInterest = remaining + interest;
             
-            if (installments.length === 0) {
-                throw new Error('Impossible de générer les échéances pour ce contrat. Veuillez vérifier les paramètres du contrat.');
-            }
-        }
-
-        // Trouver l'échéance à payer
-        // Priorité 1: utiliser l'installmentId fourni dans les données
-        // Priorité 2: utiliser la première échéance non payée
-        console.log('[CreditSpecialeService] Création de paiement - installmentId fourni:', data.installmentId);
-        console.log('[CreditSpecialeService] Nombre d\'échéances disponibles:', installments.length);
-        console.log('[CreditSpecialeService] Échéances:', installments.map(i => ({
-            id: i.id,
-            installmentNumber: i.installmentNumber,
-            status: i.status,
-            remainingAmount: i.remainingAmount,
-            paidAmount: i.paidAmount
-        })));
-        
-        let targetInstallment: CreditInstallment | null = null;
-        
-        if (data.installmentId) {
-            // Utiliser l'échéance spécifiée
-            targetInstallment = installments.find(i => i.id === data.installmentId) || null;
-            console.log('[CreditSpecialeService] Échéance trouvée avec installmentId:', targetInstallment ? {
-                id: targetInstallment.id,
-                installmentNumber: targetInstallment.installmentNumber,
-                status: targetInstallment.status
-            } : 'AUCUNE');
+            // Soustraire le montant versé
+            remaining = Math.max(0, totalWithInterest - existingPayment.amount);
         }
         
-        // Si aucune échéance spécifique n'a été trouvée, utiliser la première non payée
-        if (!targetInstallment) {
-            console.log('[CreditSpecialeService] Aucune échéance spécifique trouvée, recherche de la première non payée...');
-            targetInstallment = installments.find(i => i.status !== 'PAID' && i.remainingAmount > 0) || installments[0];
-            console.log('[CreditSpecialeService] Échéance sélectionnée (fallback):', targetInstallment ? {
-                id: targetInstallment.id,
-                installmentNumber: targetInstallment.installmentNumber,
-                status: targetInstallment.status
-            } : 'AUCUNE');
+        // Calculer les intérêts et le principal pour ce nouveau paiement
+        const interestBeforePayment = remaining * monthlyRate;
+        const totalWithInterest = remaining + interestBeforePayment;
+        
+        // Calculer combien d'intérêts et de principal sont payés par ce paiement
+        const isPenaltyOnlyPayment = data.amount === 0 && data.comment?.includes('Paiement de pénalités uniquement');
+        const paymentAmount = isPenaltyOnlyPayment ? 0 : data.amount;
+        
+        // Payer d'abord les intérêts, puis le principal
+        const interestPart = Math.min(paymentAmount, interestBeforePayment);
+        const principalPart = Math.max(0, paymentAmount - interestPart);
+        
+        // Calculer le mois : utiliser installmentNumber si fourni, sinon calculer à partir de la date
+        let monthNumber: number;
+        if (installmentNumber !== undefined && installmentNumber > 0) {
+            // Utiliser le numéro de mois fourni directement
+            monthNumber = installmentNumber;
+        } else {
+            // Calculer le mois à partir de la date de paiement et de la première date de paiement
+            const firstPaymentDate = new Date(contract.firstPaymentDate);
+            const paymentDate = new Date(data.paymentDate);
+            const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
+                              (paymentDate.getMonth() - firstPaymentDate.getMonth());
+            monthNumber = Math.max(1, monthsDiff + 1);
         }
         
-        if (!targetInstallment) {
-            console.error('[CreditSpecialeService] ERREUR: Aucune échéance trouvée pour ce contrat');
-            throw new Error('Aucune échéance trouvée pour ce contrat');
-        }
+        // Générer l'ID personnalisé au format M{mois}_{idContrat}
+        // Utiliser l'ID complet du contrat
+        const customPaymentId = `M${monthNumber}_${contract.id}`;
         
-        console.log('[CreditSpecialeService] Échéance cible finale:', {
-            id: targetInstallment.id,
-            installmentNumber: targetInstallment.installmentNumber,
-            status: targetInstallment.status,
-            remainingAmount: targetInstallment.remainingAmount,
-            paidAmount: targetInstallment.paidAmount
-        });
-        
-        // Créer le paiement avec l'URL de la preuve, la référence et l'ID de l'échéance
+        // Créer le paiement
         const paymentData = {
             ...data,
-            installmentId: targetInstallment.id,
             proofUrl,
             reference,
-            principalAmount: 0, // Sera calculé lors de l'application du paiement
-            interestAmount: 0, // Sera calculé lors de l'application du paiement
+            principalAmount: principalPart,
+            interestAmount: interestPart,
             penaltyAmount: 0, // Sera calculé si des pénalités sont payées
         };
-        const payment = await this.creditPaymentRepository.createPayment(paymentData);
+        const payment = await this.creditPaymentRepository.createPayment(paymentData, customPaymentId);
         
-        // Traiter le paiement sur les échéances
-        const isPenaltyOnlyPayment = payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement');
-        let remainingPaymentAmount = isPenaltyOnlyPayment ? 0 : payment.amount;
-        let totalPrincipalPaid = 0;
-        let totalInterestPaid = 0;
-
-        // Si ce n'est pas un paiement de pénalités uniquement, appliquer le paiement aux échéances
-        if (!isPenaltyOnlyPayment && remainingPaymentAmount > 0) {
-            console.log('[CreditSpecialeService] Application du paiement - Montant restant:', remainingPaymentAmount);
-            console.log('[CreditSpecialeService] installmentId fourni dans data:', data.installmentId);
-            
-            // Si un installmentId spécifique a été fourni, commencer par cette échéance
-            // Sinon, utiliser la logique normale (première échéance due)
-            let overdueOrDueInstallments: CreditInstallment[];
-            
-            if (data.installmentId && targetInstallment) {
-                console.log('[CreditSpecialeService] Utilisation de l\'échéance spécifiée (installmentId:', data.installmentId, ')');
-                // Commencer par l'échéance spécifiée, puis continuer avec les suivantes si nécessaire
-                const startIndex = installments.findIndex(i => i.id === targetInstallment!.id);
-                console.log('[CreditSpecialeService] Index de départ:', startIndex);
-                
-                // Si l'échéance spécifiée a remainingAmount = 0 mais status != PAID, l'inclure quand même
-                // (cas où l'échéance a été créée avec remainingAmount = 0 mais n'a pas encore été payée)
-                overdueOrDueInstallments = installments
-                    .slice(startIndex)
-                    .filter(i => {
-                        // Inclure l'échéance si :
-                        // 1. Elle n'est pas déjà payée (status !== 'PAID')
-                        // 2. ET (elle a un montant restant > 0 OU c'est l'échéance spécifiée)
-                        const isTargetInstallment = i.id === targetInstallment!.id;
-                        return i.status !== 'PAID' && (i.remainingAmount > 0 || isTargetInstallment);
-                    })
-                    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-                console.log('[CreditSpecialeService] Échéances éligibles (à partir de l\'index', startIndex, '):', overdueOrDueInstallments.map(i => ({
-                    id: i.id,
-                    installmentNumber: i.installmentNumber,
-                    status: i.status,
-                    remainingAmount: i.remainingAmount
-                })));
-            } else {
-                console.log('[CreditSpecialeService] Utilisation de la logique normale (première échéance due)');
-                // Logique normale : chercher l'échéance due ou en retard
-                const paymentDate = new Date(payment.paymentDate);
-                paymentDate.setHours(0, 0, 0, 0);
-
-                overdueOrDueInstallments = installments
-                    .filter(i => i.status !== 'PAID' && i.remainingAmount > 0)
-                    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-                console.log('[CreditSpecialeService] Échéances éligibles (logique normale):', overdueOrDueInstallments.map(i => ({
-                    id: i.id,
-                    installmentNumber: i.installmentNumber,
-                    status: i.status,
-                    remainingAmount: i.remainingAmount
-                })));
-            }
-
-            if (overdueOrDueInstallments.length > 0) {
-                targetInstallment = overdueOrDueInstallments[0];
-                console.log('[CreditSpecialeService] Échéance cible pour le paiement:', {
-                    id: targetInstallment.id,
-                    installmentNumber: targetInstallment.installmentNumber,
-                    status: targetInstallment.status,
-                    remainingAmount: targetInstallment.remainingAmount
-                });
-                
-                // Appliquer le paiement à cette échéance et aux suivantes si nécessaire
-                console.log('[CreditSpecialeService] Application du paiement sur', overdueOrDueInstallments.length, 'échéance(s)');
-                for (const installment of overdueOrDueInstallments) {
-                    if (remainingPaymentAmount <= 0) {
-                        console.log('[CreditSpecialeService] Montant restant épuisé, arrêt du traitement');
-                        break;
-                    }
-
-                    // Si remainingAmount est 0 mais que l'échéance n'est pas payée, calculer le montant total attendu
-                    // (cas où l'échéance a été créée avec remainingAmount = 0)
-                    let installmentTotalAmount = installment.remainingAmount;
-                    if (installmentTotalAmount <= 0 && installment.status !== 'PAID') {
-                        // Calculer le montant total attendu : interestAmount + principalAmount
-                        // Si ces valeurs ne sont pas disponibles, utiliser le montant du paiement comme référence
-                        installmentTotalAmount = installment.interestAmount + (installment.totalAmount - installment.interestAmount);
-                        // Si toujours 0, utiliser le montant du paiement comme fallback
-                        if (installmentTotalAmount <= 0) {
-                            installmentTotalAmount = remainingPaymentAmount;
-                        }
-                    }
-                    
-                    const amountToPay = Math.min(remainingPaymentAmount, installmentTotalAmount > 0 ? installmentTotalAmount : remainingPaymentAmount);
-                    console.log('[CreditSpecialeService] Traitement échéance', installment.installmentNumber, '- Montant à payer:', amountToPay, '- Restant avant:', installment.remainingAmount, '- Total échéance calculé:', installmentTotalAmount);
-                    
-                    // Calculer combien d'intérêts et de principal ont déjà été payés
-                    const interestPaid = Math.min(installment.paidAmount, installment.interestAmount);
-                    const principalPaid = Math.max(0, installment.paidAmount - installment.interestAmount);
-                    
-                    // Calculer combien d'intérêts et de principal restent à payer
-                    // Si remainingAmount est 0, utiliser le total calculé
-                    const effectiveRemainingAmount = installment.remainingAmount > 0 ? installment.remainingAmount : installmentTotalAmount;
-                    const interestRemaining = Math.max(0, installment.interestAmount - interestPaid);
-                    const principalRemaining = effectiveRemainingAmount - interestRemaining;
-                    
-                    // Payer d'abord les intérêts restants, puis le principal
-                    const interestPart = Math.min(amountToPay, interestRemaining);
-                    const principalPart = Math.min(amountToPay - interestPart, principalRemaining);
-
-                    totalPrincipalPaid += principalPart;
-                    totalInterestPaid += interestPart;
-                    remainingPaymentAmount -= amountToPay;
-
-                    const newPaidAmount = installment.paidAmount + amountToPay;
-                    // Si remainingAmount était 0, calculer le nouveau remainingAmount basé sur le totalAmount
-                    // Sinon, soustraire le montant payé du remainingAmount
-                    let newRemainingAmount: number;
-                    if (installment.remainingAmount <= 0 && installment.status !== 'PAID') {
-                        // L'échéance avait remainingAmount = 0 mais n'était pas payée
-                        // Calculer le nouveau remainingAmount : totalAmount - newPaidAmount
-                        newRemainingAmount = Math.max(0, installmentTotalAmount - newPaidAmount);
-                    } else {
-                        // Cas normal : soustraire le montant payé
-                        newRemainingAmount = Math.max(0, installment.remainingAmount - amountToPay);
-                    }
-                    
-                    // Si un paiement est enregistré, l'échéance est considérée comme payée (fermée)
-                    // Le "montant à payer" est une référence, pas une obligation
-                    let newStatus: CreditInstallment['status'] = 'PAID';
-
-                    console.log('[CreditSpecialeService] Mise à jour échéance', installment.installmentNumber, '- Nouveau statut: PAID, Montant payé:', newPaidAmount, '- Restant:', newRemainingAmount, '- TotalAmount original:', installment.totalAmount);
-                    await this.creditInstallmentRepository.updateInstallment(installment.id, {
-                        paidAmount: newPaidAmount,
-                        remainingAmount: newRemainingAmount,
-                        status: newStatus,
-                        paidAt: new Date(), // Toujours marquer comme payé à la date du paiement
-                        paymentId: payment.id, // Toujours lier le paiement
-                        updatedBy: data.createdBy,
-                    });
-                    console.log('[CreditSpecialeService] Échéance', installment.installmentNumber, 'mise à jour avec succès');
-                }
-                
-                // Mettre à jour le paiement avec les montants totaux (principal + intérêts) pour toutes les échéances payées
-                await this.creditPaymentRepository.updatePayment(payment.id, {
-                    installmentId: targetInstallment.id,
-                    principalAmount: totalPrincipalPaid,
-                    interestAmount: totalInterestPaid,
-                });
-            }
-        }
-
         // Traiter les pénalités si sélectionnées
         let totalPenaltyAmount = 0;
         if (penaltyIds && penaltyIds.length > 0) {
@@ -999,18 +846,34 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             });
         }
 
-        // Calculer et créer les pénalités pour l'échéance payée si nécessaire
-        if (targetInstallment && !isPenaltyOnlyPayment) {
-            await this.checkAndCreatePenaltiesForInstallment(targetInstallment, payment);
+        // Calculer et créer les pénalités si nécessaire (basé sur les paiements, pas les installments)
+        if (!isPenaltyOnlyPayment && paymentAmount > 0) {
+            await this.checkAndCreatePenalties(contract.id, payment);
         }
 
-        // Mettre à jour le contrat avec les totaux
-        const allInstallments = await this.creditInstallmentRepository.getInstallmentsByCreditId(contract.id);
-        const totalPaid = allInstallments.reduce((sum, i) => sum + i.paidAmount, 0);
-        const totalRemaining = allInstallments.reduce((sum, i) => sum + i.remainingAmount, 0);
+        // Recalculer le montant total payé et restant à partir de tous les paiements
+        const updatedPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
+        const updatedRealPayments = updatedPayments.filter(p => 
+            p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+        );
+        
+        // Recalculer le reste dû avec tous les paiements
+        let calculatedRemaining = contract.amount;
+        const recalculatedPayments = [...updatedRealPayments].sort((a, b) => 
+            new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
+        );
+        
+        for (const p of recalculatedPayments) {
+            const interest = calculatedRemaining * monthlyRate;
+            const totalWithInterest = calculatedRemaining + interest;
+            calculatedRemaining = Math.max(0, totalWithInterest - p.amount);
+        }
+        
+        const totalPaid = updatedRealPayments.reduce((sum, p) => sum + p.amount, 0);
+        const totalRemaining = calculatedRemaining + (calculatedRemaining * monthlyRate); // Ajouter les intérêts sur le reste actuel
         
         let newStatus = contract.status;
-        if (totalRemaining <= 0) {
+        if (totalRemaining <= 0 || calculatedRemaining <= 0) {
             newStatus = 'DISCHARGED';
         } else if (totalPaid > 0 && totalPaid < contract.totalAmount) {
             newStatus = 'PARTIAL';
@@ -1023,13 +886,22 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const oldScore = contract.score || 5;
         const scoreVariation = isPenaltyOnlyPayment ? 0 : newScore - oldScore;
 
-        // Mettre à jour nextDueAt avec la prochaine échéance due
-        const nextDueInstallment = await this.creditInstallmentRepository.getNextDueInstallment(contract.id);
-        const nextDueAt = nextDueInstallment ? nextDueInstallment.dueDate : undefined;
+        // Calculer la prochaine date d'échéance basée sur les paiements
+        // Si le reste dû > 0, la prochaine échéance est dans 1 mois
+        const nextDueAt = calculatedRemaining > 0 
+            ? (() => {
+                const lastPaymentDate = recalculatedPayments.length > 0 
+                    ? new Date(recalculatedPayments[recalculatedPayments.length - 1].paymentDate)
+                    : new Date(contract.firstPaymentDate);
+                const nextDue = new Date(lastPaymentDate);
+                nextDue.setMonth(nextDue.getMonth() + 1);
+                return nextDue;
+            })()
+            : undefined;
 
         await this.creditContractRepository.updateContract(contract.id, {
             amountPaid: totalPaid,
-            amountRemaining: totalRemaining,
+            amountRemaining: Math.round(totalRemaining),
             status: newStatus,
             nextDueAt,
             score: newScore,
@@ -1109,44 +981,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 );
 
                 if (remunerationAmount > 0) {
-                    // Déterminer le mois en fonction de l'échéance réellement payée
-                    // Si le paiement a été appliqué à plusieurs échéances, utiliser la première échéance qui a reçu un paiement
-                    let month: number;
-                    
-                    // Récupérer toutes les échéances mises à jour après le paiement
-                    const updatedInstallments = await this.creditInstallmentRepository.getInstallmentsByCreditId(contract.id);
-                    
-                    // Trouver l'échéance qui correspond au paiement
-                    // Priorité 1 : Utiliser payment.installmentId si disponible
-                    if (payment.installmentId) {
-                        const installment = updatedInstallments.find(inst => inst.id === payment.installmentId);
-                        if (installment && installment.installmentNumber) {
-                            month = installment.installmentNumber;
-                        } else {
-                            // Fallback : utiliser targetInstallment
-                            month = targetInstallment?.installmentNumber || 1;
-                        }
-                    } else if (targetInstallment && targetInstallment.installmentNumber) {
-                        // Priorité 2 : Utiliser targetInstallment
-                        month = targetInstallment.installmentNumber;
-                    } else {
-                        // Priorité 3 : Trouver la première échéance qui a été partiellement ou complètement payée par ce paiement
-                        // Chercher l'échéance qui a été mise à jour récemment et qui correspond au paiement
-                        const recentlyUpdatedInstallment = updatedInstallments
-                            .filter(inst => inst.status === 'PARTIAL' || inst.status === 'PAID')
-                            .sort((a, b) => a.installmentNumber - b.installmentNumber)[0];
-                        
-                        if (recentlyUpdatedInstallment && recentlyUpdatedInstallment.installmentNumber) {
-                            month = recentlyUpdatedInstallment.installmentNumber;
-                        } else {
-                            // Dernier fallback : calculer à partir de la date
-                            const firstPaymentDate = new Date(contract.firstPaymentDate);
-                            const paymentDate = new Date(payment.paymentDate);
-                            const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
-                                             (paymentDate.getMonth() - firstPaymentDate.getMonth());
-                            month = Math.max(1, monthsDiff + 1);
-                        }
-                    }
+                    // Calculer le mois à partir de la date du paiement
+                    const firstPaymentDate = new Date(contract.firstPaymentDate);
+                    const paymentDate = new Date(payment.paymentDate);
+                    const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
+                                     (paymentDate.getMonth() - firstPaymentDate.getMonth());
+                    const month = Math.max(1, monthsDiff + 1);
 
                     await this.guarantorRemunerationRepository.createRemuneration({
                         creditId: contract.id,

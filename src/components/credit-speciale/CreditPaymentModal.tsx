@@ -46,6 +46,7 @@ interface CreditPaymentModalProps {
   onSuccess?: () => void
   defaultPenaltyOnlyMode?: boolean // Activer le mode "pénalités uniquement" par défaut
   installmentId?: string // ID de l'échéance spécifique à payer
+  installmentNumber?: number // Numéro du mois de l'échéance (M1, M2, etc.)
 }
 
 // Fonction pour calculer la note automatique selon le retard (jours de retard)
@@ -107,6 +108,7 @@ export default function CreditPaymentModal({
   onSuccess,
   defaultPenaltyOnlyMode = false,
   installmentId,
+  installmentNumber,
 }: CreditPaymentModalProps) {
   const [proofFile, setProofFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
@@ -358,6 +360,7 @@ export default function CreditPaymentModal({
         data: paymentData,
         proofFile,
         penaltyIds: selectedPenalties, // Passer les pénalités sélectionnées
+        installmentNumber: installmentNumber, // Passer le numéro du mois
       })
       
       console.log('[CreditPaymentModal] Paiement créé avec succès');
