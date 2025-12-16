@@ -39,6 +39,7 @@ const routes = {
         creditSpeciale: '/credit-speciale',
         creditSpecialeDemandes: '/credit-speciale/demandes',
         creditSpecialeContrats: '/credit-speciale/contrats',
+        creditSpecialeSimulations: '/credit-speciale/simulations',
         // Caisse Imprévue
         caisseImprevueCreateContract: '/caisse-imprevue/create',
         caisseImprevueContractDetails: (id: string) => `/caisse-imprevue/contrats/${id}`,

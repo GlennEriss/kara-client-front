@@ -241,8 +241,9 @@ export class CreditInstallmentRepository implements ICreditInstallmentRepository
         const now = new Date();
         now.setHours(0, 0, 0, 0);
         
-        const pendingOrDue = installments.filter(i => 
-            (i.status === 'PENDING' || i.status === 'DUE' || i.status === 'OVERDUE') && 
+        // Inclure aussi les échéances PARTIAL (partiellement payées) pour permettre de continuer à payer
+        const pendingOrDue = installments.filter(i =>
+            (i.status === 'PENDING' || i.status === 'DUE' || i.status === 'OVERDUE' || i.status === 'PARTIAL') &&
             i.remainingAmount > 0
         );
         

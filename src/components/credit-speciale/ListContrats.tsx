@@ -12,25 +12,24 @@ import {
   Grid3X3,
   List,
   AlertCircle,
-  Plus,
   Search,
   Filter,
   Eye,
   Calendar,
-  DollarSign,
-  User,
   Download,
   Upload,
-  CheckCircle,
-  Clock,
+  Loader2,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import routes from '@/constantes/routes'
 import { CreditContract, CreditContractStatus } from '@/types/types'
-import { useCreditContracts, useCreditContractsStats } from '@/hooks/useCreditSpeciale'
+import { useCreditContracts, useCreditContractsStats, useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import StatisticsCreditContrats from './StatisticsCreditContrats'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
@@ -251,6 +250,12 @@ const ListContrats = () => {
 
   const { data: contrats = [], isLoading, error } = useCreditContracts(queryFilters)
   const { data: statsData } = useCreditContractsStats(queryFilters)
+  const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
+  
+  // États pour le modal de téléversement
+  const [showUploadModal, setShowUploadModal] = useState(false)
+  const [selectedContractForUpload, setSelectedContractForUpload] = useState<CreditContract | null>(null)
+  const [contractFile, setContractFile] = useState<File | undefined>()
 
   // Reset page when filters or tab change
   React.useEffect(() => {
@@ -553,6 +558,7 @@ const ListContrats = () => {
   }
 
   return (
+    <>
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Onglets pour filtrer par retard */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
@@ -793,7 +799,7 @@ const ListContrats = () => {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100 mt-auto">
+                  <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
                     <Button
                       onClick={() => router.push(`/credit-speciale/contrats/${contract.id}`)}
                       className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 bg-white cursor-pointer text-[#224D62] border border-[#224D62] hover:bg-[#224D62] hover:text-white"
@@ -801,6 +807,66 @@ const ListContrats = () => {
                       <Eye className="h-4 w-4" />
                       Ouvrir
                     </Button>
+                    
+                    {/* Bouton télécharger contrat */}
+                    {contract.contractUrl ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => window.open(contract.contractUrl, '_blank')}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                      >
+                        <Download className="h-4 w-4" />
+                        Télécharger contrat
+                      </Button>
+                    ) : contract.status === 'PENDING' && (
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const result = await generateContractPDF.mutateAsync({
+                              contractId: contract.id,
+                              blank: true,
+                            })
+                            if (result.url) {
+                              window.open(result.url, '_blank')
+                            } else {
+                              toast.info('Contrat PDF généré. Le téléchargement va commencer.')
+                            }
+                          } catch (error: any) {
+                            toast.error(error?.message || 'Erreur lors de la génération du contrat')
+                          }
+                        }}
+                        disabled={generateContractPDF.isPending}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                      >
+                        {generateContractPDF.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Génération...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="h-4 w-4" />
+                            Générer contrat
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    
+                    {/* Bouton téléverser contrat signé (si statut PENDING) */}
+                    {contract.status === 'PENDING' && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedContractForUpload(contract)
+                          setShowUploadModal(true)
+                        }}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Téléverser contrat signé
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -878,6 +944,114 @@ const ListContrats = () => {
         </Card>
       )}
     </div>
+
+      {/* Modal de téléversement de contrat */}
+      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Téléverser le contrat signé
+            </DialogTitle>
+            <DialogDescription>
+              Téléversez le contrat signé par le client. Le contrat sera automatiquement activé après l'upload.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {selectedContractForUpload && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Contrat :</strong> #{selectedContractForUpload.id.slice(-6)} - {selectedContractForUpload.clientFirstName} {selectedContractForUpload.clientLastName}
+                </p>
+              </div>
+            )}
+            
+            <div>
+              <Label htmlFor="contractFile" className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Fichier du contrat signé (PDF) *
+              </Label>
+              <Input
+                id="contractFile"
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    setContractFile(file)
+                  }
+                }}
+                disabled={uploadSignedContract.isPending}
+                required
+              />
+              {contractFile && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Fichier sélectionné : {contractFile.name} ({(contractFile.size / 1024).toFixed(2)} KB)
+                </div>
+              )}
+            </div>
+
+            {selectedContractForUpload?.status === 'PENDING' && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note :</strong> Après l'upload, le contrat sera automatiquement activé et les fonds seront considérés comme remis au client.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowUploadModal(false)
+                setContractFile(undefined)
+                setSelectedContractForUpload(null)
+              }}
+              disabled={uploadSignedContract.isPending}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!contractFile || !selectedContractForUpload) {
+                  toast.error('Veuillez sélectionner un fichier')
+                  return
+                }
+
+                try {
+                  await uploadSignedContract.mutateAsync({
+                    contractId: selectedContractForUpload.id,
+                    signedContractFile: contractFile,
+                  })
+                  setShowUploadModal(false)
+                  setContractFile(undefined)
+                  setSelectedContractForUpload(null)
+                  toast.success('Contrat signé uploadé et contrat activé avec succès')
+                } catch (error: any) {
+                  toast.error(error?.message || 'Erreur lors de l\'upload du contrat signé')
+                }
+              }}
+              disabled={!contractFile || uploadSignedContract.isPending}
+              className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+            >
+              {uploadSignedContract.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Upload en cours...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Uploader et activer
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

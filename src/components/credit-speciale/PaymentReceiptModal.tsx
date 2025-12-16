@@ -40,6 +40,7 @@ interface PaymentReceiptModalProps {
   onClose: () => void
   contract: CreditContract
   payment: CreditPayment
+  installmentNumber?: number // Numéro d'échéance pour affichage
 }
 
 const PAYMENT_MODE_LABELS: Record<CreditPaymentMode, { label: string; icon: any; color: string; bg: string }> = {
@@ -58,6 +59,7 @@ export default function PaymentReceiptModal({
   onClose,
   contract,
   payment,
+  installmentNumber,
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
@@ -289,6 +291,14 @@ export default function PaymentReceiptModal({
                     {paymentModeConfig.label}
                   </Badge>
                 </div>
+                {installmentNumber && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Échéance</span>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                      Échéance {installmentNumber}
+                    </Badge>
+                  </div>
+                )}
                 {payment.reference && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Référence</span>

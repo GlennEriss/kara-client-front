@@ -71,19 +71,19 @@ export default function ContractCreationModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2%
 
-  // Déterminer si le garant est un parrain (et donc doit recevoir une rémunération)
+  // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
   const hasGuarantor = !!demand.guarantorId
-  const guarantorIsParrain = hasGuarantor && demand.guarantorIsMember // Le parrain est un membre qui a parrainé
+  const guarantorIsMember = hasGuarantor && demand.guarantorIsMember
 
   // Calcul des étapes selon le contexte
   const steps = useMemo(() => {
     const baseSteps: Step[] = ['summary']
-    if (guarantorIsParrain) {
+    if (guarantorIsMember) {
       baseSteps.push('guarantor')
     }
     baseSteps.push('emergency', 'confirm')
     return baseSteps
-  }, [guarantorIsParrain])
+  }, [guarantorIsMember])
 
   const currentStepIndex = steps.indexOf(currentStep)
   const isLastStep = currentStepIndex === steps.length - 1
@@ -123,15 +123,28 @@ export default function ContractCreationModal({
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
       
+      // 1. Calcul des intérêts sur le solde actuel
       const interest = remaining * monthlyRate
+      // 2. Montant global = reste dû + intérêts
       const balanceWithInterest = remaining + interest
       
+      // 3. Versement effectué (même logique que dans CreditSimulationModal)
       let payment: number
-      if (remaining < monthlyPayment) {
+      
+      if (monthlyPayment > balanceWithInterest) {
+        // Si la mensualité prédéfinie est supérieure au montant global,
+        // la mensualité affichée doit être le montant global (capital + intérêts)
+        payment = balanceWithInterest
+        remaining = 0
+      } else if (remaining < monthlyPayment) {
+        // Le reste dû est inférieur à la mensualité souhaitée
+        // La mensualité affichée = reste dû (sans intérêts)
         payment = remaining
         remaining = 0
       } else {
+        // Le reste dû est supérieur ou égal à la mensualité souhaitée
         payment = monthlyPayment
+        // 4. Nouveau solde après versement
         remaining = Math.max(0, balanceWithInterest - payment)
       }
 
@@ -148,9 +161,54 @@ export default function ContractCreationModal({
     return items
   }, [simulation])
 
-  // Calculer le tableau de rémunération du parrain (pourcentage personnalisé de chaque mensualité)
+  // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
+  const referenceSchedule = useMemo(() => {
+    if (demand.creditType !== 'SPECIALE') return []
+    
+    const result = simulation
+    const monthlyRate = result.interestRate / 100
+    const firstDate = new Date(result.firstPaymentDate)
+    
+    // Calculer le montant global avec intérêts composés sur exactement 7 mois
+    let lastMontant = result.amount
+    for (let i = 1; i <= 7; i++) {
+      lastMontant = lastMontant * monthlyRate + lastMontant
+    }
+    
+    // Le montant global après 7 mois d'intérêts composés
+    const montantGlobal = lastMontant
+    
+    // Diviser ce montant global par 7 pour obtenir la mensualité
+    const monthlyPaymentRaw = montantGlobal / 7
+    
+    // Arrondir : si décimal >= 0.5, arrondir à l'entier supérieur, sinon à l'entier inférieur
+    const monthlyPaymentRef = monthlyPaymentRaw % 1 >= 0.5 
+      ? Math.ceil(monthlyPaymentRaw) 
+      : Math.floor(monthlyPaymentRaw)
+    
+    // Générer l'échéancier avec cette mensualité (identique pour les 7 mois)
+    const referenceSchedule: Array<{
+      month: number
+      date: Date
+      payment: number
+    }> = []
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(firstDate)
+      date.setMonth(date.getMonth() + i)
+      
+      referenceSchedule.push({
+        month: i + 1,
+        date,
+        payment: monthlyPaymentRef,
+      })
+    }
+    return referenceSchedule
+  }, [simulation, demand.creditType])
+
+  // Calculer le tableau de rémunération du garant (pourcentage personnalisé de chaque mensualité)
   const guarantorRemunerationSchedule = useMemo(() => {
-    if (!guarantorIsParrain) return []
+    if (!guarantorIsMember) return []
     
     return schedule.map(item => ({
       month: item.month,
@@ -158,7 +216,7 @@ export default function ContractCreationModal({
       monthlyPayment: item.payment,
       guarantorAmount: customRound(item.payment * guarantorRemunerationPercentage / 100),
     }))
-  }, [schedule, guarantorIsParrain, guarantorRemunerationPercentage])
+  }, [schedule, guarantorIsMember, guarantorRemunerationPercentage])
 
   const totalGuarantorRemuneration = guarantorRemunerationSchedule.reduce(
     (sum, item) => sum + item.guarantorAmount, 
@@ -221,7 +279,7 @@ export default function ContractCreationModal({
         firstPaymentDate: simulation.firstPaymentDate,
         totalAmount: simulation.totalAmount,
         emergencyContact: emergencyContact as EmergencyContact,
-        guarantorRemunerationPercentage: guarantorIsParrain ? guarantorRemunerationPercentage : 0,
+        guarantorRemunerationPercentage: guarantorIsMember ? guarantorRemunerationPercentage : 0,
       }
 
       await createFromDemand.mutateAsync({
@@ -355,30 +413,64 @@ export default function ContractCreationModal({
               </CardContent>
             </Card>
 
-            {/* Échéancier */}
-            <div className="max-h-60 overflow-y-auto border rounded-lg">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white">
-                  <TableRow>
-                    <TableHead>Mois</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Mensualité</TableHead>
-                    <TableHead className="text-right">Intérêts</TableHead>
-                    <TableHead className="text-right">Reste dû</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {schedule.map((row) => (
-                    <TableRow key={row.month}>
-                      <TableCell className="font-medium">M{row.month}</TableCell>
-                      <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                      <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
-                      <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
-                      <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            {/* Échéancier calculé */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-3 text-sm">Échéancier calculé ({schedule.filter(row => row.payment > 0).length} mois)</h4>
+                <div className="max-h-60 overflow-y-auto border rounded-lg">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-white">
+                      <TableRow>
+                        <TableHead>Mois</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Mensualité</TableHead>
+                        <TableHead className="text-right">Intérêts</TableHead>
+                        <TableHead className="text-right">Reste dû</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {schedule
+                        .filter(row => row.payment > 0) // Filtrer les lignes avec mensualité à 0
+                        .map((row) => (
+                        <TableRow key={row.month}>
+                          <TableCell className="font-medium">M{row.month}</TableCell>
+                          <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                          <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.interest.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.remaining.toLocaleString('fr-FR')} FCFA</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Échéancier référence (pour crédit spéciale uniquement) */}
+              {demand.creditType === 'SPECIALE' && referenceSchedule.length > 0 && (
+                <div className="lg:max-w-md">
+                  <h4 className="font-semibold mb-3 text-sm">Échéancier référence (7 mois)</h4>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Mois</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Mensualité</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {referenceSchedule.map((row) => (
+                          <TableRow key={row.month}>
+                            <TableCell className="font-medium">M{row.month}</TableCell>
+                            <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                            <TableCell className="text-right">{row.payment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Info garant si présent */}
@@ -396,8 +488,8 @@ export default function ContractCreationModal({
                       <p className="font-medium">{demand.guarantorFirstName} {demand.guarantorLastName}</p>
                       <p className="text-sm text-gray-500">{demand.guarantorRelation}</p>
                     </div>
-                    {guarantorIsParrain && (
-                      <Badge className="bg-purple-500">Parrain - Éligible rémunération</Badge>
+                    {guarantorIsMember && (
+                      <Badge className="bg-purple-500">Membre - Éligible rémunération</Badge>
                     )}
                   </div>
                 </CardContent>
@@ -410,14 +502,14 @@ export default function ContractCreationModal({
         return (
           <div className="space-y-6">
             <div className="text-center mb-4">
-              <h3 className="text-lg font-semibold text-[#234D65]">Rémunération du parrain</h3>
-              <p className="text-gray-600 text-sm">Le parrain gagne un pourcentage de chaque mensualité versée (0% à 2%)</p>
+              <h3 className="text-lg font-semibold text-[#234D65]">Rémunération du garant</h3>
+              <p className="text-gray-600 text-sm">Le garant membre gagne un pourcentage de chaque mensualité versée (0% à 2%)</p>
             </div>
 
             <Alert className="border-purple-200 bg-purple-50">
               <Users className="h-4 w-4 text-purple-600" />
               <AlertDescription className="text-purple-800">
-                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est le parrain du client et recevra une rémunération sur chaque mensualité payée.
+                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de la mutuelle et recevra une rémunération sur chaque mensualité payée.
               </AlertDescription>
             </Alert>
 
@@ -573,9 +665,9 @@ export default function ContractCreationModal({
                   </CardHeader>
                   <CardContent className="py-2 text-sm">
                     <p className="font-medium">{demand.guarantorFirstName} {demand.guarantorLastName}</p>
-                    {guarantorIsParrain && (
+                    {guarantorIsMember && (
                       <Badge className="mt-1 bg-purple-500">
-                        Parrain - {guarantorRemunerationPercentage}%
+                        Membre - {guarantorRemunerationPercentage}%
                       </Badge>
                     )}
                   </CardContent>
@@ -608,7 +700,7 @@ export default function ContractCreationModal({
       case 'guarantor':
         return 'Étape 2 - Rémunération parrain'
       case 'emergency':
-        return guarantorIsParrain ? 'Étape 3 - Contact d\'urgence' : 'Étape 2 - Contact d\'urgence'
+        return guarantorIsMember ? 'Étape 3 - Contact d\'urgence' : 'Étape 2 - Contact d\'urgence'
       case 'confirm':
         return 'Confirmation finale'
       default:

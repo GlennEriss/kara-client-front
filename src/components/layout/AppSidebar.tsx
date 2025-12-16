@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin, FileText, CreditCard, Calendar } from "lucide-react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin, FileText, CreditCard, Calendar, Calculator } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -87,6 +87,11 @@ const adminMenuItems: SidebarItem[] = [
                 title: "Contrats",
                 url: routes.admin.creditSpecialeContrats,
                 icon: CreditCard,
+            },
+            {
+                title: "Simulation",
+                url: routes.admin.creditSpecialeSimulations,
+                icon: Calculator,
             },
         ],
     },
