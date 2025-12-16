@@ -36,6 +36,8 @@ import { creditPaymentFormSchema, type CreditPaymentFormInput } from '@/schemas/
 import { useCreditPaymentMutations, useCreditContract, useCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
 import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface CreditPaymentModalProps {
   isOpen: boolean
@@ -121,6 +123,7 @@ export default function CreditPaymentModal({
   const { create: createPayment } = useCreditPaymentMutations()
   const { data: contract } = useCreditContract(creditId)
   const { data: penalties = [] } = useCreditPenaltiesByCreditId(creditId)
+  const queryClient = useQueryClient()
 
   // Calculer le retard en jours si une date d'échéance est fournie
   const calculateDelay = useMemo(() => {
@@ -165,9 +168,20 @@ export default function CreditPaymentModal({
     }
   }, [defaultAmount, form])
 
-  // Réinitialiser les pénalités sélectionnées quand le modal s'ouvre
+  // Nettoyer les pénalités rétroactives et réinitialiser les pénalités sélectionnées quand le modal s'ouvre
   useEffect(() => {
     if (isOpen) {
+      // Nettoyer les pénalités rétroactives avant d'afficher la liste
+      const service = ServiceFactory.getCreditSpecialeService()
+      service.checkAndCreateMissingPenalties(creditId)
+        .then(() => {
+          // Rafraîchir les pénalités après nettoyage
+          queryClient.invalidateQueries({ queryKey: ['creditPenalties', creditId] })
+        })
+        .catch((error: unknown) => {
+          console.error('Erreur lors du nettoyage des pénalités rétroactives:', error)
+        })
+      
       setSelectedPenalties([])
       setPenaltyOnlyMode(defaultPenaltyOnlyMode)
       setPenaltyNote(undefined)
