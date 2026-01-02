@@ -170,12 +170,15 @@ interface ContractFormProviderProps {
 export function ContractFormProvider({ children }: ContractFormProviderProps) {
   const [state, dispatch] = useReducer(contractFormReducer, initialState)
 
+  // Scroll vers le haut quand l'étape change
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [state.currentStep])
+
   // Actions utilitaires
   const goToStep = useCallback((step: number) => {
     if (step >= 1 && step <= state.steps.length) {
       dispatch({ type: 'SET_STEP', payload: step })
-      // Scroll vers le haut de la page
-      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [state.steps.length])
 

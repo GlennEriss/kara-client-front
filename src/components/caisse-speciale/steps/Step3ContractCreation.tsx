@@ -322,55 +322,6 @@ export function Step3ContractCreation() {
             </div>
           </div>
 
-          {/* Détails de planification */}
-          <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Calendar className="w-4 h-4 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-purple-900">
-                  Planification des versements
-                </h3>
-                <p className="text-sm text-purple-700">
-                  Date du premier versement
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <Clock className="w-4 h-4 text-purple-600" />
-              <span className="text-purple-900 font-medium">
-                {formData.firstPaymentDate ? new Date(formData.firstPaymentDate).toLocaleDateString('fr-FR', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }) : 'Non définie'}
-              </span>
-            </div>
-
-            {/* Input pour modifier la date du premier versement */}
-            <div className="mt-3">
-              <label htmlFor="first-payment-date" className="block text-sm font-medium text-purple-700 mb-2">
-                Modifier la date du premier versement
-              </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                <input
-                  id="first-payment-date"
-                  type="date"
-                  value={formData.firstPaymentDate || ''}
-                  onChange={(e) => updateFormData({ firstPaymentDate: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
-                />
-              </div>
-              <p className="text-xs text-purple-600 mt-1">
-                Sélectionnez la date du premier versement (les dates passées sont acceptées)
-              </p>
-            </div>
-          </div>
-
-
           {/* Validation des paramètres */}
           {isValidating && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -412,6 +363,64 @@ export function Step3ContractCreation() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Planification des versements */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-lg text-gray-900 flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Planification des versements
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-purple-900">
+                  Date du premier versement
+                </h3>
+                <p className="text-sm text-purple-700">
+                  Sélectionnez la date de début des versements
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="w-4 h-4 text-purple-600" />
+              <span className="text-purple-900 font-medium">
+                {formData.firstPaymentDate ? new Date(formData.firstPaymentDate).toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }) : 'Non définie'}
+              </span>
+            </div>
+
+            {/* Input pour modifier la date du premier versement */}
+            <div className="mt-3">
+              <label htmlFor="first-payment-date" className="block text-sm font-medium text-purple-700 mb-2">
+                Modifier la date du premier versement
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+                <input
+                  id="first-payment-date"
+                  type="date"
+                  value={formData.firstPaymentDate || ''}
+                  onChange={(e) => updateFormData({ firstPaymentDate: e.target.value })}
+                  className="w-full pl-10 pr-4 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
+                />
+              </div>
+              <p className="text-xs text-purple-600 mt-1">
+                Sélectionnez la date du premier versement (les dates passées sont acceptées)
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

@@ -19,11 +19,23 @@ const Step3 = React.lazy(() => import('./Step3'))
 
 export default function FormCaisseImprevue() {
     const { currentStep, steps, setStep, goToNextStep, goToPreviousStep, canGoNext, canGoPrevious, mediator } = useFormCaisseImprevueProvider()
+    const formTopRef = React.useRef<HTMLDivElement>(null)
 
     // Mettre à jour le contexte de navigation du médiateur quand l'étape change
     useEffect(() => {
         mediator.setNavigationContext(currentStep, steps.length, goToNextStep)
     }, [currentStep, steps.length, goToNextStep, mediator])
+
+    // Scroll vers le haut du formulaire quand l'étape change
+    useEffect(() => {
+        if (formTopRef.current) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                })
+            })
+        }
+    }, [currentStep])
 
     const getCurrentStepComponent = () => {
         switch (currentStep) {
@@ -43,7 +55,7 @@ export default function FormCaisseImprevue() {
     return (
         <div className="space-y-8 max-w-6xl mx-auto p-6">
             {/* Header */}
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50">
+            <Card ref={formTopRef} className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50">
                 <CardHeader>
                     <CardTitle className="text-3xl font-bold text-[#224D62]">
                         Nouvelle Demande - Caisse Imprévue
