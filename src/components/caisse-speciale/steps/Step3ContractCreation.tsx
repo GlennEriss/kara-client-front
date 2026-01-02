@@ -23,13 +23,31 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
 import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation'
-import EmergencyContactForm from '../forms/EmergencyContactForm'
+import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
 import { useAuth } from '@/hooks/useAuth'
 
 export function Step3ContractCreation() {
   const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()
   const { formData } = state
+  
+  // Fonction pour mettre à jour un champ du contact d'urgence
+  const handleUpdateEmergencyContact = React.useCallback((field: string, value: any) => {
+    updateFormData((prevData) => ({
+      emergencyContact: {
+        memberId: prevData.emergencyContact?.memberId,
+        lastName: prevData.emergencyContact?.lastName || '',
+        firstName: prevData.emergencyContact?.firstName || '',
+        phone1: prevData.emergencyContact?.phone1 || '',
+        phone2: prevData.emergencyContact?.phone2 || '',
+        relationship: prevData.emergencyContact?.relationship || 'Autre',
+        typeId: prevData.emergencyContact?.typeId || '',
+        idNumber: prevData.emergencyContact?.idNumber || '',
+        documentPhotoUrl: prevData.emergencyContact?.documentPhotoUrl || '',
+        [field]: value
+      }
+    }))
+  }, [updateFormData])
   const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
   const { user } = useAuth()
@@ -398,23 +416,18 @@ export function Step3ContractCreation() {
       </Card>
 
       {/* Formulaire de contact d'urgence */}
-      <EmergencyContactForm
-        emergencyContact={formData.emergencyContact}
-        onUpdate={(field: string, value: any) => {
-          updateFormData({
-            emergencyContact: {
-              lastName: formData.emergencyContact?.lastName || '',
-              firstName: formData.emergencyContact?.firstName || '',
-              phone1: formData.emergencyContact?.phone1 || '',
-              phone2: formData.emergencyContact?.phone2 || '',
-              relationship: formData.emergencyContact?.relationship || 'Autre',
-              typeId: formData.emergencyContact?.typeId || '',
-              idNumber: formData.emergencyContact?.idNumber || '',
-              documentPhotoUrl: formData.emergencyContact?.documentPhotoUrl || '',
-              [field]: value
-            }
-          })
-        }}
+      <EmergencyContactMemberSelector
+        memberId={formData.emergencyContact?.memberId}
+        lastName={formData.emergencyContact?.lastName || ''}
+        firstName={formData.emergencyContact?.firstName || ''}
+        phone1={formData.emergencyContact?.phone1 || ''}
+        phone2={formData.emergencyContact?.phone2 || ''}
+        relationship={formData.emergencyContact?.relationship || 'Autre'}
+        idNumber={formData.emergencyContact?.idNumber || ''}
+        typeId={formData.emergencyContact?.typeId || ''}
+        documentPhotoUrl={formData.emergencyContact?.documentPhotoUrl || ''}
+        onUpdate={handleUpdateEmergencyContact}
+        excludeMemberIds={formData.contractType === 'INDIVIDUAL' && formData.memberId ? [formData.memberId] : []}
       />
 
       {/* Actions */}

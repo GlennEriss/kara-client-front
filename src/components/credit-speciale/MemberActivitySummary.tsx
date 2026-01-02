@@ -117,75 +117,126 @@ function ContractsSection({ contracts }: { contracts: ContractSummary[] }) {
         Contrats en cours ({contracts.length})
       </h3>
       <div className="space-y-3">
-        {contracts.map((contract) => (
-          <div
-            key={contract.id}
-            className={cn(
-              "p-4 rounded-lg border",
-              contract.isUpToDate ? "bg-green-50 border-green-200" :
-              contract.hasDelay ? "bg-orange-50 border-orange-200" :
-              "bg-gray-50 border-gray-200"
-            )}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="text-xs">
-                    {contract.type === 'CAISSE_SPECIALE' ? 'Caisse Spéciale' : 'Caisse Imprévue'}
-                  </Badge>
-                  {contract.isUpToDate && (
-                    <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      À jour
-                    </Badge>
-                  )}
-                  {contract.hasDelay && (
-                    <Badge className="bg-orange-100 text-orange-700 border-orange-300 text-xs">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      Retard
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-gray-600 font-mono">{contract.id}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="h-8"
-              >
-                <Link href={contract.contractLink}>
-                  <ExternalLink className="h-3 w-3" />
-                </Link>
-              </Button>
-            </div>
+        {contracts.map((contract) => {
+          // Description pour Caisse Spéciale
+          const getCaisseSpecialeDescription = () => {
+            const typeLabel = contract.caisseType === 'STANDARD' ? 'Standard' : 
+                            contract.caisseType === 'JOURNALIERE' ? 'Journalière' : 
+                            contract.caisseType === 'LIBRE' ? 'Libre' : 'Caisse Spéciale'
+            const progress = contract.monthsPlanned && contract.currentMonthIndex !== undefined
+              ? `${contract.currentMonthIndex}/${contract.monthsPlanned} mois`
+              : contract.monthsPlanned ? `${contract.monthsPlanned} mois prévus` : ''
+            const nominal = contract.nominalPaid ? `${contract.nominalPaid.toLocaleString('fr-FR')} FCFA` : ''
+            const bonus = contract.bonusAccrued ? `${contract.bonusAccrued.toLocaleString('fr-FR')} FCFA` : ''
             
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {contract.monthlyAmount && (
-                <div>
-                  <span className="text-gray-500">Mensualité:</span>
-                  <span className="ml-1 font-semibold">{contract.monthlyAmount.toLocaleString('fr-FR')} FCFA</span>
-                </div>
+            return {
+              title: `Contrat ${typeLabel}`,
+              details: [
+                progress && `Progression: ${progress}`,
+                nominal && `Épargne accumulée: ${nominal}`,
+                bonus && `Bonus accumulé: ${bonus}`,
+              ].filter(Boolean).join(' • ')
+            }
+          }
+
+          // Description pour Caisse Imprévue
+          const getCaisseImprevueDescription = () => {
+            const frequencyLabel = contract.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'
+            const code = contract.subscriptionCICode ? `Forfait ${contract.subscriptionCICode}` : 'Caisse Imprévue'
+            const progress = contract.subscriptionCIDuration && contract.totalMonthsPaid !== undefined
+              ? `${contract.totalMonthsPaid}/${contract.subscriptionCIDuration} mois`
+              : contract.totalMonthsPaid ? `${contract.totalMonthsPaid} mois payés` : ''
+            const nominal = contract.subscriptionCINominal ? `Objectif: ${contract.subscriptionCINominal.toLocaleString('fr-FR')} FCFA` : ''
+            const support = contract.isEligibleForSupport ? 'Éligible au support' : ''
+            
+            return {
+              title: `${code} (${frequencyLabel})`,
+              details: [
+                progress && `Progression: ${progress}`,
+                nominal,
+                support,
+              ].filter(Boolean).join(' • ')
+            }
+          }
+
+          const description = contract.type === 'CAISSE_SPECIALE' 
+            ? getCaisseSpecialeDescription()
+            : getCaisseImprevueDescription()
+
+          return (
+            <div
+              key={contract.id}
+              className={cn(
+                "p-4 rounded-lg border",
+                contract.isUpToDate ? "bg-green-50 border-green-200" :
+                contract.hasDelay ? "bg-orange-50 border-orange-200" :
+                "bg-gray-50 border-gray-200"
               )}
-              {contract.lastPaymentDate && (
-                <div>
-                  <span className="text-gray-500">Dernier paiement:</span>
-                  <span className="ml-1 font-semibold">
-                    {format(contract.lastPaymentDate, 'dd/MM/yyyy', { locale: fr })}
-                  </span>
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="text-xs">
+                      {contract.type === 'CAISSE_SPECIALE' ? 'Caisse Spéciale' : 'Caisse Imprévue'}
+                    </Badge>
+                    {contract.isUpToDate && (
+                      <Badge className="bg-green-100 text-green-700 border-green-300 text-xs">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        À jour
+                      </Badge>
+                    )}
+                    {contract.hasDelay && (
+                      <Badge className="bg-orange-100 text-orange-700 border-orange-300 text-xs">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Retard
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800 mb-1">{description.title}</p>
+                  {description.details && (
+                    <p className="text-xs text-gray-600 mb-1">{description.details}</p>
+                  )}
+                  <p className="text-xs text-gray-500 font-mono">{contract.id}</p>
                 </div>
-              )}
-              {contract.nextPaymentDate && (
-                <div>
-                  <span className="text-gray-500">Prochain paiement:</span>
-                  <span className="ml-1 font-semibold">
-                    {format(contract.nextPaymentDate, 'dd/MM/yyyy', { locale: fr })}
-                  </span>
-                </div>
-              )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="h-8"
+                >
+                  <Link href={contract.contractLink}>
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 text-xs mt-2 pt-2 border-t border-gray-200">
+                {contract.monthlyAmount && (
+                  <div>
+                    <span className="text-gray-500">Mensualité:</span>
+                    <span className="ml-1 font-semibold">{contract.monthlyAmount.toLocaleString('fr-FR')} FCFA</span>
+                  </div>
+                )}
+                {contract.lastPaymentDate && (
+                  <div>
+                    <span className="text-gray-500">Dernier paiement:</span>
+                    <span className="ml-1 font-semibold">
+                      {format(contract.lastPaymentDate, 'dd/MM/yyyy', { locale: fr })}
+                    </span>
+                  </div>
+                )}
+                {contract.nextPaymentDate && (
+                  <div>
+                    <span className="text-gray-500">Prochain paiement:</span>
+                    <span className="ml-1 font-semibold">
+                      {format(contract.nextPaymentDate, 'dd/MM/yyyy', { locale: fr })}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -211,35 +262,45 @@ function CharitiesSection({ charities }: { charities: CharitySummary[] }) {
         Charités ({charities.length})
       </h3>
       <div className="space-y-2">
-        {charities.map((charity) => (
-          <div
-            key={charity.id}
-            className="p-3 rounded-lg border bg-blue-50 border-blue-200 flex items-start justify-between"
-          >
-            <div className="flex-1">
-              <p className="font-medium text-sm">{charity.name}</p>
-              <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
-                <span>{format(charity.date, 'dd/MM/yyyy', { locale: fr })}</span>
-                {charity.amount && (
-                  <span className="font-semibold">{charity.amount.toLocaleString('fr-FR')} FCFA</span>
-                )}
-                {charity.type && (
-                  <Badge variant="outline" className="text-xs">{charity.type}</Badge>
-                )}
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-7"
+        {charities.map((charity) => {
+          const typeLabel = charity.type === 'money' ? 'Contribution financière' : 
+                          charity.type === 'in_kind' ? 'Contribution en nature' : 
+                          'Contribution'
+          const amountLabel = charity.amount 
+            ? `${charity.amount.toLocaleString('fr-FR')} FCFA`
+            : charity.type === 'in_kind' ? 'Valeur estimée non spécifiée' : 'Montant non spécifié'
+          
+          return (
+            <div
+              key={charity.id}
+              className="p-3 rounded-lg border bg-blue-50 border-blue-200 flex items-start justify-between"
             >
-              <Link href={charity.charityLink}>
-                <ExternalLink className="h-3 w-3" />
-              </Link>
-            </Button>
-          </div>
-        ))}
+              <div className="flex-1">
+                <p className="font-medium text-sm text-gray-800">{charity.name}</p>
+                <p className="text-xs text-gray-600 mt-0.5">{typeLabel}</p>
+                <div className="flex items-center gap-3 mt-1.5 text-xs">
+                  <span className="text-gray-500 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {format(charity.date, 'dd/MM/yyyy', { locale: fr })}
+                  </span>
+                  {charity.amount && (
+                    <span className="font-semibold text-blue-700">{amountLabel}</span>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="h-7"
+              >
+                <Link href={charity.charityLink}>
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -265,33 +326,51 @@ function PlacementsSection({ placements }: { placements: PlacementSummary[] }) {
         Placements ({placements.length})
       </h3>
       <div className="space-y-2">
-        {placements.map((placement) => (
-          <div
-            key={placement.id}
-            className="p-3 rounded-lg border bg-purple-50 border-purple-200 flex items-start justify-between"
-          >
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-medium text-sm">{placement.amount.toLocaleString('fr-FR')} FCFA</p>
-                <Badge variant="outline" className="text-xs">
-                  {placement.rate}% • {placement.period} mois
-                </Badge>
-                <Badge variant="outline" className="text-xs">{placement.type}</Badge>
-              </div>
-              <p className="text-xs text-gray-600">Statut: {placement.status}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-7"
+        {placements.map((placement) => {
+          const typeLabel = placement.type === 'MonthlyCommission_CapitalEnd' 
+            ? 'Commission mensuelle + Capital à la fin'
+            : placement.type === 'CapitalPlusCommission_End'
+            ? 'Capital + Commissions à la fin'
+            : placement.type
+          
+          const statusLabel = placement.status === 'ACTIVE' ? 'En cours' :
+                            placement.status === 'COMPLETED' ? 'Terminé' :
+                            placement.status === 'CANCELLED' ? 'Annulé' :
+                            placement.status
+          
+          return (
+            <div
+              key={placement.id}
+              className="p-3 rounded-lg border bg-purple-50 border-purple-200 flex items-start justify-between"
             >
-              <Link href={placement.placementLink}>
-                <ExternalLink className="h-3 w-3" />
-              </Link>
-            </Button>
-          </div>
-        ))}
+              <div className="flex-1">
+                <p className="font-semibold text-sm text-gray-800 mb-1">
+                  {placement.amount.toLocaleString('fr-FR')} FCFA
+                </p>
+                <p className="text-xs text-gray-600 mb-1.5">{typeLabel}</p>
+                <div className="flex items-center gap-3 text-xs">
+                  <Badge variant="outline" className="text-xs">
+                    Taux: {placement.rate}%
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    Durée: {placement.period} mois
+                  </Badge>
+                  <span className="text-gray-500">Statut: {statusLabel}</span>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="h-7"
+              >
+                <Link href={placement.placementLink}>
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

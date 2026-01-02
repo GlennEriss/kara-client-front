@@ -56,6 +56,9 @@ export const RelationshipEnum = z.enum([
 
 // Schéma pour un contact d'urgence
 export const emergencyContactSchema = z.object({
+  // ID du membre si le contact d'urgence est un membre (optionnel)
+  memberId: z.string().optional(),
+  
   // Nom obligatoire
   lastName: z.string()
     .min(1, 'Le nom du contact d\'urgence est obligatoire')
@@ -102,6 +105,7 @@ export const emergencyContactSchema = z.object({
 
 // Valeurs par défaut
 export const emergencyContactDefaultValues = {
+  memberId: undefined,
   lastName: '',
   firstName: '',
   phone1: '',

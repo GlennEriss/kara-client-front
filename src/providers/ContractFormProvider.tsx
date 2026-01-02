@@ -10,7 +10,7 @@ type ContractFormData = ContractCreationFormData
 // Types pour les actions du reducer
 type ContractFormAction =
   | { type: 'SET_STEP'; payload: number }
-  | { type: 'UPDATE_FORM_DATA'; payload: Partial<ContractFormData> }
+  | { type: 'UPDATE_FORM_DATA'; payload: Partial<ContractFormData> | ((prev: ContractFormData) => Partial<ContractFormData>) }
   | { type: 'SET_ENTITY_SEARCH_RESULTS'; payload: EntitySearchResult[] }
   | { type: 'SET_SEARCH_LOADING'; payload: boolean }
   | { type: 'SET_SEARCH_ERROR'; payload: string | null }
@@ -84,9 +84,13 @@ function contractFormReducer(state: ContractFormState, action: ContractFormActio
       }
 
     case 'UPDATE_FORM_DATA':
+      const payload = action.payload
+      const updatedData = typeof payload === 'function' 
+        ? payload(state.formData)
+        : payload
       return {
         ...state,
-        formData: { ...state.formData, ...action.payload }
+        formData: { ...state.formData, ...updatedData }
       }
 
     case 'SET_ENTITY_SEARCH_RESULTS':
@@ -138,7 +142,7 @@ interface ContractFormContextType {
   goToStep: (step: number) => void
   nextStep: () => void
   prevStep: () => void
-  updateFormData: (data: Partial<ContractFormData>) => void
+  updateFormData: (data: Partial<ContractFormData> | ((prev: ContractFormData) => Partial<ContractFormData>)) => void
   validateCurrentStep: (isValid: boolean) => void
   resetForm: () => void
   canGoNext: () => boolean
@@ -187,7 +191,7 @@ export function ContractFormProvider({ children }: ContractFormProviderProps) {
     }
   }, [state.currentStep, goToStep])
 
-  const updateFormData = useCallback((data: Partial<ContractFormData>) => {
+  const updateFormData = useCallback((data: Partial<ContractFormData> | ((prev: ContractFormData) => Partial<ContractFormData>)) => {
     dispatch({ type: 'UPDATE_FORM_DATA', payload: data })
   }, [])
 
