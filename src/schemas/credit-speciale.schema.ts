@@ -31,11 +31,11 @@ export const creditDemandSchema = z.object({
   
   status: creditDemandStatusEnum,
   
-  // Garant (optionnel)
-  guarantorId: z.string().optional(),
-  guarantorFirstName: z.string().optional(),
-  guarantorLastName: z.string().optional(),
-  guarantorRelation: z.string().optional(),
+  // Garant (obligatoire)
+  guarantorId: z.string().min(1, 'Le garant est requis'),
+  guarantorFirstName: z.string().min(1, 'Le prénom du garant est requis'),
+  guarantorLastName: z.string().min(1, 'Le nom du garant est requis'),
+  guarantorRelation: z.string().min(1, 'Le lien de parenté est requis'),
   guarantorIsMember: z.boolean().optional(),
   
   // Dérogation (optionnel)
@@ -55,12 +55,12 @@ export const creditDemandSchema = z.object({
   createdBy: z.string().min(1, 'L\'ID du créateur est requis'),
   updatedBy: z.string().optional(),
 }).superRefine((data, ctx) => {
-  // Validation : si garant fourni, les infos doivent être complètes
-  if (data.guarantorId && (!data.guarantorFirstName || !data.guarantorLastName)) {
+  // Validation : garant obligatoire, les infos doivent être complètes
+  if (!data.guarantorId || !data.guarantorFirstName || !data.guarantorLastName || !data.guarantorRelation) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'Si un garant est fourni, le prénom et le nom sont requis',
-      path: ['guarantorFirstName'],
+      message: 'Le garant et toutes ses informations sont requis',
+      path: ['guarantorId'],
     })
   }
   
@@ -125,11 +125,11 @@ export const creditDemandFormSchema = z.object({
   
   status: creditDemandStatusEnum,
   
-  // Garant (optionnel)
-  guarantorId: z.string().optional(),
-  guarantorFirstName: z.string().optional(),
-  guarantorLastName: z.string().optional(),
-  guarantorRelation: z.string().optional(),
+  // Garant (obligatoire)
+  guarantorId: z.string().min(1, 'Le garant est requis'),
+  guarantorFirstName: z.string().min(1, 'Le prénom du garant est requis'),
+  guarantorLastName: z.string().min(1, 'Le nom du garant est requis'),
+  guarantorRelation: z.string().min(1, 'Le lien de parenté est requis'),
   guarantorIsMember: z.boolean().optional(),
   
   // Dérogation (optionnel)
@@ -146,12 +146,12 @@ export const creditDemandFormSchema = z.object({
     .max(10, 'Le score maximum est 10')
     .optional(),
 }).superRefine((data, ctx) => {
-  // Validation : si garant fourni, les infos doivent être complètes
-  if (data.guarantorId && (!data.guarantorFirstName || !data.guarantorLastName)) {
+  // Validation : garant obligatoire, les infos doivent être complètes
+  if (!data.guarantorId || !data.guarantorFirstName || !data.guarantorLastName || !data.guarantorRelation) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'Si un garant est fourni, le prénom et le nom sont requis',
-      path: ['guarantorFirstName'],
+      message: 'Le garant et toutes ses informations sont requis',
+      path: ['guarantorId'],
     })
   }
   

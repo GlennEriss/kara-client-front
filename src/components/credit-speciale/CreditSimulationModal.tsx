@@ -42,6 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
 
 interface CreditSimulationModalProps {
   isOpen: boolean
@@ -260,8 +261,21 @@ export default function CreditSimulationModal({
                                 type="number"
                                 step="0.1"
                                 placeholder="Ex: 5.5"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                value={field.value === 0 ? '' : field.value}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  if (value === '' || value === null || value === undefined) {
+                                    field.onChange(0)
+                                  } else {
+                                    const numValue = parseFloat(value)
+                                    if (!isNaN(numValue)) {
+                                      field.onChange(numValue)
+                                    }
+                                  }
+                                }}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
                               />
                             </FormControl>
                             <FormMessage />
@@ -389,8 +403,21 @@ export default function CreditSimulationModal({
                                 type="number"
                                 step="0.1"
                                 placeholder="Ex: 5.5"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                value={field.value === 0 ? '' : field.value}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  if (value === '' || value === null || value === undefined) {
+                                    field.onChange(0)
+                                  } else {
+                                    const numValue = parseFloat(value)
+                                    if (!isNaN(numValue)) {
+                                      field.onChange(numValue)
+                                    }
+                                  }
+                                }}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
                               />
                             </FormControl>
                             <FormMessage />
@@ -517,8 +544,21 @@ export default function CreditSimulationModal({
                                 type="number"
                                 step="0.1"
                                 placeholder="Ex: 10"
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                value={field.value === 0 ? '' : field.value}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  if (value === '' || value === null || value === undefined) {
+                                    field.onChange(0)
+                                  } else {
+                                    const numValue = parseFloat(value)
+                                    if (!isNaN(numValue)) {
+                                      field.onChange(numValue)
+                                    }
+                                  }
+                                }}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
                               />
                             </FormControl>
                             <FormMessage />
@@ -735,18 +775,6 @@ function CustomPaymentsInput({
   )
 }
 
-// Fonction d'arrondi personnalisée
-// Si la partie décimale < 0.5, on garde l'entier
-// Si la partie décimale >= 0.5, on arrondit à l'entier supérieur
-function customRound(value: number): number {
-  const decimal = value % 1
-  if (decimal < 0.5) {
-    return Math.floor(value)
-  } else {
-    return Math.ceil(value)
-  }
-}
-
 // Composant pour afficher les résultats de simulation standard
 function StandardSimulationResults({
   result,
@@ -761,67 +789,15 @@ function StandardSimulationResults({
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   
-  // Calculer l'échéancier
-  const schedule: Array<{
-    month: number
-    date: Date
-    payment: number
-    interest: number
-    principal: number
-    remaining: number
-  }> = []
-
-  let remaining = result.amount
-  // Taux mensuel (pas annuel divisé par 12)
-  const monthlyRate = result.interestRate / 100
-  const firstDate = new Date(result.firstPaymentDate)
-  // Pour simulation proposée : utiliser la durée spécifiée
-  // Pour simulation standard : calculer jusqu'à ce que le solde soit 0 (max 7 mois pour crédit spéciale)
-  const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : result.duration)
-
-  for (let i = 0; i < maxIterations; i++) {
-    const date = new Date(firstDate)
-    date.setMonth(date.getMonth() + i)
-    
-    // Si le solde est déjà à 0, ne pas ajouter de ligne
-    if (remaining <= 0) {
-      break
-    }
-    
-    // 1. Calcul des intérêts sur le solde actuel
-    const interest = remaining * monthlyRate
-    // 2. Montant global = reste dû + intérêts
-    const balanceWithInterest = remaining + interest
-    
-    // 3. Versement effectué
-    let payment: number
-    
-    if (result.monthlyPayment > balanceWithInterest) {
-      // Si la mensualité prédéfinie est supérieure au montant global,
-      // la mensualité affichée doit être le montant global (capital + intérêts)
-      payment = balanceWithInterest
-      remaining = 0
-    } else if (remaining < result.monthlyPayment) {
-      // Le reste dû est inférieur à la mensualité souhaitée
-      // La mensualité affichée = reste dû (sans intérêts)
-      payment = remaining
-      remaining = 0
-    } else {
-      // Le reste dû est supérieur ou égal à la mensualité souhaitée
-      payment = result.monthlyPayment
-      // 4. Nouveau solde après versement
-      remaining = Math.max(0, balanceWithInterest - payment)
-    }
-
-    schedule.push({
-      month: i + 1,
-      date,
-      payment: customRound(payment), // Arrondir la mensualité selon la règle personnalisée
-      interest: customRound(interest), // Arrondir les intérêts selon la règle personnalisée
-      principal: customRound(balanceWithInterest), // Arrondir le montant global selon la règle personnalisée
-      remaining: customRound(remaining), // Arrondir le reste dû selon la règle personnalisée
-    })
-  }
+  // Calculer l'échéancier en utilisant la fonction utilitaire partagée
+  const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity)
+  const schedule = calculateScheduleUtil({
+    amount: result.amount,
+    interestRate: result.interestRate,
+    monthlyPayment: result.monthlyPayment,
+    firstPaymentDate: new Date(result.firstPaymentDate),
+    maxDuration: maxIterations,
+  })
   
   // La durée réelle est le nombre de lignes dans l'échéancier (avec paiements non nuls)
   const displayDuration = schedule.length

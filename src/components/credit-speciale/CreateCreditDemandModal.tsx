@@ -13,9 +13,8 @@ import { creditDemandFormSchema, creditDemandDefaultValues, type CreditDemandFor
 import { useAuth } from '@/hooks/useAuth'
 import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
 import { useAllMembers } from '@/hooks/useMembers'
-import { useCheckEligibility } from '@/hooks/useCreditSpeciale'
 import { toast } from 'sonner'
-import { Loader2, User, Search, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2, User, Search, CheckCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import SelectApp from '@/components/forms/SelectApp'
@@ -35,12 +34,9 @@ export default function CreateCreditDemandModal({
   const { create } = useCreditDemandMutations()
   const { data: membersData } = useAllMembers({}, 1, 1000)
   const members = membersData?.data || []
-  const checkEligibility = useCheckEligibility()
   
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(initialClientId)
   const [selectedGuarantorId, setSelectedGuarantorId] = useState<string | undefined>()
-  const [eligibilityStatus, setEligibilityStatus] = useState<{ eligible: boolean; reason?: string } | null>(null)
-  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false)
   
   const { user } = useAuth()
   
@@ -74,24 +70,6 @@ export default function CreateCreditDemandModal({
     )
   ).slice(0, 10)
 
-  // Vérifier l'éligibilité quand le client ou garant change
-  React.useEffect(() => {
-    if (selectedClientId) {
-      setIsCheckingEligibility(true)
-      checkEligibility.mutate(
-        { clientId: selectedClientId, guarantorId: selectedGuarantorId },
-        {
-          onSuccess: (result) => {
-            setEligibilityStatus(result)
-            setIsCheckingEligibility(false)
-          },
-          onError: () => {
-            setIsCheckingEligibility(false)
-          },
-        }
-      )
-    }
-  }, [selectedClientId, selectedGuarantorId])
 
   // Mettre à jour le formulaire quand un client est sélectionné
   const handleClientSelect = (memberId: string) => {
@@ -134,7 +112,6 @@ export default function CreateCreditDemandModal({
       form.reset()
       setSelectedClientId(undefined)
       setSelectedGuarantorId(undefined)
-      setEligibilityStatus(null)
       onClose()
     } catch (error) {
       // L'erreur est gérée par le hook de mutation
@@ -325,10 +302,10 @@ export default function CreateCreditDemandModal({
               </CardContent>
             </Card>
 
-            {/* Section 4: Garant (optionnel) */}
+            {/* Section 4: Garant */}
             <Card>
               <CardContent className="pt-6 space-y-4">
-                <h3 className="font-semibold text-lg">Garant (optionnel)</h3>
+                <h3 className="font-semibold text-lg">Garant</h3>
                 
                 <div className="space-y-4">
                   <div>
@@ -400,45 +377,6 @@ export default function CreateCreditDemandModal({
               </CardContent>
             </Card>
 
-            {/* Section 5: Éligibilité */}
-            {eligibilityStatus !== null && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    {isCheckingEligibility ? (
-                      <>
-                        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                        <span className="text-sm text-gray-600">Vérification de l'éligibilité...</span>
-                      </>
-                    ) : eligibilityStatus.eligible ? (
-                      <>
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <div>
-                          <div className="font-medium text-green-900">Client éligible</div>
-                          <div className="text-sm text-green-700">
-                            Le client ou le garant est à jour à la caisse imprévue
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="h-5 w-5 text-orange-600" />
-                        <div>
-                          <div className="font-medium text-orange-900">Client non éligible</div>
-                          <div className="text-sm text-orange-700">
-                            {eligibilityStatus.reason || 'Le client et le garant ne sont pas à jour à la caisse imprévue'}
-                          </div>
-                          <div className="text-xs text-orange-600 mt-1">
-                            Une dérogation peut être accordée par un administrateur
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button
@@ -451,7 +389,7 @@ export default function CreateCreditDemandModal({
               </Button>
               <Button
                 type="submit"
-                disabled={create.isPending || (eligibilityStatus !== null && !eligibilityStatus.eligible)}
+                disabled={create.isPending}
                 className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
               >
                 {create.isPending ? (
