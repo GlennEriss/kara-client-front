@@ -79,6 +79,11 @@ const adminMenuItems: SidebarItem[] = [
         icon: CreditCard,
         children: [
             {
+                title: "Simulation",
+                url: routes.admin.creditSpecialeSimulations,
+                icon: Calculator,
+            },
+            {
                 title: "Demandes",
                 url: routes.admin.creditSpecialeDemandes,
                 icon: FileText,
@@ -87,11 +92,6 @@ const adminMenuItems: SidebarItem[] = [
                 title: "Contrats",
                 url: routes.admin.creditSpecialeContrats,
                 icon: CreditCard,
-            },
-            {
-                title: "Simulation",
-                url: routes.admin.creditSpecialeSimulations,
-                icon: Calculator,
             },
         ],
     },

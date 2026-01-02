@@ -366,83 +366,52 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             const maxIterations = maxDuration !== Infinity ? maxDuration : 120;
             
             // Pour crédit spéciale, toujours calculer jusqu'à 7 mois
-            for (let month = 0; month < maxIterations && (remainingAmount > 0 || creditType === 'SPECIALE'); month++) {
+            for (let month = 0; month < maxIterations && (remainingAmount > 0.01 || creditType === 'SPECIALE'); month++) {
                 // 1. Calcul des intérêts sur le solde actuel
                 const interest = remainingAmount * monthlyRate;
                 // 2. Ajout des intérêts au solde
                 const balanceWithInterest = remainingAmount + interest;
-                // 3. Versement effectué : si le montant global est inférieur à la mensualité, payer le montant global
-                const payment = balanceWithInterest < monthlyPayment ? balanceWithInterest : monthlyPayment;
-                remainingAmount = balanceWithInterest - payment;
+                // 3. Versement effectué : si le montant global est inférieur ou égal à la mensualité, payer le montant global
+                let payment: number;
+                if (balanceWithInterest <= monthlyPayment) {
+                    payment = balanceWithInterest;
+                    remainingAmount = 0;
+                } else {
+                    payment = monthlyPayment;
+                    remainingAmount = Math.max(0, balanceWithInterest - payment);
+                }
                 
                 totalInterest += interest;
                 totalPaid += payment; // Somme des mensualités affichées (qui incluent déjà les intérêts)
                 duration++;
                 
                 // Arrondir pour éviter les erreurs de virgule flottante
-                if (remainingAmount < 1) {
+                if (remainingAmount < 0.01) {
                     remainingAmount = 0;
+                }
+                
+                // Si le solde est à 0, on peut arrêter même pour crédit spéciale
+                if (remainingAmount <= 0.01) {
+                    break;
                 }
                 
                 // Pour crédit spéciale, arrêter à 7 mois même si solde > 0
                 if (creditType === 'SPECIALE' && duration >= 7) {
                     break;
                 }
-                
-                // Pour autres types, arrêter si solde = 0
-                if (creditType !== 'SPECIALE' && remainingAmount <= 0) {
-                    break;
-                }
             }
         }
 
-        // Pour crédit spéciale, toujours fixer la durée à 7 mois et vérifier le solde
+        // Pour crédit spéciale, vérifier si la durée dépasse 7 mois
         let remainingAtMaxDuration = remainingAmount; // Par défaut
         let isValid = duration <= maxDuration;
         let suggestedMonthlyPayment = monthlyPayment;
         
         if (creditType === 'SPECIALE' && maxDuration === 7) {
-            duration = 7; // Toujours 7 mois pour crédit spéciale
-            
-            // Recalculer les mensualités, intérêts et le solde pour les 7 mois complets
-            let testRemaining = amount;
-            let totalInterestFor7Months = 0;
-            let totalMensualitesFor7Months = 0; // Somme des mensualités affichées (pas les montants globaux)
-            
-            for (let month = 0; month < 7; month++) {
-                const interest = testRemaining * monthlyRate;
-                totalInterestFor7Months += interest;
-                const balanceWithInterest = testRemaining + interest;
-                
-                // Mensualité affichée : si le montant global est inférieur à la mensualité, c'est le montant global
-                let mensualite: number;
-                if (balanceWithInterest < monthlyPayment) {
-                    mensualite = balanceWithInterest; // La dernière mensualité = montant global (capital + intérêts)
-                } else {
-                    mensualite = monthlyPayment;
-                }
-                
-                totalMensualitesFor7Months += mensualite;
-                // Le paiement réel est la mensualité affichée
-                testRemaining = Math.max(0, balanceWithInterest - mensualite);
-                
-                if (testRemaining < 1) {
-                    testRemaining = 0;
-                }
-            }
-            
-            // Utiliser le solde calculé sur exactement 7 mois
-            remainingAtMaxDuration = testRemaining;
-            
-            // Mettre à jour les totaux avec les valeurs réelles
-            totalInterest = totalInterestFor7Months;
-            totalPaid = totalMensualitesFor7Months; // Somme des mensualités affichées (qui incluent déjà les intérêts)
-            
-            // Si au 7ème mois il reste un solde, calculer la mensualité minimale nécessaire
-            if (remainingAtMaxDuration > 0) {
+            // Si la durée calculée dépasse 7 mois, la simulation est invalide
+            if (duration > 7) {
                 isValid = false;
                 // Calculer la mensualité minimale pour rembourser en exactement 7 mois
-                // On utilise une recherche itérative pour trouver la bonne mensualité
                 let minPayment = monthlyPayment;
                 let maxPayment = amount * 2; // Limite supérieure raisonnable
                 let optimalPayment = maxPayment;
@@ -453,17 +422,25 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     let testRemaining = amount;
                     
                     for (let month = 0; month < maxDuration; month++) {
+                        if (testRemaining <= 0.01) break;
+                        
                         const interest = testRemaining * monthlyRate;
                         const balanceWithInterest = testRemaining + interest;
-                        const payment = Math.min(testPayment, balanceWithInterest);
-                        testRemaining = balanceWithInterest - payment;
+                        let payment: number;
+                        if (balanceWithInterest <= testPayment) {
+                            payment = balanceWithInterest;
+                            testRemaining = 0;
+                        } else {
+                            payment = testPayment;
+                            testRemaining = Math.max(0, balanceWithInterest - payment);
+                        }
                         
-                        if (testRemaining < 1) {
+                        if (testRemaining < 0.01) {
                             testRemaining = 0;
                         }
                     }
                     
-                    if (testRemaining <= 0) {
+                    if (testRemaining <= 0.01) {
                         optimalPayment = testPayment;
                         maxPayment = testPayment - 1;
                     } else {
@@ -475,8 +452,40 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 
                 suggestedMonthlyPayment = optimalPayment;
             } else {
-                // Si le solde est à 0 au 7ème mois, la simulation est valide
-                isValid = true;
+                // Si la durée est <= 7 mois, calculer le solde restant au 7ème mois (ou à la fin si remboursé avant)
+                let testRemaining = amount;
+                let calculatedDuration = 0;
+                
+                for (let month = 0; month < 7; month++) {
+                    if (testRemaining <= 0.01) {
+                        break;
+                    }
+                    
+                    const interest = testRemaining * monthlyRate;
+                    const balanceWithInterest = testRemaining + interest;
+                    
+                    let mensualite: number;
+                    if (balanceWithInterest <= monthlyPayment) {
+                        mensualite = balanceWithInterest;
+                        testRemaining = 0;
+                    } else {
+                        mensualite = monthlyPayment;
+                        testRemaining = Math.max(0, balanceWithInterest - mensualite);
+                    }
+                    
+                    calculatedDuration++;
+                    
+                    if (testRemaining < 0.01) {
+                        testRemaining = 0;
+                    }
+                    
+                    if (testRemaining <= 0.01) {
+                        break;
+                    }
+                }
+                
+                remainingAtMaxDuration = testRemaining;
+                isValid = remainingAtMaxDuration <= 0.01;
             }
         }
         

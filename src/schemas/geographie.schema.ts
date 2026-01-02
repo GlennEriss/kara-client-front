@@ -92,8 +92,7 @@ export const quarterSchema = z.object({
   name: z
     .string()
     .min(1, 'Le nom est requis')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
 })
 
 export type QuarterFormData = z.infer<typeof quarterSchema>
