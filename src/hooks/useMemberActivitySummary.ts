@@ -20,6 +20,19 @@ export interface ContractSummary {
   isUpToDate: boolean
   hasDelay: boolean
   contractLink: string
+  // Informations supplémentaires pour Caisse Spéciale
+  monthsPlanned?: number
+  currentMonthIndex?: number
+  nominalPaid?: number
+  bonusAccrued?: number
+  caisseType?: string
+  // Informations supplémentaires pour Caisse Imprévue
+  paymentFrequency?: 'DAILY' | 'MONTHLY'
+  totalMonthsPaid?: number
+  subscriptionCIDuration?: number
+  subscriptionCINominal?: number
+  isEligibleForSupport?: boolean
+  subscriptionCICode?: string
 }
 
 export interface CharitySummary {
@@ -154,6 +167,11 @@ async function fetchCaisseSpecialeContracts(memberId: string): Promise<ContractS
           isUpToDate,
           hasDelay,
           contractLink: `/caisse-speciale/contrats/${contract.id}`,
+          monthsPlanned: contract.monthsPlanned,
+          currentMonthIndex: contract.currentMonthIndex,
+          nominalPaid: contract.nominalPaid,
+          bonusAccrued: contract.bonusAccrued,
+          caisseType: contract.caisseType,
         })
       } catch (error) {
         console.error(`Erreur lors du traitement du contrat ${contract.id}:`, error)
@@ -243,6 +261,12 @@ async function fetchCaisseImprevueContracts(memberId: string): Promise<ContractS
           isUpToDate,
           hasDelay,
           contractLink: `/caisse-imprevue/contrats/${contract.id}`,
+          paymentFrequency: contract.paymentFrequency,
+          totalMonthsPaid: contract.totalMonthsPaid,
+          subscriptionCIDuration: contract.subscriptionCIDuration,
+          subscriptionCINominal: contract.subscriptionCINominal,
+          isEligibleForSupport: contract.isEligibleForSupport,
+          subscriptionCICode: contract.subscriptionCICode,
         })
       } catch (error) {
         console.error(`Erreur lors du traitement du contrat CI ${contract.id}:`, error)

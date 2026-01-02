@@ -40,6 +40,9 @@ export const caisseImprevueStep2Schema = z.object({
 
 // Schéma pour Step 3 : Contact d'urgence
 export const caisseImprevueStep3Schema = z.object({
+  // ID du membre si le contact d'urgence est un membre (optionnel)
+  memberId: z.string().optional(),
+  
   // Nom obligatoire
   lastName: z
     .string()
@@ -135,6 +138,7 @@ export const defaultCaisseImprevueStep2Values: Partial<CaisseImprevueStep2FormDa
 }
 
 export const defaultCaisseImprevueStep3Values: Partial<CaisseImprevueStep3FormData> = {
+  memberId: undefined,
   lastName: '',
   firstName: '',
   phone1: '',
