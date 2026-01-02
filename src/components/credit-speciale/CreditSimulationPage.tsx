@@ -38,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
 
 export default function CreditSimulationPage() {
   const [creditType, setCreditType] = useState<CreditType>('SPECIALE')
@@ -778,16 +779,6 @@ function CustomPaymentsInput({
   )
 }
 
-// Fonction d'arrondi personnalisée
-function customRound(value: number): number {
-  const decimal = value % 1
-  if (decimal < 0.5) {
-    return Math.floor(value)
-  } else {
-    return Math.ceil(value)
-  }
-}
-
 // Composant pour afficher les résultats de simulation standard
 function StandardSimulationResults({
   result,
@@ -802,54 +793,15 @@ function StandardSimulationResults({
 }) {
   const maxDuration = creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity
   
-  // Calculer l'échéancier
-  const schedule: Array<{
-    month: number
-    date: Date
-    payment: number
-    interest: number
-    principal: number
-    remaining: number
-  }> = []
-
-  let remaining = result.amount
-  const monthlyRate = result.interestRate / 100
-  const firstDate = new Date(result.firstPaymentDate)
-  const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : result.duration)
-
-  for (let i = 0; i < maxIterations; i++) {
-    const date = new Date(firstDate)
-    date.setMonth(date.getMonth() + i)
-    
-    if (remaining <= 0) {
-      break
-    }
-    
-    const interest = remaining * monthlyRate
-    const balanceWithInterest = remaining + interest
-    
-    let payment: number
-    
-    if (result.monthlyPayment > balanceWithInterest) {
-      payment = balanceWithInterest
-      remaining = 0
-    } else if (remaining < result.monthlyPayment) {
-      payment = remaining
-      remaining = 0
-    } else {
-      payment = result.monthlyPayment
-      remaining = Math.max(0, balanceWithInterest - payment)
-    }
-
-    schedule.push({
-      month: i + 1,
-      date,
-      payment: customRound(payment),
-      interest: customRound(interest),
-      principal: customRound(balanceWithInterest),
-      remaining: customRound(remaining),
-    })
-  }
+  // Calculer l'échéancier en utilisant la fonction utilitaire partagée
+  const maxIterations = isProposed ? result.duration : (creditType === 'SPECIALE' ? 7 : creditType === 'AIDE' ? 3 : Infinity)
+  const schedule = calculateScheduleUtil({
+    amount: result.amount,
+    interestRate: result.interestRate,
+    monthlyPayment: result.monthlyPayment,
+    firstPaymentDate: new Date(result.firstPaymentDate),
+    maxDuration: maxIterations,
+  })
   
   const displayDuration = schedule.length
   const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)

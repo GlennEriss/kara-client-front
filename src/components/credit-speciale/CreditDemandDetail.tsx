@@ -43,6 +43,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Percent, Users, Phone, ExternalLink } from 'lucide-react'
+import MemberActivitySummary from './MemberActivitySummary'
+import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
 
 interface CreditDemandDetailProps {
   demand: CreditDemand
@@ -64,16 +66,6 @@ const getCreditTypeLabel = (type: string) => {
     AIDE: 'Aide',
   }
   return labels[type] || type
-}
-
-// Fonction d'arrondi personnalisée
-const customRound = (num: number): number => {
-  const decimalPart = num - Math.floor(num)
-  if (decimalPart >= 0.5) {
-    return Math.ceil(num)
-  } else {
-    return Math.floor(num)
-  }
 }
 
 export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) {
@@ -133,63 +125,13 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
 
   // Calculer l'échéancier à partir du contrat
   const calculateSchedule = (contract: CreditContract, duration?: number, monthlyPayment?: number) => {
-    const monthlyRate = contract.interestRate / 100
-    const firstDate = new Date(contract.firstPaymentDate)
-    const paymentAmount = monthlyPayment || contract.monthlyPaymentAmount
-    const maxDuration = duration || contract.duration
-    
-    let remaining = contract.amount
-    const items: Array<{
-      month: number
-      date: Date
-      payment: number
-      interest: number
-      principal: number
-      remaining: number
-    }> = []
-
-    for (let i = 0; i < maxDuration; i++) {
-      if (remaining <= 0) break
-
-      const date = new Date(firstDate)
-      date.setMonth(date.getMonth() + i)
-      
-      // 1. Calcul des intérêts sur le solde actuel
-      const interest = remaining * monthlyRate
-      // 2. Montant global = reste dû + intérêts
-      const balanceWithInterest = remaining + interest
-
-      // 3. Versement effectué (même logique que dans CreditSimulationModal)
-      let payment: number
-      
-      if (paymentAmount > balanceWithInterest) {
-        // Si la mensualité prédéfinie est supérieure au montant global,
-        // la mensualité affichée doit être le montant global (capital + intérêts)
-        payment = balanceWithInterest
-        remaining = 0
-      } else if (remaining < paymentAmount) {
-        // Le reste dû est inférieur à la mensualité souhaitée
-        // La mensualité affichée = reste dû (sans intérêts)
-        payment = remaining
-        remaining = 0
-      } else {
-        // Le reste dû est supérieur ou égal à la mensualité souhaitée
-        payment = paymentAmount
-        // 4. Nouveau solde après versement
-        remaining = Math.max(0, balanceWithInterest - payment)
-      }
-
-      items.push({
-        month: i + 1,
-        date,
-        payment: customRound(payment), // Montant total à payer (capital + intérêts) - affiché dans "Mensualité"
-        interest: customRound(interest), // Intérêts - affiché dans "Intérêts"
-        principal: customRound(balanceWithInterest), // Montant global avant paiement - affiché dans "Montant global"
-        remaining: customRound(remaining), // Reste dû après paiement
-      })
-    }
-
-    return items
+    return calculateScheduleUtil({
+      amount: contract.amount,
+      interestRate: contract.interestRate,
+      monthlyPayment: monthlyPayment || contract.monthlyPaymentAmount,
+      firstPaymentDate: new Date(contract.firstPaymentDate),
+      maxDuration: duration || contract.duration,
+    })
   }
 
   // Calculer l'échéancier de référence (même logique que dans CreditSimulationModal)
@@ -419,6 +361,24 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Résumé des activités du demandeur */}
+        {demand.clientId && (
+          <MemberActivitySummary
+            memberId={demand.clientId}
+            memberName={`${demand.clientFirstName} ${demand.clientLastName}`}
+            isGuarantor={false}
+          />
+        )}
+
+        {/* Résumé des activités du garant */}
+        {demand.guarantorId && demand.guarantorIsMember && (
+          <MemberActivitySummary
+            memberId={demand.guarantorId}
+            memberName={`${demand.guarantorFirstName} ${demand.guarantorLastName}`}
+            isGuarantor={true}
+          />
         )}
 
         {/* Motif d'approbation ou de rejet */}
