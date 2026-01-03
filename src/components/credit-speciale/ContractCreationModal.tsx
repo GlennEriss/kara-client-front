@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { CreditDemand, StandardSimulation, CustomSimulation } from '@/types/types'
 import { EmergencyContact } from '@/schemas/emergency-contact.schema'
-import EmergencyContactForm from '@/components/caisse-speciale/forms/EmergencyContactForm'
+import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import { useCreditContractMutations } from '@/hooks/useCreditSpeciale'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -607,18 +607,18 @@ export default function ContractCreationModal({
               <p className="text-gray-600 text-sm">Renseignez une personne à contacter en cas d'urgence</p>
             </div>
 
-            <EmergencyContactForm
-              emergencyContact={{
-                lastName: emergencyContact.lastName || '',
-                firstName: emergencyContact.firstName || '',
-                phone1: emergencyContact.phone1 || '',
-                phone2: emergencyContact.phone2 || '',
-                relationship: emergencyContact.relationship || 'Autre',
-                idNumber: emergencyContact.idNumber || '',
-                typeId: emergencyContact.typeId || '',
-                documentPhotoUrl: emergencyContact.documentPhotoUrl || '',
-              }}
+            <EmergencyContactMemberSelector
+              memberId={emergencyContact.memberId}
+              lastName={emergencyContact.lastName || ''}
+              firstName={emergencyContact.firstName || ''}
+              phone1={emergencyContact.phone1 || ''}
+              phone2={emergencyContact.phone2 || ''}
+              relationship={emergencyContact.relationship || 'Autre'}
+              idNumber={emergencyContact.idNumber || ''}
+              typeId={emergencyContact.typeId || ''}
+              documentPhotoUrl={emergencyContact.documentPhotoUrl || ''}
               onUpdate={handleEmergencyContactUpdate}
+              excludeMemberIds={demand.clientId ? [demand.clientId] : []}
             />
           </div>
         )
