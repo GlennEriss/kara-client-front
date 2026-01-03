@@ -25,6 +25,7 @@ export const creditDemandSchema = z.object({
   monthlyPaymentAmount: z.number()
     .min(100, 'La mensualité minimum est de 100 FCFA')
     .optional(),
+  desiredDate: z.string().min(1, 'La date souhaitée est requise'),
   cause: z.string()
     .min(10, 'La cause doit contenir au moins 10 caractères')
     .max(500, 'La cause ne peut pas dépasser 500 caractères'),
@@ -119,6 +120,7 @@ export const creditDemandFormSchema = z.object({
   monthlyPaymentAmount: z.number()
     .min(100, 'La mensualité minimum est de 100 FCFA')
     .optional(),
+  desiredDate: z.string().min(1, 'La date souhaitée est requise'),
   cause: z.string()
     .min(10, 'La cause doit contenir au moins 10 caractères')
     .max(500, 'La cause ne peut pas dépasser 500 caractères'),
@@ -369,6 +371,7 @@ export const creditDemandDefaultValues: Partial<CreditDemandFormInput> = {
   status: 'PENDING',
   guarantorIsMember: false,
   clientContacts: [],
+  desiredDate: new Date().toISOString().split('T')[0], // Date du jour par défaut
 }
 
 export const creditPaymentDefaultValues: Partial<CreditPaymentFormData> = {
