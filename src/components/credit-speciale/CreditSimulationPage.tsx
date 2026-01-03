@@ -27,7 +27,10 @@ import {
   AlertTriangle, 
   CheckCircle, 
   TrendingUp,
-  Table as TableIcon
+  Table as TableIcon,
+  Download,
+  Printer,
+  MessageCircle
 } from 'lucide-react'
 import type { CreditType, StandardSimulation, CustomSimulation } from '@/types/types'
 import {
@@ -805,6 +808,7 @@ function StandardSimulationResults({
   
   const displayDuration = schedule.length
   const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
+  const calculatedTotalInterest = schedule.reduce((sum, row) => sum + row.interest, 0)
   const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
 
   const calculateReferenceSchedule = () => {
@@ -828,24 +832,296 @@ function StandardSimulationResults({
       month: number
       date: Date
       payment: number
+      interest: number
     }> = []
 
+    let remaining = result.amount
     for (let i = 0; i < 7; i++) {
       const date = new Date(refFirstDate)
       date.setMonth(date.getMonth() + i)
+      
+      const interest = remaining * monthlyRate
+      const balanceWithInterest = remaining + interest
       
       referenceSchedule.push({
         month: i + 1,
         date,
         payment: monthlyPaymentRef,
+        interest: customRound(interest),
       })
+      
+      remaining = Math.max(0, balanceWithInterest - monthlyPaymentRef)
     }
     return referenceSchedule
   }
 
   const referenceSchedule = calculateReferenceSchedule()
   const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
+  const referenceTotalInterest = referenceSchedule.reduce((sum, row) => sum + row.interest, 0)
   const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
+
+  // Fonction pour formater les nombres avec des espaces normaux (pas d'espaces insécables)
+  const formatNumberForPDF = (value: number): string => {
+    return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
+  // Fonction pour télécharger l'échéancier calculé en PDF
+  const handleDownloadCalculatedPDF = async () => {
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape', 'mm', 'a4')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.setTextColor(35, 77, 101)
+      doc.text('Échéancier calculé', 14, 14)
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Montant: ${formatNumberForPDF(result.amount)} FCFA | Durée: ${displayDuration} mois | Mensualité: ${formatNumberForPDF(result.monthlyPayment)} FCFA`, 14, 20)
+      doc.text(`Fait le ${new Date().toLocaleDateString('fr-FR')}`, 14, 25)
+
+      // Préparer les données du tableau
+      const tableData = schedule
+        .filter(row => row.payment > 0)
+        .map((row) => [
+          `M${row.month}`,
+          row.date.toLocaleDateString('fr-FR'),
+          formatNumberForPDF(row.payment),
+          formatNumberForPDF(row.interest),
+          formatNumberForPDF(row.principal),
+          formatNumberForPDF(row.remaining)
+        ])
+
+      autoTable(doc, {
+        head: [['Mois', 'Date', 'Mensualité (FCFA)', 'Intérêts (FCFA)', 'Montant global (FCFA)', 'Reste dû (FCFA)']],
+        body: tableData,
+        startY: 30,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 45, halign: 'right' },
+          3: { cellWidth: 45, halign: 'right' },
+          4: { cellWidth: 50, halign: 'right' },
+          5: { cellWidth: 50, halign: 'right' }
+        }
+      })
+
+      doc.save(`echeancier_calcule_${new Date().toISOString().slice(0, 10)}.pdf`)
+      toast.success('PDF téléchargé avec succès')
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error)
+      toast.error('Erreur lors de la génération du PDF')
+    }
+  }
+
+  // Fonction pour télécharger l'échéancier référence en PDF
+  const handleDownloadReferencePDF = async () => {
+    if (creditType !== 'SPECIALE' || maxDuration !== 7) return
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape', 'mm', 'a4')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.setTextColor(35, 77, 101)
+      doc.text('Échéancier référence', 14, 14)
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Montant: ${formatNumberForPDF(result.amount)} FCFA | Durée: 7 mois | Mensualité: ${formatNumberForPDF(customRound(referenceAverageMonthly))} FCFA`, 14, 20)
+      doc.text(`Fait le ${new Date().toLocaleDateString('fr-FR')}`, 14, 25)
+
+      // Préparer les données du tableau
+      const tableData = referenceSchedule.map((row) => [
+        `M${row.month}`,
+        row.date.toLocaleDateString('fr-FR'),
+        formatNumberForPDF(row.payment)
+      ])
+
+      autoTable(doc, {
+        head: [['Mois', 'Date', 'Mensualité (FCFA)']],
+        body: tableData,
+        startY: 30,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 70, halign: 'right' }
+        }
+      })
+
+      doc.save(`echeancier_reference_${new Date().toISOString().slice(0, 10)}.pdf`)
+      toast.success('PDF téléchargé avec succès')
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error)
+      toast.error('Erreur lors de la génération du PDF')
+    }
+  }
+
+  // Fonction pour imprimer l'échéancier calculé
+  const handlePrintCalculated = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const tableHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Échéancier calculé</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #234D65; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #234D65; color: white; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            .text-right { text-align: right; }
+            @media print {
+              body { margin: 0; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Échéancier calculé (${displayDuration} mois)</h1>
+          <p><strong>Montant:</strong> ${result.amount.toLocaleString('fr-FR')} FCFA | <strong>Durée:</strong> ${displayDuration} mois | <strong>Mensualité:</strong> ${result.monthlyPayment.toLocaleString('fr-FR')} FCFA</p>
+          <p><strong>Fait le:</strong> ${new Date().toLocaleDateString('fr-FR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Mois</th>
+                <th>Date</th>
+                <th class="text-right">Mensualité (FCFA)</th>
+                <th class="text-right">Intérêts (FCFA)</th>
+                <th class="text-right">Montant global (FCFA)</th>
+                <th class="text-right">Reste dû (FCFA)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${schedule
+                .filter(row => row.payment > 0)
+                .map((row) => `
+                  <tr>
+                    <td>M${row.month}</td>
+                    <td>${row.date.toLocaleDateString('fr-FR')}</td>
+                    <td class="text-right">${row.payment.toLocaleString('fr-FR')}</td>
+                    <td class="text-right">${row.interest.toLocaleString('fr-FR')}</td>
+                    <td class="text-right">${row.principal.toLocaleString('fr-FR')}</td>
+                    <td class="text-right">${row.remaining.toLocaleString('fr-FR')}</td>
+                  </tr>
+                `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+    printWindow.document.write(tableHTML)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 250)
+  }
+
+  // Fonction pour partager l'échéancier calculé sur WhatsApp
+  const handleShareWhatsAppCalculated = () => {
+    const filteredSchedule = schedule.filter(row => row.payment > 0)
+    
+    // Construire le message formaté
+    let message = `📊 *ÉCHÉANCIER DE CRÉDIT*\n\n`
+    message += `💰 Montant: ${formatNumberForPDF(result.amount)} FCFA\n`
+    message += `📅 Durée: ${displayDuration} mois\n`
+    message += `💵 Mensualité: ${formatNumberForPDF(result.monthlyPayment)} FCFA\n`
+    message += `📆 Fait le: ${new Date().toLocaleDateString('fr-FR')}\n\n`
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`
+    message += `*DÉTAIL DES ÉCHÉANCES*\n`
+    message += `━━━━━━━━━━━━━━━━━━━━━\n\n`
+    
+    filteredSchedule.forEach((row) => {
+      message += `📌 *Mois ${row.month}* (${row.date.toLocaleDateString('fr-FR')})\n`
+      message += `   • Mensualité: ${formatNumberForPDF(row.payment)} FCFA\n`
+      message += `   • Intérêts: ${formatNumberForPDF(row.interest)} FCFA\n`
+      message += `   • Montant global: ${formatNumberForPDF(row.principal)} FCFA\n`
+      message += `   • Reste dû: ${formatNumberForPDF(row.remaining)} FCFA\n\n`
+    })
+    
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`
+    message += `💰 *Total à rembourser: ${formatNumberForPDF(customRound(calculatedTotalAmount))} FCFA*\n`
+    message += `📈 *Total intérêts: ${formatNumberForPDF(customRound(calculatedTotalInterest))} FCFA*`
+    
+    // Encoder le message pour l'URL WhatsApp
+    const encodedMessage = encodeURIComponent(message)
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`
+    
+    // Ouvrir WhatsApp dans un nouvel onglet
+    window.open(whatsappUrl, '_blank')
+  }
+
+  // Fonction pour imprimer l'échéancier référence
+  const handlePrintReference = () => {
+    if (creditType !== 'SPECIALE' || maxDuration !== 7) return
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const tableHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Échéancier référence</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #234D65; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #234D65; color: white; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            .text-right { text-align: right; }
+            @media print {
+              body { margin: 0; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Échéancier référence (7 mois)</h1>
+          <p><strong>Montant:</strong> ${result.amount.toLocaleString('fr-FR')} FCFA | <strong>Durée:</strong> 7 mois | <strong>Mensualité:</strong> ${customRound(referenceAverageMonthly).toLocaleString('fr-FR')} FCFA</p>
+          <p><strong>Fait le:</strong> ${new Date().toLocaleDateString('fr-FR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Mois</th>
+                <th>Date</th>
+                <th class="text-right">Mensualité (FCFA)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${referenceSchedule.map((row) => `
+                <tr>
+                  <td>M${row.month}</td>
+                  <td>${row.date.toLocaleDateString('fr-FR')}</td>
+                  <td class="text-right">${row.payment.toLocaleString('fr-FR')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+    printWindow.document.write(tableHTML)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 250)
+  }
 
   return (
     <Card>
@@ -899,6 +1175,12 @@ function StandardSimulationResults({
                   <div className="text-xs text-gray-600">Mensualité</div>
                   <div className="text-xl font-bold text-purple-900">
                     {result.monthlyPayment.toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Total intérêts</div>
+                  <div className="text-xl font-bold text-yellow-900">
+                    {customRound(calculatedTotalInterest).toLocaleString('fr-FR')} FCFA
                   </div>
                 </div>
                 <div className="p-3 bg-orange-50 rounded-lg">
@@ -984,10 +1266,41 @@ function StandardSimulationResults({
         <div className="space-y-6">
           {/* Tableau calculé */}
           <div>
-            <h4 className="font-semibold mb-3 flex items-center gap-2">
-              <TableIcon className="h-4 w-4" />
-              Échéancier calculé ({schedule.filter(row => row.payment > 0).length} mois)
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <TableIcon className="h-4 w-4" />
+                Échéancier calculé ({schedule.filter(row => row.payment > 0).length} mois)
+              </h4>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadCalculatedPDF}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Télécharger PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintCalculated}
+                  className="gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimer
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShareWhatsAppCalculated}
+                  className="gap-2 bg-green-50 hover:bg-green-100 border-green-300 text-green-700"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </Button>
+              </div>
+            </div>
             <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1020,11 +1333,33 @@ function StandardSimulationResults({
 
           {/* Tableau référence 7 mois (pour crédit spéciale uniquement) */}
           {creditType === 'SPECIALE' && maxDuration === 7 && (
-            <div className="lg:max-w-md">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <TableIcon className="h-4 w-4" />
-                Échéancier référence (7 mois)
-              </h4>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <TableIcon className="h-4 w-4" />
+                  Échéancier référence (7 mois)
+                </h4>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadReferencePDF}
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Télécharger PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrintReference}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimer
+                  </Button>
+                </div>
+              </div>
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -1102,6 +1437,7 @@ function CustomSimulationResults({
     month: number
     date: Date
     payment: number
+    interest?: number
   }> = []
 
   if (maxDuration !== Infinity) {
@@ -1116,22 +1452,285 @@ function CustomSimulationResults({
       ? Math.ceil(monthlyPaymentRaw) 
       : Math.floor(monthlyPaymentRaw)
     
+    let remaining = result.amount
     for (let i = 0; i < maxDuration; i++) {
       const date = new Date(firstDate)
       date.setMonth(date.getMonth() + i)
+      
+      const interest = remaining * monthlyRate
+      const balanceWithInterest = remaining + interest
       
       referenceSchedule.push({
         month: i + 1,
         date,
         payment: monthlyPaymentRef,
+        interest: customRound(interest),
       })
+      
+      remaining = Math.max(0, balanceWithInterest - monthlyPaymentRef)
     }
   }
 
   const calculatedTotalAmount = schedule.reduce((sum, row) => sum + row.payment, 0)
+  const calculatedTotalInterest = schedule.reduce((sum, row) => sum + row.interest, 0)
   const calculatedAverageMonthly = schedule.length > 0 ? calculatedTotalAmount / schedule.length : 0
   const referenceTotalAmount = referenceSchedule.reduce((sum, row) => sum + row.payment, 0)
+  const referenceTotalInterest = referenceSchedule.reduce((sum, row) => sum + (row.interest || 0), 0)
   const referenceAverageMonthly = referenceSchedule.length > 0 ? referenceTotalAmount / referenceSchedule.length : 0
+
+  // Fonction pour formater les nombres avec des espaces normaux (pas d'espaces insécables)
+  const formatNumberForPDF = (value: number): string => {
+    return Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
+  // Fonction pour télécharger l'échéancier personnalisé en PDF
+  const handleDownloadCustomPDF = async () => {
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape', 'mm', 'a4')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.setTextColor(35, 77, 101)
+      doc.text('Échéancier personnalisé', 14, 14)
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Montant: ${formatNumberForPDF(result.amount)} FCFA | Durée: ${schedule.length} mois`, 14, 20)
+      doc.text(`Fait le ${new Date().toLocaleDateString('fr-FR')}`, 14, 25)
+
+      // Préparer les données du tableau
+      const tableData = schedule.map((row) => [
+        `M${row.month}`,
+        row.date.toLocaleDateString('fr-FR'),
+        formatNumberForPDF(customRound(row.payment)),
+        formatNumberForPDF(customRound(row.interest)),
+        formatNumberForPDF(customRound(row.principal)),
+        formatNumberForPDF(customRound(row.remaining))
+      ])
+
+      autoTable(doc, {
+        head: [['Mois', 'Date', 'Mensualité (FCFA)', 'Intérêts (FCFA)', 'Montant global (FCFA)', 'Reste dû (FCFA)']],
+        body: tableData,
+        startY: 30,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 45, halign: 'right' },
+          3: { cellWidth: 45, halign: 'right' },
+          4: { cellWidth: 50, halign: 'right' },
+          5: { cellWidth: 50, halign: 'right' }
+        }
+      })
+
+      doc.save(`echeancier_personnalise_${new Date().toISOString().slice(0, 10)}.pdf`)
+      toast.success('PDF téléchargé avec succès')
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error)
+      toast.error('Erreur lors de la génération du PDF')
+    }
+  }
+
+  // Fonction pour télécharger l'échéancier référence en PDF (simulation personnalisée)
+  const handleDownloadReferencePDFCustom = async () => {
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape', 'mm', 'a4')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.setTextColor(35, 77, 101)
+      doc.text('Échéancier référence', 14, 14)
+      doc.setFontSize(10)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Montant: ${formatNumberForPDF(result.amount)} FCFA | Durée: ${maxDuration} mois | Mensualité: ${formatNumberForPDF(customRound(referenceAverageMonthly))} FCFA`, 14, 20)
+      doc.text(`Fait le ${new Date().toLocaleDateString('fr-FR')}`, 14, 25)
+
+      // Préparer les données du tableau
+      const tableData = referenceSchedule.map((row) => [
+        `M${row.month}`,
+        row.date.toLocaleDateString('fr-FR'),
+        formatNumberForPDF(row.payment)
+      ])
+
+      autoTable(doc, {
+        head: [['Mois', 'Date', 'Mensualité (FCFA)']],
+        body: tableData,
+        startY: 30,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 70, halign: 'right' }
+        }
+      })
+
+      doc.save(`echeancier_reference_${new Date().toISOString().slice(0, 10)}.pdf`)
+      toast.success('PDF téléchargé avec succès')
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error)
+      toast.error('Erreur lors de la génération du PDF')
+    }
+  }
+
+  // Fonction pour imprimer l'échéancier personnalisé
+  const handlePrintCustom = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const tableHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Échéancier personnalisé</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #234D65; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #234D65; color: white; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            .text-right { text-align: right; }
+            @media print {
+              body { margin: 0; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Échéancier personnalisé</h1>
+          <p><strong>Montant:</strong> ${result.amount.toLocaleString('fr-FR')} FCFA | <strong>Durée:</strong> ${schedule.length} mois</p>
+          <p><strong>Fait le:</strong> ${new Date().toLocaleDateString('fr-FR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Mois</th>
+                <th>Date</th>
+                <th class="text-right">Mensualité (FCFA)</th>
+                <th class="text-right">Intérêts (FCFA)</th>
+                <th class="text-right">Montant global (FCFA)</th>
+                <th class="text-right">Reste dû (FCFA)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${schedule.map((row) => `
+                <tr>
+                  <td>M${row.month}</td>
+                  <td>${row.date.toLocaleDateString('fr-FR')}</td>
+                  <td class="text-right">${customRound(row.payment).toLocaleString('fr-FR')}</td>
+                  <td class="text-right">${customRound(row.interest).toLocaleString('fr-FR')}</td>
+                  <td class="text-right">${customRound(row.principal).toLocaleString('fr-FR')}</td>
+                  <td class="text-right">${customRound(row.remaining).toLocaleString('fr-FR')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+    printWindow.document.write(tableHTML)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 250)
+  }
+
+  // Fonction pour partager l'échéancier personnalisé sur WhatsApp
+  const handleShareWhatsAppCustom = () => {
+    // Construire le message formaté
+    let message = `📊 *ÉCHÉANCIER DE CRÉDIT PERSONNALISÉ*\n\n`
+    message += `💰 Montant: ${formatNumberForPDF(result.amount)} FCFA\n`
+    message += `📅 Durée: ${schedule.length} mois\n`
+    message += `📆 Fait le: ${new Date().toLocaleDateString('fr-FR')}\n\n`
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`
+    message += `*DÉTAIL DES ÉCHÉANCES*\n`
+    message += `━━━━━━━━━━━━━━━━━━━━━\n\n`
+    
+    schedule.forEach((row) => {
+      message += `📌 *Mois ${row.month}* (${row.date.toLocaleDateString('fr-FR')})\n`
+      message += `   • Mensualité: ${formatNumberForPDF(customRound(row.payment))} FCFA\n`
+      message += `   • Intérêts: ${formatNumberForPDF(customRound(row.interest))} FCFA\n`
+      message += `   • Montant global: ${formatNumberForPDF(customRound(row.principal))} FCFA\n`
+      message += `   • Reste dû: ${formatNumberForPDF(customRound(row.remaining))} FCFA\n\n`
+    })
+    
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`
+    message += `💰 *Total à rembourser: ${formatNumberForPDF(customRound(calculatedTotalAmount))} FCFA*\n`
+    message += `📈 *Total intérêts: ${formatNumberForPDF(customRound(calculatedTotalInterest))} FCFA*`
+    
+    // Encoder le message pour l'URL WhatsApp
+    const encodedMessage = encodeURIComponent(message)
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`
+    
+    // Ouvrir WhatsApp dans un nouvel onglet
+    window.open(whatsappUrl, '_blank')
+  }
+
+  // Fonction pour imprimer l'échéancier référence (simulation personnalisée)
+  const handlePrintReferenceCustom = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const tableHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Échéancier référence</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #234D65; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #234D65; color: white; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            .text-right { text-align: right; }
+            @media print {
+              body { margin: 0; }
+              @page { margin: 1cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Échéancier référence (${maxDuration} mois)</h1>
+          <p><strong>Montant:</strong> ${result.amount.toLocaleString('fr-FR')} FCFA | <strong>Durée:</strong> ${maxDuration} mois | <strong>Mensualité:</strong> ${customRound(referenceAverageMonthly).toLocaleString('fr-FR')} FCFA</p>
+          <p><strong>Fait le:</strong> ${new Date().toLocaleDateString('fr-FR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Mois</th>
+                <th>Date</th>
+                <th class="text-right">Mensualité (FCFA)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${referenceSchedule.map((row) => `
+                <tr>
+                  <td>M${row.month}</td>
+                  <td>${row.date.toLocaleDateString('fr-FR')}</td>
+                  <td class="text-right">${row.payment.toLocaleString('fr-FR')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+    printWindow.document.write(tableHTML)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 250)
+  }
 
   return (
     <Card>
@@ -1185,6 +1784,12 @@ function CustomSimulationResults({
                   <div className="text-xs text-gray-600">Mensualité</div>
                   <div className="text-xl font-bold text-purple-900">
                     {customRound(calculatedAverageMonthly).toLocaleString('fr-FR')} FCFA
+                  </div>
+                </div>
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <div className="text-xs text-gray-600">Total intérêts</div>
+                  <div className="text-xl font-bold text-yellow-900">
+                    {customRound(calculatedTotalInterest).toLocaleString('fr-FR')} FCFA
                   </div>
                 </div>
                 <div className="p-3 bg-orange-50 rounded-lg">
@@ -1251,10 +1856,41 @@ function CustomSimulationResults({
         <div className="space-y-6">
           {/* Tableau personnalisé */}
           <div>
-            <h4 className="font-semibold mb-3 flex items-center gap-2">
-              <TableIcon className="h-4 w-4" />
-              Échéancier personnalisé
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <TableIcon className="h-4 w-4" />
+                Échéancier personnalisé
+              </h4>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadCustomPDF}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Télécharger PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrintCustom}
+                  className="gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimer
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShareWhatsAppCustom}
+                  className="gap-2 bg-green-50 hover:bg-green-100 border-green-300 text-green-700"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </Button>
+              </div>
+            </div>
             <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1285,11 +1921,33 @@ function CustomSimulationResults({
 
           {/* Échéancier référence (maxDuration mois) */}
           {maxDuration !== Infinity && (
-            <div className="lg:max-w-md">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <TableIcon className="h-4 w-4" />
-                Échéancier référence ({maxDuration} mois)
-              </h4>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <TableIcon className="h-4 w-4" />
+                  Échéancier référence ({maxDuration} mois)
+                </h4>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadReferencePDFCustom}
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Télécharger PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrintReferenceCustom}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimer
+                  </Button>
+                </div>
+              </div>
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>

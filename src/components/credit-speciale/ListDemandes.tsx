@@ -854,6 +854,22 @@ const ListDemandes = () => {
                       </span>
                     </div>
 
+                    {demande.desiredDate && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500 flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5" />
+                          Date souhaitée:
+                        </span>
+                        <span className="font-medium text-gray-900">
+                          {new Date(demande.desiredDate).toLocaleDateString('fr-FR', { 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                    )}
+
                     {demande.guarantorId && (
                       <GuarantorInfo 
                         guarantorId={demande.guarantorId}
