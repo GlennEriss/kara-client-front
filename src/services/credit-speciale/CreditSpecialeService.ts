@@ -769,9 +769,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
         // Ne plus utiliser les installments - calculer directement à partir des paiements
         // Récupérer tous les paiements existants pour calculer le reste dû
+        // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pénalités uniquement ou paiement de 0)
         const allPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
         const realPayments = allPayments.filter(p => 
-            p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+            p.amount > 0 || 
+            p.comment?.includes('Paiement de pénalités uniquement') ||
+            p.comment?.includes('Paiement de 0 FCFA')
         );
         
         // Calculer le montant total payé et le reste dû en appliquant la formule
@@ -798,8 +801,10 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const totalWithInterest = remaining + interestBeforePayment;
         
         // Calculer combien d'intérêts et de principal sont payés par ce paiement
+        // Un paiement de 0 FCFA peut être soit un paiement de pénalités uniquement, soit un paiement de 0 FCFA normal
         const isPenaltyOnlyPayment = data.amount === 0 && data.comment?.includes('Paiement de pénalités uniquement');
-        const paymentAmount = isPenaltyOnlyPayment ? 0 : data.amount;
+        const isZeroPayment = data.amount === 0 && (data.comment?.includes('Paiement de 0 FCFA') || isPenaltyOnlyPayment);
+        const paymentAmount = isZeroPayment ? 0 : data.amount;
         
         // Payer d'abord les intérêts, puis le principal
         const interestPart = Math.min(paymentAmount, interestBeforePayment);
@@ -864,14 +869,18 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         }
 
         // Calculer et créer les pénalités si nécessaire (basé sur les paiements, pas les installments)
-        if (!isPenaltyOnlyPayment && paymentAmount > 0) {
+        // Ne pas créer de pénalités pour les paiements de 0 FCFA
+        if (!isZeroPayment && paymentAmount > 0) {
             await this.checkAndCreatePenalties(contract.id, payment);
         }
 
         // Recalculer le montant total payé et restant à partir de tous les paiements
+        // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pénalités uniquement ou paiement de 0)
         const updatedPayments = await this.creditPaymentRepository.getPaymentsByCreditId(contract.id);
         const updatedRealPayments = updatedPayments.filter(p => 
-            p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+            p.amount > 0 || 
+            p.comment?.includes('Paiement de pénalités uniquement') ||
+            p.comment?.includes('Paiement de 0 FCFA')
         );
         
         // Recalculer le reste dû avec tous les paiements
@@ -1348,9 +1357,12 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             return;
         }
 
-        // Ignorer les paiements de pénalités uniquement
-        if (payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement')) {
-            console.log('[checkAndCreatePenalties] Paiement de pénalités uniquement, ignoré');
+        // Ignorer les paiements de 0 FCFA (pénalités uniquement ou paiement de 0)
+        if (payment.amount === 0 && (
+            payment.comment?.includes('Paiement de pénalités uniquement') ||
+            payment.comment?.includes('Paiement de 0 FCFA')
+        )) {
+            console.log('[checkAndCreatePenalties] Paiement de 0 FCFA, ignoré');
             return;
         }
 

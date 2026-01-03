@@ -351,9 +351,10 @@ export default function CreditPaymentModal({
       return
     }
 
-    // Validation : si mode normal, le montant doit être > 0 (sauf si pénalités sélectionnées)
-    if (!penaltyOnlyMode && data.amount <= 0 && selectedPenalties.length === 0) {
-      toast.error('Le montant doit être supérieur à 0 ou sélectionnez des pénalités')
+    // Validation : si mode normal, le montant doit être >= 0 (sauf si pénalités sélectionnées)
+    // Permettre 0 pour les paiements de pénalités uniquement
+    if (!penaltyOnlyMode && data.amount < 0 && selectedPenalties.length === 0) {
+      toast.error('Le montant ne peut pas être négatif')
       return
     }
 
@@ -366,6 +367,15 @@ export default function CreditPaymentModal({
         ? (penaltyNote ?? 10) // Note par défaut 10 pour pénalités si non spécifiée
         : (data.note ?? 10) // Note par défaut 10 pour paiement normal si non spécifiée
       
+      // Si le montant est 0, ajouter automatiquement un commentaire pour que le paiement soit correctement traité
+      let finalComment = data.comment;
+      if (data.amount === 0 && !penaltyOnlyMode) {
+        // Montant de 0 sans pénalités : ajouter un commentaire explicite
+        finalComment = `Paiement de 0 FCFA${data.comment ? ` - ${data.comment}` : ''}`;
+      } else if (penaltyOnlyMode) {
+        finalComment = `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`;
+      }
+
       const paymentData = {
         ...data,
         amount: penaltyOnlyMode ? 0 : data.amount, // Montant à 0 si mode pénalités uniquement
@@ -373,9 +383,7 @@ export default function CreditPaymentModal({
         interestAmount: 0, // Sera calculé par le service
         penaltyAmount: totalSelectedPenalties, // Montant des pénalités sélectionnées
         note: finalNote,
-        comment: penaltyOnlyMode
-          ? `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`
-          : data.comment,
+        comment: finalComment,
         createdBy: user.uid,
         installmentId: installmentId, // Passer l'ID de l'échéance spécifique
       };
@@ -538,7 +546,7 @@ export default function CreditPaymentModal({
                   id="amount"
                   type="number"
                   step="0.01"
-                  min="100"
+                  min="0"
                   {...form.register('amount', { valueAsNumber: true })}
                   required
                 />

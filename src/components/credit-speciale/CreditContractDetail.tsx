@@ -416,8 +416,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     const paymentsByMonth = new Map<number, number>()
     
     // Filtrer les paiements de mensualités
+    // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite (pas seulement pénalités uniquement)
     const realPayments = payments.filter(p => 
-      p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement')
+      p.amount > 0 || 
+      p.comment?.includes('Paiement de 0 FCFA') ||
+      (!p.comment?.includes('Paiement de pénalités uniquement') && p.amount === 0)
     )
 
     for (const payment of realPayments) {
@@ -447,6 +450,36 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     }
 
     return paymentsByMonth
+  }
+
+  // Fonction pour vérifier s'il y a un paiement (même de 0 FCFA) pour un mois donné
+  const hasPaymentForMonth = (month: number): boolean => {
+    const realPayments = payments.filter(p => 
+      p.amount > 0 || 
+      p.comment?.includes('Paiement de 0 FCFA') ||
+      (!p.comment?.includes('Paiement de pénalités uniquement') && p.amount === 0)
+    )
+
+    return realPayments.some(p => {
+      let paymentMonth: number | undefined
+      
+      if (p.id) {
+        const match = p.id.match(/^M(\d+)_/)
+        if (match) {
+          paymentMonth = parseInt(match[1], 10)
+        }
+      }
+      
+      if (!paymentMonth || isNaN(paymentMonth)) {
+        const firstDate = new Date(contract.firstPaymentDate)
+        const paymentDate = new Date(p.paymentDate)
+        const monthsDiff = (paymentDate.getFullYear() - firstDate.getFullYear()) * 12 + 
+                          (paymentDate.getMonth() - firstDate.getMonth())
+        paymentMonth = Math.max(1, monthsDiff + 1)
+      }
+      
+      return paymentMonth === month
+    })
   }
 
   // Calculer les échéances - toujours calculer théoriquement sans utiliser les installments
@@ -641,8 +674,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     const paymentsByMonthMap = getPaymentsByMonth()
 
     // Trier les paiements par date pour trouver les dates de paiement
+    // Inclure les paiements de 0 FCFA s'ils ont un commentaire explicite
     const sortedPayments = [...payments]
-      .filter(p => p.amount > 0 || !p.comment?.includes('Paiement de pénalités uniquement'))
+      .filter(p => 
+        p.amount > 0 || 
+        p.comment?.includes('Paiement de 0 FCFA') ||
+        (!p.comment?.includes('Paiement de pénalités uniquement') && p.amount === 0)
+      )
       .sort((a, b) => 
         new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
       )
@@ -693,14 +731,23 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         }
       }
       
-      // Déterminer le statut : si un paiement a été fait, l'échéance est PAYÉE
+      // Déterminer le statut : si un paiement a été fait (même de 0 FCFA), l'échéance est PAYÉE
       let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
       let paymentDate: Date | undefined
 
-      if (actualPayment > 0) {
+      const currentMonth = monthIndex + 1
+      const hasPayment = hasPaymentForMonth(currentMonth)
+
+      console.log(`[calculateActualSchedule] Mois ${currentMonth}:`, {
+        actualPayment,
+        hasPayment,
+        status: hasPayment ? 'PAID' : (actualPayment > 0 ? 'PAID' : 'DUE/FUTURE')
+      })
+
+      if (hasPayment) {
+        // Il y a un paiement pour ce mois (même de 0 FCFA), l'échéance est payée
         status = 'PAID'
         // Trouver la date du paiement pour ce mois en utilisant l'ID du paiement
-        const currentMonth = monthIndex + 1
         const paymentForThisMonth = sortedPayments.find(p => {
           // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
           if (p.id) {
@@ -724,7 +771,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         // Vérifier si toutes les échéances précédentes ont reçu un paiement
         let allPreviousPaid = true
         for (let j = 0; j < monthIndex; j++) {
-          if ((paymentsByMonthMap.get(j + 1) || 0) === 0) {
+          if (!hasPaymentForMonth(j + 1)) {
             allPreviousPaid = false
             break
           }
@@ -740,7 +787,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         principal: customRound(montantGlobal), // Montant global avant paiement
         remaining: customRound(resteDu),
         status,
-        paidAmount: actualPayment > 0 ? actualPayment : undefined,
+        paidAmount: hasPayment ? actualPayment : undefined, // Inclure même les paiements de 0 FCFA
         paymentDate,
       })
       
@@ -853,13 +900,37 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
 
   // Fonction pour récupérer le paiement sélectionné pour le reçu
   const getSelectedPaymentForReceipt = (): CreditPayment | null => {
-    if (selectedDueIndexForReceipt === null) return null
+    console.log('[getSelectedPaymentForReceipt] Début - selectedDueIndexForReceipt:', selectedDueIndexForReceipt)
+    console.log('[getSelectedPaymentForReceipt] Tous les paiements disponibles:', payments.map(p => ({
+      id: p.id,
+      amount: p.amount,
+      paymentDate: p.paymentDate,
+      paymentTime: p.paymentTime,
+      comment: p.comment,
+      reference: p.reference
+    })))
+    
+    if (selectedDueIndexForReceipt === null) {
+      console.log('[getSelectedPaymentForReceipt] selectedDueIndexForReceipt est null')
+      return null
+    }
 
     const dueItem = actualSchedule[selectedDueIndexForReceipt]
-    if (!dueItem) return null
+    if (!dueItem) {
+      console.log('[getSelectedPaymentForReceipt] dueItem non trouvé pour l\'index:', selectedDueIndexForReceipt)
+      return null
+    }
 
-    // Trouver le paiement qui correspond à ce mois en utilisant l'ID
-    const paymentForThisMonth = payments.find(p => {
+    console.log('[getSelectedPaymentForReceipt] Échéance trouvée:', {
+      month: dueItem.month,
+      status: dueItem.status,
+      payment: dueItem.payment,
+      paidAmount: dueItem.paidAmount,
+      paymentDate: dueItem.paymentDate
+    })
+
+    // Trouver TOUS les paiements qui correspondent à ce mois en utilisant l'ID
+    const paymentsForThisMonth = payments.filter(p => {
       // Extraire le numéro du mois depuis l'ID du paiement (format: M{mois}_{idContrat})
       if (p.id) {
         const match = p.id.match(/^M(\d+)_/)
@@ -871,24 +942,89 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       return false
     })
 
-    if (paymentForThisMonth) return paymentForThisMonth
+    console.log('[getSelectedPaymentForReceipt] Paiements trouvés pour le mois', dueItem.month, ':', paymentsForThisMonth.map(p => ({
+      id: p.id,
+      amount: p.amount,
+      paymentDate: p.paymentDate,
+      paymentTime: p.paymentTime,
+      comment: p.comment
+    })))
+
+    // Si on a trouvé des paiements pour ce mois, retourner le plus récent (basé sur la date de paiement)
+    if (paymentsForThisMonth.length > 0) {
+      // Trier par date de paiement (plus récent en premier)
+      const sortedPayments = paymentsForThisMonth.sort((a, b) => {
+        const dateA = new Date(a.paymentDate).getTime()
+        const dateB = new Date(b.paymentDate).getTime()
+        // Si les dates sont identiques, comparer par heure
+        if (dateA === dateB) {
+          const timeA = a.paymentTime || '00:00'
+          const timeB = b.paymentTime || '00:00'
+          return timeB.localeCompare(timeA) // Plus récent en premier
+        }
+        return dateB - dateA // Plus récent en premier
+      })
+      
+      const selectedPayment = sortedPayments[0] // Retourner le plus récent
+      console.log('[getSelectedPaymentForReceipt] Paiement sélectionné (le plus récent):', {
+        id: selectedPayment.id,
+        amount: selectedPayment.amount,
+        paymentDate: selectedPayment.paymentDate,
+        paymentTime: selectedPayment.paymentTime,
+        comment: selectedPayment.comment,
+        reference: selectedPayment.reference
+      })
+      return selectedPayment
+    }
 
     // Fallback : utiliser la date de paiement si disponible
     if (dueItem.paymentDate) {
+      console.log('[getSelectedPaymentForReceipt] Fallback: utilisation de la date de paiement')
       const duePaymentDate = new Date(dueItem.paymentDate)
       duePaymentDate.setHours(0, 0, 0, 0)
 
-      // Trouver le paiement qui correspond à cette date
-      const matchingPayment = payments.find(p => {
+      // Trouver TOUS les paiements qui correspondent à cette date
+      const matchingPayments = payments.filter(p => {
         const paymentDate = new Date(p.paymentDate)
         paymentDate.setHours(0, 0, 0, 0)
         // Comparer les dates (tolérance de 1 jour)
         return Math.abs(paymentDate.getTime() - duePaymentDate.getTime()) <= 24 * 60 * 60 * 1000
       })
 
-      if (matchingPayment) return matchingPayment
+      console.log('[getSelectedPaymentForReceipt] Paiements trouvés par date:', matchingPayments.map(p => ({
+        id: p.id,
+        amount: p.amount,
+        paymentDate: p.paymentDate,
+        paymentTime: p.paymentTime,
+        comment: p.comment
+      })))
+
+      // Retourner le plus récent
+      if (matchingPayments.length > 0) {
+        const sortedPayments = matchingPayments.sort((a, b) => {
+          const dateA = new Date(a.paymentDate).getTime()
+          const dateB = new Date(b.paymentDate).getTime()
+          if (dateA === dateB) {
+            const timeA = a.paymentTime || '00:00'
+            const timeB = b.paymentTime || '00:00'
+            return timeB.localeCompare(timeA)
+          }
+          return dateB - dateA
+        })
+        const selectedPayment = sortedPayments[0]
+        console.log('[getSelectedPaymentForReceipt] Paiement sélectionné (fallback, le plus récent):', {
+          id: selectedPayment.id,
+          amount: selectedPayment.amount,
+          paymentDate: selectedPayment.paymentDate,
+          paymentTime: selectedPayment.paymentTime,
+          comment: selectedPayment.comment,
+          reference: selectedPayment.reference
+        })
+        return selectedPayment
+      }
     }
 
+    console.log('[getSelectedPaymentForReceipt] Aucun paiement trouvé')
     return null
   }
 
@@ -1227,6 +1363,14 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             <Button
                               variant="outline"
                               onClick={() => {
+                                console.log('[CreditContractDetail] Clic sur "Voir le reçu" - Échéance:', {
+                                  month: item.month,
+                                  index: index,
+                                  payment: item.payment,
+                                  paidAmount: item.paidAmount,
+                                  paymentDate: item.paymentDate,
+                                  status: item.status
+                                })
                                 setSelectedDueIndexForReceipt(index)
                                 setShowReceiptModal(true)
                               }}
@@ -1281,6 +1425,18 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           key={payment.id}
                           className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
                           onClick={() => {
+                            console.log('[CreditContractDetail] Clic sur un paiement dans l\'historique:', {
+                              paymentId: payment.id,
+                              amount: payment.amount,
+                              paymentDate: payment.paymentDate,
+                              paymentTime: payment.paymentTime,
+                              comment: payment.comment,
+                              reference: payment.reference,
+                              relatedDueItem: relatedDueItem ? {
+                                month: relatedDueItem.month,
+                                status: relatedDueItem.status
+                              } : null
+                            })
                             setSelectedPayment(payment)
                             setSelectedDueIndexForReceipt(relatedDueItem ? actualSchedule.findIndex(item => item.month === relatedDueItem.month) : null)
                             setShowReceiptModal(true)
@@ -1803,12 +1959,25 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         <PaymentReceiptModal
           isOpen={showReceiptModal}
           onClose={() => {
+            console.log('[CreditContractDetail] Fermeture du modal de reçu')
             setShowReceiptModal(false)
             setSelectedDueIndexForReceipt(null)
             setSelectedPayment(null)
           }}
           contract={contract}
-          payment={selectedPayment || getSelectedPaymentForReceipt()!}
+          payment={(() => {
+            const finalPayment = selectedPayment || getSelectedPaymentForReceipt()!
+            console.log('[CreditContractDetail] Paiement final passé au modal:', {
+              id: finalPayment.id,
+              amount: finalPayment.amount,
+              paymentDate: finalPayment.paymentDate,
+              paymentTime: finalPayment.paymentTime,
+              comment: finalPayment.comment,
+              reference: finalPayment.reference,
+              source: selectedPayment ? 'selectedPayment' : 'getSelectedPaymentForReceipt'
+            })
+            return finalPayment
+          })()}
           installmentNumber={
             selectedPayment && selectedPayment.installmentId
               ? (installments.find(inst => inst.id === selectedPayment.installmentId)?.installmentNumber)
