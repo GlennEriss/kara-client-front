@@ -1669,17 +1669,21 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           {dueItems
                             .filter(row => row.payment > 0) // Filtrer les lignes avec mensualité à 0
                             .map((row) => {
-                            // Utiliser le montant payé de l'échéance si disponible, sinon utiliser paymentsByMonth
+                            // Vérifier si un paiement a été fait (même de 0 FCFA)
+                            const hasPayment = row.paidAmount !== undefined || hasPaymentForMonth(row.month)
+                            // Montant payé (peut être 0 FCFA)
                             const paidForMonth = row.paidAmount !== undefined 
                               ? row.paidAmount 
-                              : (paymentsByMonth.get(row.month) || 0)
+                              : (paymentsByMonth.get(row.month) ?? null)
                             
-                            // Vert si montant versé >= mensualité, rouge sinon (reste vert si > mensualité)
-                            const rowColor = paidForMonth >= row.payment 
+                            // Vert si paiement fait ET montant >= mensualité
+                            // Rouge si paiement fait MAIS montant < mensualité (inclut 0 FCFA)
+                            // Blanc si aucun paiement
+                            const rowColor = !hasPayment || paidForMonth === null
+                              ? '' // Aucun paiement = blanc
+                              : paidForMonth >= row.payment 
                               ? 'bg-green-50 hover:bg-green-100' 
-                              : paidForMonth > 0 
-                              ? 'bg-red-50 hover:bg-red-100' 
-                              : ''
+                              : 'bg-red-50 hover:bg-red-100' // Paiement fait mais < mensualité (inclut 0 FCFA)
                             
                             return (
                               <TableRow key={row.month} className={rowColor}>
