@@ -538,6 +538,7 @@ export type PaymentCIStatus = 'DUE' | 'PAID' | 'PARTIAL'
  * Type pour le contact d'urgence d'un contrat CI
  */
 export interface EmergencyContactCI {
+  memberId?: string // ID du membre si le contact d'urgence est un membre
   lastName: string
   firstName?: string
   phone1: string

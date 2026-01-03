@@ -2,11 +2,12 @@
 import React from 'react'
 import { Phone, CheckCircle2 } from 'lucide-react'
 import { useFormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
-import EmergencyContactCIForm from './EmergencyContactCIForm'
+import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 
 export default function Step3() {
   const { form } = useFormCaisseImprevueProvider()
   const step3Values = form.watch('step3')
+  const formData = form.getValues()
 
   // Fonction pour mettre à jour un champ spécifique du contact d'urgence
   const handleUpdateField = (field: string, value: any) => {
@@ -30,18 +31,18 @@ export default function Step3() {
       </div>
 
       {/* Formulaire de contact d'urgence */}
-      <EmergencyContactCIForm 
-        emergencyContact={{
-          lastName: step3Values?.lastName || '',
-          firstName: step3Values?.firstName || '',
-          phone1: step3Values?.phone1 || '',
-          phone2: step3Values?.phone2 || '',
-          relationship: step3Values?.relationship || '',
-          idNumber: step3Values?.idNumber || '',
-          typeId: step3Values?.typeId || '',
-          documentPhotoUrl: step3Values?.documentPhotoUrl || '',
-        }}
+      <EmergencyContactMemberSelector
+        memberId={step3Values?.memberId}
+        lastName={step3Values?.lastName || ''}
+        firstName={step3Values?.firstName || ''}
+        phone1={step3Values?.phone1 || ''}
+        phone2={step3Values?.phone2 || ''}
+        relationship={step3Values?.relationship || ''}
+        idNumber={step3Values?.idNumber || ''}
+        typeId={step3Values?.typeId || ''}
+        documentPhotoUrl={step3Values?.documentPhotoUrl || ''}
         onUpdate={handleUpdateField}
+        excludeMemberIds={formData.step1?.memberId ? [formData.step1.memberId] : []}
       />
 
       {/* Récapitulatif visuel si le formulaire est valide */}
