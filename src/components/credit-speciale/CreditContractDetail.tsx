@@ -28,6 +28,7 @@ import {
   Receipt,
   Upload,
   Loader2,
+  Percent,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CreditContract, CreditPayment, CreditPenalty, CreditInstallment, CreditContractStatus } from '@/types/types'
@@ -190,7 +191,7 @@ const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
 }
 
 // Carrousel de statistiques (même design que StatisticsCreditDemandes)
-const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number }) => {
+const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [] }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }> }) => {
   const [itemsPerView, setItemsPerView] = useState(1)
   
   useEffect(() => {
@@ -211,6 +212,9 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
     .filter(p => !p.paid)
     .reduce((sum, p) => sum + p.amount, 0)
   const unpaidPenaltiesCount = penalties.filter(p => !p.paid).length
+
+  // Calculer le total des intérêts de l'échéancier actuel
+  const totalInterest = actualSchedule.reduce((sum, item) => sum + item.interest, 0)
 
   const statsData = [
     {
@@ -241,6 +245,13 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
         : 'Aucun paiement enregistré',
       color: '#8b5cf6',
       icon: TrendingUp
+    },
+    {
+      title: 'Total intérêts',
+      value: Math.round(totalInterest).toLocaleString('fr-FR'),
+      subtitle: `Somme des intérêts de l'échéancier`,
+      color: '#06b6d4',
+      icon: Percent
     },
     {
       title: 'Pénalités impayées',
@@ -908,6 +919,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
             realRemainingAmount={realRemainingAmount}
             totalPaidFromSchedule={totalPaidFromSchedule}
             totalAmountToRepay={totalAmountToRepay}
+            actualSchedule={actualSchedule}
           />
         </div>
 
@@ -1166,9 +1178,19 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           })()}
                           
                           {/* Détail principal + intérêts */}
-                          <div className="flex items-center justify-between text-xs text-gray-500 mt-1 pt-1 border-t border-gray-200">
-                            <span>Capital: {item.principal.toLocaleString('fr-FR')} FCFA</span>
-                            <span>Intérêts: {item.interest.toLocaleString('fr-FR')} FCFA</span>
+                          <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-gray-200">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-gray-600">Capital:</span>
+                              <span className="font-semibold text-gray-900">
+                                {item.principal.toLocaleString('fr-FR')} FCFA
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Intérêts:</span>
+                            <span className="font-semibold text-gray-900">
+                              {item.interest.toLocaleString('fr-FR')} FCFA
+                            </span>
                           </div>
 
                           {item.status === 'PAID' && item.paymentDate && (

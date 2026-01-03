@@ -1415,7 +1415,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         const daysLate = Math.floor((paymentDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
         console.log('[checkAndCreatePenalties] Jours de retard calculés:', daysLate);
 
-        if (daysLate > 0) {
+        // Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard (marge de 2 jours)
+        if (daysLate >= 3) {
             console.log('[checkAndCreatePenalties] Paiement en retard, calcul du montant de l\'échéance...');
             // Calculer le montant de l'échéance pour ce mois à partir de l'échéancier actuel
             // On doit recalculer l'échéancier actuel pour obtenir le montant exact de cette échéance
@@ -1563,7 +1564,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     console.log('[checkAndCreatePenalties] Montant de pénalité <= 0, non créée');
                 }
         } else {
-            console.log('[checkAndCreatePenalties] Pas de retard (daysLate <= 0), pas de pénalité');
+            console.log('[checkAndCreatePenalties] Pas de pénalité (daysLate < 3, marge de 2 jours)');
         }
         console.log('[checkAndCreatePenalties] Fin');
     }
@@ -1710,7 +1711,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             }
 
             // Si le paiement est en retard, vérifier si une pénalité existe déjà
-                if (daysLate > 0) {
+            // Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard (marge de 2 jours)
+                if (daysLate >= 3) {
                 // Vérifier si une pénalité existe déjà pour ce mois
                     const hasPenalty = existingPenalties.some(p => {
                         const pDueDate = new Date(p.dueDate);
@@ -1820,7 +1822,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         console.log('[checkAndCreateMissingPenalties] Pas de pénalité existante trouvée, création...');
                     }
                 } else {
-                    console.log('[checkAndCreateMissingPenalties] Pas de retard (daysLate <= 0), pas de pénalité');
+                    console.log('[checkAndCreateMissingPenalties] Pas de pénalité (daysLate < 3, marge de 2 jours)');
                 }
         }
         console.log('[checkAndCreateMissingPenalties] Fin');

@@ -154,6 +154,22 @@ export default function CreditPaymentModal({
     },
     mode: 'onChange',
   })
+
+  // Calculer si le paiement est en retard mais sans pénalité (1-2 jours de retard)
+  const isLateButNoPenalty = useMemo(() => {
+    if (!defaultPaymentDate) return false
+    const paymentDate = form.watch('paymentDate')
+    if (!paymentDate) return false
+    
+    const payDate = new Date(paymentDate)
+    payDate.setHours(0, 0, 0, 0)
+    const dueDate = new Date(defaultPaymentDate)
+    dueDate.setHours(0, 0, 0, 0)
+    
+    const daysLate = Math.floor((payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+    // Retard de 1-2 jours : pas de pénalité mais afficher un message informatif
+    return daysLate > 0 && daysLate < 3
+  }, [defaultPaymentDate, form.watch('paymentDate')])
   
   // Log des erreurs du formulaire pour déboguer
   useEffect(() => {
@@ -242,7 +258,8 @@ export default function CreditPaymentModal({
     
     const daysLate = Math.floor((payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (daysLate > 0) {
+    // Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard (marge de 2 jours)
+    if (daysLate >= 3) {
       // Règle de 3 : pénalité = (montant mensuel * jours de retard) / 30
       // Utiliser le montant de l'échéance payée si disponible, sinon monthlyPaymentAmount
       const paymentAmount = amount || contract.monthlyPaymentAmount
@@ -637,6 +654,28 @@ export default function CreditPaymentModal({
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* Message informatif pour retards de 1-2 jours (sans pénalité) */}
+          {isLateButNoPenalty && !potentialPenalty && (
+            <Alert variant="default" className="border-yellow-200 bg-yellow-50">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p className="font-medium text-yellow-800">
+                    Paiement en retard de {calculateDelay} jour{calculateDelay > 1 ? 's' : ''}
+                  </p>
+                  <p className="text-yellow-700">
+                    Aucune pénalité ne sera appliquée. Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard.
+                  </p>
+                  {defaultPaymentDate && (
+                    <p className="text-xs text-yellow-600 mt-1">
+                      Échéance concernée : {format(new Date(defaultPaymentDate), 'dd/MM/yyyy')}
+                    </p>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Pénalité potentielle */}
