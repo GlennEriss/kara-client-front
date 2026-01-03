@@ -64,6 +64,24 @@ export default function PaymentReceiptModal({
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
+  // Logs de débogage
+  React.useEffect(() => {
+    if (isOpen && payment) {
+      console.log('[PaymentReceiptModal] Modal ouvert avec le paiement:', {
+        id: payment.id,
+        amount: payment.amount,
+        paymentDate: payment.paymentDate,
+        paymentTime: payment.paymentTime,
+        mode: payment.mode,
+        reference: payment.reference,
+        comment: payment.comment,
+        note: payment.note,
+        installmentNumber: installmentNumber
+      })
+      console.log('[PaymentReceiptModal] Montant affiché sera:', payment.amount, 'FCFA')
+    }
+  }, [isOpen, payment, installmentNumber])
+
   const formatDate = (date: Date) => {
     return format(new Date(date), 'dd MMMM yyyy', { locale: fr })
   }

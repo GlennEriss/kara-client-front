@@ -154,6 +154,22 @@ export default function CreditPaymentModal({
     },
     mode: 'onChange',
   })
+
+  // Calculer si le paiement est en retard mais sans pénalité (1-2 jours de retard)
+  const isLateButNoPenalty = useMemo(() => {
+    if (!defaultPaymentDate) return false
+    const paymentDate = form.watch('paymentDate')
+    if (!paymentDate) return false
+    
+    const payDate = new Date(paymentDate)
+    payDate.setHours(0, 0, 0, 0)
+    const dueDate = new Date(defaultPaymentDate)
+    dueDate.setHours(0, 0, 0, 0)
+    
+    const daysLate = Math.floor((payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+    // Retard de 1-2 jours : pas de pénalité mais afficher un message informatif
+    return daysLate > 0 && daysLate < 3
+  }, [defaultPaymentDate, form.watch('paymentDate')])
   
   // Log des erreurs du formulaire pour déboguer
   useEffect(() => {
@@ -242,7 +258,8 @@ export default function CreditPaymentModal({
     
     const daysLate = Math.floor((payDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (daysLate > 0) {
+    // Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard (marge de 2 jours)
+    if (daysLate >= 3) {
       // Règle de 3 : pénalité = (montant mensuel * jours de retard) / 30
       // Utiliser le montant de l'échéance payée si disponible, sinon monthlyPaymentAmount
       const paymentAmount = amount || contract.monthlyPaymentAmount
@@ -334,9 +351,10 @@ export default function CreditPaymentModal({
       return
     }
 
-    // Validation : si mode normal, le montant doit être > 0 (sauf si pénalités sélectionnées)
-    if (!penaltyOnlyMode && data.amount <= 0 && selectedPenalties.length === 0) {
-      toast.error('Le montant doit être supérieur à 0 ou sélectionnez des pénalités')
+    // Validation : si mode normal, le montant doit être >= 0 (sauf si pénalités sélectionnées)
+    // Permettre 0 pour les paiements de pénalités uniquement
+    if (!penaltyOnlyMode && data.amount < 0 && selectedPenalties.length === 0) {
+      toast.error('Le montant ne peut pas être négatif')
       return
     }
 
@@ -349,6 +367,15 @@ export default function CreditPaymentModal({
         ? (penaltyNote ?? 10) // Note par défaut 10 pour pénalités si non spécifiée
         : (data.note ?? 10) // Note par défaut 10 pour paiement normal si non spécifiée
       
+      // Si le montant est 0, ajouter automatiquement un commentaire pour que le paiement soit correctement traité
+      let finalComment = data.comment;
+      if (data.amount === 0 && !penaltyOnlyMode) {
+        // Montant de 0 sans pénalités : ajouter un commentaire explicite
+        finalComment = `Paiement de 0 FCFA${data.comment ? ` - ${data.comment}` : ''}`;
+      } else if (penaltyOnlyMode) {
+        finalComment = `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`;
+      }
+
       const paymentData = {
         ...data,
         amount: penaltyOnlyMode ? 0 : data.amount, // Montant à 0 si mode pénalités uniquement
@@ -356,9 +383,7 @@ export default function CreditPaymentModal({
         interestAmount: 0, // Sera calculé par le service
         penaltyAmount: totalSelectedPenalties, // Montant des pénalités sélectionnées
         note: finalNote,
-        comment: penaltyOnlyMode
-          ? `Paiement de pénalités uniquement${data.comment ? ` - ${data.comment}` : ''}`
-          : data.comment,
+        comment: finalComment,
         createdBy: user.uid,
         installmentId: installmentId, // Passer l'ID de l'échéance spécifique
       };
@@ -521,7 +546,7 @@ export default function CreditPaymentModal({
                   id="amount"
                   type="number"
                   step="0.01"
-                  min="100"
+                  min="0"
                   {...form.register('amount', { valueAsNumber: true })}
                   required
                 />
@@ -637,6 +662,28 @@ export default function CreditPaymentModal({
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* Message informatif pour retards de 1-2 jours (sans pénalité) */}
+          {isLateButNoPenalty && !potentialPenalty && (
+            <Alert variant="default" className="border-yellow-200 bg-yellow-50">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p className="font-medium text-yellow-800">
+                    Paiement en retard de {calculateDelay} jour{calculateDelay > 1 ? 's' : ''}
+                  </p>
+                  <p className="text-yellow-700">
+                    Aucune pénalité ne sera appliquée. Les pénalités ne s'appliquent qu'à partir du 3ème jour de retard.
+                  </p>
+                  {defaultPaymentDate && (
+                    <p className="text-xs text-yellow-600 mt-1">
+                      Échéance concernée : {format(new Date(defaultPaymentDate), 'dd/MM/yyyy')}
+                    </p>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Pénalité potentielle */}
