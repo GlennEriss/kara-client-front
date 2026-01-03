@@ -702,46 +702,51 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       
       // Récupérer le montant réellement payé pour ce mois
       const actualPayment = paymentsByMonthMap.get(monthIndex + 1) || 0
+      const currentMonth = monthIndex + 1
+      const hasPayment = hasPaymentForMonth(currentMonth)
       
-      // Si un paiement réel a été fait, utiliser ce montant
-      // Sinon, utiliser la mensualité théorique
-      let payment: number
+      // Calculer la mensualité théorique à payer (indépendante du paiement réel)
+      let theoreticalPayment: number
+      if (monthlyPayment > montantGlobal) {
+        theoreticalPayment = montantGlobal
+      } else if (currentRemaining < monthlyPayment && !isAfterMonth7) {
+        theoreticalPayment = currentRemaining
+      } else {
+        theoreticalPayment = monthlyPayment
+      }
+      
+      // Le reste dû est calculé en fonction du montant réellement payé (même 0 FCFA)
       let resteDu: number
-      
-      if (actualPayment > 0) {
-        // Utiliser le montant réellement payé
-        payment = actualPayment
-        // Calculer le reste dû après ce paiement réel
-        if (payment >= montantGlobal) {
+      if (hasPayment) {
+        // Un paiement a été fait (même de 0 FCFA)
+        if (actualPayment >= montantGlobal) {
           resteDu = 0
         } else {
-          resteDu = montantGlobal - payment
+          resteDu = montantGlobal - actualPayment
         }
       } else {
-        // Pas de paiement réel, utiliser la logique théorique
-        if (monthlyPayment > montantGlobal) {
-          payment = montantGlobal
-          resteDu = 0
-        } else if (currentRemaining < monthlyPayment && !isAfterMonth7) {
-          payment = currentRemaining
+        // Pas de paiement, calculer le reste dû théorique
+        if (theoreticalPayment >= montantGlobal) {
           resteDu = 0
         } else {
-          payment = monthlyPayment
-          resteDu = montantGlobal - payment
+          resteDu = montantGlobal - theoreticalPayment
         }
       }
+      
+      // La mensualité affichée dans l'échéancier actuel : le montant réel si payé, sinon théorique
+      const displayedPayment = hasPayment ? actualPayment : theoreticalPayment
       
       // Déterminer le statut : si un paiement a été fait (même de 0 FCFA), l'échéance est PAYÉE
       let status: 'PAID' | 'DUE' | 'FUTURE' = 'FUTURE'
       let paymentDate: Date | undefined
 
-      const currentMonth = monthIndex + 1
-      const hasPayment = hasPaymentForMonth(currentMonth)
-
       console.log(`[calculateActualSchedule] Mois ${currentMonth}:`, {
         actualPayment,
         hasPayment,
-        status: hasPayment ? 'PAID' : (actualPayment > 0 ? 'PAID' : 'DUE/FUTURE')
+        theoreticalPayment,
+        displayedPayment,
+        resteDu,
+        status: hasPayment ? 'PAID' : 'DUE/FUTURE'
       })
 
       if (hasPayment) {
@@ -782,7 +787,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       items.push({
         month: monthIndex + 1,
         date,
-        payment: customRound(payment),
+        payment: customRound(displayedPayment), // Montant réel si payé, sinon théorique
         interest: customRound(interest),
         principal: customRound(montantGlobal), // Montant global avant paiement
         remaining: customRound(resteDu),
@@ -791,8 +796,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         paymentDate,
       })
       
-      // Mettre à jour currentRemaining pour le mois suivant : utiliser le reste dû après paiement
-      // Le reste dû devient la base pour le mois suivant (sans intérêts, on les ajoutera au début du prochain tour)
+      // Mettre à jour currentRemaining pour le mois suivant : utiliser le reste dû après paiement réel
       currentRemaining = resteDu
       
       monthIndex++
@@ -807,12 +811,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     console.log('[calculateActualSchedule] Échéancier actuel calculé:', items.map(item => ({
       month: item.month,
       payment: item.payment,
-      actualPayment: paymentsByMonthMap.get(item.month) || 0,
+      paidAmount: item.paidAmount,
       status: item.status
     })))
     console.log('[calculateActualSchedule] Paiements par mois:', Array.from(paymentsByMonthMap.entries()))
 
-    return items.filter(item => item.payment > 0) // Filtrer les lignes avec paiement à 0
+    // Garder les mois payés (même avec 0 FCFA) ET les mois avec mensualité > 0
+    return items.filter(item => item.status === 'PAID' || item.payment > 0)
   }
 
   const actualSchedule = calculateActualSchedule()
@@ -1247,8 +1252,15 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                     })
                   }
                   
+                  // Déterminer si le paiement est suffisant
+                  const theoreticalPaymentForCard = Math.min(contract.monthlyPaymentAmount, item.principal)
+                  const paidAmountForCard = item.paidAmount !== undefined ? item.paidAmount : null
+                  const isPaymentSufficient = paidAmountForCard !== null && paidAmountForCard >= theoreticalPaymentForCard
+                  
                   const statusConfig = item.status === 'PAID' 
-                    ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
+                    ? isPaymentSufficient
+                      ? { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: CheckCircle, label: 'Payé' }
+                      : { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: AlertCircle, label: 'Payé (insuffisant)' }
                     : item.status === 'DUE'
                     ? { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200', icon: Clock, label: 'À payer' }
                     : { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', icon: XCircle, label: 'À venir' }
@@ -1262,7 +1274,9 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                         isDisabled
                           ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
                           : item.status === 'PAID'
-                          ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                          ? isPaymentSufficient
+                            ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                            : 'border-red-200 bg-red-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
                           : 'border-gray-200 hover:border-[#224D62] cursor-pointer hover:shadow-lg hover:-translate-y-1'
                       )}
                     >
@@ -1287,30 +1301,39 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             </span>
                           </div>
 
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Montant à payer:</span>
-                            <span className="font-semibold text-gray-900">
-                              {item.payment.toLocaleString('fr-FR') + ' FCFA'}
-                            </span>
-                          </div>
-
-                          {/* Afficher montant versé si différent du montant à payer (sur échéances payées) */}
                           {(() => {
-                            // Toujours utiliser le montant théorique de l'échéance pour "Montant à payer"
-                            const amountToPay = item.payment
-                            const paidForMonth = paymentsByMonth.get(item.month) || item.paidAmount || 0
-                            // Afficher "Montant versé" si l'échéance est payée et le montant versé est différent du montant à payer
-                            if (item.status === 'PAID' && paidForMonth > 0 && Math.abs(paidForMonth - amountToPay) > 1) {
-                              return (
-                                <div className="flex items-center justify-between text-sm mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                                  <span className="text-yellow-700 font-medium">Montant versé:</span>
-                                  <span className="font-semibold text-yellow-800">
-                                    {paidForMonth.toLocaleString('fr-FR')} FCFA
+                            // Calculer le montant théorique à payer (mensualité ou montant global si inférieur)
+                            const theoreticalPayment = Math.min(contract.monthlyPaymentAmount, item.principal)
+                            const paidAmount = item.paidAmount !== undefined ? item.paidAmount : null
+                            
+                            return (
+                              <>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-600">Montant à payer:</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {theoreticalPayment.toLocaleString('fr-FR')} FCFA
                                   </span>
                                 </div>
-                              )
-                            }
-                            return null
+                                
+                                {/* Afficher montant versé si l'échéance est payée */}
+                                {item.status === 'PAID' && paidAmount !== null && (
+                                  <div className={`flex items-center justify-between text-sm mt-2 p-2 rounded ${
+                                    paidAmount >= theoreticalPayment 
+                                      ? 'bg-green-50 border border-green-200' 
+                                      : 'bg-red-50 border border-red-200'
+                                  }`}>
+                                    <span className={`font-medium ${
+                                      paidAmount >= theoreticalPayment ? 'text-green-700' : 'text-red-700'
+                                    }`}>Montant versé:</span>
+                                    <span className={`font-semibold ${
+                                      paidAmount >= theoreticalPayment ? 'text-green-800' : 'text-red-800'
+                                    }`}>
+                                      {paidAmount.toLocaleString('fr-FR')} FCFA
+                                    </span>
+                                  </div>
+                                )}
+                              </>
+                            )
                           })()}
                           
                           {/* Détail principal + intérêts */}
@@ -1551,11 +1574,15 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                     <div className="mb-3 flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
-                        <span className="text-gray-600">Échéance payée</span>
+                        <span className="text-gray-600">Payé (montant suffisant)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-red-50 border border-red-200 rounded"></div>
+                        <span className="text-gray-600">Payé (montant insuffisant)</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
-                        <span className="text-gray-600">Échéance non payée</span>
+                        <span className="text-gray-600">Non payé</span>
                       </div>
                     </div>
                     <div className="border rounded-lg overflow-x-auto">
@@ -1564,7 +1591,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           <TableRow>
                             <TableHead>Mois</TableHead>
                             <TableHead>Date</TableHead>
-                            <TableHead className="text-right">Mensualité</TableHead>
+                            <TableHead className="text-right">Montant versé</TableHead>
                             <TableHead className="text-right">Intérêts</TableHead>
                             <TableHead className="text-right">Montant global</TableHead>
                             <TableHead className="text-right">Reste dû</TableHead>
@@ -1572,10 +1599,20 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                         </TableHeader>
                         <TableBody>
                           {actualSchedule.map((row) => {
-                            // Vert si l'échéance est payée
-                            const rowColor = row.status === 'PAID'
-                              ? 'bg-green-50 hover:bg-green-100'
-                              : ''
+                            // Calculer si le paiement est suffisant
+                            const paidAmount = row.paidAmount !== undefined ? row.paidAmount : null
+                            const theoreticalPayment = contract.monthlyPaymentAmount
+                            
+                            // Vert si payé ET montant suffisant (>= mensualité théorique ou >= montant global)
+                            // Rouge si payé MAIS montant insuffisant (< min(mensualité, montant global))
+                            // Blanc si pas encore payé
+                            let rowColor = ''
+                            if (row.status === 'PAID' && paidAmount !== null) {
+                              const expectedPayment = Math.min(theoreticalPayment, row.principal)
+                              rowColor = paidAmount >= expectedPayment 
+                                ? 'bg-green-50 hover:bg-green-100'
+                                : 'bg-red-50 hover:bg-red-100'
+                            }
                             
                             return (
                               <TableRow key={row.month} className={rowColor}>
@@ -1609,7 +1646,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-red-50 border border-red-200 rounded"></div>
-                        <span className="text-gray-600">0 &lt; montant versé &lt; mensualité</span>
+                        <span className="text-gray-600">0 ≤ montant versé &lt; mensualité</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
