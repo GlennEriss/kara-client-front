@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCreditDemandMutations } from '@/hooks/useCreditSpeciale'
 import { useAllMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
-import { Loader2, User, Search, CheckCircle } from 'lucide-react'
+import { Loader2, User, Search, CheckCircle, Calendar } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import SelectApp from '@/components/forms/SelectApp'
@@ -273,6 +273,30 @@ export default function CreateCreditDemandModal({
                             value={field.value || ''}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="desiredDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date souhaitée du crédit</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input
+                              type="date"
+                              className="pl-10"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          Pour quand avez-vous besoin de ce crédit ?
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -284,6 +284,17 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                   <p className="text-lg font-semibold">{demand.monthlyPaymentAmount.toLocaleString('fr-FR')} FCFA</p>
                 </div>
               )}
+              {demand.desiredDate && (
+                <div>
+                  <p className="text-sm text-gray-600 flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    Date souhaitée du crédit
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {format(new Date(demand.desiredDate), 'dd MMMM yyyy', { locale: fr })}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-600">Date de création</p>
                 <p className="text-lg font-semibold">{formatDate(demand.createdAt)}</p>

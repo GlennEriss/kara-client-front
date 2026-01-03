@@ -34,6 +34,22 @@ export function customRound(value: number): number {
 }
 
 /**
+ * Formate un nombre avec des espaces comme séparateurs de milliers
+ * Remplace tous les séparateurs (/, espaces insécables, etc.) par des espaces normaux
+ */
+export function formatNumberWithSpaces(value: number): string {
+  return value
+    .toLocaleString('fr-FR', { 
+      useGrouping: true, 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 0 
+    })
+    .replace(/[\u00A0\u202F]/g, ' ') // Remplace les espaces insécables par des espaces normaux
+    .replace(/\//g, ' ') // Remplace les "/" par des espaces (au cas où)
+    .replace(/\s+/g, ' ') // Normalise les espaces multiples en un seul espace
+}
+
+/**
  * Calcule l'échéancier de remboursement pour un crédit
  * @param params - Paramètres du calcul
  * @returns Tableau des échéances avec détails

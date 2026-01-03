@@ -1281,6 +1281,7 @@ export interface CreditDemand {
   creditType: CreditType
   amount: number
   monthlyPaymentAmount?: number
+  desiredDate: string // Date souhaitée pour le crédit
   cause: string
   status: CreditDemandStatus
   guarantorId?: string
