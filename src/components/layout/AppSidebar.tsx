@@ -91,7 +91,7 @@ const adminMenuItems: SidebarItem[] = [
             },
             {
                 title: "Contrats",
-                url: routes.admin.caisseImprevueCreateContract,
+                url: routes.admin.caisseImprevue,
                 icon: CreditCard,
             },
         ],
@@ -242,14 +242,12 @@ export function AppSidebar() {
             return pathname === url || pathname.startsWith(url + '/')
         }
         // Cas particulier: Caisse Imprévue
-        // - /caisse-imprevue/demandes et ses sous-routes sont actifs uniquement pour "Demandes"
-        // - /caisse-imprevue/create et /caisse-imprevue/contrats (mais pas /caisse-imprevue/demandes) sont actifs pour "Contrats"
+        // - La route de base n'est active que sur la page exacte ou les contrats, mais pas les demandes
+        if (url === routes.admin.caisseImprevue) {
+            return pathname === routes.admin.caisseImprevue || (pathname.startsWith('/caisse-imprevue/contrats') && !pathname.startsWith(routes.admin.caisseImprevueDemandes))
+        }
         if (url === routes.admin.caisseImprevueDemandes) {
             return pathname === url || pathname.startsWith(url + '/')
-        }
-        if (url === routes.admin.caisseImprevueCreateContract) {
-            // Actif uniquement si c'est /caisse-imprevue/create ou /caisse-imprevue/contrats mais pas /caisse-imprevue/demandes
-            return pathname === url || (pathname.startsWith('/caisse-imprevue/contrats') && !pathname.startsWith(routes.admin.caisseImprevueDemandes))
         }
         if (url === routes.admin.caisseImprevueSettings) {
             return pathname === url || pathname.startsWith(url + '/')
