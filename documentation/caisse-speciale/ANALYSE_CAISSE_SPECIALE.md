@@ -26,6 +26,7 @@
   - UC4 – Consulter l'historique des contrats d'un membre.
   - UC5 – Résilier / clôturer un contrat.
   - UC6 – Filtrer les contrats par retard de paiement.
+  - UC7 – Gérer les demandes de contrats (voir [`./DEMANDES_CAISSE_SPECIALE.md`](./DEMANDES_CAISSE_SPECIALE.md) pour les détails).
 - Pour chaque UC, décrire :
   - Acteur(s)
   - Pré‑conditions / Post‑conditions

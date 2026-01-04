@@ -36,6 +36,8 @@ import { CreditPaymentRepository } from '@/repositories/credit-speciale/CreditPa
 import { CreditPenaltyRepository } from '@/repositories/credit-speciale/CreditPenaltyRepository'
 import { CreditInstallmentRepository } from '@/repositories/credit-speciale/CreditInstallmentRepository'
 import { GuarantorRemunerationRepository } from '@/repositories/credit-speciale/GuarantorRemunerationRepository'
+import { ICaisseSpecialeDemandRepository } from '@/repositories/caisse-speciale/ICaisseSpecialeDemandRepository'
+import { CaisseSpecialeDemandRepository } from '@/repositories/caisse-speciale/CaisseSpecialeDemandRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -286,6 +288,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new GuarantorRemunerationRepository())
     }
     return this.repositories.get(key) as IGuarantorRemunerationRepository
+  }
+
+  /**
+   * Obtient le repository des demandes de Caisse Spéciale
+   */
+  static getCaisseSpecialeDemandRepository(): ICaisseSpecialeDemandRepository {
+    const key = 'CaisseSpecialeDemandRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CaisseSpecialeDemandRepository())
+    }
+    return this.repositories.get(key) as ICaisseSpecialeDemandRepository
   }
 
   /**

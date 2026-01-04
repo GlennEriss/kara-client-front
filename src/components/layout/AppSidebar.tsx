@@ -66,8 +66,19 @@ const adminMenuItems: SidebarItem[] = [
     },
     {
         title: "Caisse Spéciale",
-        url: routes.admin.caisseSpeciale,
         icon: Wallet,
+        children: [
+            {
+                title: "Demandes",
+                url: routes.admin.caisseSpecialeDemandes,
+                icon: FileText,
+            },
+            {
+                title: "Contrats",
+                url: routes.admin.caisseSpeciale,
+                icon: CreditCard,
+            },
+        ],
     },
     {
         title: "Caisse imprévue",

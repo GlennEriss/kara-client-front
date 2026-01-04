@@ -239,6 +239,12 @@ export type NotificationType =
   | 'placement_activated' // Placement activé (module placement)
   | 'early_exit_request' // Demande de retrait anticipé (module placement)
   | 'placement_completed' // Placement terminé (module placement)
+  | 'demand_created' // Nouvelle demande créée (Caisse Spéciale)
+  | 'demand_approved' // Demande acceptée (Caisse Spéciale)
+  | 'demand_rejected' // Demande refusée (Caisse Spéciale)
+  | 'demand_converted' // Demande convertie en contrat (Caisse Spéciale)
+  | 'demand_pending_reminder' // Rappel demande en attente (Caisse Spéciale)
+  | 'demand_approved_not_converted' // Rappel demande acceptée non convertie (Caisse Spéciale)
 
 /**
  * Filtres pour les requêtes de notifications
@@ -1192,6 +1198,84 @@ export interface CaisseContract {
   emergencyContact?: EmergencyContact
   createdAt: Date
   updatedAt: Date
+}
+
+/**
+ * Statuts possibles pour une demande de contrat Caisse Spéciale
+ */
+export type CaisseSpecialeDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED'
+
+/**
+ * Interface pour une demande de contrat Caisse Spéciale
+ */
+export interface CaisseSpecialeDemand {
+  id: string // Format: MK_DEMANDE_CS_{matricule}_{date}_{heure}
+  
+  // Informations du demandeur
+  memberId?: string // Pour demande individuelle
+  groupeId?: string // Pour demande de groupe
+  contractType: 'INDIVIDUAL' | 'GROUP'
+  
+  // Informations de la demande
+  caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+  monthlyAmount: number // Montant mensuel souhaité
+  monthsPlanned: number // Durée souhaitée (en mois)
+  desiredDate: string // Date souhaitée pour le début du contrat (format: YYYY-MM-DD)
+  cause?: string // Raison de la demande (optionnel)
+  
+  // Statut et décision
+  status: CaisseSpecialeDemandStatus
+  
+  // Traçabilité de l'acceptation/refus
+  decisionMadeAt?: Date // Date de la décision
+  decisionMadeBy?: string // ID de l'agent qui a pris la décision
+  decisionMadeByName?: string // Nom complet de l'agent (prénom + nom)
+  decisionReason?: string // Raison de l'acceptation ou du refus
+  
+  // Traçabilité de la réouverture (si refusée puis réouverte)
+  reopenedAt?: Date // Date de la réouverture
+  reopenedBy?: string // ID de l'agent qui a réouvert la demande
+  reopenedByName?: string // Nom complet de l'agent qui a réouvert (prénom + nom)
+  reopenReason?: string // Motif de la réouverture
+  
+  // Lien vers le contrat créé (si convertie)
+  contractId?: string // ID du contrat créé depuis cette demande
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'agent qui a créé la demande
+  updatedBy?: string // ID de l'agent qui a modifié la demande
+}
+
+/**
+ * Filtres pour la recherche de demandes Caisse Spéciale
+ */
+export interface CaisseSpecialeDemandFilters {
+  status?: CaisseSpecialeDemandStatus | 'all'
+  contractType?: 'INDIVIDUAL' | 'GROUP' | 'all'
+  caisseType?: 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'all'
+  memberId?: string
+  groupeId?: string
+  decisionMadeBy?: string // Filtrer par agent qui a pris la décision
+  createdAtFrom?: Date // Filtre par date de création (début)
+  createdAtTo?: Date // Filtre par date de création (fin)
+  desiredDateFrom?: Date // Filtre par date souhaitée (début)
+  desiredDateTo?: Date // Filtre par date souhaitée (fin)
+  search?: string // Recherche textuelle (nom du membre, ID de la demande, etc.)
+  page?: number
+  limit?: number
+}
+
+/**
+ * Statistiques des demandes Caisse Spéciale
+ */
+export interface CaisseSpecialeDemandStats {
+  total: number // Total de toutes les demandes
+  pending: number // Demandes en attente
+  approved: number // Demandes acceptées
+  rejected: number // Demandes refusées
+  converted: number // Demandes converties en contrats
 }
 
 // ================== TYPES POUR LES DOCUMENTS ==================
