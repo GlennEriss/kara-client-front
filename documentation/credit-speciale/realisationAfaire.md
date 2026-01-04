@@ -8,7 +8,7 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 - Types de crédits : spéciale (≤7 mois), aide (≤3 mois), fixe (illimité).
 - Acteurs : Client (lecture/suivi), Admin (saisie/validation/simulation/versements), Garant (parrain membre ou admin, rémunération si membre).
 - Éligibilité : client ou garant à jour à la caisse imprévue, dérogation possible admin.
-- Rémunération garant : 2% du montant versé mensuel, uniquement garant membre/parrain, historique consultable par le garant.
+- Rémunération garant : Pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance, uniquement garant membre/parrain, calculée sur maximum 7 mois, historique consultable par le garant.
 - Scoring fiabilité (admin-only) : score 0–10, mis à jour aux paiements, affiché dans listes/onglets/fiches admin.
 
 ## 2. Backlog de fonctionnalités à implémenter
@@ -142,10 +142,10 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
   - Implémentation : Méthode `checkEligibility` dans `CreditSpecialeService.ts` qui vérifie les pénalités impayées sur les contrats terminés du client et du garant, retourne `eligible: false` avec raison si pénalités trouvées, appelée dans `CreateCreditDemandModal.tsx` avant création de demande, possibilité de dérogation via `eligibilityOverride` dans `CreditDemand`
 
 ### 2.6 Rémunération garant (parrain)
-- [x] Calcul 2% du montant versé mensuel si garant membre/parrain, à chaque versement.  
+- [x] Calcul pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance si garant membre/parrain, à chaque versement, limité à 7 mois maximum.  
   - Use case : UC_RemunGarant (Système/Services)  
   - Diagrammes : activité [`diagrams/UC_RemunGarant_activity.puml`](./diagrams/UC_RemunGarant_activity.puml), séquence [`diagrams/UC_RemunGarant_sequence.puml`](./diagrams/UC_RemunGarant_sequence.puml)
-  - Implémentation : Calcul automatique dans `createPayment` si `guarantorIsParrain && guarantorRemunerationPercentage > 0`, création d'entrée `GuarantorRemuneration` avec montant calculé, pourcentage modifiable (0-2%) dans `ContractCreationModal.tsx`
+  - Implémentation : Calcul automatique dans `createPayment` si `guarantorIsParrain && guarantorRemunerationPercentage > 0 && month <= 7`, recalcul du montant global via `calculateSchedule`, création d'entrée `GuarantorRemuneration` avec montant calculé sur le montant global, pourcentage modifiable (0-5%) dans `ContractCreationModal.tsx`
 - [x] Notifications rémunération garant ; historique consultable par le garant et l'admin.  
   - Use case : UC_RemunNotif (Notifications), UC_RemunGarant (UI/Hooks)  
   - Diagrammes : intégré dans UC_RemunGarant

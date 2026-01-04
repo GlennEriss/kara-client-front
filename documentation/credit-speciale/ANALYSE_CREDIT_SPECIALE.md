@@ -23,7 +23,7 @@
 17- Notifier le client des pénalités et lui laisser le choix de les rembourser ou non à chaque versement (Équipe Kara, Client).  
 18- Bloquer une nouvelle demande si, en fin de contrat, aucune pénalité n'a été remboursée (Équipe Kara).  
 19- Générer une décharge en fin de remboursement de l'emprunt (Équipe Kara).  
-20- Rémunérer le garant membre de la mutuelle (parrain) à 2% du montant versé par mois (Équipe Kara, Garant).  
+20- Rémunérer le garant membre de la mutuelle (parrain) à un pourcentage variable (0% à 5%) du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois (Équipe Kara, Garant).  
 21- Permettre au garant de consulter l'historique de ses rémunérations (Garant, Équipe Kara).  
 22- Augmenter le montant d'un crédit en cours : si un client a déjà un contrat actif (même sans échéance payée), permettre d'ajouter un montant supplémentaire au crédit et recalculer le contrat comme un nouveau contrat (Équipe Kara, Client).
 
@@ -38,7 +38,7 @@
 7. Oubli de transformation en crédit fixe après 7 mois -> A7 (Équipe Kara)  
 8. Suivi manuel des pénalités impayées et blocage des nouveaux emprunts -> A8 (Équipe Kara)  
 9. Génération manuelle de la décharge en fin de contrat -> A9 (Équipe Kara)  
-10. Calcul manuel de la rémunération du garant (2% du taux mensuel) -> A10 (Équipe Kara)  
+10. Calcul manuel de la rémunération du garant (pourcentage variable du montant global) -> A10 (Équipe Kara)  
 11. Distinction manuelle entre les 3 types de crédits (spéciale 7 mois, fixe illimité, aide 3 mois) -> A11 (Équipe Kara)  
 12. Gestion manuelle des garanties (vérification membre vs admin, lien de parenté) -> A12 (Équipe Kara)  
 13. Absence de traçabilité complète des décisions et validations -> A13 (Équipe Kara)  
@@ -67,7 +67,7 @@
 18- Notifier automatiquement le client des pénalités à chaque versement et enregistrer son choix de les rembourser ou non (Système, Client).  
 19- Bloquer automatiquement les nouveaux emprunts si des pénalités impayées existent sur le dernier crédit terminé (Système).  
 20- Générer automatiquement la décharge en fin de remboursement complet (Système, Équipe Kara).  
-21- Calculer et attribuer automatiquement 2% du montant versé par mois au garant membre (parrain) si c'est un membre de la mutuelle (Système, Garant).  
+21- Calculer et attribuer automatiquement un pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance au garant membre (parrain) si c'est un membre de la mutuelle, calculé sur maximum 7 mois (Système, Garant).  
 22- Permettre au garant de consulter l'historique de ses rémunérations (Système, Garant, Équipe Kara).  
 23- Planifier automatiquement les rappels d'échéance et notifier le client (Système).  
 24- Suivre automatiquement l'état de chaque crédit (en cours, transformé, terminé) et afficher les statistiques (Système).  
@@ -462,9 +462,9 @@ Cette règle s'applique à :
    - Un tableau de rémunération montrant pour chaque mensualité :
      - Le mois et la date
      - La mensualité du client
-     - La rémunération du parrain (2% de la mensualité)
-   - Le total de la rémunération sur toute la durée
-3. L'admin peut modifier le pourcentage de rémunération (entre 0% et 2%)
+     - La rémunération du parrain (pourcentage du montant global)
+   - Le total de la rémunération sur toute la durée (maximum 7 mois)
+3. L'admin peut modifier le pourcentage de rémunération (entre 0% et 5%)
 4. Le système recalcule automatiquement le tableau avec le nouveau pourcentage
 5. L'admin clique sur "Suivant"
 
@@ -797,26 +797,30 @@ Cette règle s'applique à :
 
 **Acteur** : Système (automatique)
 
-**Objectif** : Calculer et attribuer 2% du taux mensuel au garant si c'est un membre de la mutuelle
+**Objectif** : Calculer et attribuer un pourcentage variable (0% à 5%) du montant global (capital + intérêts) au garant si c'est un membre de la mutuelle, limité à 7 mois maximum
 
 **Préconditions** :
 - Le crédit a un garant de type `MEMBER`
 - Un versement mensuel a été effectué
 - Le garant est un membre de la mutuelle (pas un admin)
+- Le mois du paiement est inférieur ou égal à 7
 
 **Scénario principal** :
 1. Le client effectue un versement mensuel
-2. Le système vérifie le type de garant
-3. Si le garant est un membre (`type = 'MEMBER'`) :
-   - Le système calcule 2% du montant mensuel versé
+2. Le système vérifie le type de garant et le mois du paiement
+3. Si le garant est un membre (`type = 'MEMBER'`) et le mois ≤ 7 :
+   - Le système recalcule l'échéancier pour obtenir le montant global (capital + intérêts) de l'échéance correspondante
+   - Le système calcule le pourcentage défini (0% à 5%) du montant global de cette échéance
+   - Le système arrondit le montant calculé
    - Le système enregistre cette rémunération pour le garant
    - Le système crée une transaction ou un crédit pour le garant
    - Le système notifie le garant de sa rémunération
-4. La rémunération est cumulée pour chaque versement effectué
+4. La rémunération est cumulée pour chaque versement effectué (maximum 7 mois)
 
 **Scénarios alternatifs** :
 - Si le garant est un admin, aucune rémunération n'est attribuée
-- Si le versement est partiel, la rémunération est calculée sur le montant effectivement versé
+- Si le mois du paiement est supérieur à 7, aucune rémunération n'est attribuée
+- La rémunération est toujours calculée sur le montant global de l'échéance, indépendamment du montant effectivement versé
 
 **Postconditions** :
 - La rémunération est calculée et enregistrée
@@ -1068,10 +1072,12 @@ Un membre peut obtenir un crédit si :
 
 - Les bonus ne s'appliquent qu'aux garants qui ont apporté l'emprunteur (parrainage).  
 - Si le garant est un membre de la mutuelle (parrain), il peut recevoir une rémunération sur chaque mensualité versée.  
-- **Pourcentage par défaut** : 2% du montant versé par mois par l'emprunteur.  
-- **Personnalisation** : L'admin peut modifier le pourcentage lors de la création du contrat, entre 0% et 2% maximum.  
-- La rémunération est calculée à chaque versement mensuel selon le pourcentage défini.  
-- Un tableau de rémunération est généré lors de la création du contrat, montrant la rémunération pour chaque mensualité.  
+- **Pourcentage par défaut** : 2% du montant global (capital + intérêts) de chaque échéance.  
+- **Personnalisation** : L'admin peut modifier le pourcentage lors de la création du contrat, entre 0% et 5% maximum.  
+- **Base de calcul** : La rémunération est calculée sur le montant global (capital + intérêts) de chaque échéance, et non sur le montant versé.  
+- **Limite de durée** : La rémunération est calculée uniquement pour les 7 premiers mois maximum.  
+- **Arrondi** : Le montant de la rémunération est arrondi à l'entier le plus proche (arrondi personnalisé : < 0.5 vers le bas, ≥ 0.5 vers le haut).  
+- Un tableau de rémunération est généré lors de la création du contrat, montrant la rémunération pour chaque échéance (maximum 7 mois) basée sur le montant global.  
 - Si le garant est un admin, aucune rémunération n'est attribuée (0%).
 
 ### 5.7. Augmentation de crédit en cours
@@ -1179,7 +1185,7 @@ Un membre peut obtenir un crédit si :
 - **Rôle** : le garant est obligatoire (membre ou admin), avec lien de parenté renseigné.  
 - **Éligibilité** : l'un des deux (emprunteur ou garant) doit être à jour à la caisse imprévue ; sinon refus, sauf dérogation admin.  
 - **Parrainage** : seuls les garants qui ont apporté l’emprunteur sont éligibles aux bonus.  
-- **Rémunération** : 2% du montant versé par mois par l'emprunteur, uniquement si le garant est un membre (pas d'admin). Calculée à chaque versement.  
+- **Rémunération** : Pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance, uniquement si le garant est un membre (pas d'admin). Calculée sur maximum 7 mois, à chaque versement.  
 - **Documents** : les informations garant sont visibles dans les fiches contrats (admin), jamais dans l’espace client.
 
 ## 6. Structure des données
@@ -1290,7 +1296,7 @@ export interface CreditContract {
 
 **Modifications récentes** :
 - Ajout du champ `emergencyContact` pour stocker les informations du contact d'urgence
-- Ajout du champ `guarantorRemunerationPercentage` pour permettre la personnalisation du pourcentage de rémunération (0-2%)
+- Ajout du champ `guarantorRemunerationPercentage` pour permettre la personnalisation du pourcentage de rémunération (0-5%)
 - Ajout du champ `parentContractId` pour lier un contrat à son contrat parent (augmentation de crédit)
 - Ajout du champ `extendedAt` pour enregistrer la date d'une augmentation de crédit
 - Ajout du statut `EXTENDED` pour les contrats remplacés par une augmentation

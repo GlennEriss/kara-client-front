@@ -1334,7 +1334,7 @@ export interface CreditContract {
   guarantorRelation?: string
   guarantorIsMember: boolean
   guarantorIsParrain: boolean // Si le garant a parrainé le client
-  guarantorRemunerationPercentage: number // % de la mensualité pour le parrain (2% par défaut)
+  guarantorRemunerationPercentage: number // % du montant global (capital + intérêts) pour le parrain (0-5%, 2% par défaut, calculé sur max 7 mois)
   emergencyContact?: EmergencyContact // Contact d'urgence
   contractUrl?: string // URL du contrat PDF généré
   signedContractUrl?: string // URL du contrat signé téléversé

@@ -1002,47 +1002,67 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 contract.guarantorId && 
                 contract.guarantorRemunerationPercentage > 0) {
                 
-                const remunerationAmount = Math.round(
-                    (payment.amount * contract.guarantorRemunerationPercentage) / 100
-                );
-
-                if (remunerationAmount > 0) {
-                    // Calculer le mois à partir de la date du paiement
-                            const firstPaymentDate = new Date(contract.firstPaymentDate);
-                            const paymentDate = new Date(payment.paymentDate);
-                            const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
-                                             (paymentDate.getMonth() - firstPaymentDate.getMonth());
-                    const month = Math.max(1, monthsDiff + 1);
-
-                    await this.guarantorRemunerationRepository.createRemuneration({
-                        creditId: contract.id,
-                        guarantorId: contract.guarantorId,
-                        paymentId: payment.id,
-                        amount: remunerationAmount,
-                        month,
-                        createdBy: data.createdBy,
-                        updatedBy: data.createdBy,
+                // Calculer le mois à partir de la date du paiement
+                const firstPaymentDate = new Date(contract.firstPaymentDate);
+                const paymentDate = new Date(payment.paymentDate);
+                const monthsDiff = (paymentDate.getFullYear() - firstPaymentDate.getFullYear()) * 12 + 
+                                 (paymentDate.getMonth() - firstPaymentDate.getMonth());
+                const month = Math.max(1, monthsDiff + 1);
+                
+                // Limiter à 7 mois maximum pour la rémunération
+                if (month <= 7) {
+                    // Recalculer le montant global pour ce mois en utilisant l'échéancier
+                    const { calculateSchedule } = await import('@/utils/credit-speciale-calculations');
+                    const schedule = calculateSchedule({
+                        amount: contract.amount,
+                        interestRate: contract.interestRate,
+                        monthlyPayment: contract.monthlyPaymentAmount,
+                        firstPaymentDate: contract.firstPaymentDate,
+                        maxDuration: 7, // Limiter à 7 mois
                     });
+                    
+                    // Trouver l'échéance correspondant au mois du paiement
+                    const installment = schedule.find(item => item.month === month);
+                    
+                    if (installment) {
+                        // Calculer la rémunération sur le montant global (capital + intérêts)
+                        const globalAmount = installment.principal; // Montant global = capital + intérêts
+                        const remunerationAmount = Math.round(
+                            (globalAmount * contract.guarantorRemunerationPercentage) / 100
+                        );
 
-                    // Notification pour le garant
-                    try {
-                        await this.notificationService.createNotification({
-                            module: 'credit_speciale',
-                            entityId: contract.id,
-                            type: 'reminder', // Utiliser 'reminder' en attendant l'ajout de 'guarantor_remuneration' dans NotificationType
-                            title: 'Rémunération reçue',
-                            message: `Vous avez reçu ${remunerationAmount.toLocaleString('fr-FR')} FCFA de rémunération pour le crédit de ${contract.clientFirstName} ${contract.clientLastName}`,
-                            metadata: {
-                                contractId: contract.id,
+                        if (remunerationAmount > 0) {
+                            await this.guarantorRemunerationRepository.createRemuneration({
+                                creditId: contract.id,
+                                guarantorId: contract.guarantorId,
                                 paymentId: payment.id,
                                 amount: remunerationAmount,
                                 month,
-                                guarantorId: contract.guarantorId, // ID du garant dans metadata pour filtrage
-                                notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
-                            },
-                        });
-                    } catch (error) {
-                        console.error('Erreur lors de la création de la notification de rémunération:', error);
+                                createdBy: data.createdBy,
+                                updatedBy: data.createdBy,
+                            });
+
+                            // Notification pour le garant
+                            try {
+                                await this.notificationService.createNotification({
+                                    module: 'credit_speciale',
+                                    entityId: contract.id,
+                                    type: 'reminder', // Utiliser 'reminder' en attendant l'ajout de 'guarantor_remuneration' dans NotificationType
+                                    title: 'Rémunération reçue',
+                                    message: `Vous avez reçu ${remunerationAmount.toLocaleString('fr-FR')} FCFA de rémunération pour le crédit de ${contract.clientFirstName} ${contract.clientLastName}`,
+                                    metadata: {
+                                        contractId: contract.id,
+                                        paymentId: payment.id,
+                                        amount: remunerationAmount,
+                                        month,
+                                        guarantorId: contract.guarantorId, // ID du garant dans metadata pour filtrage
+                                        notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
+                                    },
+                                });
+                            } catch (error) {
+                                console.error('Erreur lors de la création de la notification de rémunération:', error);
+                            }
+                        }
                     }
                 }
             }

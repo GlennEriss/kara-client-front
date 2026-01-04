@@ -46,6 +46,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { calculateSchedule } from '@/utils/credit-speciale-calculations'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -1822,7 +1823,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                         </p>
                         {contract.guarantorRemunerationPercentage !== undefined && (
                           <p className="text-sm text-blue-700 mt-1">
-                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% par mensualité versée
+                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois
                           </p>
                         )}
                       </div>
@@ -1839,29 +1840,43 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             <TableHeader>
                               <TableRow>
                                 <TableHead>Mois</TableHead>
-                                <TableHead>Montant versé</TableHead>
+                                <TableHead>Montant global</TableHead>
                                 <TableHead className="text-right">Pourcentage de commission</TableHead>
                                 <TableHead className="text-right">Somme due</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {[...guarantorRemunerations]
-                                .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
-                                .map((remuneration) => {
-                                // Trouver le paiement associé pour obtenir le montant
-                                const associatedPayment = payments.find(p => p.id === remuneration.paymentId)
-                                const paymentAmount = associatedPayment?.amount || 0
-                                const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+                              {(() => {
+                                // Calculer l'échéancier pour obtenir les montants globaux
+                                const schedule = calculateSchedule({
+                                  amount: contract.amount,
+                                  interestRate: contract.interestRate,
+                                  monthlyPayment: contract.monthlyPaymentAmount,
+                                  firstPaymentDate: contract.firstPaymentDate,
+                                  maxDuration: 7, // Limiter à 7 mois pour la rémunération
+                                })
 
-                                return (
-                                  <TableRow key={remuneration.id}>
-                                    <TableCell className="font-medium">M{remuneration.month}</TableCell>
-                                    <TableCell>{paymentAmount.toLocaleString('fr-FR')} FCFA</TableCell>
-                                    <TableCell className="text-right">{commissionPercentage}%</TableCell>
-                                    <TableCell className="text-right font-semibold">{remuneration.amount.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  </TableRow>
-                                )
-                              })}
+                                return [...guarantorRemunerations]
+                                  .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
+                                  .map((remuneration) => {
+                                    // Trouver l'échéance correspondante pour obtenir le montant global
+                                    const installment = schedule.find(item => item.month === remuneration.month)
+                                    const globalAmount = installment?.principal || 0 // Montant global (capital + intérêts)
+                                    const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+                                    
+                                    // Recalculer la rémunération basée sur le montant global (cohérence avec l'affichage)
+                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+
+                                    return (
+                                      <TableRow key={remuneration.id}>
+                                        <TableCell className="font-medium">M{remuneration.month}</TableCell>
+                                        <TableCell>{globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                        <TableCell className="text-right">{commissionPercentage}%</TableCell>
+                                        <TableCell className="text-right font-semibold">{recalculatedRemuneration.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      </TableRow>
+                                    )
+                                  })
+                              })()}
                             </TableBody>
                           </Table>
                         </div>
@@ -1869,7 +1884,26 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           <div className="flex justify-between items-center">
                             <span className="font-semibold">Total des commissions :</span>
                             <span className="text-xl font-bold text-[#234D65]">
-                              {guarantorRemunerations.reduce((sum, r) => sum + r.amount, 0).toLocaleString('fr-FR')} FCFA
+                              {(() => {
+                                // Recalculer le total basé sur les montants globaux
+                                const schedule = calculateSchedule({
+                                  amount: contract.amount,
+                                  interestRate: contract.interestRate,
+                                  monthlyPayment: contract.monthlyPaymentAmount,
+                                  firstPaymentDate: contract.firstPaymentDate,
+                                  maxDuration: 7,
+                                })
+                                const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+                                
+                                return guarantorRemunerations
+                                  .reduce((sum, r) => {
+                                    const installment = schedule.find(item => item.month === r.month)
+                                    const globalAmount = installment?.principal || 0
+                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+                                    return sum + recalculatedRemuneration
+                                  }, 0)
+                                  .toLocaleString('fr-FR')
+                              })()} FCFA
                             </span>
                           </div>
                         </div>
