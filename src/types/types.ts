@@ -245,6 +245,13 @@ export type NotificationType =
   | 'demand_converted' // Demande convertie en contrat (Caisse Spéciale)
   | 'demand_pending_reminder' // Rappel demande en attente (Caisse Spéciale)
   | 'demand_approved_not_converted' // Rappel demande acceptée non convertie (Caisse Spéciale)
+  | 'placement_demand_created' // Nouvelle demande de placement créée
+  | 'placement_demand_approved' // Demande de placement acceptée
+  | 'placement_demand_rejected' // Demande de placement refusée
+  | 'placement_demand_reopened' // Demande de placement réouverte
+  | 'placement_demand_converted' // Demande de placement convertie en placement
+  | 'placement_demand_pending_reminder' // Rappel demande de placement en attente
+  | 'placement_demand_approved_not_converted' // Rappel demande de placement acceptée non convertie
 
 /**
  * Filtres pour les requêtes de notifications
@@ -1851,6 +1858,7 @@ export const VEHICLE_INSURANCE_STATUS_LABELS: Record<VehicleInsuranceStatus, str
 export type PlacementStatus = 'Draft' | 'Active' | 'Closed' | 'EarlyExit' | 'Canceled'
 export type CommissionStatus = 'Due' | 'Paid' | 'Partial' | 'Canceled'
 export type PayoutMode = 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End'
+export type PlacementDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED'
 
 // Types de documents placement : on réutilise DocumentType existant en ajoutant si besoin des variantes placement
 export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE' | 'PLACEMENT_FINAL_QUITTANCE' | 'PLACEMENT_EARLY_EXIT_ADDENDUM' | 'PLACEMENT_EARLY_EXIT_DOCUMENT'
@@ -1919,6 +1927,93 @@ export interface EarlyExitPlacement {
   updatedAt: Date
   createdBy: string // User.id (Admin)
   updatedBy?: string // User.id (Admin)
+}
+
+/**
+ * Interface pour une demande de placement
+ */
+export interface PlacementDemand {
+  id: string // Format: MK_DEMANDE_PL_{matriculeBienfaiteur}_{date}_{heure}
+  
+  // Informations du bienfaiteur
+  benefactorId: string // User.id avec rôle Bienfaiteur (obligatoire)
+  benefactorName?: string // Nom complet du bienfaiteur (prérempli)
+  benefactorPhone?: string // Téléphone du bienfaiteur (prérempli)
+  
+  // Informations de la demande
+  amount: number // Montant du placement souhaité (FCFA)
+  rate: number // Taux de commission souhaité (0-100)
+  periodMonths: number // Durée souhaitée (1-7 mois)
+  payoutMode: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' // Mode de paiement souhaité
+  desiredDate: string // Date souhaitée pour le début du placement (format: YYYY-MM-DD)
+  cause?: string // Raison de la demande (optionnel)
+  
+  // Contact d'urgence (optionnel)
+  urgentContact?: {
+    name: string
+    firstName?: string
+    phone: string
+    phone2?: string
+    relationship?: string
+    idNumber?: string
+    typeId?: string
+    documentPhotoUrl?: string
+    memberId?: string
+  }
+  
+  // Statut et décision
+  status: PlacementDemandStatus
+  
+  // Traçabilité de l'acceptation/refus
+  decisionMadeAt?: Date // Date de la décision
+  decisionMadeBy?: string // ID de l'agent qui a pris la décision
+  decisionMadeByName?: string // Nom complet de l'agent (prénom + nom)
+  decisionReason?: string // Raison de l'acceptation ou du refus
+  
+  // Traçabilité de la réouverture (si refusée puis réouverte)
+  reopenedAt?: Date // Date de la réouverture
+  reopenedBy?: string // ID de l'agent qui a réouvert la demande
+  reopenedByName?: string // Nom complet de l'agent qui a réouvert (prénom + nom)
+  reopenReason?: string // Motif de la réouverture
+  
+  // Lien vers le placement créé (si convertie)
+  placementId?: string // ID du placement créé depuis cette demande
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'agent qui a créé la demande
+  updatedBy?: string // ID de l'agent qui a modifié la demande
+}
+
+/**
+ * Filtres pour la recherche de demandes de placement
+ */
+export interface PlacementDemandFilters {
+  status?: PlacementDemandStatus | 'all'
+  benefactorId?: string // Filtrer par bienfaiteur
+  payoutMode?: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' | 'all'
+  decisionMadeBy?: string // Filtrer par agent qui a pris la décision
+  createdAtFrom?: Date // Filtre par date de création (début)
+  createdAtTo?: Date // Filtre par date de création (fin)
+  desiredDateFrom?: Date // Filtre par date souhaitée (début)
+  desiredDateTo?: Date // Filtre par date souhaitée (fin)
+  search?: string // Recherche textuelle (nom du bienfaiteur, ID de la demande, etc.)
+  page?: number
+  limit?: number
+}
+
+/**
+ * Statistiques des demandes de placement
+ */
+export interface PlacementDemandStats {
+  total: number // Total de toutes les demandes
+  pending: number // Demandes en attente
+  approved: number // Demandes acceptées
+  rejected: number // Demandes refusées
+  converted: number // Demandes converties en placements
+  totalAmount: number // Montant total des demandes (toutes statuts confondus)
+  pendingAmount: number // Montant total des demandes en attente
 }
 
 // ================== TYPES POUR LES FILLEULS ==================

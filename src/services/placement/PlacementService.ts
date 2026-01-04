@@ -1,26 +1,48 @@
-import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementStatus, CommissionStatus, PlacementDocumentType, User } from '@/types/types'
+import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementStatus, CommissionStatus, PlacementDocumentType, User, PlacementDemand, PlacementDemandFilters, PlacementDemandStats } from '@/types/types'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { DocumentService } from '@/services/documents/DocumentService'
 import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { NotificationService } from '@/services/notifications/NotificationService'
+import { IPlacementDemandRepository } from '@/repositories/placement/IPlacementDemandRepository'
+import { RepositoryFactory } from '@/factories/RepositoryFactory'
+import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
 
 export class PlacementService {
   private notificationService: NotificationService
+  private placementDemandRepository: IPlacementDemandRepository
+  private memberRepository: IMemberRepository
+  private adminRepository: IAdminRepository
 
   constructor(
     private placementRepository: PlacementRepository,
     private documentService: DocumentService,
     private documentRepository: IDocumentRepository,
-    private memberRepository: IMemberRepository,
-    notificationService?: NotificationService // Optionnel pour éviter dépendance circulaire
+    memberRepository?: IMemberRepository,
+    notificationService?: NotificationService, // Optionnel pour éviter dépendance circulaire
+    placementDemandRepository?: IPlacementDemandRepository
   ) {
     // Initialiser NotificationService si non fourni
     if (!notificationService) {
       this.notificationService = ServiceFactory.getNotificationService()
     } else {
       this.notificationService = notificationService
+    }
+    
+    // Initialiser les repositories si non fournis
+    if (!memberRepository) {
+      this.memberRepository = RepositoryFactory.getMemberRepository()
+    } else {
+      this.memberRepository = memberRepository
+    }
+    
+    this.adminRepository = RepositoryFactory.getAdminRepository()
+    
+    if (!placementDemandRepository) {
+      this.placementDemandRepository = RepositoryFactory.getPlacementDemandRepository()
+    } else {
+      this.placementDemandRepository = placementDemandRepository
     }
   }
 
@@ -1102,6 +1124,380 @@ export class PlacementService {
     } catch (error) {
       console.error('Erreur lors de la création de la notification de complétion:', error)
     }
+  }
+
+  // ==================== DEMANDES ====================
+
+  async createDemand(data: Omit<PlacementDemand, 'id' | 'createdAt' | 'updatedAt'>, adminId: string): Promise<PlacementDemand> {
+    // Générer l'ID au format: MK_DEMANDE_PL_{matriculeBienfaiteur}_{date}_{heure}
+    let matriculeFormatted = "0000";
+    let benefactorName = "Bienfaiteur inconnu";
+    
+    if (data.benefactorId) {
+      const member = await this.memberRepository.getMemberById(data.benefactorId);
+      if (member && member.matricule) {
+        const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
+        matriculeFormatted = matriculePart.padStart(4, '0');
+        benefactorName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+      }
+    }
+
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = String(now.getFullYear()).slice(-2);
+    const dateFormatted = `${day}${month}${year}`;
+    
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const timeFormatted = `${hours}${minutes}`;
+
+    const customId = `MK_DEMANDE_PL_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+
+    // Enrichir les données avec les informations du bienfaiteur
+    const member = await this.memberRepository.getMemberById(data.benefactorId);
+    const benefactorNameFull = member ? `${member.firstName || ''} ${member.lastName || ''}`.trim() : undefined;
+    const benefactorPhone = member && Array.isArray(member.contacts) && member.contacts.length > 0 ? member.contacts[0] : undefined;
+
+    const demandData = {
+      ...data,
+      benefactorName: benefactorNameFull || data.benefactorName,
+      benefactorPhone: benefactorPhone || data.benefactorPhone,
+      status: 'PENDING' as const,
+      createdBy: adminId,
+    };
+
+    const demand = await this.placementDemandRepository.createDemand(demandData, customId);
+    
+    // Notification pour tous les admins
+    try {
+      const admin = await this.adminRepository.getAdminById(adminId);
+      const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+      
+      await this.notificationService.createNotification({
+        module: 'placement',
+        entityId: demand.id,
+        type: 'placement_demand_created' as any,
+        title: 'Nouvelle demande de placement',
+        message: `Une nouvelle demande a été créée par ${adminName} pour ${benefactorNameFull || 'Bienfaiteur inconnu'}`,
+        metadata: {
+          demandId: demand.id,
+          benefactorId: data.benefactorId,
+          amount: data.amount,
+          rate: data.rate,
+          periodMonths: data.periodMonths,
+          payoutMode: data.payoutMode,
+          desiredDate: data.desiredDate,
+          createdBy: adminId,
+        },
+      });
+    } catch (error) {
+      console.error('Erreur lors de la création de la notification:', error);
+    }
+    
+    return demand;
+  }
+
+  async getDemandById(id: string): Promise<PlacementDemand | null> {
+    return await this.placementDemandRepository.getDemandById(id);
+  }
+
+  async getDemandsWithFilters(filters?: PlacementDemandFilters): Promise<PlacementDemand[]> {
+    return await this.placementDemandRepository.getDemandsWithFilters(filters);
+  }
+
+  async getDemandsStats(filters?: PlacementDemandFilters): Promise<PlacementDemandStats> {
+    return await this.placementDemandRepository.getDemandsStats(filters);
+  }
+
+  async approveDemand(demandId: string, adminId: string, reason: string): Promise<PlacementDemand | null> {
+    // Récupérer le nom de l'admin
+    const admin = await this.adminRepository.getAdminById(adminId);
+    const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+
+    const demand = await this.placementDemandRepository.updateDemandStatus(
+      demandId,
+      'APPROVED',
+      adminId,
+      reason,
+      adminName
+    );
+
+    if (demand) {
+      // Récupérer le nom du bienfaiteur
+      let benefactorName = "Bienfaiteur inconnu";
+      if (demand.benefactorId) {
+        const member = await this.memberRepository.getMemberById(demand.benefactorId);
+        if (member) {
+          benefactorName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+        }
+      }
+
+      // Notification au bienfaiteur et à l'admin créateur
+      try {
+        await this.notificationService.createNotification({
+          module: 'placement',
+          entityId: demand.id,
+          type: 'placement_demand_approved' as any,
+          title: 'Demande acceptée',
+          message: `Votre demande de placement a été acceptée. Raison : ${reason}`,
+          metadata: {
+            demandId: demand.id,
+            decisionMadeBy: adminId,
+            decisionMadeByName: adminName,
+            decisionReason: reason,
+            decisionMadeAt: new Date().toISOString(),
+            benefactorId: demand.benefactorId,
+          },
+        });
+
+        // Notification à l'admin créateur si différent
+        if (demand.createdBy !== adminId) {
+          await this.notificationService.createNotification({
+            module: 'placement',
+            entityId: demand.id,
+            type: 'status_update' as any,
+            title: 'Demande acceptée',
+            message: `La demande ${demand.id} de ${benefactorName} a été acceptée par ${adminName}`,
+            metadata: {
+              demandId: demand.id,
+              decisionMadeBy: adminId,
+              decisionMadeByName: adminName,
+              decisionReason: reason,
+              createdBy: demand.createdBy,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Erreur lors de la création de la notification:', error);
+      }
+    }
+
+    return demand;
+  }
+
+  async rejectDemand(demandId: string, adminId: string, reason: string): Promise<PlacementDemand | null> {
+    // Récupérer le nom de l'admin
+    const admin = await this.adminRepository.getAdminById(adminId);
+    const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+
+    const demand = await this.placementDemandRepository.updateDemandStatus(
+      demandId,
+      'REJECTED',
+      adminId,
+      reason,
+      adminName
+    );
+
+    if (demand) {
+      // Récupérer le nom du bienfaiteur
+      let benefactorName = "Bienfaiteur inconnu";
+      if (demand.benefactorId) {
+        const member = await this.memberRepository.getMemberById(demand.benefactorId);
+        if (member) {
+          benefactorName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+        }
+      }
+
+      // Notification au bienfaiteur et à l'admin créateur
+      try {
+        await this.notificationService.createNotification({
+          module: 'placement',
+          entityId: demand.id,
+          type: 'placement_demand_rejected' as any,
+          title: 'Demande refusée',
+          message: `Votre demande de placement a été refusée. Raison : ${reason}`,
+          metadata: {
+            demandId: demand.id,
+            decisionMadeBy: adminId,
+            decisionMadeByName: adminName,
+            decisionReason: reason,
+            decisionMadeAt: new Date().toISOString(),
+            benefactorId: demand.benefactorId,
+          },
+        });
+
+        // Notification à l'admin créateur si différent
+        if (demand.createdBy !== adminId) {
+          await this.notificationService.createNotification({
+            module: 'placement',
+            entityId: demand.id,
+            type: 'status_update' as any,
+            title: 'Demande refusée',
+            message: `La demande ${demand.id} de ${benefactorName} a été refusée par ${adminName}`,
+            metadata: {
+              demandId: demand.id,
+              decisionMadeBy: adminId,
+              decisionMadeByName: adminName,
+              decisionReason: reason,
+              createdBy: demand.createdBy,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Erreur lors de la création de la notification:', error);
+      }
+    }
+
+    return demand;
+  }
+
+  async reopenDemand(demandId: string, adminId: string, reason: string): Promise<PlacementDemand | null> {
+    const demand = await this.getDemandById(demandId);
+    if (!demand) {
+      throw new Error('Demande introuvable');
+    }
+
+    if (demand.status !== 'REJECTED') {
+      throw new Error('Seules les demandes refusées peuvent être réouvertes');
+    }
+
+    // Récupérer le nom de l'admin
+    const admin = await this.adminRepository.getAdminById(adminId);
+    const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+
+    // Mettre à jour la demande pour la réouvrir
+    const updatedDemand = await this.placementDemandRepository.updateDemand(demandId, {
+      status: 'PENDING',
+      reopenedAt: new Date(),
+      reopenedBy: adminId,
+      reopenedByName: adminName,
+      reopenReason: reason,
+      updatedBy: adminId,
+    });
+
+    if (updatedDemand) {
+      // Récupérer le nom du bienfaiteur
+      let benefactorName = "Bienfaiteur inconnu";
+      if (demand.benefactorId) {
+        const member = await this.memberRepository.getMemberById(demand.benefactorId);
+        if (member) {
+          benefactorName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+        }
+      }
+
+      // Notification au bienfaiteur et à tous les admins
+      try {
+        await this.notificationService.createNotification({
+          module: 'placement',
+          entityId: demand.id,
+          type: 'placement_demand_reopened' as any,
+          title: 'Demande réouverte',
+          message: `Votre demande de placement a été réouverte. Motif : ${reason}`,
+          metadata: {
+            demandId: demand.id,
+            reopenedBy: adminId,
+            reopenedByName: adminName,
+            reopenReason: reason,
+            reopenedAt: new Date().toISOString(),
+            benefactorId: demand.benefactorId,
+          },
+        });
+
+        // Notification globale pour tous les admins
+        await this.notificationService.createNotification({
+          module: 'placement',
+          entityId: demand.id,
+          type: 'status_update' as any,
+          title: 'Demande réouverte',
+          message: `La demande ${demand.id} de ${benefactorName} a été réouverte par ${adminName}`,
+          metadata: {
+            demandId: demand.id,
+            reopenedBy: adminId,
+            reopenedByName: adminName,
+            reopenReason: reason,
+            reopenedAt: new Date().toISOString(),
+            benefactorId: demand.benefactorId,
+          },
+        });
+      } catch (error) {
+        console.error('Erreur lors de la création de la notification:', error);
+      }
+    }
+
+    return updatedDemand;
+  }
+
+  async convertDemandToPlacement(demandId: string, adminId: string, placementData?: Partial<Placement>): Promise<{ demand: PlacementDemand; placement: Placement } | null> {
+    const demand = await this.getDemandById(demandId);
+    if (!demand || demand.status !== 'APPROVED') {
+      throw new Error('La demande doit être acceptée pour être convertie en placement');
+    }
+
+    if (demand.placementId) {
+      throw new Error('Cette demande a déjà été convertie en placement');
+    }
+
+    // Créer le placement à partir de la demande
+    const placement = await this.createPlacement({
+      benefactorId: demand.benefactorId,
+      benefactorName: demand.benefactorName,
+      benefactorPhone: demand.benefactorPhone,
+      urgentContact: demand.urgentContact,
+      amount: placementData?.amount || demand.amount,
+      rate: placementData?.rate || demand.rate,
+      periodMonths: placementData?.periodMonths || demand.periodMonths,
+      payoutMode: placementData?.payoutMode || demand.payoutMode,
+      startDate: placementData?.startDate || new Date(demand.desiredDate),
+      createdBy: adminId,
+    }, adminId);
+
+    // Mettre à jour la demande pour indiquer qu'elle a été convertie
+    const updatedDemand = await this.placementDemandRepository.updateDemand(demandId, {
+      status: 'CONVERTED',
+      placementId: placement.id,
+      updatedBy: adminId,
+    });
+
+    if (updatedDemand && placement) {
+      // Récupérer le nom du bienfaiteur
+      let benefactorName = "Bienfaiteur inconnu";
+      if (demand.benefactorId) {
+        const member = await this.memberRepository.getMemberById(demand.benefactorId);
+        if (member) {
+          benefactorName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+        }
+      }
+
+      // Notification au bienfaiteur et à tous les admins
+      try {
+        await this.notificationService.createNotification({
+          module: 'placement',
+          entityId: placement.id,
+          type: 'placement_demand_converted' as any,
+          title: 'Placement créé depuis votre demande',
+          message: `Votre demande a été convertie en placement. Le placement ${placement.id} est maintenant actif.`,
+          metadata: {
+            demandId: demand.id,
+            placementId: placement.id,
+            benefactorId: demand.benefactorId,
+            convertedBy: adminId,
+          },
+        });
+
+        // Notification globale pour tous les admins
+        await this.notificationService.createNotification({
+          module: 'placement',
+          entityId: placement.id,
+          type: 'contract_created' as any,
+          title: 'Placement créé depuis une demande',
+          message: `La demande ${demand.id} de ${benefactorName} a été convertie en placement ${placement.id}`,
+          metadata: {
+            demandId: demand.id,
+            placementId: placement.id,
+            benefactorId: demand.benefactorId,
+            convertedBy: adminId,
+          },
+        });
+      } catch (error) {
+        console.error('Erreur lors de la création de la notification:', error);
+      }
+    }
+
+    return updatedDemand && placement ? {
+      demand: updatedDemand,
+      placement: placement,
+    } : null;
   }
 }
 

@@ -62,6 +62,9 @@ const routes = {
         bienfaiteurGroups: (id: string) => `/bienfaiteur/${id}/groups`,
         bienfaiteurMedia: (id: string) => `/bienfaiteur/${id}/media`,
         placements: '/placements',
+        placementDetails: (id: string) => `/placements/${id}`,
+        placementDemandes: '/placements/demandes',
+        placementDemandDetails: (id: string) => `/placements/demandes/${id}`,
         // Géographie
         geographie: '/geographie',
     },
