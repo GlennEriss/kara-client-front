@@ -1,5 +1,5 @@
 import { IService } from "../interfaces/IService";
-import { SubscriptionCI, User, Admin, ContractCI, Document, PaymentCI, PaymentMode, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI } from "@/types/types";
+import { SubscriptionCI, User, Admin, ContractCI, Document, PaymentCI, PaymentMode, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
 import { ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
 
 export interface VersementFormData {
@@ -72,4 +72,14 @@ export interface ICaisseImprevueService extends IService{
             userId: string
         }
     ): Promise<FinalRefundCI>
+    
+    // Méthodes de gestion des demandes
+    createDemand(data: Omit<CaisseImprevueDemand, 'id' | 'createdAt' | 'updatedAt'>, adminId: string): Promise<CaisseImprevueDemand>
+    getDemandById(id: string): Promise<CaisseImprevueDemand | null>
+    getDemandsWithFilters(filters?: CaisseImprevueDemandFilters): Promise<CaisseImprevueDemand[]>
+    getDemandsStats(filters?: CaisseImprevueDemandFilters): Promise<CaisseImprevueDemandStats>
+    approveDemand(demandId: string, adminId: string, reason: string): Promise<CaisseImprevueDemand | null>
+    rejectDemand(demandId: string, adminId: string, reason: string): Promise<CaisseImprevueDemand | null>
+    reopenDemand(demandId: string, adminId: string, reason: string): Promise<CaisseImprevueDemand | null>
+    convertDemandToContract(demandId: string, adminId: string, contractData?: Partial<ContractCI>): Promise<{ demand: CaisseImprevueDemand; contract: ContractCI } | null>
 }

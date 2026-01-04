@@ -29,20 +29,24 @@ import {
   Upload,
   Loader2,
   Percent,
+  Plus,
+  ExternalLink,
+  Link2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CreditContract, CreditPayment, CreditPenalty, CreditInstallment, CreditContractStatus } from '@/types/types'
 import routes from '@/constantes/routes'
 import { toast } from 'sonner'
-import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId } from '@/hooks/useCreditSpeciale'
+import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
 import CreditPaymentModal from './CreditPaymentModal'
 import PaymentReceiptModal from './PaymentReceiptModal'
-import CreditHistoryTimeline from './CreditHistoryTimeline'
+import CreditExtensionModal from './CreditExtensionModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { calculateSchedule } from '@/utils/credit-speciale-calculations'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -351,6 +355,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
     BLOCKED: { label: 'Bloqué', color: 'text-red-600', bgColor: 'bg-red-100' },
     DISCHARGED: { label: 'Déchargé', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
     CLOSED: { label: 'Clos', color: 'text-gray-600', bgColor: 'bg-gray-100' },
+    EXTENDED: { label: 'Étendu', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
   }
   return configs[status] || configs.DRAFT
 }
@@ -368,7 +373,12 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [showUploadContractModal, setShowUploadContractModal] = useState(false)
   const [contractFile, setContractFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
+  const [showExtensionModal, setShowExtensionModal] = useState(false)
   const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
+  
+  // Récupérer les contrats parent et enfant (pour les extensions)
+  const { data: childContract } = useChildContract(contract.id)
+  const { data: parentContract } = useParentContract(contract.parentContractId)
 
   // Récupérer les paiements, pénalités, échéances et rémunérations du garant
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
@@ -1037,7 +1047,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <Button
             variant="ghost"
             onClick={() => router.push(routes.admin.creditSpecialeContrats)}
@@ -1046,10 +1056,78 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
             <ArrowLeft className="h-4 w-4" />
             Retour aux contrats
           </Button>
-          <Badge className={cn('px-4 py-1.5 text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
-            {statusConfig.label}
-          </Badge>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Bouton d'augmentation - si le contrat est ACTIVE ou PARTIAL */}
+            {(contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && (
+              <Button
+                variant="outline"
+                onClick={() => setShowExtensionModal(true)}
+                className="flex items-center gap-2 border-cyan-300 text-cyan-700 hover:bg-cyan-50"
+              >
+                <Plus className="h-4 w-4" />
+                Augmenter le crédit
+              </Button>
+            )}
+            <Badge className={cn('px-4 py-1.5 text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
+              {statusConfig.label}
+            </Badge>
+          </div>
         </div>
+        
+        {/* Liens vers contrat parent/enfant */}
+        {(parentContract || childContract) && (
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-cyan-50 to-blue-50">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-5 w-5 text-cyan-600" />
+                  <span className="font-medium text-cyan-800">Contrats liés :</span>
+                </div>
+                {parentContract && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`${routes.admin.creditSpecialeContrats}/${parentContract.id}`)}
+                    className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    <ArrowLeft className="h-3 w-3" />
+                    Contrat parent
+                    <span className="text-xs font-mono bg-blue-100 px-2 py-0.5 rounded">{parentContract.id.slice(-10)}</span>
+                    <Badge variant="outline" className="text-xs">{parentContract.status}</Badge>
+                  </Button>
+                )}
+                {childContract && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`${routes.admin.creditSpecialeContrats}/${childContract.id}`)}
+                    className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                  >
+                    Nouveau contrat
+                    <span className="text-xs font-mono bg-green-100 px-2 py-0.5 rounded">{childContract.id.slice(-10)}</span>
+                    <Badge variant="outline" className="text-xs">{childContract.status}</Badge>
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {contract.status === 'EXTENDED' && contract.extendedAt && (
+                <p className="text-xs text-cyan-600 mt-2 flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Étendu le {format(new Date(contract.extendedAt), 'dd MMMM yyyy', { locale: fr })}
+                  {contract.blockedReason && ` • ${contract.blockedReason}`}
+                </p>
+              )}
+              {/* Indicateur si le contrat enfant est terminé */}
+              {childContract && childContract.status === 'DISCHARGED' && (
+                <div className="mt-2 flex items-center gap-2 text-green-700">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">Crédit terminé</span>
+                  <span className="text-xs text-green-600">(Le nouveau contrat a été entièrement remboursé)</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Statistiques */}
         <div className="space-y-4">
@@ -1554,9 +1632,6 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                     </div>
                   </div>
                 )}
-
-                {/* Historique complet */}
-                <CreditHistoryTimeline contractId={contract.id} />
               </TabsContent>
 
               {/* Onglet Simulations */}
@@ -1748,7 +1823,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                         </p>
                         {contract.guarantorRemunerationPercentage !== undefined && (
                           <p className="text-sm text-blue-700 mt-1">
-                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% par mensualité versée
+                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois
                           </p>
                         )}
                       </div>
@@ -1765,29 +1840,43 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             <TableHeader>
                               <TableRow>
                                 <TableHead>Mois</TableHead>
-                                <TableHead>Montant versé</TableHead>
+                                <TableHead>Montant global</TableHead>
                                 <TableHead className="text-right">Pourcentage de commission</TableHead>
                                 <TableHead className="text-right">Somme due</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {[...guarantorRemunerations]
-                                .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
-                                .map((remuneration) => {
-                                // Trouver le paiement associé pour obtenir le montant
-                                const associatedPayment = payments.find(p => p.id === remuneration.paymentId)
-                                const paymentAmount = associatedPayment?.amount || 0
-                                const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+                              {(() => {
+                                // Calculer l'échéancier pour obtenir les montants globaux
+                                const schedule = calculateSchedule({
+                                  amount: contract.amount,
+                                  interestRate: contract.interestRate,
+                                  monthlyPayment: contract.monthlyPaymentAmount,
+                                  firstPaymentDate: contract.firstPaymentDate,
+                                  maxDuration: 7, // Limiter à 7 mois pour la rémunération
+                                })
 
-                                return (
-                                  <TableRow key={remuneration.id}>
-                                    <TableCell className="font-medium">M{remuneration.month}</TableCell>
-                                    <TableCell>{paymentAmount.toLocaleString('fr-FR')} FCFA</TableCell>
-                                    <TableCell className="text-right">{commissionPercentage}%</TableCell>
-                                    <TableCell className="text-right font-semibold">{remuneration.amount.toLocaleString('fr-FR')} FCFA</TableCell>
-                                  </TableRow>
-                                )
-                              })}
+                                return [...guarantorRemunerations]
+                                  .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
+                                  .map((remuneration) => {
+                                    // Trouver l'échéance correspondante pour obtenir le montant global
+                                    const installment = schedule.find(item => item.month === remuneration.month)
+                                    const globalAmount = installment?.principal || 0 // Montant global (capital + intérêts)
+                                    const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+                                    
+                                    // Recalculer la rémunération basée sur le montant global (cohérence avec l'affichage)
+                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+
+                                    return (
+                                      <TableRow key={remuneration.id}>
+                                        <TableCell className="font-medium">M{remuneration.month}</TableCell>
+                                        <TableCell>{globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                        <TableCell className="text-right">{commissionPercentage}%</TableCell>
+                                        <TableCell className="text-right font-semibold">{recalculatedRemuneration.toLocaleString('fr-FR')} FCFA</TableCell>
+                                      </TableRow>
+                                    )
+                                  })
+                              })()}
                             </TableBody>
                           </Table>
                         </div>
@@ -1795,7 +1884,26 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           <div className="flex justify-between items-center">
                             <span className="font-semibold">Total des commissions :</span>
                             <span className="text-xl font-bold text-[#234D65]">
-                              {guarantorRemunerations.reduce((sum, r) => sum + r.amount, 0).toLocaleString('fr-FR')} FCFA
+                              {(() => {
+                                // Recalculer le total basé sur les montants globaux
+                                const schedule = calculateSchedule({
+                                  amount: contract.amount,
+                                  interestRate: contract.interestRate,
+                                  monthlyPayment: contract.monthlyPaymentAmount,
+                                  firstPaymentDate: contract.firstPaymentDate,
+                                  maxDuration: 7,
+                                })
+                                const commissionPercentage = contract.guarantorRemunerationPercentage || 0
+                                
+                                return guarantorRemunerations
+                                  .reduce((sum, r) => {
+                                    const installment = schedule.find(item => item.month === r.month)
+                                    const globalAmount = installment?.principal || 0
+                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+                                    return sum + recalculatedRemuneration
+                                  }, 0)
+                                  .toLocaleString('fr-FR')
+                              })()} FCFA
                             </span>
                           </div>
                         </div>
@@ -2123,6 +2231,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal d'augmentation de crédit */}
+      <CreditExtensionModal
+        isOpen={showExtensionModal}
+        onClose={() => setShowExtensionModal(false)}
+        contract={contract}
+      />
     </div>
   )
 }

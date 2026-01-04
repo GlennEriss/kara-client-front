@@ -30,7 +30,8 @@ const routes = {
         contractsHistoryDetails: (id: string) => `/contracts-history/${id}`,
         // Caisse Spéciale (Espace Admin)
         caisseSpeciale: '/caisse-speciale',
-        caisseImprevue: '/caisse-imprevue',
+        caisseSpecialeDemandes: '/caisse-speciale/demandes',
+        caisseSpecialeDemandDetails: (id: string) => `/caisse-speciale/demandes/${id}`,
         caisseSpecialeContractDetails: (id: string) => `/caisse-speciale/contrats/${id}`,
         caisseSpecialeContractPayments: (id: string) => `/caisse-speciale/contrats/${id}/versements`,
         caisseSpecialeCreateContract: '/caisse-speciale/create',
@@ -41,6 +42,9 @@ const routes = {
         creditSpecialeContrats: '/credit-speciale/contrats',
         creditSpecialeSimulations: '/credit-speciale/simulations',
         // Caisse Imprévue
+        caisseImprevue: '/caisse-imprevue',
+        caisseImprevueDemandes: '/caisse-imprevue/demandes',
+        caisseImprevueDemandDetails: (id: string) => `/caisse-imprevue/demandes/${id}`,
         caisseImprevueCreateContract: '/caisse-imprevue/create',
         caisseImprevueContractDetails: (id: string) => `/caisse-imprevue/contrats/${id}`,
         caisseImprevueContractPayments: (id: string) => `/caisse-imprevue/contrats/${id}/versements`,
@@ -60,6 +64,9 @@ const routes = {
         bienfaiteurGroups: (id: string) => `/bienfaiteur/${id}/groups`,
         bienfaiteurMedia: (id: string) => `/bienfaiteur/${id}/media`,
         placements: '/placements',
+        placementDetails: (id: string) => `/placements/${id}`,
+        placementDemandes: '/placements/demandes',
+        placementDemandDetails: (id: string) => `/placements/demandes/${id}`,
         // Géographie
         geographie: '/geographie',
     },

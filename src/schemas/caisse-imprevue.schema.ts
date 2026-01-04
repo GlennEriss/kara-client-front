@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { emergencyContactCISchema } from './emergency-contact.schema'
 
 // Schéma pour Step 1 : Sélection du membre
 export const caisseImprevueStep1Schema = z.object({
@@ -250,5 +251,118 @@ export const defaultSubscriptionCIValues: Partial<SubscriptionCIFormData> = {
   supportMin: 500,
   supportMax: 30000,
   status: 'ACTIVE',
+}
+
+// ================== SCHÉMA DEMANDE DE CAISSE IMPREVUE ==================
+
+export const caisseImprevueDemandStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CONVERTED', 'REOPENED'])
+
+export const caisseImprevueDemandSchema = z.object({
+  id: z.string().min(1, 'L\'ID de la demande est requis'),
+  
+  // Informations du demandeur
+  memberId: z.string().min(1, 'Le membre est requis'),
+  memberFirstName: z.string().optional(),
+  memberLastName: z.string().optional(),
+  memberContacts: z.array(z.string()).optional(),
+  memberEmail: z.string().optional(),
+  
+  // Informations du forfait souhaité
+  subscriptionCIID: z.string().min(1, 'Le forfait est requis'),
+  subscriptionCICode: z.string().min(1, 'Le code du forfait est requis'),
+  subscriptionCILabel: z.string().optional(),
+  subscriptionCIAmountPerMonth: z.number().positive('Le montant mensuel doit être positif'),
+  subscriptionCINominal: z.number().positive('Le nominal doit être positif'),
+  subscriptionCIDuration: z.number().int().positive('La durée doit être positive'),
+  subscriptionCISupportMin: z.number().min(0).optional(),
+  subscriptionCISupportMax: z.number().positive().optional(),
+  
+  // Fréquence de paiement
+  paymentFrequency: z.enum(['DAILY', 'MONTHLY']),
+  
+  // Dates
+  desiredDate: z.string().min(1, 'La date souhaitée est requise'),
+  firstPaymentDate: z.string().optional(),
+  
+  // Contact d'urgence
+  emergencyContact: emergencyContactCISchema.optional(),
+  
+  // Raison de la demande
+  cause: z.string()
+    .max(500, 'La cause ne peut pas dépasser 500 caractères')
+    .optional(),
+  
+  // Statut et décision
+  status: caisseImprevueDemandStatusEnum,
+  decisionMadeAt: z.date().optional(),
+  decisionMadeBy: z.string().optional(),
+  decisionMadeByName: z.string().optional(),
+  decisionReason: z.string().optional(),
+  
+  // Traçabilité de la réouverture
+  reopenedAt: z.date().optional(),
+  reopenedBy: z.string().optional(),
+  reopenedByName: z.string().optional(),
+  reopenReason: z.string().optional(),
+  
+  // Lien vers le contrat
+  contractId: z.string().optional(),
+  
+  // Métadonnées
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  createdBy: z.string().min(1, 'L\'ID du créateur est requis'),
+  updatedBy: z.string().optional(),
+})
+
+export const caisseImprevueDemandFormSchema = z.object({
+  // Step 1: Informations du membre
+  memberId: z.string().min(1, 'Le membre est requis'),
+  memberFirstName: z.string().optional(),
+  memberLastName: z.string().optional(),
+  memberContacts: z.array(z.string()).optional(),
+  memberEmail: z.string().optional(),
+  
+  // Step 2: Informations du forfait
+  subscriptionCIID: z.string().min(1, 'Le forfait est requis'),
+  subscriptionCICode: z.string().min(1, 'Le code du forfait est requis'),
+  subscriptionCILabel: z.string().optional(),
+  subscriptionCIAmountPerMonth: z.number().positive('Le montant mensuel doit être positif'),
+  subscriptionCINominal: z.number().positive('Le nominal doit être positif'),
+  subscriptionCIDuration: z.number().int().positive('La durée doit être positive'),
+  subscriptionCISupportMin: z.number().min(0).optional(),
+  subscriptionCISupportMax: z.number().positive().optional(),
+  paymentFrequency: z.enum(['DAILY', 'MONTHLY']),
+  desiredDate: z.string().min(1, 'La date souhaitée est requise'),
+  firstPaymentDate: z.string().optional(),
+  cause: z.string().max(500).optional(),
+  
+  // Step 3: Contact d'urgence
+  emergencyContact: emergencyContactCISchema.optional(),
+})
+
+export type CaisseImprevueDemandFormInput = z.infer<typeof caisseImprevueDemandFormSchema>
+
+export const approveCaisseImprevueDemandSchema = z.object({
+  reason: z.string()
+    .min(10, 'La raison d\'acceptation doit contenir au moins 10 caractères')
+    .max(500, 'La raison ne peut pas dépasser 500 caractères'),
+})
+
+export const rejectCaisseImprevueDemandSchema = z.object({
+  reason: z.string()
+    .min(10, 'La raison du refus doit contenir au moins 10 caractères')
+    .max(500, 'La raison ne peut pas dépasser 500 caractères'),
+})
+
+export const reopenCaisseImprevueDemandSchema = z.object({
+  reason: z.string()
+    .min(10, 'Le motif de réouverture doit contenir au moins 10 caractères')
+    .max(500, 'Le motif ne peut pas dépasser 500 caractères'),
+})
+
+export const caisseImprevueDemandDefaultValues: Partial<CaisseImprevueDemandFormInput> = {
+  paymentFrequency: 'MONTHLY',
+  desiredDate: new Date().toISOString().split('T')[0], // Date du jour par défaut
 }
 

@@ -29,13 +29,29 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import routes from '@/constantes/routes'
 import { CreditContract, CreditContractStatus } from '@/types/types'
-import { useCreditContracts, useCreditContractsStats, useCreditContractMutations } from '@/hooks/useCreditSpeciale'
+import { useCreditContracts, useCreditContractsStats, useCreditContractMutations, useUnpaidCreditPenaltiesByCreditId } from '@/hooks/useCreditSpeciale'
 import type { CreditContractFilters } from '@/repositories/credit-speciale/ICreditContractRepository'
 import StatisticsCreditContrats from './StatisticsCreditContrats'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
 import { Shield, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 
 type ViewMode = 'grid' | 'list'
+
+const UnpaidPenaltiesBadge = ({ creditId }: { creditId: string }) => {
+  const { data: unpaidPenalties = [], isLoading } = useUnpaidCreditPenaltiesByCreditId(creditId)
+
+  if (isLoading || unpaidPenalties.length === 0) return null
+
+  const total = unpaidPenalties.reduce((sum, p) => sum + (p.amount || 0), 0)
+
+  return (
+    <Badge className="bg-orange-50 text-orange-800 border border-orange-300 text-xs flex items-center gap-1">
+      <AlertTriangle className="h-3 w-3" />
+      Pénalités impayées: {unpaidPenalties.length} ({Math.round(total).toLocaleString('fr-FR')} FCFA)
+    </Badge>
+  )
+}
 
 // Composant pour afficher les infos garant avec statut CI
 const GuarantorInfo = ({ 
@@ -431,6 +447,7 @@ const ListContrats = () => {
       BLOCKED: 'bg-red-100 text-red-700 border-red-200',
       DISCHARGED: 'bg-gray-100 text-gray-700 border-gray-200',
       CLOSED: 'bg-gray-100 text-gray-700 border-gray-200',
+      EXTENDED: 'bg-cyan-100 text-cyan-700 border-cyan-200',
     }
     return colors[status] || colors.DRAFT
   }
@@ -448,6 +465,7 @@ const ListContrats = () => {
       BLOCKED: 'Bloqué',
       DISCHARGED: 'Déchargé',
       CLOSED: 'Clos',
+      EXTENDED: 'Étendu',
     }
     return labels[status] || status
   }
@@ -456,11 +474,13 @@ const ListContrats = () => {
    * Vérifie si un contrat est en retard
    */
   const isContractOverdue = (contract: CreditContract): boolean => {
-    if (contract.status === 'OVERDUE' || contract.status === 'PARTIAL') {
+    // Un contrat PARTIAL = partiellement remboursé, pas forcément "en retard".
+    // "En retard" doit refléter une échéance dépassée (nextDueAt < aujourd'hui) ou un statut OVERDUE explicite.
+    if (contract.status === 'OVERDUE') {
       return true
     }
     
-    if (contract.status === 'ACTIVE' && contract.nextDueAt) {
+    if ((contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && contract.nextDueAt) {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       
@@ -729,6 +749,11 @@ const ListContrats = () => {
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(contract.status)}`}>
                       {getStatusLabel(contract.status)}
                     </span>
+                  </div>
+
+                  {/* Badge pénalités impayées (plus cohérent que "En retard" basé sur PARTIAL) */}
+                  <div className="mb-3">
+                    <UnpaidPenaltiesBadge creditId={contract.id} />
                   </div>
 
                   <div className="space-y-3 mb-4">

@@ -69,7 +69,7 @@ export default function ContractCreationModal({
   const [currentStep, setCurrentStep] = useState<Step>('summary')
   const [emergencyContact, setEmergencyContact] = useState<Partial<EmergencyContact>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2%
+  const [guarantorRemunerationPercentage, setGuarantorRemunerationPercentage] = useState<number>(2) // Par défaut 2% (peut aller jusqu'à 5%)
 
   // Déterminer si le garant est un membre (et donc peut recevoir une rémunération)
   const hasGuarantor = !!demand.guarantorId
@@ -94,7 +94,7 @@ export default function ContractCreationModal({
     if (isOpen) {
       setCurrentStep('summary')
       setEmergencyContact({})
-      setGuarantorRemunerationPercentage(2) // Réinitialiser à 2% par défaut
+      setGuarantorRemunerationPercentage(2) // Réinitialiser à 2% par défaut (peut aller jusqu'à 5%)
     }
   }, [isOpen])
 
@@ -206,15 +206,19 @@ export default function ContractCreationModal({
     return referenceSchedule
   }, [simulation, demand.creditType])
 
-  // Calculer le tableau de rémunération du garant (pourcentage personnalisé de chaque mensualité)
+  // Calculer le tableau de rémunération du garant (pourcentage personnalisé du montant global, limité à 7 mois)
   const guarantorRemunerationSchedule = useMemo(() => {
     if (!guarantorIsMember) return []
     
-    return schedule.map(item => ({
+    // Limiter à 7 mois maximum
+    const maxMonths = Math.min(7, schedule.length)
+    
+    return schedule.slice(0, maxMonths).map(item => ({
       month: item.month,
       date: item.date,
       monthlyPayment: item.payment,
-      guarantorAmount: customRound(item.payment * guarantorRemunerationPercentage / 100),
+      globalAmount: item.principal, // Montant global (capital + intérêts)
+      guarantorAmount: customRound(item.principal * guarantorRemunerationPercentage / 100),
     }))
   }, [schedule, guarantorIsMember, guarantorRemunerationPercentage])
 
@@ -308,7 +312,7 @@ export default function ContractCreationModal({
         return true
       case 'guarantor':
         // Valider que le pourcentage est entre 0 et 2
-        return guarantorRemunerationPercentage >= 0 && guarantorRemunerationPercentage <= 2
+        return guarantorRemunerationPercentage >= 0 && guarantorRemunerationPercentage <= 5
       case 'emergency':
         return isEmergencyContactValid
       case 'confirm':
@@ -503,13 +507,13 @@ export default function ContractCreationModal({
           <div className="space-y-6">
             <div className="text-center mb-4">
               <h3 className="text-lg font-semibold text-[#234D65]">Rémunération du garant</h3>
-              <p className="text-gray-600 text-sm">Le garant membre gagne un pourcentage de chaque mensualité versée (0% à 2%)</p>
+              <p className="text-gray-600 text-sm">Le garant membre gagne un pourcentage du montant global (capital + intérêts) de chaque échéance (0% à 5%, calculé sur maximum 7 mois)</p>
             </div>
 
             <Alert className="border-purple-200 bg-purple-50">
               <Users className="h-4 w-4 text-purple-600" />
               <AlertDescription className="text-purple-800">
-                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de la mutuelle et recevra une rémunération sur chaque mensualité payée.
+                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de la mutuelle et recevra une rémunération sur chaque échéance (calculée sur le montant global, maximum 7 mois).
               </AlertDescription>
             </Alert>
 
@@ -526,14 +530,14 @@ export default function ContractCreationModal({
                       id="remunerationPercentage"
                       type="number"
                       min="0"
-                      max="2"
+                      max="5"
                       step="0.1"
                       value={guarantorRemunerationPercentage}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value)
                         if (!isNaN(value)) {
-                          // Limiter entre 0 et 2
-                          const clampedValue = Math.max(0, Math.min(2, value))
+                          // Limiter entre 0 et 5
+                          const clampedValue = Math.max(0, Math.min(5, value))
                           setGuarantorRemunerationPercentage(clampedValue)
                         } else if (e.target.value === '') {
                           setGuarantorRemunerationPercentage(0)
@@ -542,11 +546,11 @@ export default function ContractCreationModal({
                       className="w-32 border-purple-300 focus:border-purple-500 focus:ring-purple-500/20"
                       placeholder="2.0"
                     />
-                    <span className="text-sm text-gray-600">% (entre 0% et 2%)</span>
+                    <span className="text-sm text-gray-600">% (entre 0% et 5%)</span>
                   </div>
-                  {(guarantorRemunerationPercentage < 0 || guarantorRemunerationPercentage > 2) && (
+                  {(guarantorRemunerationPercentage < 0 || guarantorRemunerationPercentage > 5) && (
                     <p className="text-sm text-red-600">
-                      Le pourcentage doit être compris entre 0% et 2%
+                      Le pourcentage doit être compris entre 0% et 5%
                     </p>
                   )}
                 </div>
@@ -558,7 +562,7 @@ export default function ContractCreationModal({
               <CardHeader className="py-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Percent className="w-4 h-4" />
-                  Tableau de rémunération ({guarantorRemunerationPercentage}% par mensualité)
+                  Tableau de rémunération ({guarantorRemunerationPercentage}% du montant global, max 7 mois)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -568,7 +572,7 @@ export default function ContractCreationModal({
                       <TableRow>
                         <TableHead>Mois</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Mensualité client</TableHead>
+                        <TableHead className="text-right">Montant global</TableHead>
                         <TableHead className="text-right">Rémunération parrain ({guarantorRemunerationPercentage}%)</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -577,7 +581,7 @@ export default function ContractCreationModal({
                         <TableRow key={row.month}>
                           <TableCell className="font-medium">M{row.month}</TableCell>
                           <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                          <TableCell className="text-right">{row.monthlyPayment.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
                           <TableCell className="text-right text-purple-600 font-medium">
                             {row.guarantorAmount.toLocaleString('fr-FR')} FCFA
                           </TableCell>

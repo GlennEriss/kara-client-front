@@ -389,7 +389,15 @@ const ListDemandes = () => {
   }
 
   const { data: demandes = [], isLoading, error } = useCreditDemands(queryFilters)
-  const { data: statsData } = useCreditDemandsStats(queryFilters)
+  
+  // Stats globales (sans aucun filtre) pour les compteurs des tabs
+  // Les compteurs doivent toujours afficher le total réel, indépendamment des filtres appliqués
+  const globalStatsFilters: CreditDemandFilters = {
+    status: 'all', // Pas de filtre de statut pour avoir toutes les stats
+    // Pas d'autres filtres pour avoir les stats globales réelles
+  }
+  const { data: statsData } = useCreditDemandsStats(globalStatsFilters)
+  
   const { updateStatus } = useCreditDemandMutations()
 
   // Reset page when filters change
