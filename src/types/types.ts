@@ -1263,6 +1263,7 @@ export type CreditContractStatus =
   | 'BLOCKED'          // Bloqué (pénalités impayées)
   | 'DISCHARGED'       // Déchargé (remboursement complet)
   | 'CLOSED'           // Clos
+  | 'EXTENDED'         // Étendu (remplacé par une augmentation de crédit)
 
 /**
  * Moyen de paiement pour crédit spéciale
@@ -1311,6 +1312,7 @@ export interface CreditDemand {
 export interface CreditContract {
   id: string
   demandId: string
+  parentContractId?: string // Référence au contrat parent (si augmentation de crédit)
   clientId: string
   clientFirstName: string
   clientLastName: string
@@ -1341,8 +1343,9 @@ export interface CreditContract {
   fundsReleasedAt?: Date
   dischargedAt?: Date
   transformedAt?: Date
+  extendedAt?: Date // Date à laquelle le contrat a été étendu (augmentation)
   blockedAt?: Date
-  blockedReason?: string
+  blockedReason?: string // Peut contenir le motif ou l'ID du nouveau contrat
   score?: number // Score de fiabilité (0-10, admin-only)
   scoreUpdatedAt?: Date
   createdAt: Date

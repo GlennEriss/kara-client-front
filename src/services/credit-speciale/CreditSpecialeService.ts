@@ -2145,5 +2145,356 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             throw error;
         }
     }
+
+    // ==================== AUGMENTATION DE CRÉDIT ====================
+
+    /**
+     * Vérifie si un contrat peut être étendu (augmentation de crédit)
+     */
+    async checkExtensionEligibility(contractId: string): Promise<{
+        eligible: boolean;
+        reason?: string;
+        currentContract?: CreditContract;
+        paymentsCount: number;
+        unpaidPenaltiesCount: number;
+    }> {
+        try {
+            const contract = await this.creditContractRepository.getContractById(contractId);
+            if (!contract) {
+                return { eligible: false, reason: 'Contrat introuvable', paymentsCount: 0, unpaidPenaltiesCount: 0 };
+            }
+
+            // Vérifier que le contrat est actif ou partiellement remboursé
+            if (contract.status !== 'ACTIVE' && contract.status !== 'PARTIAL') {
+                return { 
+                    eligible: false, 
+                    reason: `Le contrat doit être actif ou partiellement remboursé (statut actuel: ${contract.status})`,
+                    currentContract: contract,
+                    paymentsCount: 0,
+                    unpaidPenaltiesCount: 0
+                };
+            }
+
+            // Récupérer les paiements
+            const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
+            const paymentsCount = payments.filter(p => p.amount > 0 || p.comment?.includes('Paiement de 0 FCFA')).length;
+
+            // Récupérer les pénalités impayées
+            const unpaidPenalties = await this.creditPenaltyRepository.getUnpaidPenaltiesByCreditId(contractId);
+            const unpaidPenaltiesCount = unpaidPenalties.length;
+
+            // Si des échéances ont été payées, vérifier qu'il n'y a pas de pénalités impayées
+            if (paymentsCount > 0 && unpaidPenaltiesCount > 0) {
+                return {
+                    eligible: false,
+                    reason: `Le client a ${unpaidPenaltiesCount} pénalité(s) impayée(s). Il doit d'abord les rembourser avant de demander une augmentation.`,
+                    currentContract: contract,
+                    paymentsCount,
+                    unpaidPenaltiesCount
+                };
+            }
+
+            return {
+                eligible: true,
+                currentContract: contract,
+                paymentsCount,
+                unpaidPenaltiesCount
+            };
+        } catch (error) {
+            console.error('Erreur lors de la vérification de l\'éligibilité à l\'extension:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Calcule les montants pour une augmentation de crédit
+     */
+    async calculateExtensionAmounts(contractId: string): Promise<{
+        originalAmount: number;
+        interestRate: number;
+        totalPaid: number;
+        remainingDue: number;
+        suggestedMinMonthlyPayment?: number;
+    }> {
+        try {
+            const contract = await this.creditContractRepository.getContractById(contractId);
+            if (!contract) {
+                throw new Error('Contrat introuvable');
+            }
+
+            // Récupérer les paiements effectués
+            const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
+            const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+
+            // Calculer le reste dû
+            // Si des paiements ont été effectués: Reste dû = Montant initial + Intérêts accumulés - Montants payés
+            // Si aucun paiement: Reste dû = Montant initial + Intérêts du premier mois
+            let remainingDue: number;
+            
+            if (totalPaid > 0) {
+                // Calculer le reste dû en fonction des paiements réels
+                remainingDue = contract.totalAmount - totalPaid;
+            } else {
+                // Aucun paiement: ajouter les intérêts du premier mois
+                const firstMonthInterest = contract.amount * (contract.interestRate / 100);
+                remainingDue = contract.amount + firstMonthInterest;
+            }
+
+            // S'assurer que le reste dû n'est pas négatif
+            remainingDue = Math.max(0, remainingDue);
+
+            return {
+                originalAmount: contract.amount,
+                interestRate: contract.interestRate,
+                totalPaid,
+                remainingDue,
+            };
+        } catch (error) {
+            console.error('Erreur lors du calcul des montants d\'extension:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Étend un contrat (augmentation de crédit)
+     * - Passe le contrat initial en statut EXTENDED
+     * - Crée une nouvelle demande approuvée automatiquement
+     * - Crée un nouveau contrat avec le nouveau capital
+     */
+    async extendContract(
+        parentContractId: string,
+        additionalAmount: number,
+        cause: string,
+        simulationData: {
+            interestRate: number;
+            monthlyPaymentAmount: number;
+            duration: number;
+            firstPaymentDate: Date;
+            totalAmount: number;
+        },
+        adminId: string,
+        emergencyContact?: EmergencyContact,
+        desiredDate?: string
+    ): Promise<{
+        newDemand: CreditDemand;
+        newContract: CreditContract;
+        parentContract: CreditContract;
+    }> {
+        try {
+            // 1. Vérifier l'éligibilité
+            const eligibility = await this.checkExtensionEligibility(parentContractId);
+            if (!eligibility.eligible) {
+                throw new Error(eligibility.reason || 'Le contrat ne peut pas être étendu');
+            }
+
+            const parentContract = eligibility.currentContract!;
+
+            // 2. Calculer les montants
+            const amounts = await this.calculateExtensionAmounts(parentContractId);
+            const newCapital = amounts.remainingDue + additionalAmount;
+
+            // 3. Récupérer les paiements du contrat parent
+            const parentPayments = await this.creditPaymentRepository.getPaymentsByCreditId(parentContractId);
+            const hasPayments = parentPayments.length > 0 && amounts.totalPaid > 0;
+
+            // 4. Créer la nouvelle demande (automatiquement approuvée)
+            const member = await this.memberRepository.getMemberById(parentContract.clientId);
+            if (!member || !member.matricule) {
+                throw new Error('Membre non trouvé ou matricule manquant');
+            }
+
+            // Générer l'ID de la demande
+            const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
+            const matriculeFormatted = matriculePart.padStart(4, '0');
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = String(now.getFullYear()).slice(-2);
+            const dateFormatted = `${day}${month}${year}`;
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const timeFormatted = `${hours}${minutes}`;
+            const demandId = `MK_DEMANDE_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+
+            const newDemandData: Omit<CreditDemand, 'id' | 'createdAt' | 'updatedAt'> = {
+                clientId: parentContract.clientId,
+                clientFirstName: parentContract.clientFirstName,
+                clientLastName: parentContract.clientLastName,
+                clientContacts: parentContract.clientContacts,
+                creditType: parentContract.creditType,
+                amount: newCapital, // Nouveau capital
+                monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
+                desiredDate: desiredDate || new Date().toISOString().split('T')[0],
+                cause: `Augmentation de crédit - ${cause} (Contrat initial: ${parentContractId}, Montant additionnel: ${additionalAmount.toLocaleString('fr-FR')} FCFA)`,
+                status: 'APPROVED', // Automatiquement approuvée
+                guarantorId: parentContract.guarantorId,
+                guarantorFirstName: parentContract.guarantorFirstName,
+                guarantorLastName: parentContract.guarantorLastName,
+                guarantorRelation: parentContract.guarantorRelation,
+                guarantorIsMember: parentContract.guarantorIsMember,
+                adminComments: `Extension automatique du contrat ${parentContractId}. Montant initial: ${amounts.originalAmount.toLocaleString('fr-FR')} FCFA, Reste dû: ${amounts.remainingDue.toLocaleString('fr-FR')} FCFA, Montant additionnel: ${additionalAmount.toLocaleString('fr-FR')} FCFA, Nouveau capital: ${newCapital.toLocaleString('fr-FR')} FCFA`,
+                score: parentContract.score || 5,
+                scoreUpdatedAt: new Date(),
+                createdBy: adminId,
+            };
+
+            const newDemand = await this.creditDemandRepository.createDemand(newDemandData, demandId);
+
+            // 5. Créer le nouveau contrat
+            const contractId = `MK_CSP_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+
+            const newContractData = {
+                demandId: newDemand.id,
+                parentContractId: parentContractId, // Lien vers le contrat parent
+                clientId: parentContract.clientId,
+                clientFirstName: parentContract.clientFirstName,
+                clientLastName: parentContract.clientLastName,
+                clientContacts: parentContract.clientContacts,
+                creditType: parentContract.creditType,
+                amount: newCapital,
+                interestRate: simulationData.interestRate,
+                monthlyPaymentAmount: simulationData.monthlyPaymentAmount,
+                totalAmount: simulationData.totalAmount,
+                duration: simulationData.duration,
+                firstPaymentDate: simulationData.firstPaymentDate,
+                status: 'PENDING' as CreditContractStatus, // En attente de signature
+                amountPaid: 0,
+                amountRemaining: simulationData.totalAmount,
+                guarantorId: parentContract.guarantorId,
+                guarantorFirstName: parentContract.guarantorFirstName,
+                guarantorLastName: parentContract.guarantorLastName,
+                guarantorRelation: parentContract.guarantorRelation,
+                guarantorIsMember: parentContract.guarantorIsMember,
+                guarantorIsParrain: parentContract.guarantorIsParrain,
+                guarantorRemunerationPercentage: parentContract.guarantorRemunerationPercentage,
+                emergencyContact: emergencyContact || parentContract.emergencyContact,
+                score: parentContract.score || 5,
+                scoreUpdatedAt: new Date(),
+                createdBy: adminId,
+            };
+
+            const newContract = await this.creditContractRepository.createContract(newContractData, contractId);
+
+            // 6. Mettre à jour la demande avec l'ID du contrat
+            await this.creditDemandRepository.updateDemand(newDemand.id, {
+                contractId: newContract.id,
+                updatedBy: adminId,
+            });
+
+            // 7. Passer le contrat parent en statut EXTENDED
+            const updatedParentContract = await this.creditContractRepository.updateContract(parentContractId, {
+                status: 'EXTENDED',
+                extendedAt: new Date(),
+                blockedReason: `Augmentation de crédit vers ${newContract.id}`,
+                updatedBy: adminId,
+            });
+
+            if (!updatedParentContract) {
+                throw new Error('Erreur lors de la mise à jour du contrat parent');
+            }
+
+            // 8. Si des échéances ont été payées sur le contrat parent, enregistrer la première échéance du nouveau contrat comme payée
+            if (hasPayments) {
+                // Le montant de la première échéance payée du contrat parent
+                const firstPaymentAmount = parentPayments[0]?.amount || 0;
+                
+                if (firstPaymentAmount > 0) {
+                    // Créer un paiement pour la première échéance du nouveau contrat
+                    // Format: M1_{idContrat} (comme les autres paiements)
+                    const transferPaymentId = `M1_${newContract.id}`;
+                    await this.creditPaymentRepository.createPayment({
+                        creditId: newContract.id,
+                        amount: firstPaymentAmount,
+                        principalAmount: firstPaymentAmount,
+                        interestAmount: 0,
+                        penaltyAmount: 0,
+                        paymentDate: new Date(),
+                        paymentTime: `${hours}:${minutes}`,
+                        mode: 'CASH',
+                        comment: `Transfert de la première échéance du contrat parent ${parentContractId}`,
+                        createdBy: adminId,
+                    }, transferPaymentId);
+
+                    // Mettre à jour le nouveau contrat avec le montant payé
+                    await this.creditContractRepository.updateContract(newContract.id, {
+                        amountPaid: firstPaymentAmount,
+                        amountRemaining: simulationData.totalAmount - firstPaymentAmount,
+                        updatedBy: adminId,
+                    });
+                }
+            }
+
+            // 9. Créer les notifications
+            try {
+                await this.notificationService.createNotification({
+                    module: 'credit_speciale',
+                    entityId: newContract.id,
+                    type: 'contract_created',
+                    title: 'Augmentation de crédit créée',
+                    message: `Une augmentation de crédit de ${additionalAmount.toLocaleString('fr-FR')} FCFA a été créée pour ${parentContract.clientFirstName} ${parentContract.clientLastName}. Nouveau capital: ${newCapital.toLocaleString('fr-FR')} FCFA`,
+                    metadata: {
+                        contractId: newContract.id,
+                        parentContractId,
+                        additionalAmount,
+                        newCapital,
+                        clientId: parentContract.clientId,
+                    },
+                });
+
+                await this.notificationService.createNotification({
+                    module: 'credit_speciale',
+                    entityId: parentContractId,
+                    type: 'status_update',
+                    title: 'Contrat étendu',
+                    message: `Le contrat ${parentContractId} a été étendu. Un nouveau contrat ${newContract.id} a été créé.`,
+                    metadata: {
+                        contractId: parentContractId,
+                        newContractId: newContract.id,
+                        clientId: parentContract.clientId,
+                    },
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création des notifications:', error);
+            }
+
+            return {
+                newDemand: { ...newDemand, contractId: newContract.id },
+                newContract,
+                parentContract: updatedParentContract,
+            };
+        } catch (error) {
+            console.error('Erreur lors de l\'extension du contrat:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Récupère le contrat enfant (si extension)
+     */
+    async getChildContract(parentContractId: string): Promise<CreditContract | null> {
+        try {
+            const contracts = await this.creditContractRepository.getContractsWithFilters({});
+            return contracts.find(c => c.parentContractId === parentContractId) || null;
+        } catch (error) {
+            console.error('Erreur lors de la récupération du contrat enfant:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Récupère le contrat parent (si extension)
+     */
+    async getParentContract(childContractId: string): Promise<CreditContract | null> {
+        try {
+            const contract = await this.creditContractRepository.getContractById(childContractId);
+            if (!contract || !contract.parentContractId) {
+                return null;
+            }
+            return await this.creditContractRepository.getContractById(contract.parentContractId);
+        } catch (error) {
+            console.error('Erreur lors de la récupération du contrat parent:', error);
+            return null;
+        }
+    }
 }
 

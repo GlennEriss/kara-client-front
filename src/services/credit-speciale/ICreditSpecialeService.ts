@@ -2,7 +2,6 @@ import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInsta
 import { CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
-import { CreditPenaltyFilters } from "@/repositories/credit-speciale/ICreditPenaltyRepository";
 import { GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
 
 export interface ICreditSpecialeService {
@@ -70,5 +69,48 @@ export interface ICreditSpecialeService {
         penalties: CreditPenalty[];
         notifications: Notification[];
     }>;
+    
+    // Augmentation de crédit
+    checkExtensionEligibility(contractId: string): Promise<{
+        eligible: boolean;
+        reason?: string;
+        currentContract?: CreditContract;
+        paymentsCount: number;
+        unpaidPenaltiesCount: number;
+    }>;
+    
+    calculateExtensionAmounts(contractId: string): Promise<{
+        originalAmount: number;
+        interestRate: number;
+        totalPaid: number;
+        remainingDue: number; // Reste dû du contrat actuel
+        suggestedMinMonthlyPayment?: number; // Mensualité suggérée pour 7 mois
+    }>;
+    
+    extendContract(
+        parentContractId: string,
+        additionalAmount: number,
+        cause: string,
+        simulationData: {
+            interestRate: number;
+            monthlyPaymentAmount: number;
+            duration: number;
+            firstPaymentDate: Date;
+            totalAmount: number;
+        },
+        adminId: string,
+        emergencyContact?: any, // EmergencyContact
+        desiredDate?: string
+    ): Promise<{
+        newDemand: CreditDemand;
+        newContract: CreditContract;
+        parentContract: CreditContract;
+    }>;
+    
+    // Récupérer le contrat enfant (si extension)
+    getChildContract(parentContractId: string): Promise<CreditContract | null>;
+    
+    // Récupérer le contrat parent (si extension)
+    getParentContract(childContractId: string): Promise<CreditContract | null>;
 }
 

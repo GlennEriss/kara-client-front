@@ -29,15 +29,18 @@ import {
   Upload,
   Loader2,
   Percent,
+  Plus,
+  ExternalLink,
+  Link2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CreditContract, CreditPayment, CreditPenalty, CreditInstallment, CreditContractStatus } from '@/types/types'
 import routes from '@/constantes/routes'
 import { toast } from 'sonner'
-import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId } from '@/hooks/useCreditSpeciale'
+import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
 import CreditPaymentModal from './CreditPaymentModal'
 import PaymentReceiptModal from './PaymentReceiptModal'
-import CreditHistoryTimeline from './CreditHistoryTimeline'
+import CreditExtensionModal from './CreditExtensionModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
@@ -351,6 +354,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
     BLOCKED: { label: 'Bloqué', color: 'text-red-600', bgColor: 'bg-red-100' },
     DISCHARGED: { label: 'Déchargé', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
     CLOSED: { label: 'Clos', color: 'text-gray-600', bgColor: 'bg-gray-100' },
+    EXTENDED: { label: 'Étendu', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
   }
   return configs[status] || configs.DRAFT
 }
@@ -368,7 +372,12 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [showUploadContractModal, setShowUploadContractModal] = useState(false)
   const [contractFile, setContractFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
+  const [showExtensionModal, setShowExtensionModal] = useState(false)
   const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
+  
+  // Récupérer les contrats parent et enfant (pour les extensions)
+  const { data: childContract } = useChildContract(contract.id)
+  const { data: parentContract } = useParentContract(contract.parentContractId)
 
   // Récupérer les paiements, pénalités, échéances et rémunérations du garant
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
@@ -1037,7 +1046,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <Button
             variant="ghost"
             onClick={() => router.push(routes.admin.creditSpecialeContrats)}
@@ -1046,10 +1055,78 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
             <ArrowLeft className="h-4 w-4" />
             Retour aux contrats
           </Button>
-          <Badge className={cn('px-4 py-1.5 text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
-            {statusConfig.label}
-          </Badge>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Bouton d'augmentation - si le contrat est ACTIVE ou PARTIAL */}
+            {(contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && (
+              <Button
+                variant="outline"
+                onClick={() => setShowExtensionModal(true)}
+                className="flex items-center gap-2 border-cyan-300 text-cyan-700 hover:bg-cyan-50"
+              >
+                <Plus className="h-4 w-4" />
+                Augmenter le crédit
+              </Button>
+            )}
+            <Badge className={cn('px-4 py-1.5 text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
+              {statusConfig.label}
+            </Badge>
+          </div>
         </div>
+        
+        {/* Liens vers contrat parent/enfant */}
+        {(parentContract || childContract) && (
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-cyan-50 to-blue-50">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Link2 className="h-5 w-5 text-cyan-600" />
+                  <span className="font-medium text-cyan-800">Contrats liés :</span>
+                </div>
+                {parentContract && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`${routes.admin.creditSpecialeContrats}/${parentContract.id}`)}
+                    className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    <ArrowLeft className="h-3 w-3" />
+                    Contrat parent
+                    <span className="text-xs font-mono bg-blue-100 px-2 py-0.5 rounded">{parentContract.id.slice(-10)}</span>
+                    <Badge variant="outline" className="text-xs">{parentContract.status}</Badge>
+                  </Button>
+                )}
+                {childContract && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`${routes.admin.creditSpecialeContrats}/${childContract.id}`)}
+                    className="flex items-center gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                  >
+                    Nouveau contrat
+                    <span className="text-xs font-mono bg-green-100 px-2 py-0.5 rounded">{childContract.id.slice(-10)}</span>
+                    <Badge variant="outline" className="text-xs">{childContract.status}</Badge>
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              {contract.status === 'EXTENDED' && contract.extendedAt && (
+                <p className="text-xs text-cyan-600 mt-2 flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Étendu le {format(new Date(contract.extendedAt), 'dd MMMM yyyy', { locale: fr })}
+                  {contract.blockedReason && ` • ${contract.blockedReason}`}
+                </p>
+              )}
+              {/* Indicateur si le contrat enfant est terminé */}
+              {childContract && childContract.status === 'DISCHARGED' && (
+                <div className="mt-2 flex items-center gap-2 text-green-700">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">Crédit terminé</span>
+                  <span className="text-xs text-green-600">(Le nouveau contrat a été entièrement remboursé)</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Statistiques */}
         <div className="space-y-4">
@@ -1554,9 +1631,6 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                     </div>
                   </div>
                 )}
-
-                {/* Historique complet */}
-                <CreditHistoryTimeline contractId={contract.id} />
               </TabsContent>
 
               {/* Onglet Simulations */}
@@ -2123,6 +2197,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal d'augmentation de crédit */}
+      <CreditExtensionModal
+        isOpen={showExtensionModal}
+        onClose={() => setShowExtensionModal(false)}
+        contract={contract}
+      />
     </div>
   )
 }

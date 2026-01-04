@@ -89,12 +89,27 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
   - Use case : UC_StatsContrat (UI), UC_HistoPay (UI/Services), UC_Decharge (Services/Documents), UC_Fiche (UI), UC_Dashboard (UI), UC_Recus (UI/Services), UC_Histo (UI/Services)  
   - Diagrammes : activité [`diagrams/UC_HistoPay_activity.puml`](./diagrams/UC_HistoPay_activity.puml), séquence [`diagrams/UC_HistoPay_sequence.puml`](./diagrams/UC_HistoPay_sequence.puml), activité [`diagrams/UC_Decharge_activity.puml`](./diagrams/UC_Decharge_activity.puml), séquence [`diagrams/UC_Decharge_sequence.puml`](./diagrams/UC_Decharge_sequence.puml), activité [`diagrams/UC_StatsContrat_activity.puml`](./diagrams/UC_StatsContrat_activity.puml), séquence [`diagrams/UC_StatsContrat_sequence.puml`](./diagrams/UC_StatsContrat_sequence.puml), activité [`diagrams/UC_Fiche_activity.puml`](./diagrams/UC_Fiche_activity.puml), séquence [`diagrams/UC_Fiche_sequence.puml`](./diagrams/UC_Fiche_sequence.puml), activité [`diagrams/UC_Dashboard_activity.puml`](./diagrams/UC_Dashboard_activity.puml), séquence [`diagrams/UC_Dashboard_sequence.puml`](./diagrams/UC_Dashboard_sequence.puml), activité [`diagrams/UC_Recus_activity.puml`](./diagrams/UC_Recus_activity.puml), séquence [`diagrams/UC_Recus_sequence.puml`](./diagrams/UC_Recus_sequence.puml), activité [`diagrams/UC_Histo_activity.puml`](./diagrams/UC_Histo_activity.puml), séquence [`diagrams/UC_Histo_sequence.puml`](./diagrams/UC_Histo_sequence.puml)
   - Implémentation : Composant `CreditContractDetail.tsx` avec affichage des stats, historique des paiements, pénalités, scoring, informations garant, modals pour paiements et reçus
+  - **Échéanciers (actuel vs calculé)** :
+    - **Échéancier actuel** : Affiche les montants réellement payés par mois, recalcule le reste dû en fonction des paiements réels, et colore les lignes selon le montant versé (vert si suffisant, rouge si insuffisant, blanc si non payé)
+    - **Échéancier calculé** : Affiche la mensualité théorique pour chaque mois (basée sur la simulation initiale), mais colore les lignes selon le montant réellement versé (vert si montant versé ≥ mensualité, rouge si 0 ≤ montant versé < mensualité, blanc si aucun paiement)
+    - **Gestion des paiements de 0 FCFA** :
+      - L'échéancier actuel affiche 0 FCFA comme montant versé et colore en rouge (montant insuffisant)
+      - L'échéancier calculé affiche la mensualité théorique (ex: 100 000 FCFA) mais colore en rouge car le montant versé (0 FCFA) < mensualité
+      - Le reste dû est recalculé en fonction du montant réellement payé (0 FCFA), ce qui augmente le reste dû pour les mois suivants
 
 ### 2.4 Versements / pénalités / reçus
 - [x] Saisie paiement (admin) : date/heure, moyen, montant, preuve, commentaire, note.  
   - Use case : UC_Payment (UI/Services), UC_Recu (Services/Documents), UC_UploadPreuve (Documents), UC_Mode (Payments), UC_Proof (Payments), UC_ValidateAmount (Payments), UC_Log (Payments)  
   - Diagrammes : activité [`diagrams/UC_Payment_activity.puml`](./diagrams/UC_Payment_activity.puml), séquence [`diagrams/UC_Payment_sequence.puml`](./diagrams/UC_Payment_sequence.puml), activité [`diagrams/UC_Recu_activity.puml`](./diagrams/UC_Recu_activity.puml), séquence [`diagrams/UC_Recu_sequence.puml`](./diagrams/UC_Recu_sequence.puml), activité [`diagrams/UC_UploadPreuve_activity.puml`](./diagrams/UC_UploadPreuve_activity.puml), séquence [`diagrams/UC_UploadPreuve_sequence.puml`](./diagrams/UC_UploadPreuve_sequence.puml), activité [`diagrams/UC_Mode_activity.puml`](./diagrams/UC_Mode_activity.puml), séquence [`diagrams/UC_Mode_sequence.puml`](./diagrams/UC_Mode_sequence.puml), activité [`diagrams/UC_Proof_activity.puml`](./diagrams/UC_Proof_activity.puml), séquence [`diagrams/UC_Proof_sequence.puml`](./diagrams/UC_Proof_sequence.puml), activité [`diagrams/UC_ValidateAmount_activity.puml`](./diagrams/UC_ValidateAmount_activity.puml), séquence [`diagrams/UC_ValidateAmount_sequence.puml`](./diagrams/UC_ValidateAmount_sequence.puml), activité [`diagrams/UC_Log_activity.puml`](./diagrams/UC_Log_activity.puml), séquence [`diagrams/UC_Log_sequence.puml`](./diagrams/UC_Log_sequence.puml)
   - Implémentation : Composant `CreditPaymentModal.tsx` avec formulaire complet (date, heure, moyen de paiement, montant, preuve upload, commentaire), intégration des pénalités impayées avec sélection, méthode `createPayment` dans `CreditSpecialeService.ts`
+  - **Support des paiements de 0 FCFA** :
+    - Le système permet d'enregistrer des paiements de 0 FCFA pour marquer une échéance comme payée sans montant réellement versé
+    - Lorsqu'un montant de 0 FCFA est saisi, le commentaire "Paiement de 0 FCFA" est automatiquement ajouté
+    - L'échéance est marquée comme `PAID` mais le reste dû est recalculé en fonction du montant réellement payé (0 FCFA)
+    - **Échéancier actuel** : Affiche le montant réellement payé (0 FCFA) et colore en rouge car montant insuffisant
+    - **Échéancier calculé** : Affiche la mensualité théorique mais colore en rouge car montant versé (0 FCFA) < mensualité
+    - Les pénalités ne sont pas appliquées pour les paiements de 0 FCFA avec le commentaire spécifique
+    - Le reçu de paiement affiche correctement 0 FCFA comme montant payé
 - [x] Génération référence unique de paiement : traçabilité date/heure remise et référence unique.  
   - Use case : UC_Log (Payments)  
   - Diagrammes : activité [`diagrams/UC_Log_activity.puml`](./diagrams/UC_Log_activity.puml), séquence [`diagrams/UC_Log_sequence.puml`](./diagrams/UC_Log_sequence.puml)
@@ -190,6 +205,70 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
   - Diagrammes : intégré dans UC_DlContrat, UC_ContratSigne, UC_Recus
 
 ### 2.10 Archivage et traçabilité
+
+### 2.11 Augmentation de crédit en cours de contrat
+- [ ] Fonctionnalité d'augmentation de crédit pour un contrat actif
+  - Use case : UC12 – Augmenter le montant d'un crédit en cours (Admin)
+  - **Préconditions** :
+    - Contrat actif (`ACTIVE`)
+    - Si des échéances ont été payées : Toutes les échéances payées doivent l'avoir été sans retard (ou avec un retard < 3 jours)
+    - Si des échéances ont été payées : Aucune pénalité impayée
+    - **Note** : L'augmentation est possible même si aucune échéance n'a encore été payée (contrat au début)
+  - **Processus** :
+    1. Vérification de l'éligibilité (contrat actif, paiements à jour, pas de pénalités)
+    2. Saisie du montant supplémentaire et de la cause
+    3. Calcul automatique du nouveau capital :
+       - Si des échéances ont été payées : Reste dû = Montant initial + Intérêts accumulés - Montants payés
+       - Si aucune échéance n'a été payée : Reste dû = Montant initial + Intérêts du premier mois (si applicable)
+       - Nouveau capital = Reste dû + Montant supplémentaire
+    4. **Simulation obligatoire** du nouveau contrat (standard/personnalisée/proposée)
+       - L'ancienne mensualité n'est plus valable pour le nouveau capital
+       - Le système calcule la nouvelle mensualité nécessaire pour respecter les limites (7 mois max pour spéciale)
+       - La simulation doit être validée avant de pouvoir créer le nouveau contrat
+    5. Création du nouveau contrat **basé sur la simulation validée** avec statut `EXTENDED` pour l'ancien
+    6. Lien entre les contrats via `parentContractId`
+    7. Première échéance du nouveau contrat :
+       - Si des échéances ont été payées : Marquée comme payée (montant de la première échéance de l'ancien contrat)
+       - Si aucune échéance n'a été payée : Aucune échéance n'est marquée comme payée, le nouveau contrat repart à zéro
+  - **Règles métier** :
+    - **Simulation obligatoire** : L'ancienne mensualité n'est plus valable, une nouvelle simulation est requise
+    - La nouvelle mensualité est calculée pour respecter les limites (7 mois max pour spéciale, 3 mois max pour aide)
+    - Les intérêts sont recalculés sur le nouveau capital (pas sur l'ancien)
+    - Le contrat est créé uniquement après validation de la simulation
+    - Le contrat initial est clôturé avec le statut `EXTENDED`
+    - Le nouveau contrat repart à zéro avec la **nouvelle mensualité** issue de la simulation
+  - **Devenir de l'ancien contrat (statut EXTENDED)** :
+    - Statut : `EXTENDED` (permanent, ne change jamais)
+    - Champ `extendedAt` : Date de l'augmentation
+    - Champ `blockedReason` : "Augmentation vers [ID_nouveau_contrat]"
+    - Paiements : Conservés et consultables dans l'historique
+    - Échéancier : Figé à l'état au moment de l'augmentation
+    - Documents : Contrat signé et documents restent accessibles
+    - Nouveau paiement : Impossible sur l'ancien contrat
+    - Modification : Impossible (lecture seule)
+    - Navigation : Lien vers le nouveau contrat affiché sur la fiche
+  - **Quand le nouveau contrat est terminé** :
+    - L'ancien contrat **reste en `EXTENDED`** (statut permanent)
+    - La décharge est générée pour le **nouveau contrat uniquement**
+    - Sur la fiche de l'ancien contrat : afficher indicateur "Crédit terminé"
+    - Statistiques : seul le nouveau contrat est compté comme "terminé"
+  - **Chaîne de contrats multiples** :
+    - Si plusieurs augmentations : A → `EXTENDED` → B → `EXTENDED` → C → `ACTIVE`
+    - Seul le dernier contrat (C) est actif
+    - La décharge finale sera sur le dernier contrat de la chaîne
+    - Si des échéances ont été payées : La première échéance du nouveau contrat est considérée comme déjà payée
+    - Si aucune échéance n'a été payée : Aucune échéance n'est considérée comme payée, toutes les échéances sont à venir
+    - L'historique complet est conservé (contrat initial + nouveau contrat + simulations)
+    - Le montant supplémentaire est remis au client après signature du nouveau contrat
+  - **Implémentation prévue** :
+    - Nouveau statut `EXTENDED` pour `CreditContract`
+    - Champ `parentContractId` dans `CreditContract` pour lier les contrats
+    - Nouvelle demande automatique avec statut `APPROVED` pour les extensions
+    - Modal d'augmentation de crédit dans `CreditContractDetail.tsx`
+    - Service `extendCreditContract` dans `CreditSpecialeService.ts`
+    - Validation des conditions d'éligibilité avant autorisation
+    - Génération automatique du nouveau contrat PDF
+    - Conservation de l'historique des paiements du contrat initial
 - [ ] Archivage automatique de tous les documents : contrat, contrat signé, preuves de versement, décharge.  
   - Use case : UC_Archive (Système/Documents)  
   - Diagrammes : intégré dans les use cases de documents
@@ -201,7 +280,7 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
   - Diagrammes : activité [`diagrams/UC_Meta_activity.puml`](./diagrams/UC_Meta_activity.puml), séquence [`diagrams/UC_Meta_sequence.puml`](./diagrams/UC_Meta_sequence.puml)
 
 ## 3. Impacts architecturaux
-- Repositories / Services : filtres onglets (demandes, contrats), tri nextDueAt, scoring, pénalités, rémunération garant, exports, reçus, documents (contrat vierge/signé/décharge/reçu), createdBy/updatedBy.  
+- Repositories / Services : filtres onglets (demandes, contrats), tri nextDueAt, scoring, pénalités, rémunération garant, exports, reçus, documents (contrat vierge/signé/décharge/reçu), createdBy/updatedBy, extension de crédit (statut `EXTENDED`, `parentContractId`).  
   - Diagrammes : activité [`diagrams/UC_Query_activity.puml`](./diagrams/UC_Query_activity.puml), séquence [`diagrams/UC_Query_sequence.puml`](./diagrams/UC_Query_sequence.puml), activité [`diagrams/UC_Stats_activity.puml`](./diagrams/UC_Stats_activity.puml), séquence [`diagrams/UC_Stats_sequence.puml`](./diagrams/UC_Stats_sequence.puml)
 - Hooks : pagination/filtres/sync URL, orchestration formulaires, cache invalidation après mutations, préfetch membre/garant/statut CI, vues rémunération garant, scoring.  
   - Diagrammes : activité [`diagrams/UC_InitForms_activity.puml`](./diagrams/UC_InitForms_activity.puml), séquence [`diagrams/UC_InitForms_sequence.puml`](./diagrams/UC_InitForms_sequence.puml), activité [`diagrams/UC_Pagination_activity.puml`](./diagrams/UC_Pagination_activity.puml), séquence [`diagrams/UC_Pagination_sequence.puml`](./diagrams/UC_Pagination_sequence.puml), activité [`diagrams/UC_Cache_activity.puml`](./diagrams/UC_Cache_activity.puml), séquence [`diagrams/UC_Cache_sequence.puml`](./diagrams/UC_Cache_sequence.puml), activité [`diagrams/UC_Validate_activity.puml`](./diagrams/UC_Validate_activity.puml), séquence [`diagrams/UC_Validate_sequence.puml`](./diagrams/UC_Validate_sequence.puml), activité [`diagrams/UC_Prefetch_activity.puml`](./diagrams/UC_Prefetch_activity.puml), séquence [`diagrams/UC_Prefetch_sequence.puml`](./diagrams/UC_Prefetch_sequence.puml), activité [`diagrams/UC_ContractFlow_activity.puml`](./diagrams/UC_ContractFlow_activity.puml), séquence [`diagrams/UC_ContractFlow_sequence.puml`](./diagrams/UC_ContractFlow_sequence.puml)

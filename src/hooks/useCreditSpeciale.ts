@@ -445,3 +445,116 @@ export function useCheckEligibility() {
     })
 }
 
+// ==================== AUGMENTATION DE CRÉDIT (EXTENSION) ====================
+
+/**
+ * Hook pour vérifier l'éligibilité à l'extension d'un contrat
+ */
+export function useCheckExtensionEligibility(contractId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery({
+        queryKey: ['creditExtensionEligibility', contractId],
+        queryFn: () => service.checkExtensionEligibility(contractId),
+        enabled: !!contractId,
+        staleTime: 0, // Toujours rafraîchir pour avoir les données les plus récentes
+    })
+}
+
+/**
+ * Hook pour calculer les montants d'une extension de crédit
+ */
+export function useCalculateExtensionAmounts(contractId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery({
+        queryKey: ['creditExtensionAmounts', contractId],
+        queryFn: () => service.calculateExtensionAmounts(contractId),
+        enabled: !!contractId,
+        staleTime: 30 * 1000, // Rafraîchir fréquemment car les données peuvent changer
+    })
+}
+
+/**
+ * Hook mutation pour étendre un contrat (augmentation de crédit)
+ */
+export function useExtendContract() {
+    const qc = useQueryClient()
+    const { user } = useAuth()
+    const service = ServiceFactory.getCreditSpecialeService()
+
+    return useMutation({
+        mutationFn: (data: {
+            parentContractId: string
+            additionalAmount: number
+            cause: string
+            simulationData: {
+                interestRate: number
+                monthlyPaymentAmount: number
+                duration: number
+                firstPaymentDate: Date
+                totalAmount: number
+            }
+            emergencyContact?: EmergencyContact
+            desiredDate?: string
+        }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.extendContract(
+                data.parentContractId,
+                data.additionalAmount,
+                data.cause,
+                data.simulationData,
+                user.uid,
+                data.emergencyContact,
+                data.desiredDate
+            )
+        },
+        onSuccess: async (result) => {
+            // Invalider toutes les queries liées
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['creditContracts'] }),
+                qc.invalidateQueries({ queryKey: ['creditContractsStats'] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', result.parentContract.id] }),
+                qc.invalidateQueries({ queryKey: ['creditContract', result.newContract.id] }),
+                qc.invalidateQueries({ queryKey: ['creditDemands'] }),
+                qc.invalidateQueries({ queryKey: ['creditDemandsStats'] }),
+                qc.invalidateQueries({ queryKey: ['creditPayments'] }),
+                qc.invalidateQueries({ queryKey: ['creditExtensionEligibility'] }),
+                qc.invalidateQueries({ queryKey: ['creditExtensionAmounts'] }),
+            ])
+            toast.success('Augmentation de crédit créée avec succès')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de l\'augmentation du crédit')
+        },
+    })
+}
+
+/**
+ * Hook pour récupérer le contrat enfant (si extension)
+ */
+export function useChildContract(parentContractId: string) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery<CreditContract | null>({
+        queryKey: ['creditContract', 'child', parentContractId],
+        queryFn: () => service.getChildContract(parentContractId),
+        enabled: !!parentContractId,
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
+/**
+ * Hook pour récupérer le contrat parent (si extension)
+ */
+export function useParentContract(childContractId: string | undefined) {
+    const service = ServiceFactory.getCreditSpecialeService()
+    
+    return useQuery<CreditContract | null>({
+        queryKey: ['creditContract', 'parent', childContractId],
+        queryFn: () => service.getParentContract(childContractId!),
+        enabled: !!childContractId,
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
