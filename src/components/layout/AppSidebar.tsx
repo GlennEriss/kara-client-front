@@ -82,8 +82,19 @@ const adminMenuItems: SidebarItem[] = [
     },
     {
         title: "Caisse imprévue",
-        url: routes.admin.caisseImprevue,
         icon: HeartHandshake,
+        children: [
+            {
+                title: "Demandes",
+                url: routes.admin.caisseImprevueDemandes,
+                icon: FileText,
+            },
+            {
+                title: "Contrats",
+                url: routes.admin.caisseImprevueCreateContract,
+                icon: CreditCard,
+            },
+        ],
     },
     {
         title: "Crédit Spéciale",
@@ -230,8 +241,15 @@ export function AppSidebar() {
         if (url === routes.admin.caisseSpecialeSettings) {
             return pathname === url || pathname.startsWith(url + '/')
         }
-        if (url === routes.admin.caisseImprevue) {
-            return pathname === routes.admin.caisseImprevue
+        // Cas particulier: Caisse Imprévue
+        // - /caisse-imprevue/demandes et ses sous-routes sont actifs uniquement pour "Demandes"
+        // - /caisse-imprevue/create et /caisse-imprevue/contrats (mais pas /caisse-imprevue/demandes) sont actifs pour "Contrats"
+        if (url === routes.admin.caisseImprevueDemandes) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
+        if (url === routes.admin.caisseImprevueCreateContract) {
+            // Actif uniquement si c'est /caisse-imprevue/create ou /caisse-imprevue/contrats mais pas /caisse-imprevue/demandes
+            return pathname === url || (pathname.startsWith('/caisse-imprevue/contrats') && !pathname.startsWith(routes.admin.caisseImprevueDemandes))
         }
         if (url === routes.admin.caisseImprevueSettings) {
             return pathname === url || pathname.startsWith(url + '/')

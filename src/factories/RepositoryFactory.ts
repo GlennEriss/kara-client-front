@@ -40,6 +40,8 @@ import { ICaisseSpecialeDemandRepository } from '@/repositories/caisse-speciale/
 import { CaisseSpecialeDemandRepository } from '@/repositories/caisse-speciale/CaisseSpecialeDemandRepository'
 import { IPlacementDemandRepository } from '@/repositories/placement/IPlacementDemandRepository'
 import { PlacementDemandRepository } from '@/repositories/placement/PlacementDemandRepository'
+import { ICaisseImprevueDemandRepository } from '@/repositories/caisse-imprevue/ICaisseImprevueDemandRepository'
+import { CaisseImprevueDemandRepository } from '@/repositories/caisse-imprevue/CaisseImprevueDemandRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -312,6 +314,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new PlacementDemandRepository())
     }
     return this.repositories.get(key) as IPlacementDemandRepository
+  }
+
+  /**
+   * Obtient le repository des demandes de Caisse Imprévue
+   */
+  static getCaisseImprevueDemandRepository(): ICaisseImprevueDemandRepository {
+    const key = 'CaisseImprevueDemandRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CaisseImprevueDemandRepository())
+    }
+    return this.repositories.get(key) as ICaisseImprevueDemandRepository
   }
 
   /**

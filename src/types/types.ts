@@ -252,6 +252,13 @@ export type NotificationType =
   | 'placement_demand_converted' // Demande de placement convertie en placement
   | 'placement_demand_pending_reminder' // Rappel demande de placement en attente
   | 'placement_demand_approved_not_converted' // Rappel demande de placement acceptée non convertie
+  | 'caisse_imprevue_demand_created' // Nouvelle demande Caisse Imprévue créée
+  | 'caisse_imprevue_demand_approved' // Demande Caisse Imprévue acceptée
+  | 'caisse_imprevue_demand_rejected' // Demande Caisse Imprévue refusée
+  | 'caisse_imprevue_demand_reopened' // Demande Caisse Imprévue réouverte
+  | 'caisse_imprevue_demand_converted' // Demande Caisse Imprévue convertie en contrat
+  | 'caisse_imprevue_demand_pending_reminder' // Rappel demande Caisse Imprévue en attente
+  | 'caisse_imprevue_demand_approved_not_converted' // Rappel demande Caisse Imprévue acceptée non convertie
 
 /**
  * Filtres pour les requêtes de notifications
@@ -2014,6 +2021,105 @@ export interface PlacementDemandStats {
   converted: number // Demandes converties en placements
   totalAmount: number // Montant total des demandes (toutes statuts confondus)
   pendingAmount: number // Montant total des demandes en attente
+}
+
+// ================== TYPES POUR LES DEMANDES CAISSE IMPREVUE ==================
+
+export type CaisseImprevueDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | 'REOPENED'
+
+/**
+ * Interface pour une demande de contrat Caisse Imprévue
+ */
+export interface CaisseImprevueDemand {
+  id: string // Format: MK_DEMANDE_CI_{matricule}_{date}_{heure}
+  
+  // Informations du demandeur
+  memberId: string // ID du membre (obligatoire)
+  memberFirstName?: string // Prénom du membre (prérempli)
+  memberLastName?: string // Nom du membre (prérempli)
+  memberContacts?: string[] // Contacts du membre (prérempli)
+  memberEmail?: string // Email du membre (prérempli)
+  
+  // Informations du forfait souhaité (Step 2)
+  subscriptionCIID: string // ID du forfait Caisse Imprévue
+  subscriptionCICode: string // Code du forfait (ex: "CI_DAILY_1000")
+  subscriptionCILabel?: string // Libellé du forfait (prérempli)
+  subscriptionCIAmountPerMonth: number // Montant mensuel du forfait
+  subscriptionCINominal: number // Montant nominal du forfait
+  subscriptionCIDuration: number // Durée du forfait (en mois)
+  subscriptionCISupportMin?: number // Montant minimum de support
+  subscriptionCISupportMax?: number // Montant maximum de support
+  
+  // Fréquence de paiement souhaitée
+  paymentFrequency: 'DAILY' | 'MONTHLY' // Fréquence de paiement souhaitée
+  
+  // Date souhaitée pour le début du contrat
+  desiredDate: string // Date souhaitée pour le début du contrat (format: YYYY-MM-DD)
+  firstPaymentDate?: string // Date du premier paiement (calculée ou définie)
+  
+  // Contact d'urgence (Step 3)
+  emergencyContact?: EmergencyContactCI
+  
+  // Raison de la demande (optionnel)
+  cause?: string // Raison de la demande (optionnel)
+  
+  // Statut et décision
+  status: CaisseImprevueDemandStatus
+  
+  // Traçabilité de l'acceptation/refus
+  decisionMadeAt?: Date // Date de la décision
+  decisionMadeBy?: string // ID de l'agent qui a pris la décision
+  decisionMadeByName?: string // Nom complet de l'agent (prénom + nom)
+  decisionReason?: string // Raison de l'acceptation ou du refus
+  
+  // Traçabilité de la réouverture (si refusée puis réouverte)
+  reopenedAt?: Date // Date de la réouverture
+  reopenedBy?: string // ID de l'agent qui a réouvert la demande
+  reopenedByName?: string // Nom complet de l'agent qui a réouvert (prénom + nom)
+  reopenReason?: string // Motif de la réouverture
+  
+  // Lien vers le contrat créé (si convertie)
+  contractId?: string // ID du contrat créé depuis cette demande
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'agent qui a créé la demande
+  updatedBy?: string // ID de l'agent qui a modifié la demande
+}
+
+/**
+ * Filtres pour la recherche de demandes Caisse Imprévue
+ */
+export interface CaisseImprevueDemandFilters {
+  status?: CaisseImprevueDemandStatus | 'all'
+  paymentFrequency?: 'DAILY' | 'MONTHLY' | 'all' // Filtrer par fréquence de paiement
+  subscriptionCIID?: string // Filtrer par forfait
+  memberId?: string // Filtrer par membre
+  decisionMadeBy?: string // Filtrer par agent qui a pris la décision
+  createdAtFrom?: Date // Filtre par date de création (début)
+  createdAtTo?: Date // Filtre par date de création (fin)
+  desiredDateFrom?: Date // Filtre par date souhaitée (début)
+  desiredDateTo?: Date // Filtre par date souhaitée (fin)
+  search?: string // Recherche textuelle (nom du membre, ID de la demande, etc.)
+  page?: number
+  limit?: number
+}
+
+/**
+ * Statistiques des demandes Caisse Imprévue
+ */
+export interface CaisseImprevueDemandStats {
+  total: number // Total de toutes les demandes
+  pending: number // Demandes en attente
+  approved: number // Demandes acceptées
+  rejected: number // Demandes refusées
+  converted: number // Demandes converties en contrats
+  reopened: number // Demandes réouvertes
+  daily: number // Demandes avec fréquence DAILY
+  monthly: number // Demandes avec fréquence MONTHLY
+  totalAmount: number // Montant total des forfaits demandés (toutes statuts confondus)
+  pendingAmount: number // Montant total des forfaits en attente
 }
 
 // ================== TYPES POUR LES FILLEULS ==================

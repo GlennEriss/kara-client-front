@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react'
-import DemandDetail from '@/components/caisse-speciale/DemandDetail'
+import DemandDetail from '@/components/caisse-imprevue/DemandDetail'
 import { Skeleton } from '@/components/ui/skeleton'
 
 function DemandDetailSkeleton() {

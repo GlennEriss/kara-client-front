@@ -21,6 +21,7 @@ export const firebaseCollectionNames = {
     // Caisse Imprévue
     subscriptionsCI: "subscriptionsCI",
     contractsCI: "contractsCI",
+    caisseImprevueDemands: "caisseImprevueDemands",
     // Documents
     documents: "documents",
     placements: "placements",

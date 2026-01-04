@@ -63,7 +63,8 @@ export class ServiceFactory {
       const paymentCIRepository = RepositoryFactory.getPaymentCIRepository()
       const supportCIRepository = RepositoryFactory.getSupportCIRepository()
       const earlyRefundCIRepository = RepositoryFactory.getEarlyRefundCIRepository()
-      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository, documentRepository, paymentCIRepository, supportCIRepository, earlyRefundCIRepository))
+      const caisseImprevueDemandRepository = RepositoryFactory.getCaisseImprevueDemandRepository()
+      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository, documentRepository, paymentCIRepository, supportCIRepository, earlyRefundCIRepository, caisseImprevueDemandRepository))
     }
     return this.services.get(key)
   }
