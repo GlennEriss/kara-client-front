@@ -12,6 +12,8 @@ import { PlacementService } from '@/services/placement/PlacementService'
 import { DocumentService } from '@/services/documents/DocumentService'
 import { ICreditSpecialeService } from '@/services/credit-speciale/ICreditSpecialeService'
 import { CreditSpecialeService } from '@/services/credit-speciale/CreditSpecialeService'
+import { ICaisseSpecialeService } from '@/services/caisse-speciale/ICaisseSpecialeService'
+import { CaisseSpecialeService } from '@/services/caisse-speciale/CaisseSpecialeService'
 import { MembershipService } from '@/services/memberships/MembershipService'
 
 /**
@@ -61,7 +63,20 @@ export class ServiceFactory {
       const paymentCIRepository = RepositoryFactory.getPaymentCIRepository()
       const supportCIRepository = RepositoryFactory.getSupportCIRepository()
       const earlyRefundCIRepository = RepositoryFactory.getEarlyRefundCIRepository()
-      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository, documentRepository, paymentCIRepository, supportCIRepository, earlyRefundCIRepository))
+      const caisseImprevueDemandRepository = RepositoryFactory.getCaisseImprevueDemandRepository()
+      this.services.set(key, new CaisseImprevueService(memberRepository, subscriptionCIRepository, contractCIRepository, adminRepository, documentRepository, paymentCIRepository, supportCIRepository, earlyRefundCIRepository, caisseImprevueDemandRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion de la Caisse Spéciale
+   */
+  static getCaisseSpecialeService(): ICaisseSpecialeService {
+    const key = 'CaisseSpecialeService'
+    if (!this.services.has(key)) {
+      const caisseSpecialeDemandRepository = RepositoryFactory.getCaisseSpecialeDemandRepository()
+      this.services.set(key, new CaisseSpecialeService(caisseSpecialeDemandRepository))
     }
     return this.services.get(key)
   }

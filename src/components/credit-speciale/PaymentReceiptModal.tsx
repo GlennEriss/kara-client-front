@@ -34,6 +34,7 @@ import Image from 'next/image'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { toast } from 'sonner'
+import { useAdmin } from '@/hooks/useAdmins'
 
 interface PaymentReceiptModalProps {
   isOpen: boolean
@@ -63,6 +64,9 @@ export default function PaymentReceiptModal({
 }: PaymentReceiptModalProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  
+  // Récupérer les informations de l'agent de liaison
+  const { data: agent } = useAdmin(payment.updatedBy || '')
 
   // Logs de débogage
   React.useEffect(() => {
@@ -333,6 +337,17 @@ export default function PaymentReceiptModal({
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Commentaire</p>
                     <p className="text-sm text-gray-700">{payment.comment}</p>
+                  </div>
+                )}
+                {payment.updatedBy && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Agent de liaison</span>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <span className="font-semibold">
+                        {agent ? `${agent.firstName} ${agent.lastName}`.trim() : payment.updatedBy}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

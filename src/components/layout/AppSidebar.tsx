@@ -66,13 +66,35 @@ const adminMenuItems: SidebarItem[] = [
     },
     {
         title: "Caisse Spéciale",
-        url: routes.admin.caisseSpeciale,
         icon: Wallet,
+        children: [
+            {
+                title: "Demandes",
+                url: routes.admin.caisseSpecialeDemandes,
+                icon: FileText,
+            },
+            {
+                title: "Contrats",
+                url: routes.admin.caisseSpeciale,
+                icon: CreditCard,
+            },
+        ],
     },
     {
         title: "Caisse imprévue",
-        url: routes.admin.caisseImprevue,
         icon: HeartHandshake,
+        children: [
+            {
+                title: "Demandes",
+                url: routes.admin.caisseImprevueDemandes,
+                icon: FileText,
+            },
+            {
+                title: "Contrats",
+                url: routes.admin.caisseImprevueCreateContract,
+                icon: CreditCard,
+            },
+        ],
     },
     {
         title: "Crédit Spéciale",
@@ -105,14 +127,25 @@ const adminMenuItems: SidebarItem[] = [
                 icon: HeartHandshake,
             },
             {
-                title: "Placements",
-                url: routes.admin.placements,
-                icon: Wallet,
-            },
-            {
                 title: "Véhicules",
                 url: routes.admin.vehicules,
                 icon: Car,
+            },
+        ],
+    },
+    {
+        title: "Placements",
+        icon: Wallet,
+        children: [
+            {
+                title: "Demandes",
+                url: routes.admin.placementDemandes,
+                icon: FileText,
+            },
+            {
+                title: "Placements",
+                url: routes.admin.placements,
+                icon: CreditCard,
             },
         ],
     },
@@ -208,8 +241,15 @@ export function AppSidebar() {
         if (url === routes.admin.caisseSpecialeSettings) {
             return pathname === url || pathname.startsWith(url + '/')
         }
-        if (url === routes.admin.caisseImprevue) {
-            return pathname === routes.admin.caisseImprevue
+        // Cas particulier: Caisse Imprévue
+        // - /caisse-imprevue/demandes et ses sous-routes sont actifs uniquement pour "Demandes"
+        // - /caisse-imprevue/create et /caisse-imprevue/contrats (mais pas /caisse-imprevue/demandes) sont actifs pour "Contrats"
+        if (url === routes.admin.caisseImprevueDemandes) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
+        if (url === routes.admin.caisseImprevueCreateContract) {
+            // Actif uniquement si c'est /caisse-imprevue/create ou /caisse-imprevue/contrats mais pas /caisse-imprevue/demandes
+            return pathname === url || (pathname.startsWith('/caisse-imprevue/contrats') && !pathname.startsWith(routes.admin.caisseImprevueDemandes))
         }
         if (url === routes.admin.caisseImprevueSettings) {
             return pathname === url || pathname.startsWith(url + '/')
@@ -220,6 +260,16 @@ export function AppSidebar() {
         // Cas particulier: Crédit Spéciale
         if (url === routes.admin.creditSpeciale) {
             return pathname === url || pathname.startsWith(url + '/')
+        }
+        // Cas particulier: Placements
+        // - /placements/demandes et ses sous-routes sont actifs uniquement pour "Demandes"
+        // - /placements (exactement) et /placements/[id] (mais pas /placements/demandes) sont actifs pour "Placements"
+        if (url === routes.admin.placementDemandes) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
+        if (url === routes.admin.placements) {
+            // Actif uniquement si c'est exactement /placements ou /placements/[id] mais pas /placements/demandes
+            return pathname === url || (pathname.startsWith(url + '/') && !pathname.startsWith(routes.admin.placementDemandes))
         }
         // Comportement par défaut: actif si égalité ou sous-chemin
         return pathname === url || pathname.startsWith(url + '/')

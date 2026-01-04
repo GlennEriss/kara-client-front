@@ -229,11 +229,15 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
     const schedule = calculateSchedule(contract)
     const percentage = contract.guarantorRemunerationPercentage
     
-    return schedule.map(item => ({
+    // Limiter à 7 mois maximum
+    const maxMonths = Math.min(7, schedule.length)
+    
+    return schedule.slice(0, maxMonths).map(item => ({
       month: item.month,
       date: item.date,
       monthlyPayment: item.payment,
-      guarantorAmount: customRound(item.payment * percentage / 100),
+      globalAmount: item.principal, // Montant global (capital + intérêts)
+      guarantorAmount: customRound(item.principal * percentage / 100), // Calcul sur le montant global
     }))
   }
 
@@ -619,7 +623,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                     <Alert className="border-purple-200 bg-purple-100">
                       <Users className="h-4 w-4 text-purple-600" />
                       <AlertDescription className="text-purple-800">
-                        <strong>{contract.guarantorFirstName} {contract.guarantorLastName}</strong> est le parrain du client et recevra une rémunération de {contract.guarantorRemunerationPercentage}% sur chaque mensualité payée.
+                        <strong>{contract.guarantorFirstName} {contract.guarantorLastName}</strong> est le parrain du client et recevra une rémunération de {contract.guarantorRemunerationPercentage}% du montant global (capital + intérêts) de chaque échéance, calculée sur maximum 7 mois.
                       </AlertDescription>
                     </Alert>
                   </div>
@@ -629,7 +633,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                         <TableRow>
                           <TableHead>Mois</TableHead>
                           <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Mensualité client</TableHead>
+                          <TableHead className="text-right">Montant global</TableHead>
                           <TableHead className="text-right">Rémunération parrain ({contract.guarantorRemunerationPercentage}%)</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -638,7 +642,7 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                           <TableRow key={row.month}>
                             <TableCell className="font-medium">M{row.month}</TableCell>
                             <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                            <TableCell className="text-right">{row.monthlyPayment.toLocaleString('fr-FR')} FCFA</TableCell>
+                            <TableCell className="text-right">{row.globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
                             <TableCell className="text-right text-purple-600 font-medium">
                               {row.guarantorAmount.toLocaleString('fr-FR')} FCFA
                             </TableCell>

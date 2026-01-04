@@ -239,6 +239,26 @@ export type NotificationType =
   | 'placement_activated' // Placement activé (module placement)
   | 'early_exit_request' // Demande de retrait anticipé (module placement)
   | 'placement_completed' // Placement terminé (module placement)
+  | 'demand_created' // Nouvelle demande créée (Caisse Spéciale)
+  | 'demand_approved' // Demande acceptée (Caisse Spéciale)
+  | 'demand_rejected' // Demande refusée (Caisse Spéciale)
+  | 'demand_converted' // Demande convertie en contrat (Caisse Spéciale)
+  | 'demand_pending_reminder' // Rappel demande en attente (Caisse Spéciale)
+  | 'demand_approved_not_converted' // Rappel demande acceptée non convertie (Caisse Spéciale)
+  | 'placement_demand_created' // Nouvelle demande de placement créée
+  | 'placement_demand_approved' // Demande de placement acceptée
+  | 'placement_demand_rejected' // Demande de placement refusée
+  | 'placement_demand_reopened' // Demande de placement réouverte
+  | 'placement_demand_converted' // Demande de placement convertie en placement
+  | 'placement_demand_pending_reminder' // Rappel demande de placement en attente
+  | 'placement_demand_approved_not_converted' // Rappel demande de placement acceptée non convertie
+  | 'caisse_imprevue_demand_created' // Nouvelle demande Caisse Imprévue créée
+  | 'caisse_imprevue_demand_approved' // Demande Caisse Imprévue acceptée
+  | 'caisse_imprevue_demand_rejected' // Demande Caisse Imprévue refusée
+  | 'caisse_imprevue_demand_reopened' // Demande Caisse Imprévue réouverte
+  | 'caisse_imprevue_demand_converted' // Demande Caisse Imprévue convertie en contrat
+  | 'caisse_imprevue_demand_pending_reminder' // Rappel demande Caisse Imprévue en attente
+  | 'caisse_imprevue_demand_approved_not_converted' // Rappel demande Caisse Imprévue acceptée non convertie
 
 /**
  * Filtres pour les requêtes de notifications
@@ -1194,6 +1214,84 @@ export interface CaisseContract {
   updatedAt: Date
 }
 
+/**
+ * Statuts possibles pour une demande de contrat Caisse Spéciale
+ */
+export type CaisseSpecialeDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED'
+
+/**
+ * Interface pour une demande de contrat Caisse Spéciale
+ */
+export interface CaisseSpecialeDemand {
+  id: string // Format: MK_DEMANDE_CS_{matricule}_{date}_{heure}
+  
+  // Informations du demandeur
+  memberId?: string // Pour demande individuelle
+  groupeId?: string // Pour demande de groupe
+  contractType: 'INDIVIDUAL' | 'GROUP'
+  
+  // Informations de la demande
+  caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+  monthlyAmount: number // Montant mensuel souhaité
+  monthsPlanned: number // Durée souhaitée (en mois)
+  desiredDate: string // Date souhaitée pour le début du contrat (format: YYYY-MM-DD)
+  cause?: string // Raison de la demande (optionnel)
+  
+  // Statut et décision
+  status: CaisseSpecialeDemandStatus
+  
+  // Traçabilité de l'acceptation/refus
+  decisionMadeAt?: Date // Date de la décision
+  decisionMadeBy?: string // ID de l'agent qui a pris la décision
+  decisionMadeByName?: string // Nom complet de l'agent (prénom + nom)
+  decisionReason?: string // Raison de l'acceptation ou du refus
+  
+  // Traçabilité de la réouverture (si refusée puis réouverte)
+  reopenedAt?: Date // Date de la réouverture
+  reopenedBy?: string // ID de l'agent qui a réouvert la demande
+  reopenedByName?: string // Nom complet de l'agent qui a réouvert (prénom + nom)
+  reopenReason?: string // Motif de la réouverture
+  
+  // Lien vers le contrat créé (si convertie)
+  contractId?: string // ID du contrat créé depuis cette demande
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'agent qui a créé la demande
+  updatedBy?: string // ID de l'agent qui a modifié la demande
+}
+
+/**
+ * Filtres pour la recherche de demandes Caisse Spéciale
+ */
+export interface CaisseSpecialeDemandFilters {
+  status?: CaisseSpecialeDemandStatus | 'all'
+  contractType?: 'INDIVIDUAL' | 'GROUP' | 'all'
+  caisseType?: 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'all'
+  memberId?: string
+  groupeId?: string
+  decisionMadeBy?: string // Filtrer par agent qui a pris la décision
+  createdAtFrom?: Date // Filtre par date de création (début)
+  createdAtTo?: Date // Filtre par date de création (fin)
+  desiredDateFrom?: Date // Filtre par date souhaitée (début)
+  desiredDateTo?: Date // Filtre par date souhaitée (fin)
+  search?: string // Recherche textuelle (nom du membre, ID de la demande, etc.)
+  page?: number
+  limit?: number
+}
+
+/**
+ * Statistiques des demandes Caisse Spéciale
+ */
+export interface CaisseSpecialeDemandStats {
+  total: number // Total de toutes les demandes
+  pending: number // Demandes en attente
+  approved: number // Demandes acceptées
+  rejected: number // Demandes refusées
+  converted: number // Demandes converties en contrats
+}
+
 // ================== TYPES POUR LES DOCUMENTS ==================
 
 /**
@@ -1263,6 +1361,7 @@ export type CreditContractStatus =
   | 'BLOCKED'          // Bloqué (pénalités impayées)
   | 'DISCHARGED'       // Déchargé (remboursement complet)
   | 'CLOSED'           // Clos
+  | 'EXTENDED'         // Étendu (remplacé par une augmentation de crédit)
 
 /**
  * Moyen de paiement pour crédit spéciale
@@ -1311,6 +1410,7 @@ export interface CreditDemand {
 export interface CreditContract {
   id: string
   demandId: string
+  parentContractId?: string // Référence au contrat parent (si augmentation de crédit)
   clientId: string
   clientFirstName: string
   clientLastName: string
@@ -1332,7 +1432,7 @@ export interface CreditContract {
   guarantorRelation?: string
   guarantorIsMember: boolean
   guarantorIsParrain: boolean // Si le garant a parrainé le client
-  guarantorRemunerationPercentage: number // % de la mensualité pour le parrain (2% par défaut)
+  guarantorRemunerationPercentage: number // % du montant global (capital + intérêts) pour le parrain (0-5%, 2% par défaut, calculé sur max 7 mois)
   emergencyContact?: EmergencyContact // Contact d'urgence
   contractUrl?: string // URL du contrat PDF généré
   signedContractUrl?: string // URL du contrat signé téléversé
@@ -1341,8 +1441,9 @@ export interface CreditContract {
   fundsReleasedAt?: Date
   dischargedAt?: Date
   transformedAt?: Date
+  extendedAt?: Date // Date à laquelle le contrat a été étendu (augmentation)
   blockedAt?: Date
-  blockedReason?: string
+  blockedReason?: string // Peut contenir le motif ou l'ID du nouveau contrat
   score?: number // Score de fiabilité (0-10, admin-only)
   scoreUpdatedAt?: Date
   createdAt: Date
@@ -1764,6 +1865,7 @@ export const VEHICLE_INSURANCE_STATUS_LABELS: Record<VehicleInsuranceStatus, str
 export type PlacementStatus = 'Draft' | 'Active' | 'Closed' | 'EarlyExit' | 'Canceled'
 export type CommissionStatus = 'Due' | 'Paid' | 'Partial' | 'Canceled'
 export type PayoutMode = 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End'
+export type PlacementDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED'
 
 // Types de documents placement : on réutilise DocumentType existant en ajoutant si besoin des variantes placement
 export type PlacementDocumentType = DocumentType | 'PLACEMENT_CONTRACT' | 'PLACEMENT_COMMISSION_PROOF' | 'PLACEMENT_EARLY_EXIT_QUITTANCE' | 'PLACEMENT_FINAL_QUITTANCE' | 'PLACEMENT_EARLY_EXIT_ADDENDUM' | 'PLACEMENT_EARLY_EXIT_DOCUMENT'
@@ -1832,6 +1934,192 @@ export interface EarlyExitPlacement {
   updatedAt: Date
   createdBy: string // User.id (Admin)
   updatedBy?: string // User.id (Admin)
+}
+
+/**
+ * Interface pour une demande de placement
+ */
+export interface PlacementDemand {
+  id: string // Format: MK_DEMANDE_PL_{matriculeBienfaiteur}_{date}_{heure}
+  
+  // Informations du bienfaiteur
+  benefactorId: string // User.id avec rôle Bienfaiteur (obligatoire)
+  benefactorName?: string // Nom complet du bienfaiteur (prérempli)
+  benefactorPhone?: string // Téléphone du bienfaiteur (prérempli)
+  
+  // Informations de la demande
+  amount: number // Montant du placement souhaité (FCFA)
+  rate: number // Taux de commission souhaité (0-100)
+  periodMonths: number // Durée souhaitée (1-7 mois)
+  payoutMode: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' // Mode de paiement souhaité
+  desiredDate: string // Date souhaitée pour le début du placement (format: YYYY-MM-DD)
+  cause?: string // Raison de la demande (optionnel)
+  
+  // Contact d'urgence (optionnel)
+  urgentContact?: {
+    name: string
+    firstName?: string
+    phone: string
+    phone2?: string
+    relationship?: string
+    idNumber?: string
+    typeId?: string
+    documentPhotoUrl?: string
+    memberId?: string
+  }
+  
+  // Statut et décision
+  status: PlacementDemandStatus
+  
+  // Traçabilité de l'acceptation/refus
+  decisionMadeAt?: Date // Date de la décision
+  decisionMadeBy?: string // ID de l'agent qui a pris la décision
+  decisionMadeByName?: string // Nom complet de l'agent (prénom + nom)
+  decisionReason?: string // Raison de l'acceptation ou du refus
+  
+  // Traçabilité de la réouverture (si refusée puis réouverte)
+  reopenedAt?: Date // Date de la réouverture
+  reopenedBy?: string // ID de l'agent qui a réouvert la demande
+  reopenedByName?: string // Nom complet de l'agent qui a réouvert (prénom + nom)
+  reopenReason?: string // Motif de la réouverture
+  
+  // Lien vers le placement créé (si convertie)
+  placementId?: string // ID du placement créé depuis cette demande
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'agent qui a créé la demande
+  updatedBy?: string // ID de l'agent qui a modifié la demande
+}
+
+/**
+ * Filtres pour la recherche de demandes de placement
+ */
+export interface PlacementDemandFilters {
+  status?: PlacementDemandStatus | 'all'
+  benefactorId?: string // Filtrer par bienfaiteur
+  payoutMode?: 'MonthlyCommission_CapitalEnd' | 'CapitalPlusCommission_End' | 'all'
+  decisionMadeBy?: string // Filtrer par agent qui a pris la décision
+  createdAtFrom?: Date // Filtre par date de création (début)
+  createdAtTo?: Date // Filtre par date de création (fin)
+  desiredDateFrom?: Date // Filtre par date souhaitée (début)
+  desiredDateTo?: Date // Filtre par date souhaitée (fin)
+  search?: string // Recherche textuelle (nom du bienfaiteur, ID de la demande, etc.)
+  page?: number
+  limit?: number
+}
+
+/**
+ * Statistiques des demandes de placement
+ */
+export interface PlacementDemandStats {
+  total: number // Total de toutes les demandes
+  pending: number // Demandes en attente
+  approved: number // Demandes acceptées
+  rejected: number // Demandes refusées
+  converted: number // Demandes converties en placements
+  totalAmount: number // Montant total des demandes (toutes statuts confondus)
+  pendingAmount: number // Montant total des demandes en attente
+}
+
+// ================== TYPES POUR LES DEMANDES CAISSE IMPREVUE ==================
+
+export type CaisseImprevueDemandStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | 'REOPENED'
+
+/**
+ * Interface pour une demande de contrat Caisse Imprévue
+ */
+export interface CaisseImprevueDemand {
+  id: string // Format: MK_DEMANDE_CI_{matricule}_{date}_{heure}
+  
+  // Informations du demandeur
+  memberId: string // ID du membre (obligatoire)
+  memberFirstName?: string // Prénom du membre (prérempli)
+  memberLastName?: string // Nom du membre (prérempli)
+  memberContacts?: string[] // Contacts du membre (prérempli)
+  memberEmail?: string // Email du membre (prérempli)
+  
+  // Informations du forfait souhaité (Step 2)
+  subscriptionCIID: string // ID du forfait Caisse Imprévue
+  subscriptionCICode: string // Code du forfait (ex: "CI_DAILY_1000")
+  subscriptionCILabel?: string // Libellé du forfait (prérempli)
+  subscriptionCIAmountPerMonth: number // Montant mensuel du forfait
+  subscriptionCINominal: number // Montant nominal du forfait
+  subscriptionCIDuration: number // Durée du forfait (en mois)
+  subscriptionCISupportMin?: number // Montant minimum de support
+  subscriptionCISupportMax?: number // Montant maximum de support
+  
+  // Fréquence de paiement souhaitée
+  paymentFrequency: 'DAILY' | 'MONTHLY' // Fréquence de paiement souhaitée
+  
+  // Date souhaitée pour le début du contrat
+  desiredDate: string // Date souhaitée pour le début du contrat (format: YYYY-MM-DD)
+  firstPaymentDate?: string // Date du premier paiement (calculée ou définie)
+  
+  // Contact d'urgence (Step 3)
+  emergencyContact?: EmergencyContactCI
+  
+  // Raison de la demande (optionnel)
+  cause?: string // Raison de la demande (optionnel)
+  
+  // Statut et décision
+  status: CaisseImprevueDemandStatus
+  
+  // Traçabilité de l'acceptation/refus
+  decisionMadeAt?: Date // Date de la décision
+  decisionMadeBy?: string // ID de l'agent qui a pris la décision
+  decisionMadeByName?: string // Nom complet de l'agent (prénom + nom)
+  decisionReason?: string // Raison de l'acceptation ou du refus
+  
+  // Traçabilité de la réouverture (si refusée puis réouverte)
+  reopenedAt?: Date // Date de la réouverture
+  reopenedBy?: string // ID de l'agent qui a réouvert la demande
+  reopenedByName?: string // Nom complet de l'agent qui a réouvert (prénom + nom)
+  reopenReason?: string // Motif de la réouverture
+  
+  // Lien vers le contrat créé (si convertie)
+  contractId?: string // ID du contrat créé depuis cette demande
+  
+  // Métadonnées
+  createdAt: Date
+  updatedAt: Date
+  createdBy: string // ID de l'agent qui a créé la demande
+  updatedBy?: string // ID de l'agent qui a modifié la demande
+}
+
+/**
+ * Filtres pour la recherche de demandes Caisse Imprévue
+ */
+export interface CaisseImprevueDemandFilters {
+  status?: CaisseImprevueDemandStatus | 'all'
+  paymentFrequency?: 'DAILY' | 'MONTHLY' | 'all' // Filtrer par fréquence de paiement
+  subscriptionCIID?: string // Filtrer par forfait
+  memberId?: string // Filtrer par membre
+  decisionMadeBy?: string // Filtrer par agent qui a pris la décision
+  createdAtFrom?: Date // Filtre par date de création (début)
+  createdAtTo?: Date // Filtre par date de création (fin)
+  desiredDateFrom?: Date // Filtre par date souhaitée (début)
+  desiredDateTo?: Date // Filtre par date souhaitée (fin)
+  search?: string // Recherche textuelle (nom du membre, ID de la demande, etc.)
+  page?: number
+  limit?: number
+}
+
+/**
+ * Statistiques des demandes Caisse Imprévue
+ */
+export interface CaisseImprevueDemandStats {
+  total: number // Total de toutes les demandes
+  pending: number // Demandes en attente
+  approved: number // Demandes acceptées
+  rejected: number // Demandes refusées
+  converted: number // Demandes converties en contrats
+  reopened: number // Demandes réouvertes
+  daily: number // Demandes avec fréquence DAILY
+  monthly: number // Demandes avec fréquence MONTHLY
+  totalAmount: number // Montant total des forfaits demandés (toutes statuts confondus)
+  pendingAmount: number // Montant total des forfaits en attente
 }
 
 // ================== TYPES POUR LES FILLEULS ==================

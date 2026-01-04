@@ -6,6 +6,8 @@ import { checkAndNotifyCreditPaymentDue } from './scheduled/creditPaymentDue'
 import { checkAndNotifyCIPaymentDue } from './scheduled/ciPaymentDue'
 import { checkAndNotifyVehicleInsuranceExpiring } from './scheduled/vehicleInsuranceExpiring'
 import { transformCreditSpecialeToFixe } from './scheduled/transformCreditSpeciale'
+import { remindPendingCaisseSpecialeDemands, remindApprovedNotConvertedCaisseSpecialeDemands } from './scheduled/caisseSpecialeDemandReminders'
+import { remindPendingCaisseImprevueDemands, remindApprovedNotConvertedCaisseImprevueDemands } from './scheduled/caisseImprevueDemandReminders'
 
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
@@ -109,6 +111,66 @@ export const dailyTransformCreditSpeciale = onSchedule(
   async (event) => {
     console.log('Démarrage du job quotidien pour la transformation des crédits spéciaux en crédit fixe')
     await transformCreditSpecialeToFixe()
+    console.log('Job terminé avec succès')
+  }
+)
+
+// Job quotidien à 9h00 pour rappeler les demandes en attente (Caisse Spéciale)
+export const dailyCaisseSpecialePendingReminders = onSchedule(
+  {
+    schedule: '0 9 * * *', // 9h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+  },
+  async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes en attente (Caisse Spéciale)')
+    await remindPendingCaisseSpecialeDemands()
+    console.log('Job terminé avec succès')
+  }
+)
+
+// Job quotidien à 10h00 pour rappeler les demandes acceptées non converties (Caisse Spéciale)
+export const dailyCaisseSpecialeApprovedNotConvertedReminders = onSchedule(
+  {
+    schedule: '0 10 * * *', // 10h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+  },
+  async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes acceptées non converties (Caisse Spéciale)')
+    await remindApprovedNotConvertedCaisseSpecialeDemands()
+    console.log('Job terminé avec succès')
+  }
+)
+
+// Job quotidien à 11h00 pour rappeler les demandes en attente (Caisse Imprévue)
+export const dailyCaisseImprevuePendingReminders = onSchedule(
+  {
+    schedule: '0 11 * * *', // 11h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+  },
+  async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes en attente (Caisse Imprévue)')
+    await remindPendingCaisseImprevueDemands()
+    console.log('Job terminé avec succès')
+  }
+)
+
+// Job quotidien à 11h30 pour rappeler les demandes acceptées non converties (Caisse Imprévue)
+export const dailyCaisseImprevueApprovedNotConvertedReminders = onSchedule(
+  {
+    schedule: '30 11 * * *', // 11h30 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+  },
+  async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes acceptées non converties (Caisse Imprévue)')
+    await remindApprovedNotConvertedCaisseImprevueDemands()
     console.log('Job terminé avec succès')
   }
 )

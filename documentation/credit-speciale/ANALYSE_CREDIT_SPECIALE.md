@@ -23,8 +23,9 @@
 17- Notifier le client des pénalités et lui laisser le choix de les rembourser ou non à chaque versement (Équipe Kara, Client).  
 18- Bloquer une nouvelle demande si, en fin de contrat, aucune pénalité n'a été remboursée (Équipe Kara).  
 19- Générer une décharge en fin de remboursement de l'emprunt (Équipe Kara).  
-20- Rémunérer le garant membre de la mutuelle (parrain) à 2% du montant versé par mois (Équipe Kara, Garant).  
-21- Permettre au garant de consulter l'historique de ses rémunérations (Garant, Équipe Kara).
+20- Rémunérer le garant membre de la mutuelle (parrain) à un pourcentage variable (0% à 5%) du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois (Équipe Kara, Garant).  
+21- Permettre au garant de consulter l'historique de ses rémunérations (Garant, Équipe Kara).  
+22- Augmenter le montant d'un crédit en cours : si un client a déjà un contrat actif (même sans échéance payée), permettre d'ajouter un montant supplémentaire au crédit et recalculer le contrat comme un nouveau contrat (Équipe Kara, Client).
 
 ### Difficultés du processus
 
@@ -37,7 +38,7 @@
 7. Oubli de transformation en crédit fixe après 7 mois -> A7 (Équipe Kara)  
 8. Suivi manuel des pénalités impayées et blocage des nouveaux emprunts -> A8 (Équipe Kara)  
 9. Génération manuelle de la décharge en fin de contrat -> A9 (Équipe Kara)  
-10. Calcul manuel de la rémunération du garant (2% du taux mensuel) -> A10 (Équipe Kara)  
+10. Calcul manuel de la rémunération du garant (pourcentage variable du montant global) -> A10 (Équipe Kara)  
 11. Distinction manuelle entre les 3 types de crédits (spéciale 7 mois, fixe illimité, aide 3 mois) -> A11 (Équipe Kara)  
 12. Gestion manuelle des garanties (vérification membre vs admin, lien de parenté) -> A12 (Équipe Kara)  
 13. Absence de traçabilité complète des décisions et validations -> A13 (Équipe Kara)  
@@ -66,11 +67,12 @@
 18- Notifier automatiquement le client des pénalités à chaque versement et enregistrer son choix de les rembourser ou non (Système, Client).  
 19- Bloquer automatiquement les nouveaux emprunts si des pénalités impayées existent sur le dernier crédit terminé (Système).  
 20- Générer automatiquement la décharge en fin de remboursement complet (Système, Équipe Kara).  
-21- Calculer et attribuer automatiquement 2% du montant versé par mois au garant membre (parrain) si c'est un membre de la mutuelle (Système, Garant).  
+21- Calculer et attribuer automatiquement un pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance au garant membre (parrain) si c'est un membre de la mutuelle, calculé sur maximum 7 mois (Système, Garant).  
 22- Permettre au garant de consulter l'historique de ses rémunérations (Système, Garant, Équipe Kara).  
 23- Planifier automatiquement les rappels d'échéance et notifier le client (Système).  
 24- Suivre automatiquement l'état de chaque crédit (en cours, transformé, terminé) et afficher les statistiques (Système).  
-25- Archiver automatiquement tous les documents (contrat, preuves, décharge) et conserver l'historique complet (Système).
+25- Archiver automatiquement tous les documents (contrat, preuves, décharge) et conserver l'historique complet (Système).  
+26- Permettre l'augmentation d'un crédit en cours : si un client a un contrat actif (même sans échéance payée), permettre d'ajouter un montant supplémentaire, clôturer le contrat initial, créer un nouveau contrat avec le montant total (reste dû + nouveau montant), et repartir sur un nouveau cycle d'échéances. Si des échéances ont été payées, la première échéance du nouveau contrat est considérée comme déjà payée (Système, Équipe Kara, Client).
 
 ## Problématique
 
@@ -156,6 +158,8 @@ Voir `documentation/credit-speciale/credit-speciale-classes.puml` (rendu recomma
 
 **⚠️ À mettre à jour dans le diagramme** :
 - `CreditDemand` : ajout du champ `contractId` (relation 1:1 avec `CreditContract`)
+- `CreditContract` : ajout du champ `parentContractId` (relation optionnelle vers un contrat parent pour les extensions)
+- `CreditContract` : ajout du statut `EXTENDED` (contrat étendu/remplacé par une augmentation)
 - `CreditContract` : ajout des champs `emergencyContact` (type `EmergencyContact`) et `guarantorRemunerationPercentage` (number, 0-2%)
 - `EmergencyContact` : nouvelle classe avec les champs `lastName`, `firstName`, `phone1`, `phone2`, `relationship`, `typeId`, `idNumber`, `documentPhotoUrl`
 - Relation 1:1 entre `CreditDemand` et `CreditContract` via `contractId`
@@ -458,9 +462,9 @@ Cette règle s'applique à :
    - Un tableau de rémunération montrant pour chaque mensualité :
      - Le mois et la date
      - La mensualité du client
-     - La rémunération du parrain (2% de la mensualité)
-   - Le total de la rémunération sur toute la durée
-3. L'admin peut modifier le pourcentage de rémunération (entre 0% et 2%)
+     - La rémunération du parrain (pourcentage du montant global)
+   - Le total de la rémunération sur toute la durée (maximum 7 mois)
+3. L'admin peut modifier le pourcentage de rémunération (entre 0% et 5%)
 4. Le système recalcule automatiquement le tableau avec le nouveau pourcentage
 5. L'admin clique sur "Suivant"
 
@@ -595,6 +599,53 @@ Cette règle s'applique à :
 - Le versement est enregistré
 - Les pénalités sont calculées et enregistrées
 - Le statut du crédit est mis à jour si nécessaire
+
+---
+
+### UC6.1 – Paiements de 0 FCFA (Admin)
+
+**Acteur** : Admin
+
+**Objectif** : Permettre l'enregistrement de paiements de 0 FCFA pour marquer une échéance comme payée sans montant réellement versé
+
+**Préconditions** :
+- Le crédit a le statut `ACTIVE`
+- Une échéance est due ou à venir
+
+**Scénario principal** :
+1. L'admin accède à la page de suivi des versements du crédit
+2. L'admin sélectionne une échéance à payer
+3. L'admin saisit un montant de 0 FCFA dans le champ "Montant"
+4. Le système détecte automatiquement le montant de 0 FCFA et ajoute le commentaire "Paiement de 0 FCFA"
+5. L'admin peut modifier le commentaire si nécessaire
+6. L'admin enregistre les autres informations (date, heure, moyen de paiement, preuve, notation)
+7. L'admin enregistre le paiement
+8. Le système :
+   - Enregistre le paiement avec le montant de 0 FCFA
+   - Marque l'échéance comme `PAID` (payée)
+   - Recalcule l'échéancier actuel avec le reste dû augmenté (car aucun montant n'a été versé)
+   - Affiche l'échéance en rouge dans l'échéancier actuel (montant insuffisant)
+   - Affiche l'échéance en rouge dans l'échéancier calculé (montant versé < mensualité)
+
+**Règles de calcul** :
+- **Échéancier actuel** : Affiche le montant réellement payé (0 FCFA) et recalcule le reste dû en fonction de ce montant
+- **Échéancier calculé** : Affiche la mensualité théorique (ex: 100 000 FCFA) mais colore en rouge car le montant versé (0 FCFA) < mensualité
+- **Coloration** :
+  - **Vert** : Montant versé ≥ mensualité théorique
+  - **Rouge** : 0 ≤ montant versé < mensualité théorique (inclut les paiements de 0 FCFA)
+  - **Blanc** : Aucun paiement enregistré
+
+**Scénarios alternatifs** :
+- Si l'admin enregistre un paiement de 0 FCFA, le système recalcule automatiquement les échéances suivantes avec le reste dû augmenté
+- Les pénalités ne sont pas appliquées pour les paiements de 0 FCFA avec le commentaire spécifique
+- Le reçu de paiement affiche correctement 0 FCFA comme montant payé
+
+**Postconditions** :
+- L'échéance est marquée comme payée (`PAID`)
+- Le reste dû est recalculé (augmenté car aucun montant n'a été versé)
+- L'échéancier actuel affiche 0 FCFA en rouge pour cette échéance
+- L'échéancier calculé affiche la mensualité théorique en rouge pour cette échéance
+- Les échéances suivantes sont recalculées avec le nouveau reste dû
 
 ---
 
@@ -746,31 +797,240 @@ Cette règle s'applique à :
 
 **Acteur** : Système (automatique)
 
-**Objectif** : Calculer et attribuer 2% du taux mensuel au garant si c'est un membre de la mutuelle
+**Objectif** : Calculer et attribuer un pourcentage variable (0% à 5%) du montant global (capital + intérêts) au garant si c'est un membre de la mutuelle, limité à 7 mois maximum
 
 **Préconditions** :
 - Le crédit a un garant de type `MEMBER`
 - Un versement mensuel a été effectué
 - Le garant est un membre de la mutuelle (pas un admin)
+- Le mois du paiement est inférieur ou égal à 7
 
 **Scénario principal** :
 1. Le client effectue un versement mensuel
-2. Le système vérifie le type de garant
-3. Si le garant est un membre (`type = 'MEMBER'`) :
-   - Le système calcule 2% du montant mensuel versé
+2. Le système vérifie le type de garant et le mois du paiement
+3. Si le garant est un membre (`type = 'MEMBER'`) et le mois ≤ 7 :
+   - Le système recalcule l'échéancier pour obtenir le montant global (capital + intérêts) de l'échéance correspondante
+   - Le système calcule le pourcentage défini (0% à 5%) du montant global de cette échéance
+   - Le système arrondit le montant calculé
    - Le système enregistre cette rémunération pour le garant
    - Le système crée une transaction ou un crédit pour le garant
    - Le système notifie le garant de sa rémunération
-4. La rémunération est cumulée pour chaque versement effectué
+4. La rémunération est cumulée pour chaque versement effectué (maximum 7 mois)
 
 **Scénarios alternatifs** :
 - Si le garant est un admin, aucune rémunération n'est attribuée
-- Si le versement est partiel, la rémunération est calculée sur le montant effectivement versé
+- Si le mois du paiement est supérieur à 7, aucune rémunération n'est attribuée
+- La rémunération est toujours calculée sur le montant global de l'échéance, indépendamment du montant effectivement versé
 
 **Postconditions** :
 - La rémunération est calculée et enregistrée
 - Le garant est notifié de sa rémunération
 - Le montant est disponible pour le garant
+
+---
+
+### UC12 – Augmenter le montant d'un crédit en cours (Admin)
+
+**Acteur** : Admin
+
+**Objectif** : Permettre d'ajouter un montant supplémentaire à un crédit en cours de remboursement, en créant un nouveau contrat qui repart à zéro
+
+**Préconditions** :
+- Le client a un contrat de crédit avec le statut `ACTIVE`
+- Le client n'a pas de pénalités impayées (si des échéances ont été payées)
+- Le client souhaite augmenter le montant du crédit
+
+**Scénario principal** :
+
+**Étape 1 - Vérification de l'éligibilité** :
+1. Le client demande à augmenter son crédit
+2. L'admin accède à la page de détails du contrat actuel
+3. L'admin clique sur "Demander une augmentation de crédit"
+4. Le système vérifie :
+   - Que le contrat est `ACTIVE`
+   - Que toutes les échéances payées (s'il y en a) l'ont été sans retard (ou avec un retard < 3 jours)
+   - Que le client n'a pas de pénalités impayées (si des échéances ont été payées)
+5. Si toutes les conditions sont remplies, le système affiche le formulaire d'augmentation
+
+**Étape 2 - Saisie de la demande d'augmentation** :
+1. L'admin saisit :
+   - Le montant supplémentaire demandé (ex: 500 000 FCFA)
+   - La cause de l'augmentation (obligatoire)
+   - La date souhaitée pour l'augmentation
+2. Le système calcule automatiquement :
+   - Le montant restant dû sur le contrat actuel :
+     - Si des échéances ont été payées : reste dû après les paiements effectués
+     - Si aucune échéance n'a été payée : montant initial + intérêts du premier mois (si applicable)
+   - Le nouveau montant total (nouveau capital) = reste dû + montant supplémentaire
+   - **Important** : Le nouveau montant total devient le nouveau capital de base pour le nouveau contrat. Les intérêts seront recalculés sur ce nouveau capital.
+   - Exemple avec paiements : Reste dû = 230 000 FCFA, Augmentation = 500 000 FCFA, Nouveau capital = 730 000 FCFA
+   - Exemple sans paiements : Montant initial = 300 000 FCFA, Intérêts M1 = 30 000 FCFA, Reste dû = 330 000 FCFA, Augmentation = 500 000 FCFA, Nouveau capital = 830 000 FCFA
+3. Le système affiche un récapitulatif :
+   - Montant initial du contrat : 300 000 FCFA
+   - Montant déjà payé : X FCFA (0 si aucune échéance payée)
+   - Reste dû : Y FCFA (calculé selon les paiements effectués ou montant initial + intérêts)
+   - Montant supplémentaire demandé : 500 000 FCFA
+   - Nouveau montant total : Z FCFA
+
+**Étape 3 - Simulation obligatoire du nouveau contrat** :
+
+**⚠️ Point crucial** : Une nouvelle simulation est **obligatoire** car l'ancienne mensualité n'est plus forcément valable pour le nouveau capital. Par exemple, si l'ancienne mensualité était de 100 000 FCFA pour un emprunt de 300 000 FCFA, cette même mensualité ne permettra probablement pas de rembourser 830 000 FCFA en 7 mois maximum.
+
+1. Le système **oblige** l'admin à faire une nouvelle simulation avec le nouveau capital (ex: 730 000 FCFA ou 830 000 FCFA)
+2. L'admin peut choisir parmi les trois types de simulations habituels :
+   - **Simulation standard** : Saisir une nouvelle mensualité adaptée au nouveau capital
+   - **Simulation personnalisée** : Définir des montants variables par mois
+   - **Simulation proposée** : Le système calcule automatiquement la mensualité optimale pour rembourser en X mois (max 7 pour spéciale, 3 pour aide)
+3. Le système calcule le nouvel échéancier en considérant :
+   - Le nouveau capital (ex: 830 000 FCFA) comme montant de base
+   - Le taux d'intérêt (par défaut le même que le contrat initial, mais modifiable)
+   - **Recalcul complet des intérêts** : Les intérêts sont recalculés sur le nouveau capital. Par exemple, si le nouveau capital est 830 000 FCFA à 10%, les intérêts du premier mois seront 83 000 FCFA (10% de 830 000), et non 30 000 FCFA
+   - Une nouvelle date de premier versement (ou la date actuelle)
+4. Le système **valide automatiquement** si la simulation respecte les limites :
+   - **Crédit spéciale** : La nouvelle simulation doit rembourser en 7 mois maximum
+   - **Crédit aide** : La nouvelle simulation doit rembourser en 3 mois maximum
+   - **Crédit fixe** : Pas de limite
+5. Si la simulation dépasse la limite, le système :
+   - Affiche un avertissement
+   - Propose une mensualité suggérée pour respecter la limite
+   - L'admin peut ajuster les paramètres et recalculer
+6. Le système génère deux tableaux :
+   - **Échéancier calculé** : Basé sur la nouvelle mensualité, avec les nouveaux intérêts calculés sur le nouveau capital
+   - **Échéancier référence** : Sur 7 mois (pour crédit spéciale) ou 3 mois (pour crédit aide), avec la mensualité optimale calculée
+7. **Gestion des échéances déjà payées** :
+   - Si des échéances ont été payées sur le contrat initial : Le système considère que la première échéance du nouveau contrat est déjà payée (montant de la première échéance du contrat initial)
+   - Si aucune échéance n'a été payée : Le nouveau contrat repart à zéro, aucune échéance n'est considérée comme payée
+
+**Exemple de validation** :
+- Nouveau capital : 830 000 FCFA à 10%
+- Ancienne mensualité : 100 000 FCFA → Simulation sur ~12-13 mois → **Invalide** (dépasse 7 mois)
+- Mensualité suggérée par le système : ~150 000 FCFA → Simulation sur 7 mois → **Valide**
+- L'admin doit utiliser la mensualité suggérée ou une mensualité supérieure
+
+**Étape 4 - Validation et création du nouveau contrat** :
+1. L'admin valide la simulation en cliquant sur "Utiliser cette simulation"
+   - **⚠️ Important** : La simulation doit être valide (respecter les limites de durée) avant de pouvoir continuer
+2. Le système :
+   - Clôture le contrat initial en changeant son statut à `EXTENDED` (étendu)
+   - Enregistre la date de clôture et le motif (augmentation de crédit)
+   - Enregistre les données de l'ancienne simulation du contrat initial pour historique
+   - Crée une nouvelle demande de crédit avec le statut `APPROVED` (automatiquement approuvée car extension)
+   - Crée un nouveau contrat **basé sur la simulation validée** avec :
+     - Le nouveau capital (ex: 830 000 FCFA)
+     - Le taux d'intérêt de la simulation
+     - **La nouvelle mensualité issue de la simulation** (ex: 150 000 FCFA, pas l'ancienne de 100 000 FCFA)
+     - La nouvelle durée issue de la simulation
+     - Le total à rembourser calculé par la simulation
+     - La nouvelle date de premier versement
+     - Le même garant que le contrat initial (ou un nouveau si modifié)
+     - Le même contact d'urgence (ou un nouveau si modifié)
+     - Un lien vers le contrat initial (champ `parentContractId`)
+   - Si des échéances ont été payées : Enregistre le paiement initial (montant de la première échéance du contrat initial) comme première échéance du nouveau contrat
+   - Si aucune échéance n'a été payée : Aucun paiement n'est enregistré, le nouveau contrat repart à zéro
+   - Génère une notification pour le client et l'admin
+3. Le système génère un nouveau contrat PDF avec toutes les informations de la simulation validée
+
+**Étape 5 - Signature et activation** :
+1. Le nouveau contrat est signé par le client (physiquement)
+2. L'admin téléverse le contrat signé
+3. Le système active le nouveau contrat (`ACTIVE`)
+4. L'admin remet le montant supplémentaire au client (500 000 FCFA)
+5. Le système enregistre la date de remise du montant supplémentaire
+
+**Règles de calcul** :
+- **Calcul du reste dû du contrat initial** :
+  - Si des échéances ont été payées : Reste dû = Montant initial + Intérêts accumulés - Montants payés
+  - Si aucune échéance n'a été payée : Reste dû = Montant initial + Intérêts du premier mois (si applicable)
+- **Nouveau capital (montant total)** = Reste dû du contrat initial + Montant supplémentaire demandé
+- **Simulation obligatoire** :
+  - Une nouvelle simulation est **obligatoire** car l'ancienne mensualité n'est plus forcément valable
+  - Le système calcule la nouvelle mensualité nécessaire pour respecter les limites (7 mois max pour spéciale, 3 mois max pour aide)
+  - L'admin doit valider la nouvelle simulation avant de pouvoir créer le nouveau contrat
+- **Recalcul des intérêts** : 
+  - Les intérêts sont recalculés sur le nouveau capital, pas sur l'ancien capital
+  - Exemple : Si le nouveau capital est 830 000 FCFA à 10%, les intérêts du premier mois du nouveau contrat seront 83 000 FCFA (10% de 830 000), et non 30 000 FCFA (10% de l'ancien capital de 300 000)
+  - Le nouveau contrat repart avec un nouveau capital et de nouveaux intérêts calculés sur ce capital
+- **Nouvelle mensualité** :
+  - L'ancienne mensualité (ex: 100 000 FCFA) n'est plus applicable si elle ne permet pas de rembourser le nouveau capital en 7 mois max
+  - Le système propose une nouvelle mensualité adaptée au nouveau capital
+  - L'admin peut accepter la mensualité suggérée ou en proposer une plus élevée
+- **Première échéance du nouveau contrat** :
+  - Si des échéances ont été payées : Considérée comme déjà payée avec le montant de la première échéance du contrat initial
+  - Si aucune échéance n'a été payée : Aucune échéance n'est considérée comme payée, le nouveau contrat repart à zéro
+- **Nouveau reste dû pour le calcul de l'échéancier** :
+  - Si des échéances ont été payées : Nouveau capital - Montant déjà payé (première échéance)
+  - Si aucune échéance n'a été payée : Nouveau capital (aucun paiement déduit)
+- **Nouvel échéancier** : 
+  - Calculé à partir de la nouvelle simulation validée
+  - Basé sur la nouvelle mensualité (pas l'ancienne)
+  - Avec les nouveaux intérêts recalculés sur le nouveau capital
+  - Respecte les limites de durée (7 mois max pour spéciale, 3 mois max pour aide)
+- **Historique** : Le contrat initial reste visible dans l'historique avec le statut `EXTENDED`
+
+**Scénarios alternatifs** :
+- Si le client a des pénalités impayées (et des échéances payées), l'augmentation est refusée jusqu'au remboursement des pénalités
+- Si le client a des échéances en retard (> 3 jours), l'augmentation peut être refusée ou soumise à validation admin
+- Si aucune échéance n'a été payée, l'augmentation est possible dès la création du contrat (même avant le premier versement)
+- Si la nouvelle simulation dépasse 7 mois (pour crédit spéciale), le système propose une mensualité minimale ou refuse l'augmentation
+- L'admin peut refuser l'augmentation même si toutes les conditions sont remplies
+- Le garant peut être modifié lors de l'augmentation si nécessaire
+
+**Postconditions** :
+- Le contrat initial est clôturé avec le statut `EXTENDED`
+- Un nouveau contrat est créé avec le nouveau montant total
+- Le nouveau contrat est lié au contrat initial via `parentContractId`
+- Si des échéances ont été payées : La première échéance du nouveau contrat est marquée comme payée
+- Si aucune échéance n'a été payée : Aucune échéance n'est marquée comme payée, le nouveau contrat repart à zéro
+- Le montant supplémentaire est remis au client
+- L'historique complet est conservé (contrat initial + nouveau contrat)
+- Les deux contrats sont visibles dans l'historique du client
+
+**Exemple concret - Cas 1 : Avec échéance payée** :
+- **Contrat initial** : 300 000 FCFA à 10% d'intérêt, mensualité 100 000 FCFA
+- **Paiement effectué** : 100 000 FCFA (première échéance)
+- **Reste dû** : 230 000 FCFA (300 000 + 30 000 intérêts - 100 000 paiement)
+- **Augmentation demandée** : 500 000 FCFA
+- **Nouveau montant total** : 730 000 FCFA (230 000 + 500 000)
+- **Nouveau contrat** : 730 000 FCFA à 10% d'intérêt
+- **Première échéance** : Déjà payée (100 000 FCFA du contrat initial)
+- **Nouveau reste dû** : 630 000 FCFA (730 000 - 100 000)
+- **Nouvel échéancier** : Calculé à partir de 630 000 FCFA avec la nouvelle mensualité
+
+**Exemple concret - Cas 2 : Sans échéance payée** :
+- **Contrat initial** : 300 000 FCFA à 10% d'intérêt, mensualité 100 000 FCFA (durée ~4 mois)
+- **Paiement effectué** : Aucun (contrat vient d'être créé)
+- **Reste dû du contrat initial** : 330 000 FCFA (300 000 + 30 000 intérêts du premier mois)
+- **Augmentation demandée** : 500 000 FCFA
+- **Nouveau capital** : 830 000 FCFA (330 000 + 500 000)
+
+**Simulation obligatoire** :
+- **Tentative avec l'ancienne mensualité (100 000 FCFA)** :
+  - Mois 1 : Capital = 830 000, Intérêts = 83 000, Global = 913 000, Paiement = 100 000, Reste = 813 000
+  - Mois 2 : Capital = 813 000, Intérêts = 81 300, Global = 894 300, Paiement = 100 000, Reste = 794 300
+  - ... (continue pendant ~12-13 mois)
+  - **Résultat : ~12-13 mois → INVALIDE** (dépasse 7 mois pour crédit spéciale)
+
+- **Simulation proposée par le système** :
+  - Le système calcule la mensualité optimale pour rembourser en 7 mois max
+  - **Mensualité suggérée : ~150 000 FCFA** (approximatif)
+  - Mois 1 : Capital = 830 000, Intérêts = 83 000, Global = 913 000, Paiement = 150 000, Reste = 763 000
+  - Mois 2 : Capital = 763 000, Intérêts = 76 300, Global = 839 300, Paiement = 150 000, Reste = 689 300
+  - ... (continue pendant 7 mois)
+  - Mois 7 : Dernier paiement, solde = 0
+  - **Résultat : 7 mois → VALIDE**
+
+- **L'admin valide la simulation avec la nouvelle mensualité de 150 000 FCFA**
+
+**Nouveau contrat** :
+- **Nouveau capital** : 830 000 FCFA à 10% d'intérêt
+- **Nouvelle mensualité** : 150 000 FCFA (pas 100 000 FCFA)
+- **Durée** : 7 mois
+- **Première échéance** : Non payée (aucune échéance du contrat initial n'a été payée)
+- **Nouvel échéancier** : 
+  - Calculé à partir de la nouvelle simulation validée
+  - Basé sur la nouvelle mensualité de 150 000 FCFA
+  - Les intérêts sont recalculés chaque mois sur le reste dû actuel (basé sur le nouveau capital)
+  - Le nouveau contrat repart à zéro avec le nouveau capital, la nouvelle mensualité, et les nouveaux intérêts
 
 ---
 
@@ -812,11 +1072,87 @@ Un membre peut obtenir un crédit si :
 
 - Les bonus ne s'appliquent qu'aux garants qui ont apporté l'emprunteur (parrainage).  
 - Si le garant est un membre de la mutuelle (parrain), il peut recevoir une rémunération sur chaque mensualité versée.  
-- **Pourcentage par défaut** : 2% du montant versé par mois par l'emprunteur.  
-- **Personnalisation** : L'admin peut modifier le pourcentage lors de la création du contrat, entre 0% et 2% maximum.  
-- La rémunération est calculée à chaque versement mensuel selon le pourcentage défini.  
-- Un tableau de rémunération est généré lors de la création du contrat, montrant la rémunération pour chaque mensualité.  
+- **Pourcentage par défaut** : 2% du montant global (capital + intérêts) de chaque échéance.  
+- **Personnalisation** : L'admin peut modifier le pourcentage lors de la création du contrat, entre 0% et 5% maximum.  
+- **Base de calcul** : La rémunération est calculée sur le montant global (capital + intérêts) de chaque échéance, et non sur le montant versé.  
+- **Limite de durée** : La rémunération est calculée uniquement pour les 7 premiers mois maximum.  
+- **Arrondi** : Le montant de la rémunération est arrondi à l'entier le plus proche (arrondi personnalisé : < 0.5 vers le bas, ≥ 0.5 vers le haut).  
+- Un tableau de rémunération est généré lors de la création du contrat, montrant la rémunération pour chaque échéance (maximum 7 mois) basée sur le montant global.  
 - Si le garant est un admin, aucune rémunération n'est attribuée (0%).
+
+### 5.7. Augmentation de crédit en cours
+
+- **Conditions d'éligibilité** :
+  - Le contrat doit être `ACTIVE`
+  - Si des échéances ont été payées : Toutes les échéances payées doivent l'avoir été sans retard (ou avec un retard < 3 jours)
+  - Si des échéances ont été payées : Le client ne doit pas avoir de pénalités impayées
+  - **Note** : L'augmentation est possible même si aucune échéance n'a encore été payée (contrat au début)
+- **Calcul du nouveau montant** :
+  - **Si des échéances ont été payées** : Reste dû = Montant initial + Intérêts accumulés - Montants payés
+  - **Si aucune échéance n'a été payée** : Reste dû = Montant initial + Intérêts du premier mois (si applicable)
+  - Nouveau capital (montant total) = Reste dû du contrat initial + Montant supplémentaire demandé
+  - **Recalcul des intérêts** : Les intérêts du nouveau contrat sont calculés sur le nouveau capital, pas sur l'ancien capital. Par exemple, si le nouveau capital est 830 000 FCFA à 10%, les intérêts du premier mois seront 83 000 FCFA (10% de 830 000), et non 30 000 FCFA (10% de l'ancien capital de 300 000)
+- **Simulation obligatoire** :
+  - Une nouvelle simulation est **obligatoire** car l'ancienne mensualité n'est plus forcément valable pour le nouveau capital
+  - L'ancienne mensualité (ex: 100 000 FCFA pour 300 000 FCFA) ne permet probablement pas de rembourser le nouveau capital (ex: 830 000 FCFA) en 7 mois max
+  - Le système calcule et propose une nouvelle mensualité adaptée au nouveau capital
+  - L'admin doit valider la nouvelle simulation avant de pouvoir créer le nouveau contrat
+  - La simulation doit respecter les limites de durée (7 mois max pour spéciale, 3 mois max pour aide)
+- **Création du nouveau contrat** :
+  - Le contrat est créé uniquement après validation de la simulation
+  - Le contrat initial est clôturé avec le statut `EXTENDED` (étendu)
+  - Un nouveau contrat est créé avec :
+    - Le nouveau capital (montant total)
+    - La **nouvelle mensualité** issue de la simulation validée
+    - Les nouveaux intérêts calculés sur le nouveau capital
+  - Le nouveau contrat est lié au contrat initial via `parentContractId`
+  - **Si des échéances ont été payées** : La première échéance du nouveau contrat est considérée comme déjà payée (montant de la première échéance du contrat initial)
+  - **Si aucune échéance n'a été payée** : Aucune échéance n'est considérée comme payée, le nouveau contrat repart à zéro
+- **Nouvel échéancier** :
+  - Calculé à partir de la simulation validée
+  - Basé sur la **nouvelle mensualité** (pas l'ancienne)
+  - Les intérêts sont calculés chaque mois sur le reste dû actuel du nouveau contrat (basé sur le nouveau capital)
+  - Respecte les limites de durée (7 mois max pour spéciale, 3 mois max pour aide)
+  - Le système repart à zéro avec un nouveau cycle d'échéances, comme si c'était un nouveau contrat
+  - **Si des échéances ont été payées** : La première échéance est marquée comme `PAID` avec le montant déjà payé
+  - **Si aucune échéance n'a été payée** : Aucune échéance n'est marquée comme payée, toutes les échéances sont à venir
+- **Devenir de l'ancien contrat** :
+  - **Statut permanent** : Le contrat initial passe en statut `EXTENDED` et **y reste définitivement**
+  - **Pourquoi permanent ?** :
+    - `EXTENDED` est un statut historique qui indique que le contrat a été remplacé
+    - Évite le double comptage dans les statistiques (1 prêt = 1 contrat terminé, pas 2)
+    - La décharge est générée uniquement pour le nouveau contrat
+  - **Date de clôture** : Le champ `extendedAt` enregistre la date de l'augmentation
+  - **Motif** : Le champ `blockedReason` peut contenir "Augmentation de crédit vers [ID_nouveau_contrat]"
+  - **Paiements conservés** : Tous les paiements effectués sur l'ancien contrat restent associés à celui-ci et sont conservés dans l'historique
+  - **Échéancier figé** : L'échéancier de l'ancien contrat est figé à l'état où il était au moment de l'augmentation
+  - **Documents conservés** : Le contrat signé (`signedContractUrl`) et tous les documents restent accessibles
+  - **Consultation** : L'ancien contrat reste consultable dans la liste des contrats avec un badge "EXTENDED"
+  - **Non modifiable** : Aucune modification n'est possible sur l'ancien contrat (lecture seule)
+  - **Pas de nouveaux paiements** : Il n'est plus possible d'enregistrer de nouveaux paiements sur l'ancien contrat
+  - **Lien visible** : Sur la page de détails de l'ancien contrat, un lien vers le nouveau contrat est affiché
+  - **Indicateur de chaîne terminée** : Sur la fiche de l'ancien contrat, afficher un indicateur "Crédit terminé" si le nouveau contrat est `DISCHARGED`
+- **Historique et traçabilité** :
+  - Le contrat initial reste visible dans l'historique avec le statut `EXTENDED`
+  - Le nouveau contrat est visible comme un contrat indépendant mais lié au contrat initial via `parentContractId`
+  - Sur la page de détails du nouveau contrat, un lien vers le contrat parent est affiché
+  - Tous les paiements du contrat initial (s'il y en a) sont conservés dans l'historique
+  - L'historique complet du client montre les deux contrats avec leur relation
+- **Fin du nouveau contrat (impact sur l'ancien)** :
+  - Quand le nouveau contrat passe en `DISCHARGED` (remboursement complet) :
+    - L'ancien contrat **reste en `EXTENDED`** (statut permanent)
+    - La décharge est générée pour le **nouveau contrat uniquement**
+    - Sur la fiche de l'ancien contrat, un indicateur "Crédit terminé" est affiché
+    - Dans les statistiques : seul le nouveau contrat est compté comme "terminé"
+  - Quand le nouveau contrat passe en `TRANSFORMED` (transformé en crédit fixe après 7 mois) :
+    - L'ancien contrat **reste en `EXTENDED`**
+    - La transformation concerne uniquement le nouveau contrat
+- **Chaîne de contrats multiples** :
+  - Si un client fait plusieurs augmentations successives :
+    - Contrat A → `EXTENDED` → Contrat B → `EXTENDED` → Contrat C → `ACTIVE`
+    - Seul le dernier contrat (C) est actif
+    - Tous les contrats précédents restent en `EXTENDED`
+    - La décharge finale sera sur le dernier contrat de la chaîne
 
 ### 5.7. Relation demande-contrat (1:1)
 
@@ -849,7 +1185,7 @@ Un membre peut obtenir un crédit si :
 - **Rôle** : le garant est obligatoire (membre ou admin), avec lien de parenté renseigné.  
 - **Éligibilité** : l'un des deux (emprunteur ou garant) doit être à jour à la caisse imprévue ; sinon refus, sauf dérogation admin.  
 - **Parrainage** : seuls les garants qui ont apporté l’emprunteur sont éligibles aux bonus.  
-- **Rémunération** : 2% du montant versé par mois par l'emprunteur, uniquement si le garant est un membre (pas d'admin). Calculée à chaque versement.  
+- **Rémunération** : Pourcentage variable (0% à 5%, par défaut 2%) du montant global (capital + intérêts) de chaque échéance, uniquement si le garant est un membre (pas d'admin). Calculée sur maximum 7 mois, à chaque versement.  
 - **Documents** : les informations garant sont visibles dans les fiches contrats (admin), jamais dans l’espace client.
 
 ## 6. Structure des données
@@ -901,11 +1237,21 @@ export interface CreditDemand {
 ### 6.2. Type CreditContract (Contrat de crédit)
 
 ```typescript
-export type CreditContractStatus = 'PENDING' | 'ACTIVE' | 'OVERDUE' | 'PARTIAL' | 'TRANSFORMED' | 'BLOCKED' | 'DISCHARGED' | 'CLOSED'
+export type CreditContractStatus = 
+  | 'PENDING'      // Contrat créé, en attente de signature
+  | 'ACTIVE'       // Contrat actif, remboursement en cours
+  | 'OVERDUE'      // Contrat en retard de paiement
+  | 'PARTIAL'      // Paiement partiel enregistré
+  | 'TRANSFORMED'  // Crédit spéciale transformé en crédit fixe (après 7 mois)
+  | 'BLOCKED'      // Contrat bloqué (pénalités impayées, etc.)
+  | 'DISCHARGED'   // Décharge générée, remboursement complet
+  | 'CLOSED'       // Contrat clôturé manuellement
+  | 'EXTENDED'     // Contrat étendu (remplacé par une augmentation de crédit)
 
 export interface CreditContract {
   id: string
   demandId: string // Référence à la demande d'origine
+  parentContractId?: string // Référence au contrat parent (si augmentation de crédit)
   clientId: string
   clientFirstName: string
   clientLastName: string
@@ -936,8 +1282,9 @@ export interface CreditContract {
   fundsReleasedAt?: Date
   dischargedAt?: Date
   transformedAt?: Date
+  extendedAt?: Date // Date à laquelle le contrat a été étendu (augmentation)
   blockedAt?: Date
-  blockedReason?: string
+  blockedReason?: string // Peut contenir le motif ou l'ID du nouveau contrat
   score?: number // Score de fiabilité (0-10, admin-only)
   scoreUpdatedAt?: Date
   createdAt: Date
@@ -949,8 +1296,19 @@ export interface CreditContract {
 
 **Modifications récentes** :
 - Ajout du champ `emergencyContact` pour stocker les informations du contact d'urgence
-- Ajout du champ `guarantorRemunerationPercentage` pour permettre la personnalisation du pourcentage de rémunération (0-2%)
+- Ajout du champ `guarantorRemunerationPercentage` pour permettre la personnalisation du pourcentage de rémunération (0-5%)
+- Ajout du champ `parentContractId` pour lier un contrat à son contrat parent (augmentation de crédit)
+- Ajout du champ `extendedAt` pour enregistrer la date d'une augmentation de crédit
+- Ajout du statut `EXTENDED` pour les contrats remplacés par une augmentation
 - Le contact d'urgence est enregistré lors de la création du contrat
+
+**Comportement du statut EXTENDED** :
+- Le contrat passe en `EXTENDED` lorsqu'il est remplacé par une augmentation de crédit
+- Le contrat reste en lecture seule (aucune modification possible)
+- Aucun nouveau paiement ne peut être enregistré
+- L'échéancier est figé à l'état au moment de l'augmentation
+- Les paiements existants et documents restent accessibles
+- Un lien vers le nouveau contrat (via `blockedReason` ou affichage UI) permet la navigation
 
 ### 6.3. Type EmergencyContact (Contact d'urgence)
 

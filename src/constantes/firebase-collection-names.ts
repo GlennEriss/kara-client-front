@@ -17,12 +17,15 @@ export const firebaseCollectionNames = {
     caisseContracts: "caisseContracts",
     caisseSettings: "caisseSettings",
     caisseAdminNotes: "caisseAdminNotes",
+    caisseSpecialeDemands: "caisseSpecialeDemands",
     // Caisse Imprévue
     subscriptionsCI: "subscriptionsCI",
     contractsCI: "contractsCI",
+    caisseImprevueDemands: "caisseImprevueDemands",
     // Documents
     documents: "documents",
     placements: "placements",
+    placementDemands: "placementDemands",
     // Géographie
     provinces: "provinces",
     departments: "departments",

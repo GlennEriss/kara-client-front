@@ -63,6 +63,7 @@ export class CreditContractRepository implements ICreditContractRepository {
                 fundsReleasedAt: (data.fundsReleasedAt as any)?.toDate ? (data.fundsReleasedAt as any).toDate() : (data.fundsReleasedAt ? new Date(data.fundsReleasedAt) : undefined),
                 dischargedAt: (data.dischargedAt as any)?.toDate ? (data.dischargedAt as any).toDate() : (data.dischargedAt ? new Date(data.dischargedAt) : undefined),
                 transformedAt: (data.transformedAt as any)?.toDate ? (data.transformedAt as any).toDate() : (data.transformedAt ? new Date(data.transformedAt) : undefined),
+                extendedAt: (data.extendedAt as any)?.toDate ? (data.extendedAt as any).toDate() : (data.extendedAt ? new Date(data.extendedAt) : undefined),
                 blockedAt: (data.blockedAt as any)?.toDate ? (data.blockedAt as any).toDate() : (data.blockedAt ? new Date(data.blockedAt) : undefined),
                 scoreUpdatedAt: (data.scoreUpdatedAt as any)?.toDate ? (data.scoreUpdatedAt as any).toDate() : (data.scoreUpdatedAt ? new Date(data.scoreUpdatedAt) : undefined),
             } as CreditContract;
@@ -108,6 +109,7 @@ export class CreditContractRepository implements ICreditContractRepository {
             fundsReleasedAt: (data.fundsReleasedAt as any)?.toDate ? (data.fundsReleasedAt as any).toDate() : (data.fundsReleasedAt ? new Date(data.fundsReleasedAt) : undefined),
             dischargedAt: (data.dischargedAt as any)?.toDate ? (data.dischargedAt as any).toDate() : (data.dischargedAt ? new Date(data.dischargedAt) : undefined),
             transformedAt: (data.transformedAt as any)?.toDate ? (data.transformedAt as any).toDate() : (data.transformedAt ? new Date(data.transformedAt) : undefined),
+            extendedAt: (data.extendedAt as any)?.toDate ? (data.extendedAt as any).toDate() : (data.extendedAt ? new Date(data.extendedAt) : undefined),
             blockedAt: (data.blockedAt as any)?.toDate ? (data.blockedAt as any).toDate() : (data.blockedAt ? new Date(data.blockedAt) : undefined),
             scoreUpdatedAt: (data.scoreUpdatedAt as any)?.toDate ? (data.scoreUpdatedAt as any).toDate() : (data.scoreUpdatedAt ? new Date(data.scoreUpdatedAt) : undefined),
         } as CreditContract;
@@ -173,10 +175,12 @@ export class CreditContractRepository implements ICreditContractRepository {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 contracts = contracts.filter((c) => {
-                    if (c.status === 'OVERDUE' || c.status === 'PARTIAL') {
+                    // PARTIAL = partiellement remboursé, pas forcément en retard.
+                    // Retard = statut OVERDUE explicite ou nextDueAt dépassée.
+                    if (c.status === 'OVERDUE') {
                         return true;
                     }
-                    if (c.status === 'ACTIVE' && c.nextDueAt) {
+                    if ((c.status === 'ACTIVE' || c.status === 'PARTIAL') && c.nextDueAt) {
                         const nextDue = c.nextDueAt instanceof Date ? c.nextDueAt : new Date(c.nextDueAt);
                         nextDue.setHours(0, 0, 0, 0);
                         return nextDue < today;

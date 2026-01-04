@@ -1,4 +1,4 @@
-import { User, Admin, ContractCI, Document, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI } from "@/types/types";
+import { User, Admin, ContractCI, Document, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
 import { ICaisseImprevueService, VersementFormData } from "./ICaisseImprevueService";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
@@ -9,12 +9,16 @@ import { IDocumentRepository } from "@/repositories/documents/IDocumentRepositor
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { ISupportCIRepository } from "@/repositories/caisse-imprevu/ISupportCIRepository";
 import { IEarlyRefundCIRepository } from "@/repositories/caisse-imprevu/IEarlyRefundCIRepository";
+import { ICaisseImprevueDemandRepository } from "@/repositories/caisse-imprevue/ICaisseImprevueDemandRepository";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
+import { RepositoryFactory } from "@/factories/RepositoryFactory";
 
 export class CaisseImprevueService implements ICaisseImprevueService {
     readonly name = "CaisseImprevueService"
     private notificationService: NotificationService
+
+    private caisseImprevueDemandRepository: ICaisseImprevueDemandRepository
 
     constructor(
         private memberRepository: IMemberRepository, 
@@ -24,7 +28,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         private documentRepository: IDocumentRepository,
         private paymentCIRepository: IPaymentCIRepository,
         private supportCIRepository: ISupportCIRepository,
-        private earlyRefundCIRepository: IEarlyRefundCIRepository
+        private earlyRefundCIRepository: IEarlyRefundCIRepository,
+        caisseImprevueDemandRepository?: ICaisseImprevueDemandRepository
     ) {
         this.memberRepository = memberRepository
         this.subscriptionCIRepository = subscriptionCIRepository
@@ -34,6 +39,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
         this.paymentCIRepository = paymentCIRepository
         this.supportCIRepository = supportCIRepository
         this.earlyRefundCIRepository = earlyRefundCIRepository
+        this.caisseImprevueDemandRepository = caisseImprevueDemandRepository || RepositoryFactory.getCaisseImprevueDemandRepository()
         this.notificationService = ServiceFactory.getNotificationService()
     }
 
@@ -891,5 +897,308 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             console.error('Erreur lors de la demande de remboursement final:', error)
             throw error
         }
+    }
+
+    // ==================== DEMANDES ====================
+
+    async createDemand(data: Omit<CaisseImprevueDemand, 'id' | 'createdAt' | 'updatedAt'>, adminId: string): Promise<CaisseImprevueDemand> {
+        // Générer l'ID au format: MK_DEMANDE_CI_{matricule}_{date}_{heure}
+        let matriculeFormatted = "0000";
+        let memberName = "Membre inconnu";
+        
+        if (data.memberId) {
+            const member = await this.memberRepository.getMemberById(data.memberId);
+            if (member && member.matricule) {
+                const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
+                matriculeFormatted = matriculePart.padStart(4, '0');
+                memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+            }
+        }
+
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = String(now.getFullYear()).slice(-2);
+        const dateFormatted = `${day}${month}${year}`;
+        
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const timeFormatted = `${hours}${minutes}`;
+
+        const customId = `MK_DEMANDE_CI_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
+
+        const demandData = {
+            ...data,
+            status: 'PENDING' as const,
+            createdBy: adminId,
+        };
+
+        const demand = await this.caisseImprevueDemandRepository.createDemand(demandData, customId);
+        
+        // Notification pour tous les admins
+        try {
+            await this.notificationService.createNotification({
+                module: 'caisse_imprevue',
+                entityId: demand.id,
+                type: 'caisse_imprevue_demand_created',
+                title: 'Nouvelle demande de contrat Caisse Imprévue',
+                message: `Une nouvelle demande a été créée par ${adminId} pour ${memberName}`,
+                metadata: {
+                    demandId: demand.id,
+                    memberId: data.memberId,
+                    subscriptionCIID: data.subscriptionCIID,
+                    paymentFrequency: data.paymentFrequency,
+                    desiredDate: data.desiredDate,
+                    createdBy: adminId,
+                },
+            });
+        } catch (error) {
+            console.error('Erreur lors de la création de la notification:', error);
+        }
+        
+        return demand;
+    }
+
+    async getDemandById(id: string): Promise<CaisseImprevueDemand | null> {
+        return await this.caisseImprevueDemandRepository.getDemandById(id);
+    }
+
+    async getDemandsWithFilters(filters?: CaisseImprevueDemandFilters): Promise<CaisseImprevueDemand[]> {
+        return await this.caisseImprevueDemandRepository.getDemandsWithFilters(filters);
+    }
+
+    async getDemandsStats(filters?: CaisseImprevueDemandFilters): Promise<CaisseImprevueDemandStats> {
+        return await this.caisseImprevueDemandRepository.getDemandsStats(filters);
+    }
+
+    async approveDemand(demandId: string, adminId: string, reason: string): Promise<CaisseImprevueDemand | null> {
+        // Récupérer le nom de l'admin
+        const admin = await this.adminRepository.getAdminById(adminId);
+        const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+
+        const demand = await this.caisseImprevueDemandRepository.updateDemandStatus(
+            demandId,
+            'APPROVED',
+            { adminId, adminName, reason, decisionMadeAt: new Date() },
+            undefined
+        );
+
+        if (demand) {
+            // Récupérer le nom du membre
+            let memberName = "Membre inconnu";
+            if (demand.memberId) {
+                const member = await this.memberRepository.getMemberById(demand.memberId);
+                if (member) {
+                    memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+                }
+            }
+
+            // Notification
+            try {
+                await this.notificationService.createNotification({
+                    module: 'caisse_imprevue',
+                    entityId: demand.id,
+                    type: 'caisse_imprevue_demand_approved',
+                    title: 'Demande acceptée',
+                    message: `Votre demande de contrat Caisse Imprévue a été acceptée. Raison : ${reason}`,
+                    metadata: {
+                        demandId: demand.id,
+                        decisionMadeBy: adminId,
+                        decisionMadeByName: adminName,
+                        decisionReason: reason,
+                        decisionMadeAt: demand.decisionMadeAt?.toISOString(),
+                        memberId: demand.memberId,
+                    },
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification:', error);
+            }
+        }
+
+        return demand;
+    }
+
+    async rejectDemand(demandId: string, adminId: string, reason: string): Promise<CaisseImprevueDemand | null> {
+        // Récupérer le nom de l'admin
+        const admin = await this.adminRepository.getAdminById(adminId);
+        const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+
+        const demand = await this.caisseImprevueDemandRepository.updateDemandStatus(
+            demandId,
+            'REJECTED',
+            { adminId, adminName, reason, decisionMadeAt: new Date() },
+            undefined
+        );
+
+        if (demand) {
+            // Récupérer le nom du membre
+            let memberName = "Membre inconnu";
+            if (demand.memberId) {
+                const member = await this.memberRepository.getMemberById(demand.memberId);
+                if (member) {
+                    memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+                }
+            }
+
+            // Notification
+            try {
+                await this.notificationService.createNotification({
+                    module: 'caisse_imprevue',
+                    entityId: demand.id,
+                    type: 'caisse_imprevue_demand_rejected',
+                    title: 'Demande refusée',
+                    message: `Votre demande de contrat Caisse Imprévue a été refusée. Raison : ${reason}`,
+                    metadata: {
+                        demandId: demand.id,
+                        decisionMadeBy: adminId,
+                        decisionMadeByName: adminName,
+                        decisionReason: reason,
+                        decisionMadeAt: demand.decisionMadeAt?.toISOString(),
+                        memberId: demand.memberId,
+                    },
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification:', error);
+            }
+        }
+
+        return demand;
+    }
+
+    async reopenDemand(demandId: string, adminId: string, reason: string): Promise<CaisseImprevueDemand | null> {
+        // Récupérer le nom de l'admin
+        const admin = await this.adminRepository.getAdminById(adminId);
+        const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+
+        const demand = await this.caisseImprevueDemandRepository.updateDemandStatus(
+            demandId,
+            'PENDING',
+            undefined,
+            { adminId, adminName, reason, reopenedAt: new Date() }
+        );
+
+        if (demand) {
+            // Notification
+            try {
+                await this.notificationService.createNotification({
+                    module: 'caisse_imprevue',
+                    entityId: demand.id,
+                    type: 'caisse_imprevue_demand_reopened',
+                    title: 'Demande réouverte',
+                    message: `La demande de contrat Caisse Imprévue a été réouverte. Motif : ${reason}`,
+                    metadata: {
+                        demandId: demand.id,
+                        reopenedBy: adminId,
+                        reopenedByName: adminName,
+                        reopenReason: reason,
+                        reopenedAt: demand.reopenedAt?.toISOString(),
+                        memberId: demand.memberId,
+                    },
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification:', error);
+            }
+        }
+
+        return demand;
+    }
+
+    async convertDemandToContract(demandId: string, adminId: string, contractData?: Partial<ContractCI>): Promise<{ demand: CaisseImprevueDemand; contract: ContractCI } | null> {
+        const demand = await this.getDemandById(demandId);
+        if (!demand || demand.status !== 'APPROVED') {
+            throw new Error('La demande doit être acceptée pour être convertie en contrat');
+        }
+
+        if (demand.contractId) {
+            throw new Error('Cette demande a déjà été convertie en contrat');
+        }
+
+        // Générer l'ID du contrat au format: MK_CI_CONTRACT_{MEMBERID}_{DATE}_{HEURE}
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = String(now.getFullYear()).slice(-2);
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const contractId = `MK_CI_CONTRACT_${demand.memberId}_${day}${month}${year}_${hours}${minutes}`;
+
+        // Exclure id de contractData s'il est présent pour éviter les conflits
+        const { id: _, ...contractDataWithoutId } = contractData || {};
+
+        // Créer le contrat à partir de la demande
+        const contract = await this.createContractCI({
+            id: contractId,
+            memberId: demand.memberId,
+            memberFirstName: demand.memberFirstName || '',
+            memberLastName: demand.memberLastName || '',
+            memberContacts: demand.memberContacts || [],
+            memberEmail: demand.memberEmail,
+            subscriptionCIID: demand.subscriptionCIID,
+            subscriptionCICode: demand.subscriptionCICode,
+            subscriptionCILabel: demand.subscriptionCILabel,
+            subscriptionCIAmountPerMonth: demand.subscriptionCIAmountPerMonth,
+            subscriptionCINominal: demand.subscriptionCINominal,
+            subscriptionCIDuration: demand.subscriptionCIDuration,
+            subscriptionCISupportMin: demand.subscriptionCISupportMin ?? 0,
+            subscriptionCISupportMax: demand.subscriptionCISupportMax ?? 0,
+            paymentFrequency: demand.paymentFrequency,
+            firstPaymentDate: contractData?.firstPaymentDate || demand.firstPaymentDate || demand.desiredDate,
+            emergencyContact: demand.emergencyContact || {
+                lastName: '',
+                phone1: '',
+                relationship: '',
+                idNumber: '',
+                typeId: '',
+                documentPhotoUrl: '',
+            },
+            status: 'ACTIVE',
+            totalMonthsPaid: 0,
+            isEligibleForSupport: false,
+            supportHistory: [],
+            createdBy: adminId,
+            updatedBy: adminId,
+            ...contractDataWithoutId,
+        });
+
+        // Mettre à jour la demande pour indiquer qu'elle a été convertie
+        const updatedDemand = await this.caisseImprevueDemandRepository.updateDemand(demandId, {
+            status: 'CONVERTED',
+            contractId: contract.id,
+        });
+
+        if (updatedDemand && contract) {
+            // Récupérer le nom du membre
+            let memberName = "Membre inconnu";
+            if (demand.memberId) {
+                const member = await this.memberRepository.getMemberById(demand.memberId);
+                if (member) {
+                    memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+                }
+            }
+
+            // Notification
+            try {
+                await this.notificationService.createNotification({
+                    module: 'caisse_imprevue',
+                    entityId: contract.id,
+                    type: 'caisse_imprevue_demand_converted',
+                    title: 'Demande convertie en contrat',
+                    message: `Votre demande a été convertie en contrat. Le contrat ${contract.id} est maintenant actif.`,
+                    metadata: {
+                        demandId: demand.id,
+                        contractId: contract.id,
+                        memberId: demand.memberId,
+                        convertedBy: adminId,
+                    },
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification:', error);
+            }
+        }
+
+        return updatedDemand && contract ? {
+            demand: updatedDemand,
+            contract: contract,
+        } : null;
     }
 }

@@ -116,6 +116,55 @@ export const emergencyContactDefaultValues = {
   documentPhotoUrl: ''
 }
 
+// Schéma pour un contact d'urgence Caisse Imprévue (structure différente)
+export const emergencyContactCISchema = z.object({
+  // ID du membre si le contact d'urgence est un membre (optionnel)
+  memberId: z.string().optional(),
+  
+  // Nom obligatoire
+  lastName: z.string()
+    .min(1, 'Le nom du contact d\'urgence est obligatoire')
+    .max(50, 'Le nom ne peut pas dépasser 50 caractères'),
+  
+  // Prénom optionnel
+  firstName: z.string()
+    .max(50, 'Le prénom ne peut pas dépasser 50 caractères')
+    .optional()
+    .or(z.literal('')),
+  
+  // Téléphone 1 obligatoire (phone1 dans EmergencyContactCI)
+  phone1: z.string()
+    .min(1, 'Le numéro de téléphone principal est obligatoire')
+    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
+    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)'),
+  
+  // Téléphone 2 optionnel (phone2 dans EmergencyContactCI)
+  phone2: z.string()
+    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
+    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)')
+    .optional()
+    .or(z.literal('')),
+  
+  // Lien de parenté obligatoire
+  relationship: z.string()
+    .min(1, 'Le lien de parenté est obligatoire'),
+  
+  // Type de document d'identité obligatoire
+  typeId: z.string()
+    .min(1, 'Le type de document est obligatoire'),
+  
+  // Numéro de document d'identité obligatoire
+  idNumber: z.string()
+    .min(1, 'Le numéro de document est obligatoire')
+    .max(50, 'Le numéro de document ne peut pas dépasser 50 caractères'),
+  
+  // URL de la photo du document obligatoire
+  documentPhotoUrl: z.string()
+    .min(1, 'La photo du document est obligatoire')
+    .url('L\'URL de la photo doit être valide'),
+})
+
 // Type TypeScript
 export type EmergencyContact = z.infer<typeof emergencyContactSchema>
+export type EmergencyContactCI = z.infer<typeof emergencyContactCISchema>
 export type Relationship = z.infer<typeof RelationshipEnum>
