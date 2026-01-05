@@ -2,7 +2,7 @@
 import React, { useRef } from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -843,6 +843,16 @@ const ListContracts = () => {
       return acc
     }, {})
 
+    // Calculer la répartition par type de caisse
+    const byCaisseType = dataSource.reduce((acc: any, contract: any) => {
+      const type = contract.caisseType || 'STANDARD'
+      if (!acc[type]) {
+        acc[type] = 0
+      }
+      acc[type] += 1
+      return acc
+    }, {})
+
     return {
       total,
       draft,
@@ -856,6 +866,7 @@ const ListContracts = () => {
       individualPercentage: total > 0 ? (individual / total) * 100 : 0,
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
       closedStats,
+      byCaisseType,
     }
   }, [contractsData, activeTab, filteredContracts])
 
@@ -901,6 +912,71 @@ const ListContracts = () => {
 
       {/* Carrousel de statistiques */}
       {stats && <StatsCarousel stats={stats} closedNominalSum={closedNominalSum || 0} />}
+
+      {/* Diagramme circulaire par type de caisse */}
+      {stats && stats.byCaisseType && Object.keys(stats.byCaisseType).length > 0 && (() => {
+        const CAISSE_TYPE_LABELS: Record<string, string> = {
+          STANDARD: 'Standard',
+          JOURNALIERE: 'Journalière',
+          LIBRE: 'Libre',
+        }
+        const COLORS = ['#234D65', '#2C5A73', '#CBB171', '#F97316', '#EF4444']
+        
+        const byCaisseTypeData = Object.entries(stats.byCaisseType)
+          .filter(([_, count]) => (count as number) > 0)
+          .map(([type, count]) => ({
+            type,
+            label: CAISSE_TYPE_LABELS[type] || type,
+            count: count as number
+          }))
+
+        return (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="lg:col-span-2">
+              <Card className="border-0 shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-base font-semibold text-gray-800">Répartition par type de caisse</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  <div className="h-60 flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie 
+                          data={byCaisseTypeData} 
+                          dataKey="count" 
+                          nameKey="label" 
+                          cx="50%" 
+                          cy="50%" 
+                          outerRadius={90} 
+                          label
+                        >
+                          {byCaisseTypeData.map((entry, index) => (
+                            <Cell key={`caisse-type-${entry.type}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    {byCaisseTypeData.map((entry, index) => (
+                      <div key={entry.type} className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-3">
+                          <span 
+                            className="inline-block h-2 w-2 rounded-full" 
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }} 
+                          />
+                          <span className="font-medium text-gray-700">{entry.label}</span>
+                        </div>
+                        <span className="text-sm text-gray-500">{entry.count} contrat{entry.count > 1 ? 's' : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Filtres */}
       <ContractFilters

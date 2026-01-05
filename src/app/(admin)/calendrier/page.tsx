@@ -19,14 +19,17 @@ export default function CalendrierPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [activeTab, setActiveTab] = useState<"caisse-speciale" | "caisse-imprevue" | "placement">("caisse-speciale")
   
-  // Filtres Caisse Spéciale
+  // Filtres Caisse Spéciale - Tous activés par défaut
   const [selectedTypes, setSelectedTypes] = useState<CaisseType[]>([
     "JOURNALIERE",
+    "STANDARD",
+    "LIBRE",
   ])
   
-  // Filtres Caisse Imprévue
+  // Filtres Caisse Imprévue - Tous activés par défaut
   const [selectedFrequencies, setSelectedFrequencies] = useState<CaisseImprevuePaymentFrequency[]>([
     "DAILY",
+    "MONTHLY",
   ])
   
   // Filtres Placement

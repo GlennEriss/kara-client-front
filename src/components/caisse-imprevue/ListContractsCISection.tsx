@@ -193,6 +193,12 @@ export default function ListContractsCISection() {
       const frequencyLabel = contract.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'
       const statusLabel = CONTRACT_CI_STATUS_LABELS[contract.status]
       
+      const startDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+      const endDate = startDate ? new Date(startDate) : null
+      if (endDate) {
+        endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
+      }
+      
       return [
         contract.id,
         frequencyLabel,
@@ -202,6 +208,7 @@ export default function ListContractsCISection() {
         new Intl.NumberFormat('fr-FR').format(contract.subscriptionCINominal),
         contract.subscriptionCIDuration,
         contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '',
+        endDate ? endDate.toLocaleDateString('fr-FR') : '',
         contract.totalMonthsPaid,
         contract.subscriptionCIDuration - contract.totalMonthsPaid,
       ]
@@ -227,6 +234,7 @@ export default function ListContractsCISection() {
         'Nominal (FCFA)',
         'Durée (mois)',
         'Date début',
+        'Date de fin',
         'Mois payés',
         'Versements en attente',
       ]
@@ -294,6 +302,7 @@ export default function ListContractsCISection() {
         'Nominal',
         'Durée',
         'Date début',
+        'Date de fin',
         'Mois payés',
         'En attente',
       ]
@@ -507,6 +516,19 @@ export default function ListContractsCISection() {
                         <div className="flex items-center gap-1 text-gray-700">
                           <Calendar className="h-3 w-3" />
                           {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Date de fin:</span>
+                        <div className="flex items-center gap-1 text-gray-700">
+                          <CalendarDays className="h-3 w-3" />
+                          {contract.firstPaymentDate ? (() => {
+                            const startDate = new Date(contract.firstPaymentDate)
+                            const endDate = new Date(startDate)
+                            endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
+                            return endDate.toLocaleDateString('fr-FR')
+                          })() : '—'}
                         </div>
                       </div>
 
