@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -69,8 +69,8 @@ const ModernSkeleton = () => (
 export default function ListContractsCISection() {
   const router = useRouter()
   
-  // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard)
-  const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY' | 'overdue'>('all')
+  // État pour l'onglet actif (Tous, Journalier, Mensuel, Retard, Mois en cours)
+  const [activeTab, setActiveTab] = useState<'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth'>('all')
   
   // États
   const [filters, setFilters] = useState<ContractsCIFilters>({
@@ -92,15 +92,76 @@ export default function ListContractsCISection() {
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
 
+  /**
+   * Vérifie si un contrat CI a une échéance dans le mois actuel
+   */
+  const hasDueDateInCurrentMonth = (contract: ContractCI): boolean => {
+    if (!contract.firstPaymentDate) return false
+    
+    const today = new Date()
+    const currentMonth = today.getMonth()
+    const currentYear = today.getFullYear()
+    
+    const firstPayment = new Date(contract.firstPaymentDate)
+    
+    // Pour les contrats mensuels, calculer les dates d'échéance
+    if (contract.paymentFrequency === 'MONTHLY') {
+      // Vérifier si une échéance mensuelle tombe dans le mois actuel
+      for (let monthIndex = 0; monthIndex < contract.subscriptionCIDuration; monthIndex++) {
+        const dueDate = new Date(firstPayment)
+        dueDate.setMonth(firstPayment.getMonth() + monthIndex)
+        
+        if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
+          return true
+        }
+      }
+    }
+    // Pour les contrats quotidiens, vérifier si le contrat est actif et couvre le mois actuel
+    else if (contract.paymentFrequency === 'DAILY') {
+      // Vérifier si le contrat est actif et si firstPaymentDate est dans le mois actuel
+      // ou si le contrat couvre le mois actuel (premier versement avant ou pendant le mois actuel)
+      if (contract.status === 'ACTIVE') {
+        const firstPaymentMonth = firstPayment.getMonth()
+        const firstPaymentYear = firstPayment.getFullYear()
+        
+        // Si le premier versement est dans le mois actuel ou avant
+        if (firstPaymentYear < currentYear || 
+            (firstPaymentYear === currentYear && firstPaymentMonth <= currentMonth)) {
+          // Calculer la date de fin du contrat
+          const endDate = new Date(firstPayment)
+          endDate.setMonth(firstPayment.getMonth() + contract.subscriptionCIDuration)
+          
+          // Vérifier si le mois actuel est couvert par le contrat
+          if (endDate.getMonth() >= currentMonth && endDate.getFullYear() >= currentYear) {
+            return true
+          }
+        }
+      }
+    }
+    
+    return false
+  }
+
   // Construire les filtres avec paymentFrequency et overdueOnly selon l'onglet actif
   const effectiveFilters: ContractsCIFilters = {
     ...filters,
-    paymentFrequency: activeTab === 'all' || activeTab === 'overdue' ? 'all' : activeTab,
+    paymentFrequency: activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? 'all' : activeTab,
     overdueOnly: activeTab === 'overdue'
   }
 
   // Hook pour récupérer les contrats
   const { data: contracts, isLoading, error, refetch } = useContractsCI(effectiveFilters)
+  
+  // Filtrer par mois en cours si nécessaire
+  const filteredContracts = React.useMemo(() => {
+    if (!contracts) return []
+    
+    if (activeTab === 'currentMonth') {
+      return contracts.filter((contract: ContractCI) => hasDueDateInCurrentMonth(contract))
+    }
+    
+    return contracts
+  }, [contracts, activeTab])
 
   // Reset page when filters change
   useEffect(() => {
@@ -187,11 +248,18 @@ export default function ListContractsCISection() {
 
   // Fonctions d'export
   const buildExportRows = () => {
-    if (!contracts) return []
+    const contractsToExport = filteredContracts || contracts || []
+    if (!contractsToExport || contractsToExport.length === 0) return []
     
-    return contracts.map((contract) => {
+    return contractsToExport.map((contract) => {
       const frequencyLabel = contract.paymentFrequency === 'DAILY' ? 'Journalier' : 'Mensuel'
       const statusLabel = CONTRACT_CI_STATUS_LABELS[contract.status]
+      
+      const startDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+      const endDate = startDate ? new Date(startDate) : null
+      if (endDate) {
+        endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
+      }
       
       return [
         contract.id,
@@ -202,6 +270,7 @@ export default function ListContractsCISection() {
         new Intl.NumberFormat('fr-FR').format(contract.subscriptionCINominal),
         contract.subscriptionCIDuration,
         contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '',
+        endDate ? endDate.toLocaleDateString('fr-FR') : '',
         contract.totalMonthsPaid,
         contract.subscriptionCIDuration - contract.totalMonthsPaid,
       ]
@@ -227,6 +296,7 @@ export default function ListContractsCISection() {
         'Nominal (FCFA)',
         'Durée (mois)',
         'Date début',
+        'Date de fin',
         'Mois payés',
         'Versements en attente',
       ]
@@ -294,6 +364,7 @@ export default function ListContractsCISection() {
         'Nominal',
         'Durée',
         'Date début',
+        'Date de fin',
         'Mois payés',
         'En attente',
       ]
@@ -318,10 +389,10 @@ export default function ListContractsCISection() {
   }
 
   // Pagination
-  const totalPages = Math.ceil((contracts?.length || 0) / itemsPerPage)
+  const totalPages = Math.ceil((filteredContracts?.length || 0) / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentContracts = contracts?.slice(startIndex, endIndex) || []
+  const currentContracts = filteredContracts?.slice(startIndex, endIndex) || []
 
   // Gestion des erreurs
   if (error) {
@@ -347,8 +418,8 @@ export default function ListContractsCISection() {
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
       {/* Onglets pour filtrer par type de contrat */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY' | 'overdue')} className="w-full">
-        <TabsList className="grid w-full max-w-3xl grid-cols-4">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'DAILY' | 'MONTHLY' | 'overdue' | 'currentMonth')} className="w-full">
+        <TabsList className="grid w-full max-w-4xl grid-cols-5 gap-2">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Tous
@@ -361,6 +432,10 @@ export default function ListContractsCISection() {
             <Calendar className="h-4 w-4" />
             Mensuel
           </TabsTrigger>
+          <TabsTrigger value="currentMonth" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Mois en cours
+          </TabsTrigger>
           <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
             <AlertCircle className="h-4 w-4" />
             Retard
@@ -369,7 +444,7 @@ export default function ListContractsCISection() {
       </Tabs>
 
       {/* Statistiques */}
-      <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' ? undefined : activeTab} />
+      <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? undefined : (activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : undefined)} />
 
       {/* Filtres */}
       <FiltersCI
@@ -391,7 +466,7 @@ export default function ListContractsCISection() {
                   Liste des Contrats
                 </h2>
                 <p className="text-gray-600 font-medium">
-                  {(contracts?.length || 0).toLocaleString()} contrat{(contracts?.length || 0) !== 1 ? 's' : ''} • Page {currentPage}
+                  {(filteredContracts?.length || 0).toLocaleString()} contrat{(filteredContracts?.length || 0) !== 1 ? 's' : ''} • Page {currentPage}
                 </p>
               </div>
             </div>
@@ -511,6 +586,19 @@ export default function ListContractsCISection() {
                       </div>
 
                       <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Date de fin:</span>
+                        <div className="flex items-center gap-1 text-gray-700">
+                          <CalendarDays className="h-3 w-3" />
+                          {contract.firstPaymentDate ? (() => {
+                            const startDate = new Date(contract.firstPaymentDate)
+                            const endDate = new Date(startDate)
+                            endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
+                            return endDate.toLocaleDateString('fr-FR')
+                          })() : '—'}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Contact urgence:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <Phone className="h-3 w-3" />
@@ -599,7 +687,7 @@ export default function ListContractsCISection() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
-                    Affichage {startIndex + 1}-{Math.min(endIndex, contracts?.length || 0)} sur {contracts?.length || 0} contrats
+                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredContracts?.length || 0)} sur {filteredContracts?.length || 0} contrats
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

@@ -35,6 +35,7 @@ import StatisticsCreditContrats from './StatisticsCreditContrats'
 import { useMemberCIStatus } from '@/hooks/useCaisseImprevue'
 import { Shield, CheckCircle2 } from 'lucide-react'
 import { AlertTriangle } from 'lucide-react'
+import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
 
 type ViewMode = 'grid' | 'list'
 
@@ -268,10 +269,12 @@ const ListContrats = () => {
   const { data: statsData } = useCreditContractsStats(queryFilters)
   const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
   
-  // États pour le modal de téléversement
+  // États pour les modals
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [selectedContractForUpload, setSelectedContractForUpload] = useState<CreditContract | null>(null)
   const [contractFile, setContractFile] = useState<File | undefined>()
+  const [showContractPDFModal, setShowContractPDFModal] = useState(false)
+  const [selectedContractForPDF, setSelectedContractForPDF] = useState<CreditContract | null>(null)
 
   // Reset page when filters or tab change
   React.useEffect(() => {
@@ -846,35 +849,14 @@ const ListContrats = () => {
                     ) : contract.status === 'PENDING' && (
                       <Button
                         variant="outline"
-                        onClick={async () => {
-                          try {
-                            const result = await generateContractPDF.mutateAsync({
-                              contractId: contract.id,
-                              blank: true,
-                            })
-                            if (result.url) {
-                              window.open(result.url, '_blank')
-                            } else {
-                              toast.info('Contrat PDF généré. Le téléchargement va commencer.')
-                            }
-                          } catch (error: any) {
-                            toast.error(error?.message || 'Erreur lors de la génération du contrat')
-                          }
+                        onClick={() => {
+                          setSelectedContractForPDF(contract)
+                          setShowContractPDFModal(true)
                         }}
-                        disabled={generateContractPDF.isPending}
                         className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                       >
-                        {generateContractPDF.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Génération...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="h-4 w-4" />
-                            Générer contrat
-                          </>
-                        )}
+                        <FileText className="h-4 w-4" />
+                        Générer contrat
                       </Button>
                     )}
                     
@@ -1076,6 +1058,16 @@ const ListContrats = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {selectedContractForPDF && (
+        <CreditSpecialeContractPDFModal
+          isOpen={showContractPDFModal}
+          onClose={() => {
+            setShowContractPDFModal(false)
+            setSelectedContractForPDF(null)
+          }}
+          contract={selectedContractForPDF}
+        />
+      )}
     </>
   )
 }

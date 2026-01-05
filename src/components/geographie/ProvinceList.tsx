@@ -226,7 +226,7 @@ export default function ProvinceList() {
                   <FormItem>
                     <FormLabel>Code</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="ESTUAIRE" />
+                      <Input {...field} placeholder="G1" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

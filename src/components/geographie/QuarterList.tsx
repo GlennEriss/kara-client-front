@@ -454,7 +454,7 @@ export default function QuarterList() {
                   <FormItem>
                     <FormLabel>Nom</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Nkembo" />
+                      <Input {...field} placeholder="Nom du quartier" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -51,6 +51,9 @@ const EXPORT_HEADERS = [
   "SOURCE D'ENERGIE",
   'PUISSANCE FISCALE / ADMINISTRATIF',
   "DATE D'EFFET",
+  'DATE DE FIN',
+  'NUMERO D\'IMMATRICULATION',
+  'MONTANT PAYE',
   'FIN DE GARANTIE - MOIS',
   'ASSUREUR ACTUEL',
 ]
@@ -118,6 +121,9 @@ export function VehicleInsuranceList() {
       const energy = insurance.energySource ? (ENERGY_LABELS[insurance.energySource] || insurance.energySource) : ''
       const fiscalPower = insurance.fiscalPower || ''
       const startDate = insurance.startDate ? insurance.startDate.toLocaleDateString('fr-FR') : ''
+      const endDate = insurance.endDate ? insurance.endDate.toLocaleDateString('fr-FR') : ''
+      const plateNumber = insurance.plateNumber || ''
+      const premiumAmount = insurance.premiumAmount ? insurance.premiumAmount.toLocaleString('fr-FR') : ''
       const warrantyMonths = insurance.warrantyMonths ?? ''
 
       return [
@@ -130,6 +136,9 @@ export function VehicleInsuranceList() {
         energy,
         fiscalPower,
         startDate,
+        endDate,
+        plateNumber,
+        premiumAmount,
         warrantyMonths,
         insurance.insuranceCompany || '',
       ]

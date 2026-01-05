@@ -870,43 +870,44 @@ function StandardSimulationResults({
     try {
       const { jsPDF } = await import('jspdf')
       const autoTable = (await import('jspdf-autotable')).default
-      const doc = new jsPDF('landscape', 'mm', 'a4')
+      const doc = new jsPDF('portrait', 'mm', 'a4')
 
-      // En-tête
-      doc.setFontSize(16)
-      doc.setTextColor(35, 77, 101)
-      doc.text('Échéancier calculé', 14, 14)
-      doc.setFontSize(10)
-      doc.setTextColor(100, 100, 100)
-      doc.text(`Montant: ${formatNumberForPDF(result.amount)} FCFA | Durée: ${displayDuration} mois | Mensualité: ${formatNumberForPDF(result.monthlyPayment)} FCFA`, 14, 20)
-      doc.text(`Fait le ${new Date().toLocaleDateString('fr-FR')}`, 14, 25)
+      const filteredSchedule = schedule.filter(row => row.payment > 0)
+      const totalAmount = filteredSchedule.reduce((sum, row) => sum + row.payment, 0)
 
-      // Préparer les données du tableau
-      const tableData = schedule
-        .filter(row => row.payment > 0)
-        .map((row) => [
-          `M${row.month}`,
-          row.date.toLocaleDateString('fr-FR'),
-          formatNumberForPDF(row.payment),
-          formatNumberForPDF(row.interest),
-          formatNumberForPDF(row.principal),
-          formatNumberForPDF(row.remaining)
-        ])
+      // Préparer les données du tableau avec 3 colonnes seulement
+      const tableData = filteredSchedule.map((row) => [
+        row.month.toString(),
+        row.date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        `${formatNumberForPDF(row.payment)} FCFA`
+      ])
+
+      // Ajouter la ligne Total
+      tableData.push([
+        'Total:',
+        '',
+        `${formatNumberForPDF(customRound(totalAmount))} FCFA`
+      ])
 
       autoTable(doc, {
-        head: [['Mois', 'Date', 'Mensualité (FCFA)', 'Intérêts (FCFA)', 'Montant global (FCFA)', 'Reste dû (FCFA)']],
+        head: [['Echéances', 'Date', 'Montant']],
         body: tableData,
-        startY: 30,
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        startY: 20,
+        styles: { fontSize: 11, cellPadding: 5 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold', halign: 'center' },
         alternateRowStyles: { fillColor: [245, 247, 250] },
         columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 45, halign: 'right' },
-          3: { cellWidth: 45, halign: 'right' },
-          4: { cellWidth: 50, halign: 'right' },
-          5: { cellWidth: 50, halign: 'right' }
+          0: { cellWidth: 60, halign: 'center' },
+          1: { cellWidth: 70, halign: 'center' },
+          2: { cellWidth: 60, halign: 'right' }
+        },
+        foot: [],
+        didParseCell: (data: any) => {
+          // Style pour la ligne Total
+          if (data.row.index === filteredSchedule.length) {
+            data.cell.styles.fontStyle = 'bold'
+            data.cell.styles.fillColor = [240, 240, 240]
+          }
         }
       })
 
@@ -969,6 +970,9 @@ function StandardSimulationResults({
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 
+    const filteredSchedule = schedule.filter(row => row.payment > 0)
+    const totalAmount = filteredSchedule.reduce((sum, row) => sum + row.payment, 0)
+
     const tableHTML = `
       <!DOCTYPE html>
       <html>
@@ -976,12 +980,12 @@ function StandardSimulationResults({
           <title>Échéancier calculé</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #234D65; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
             th { background-color: #234D65; color: white; font-weight: bold; }
             tr:nth-child(even) { background-color: #f2f2f2; }
             .text-right { text-align: right; }
+            .total-row { font-weight: bold; background-color: #f0f0f0; }
             @media print {
               body { margin: 0; }
               @page { margin: 1cm; }
@@ -989,33 +993,27 @@ function StandardSimulationResults({
           </style>
         </head>
         <body>
-          <h1>Échéancier calculé (${displayDuration} mois)</h1>
-          <p><strong>Montant:</strong> ${result.amount.toLocaleString('fr-FR')} FCFA | <strong>Durée:</strong> ${displayDuration} mois | <strong>Mensualité:</strong> ${result.monthlyPayment.toLocaleString('fr-FR')} FCFA</p>
-          <p><strong>Fait le:</strong> ${new Date().toLocaleDateString('fr-FR')}</p>
           <table>
             <thead>
               <tr>
-                <th>Mois</th>
+                <th>Echéances</th>
                 <th>Date</th>
-                <th class="text-right">Mensualité (FCFA)</th>
-                <th class="text-right">Intérêts (FCFA)</th>
-                <th class="text-right">Montant global (FCFA)</th>
-                <th class="text-right">Reste dû (FCFA)</th>
+                <th>Montant</th>
               </tr>
             </thead>
             <tbody>
-              ${schedule
-                .filter(row => row.payment > 0)
-                .map((row) => `
-                  <tr>
-                    <td>M${row.month}</td>
-                    <td>${row.date.toLocaleDateString('fr-FR')}</td>
-                    <td class="text-right">${row.payment.toLocaleString('fr-FR')}</td>
-                    <td class="text-right">${row.interest.toLocaleString('fr-FR')}</td>
-                    <td class="text-right">${row.principal.toLocaleString('fr-FR')}</td>
-                    <td class="text-right">${row.remaining.toLocaleString('fr-FR')}</td>
-                  </tr>
-                `).join('')}
+              ${filteredSchedule.map((row) => `
+                <tr>
+                  <td>${row.month}</td>
+                  <td>${row.date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                  <td class="text-right">${formatNumberForPDF(row.payment)} FCFA</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td>Total:</td>
+                <td></td>
+                <td class="text-right">${formatNumberForPDF(customRound(totalAmount))} FCFA</td>
+              </tr>
             </tbody>
           </table>
         </body>
@@ -1033,28 +1031,24 @@ function StandardSimulationResults({
   // Fonction pour partager l'échéancier calculé sur WhatsApp
   const handleShareWhatsAppCalculated = () => {
     const filteredSchedule = schedule.filter(row => row.payment > 0)
+    const totalAmount = filteredSchedule.reduce((sum, row) => sum + row.payment, 0)
     
-    // Construire le message formaté
-    let message = `📊 *ÉCHÉANCIER DE CRÉDIT*\n\n`
-    message += `💰 Montant: ${formatNumberForPDF(result.amount)} FCFA\n`
-    message += `📅 Durée: ${displayDuration} mois\n`
-    message += `💵 Mensualité: ${formatNumberForPDF(result.monthlyPayment)} FCFA\n`
-    message += `📆 Fait le: ${new Date().toLocaleDateString('fr-FR')}\n\n`
-    message += `━━━━━━━━━━━━━━━━━━━━━\n`
-    message += `*DÉTAIL DES ÉCHÉANCES*\n`
-    message += `━━━━━━━━━━━━━━━━━━━━━\n\n`
+    // Construire le message formaté avec 3 colonnes comme le PDF
+    let message = `*ÉCHÉANCIER DE CRÉDIT*\n\n`
     
+    // En-tête du tableau
+    message += `Echéances | Date | Montant\n`
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
+    
+    // Lignes de données
     filteredSchedule.forEach((row) => {
-      message += `📌 *Mois ${row.month}* (${row.date.toLocaleDateString('fr-FR')})\n`
-      message += `   • Mensualité: ${formatNumberForPDF(row.payment)} FCFA\n`
-      message += `   • Intérêts: ${formatNumberForPDF(row.interest)} FCFA\n`
-      message += `   • Montant global: ${formatNumberForPDF(row.principal)} FCFA\n`
-      message += `   • Reste dû: ${formatNumberForPDF(row.remaining)} FCFA\n\n`
+      const dateStr = row.date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      message += `${row.month} | ${dateStr} | ${formatNumberForPDF(row.payment)} FCFA\n`
     })
     
-    message += `━━━━━━━━━━━━━━━━━━━━━\n`
-    message += `💰 *Total à rembourser: ${formatNumberForPDF(customRound(calculatedTotalAmount))} FCFA*\n`
-    message += `📈 *Total intérêts: ${formatNumberForPDF(customRound(calculatedTotalInterest))} FCFA*`
+    // Ligne Total
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
+    message += `Total: | | ${formatNumberForPDF(customRound(totalAmount))} FCFA`
     
     // Encoder le message pour l'URL WhatsApp
     const encodedMessage = encodeURIComponent(message)

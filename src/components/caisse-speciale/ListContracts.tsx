@@ -2,7 +2,7 @@
 import React, { useRef } from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -403,8 +403,8 @@ const ListContracts = () => {
     router.push('/caisse-speciale/create')
   }
   
-  // État pour l'onglet actif (Tous les contrats / Retard)
-  const [activeTab, setActiveTab] = useState<'all' | 'overdue'>('all')
+  // État pour l'onglet actif (Tous les contrats / Standard / Journalier / Libre / Retard / Mois en cours)
+  const [activeTab, setActiveTab] = useState<'all' | 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'overdue' | 'currentMonth'>('all')
   
   // États
   const [filters, setFilters] = useState({
@@ -755,6 +755,23 @@ const ListContracts = () => {
     return false
   }
 
+  /**
+   * Vérifie si un contrat a une échéance dans le mois actuel
+   */
+  const hasDueDateInCurrentMonth = (contract: any): boolean => {
+    if (!contract.nextDueAt) return false
+    
+    const today = new Date()
+    const currentMonth = today.getMonth()
+    const currentYear = today.getFullYear()
+    
+    const nextDue = contract.nextDueAt instanceof Date 
+      ? contract.nextDueAt 
+      : new Date(contract.nextDueAt)
+    
+    return nextDue.getMonth() === currentMonth && nextDue.getFullYear() === currentYear
+  }
+
   // Filtrage des contrats
   const filteredContracts = React.useMemo(() => {
     if (!contractsData) return []
@@ -764,6 +781,14 @@ const ListContracts = () => {
     // Filtrer par retard si l'onglet "Retard" est actif
     if (activeTab === 'overdue') {
       contracts = contracts.filter((c: any) => isContractOverdue(c))
+    }
+    // Filtrer par type de caisse (Standard, Journalier, Libre)
+    else if (activeTab === 'STANDARD' || activeTab === 'JOURNALIERE' || activeTab === 'LIBRE') {
+      contracts = contracts.filter((c: any) => c.caisseType === activeTab)
+    }
+    // Filtrer par mois en cours
+    else if (activeTab === 'currentMonth') {
+      contracts = contracts.filter((c: any) => hasDueDateInCurrentMonth(c))
     }
 
     if (filters.search) {
@@ -843,6 +868,16 @@ const ListContracts = () => {
       return acc
     }, {})
 
+    // Calculer la répartition par type de caisse
+    const byCaisseType = dataSource.reduce((acc: any, contract: any) => {
+      const type = contract.caisseType || 'STANDARD'
+      if (!acc[type]) {
+        acc[type] = 0
+      }
+      acc[type] += 1
+      return acc
+    }, {})
+
     return {
       total,
       draft,
@@ -856,6 +891,7 @@ const ListContracts = () => {
       individualPercentage: total > 0 ? (individual / total) * 100 : 0,
       groupPercentage: total > 0 ? (group / total) * 100 : 0,
       closedStats,
+      byCaisseType,
     }
   }, [contractsData, activeTab, filteredContracts])
 
@@ -885,12 +921,28 @@ const ListContracts = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
-      {/* Onglets pour filtrer par retard */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-2">
+      {/* Onglets pour filtrer par type et période */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'overdue' | 'currentMonth')} className="w-full">
+        <TabsList className="grid w-full max-w-5xl grid-cols-6 gap-2">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Tous les contrats
+            Tous
+          </TabsTrigger>
+          <TabsTrigger value="STANDARD" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Standard
+          </TabsTrigger>
+          <TabsTrigger value="JOURNALIERE" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Journalier
+          </TabsTrigger>
+          <TabsTrigger value="LIBRE" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Libre
+          </TabsTrigger>
+          <TabsTrigger value="currentMonth" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Mois en cours
           </TabsTrigger>
           <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
             <AlertCircle className="h-4 w-4" />
@@ -901,6 +953,71 @@ const ListContracts = () => {
 
       {/* Carrousel de statistiques */}
       {stats && <StatsCarousel stats={stats} closedNominalSum={closedNominalSum || 0} />}
+
+      {/* Diagramme circulaire par type de caisse */}
+      {stats && stats.byCaisseType && Object.keys(stats.byCaisseType).length > 0 && (() => {
+        const CAISSE_TYPE_LABELS: Record<string, string> = {
+          STANDARD: 'Standard',
+          JOURNALIERE: 'Journalière',
+          LIBRE: 'Libre',
+        }
+        const COLORS = ['#234D65', '#2C5A73', '#CBB171', '#F97316', '#EF4444']
+        
+        const byCaisseTypeData = Object.entries(stats.byCaisseType)
+          .filter(([_, count]) => (count as number) > 0)
+          .map(([type, count]) => ({
+            type,
+            label: CAISSE_TYPE_LABELS[type] || type,
+            count: count as number
+          }))
+
+        return (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="lg:col-span-2">
+              <Card className="border-0 shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-base font-semibold text-gray-800">Répartition par type de caisse</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  <div className="h-60 flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie 
+                          data={byCaisseTypeData} 
+                          dataKey="count" 
+                          nameKey="label" 
+                          cx="50%" 
+                          cy="50%" 
+                          outerRadius={90} 
+                          label
+                        >
+                          {byCaisseTypeData.map((entry, index) => (
+                            <Cell key={`caisse-type-${entry.type}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    {byCaisseTypeData.map((entry, index) => (
+                      <div key={entry.type} className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-3">
+                          <span 
+                            className="inline-block h-2 w-2 rounded-full" 
+                            style={{ backgroundColor: COLORS[index % COLORS.length] }} 
+                          />
+                          <span className="font-medium text-gray-700">{entry.label}</span>
+                        </div>
+                        <span className="text-sm text-gray-500">{entry.count} contrat{entry.count > 1 ? 's' : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Filtres */}
       <ContractFilters

@@ -1025,10 +1025,21 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     const installment = schedule.find(item => item.month === month);
                     
                     if (installment) {
-                        // Calculer la rémunération sur le montant global (capital + intérêts)
-                        const globalAmount = installment.principal; // Montant global = capital + intérêts
+                        // Calculer la rémunération sur le reste dû (capital restant au début du mois)
+                        // Pour le mois 1, le reste dû au début = montant emprunté
+                        // Pour les mois suivants, le reste dû au début = remaining du mois précédent
+                        let remainingAtStartOfMonth = 0;
+                        if (month === 1) {
+                            remainingAtStartOfMonth = contract.amount;
+                        } else {
+                            const previousInstallment = schedule.find(item => item.month === month - 1);
+                            if (previousInstallment) {
+                                remainingAtStartOfMonth = previousInstallment.remaining;
+                            }
+                        }
+                        
                         const remunerationAmount = Math.round(
-                            (globalAmount * contract.guarantorRemunerationPercentage) / 100
+                            (remainingAtStartOfMonth * contract.guarantorRemunerationPercentage) / 100
                         );
 
                         if (remunerationAmount > 0) {
@@ -2008,22 +2019,39 @@ export class CreditSpecialeService implements ICreditSpecialeService {
 
     // ==================== GÉNÉRATION ET UPLOAD DE CONTRATS PDF ====================
 
-    async generateContractPDF(contractId: string, blank?: boolean): Promise<{ url: string; path: string; documentId: string }> {
+    async generateContractPDF(contractId: string, blank?: boolean, pdfFile?: File): Promise<{ url: string; path: string; documentId: string }> {
         const contract = await this.creditContractRepository.getContractById(contractId);
         if (!contract) {
             throw new Error('Contrat introuvable');
         }
 
-        // Pour l'instant, on retourne une URL vide - le composant PDF sera créé séparément
-        // TODO: Implémenter la génération PDF avec jsPDF ou react-pdf
-        // Pour l'instant, on crée juste un document placeholder
+        let url = '';
+        let path = '';
+        let size = 0;
+
+        // Si un fichier PDF est fourni, l'uploader
+        if (pdfFile) {
+            const uploadResult = await this.documentRepository.uploadDocumentFile(
+                pdfFile,
+                contract.clientId,
+                'CREDIT_SPECIALE_CONTRACT'
+            );
+            url = uploadResult.url;
+            path = uploadResult.path;
+            size = uploadResult.size;
+        } else {
+            // Sinon, créer un document placeholder (pour compatibilité)
+            path = `credit-contracts/${contractId}/${blank ? 'blank' : 'filled'}-contract.pdf`;
+        }
+
+        // Créer le document dans la collection documents
         const document = await this.documentRepository.createDocument({
-            type: blank ? 'CREDIT_SPECIALE_CONTRACT' : 'CREDIT_SPECIALE_CONTRACT',
+            type: 'CREDIT_SPECIALE_CONTRACT',
             format: 'pdf',
             libelle: `Contrat crédit ${contract.creditType} ${blank ? '(vierge)' : ''}`,
-            path: `credit-contracts/${contractId}/${blank ? 'blank' : 'filled'}-contract.pdf`,
-            url: '', // Sera rempli après génération
-            size: 0,
+            path,
+            url,
+            size,
             memberId: contract.clientId,
             contractId: contract.id,
             createdBy: contract.createdBy,
@@ -2031,14 +2059,16 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         });
 
         // Mettre à jour le contrat avec l'URL du document
-        await this.creditContractRepository.updateContract(contractId, {
-            contractUrl: document.url,
-            updatedBy: contract.createdBy,
-        });
+        if (url) {
+            await this.creditContractRepository.updateContract(contractId, {
+                contractUrl: url,
+                updatedBy: contract.createdBy,
+            });
+        }
 
         return {
-            url: document.url,
-            path: document.path,
+            url,
+            path,
             documentId: document.id || '',
         };
     }
