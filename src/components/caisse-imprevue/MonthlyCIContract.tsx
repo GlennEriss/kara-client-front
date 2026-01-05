@@ -719,6 +719,30 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
                           </div>
 
                           <div className="space-y-3">
+                            {/* Date d'échéance */}
+                            {(() => {
+                              const firstPaymentDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
+                              const dueDate = firstPaymentDate ? new Date(firstPaymentDate) : null
+                              if (dueDate) {
+                                dueDate.setMonth(dueDate.getMonth() + monthIndex)
+                              }
+                              return dueDate ? (
+                                <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-200">
+                                  <span className="text-gray-600 flex items-center gap-1">
+                                    <CalendarDays className="h-3 w-3" />
+                                    Date d'échéance:
+                                  </span>
+                                  <span className="font-semibold text-gray-900">
+                                    {dueDate.toLocaleDateString('fr-FR', { 
+                                      day: 'numeric', 
+                                      month: 'long', 
+                                      year: 'numeric' 
+                                    })}
+                                  </span>
+                                </div>
+                              ) : null
+                            })()}
+
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-gray-600">Objectif:</span>
                               <span className="font-semibold text-gray-900">

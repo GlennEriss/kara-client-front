@@ -40,7 +40,9 @@ import { toast } from 'sonner'
 import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
 import CreditPaymentModal from './CreditPaymentModal'
 import PaymentReceiptModal from './PaymentReceiptModal'
+import PaymentSummaryModal from './PaymentSummaryModal'
 import CreditExtensionModal from './CreditExtensionModal'
+import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
@@ -195,7 +197,7 @@ const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
 }
 
 // Carrousel de statistiques (même design que StatisticsCreditDemandes)
-const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [] }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }> }) => {
+const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
   const [itemsPerView, setItemsPerView] = useState(1)
   
   useEffect(() => {
@@ -266,6 +268,13 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
       color: '#ef4444',
       icon: AlertCircle
     },
+    ...(contract.creditType === 'SPECIALE' && totalLosses > 0 ? [{
+      title: 'Pertes',
+      value: totalLosses.toLocaleString('fr-FR'),
+      subtitle: 'Intérêts non gagnés (paiements après M7)',
+      color: '#dc2626',
+      icon: TrendingUp
+    }] : []),
   ]
 
   const { 
@@ -366,15 +375,20 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [activeTab, setActiveTab] = useState<'payments' | 'simulations' | 'guarantor'>('payments')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [showPaymentSummaryModal, setShowPaymentSummaryModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<CreditPayment | null>(null)
   const [selectedDueIndex, setSelectedDueIndex] = useState<number | null>(null)
   const [selectedDueIndexForReceipt, setSelectedDueIndexForReceipt] = useState<number | null>(null)
+  const [selectedDueIndexForSummary, setSelectedDueIndexForSummary] = useState<number | null>(null)
   const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(false)
   const [showUploadContractModal, setShowUploadContractModal] = useState(false)
   const [contractFile, setContractFile] = useState<File | undefined>()
   const [isCompressing, setIsCompressing] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
+  
+  // États pour les modals
+  const [showContractPDFModal, setShowContractPDFModal] = useState(false)
   
   // Récupérer les contrats parent et enfant (pour les extensions)
   const { data: childContract } = useChildContract(contract.id)
@@ -852,6 +866,59 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   // Calculer le montant restant : valeur totale due - valeur versée
   const realRemainingAmount = totalAmountToRepay - totalPaidFromSchedule
 
+  // Calculer les pertes à partir du mois 8
+  // Les pertes = intérêts non gagnés car les paiements sont faits après le 7ème mois
+  // La perte pour un mois >= 8 = capital restant au début du mois * taux d'intérêt
+  const calculateLosses = (): number => {
+    if (contract.creditType !== 'SPECIALE') return 0
+    
+    const monthlyRate = contract.interestRate / 100
+    let totalLosses = 0
+    
+    // Pour chaque mois >= 8 dans l'échéancier actuel avec un paiement
+    for (const item of actualSchedule) {
+      if (item.month >= 8 && item.status === 'PAID') {
+        // Le capital restant au début du mois N = remaining du mois N-1
+        let capitalAtStartOfMonth = 0
+        
+        // Pour tous les mois >= 8, utiliser le remaining du mois précédent dans l'échéancier actuel
+        // Cela reflète les paiements réels, pas théoriques
+        const previousMonth = actualSchedule.find(i => i.month === item.month - 1)
+        if (previousMonth) {
+          capitalAtStartOfMonth = previousMonth.remaining
+        } else if (item.month === 8) {
+          // Si on n'a pas le mois 7 dans l'échéancier actuel, le recalculer
+          // Cela peut arriver si le mois 7 n'a pas de paiement
+          const monthlyRateCalc = contract.interestRate / 100
+          let currentRemaining = contract.amount
+          
+          // Recalculer jusqu'au mois 7 en utilisant les paiements réels
+          for (let monthIndex = 0; monthIndex < 7; monthIndex++) {
+            const interest = currentRemaining * monthlyRateCalc
+            const montantGlobal = currentRemaining + interest
+            const monthlyPayment = contract.monthlyPaymentAmount
+            const payment = Math.min(monthlyPayment, montantGlobal)
+            const resteDu = Math.max(0, montantGlobal - payment)
+            currentRemaining = resteDu
+          }
+          
+          capitalAtStartOfMonth = customRound(currentRemaining)
+        }
+        
+        // La perte = capital restant au début du mois * taux d'intérêt
+        if (capitalAtStartOfMonth > 0) {
+          const loss = capitalAtStartOfMonth * monthlyRate
+          totalLosses += loss
+          console.log(`[calculateLosses] Mois ${item.month}: capital=${capitalAtStartOfMonth}, perte=${loss}, total=${totalLosses}`)
+        }
+      }
+    }
+    
+    return customRound(totalLosses)
+  }
+
+  const totalLosses = calculateLosses()
+
   // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
   const calculateReferenceSchedule = () => {
     if (contract.creditType !== 'SPECIALE') return []
@@ -1043,6 +1110,66 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     return null
   }
 
+  // Retrouver le paiement associé à une échéance (pour "Voir le résumé" dans l'échéancier)
+  const getPaymentForScheduleIndex = (scheduleIndex: number): CreditPayment | null => {
+    const dueItem = actualSchedule[scheduleIndex]
+    if (!dueItem) return null
+
+    // Même logique que pour le reçu, mais sans dépendre d'un state externe
+    const paymentsForThisMonth = payments.filter(p => {
+      if (p.id) {
+        const match = p.id.match(/^M(\d+)_/)
+        if (match) {
+          const paymentMonth = parseInt(match[1], 10)
+          return paymentMonth === dueItem.month
+        }
+      }
+      return false
+    })
+
+    if (paymentsForThisMonth.length > 0) {
+      const sortedPayments = paymentsForThisMonth.sort((a, b) => {
+        const dateA = new Date(a.paymentDate).getTime()
+        const dateB = new Date(b.paymentDate).getTime()
+        if (dateA === dateB) {
+          const timeA = a.paymentTime || '00:00'
+          const timeB = b.paymentTime || '00:00'
+          return timeB.localeCompare(timeA)
+        }
+        return dateB - dateA
+      })
+      return sortedPayments[0]
+    }
+
+    // Fallback date (tolérance 1 jour) si on n'a pas trouvé via l'ID
+    if (dueItem.paymentDate) {
+      const duePaymentDate = new Date(dueItem.paymentDate)
+      duePaymentDate.setHours(0, 0, 0, 0)
+
+      const matchingPayments = payments.filter(p => {
+        const paymentDate = new Date(p.paymentDate)
+        paymentDate.setHours(0, 0, 0, 0)
+        return Math.abs(paymentDate.getTime() - duePaymentDate.getTime()) <= 24 * 60 * 60 * 1000
+      })
+
+      if (matchingPayments.length > 0) {
+        const sortedPayments = matchingPayments.sort((a, b) => {
+          const dateA = new Date(a.paymentDate).getTime()
+          const dateB = new Date(b.paymentDate).getTime()
+          if (dateA === dateB) {
+            const timeA = a.paymentTime || '00:00'
+            const timeB = b.paymentTime || '00:00'
+            return timeB.localeCompare(timeA)
+          }
+          return dateB - dateA
+        })
+        return sortedPayments[0]
+      }
+    }
+
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -1139,6 +1266,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
             totalPaidFromSchedule={totalPaidFromSchedule}
             totalAmountToRepay={totalAmountToRepay}
             actualSchedule={actualSchedule}
+            totalLosses={totalLosses}
           />
         </div>
 
@@ -1348,30 +1476,42 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                     <Card
                       key={index}
                       className={cn(
-                        'transition-all duration-300 border-2',
+                        'transition-all duration-300 border-2 overflow-hidden',
                         isDisabled
-                          ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
+                          ? 'border-gray-300 bg-white cursor-not-allowed'
                           : item.status === 'PAID'
                           ? isPaymentSufficient
-                            ? 'border-green-200 bg-green-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
-                            : 'border-red-200 bg-red-50/50 cursor-pointer hover:shadow-lg hover:-translate-y-1'
-                          : 'border-gray-200 hover:border-[#224D62] cursor-pointer hover:shadow-lg hover:-translate-y-1'
+                            ? 'border-green-300 bg-white hover:shadow-xl hover:-translate-y-1'
+                            : 'border-red-300 bg-white hover:shadow-xl hover:-translate-y-1'
+                          : 'border-gray-300 hover:border-[#224D62] bg-white hover:shadow-xl hover:-translate-y-1'
                       )}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
+                      {/* En-tête coloré de la carte */}
+                      <div className={cn(
+                        'p-4 border-b-2',
+                        item.status === 'PAID' 
+                          ? isPaymentSufficient
+                            ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200' 
+                            : 'bg-gradient-to-r from-red-50 to-red-100 border-red-200'
+                          : item.status === 'DUE'
+                          ? 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200'
+                          : 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200'
+                      )}>
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="bg-[#224D62] text-white rounded-lg px-3 py-1 text-sm font-bold">
+                            <div className="bg-[#224D62] text-white rounded-lg px-3 py-1.5 text-sm font-bold shadow-sm">
                               Échéance {item.month}
                             </div>
                           </div>
-                          <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border`}>
+                          <Badge className={`${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border shadow-sm`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {statusConfig.label}
                           </Badge>
                         </div>
+                      </div>
 
-                        <div className="space-y-3">
+                      {/* Corps de la carte avec fond blanc */}
+                      <CardContent className="p-4 bg-white space-y-3">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Date:</span>
                             <span className="font-semibold text-gray-900">
@@ -1439,6 +1579,9 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             </div>
                           )}
 
+
+                        {/* Boutons d'action */}
+                        <div className="mt-4 pt-4 border-t border-gray-200">
                           {item.status === 'DUE' && (
                             <Button
                               onClick={() => {
@@ -1452,7 +1595,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                                 setSelectedDueIndex(index)
                                 setShowPaymentModal(true)
                               }}
-                              className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65]"
+                              className="w-full bg-gradient-to-r from-[#234D65] to-[#2c5a73] hover:from-[#2c5a73] hover:to-[#234D65] text-white h-11 font-semibold shadow-md hover:shadow-lg transition-all"
                               disabled={isDisabled}
                             >
                               <HandCoins className="h-4 w-4 mr-2" />
@@ -1461,25 +1604,59 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           )}
 
                           {item.status === 'PAID' && (
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                console.log('[CreditContractDetail] Clic sur "Voir le reçu" - Échéance:', {
-                                  month: item.month,
-                                  index: index,
-                                  payment: item.payment,
-                                  paidAmount: item.paidAmount,
-                                  paymentDate: item.paymentDate,
-                                  status: item.status
-                                })
-                                setSelectedDueIndexForReceipt(index)
-                                setShowReceiptModal(true)
-                              }}
-                              className="w-full border-green-300 text-green-700 hover:bg-green-50"
-                            >
-                              <Receipt className="h-4 w-4 mr-2" />
-                              Voir le reçu
-                            </Button>
+                            <div className="space-y-2">
+                              <Button
+                                onClick={() => {
+                                  console.log('[CreditContractDetail] Clic sur "Voir le reçu" - Échéance:', {
+                                    month: item.month,
+                                    index: index,
+                                    payment: item.payment,
+                                    paidAmount: item.paidAmount,
+                                    paymentDate: item.paymentDate,
+                                    status: item.status
+                                  })
+                                  setSelectedDueIndexForReceipt(index)
+                                  setShowReceiptModal(true)
+                                }}
+                                className="w-full h-11 font-semibold text-white shadow-md hover:shadow-lg transition-all"
+                                style={{ 
+                                  backgroundColor: '#16a34a',
+                                  borderRadius: '0.5rem'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#15803d'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#16a34a'
+                                }}
+                              >
+                                <Receipt className="h-4 w-4 mr-2" />
+                                Voir le reçu
+                              </Button>
+
+                              {/* Sous "Voir le reçu" : résumé de versement */}
+                              <Button
+                                variant="outline"
+                                className="w-full h-11 font-semibold border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                onClick={() => {
+                                  console.log('[CreditContractDetail] Clic sur "Voir le résumé" - Échéance:', {
+                                    month: item.month,
+                                    index: index
+                                  })
+                                  const paymentForThisDue = getPaymentForScheduleIndex(index)
+                                  if (!paymentForThisDue) {
+                                    toast.error('Impossible de retrouver le versement pour cette échéance')
+                                    return
+                                  }
+                                  setSelectedPayment(paymentForThisDue)
+                                  setSelectedDueIndexForSummary(index)
+                                  setShowPaymentSummaryModal(true)
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Voir le résumé
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </CardContent>
@@ -1520,60 +1697,99 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             relatedDueItem = actualSchedule.find(item => item.month === paymentMonth) || null
                           }
                         }
-                        
+
                         return (
-                        <div
-                          key={payment.id}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => {
-                            console.log('[CreditContractDetail] Clic sur un paiement dans l\'historique:', {
-                              paymentId: payment.id,
-                              amount: payment.amount,
-                              paymentDate: payment.paymentDate,
-                              paymentTime: payment.paymentTime,
-                              comment: payment.comment,
-                              reference: payment.reference,
-                              relatedDueItem: relatedDueItem ? {
-                                month: relatedDueItem.month,
-                                status: relatedDueItem.status
-                              } : null
-                            })
-                            setSelectedPayment(payment)
-                            setSelectedDueIndexForReceipt(relatedDueItem ? actualSchedule.findIndex(item => item.month === relatedDueItem.month) : null)
-                            setShowReceiptModal(true)
-                          }}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Calendar className="h-4 w-4 text-gray-500" />
-                              <span className="font-semibold">
-                                {formatDateTime(payment.paymentDate, payment.paymentTime)}
-                              </span>
+                          <div
+                            key={payment.id}
+                            className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Calendar className="h-4 w-4 text-gray-500" />
+                                <span className="font-semibold">
+                                  {formatDateTime(payment.paymentDate, payment.paymentTime)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                                {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
+                                  <>
+                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                      Pénalités uniquement
+                                    </Badge>
+                                    <span>Mode : {payment.mode}</span>
+                                    {payment.note !== undefined && (
+                                      <span>Note pénalités : {payment.note}/10</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
+                                    <span>Mode : {payment.mode}</span>
+                                    {payment.note !== undefined && (
+                                      <span>Note : {payment.note}/10</span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
-                              {payment.amount === 0 && payment.comment?.includes('Paiement de pénalités uniquement') ? (
-                                <>
-                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                    Pénalités uniquement
-                                  </Badge>
-                                  <span>Mode : {payment.mode}</span>
-                                  {payment.note !== undefined && (
-                                    <span>Note pénalités : {payment.note}/10</span>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <span>Montant : {payment.amount.toLocaleString('fr-FR')} FCFA</span>
-                                  <span>Mode : {payment.mode}</span>
-                                  {payment.note !== undefined && (
-                                    <span>Note : {payment.note}/10</span>
-                                  )}
-                                </>
-                              )}
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  console.log('[CreditContractDetail] Clic sur "Voir le résumé" dans l\'historique:', {
+                                    paymentId: payment.id,
+                                    amount: payment.amount,
+                                    paymentDate: payment.paymentDate,
+                                    relatedDueItem: relatedDueItem
+                                  })
+                                  // Trouver l'échéance correspondante au paiement
+                                  if (relatedDueItem) {
+                                    const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
+                                    if (dueIndex !== -1) {
+                                      setSelectedDueIndexForSummary(dueIndex)
+                                    }
+                                  }
+                                  setSelectedPayment(payment)
+                                  setShowPaymentSummaryModal(true)
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                Voir le résumé
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-green-600 border-green-600 hover:bg-green-50"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  console.log('[CreditContractDetail] Clic sur "Voir le reçu" dans l\'historique:', {
+                                      paymentId: payment.id,
+                                    relatedDueItem: relatedDueItem
+                                  })
+                                  if (relatedDueItem) {
+                                    const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
+                                    if (dueIndex !== -1) {
+                                      console.log('[CreditContractDetail] Ouverture PaymentReceiptModal pour index:', dueIndex)
+                                      setSelectedDueIndexForReceipt(dueIndex)
+                                      setShowReceiptModal(true)
+                                    } else {
+                                      console.warn('[CreditContractDetail] Index non trouvé pour month:', relatedDueItem.month)
+                                      toast.error('Impossible de trouver les détails de cette échéance')
+                                    }
+                                  } else {
+                                    console.warn('[CreditContractDetail] relatedDueItem non trouvé pour payment:', payment.id)
+                                    toast.error('Impossible de trouver les détails de cette échéance')
+                                  }
+                                }}
+                              >
+                                <Receipt className="h-4 w-4 mr-1" />
+                                Voir le reçu
+                              </Button>
                             </div>
                           </div>
-                          <Receipt className="h-5 w-5 text-gray-400" />
-                        </div>
                         )
                       })}
                     </div>
@@ -1823,7 +2039,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                         </p>
                         {contract.guarantorRemunerationPercentage !== undefined && (
                           <p className="text-sm text-blue-700 mt-1">
-                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois
+                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% du reste dû (capital restant au début de chaque échéance), calculé sur maximum 7 mois
                           </p>
                         )}
                       </div>
@@ -1840,14 +2056,14 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             <TableHeader>
                               <TableRow>
                                 <TableHead>Mois</TableHead>
-                                <TableHead>Montant global</TableHead>
+                                <TableHead>Reste dû</TableHead>
                                 <TableHead className="text-right">Pourcentage de commission</TableHead>
                                 <TableHead className="text-right">Somme due</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {(() => {
-                                // Calculer l'échéancier pour obtenir les montants globaux
+                                // Calculer l'échéancier pour obtenir les restes dus
                                 const schedule = calculateSchedule({
                                   amount: contract.amount,
                                   interestRate: contract.interestRate,
@@ -1859,18 +2075,28 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                                 return [...guarantorRemunerations]
                                   .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
                                   .map((remuneration) => {
-                                    // Trouver l'échéance correspondante pour obtenir le montant global
-                                    const installment = schedule.find(item => item.month === remuneration.month)
-                                    const globalAmount = installment?.principal || 0 // Montant global (capital + intérêts)
+                                    // Trouver l'échéance correspondante pour obtenir le reste dû au début du mois
+                                    // Pour le mois 1, le reste dû au début = montant emprunté
+                                    // Pour les mois suivants, le reste dû au début = remaining du mois précédent
+                                    let remainingAtStartOfMonth = 0;
+                                    if (remuneration.month === 1) {
+                                      remainingAtStartOfMonth = contract.amount;
+                                    } else {
+                                      const previousInstallment = schedule.find(item => item.month === remuneration.month - 1);
+                                      if (previousInstallment) {
+                                        remainingAtStartOfMonth = previousInstallment.remaining;
+                                      }
+                                    }
+                                    
                                     const commissionPercentage = contract.guarantorRemunerationPercentage || 0
                                     
-                                    // Recalculer la rémunération basée sur le montant global (cohérence avec l'affichage)
-                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+                                    // Recalculer la rémunération basée sur le reste dû (cohérence avec le calcul lors du paiement)
+                                    const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
 
                                     return (
                                       <TableRow key={remuneration.id}>
                                         <TableCell className="font-medium">M{remuneration.month}</TableCell>
-                                        <TableCell>{globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                        <TableCell>{remainingAtStartOfMonth.toLocaleString('fr-FR')} FCFA</TableCell>
                                         <TableCell className="text-right">{commissionPercentage}%</TableCell>
                                         <TableCell className="text-right font-semibold">{recalculatedRemuneration.toLocaleString('fr-FR')} FCFA</TableCell>
                                       </TableRow>
@@ -1897,9 +2123,18 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                                 
                                 return guarantorRemunerations
                                   .reduce((sum, r) => {
-                                    const installment = schedule.find(item => item.month === r.month)
-                                    const globalAmount = installment?.principal || 0
-                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+                                    // Pour le mois 1, le reste dû au début = montant emprunté
+                                    // Pour les mois suivants, le reste dû au début = remaining du mois précédent
+                                    let remainingAtStartOfMonth = 0;
+                                    if (r.month === 1) {
+                                      remainingAtStartOfMonth = contract.amount;
+                                    } else {
+                                      const previousInstallment = schedule.find(item => item.month === r.month - 1);
+                                      if (previousInstallment) {
+                                        remainingAtStartOfMonth = previousInstallment.remaining;
+                                      }
+                                    }
+                                    const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
                                     return sum + recalculatedRemuneration
                                   }, 0)
                                   .toLocaleString('fr-FR')
@@ -1972,34 +2207,10 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   <Button
                     variant="outline"
                     className="justify-start bg-white hover:bg-blue-50"
-                    onClick={async () => {
-                      try {
-                        const result = await generateContractPDF.mutateAsync({
-                          contractId: contract.id,
-                          blank: true,
-                        })
-                        if (result.url) {
-                          window.open(result.url, '_blank')
-                        } else {
-                          toast.info('Contrat PDF généré. Le téléchargement va commencer.')
-                        }
-                      } catch (error: any) {
-                        toast.error(error?.message || 'Erreur lors de la génération du contrat')
-                      }
-                    }}
-                    disabled={generateContractPDF.isPending}
+                    onClick={() => setShowContractPDFModal(true)}
                   >
-                    {generateContractPDF.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Génération...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Générer contrat vierge
-                      </>
-                    )}
+                    <FileText className="h-4 w-4 mr-2" />
+                    Générer contrat
                   </Button>
                   <Button
                     variant="outline"
@@ -2135,6 +2346,24 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
         />
       )}
 
+      {/* Modal résumé de versement */}
+      {selectedPayment && (
+        <PaymentSummaryModal
+          isOpen={showPaymentSummaryModal}
+          onClose={() => {
+            setShowPaymentSummaryModal(false)
+            setSelectedPayment(null)
+            setSelectedDueIndexForSummary(null)
+          }}
+          contract={contract}
+          payment={selectedPayment}
+          dueItem={selectedDueIndexForSummary !== null ? actualSchedule[selectedDueIndexForSummary] : undefined}
+          nextDueItem={selectedDueIndexForSummary !== null && selectedDueIndexForSummary + 1 < actualSchedule.length 
+            ? actualSchedule[selectedDueIndexForSummary + 1] 
+            : undefined}
+        />
+      )}
+
       {/* Modal upload contrat signé */}
       <Dialog open={showUploadContractModal} onOpenChange={setShowUploadContractModal}>
         <DialogContent className="max-w-md">
@@ -2236,6 +2465,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       <CreditExtensionModal
         isOpen={showExtensionModal}
         onClose={() => setShowExtensionModal(false)}
+        contract={contract}
+      />
+      <CreditSpecialeContractPDFModal
+        isOpen={showContractPDFModal}
+        onClose={() => setShowContractPDFModal(false)}
         contract={contract}
       />
     </div>
