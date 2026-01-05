@@ -568,7 +568,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           <View style={styles.formSection}>
             <View style={styles.checkboxContainer}>
               <View style={styles.checkbox}>
-                {contract?.caisseType === 'LIBRE' && (
+                {(contract?.caisseType === 'LIBRE' || contract?.caisseType === 'JOURNALIERE') && (
                   <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
                 )}
               </View>
@@ -576,7 +576,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.checkboxContainer}>
               <View style={styles.checkbox}>
-                {contract?.caisseType !== 'LIBRE' && (
+                {contract?.caisseType !== 'LIBRE' && contract?.caisseType !== 'JOURNALIERE' && (
                   <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
                 )}
               </View>
@@ -588,7 +588,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             Par cet engagement, je prends la décision de mettre à la disposition de l'association la somme déterminée de :
           </Text>
 
-          {contract?.caisseType !== 'LIBRE' && (
+          {contract?.caisseType !== 'LIBRE' && contract?.caisseType !== 'JOURNALIERE' && (
             <View style={{ marginVertical: 8 }}>
               <Text style={styles.articleText}>
                 <Text style={styles.bold}>{numberToWords(contract?.monthlyAmount || 0)} francs CFA</Text> (Lettres)
