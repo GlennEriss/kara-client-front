@@ -3,7 +3,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Clock, CheckCircle, DollarSign, AlertCircle, Trash2, ExternalLink, Phone, User, Upload, FileText, Eye, Edit } from 'lucide-react'
+import { Clock, CheckCircle, DollarSign, AlertCircle, Trash2, ExternalLink, Phone, User, Upload, FileText, Eye, Edit, Calendar } from 'lucide-react'
 import type { Placement, CommissionPaymentPlacement } from '@/types/types'
 import { usePlacementCommissions } from '@/hooks/usePlacements'
 
@@ -181,6 +181,41 @@ export default function PlacementCard({
             </div>
           </div>
         </div>
+
+        {(placement.startDate || placement.endDate) && (
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200">
+            {placement.startDate && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <div>
+                  <p className="text-xs text-gray-500">Date de début</p>
+                  <p className="font-bold text-gray-800 text-xs">
+                    {new Date(placement.startDate).toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+            {placement.endDate && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <div>
+                  <p className="text-xs text-gray-500">Date de fin</p>
+                  <p className="font-bold text-gray-800 text-xs">
+                    {new Date(placement.endDate).toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-2 flex-wrap">
           {onOpenClick && (
