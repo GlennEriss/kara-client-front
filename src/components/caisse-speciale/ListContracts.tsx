@@ -403,8 +403,8 @@ const ListContracts = () => {
     router.push('/caisse-speciale/create')
   }
   
-  // État pour l'onglet actif (Tous les contrats / Retard)
-  const [activeTab, setActiveTab] = useState<'all' | 'overdue'>('all')
+  // État pour l'onglet actif (Tous les contrats / Standard / Journalier / Libre / Retard / Mois en cours)
+  const [activeTab, setActiveTab] = useState<'all' | 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'overdue' | 'currentMonth'>('all')
   
   // États
   const [filters, setFilters] = useState({
@@ -755,6 +755,23 @@ const ListContracts = () => {
     return false
   }
 
+  /**
+   * Vérifie si un contrat a une échéance dans le mois actuel
+   */
+  const hasDueDateInCurrentMonth = (contract: any): boolean => {
+    if (!contract.nextDueAt) return false
+    
+    const today = new Date()
+    const currentMonth = today.getMonth()
+    const currentYear = today.getFullYear()
+    
+    const nextDue = contract.nextDueAt instanceof Date 
+      ? contract.nextDueAt 
+      : new Date(contract.nextDueAt)
+    
+    return nextDue.getMonth() === currentMonth && nextDue.getFullYear() === currentYear
+  }
+
   // Filtrage des contrats
   const filteredContracts = React.useMemo(() => {
     if (!contractsData) return []
@@ -764,6 +781,14 @@ const ListContracts = () => {
     // Filtrer par retard si l'onglet "Retard" est actif
     if (activeTab === 'overdue') {
       contracts = contracts.filter((c: any) => isContractOverdue(c))
+    }
+    // Filtrer par type de caisse (Standard, Journalier, Libre)
+    else if (activeTab === 'STANDARD' || activeTab === 'JOURNALIERE' || activeTab === 'LIBRE') {
+      contracts = contracts.filter((c: any) => c.caisseType === activeTab)
+    }
+    // Filtrer par mois en cours
+    else if (activeTab === 'currentMonth') {
+      contracts = contracts.filter((c: any) => hasDueDateInCurrentMonth(c))
     }
 
     if (filters.search) {
@@ -896,12 +921,28 @@ const ListContracts = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in-0 duration-500">
-      {/* Onglets pour filtrer par retard */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'overdue')} className="w-full">
-        <TabsList className="grid w-full max-w-xl grid-cols-2">
+      {/* Onglets pour filtrer par type et période */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'overdue' | 'currentMonth')} className="w-full">
+        <TabsList className="grid w-full max-w-5xl grid-cols-6 gap-2">
           <TabsTrigger value="all" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Tous les contrats
+            Tous
+          </TabsTrigger>
+          <TabsTrigger value="STANDARD" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Standard
+          </TabsTrigger>
+          <TabsTrigger value="JOURNALIERE" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Journalier
+          </TabsTrigger>
+          <TabsTrigger value="LIBRE" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Libre
+          </TabsTrigger>
+          <TabsTrigger value="currentMonth" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Mois en cours
           </TabsTrigger>
           <TabsTrigger value="overdue" className="flex items-center gap-2 text-red-600 data-[state=active]:text-red-700 data-[state=active]:bg-red-50">
             <AlertCircle className="h-4 w-4" />
