@@ -30,7 +30,7 @@ export interface ICreditSpecialeService {
     updateContractStatus(id: string, status: CreditContractStatus, adminId: string): Promise<CreditContract | null>;
     
     // Génération et upload de contrats PDF
-    generateContractPDF(contractId: string, blank?: boolean): Promise<{ url: string; path: string; documentId: string }>;
+    generateContractPDF(contractId: string, blank?: boolean, pdfFile?: File): Promise<{ url: string; path: string; documentId: string }>;
     uploadSignedContract(contractId: string, signedContractFile: File, adminId: string): Promise<CreditContract>;
     
     // Simulations

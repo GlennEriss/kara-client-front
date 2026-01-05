@@ -232,13 +232,27 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
     // Limiter à 7 mois maximum
     const maxMonths = Math.min(7, schedule.length)
     
-    return schedule.slice(0, maxMonths).map(item => ({
-      month: item.month,
-      date: item.date,
-      monthlyPayment: item.payment,
-      globalAmount: item.principal, // Montant global (capital + intérêts)
-      guarantorAmount: customRound(item.principal * percentage / 100), // Calcul sur le montant global
-    }))
+    return schedule.slice(0, maxMonths).map((item, index) => {
+      // Pour le mois 1, le reste dû au début = montant emprunté
+      // Pour les mois suivants, le reste dû au début = remaining du mois précédent
+      let remainingAtStartOfMonth = 0;
+      if (index === 0) {
+        remainingAtStartOfMonth = contract.amount;
+      } else {
+        const previousItem = schedule[index - 1];
+        if (previousItem) {
+          remainingAtStartOfMonth = previousItem.remaining;
+        }
+      }
+      
+      return {
+        month: item.month,
+        date: item.date,
+        monthlyPayment: item.payment,
+        remainingAtStart: remainingAtStartOfMonth, // Reste dû au début du mois
+        guarantorAmount: customRound(remainingAtStartOfMonth * percentage / 100), // Calcul sur le reste dû
+      }
+    })
   }
 
   return (
@@ -633,21 +647,21 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                         <TableRow>
                           <TableHead>Mois</TableHead>
                           <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Montant global</TableHead>
-                          <TableHead className="text-right">Rémunération parrain ({contract.guarantorRemunerationPercentage}%)</TableHead>
+                        <TableHead className="text-right">Reste dû</TableHead>
+                        <TableHead className="text-right">Rémunération parrain ({contract.guarantorRemunerationPercentage}%)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {calculateGuarantorRemunerationSchedule(contract).map((row) => (
+                        <TableRow key={row.month}>
+                          <TableCell className="font-medium">M{row.month}</TableCell>
+                          <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
+                          <TableCell className="text-right">{row.remainingAtStart.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right text-purple-600 font-medium">
+                            {row.guarantorAmount.toLocaleString('fr-FR')} FCFA
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {calculateGuarantorRemunerationSchedule(contract).map((row) => (
-                          <TableRow key={row.month}>
-                            <TableCell className="font-medium">M{row.month}</TableCell>
-                            <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                            <TableCell className="text-right">{row.globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
-                            <TableCell className="text-right text-purple-600 font-medium">
-                              {row.guarantorAmount.toLocaleString('fr-FR')} FCFA
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                      ))}
                       </TableBody>
                     </Table>
                   </div>

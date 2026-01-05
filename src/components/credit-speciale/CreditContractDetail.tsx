@@ -41,6 +41,7 @@ import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditIns
 import CreditPaymentModal from './CreditPaymentModal'
 import PaymentReceiptModal from './PaymentReceiptModal'
 import CreditExtensionModal from './CreditExtensionModal'
+import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
@@ -195,7 +196,7 @@ const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
 }
 
 // Carrousel de statistiques (même design que StatisticsCreditDemandes)
-const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [] }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }> }) => {
+const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, totalPaidFromSchedule, totalAmountToRepay, actualSchedule = [], totalLosses = 0 }: { contract: CreditContract; penalties?: CreditPenalty[]; realRemainingAmount: number; totalPaidFromSchedule: number; totalAmountToRepay: number; actualSchedule?: Array<{ interest: number }>; totalLosses?: number }) => {
   const [itemsPerView, setItemsPerView] = useState(1)
   
   useEffect(() => {
@@ -266,6 +267,13 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
       color: '#ef4444',
       icon: AlertCircle
     },
+    ...(contract.creditType === 'SPECIALE' && totalLosses > 0 ? [{
+      title: 'Pertes',
+      value: totalLosses.toLocaleString('fr-FR'),
+      subtitle: 'Intérêts non gagnés (paiements après M7)',
+      color: '#dc2626',
+      icon: TrendingUp
+    }] : []),
   ]
 
   const { 
@@ -375,6 +383,9 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [isCompressing, setIsCompressing] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
+  
+  // États pour les modals
+  const [showContractPDFModal, setShowContractPDFModal] = useState(false)
   
   // Récupérer les contrats parent et enfant (pour les extensions)
   const { data: childContract } = useChildContract(contract.id)
@@ -852,6 +863,59 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   // Calculer le montant restant : valeur totale due - valeur versée
   const realRemainingAmount = totalAmountToRepay - totalPaidFromSchedule
 
+  // Calculer les pertes à partir du mois 8
+  // Les pertes = intérêts non gagnés car les paiements sont faits après le 7ème mois
+  // La perte pour un mois >= 8 = capital restant au début du mois * taux d'intérêt
+  const calculateLosses = (): number => {
+    if (contract.creditType !== 'SPECIALE') return 0
+    
+    const monthlyRate = contract.interestRate / 100
+    let totalLosses = 0
+    
+    // Pour chaque mois >= 8 dans l'échéancier actuel avec un paiement
+    for (const item of actualSchedule) {
+      if (item.month >= 8 && item.status === 'PAID') {
+        // Le capital restant au début du mois N = remaining du mois N-1
+        let capitalAtStartOfMonth = 0
+        
+        // Pour tous les mois >= 8, utiliser le remaining du mois précédent dans l'échéancier actuel
+        // Cela reflète les paiements réels, pas théoriques
+        const previousMonth = actualSchedule.find(i => i.month === item.month - 1)
+        if (previousMonth) {
+          capitalAtStartOfMonth = previousMonth.remaining
+        } else if (item.month === 8) {
+          // Si on n'a pas le mois 7 dans l'échéancier actuel, le recalculer
+          // Cela peut arriver si le mois 7 n'a pas de paiement
+          const monthlyRateCalc = contract.interestRate / 100
+          let currentRemaining = contract.amount
+          
+          // Recalculer jusqu'au mois 7 en utilisant les paiements réels
+          for (let monthIndex = 0; monthIndex < 7; monthIndex++) {
+            const interest = currentRemaining * monthlyRateCalc
+            const montantGlobal = currentRemaining + interest
+            const monthlyPayment = contract.monthlyPaymentAmount
+            const payment = Math.min(monthlyPayment, montantGlobal)
+            const resteDu = Math.max(0, montantGlobal - payment)
+            currentRemaining = resteDu
+          }
+          
+          capitalAtStartOfMonth = customRound(currentRemaining)
+        }
+        
+        // La perte = capital restant au début du mois * taux d'intérêt
+        if (capitalAtStartOfMonth > 0) {
+          const loss = capitalAtStartOfMonth * monthlyRate
+          totalLosses += loss
+          console.log(`[calculateLosses] Mois ${item.month}: capital=${capitalAtStartOfMonth}, perte=${loss}, total=${totalLosses}`)
+        }
+      }
+    }
+    
+    return customRound(totalLosses)
+  }
+
+  const totalLosses = calculateLosses()
+
   // Calculer l'échéancier référence (pour crédit spéciale uniquement, 7 mois)
   const calculateReferenceSchedule = () => {
     if (contract.creditType !== 'SPECIALE') return []
@@ -1139,6 +1203,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
             totalPaidFromSchedule={totalPaidFromSchedule}
             totalAmountToRepay={totalAmountToRepay}
             actualSchedule={actualSchedule}
+            totalLosses={totalLosses}
           />
         </div>
 
@@ -1823,7 +1888,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                         </p>
                         {contract.guarantorRemunerationPercentage !== undefined && (
                           <p className="text-sm text-blue-700 mt-1">
-                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% du montant global (capital + intérêts) de chaque échéance, calculé sur maximum 7 mois
+                            <strong>Taux de commission :</strong> {contract.guarantorRemunerationPercentage}% du reste dû (capital restant au début de chaque échéance), calculé sur maximum 7 mois
                           </p>
                         )}
                       </div>
@@ -1840,14 +1905,14 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                             <TableHeader>
                               <TableRow>
                                 <TableHead>Mois</TableHead>
-                                <TableHead>Montant global</TableHead>
+                                <TableHead>Reste dû</TableHead>
                                 <TableHead className="text-right">Pourcentage de commission</TableHead>
                                 <TableHead className="text-right">Somme due</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {(() => {
-                                // Calculer l'échéancier pour obtenir les montants globaux
+                                // Calculer l'échéancier pour obtenir les restes dus
                                 const schedule = calculateSchedule({
                                   amount: contract.amount,
                                   interestRate: contract.interestRate,
@@ -1859,18 +1924,28 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                                 return [...guarantorRemunerations]
                                   .sort((a, b) => a.month - b.month) // Trier par numéro de mois (M1, M2, M3, etc.)
                                   .map((remuneration) => {
-                                    // Trouver l'échéance correspondante pour obtenir le montant global
-                                    const installment = schedule.find(item => item.month === remuneration.month)
-                                    const globalAmount = installment?.principal || 0 // Montant global (capital + intérêts)
+                                    // Trouver l'échéance correspondante pour obtenir le reste dû au début du mois
+                                    // Pour le mois 1, le reste dû au début = montant emprunté
+                                    // Pour les mois suivants, le reste dû au début = remaining du mois précédent
+                                    let remainingAtStartOfMonth = 0;
+                                    if (remuneration.month === 1) {
+                                      remainingAtStartOfMonth = contract.amount;
+                                    } else {
+                                      const previousInstallment = schedule.find(item => item.month === remuneration.month - 1);
+                                      if (previousInstallment) {
+                                        remainingAtStartOfMonth = previousInstallment.remaining;
+                                      }
+                                    }
+                                    
                                     const commissionPercentage = contract.guarantorRemunerationPercentage || 0
                                     
-                                    // Recalculer la rémunération basée sur le montant global (cohérence avec l'affichage)
-                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+                                    // Recalculer la rémunération basée sur le reste dû (cohérence avec le calcul lors du paiement)
+                                    const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
 
                                     return (
                                       <TableRow key={remuneration.id}>
                                         <TableCell className="font-medium">M{remuneration.month}</TableCell>
-                                        <TableCell>{globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                                        <TableCell>{remainingAtStartOfMonth.toLocaleString('fr-FR')} FCFA</TableCell>
                                         <TableCell className="text-right">{commissionPercentage}%</TableCell>
                                         <TableCell className="text-right font-semibold">{recalculatedRemuneration.toLocaleString('fr-FR')} FCFA</TableCell>
                                       </TableRow>
@@ -1897,9 +1972,18 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                                 
                                 return guarantorRemunerations
                                   .reduce((sum, r) => {
-                                    const installment = schedule.find(item => item.month === r.month)
-                                    const globalAmount = installment?.principal || 0
-                                    const recalculatedRemuneration = customRound(globalAmount * commissionPercentage / 100)
+                                    // Pour le mois 1, le reste dû au début = montant emprunté
+                                    // Pour les mois suivants, le reste dû au début = remaining du mois précédent
+                                    let remainingAtStartOfMonth = 0;
+                                    if (r.month === 1) {
+                                      remainingAtStartOfMonth = contract.amount;
+                                    } else {
+                                      const previousInstallment = schedule.find(item => item.month === r.month - 1);
+                                      if (previousInstallment) {
+                                        remainingAtStartOfMonth = previousInstallment.remaining;
+                                      }
+                                    }
+                                    const recalculatedRemuneration = customRound(remainingAtStartOfMonth * commissionPercentage / 100)
                                     return sum + recalculatedRemuneration
                                   }, 0)
                                   .toLocaleString('fr-FR')
@@ -1972,34 +2056,10 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   <Button
                     variant="outline"
                     className="justify-start bg-white hover:bg-blue-50"
-                    onClick={async () => {
-                      try {
-                        const result = await generateContractPDF.mutateAsync({
-                          contractId: contract.id,
-                          blank: true,
-                        })
-                        if (result.url) {
-                          window.open(result.url, '_blank')
-                        } else {
-                          toast.info('Contrat PDF généré. Le téléchargement va commencer.')
-                        }
-                      } catch (error: any) {
-                        toast.error(error?.message || 'Erreur lors de la génération du contrat')
-                      }
-                    }}
-                    disabled={generateContractPDF.isPending}
+                    onClick={() => setShowContractPDFModal(true)}
                   >
-                    {generateContractPDF.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Génération...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Générer contrat vierge
-                      </>
-                    )}
+                    <FileText className="h-4 w-4 mr-2" />
+                    Générer contrat
                   </Button>
                   <Button
                     variant="outline"
@@ -2236,6 +2296,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       <CreditExtensionModal
         isOpen={showExtensionModal}
         onClose={() => setShowExtensionModal(false)}
+        contract={contract}
+      />
+      <CreditSpecialeContractPDFModal
+        isOpen={showContractPDFModal}
+        onClose={() => setShowContractPDFModal(false)}
         contract={contract}
       />
     </div>

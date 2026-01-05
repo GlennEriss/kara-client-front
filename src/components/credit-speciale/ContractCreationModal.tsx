@@ -206,21 +206,37 @@ export default function ContractCreationModal({
     return referenceSchedule
   }, [simulation, demand.creditType])
 
-  // Calculer le tableau de rémunération du garant (pourcentage personnalisé du montant global, limité à 7 mois)
+  // Calculer le tableau de rémunération du garant (pourcentage du reste dû, limité à 7 mois)
   const guarantorRemunerationSchedule = useMemo(() => {
     if (!guarantorIsMember) return []
     
     // Limiter à 7 mois maximum
     const maxMonths = Math.min(7, schedule.length)
     
-    return schedule.slice(0, maxMonths).map(item => ({
-      month: item.month,
-      date: item.date,
-      monthlyPayment: item.payment,
-      globalAmount: item.principal, // Montant global (capital + intérêts)
-      guarantorAmount: customRound(item.principal * guarantorRemunerationPercentage / 100),
-    }))
-  }, [schedule, guarantorIsMember, guarantorRemunerationPercentage])
+    return schedule.slice(0, maxMonths).map((item, index) => {
+      // Pour le mois 1, le reste dû au début = montant emprunté
+      // Pour les mois suivants, le reste dû au début = remaining du mois précédent
+      let remainingAtStartOfMonth = 0;
+      if (index === 0) {
+        // Mois 1 : utiliser le montant emprunté depuis la simulation
+        remainingAtStartOfMonth = simulation.amount;
+      } else {
+        // Mois > 1 : utiliser le remaining du mois précédent
+        const previousItem = schedule[index - 1];
+        if (previousItem) {
+          remainingAtStartOfMonth = previousItem.remaining;
+        }
+      }
+      
+      return {
+        month: item.month,
+        date: item.date,
+        monthlyPayment: item.payment,
+        remainingAtStart: remainingAtStartOfMonth, // Reste dû au début du mois
+        guarantorAmount: customRound(remainingAtStartOfMonth * guarantorRemunerationPercentage / 100),
+      }
+    })
+  }, [schedule, guarantorIsMember, guarantorRemunerationPercentage, simulation.amount])
 
   const totalGuarantorRemuneration = guarantorRemunerationSchedule.reduce(
     (sum, item) => sum + item.guarantorAmount, 
@@ -507,13 +523,13 @@ export default function ContractCreationModal({
           <div className="space-y-6">
             <div className="text-center mb-4">
               <h3 className="text-lg font-semibold text-[#234D65]">Rémunération du garant</h3>
-              <p className="text-gray-600 text-sm">Le garant membre gagne un pourcentage du montant global (capital + intérêts) de chaque échéance (0% à 5%, calculé sur maximum 7 mois)</p>
+              <p className="text-gray-600 text-sm">Le garant membre gagne un pourcentage du reste dû (capital restant au début de chaque échéance) (0% à 5%, calculé sur maximum 7 mois)</p>
             </div>
 
             <Alert className="border-purple-200 bg-purple-50">
               <Users className="h-4 w-4 text-purple-600" />
               <AlertDescription className="text-purple-800">
-                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de la mutuelle et recevra une rémunération sur chaque échéance (calculée sur le montant global, maximum 7 mois).
+                <strong>{demand.guarantorFirstName} {demand.guarantorLastName}</strong> est un membre de la mutuelle et recevra une rémunération sur chaque échéance (calculée sur le reste dû, maximum 7 mois).
               </AlertDescription>
             </Alert>
 
@@ -562,7 +578,7 @@ export default function ContractCreationModal({
               <CardHeader className="py-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Percent className="w-4 h-4" />
-                  Tableau de rémunération ({guarantorRemunerationPercentage}% du montant global, max 7 mois)
+                  Tableau de rémunération ({guarantorRemunerationPercentage}% du reste dû, max 7 mois)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -572,7 +588,7 @@ export default function ContractCreationModal({
                       <TableRow>
                         <TableHead>Mois</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Montant global</TableHead>
+                        <TableHead className="text-right">Reste dû</TableHead>
                         <TableHead className="text-right">Rémunération parrain ({guarantorRemunerationPercentage}%)</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -581,7 +597,7 @@ export default function ContractCreationModal({
                         <TableRow key={row.month}>
                           <TableCell className="font-medium">M{row.month}</TableCell>
                           <TableCell>{row.date.toLocaleDateString('fr-FR')}</TableCell>
-                          <TableCell className="text-right">{row.globalAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-right">{row.remainingAtStart.toLocaleString('fr-FR')} FCFA</TableCell>
                           <TableCell className="text-right text-purple-600 font-medium">
                             {row.guarantorAmount.toLocaleString('fr-FR')} FCFA
                           </TableCell>
