@@ -379,6 +379,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [selectedPayment, setSelectedPayment] = useState<CreditPayment | null>(null)
   const [selectedDueIndex, setSelectedDueIndex] = useState<number | null>(null)
   const [selectedDueIndexForReceipt, setSelectedDueIndexForReceipt] = useState<number | null>(null)
+  const [selectedDueIndexForSummary, setSelectedDueIndexForSummary] = useState<number | null>(null)
   const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(false)
   const [showUploadContractModal, setShowUploadContractModal] = useState(false)
   const [contractFile, setContractFile] = useState<File | undefined>()
@@ -1109,6 +1110,66 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
     return null
   }
 
+  // Retrouver le paiement associé à une échéance (pour "Voir le résumé" dans l'échéancier)
+  const getPaymentForScheduleIndex = (scheduleIndex: number): CreditPayment | null => {
+    const dueItem = actualSchedule[scheduleIndex]
+    if (!dueItem) return null
+
+    // Même logique que pour le reçu, mais sans dépendre d'un state externe
+    const paymentsForThisMonth = payments.filter(p => {
+      if (p.id) {
+        const match = p.id.match(/^M(\d+)_/)
+        if (match) {
+          const paymentMonth = parseInt(match[1], 10)
+          return paymentMonth === dueItem.month
+        }
+      }
+      return false
+    })
+
+    if (paymentsForThisMonth.length > 0) {
+      const sortedPayments = paymentsForThisMonth.sort((a, b) => {
+        const dateA = new Date(a.paymentDate).getTime()
+        const dateB = new Date(b.paymentDate).getTime()
+        if (dateA === dateB) {
+          const timeA = a.paymentTime || '00:00'
+          const timeB = b.paymentTime || '00:00'
+          return timeB.localeCompare(timeA)
+        }
+        return dateB - dateA
+      })
+      return sortedPayments[0]
+    }
+
+    // Fallback date (tolérance 1 jour) si on n'a pas trouvé via l'ID
+    if (dueItem.paymentDate) {
+      const duePaymentDate = new Date(dueItem.paymentDate)
+      duePaymentDate.setHours(0, 0, 0, 0)
+
+      const matchingPayments = payments.filter(p => {
+        const paymentDate = new Date(p.paymentDate)
+        paymentDate.setHours(0, 0, 0, 0)
+        return Math.abs(paymentDate.getTime() - duePaymentDate.getTime()) <= 24 * 60 * 60 * 1000
+      })
+
+      if (matchingPayments.length > 0) {
+        const sortedPayments = matchingPayments.sort((a, b) => {
+          const dateA = new Date(a.paymentDate).getTime()
+          const dateB = new Date(b.paymentDate).getTime()
+          if (dateA === dateB) {
+            const timeA = a.paymentTime || '00:00'
+            const timeB = b.paymentTime || '00:00'
+            return timeB.localeCompare(timeA)
+          }
+          return dateB - dateA
+        })
+        return sortedPayments[0]
+      }
+    }
+
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -1543,34 +1604,59 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                           )}
 
                           {item.status === 'PAID' && (
-                            <Button
-                              onClick={() => {
-                                console.log('[CreditContractDetail] Clic sur "Voir le reçu" - Échéance:', {
-                                  month: item.month,
-                                  index: index,
-                                  payment: item.payment,
-                                  paidAmount: item.paidAmount,
-                                  paymentDate: item.paymentDate,
-                                  status: item.status
-                                })
-                                setSelectedDueIndexForReceipt(index)
-                                setShowReceiptModal(true)
-                              }}
-                              className="w-full h-11 font-semibold text-white shadow-md hover:shadow-lg transition-all"
-                              style={{ 
-                                backgroundColor: '#16a34a',
-                                borderRadius: '0.5rem'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#15803d'
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = '#16a34a'
-                              }}
-                            >
-                              <Receipt className="h-4 w-4 mr-2" />
-                              Voir le reçu
-                            </Button>
+                            <div className="space-y-2">
+                              <Button
+                                onClick={() => {
+                                  console.log('[CreditContractDetail] Clic sur "Voir le reçu" - Échéance:', {
+                                    month: item.month,
+                                    index: index,
+                                    payment: item.payment,
+                                    paidAmount: item.paidAmount,
+                                    paymentDate: item.paymentDate,
+                                    status: item.status
+                                  })
+                                  setSelectedDueIndexForReceipt(index)
+                                  setShowReceiptModal(true)
+                                }}
+                                className="w-full h-11 font-semibold text-white shadow-md hover:shadow-lg transition-all"
+                                style={{ 
+                                  backgroundColor: '#16a34a',
+                                  borderRadius: '0.5rem'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#15803d'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#16a34a'
+                                }}
+                              >
+                                <Receipt className="h-4 w-4 mr-2" />
+                                Voir le reçu
+                              </Button>
+
+                              {/* Sous "Voir le reçu" : résumé de versement */}
+                              <Button
+                                variant="outline"
+                                className="w-full h-11 font-semibold border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                                onClick={() => {
+                                  console.log('[CreditContractDetail] Clic sur "Voir le résumé" - Échéance:', {
+                                    month: item.month,
+                                    index: index
+                                  })
+                                  const paymentForThisDue = getPaymentForScheduleIndex(index)
+                                  if (!paymentForThisDue) {
+                                    toast.error('Impossible de retrouver le versement pour cette échéance')
+                                    return
+                                  }
+                                  setSelectedPayment(paymentForThisDue)
+                                  setSelectedDueIndexForSummary(index)
+                                  setShowPaymentSummaryModal(true)
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Voir le résumé
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </CardContent>
@@ -1659,7 +1745,13 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                                     paymentDate: payment.paymentDate,
                                     relatedDueItem: relatedDueItem
                                   })
-                                  // Le modal résumé dépend uniquement de `selectedPayment`
+                                  // Trouver l'échéance correspondante au paiement
+                                  if (relatedDueItem) {
+                                    const dueIndex = actualSchedule.findIndex(item => item.month === relatedDueItem.month)
+                                    if (dueIndex !== -1) {
+                                      setSelectedDueIndexForSummary(dueIndex)
+                                    }
+                                  }
                                   setSelectedPayment(payment)
                                   setShowPaymentSummaryModal(true)
                                 }}
@@ -2261,9 +2353,14 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           onClose={() => {
             setShowPaymentSummaryModal(false)
             setSelectedPayment(null)
+            setSelectedDueIndexForSummary(null)
           }}
           contract={contract}
           payment={selectedPayment}
+          dueItem={selectedDueIndexForSummary !== null ? actualSchedule[selectedDueIndexForSummary] : undefined}
+          nextDueItem={selectedDueIndexForSummary !== null && selectedDueIndexForSummary + 1 < actualSchedule.length 
+            ? actualSchedule[selectedDueIndexForSummary + 1] 
+            : undefined}
         />
       )}
 

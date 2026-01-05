@@ -19,11 +19,26 @@ import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+interface DueItem {
+  month: number
+  date: Date
+  payment: number
+  interest: number
+  principal: number
+  remaining: number
+  status: 'PAID' | 'DUE' | 'FUTURE'
+  paidAmount?: number
+  paymentDate?: Date
+  installmentId?: string
+}
+
 interface PaymentSummaryModalProps {
   isOpen: boolean
   onClose: () => void
   contract: CreditContract
   payment: CreditPayment
+  dueItem?: DueItem // Échéance correspondante depuis actualSchedule
+  nextDueItem?: DueItem // Échéance suivante pour le 2ème nouveau capital
 }
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
@@ -34,7 +49,8 @@ const PAYMENT_MODE_LABELS: Record<string, string> = {
 }
 
 const formatAmount = (amount: number): string => {
-  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  // Utiliser toLocaleString pour être cohérent avec l'échéancier actuel
+  return Math.round(amount).toLocaleString('fr-FR')
 }
 
 export default function PaymentSummaryModal({
@@ -42,21 +58,26 @@ export default function PaymentSummaryModal({
   onClose,
   contract,
   payment,
+  dueItem,
+  nextDueItem,
 }: PaymentSummaryModalProps) {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
-  // Calculer le nouveau capital après paiement du principal
-  const newCapitalAfterPrincipal = contract.amount - (payment.principalAmount || 0)
+  // Utiliser les valeurs de l'échéancier actuel si disponibles, sinon fallback sur les calculs
+  // Intérêts : depuis l'échéance (déjà arrondi avec customRound)
+  const interest = dueItem?.interest ?? Math.round(payment.interestAmount || 0)
   
-  // Calculer le nouveau capital total (capital + intérêts) après paiement
-  // C'est le capital restant + les intérêts qui restent à payer
-  const newCapitalTotal = newCapitalAfterPrincipal + (payment.interestAmount || 0)
+  // Montant global : depuis l'échéance (déjà arrondi)
+  const globalAmount = dueItem?.principal ?? Math.round((payment.principalAmount || 0) + (payment.interestAmount || 0))
+  
+  // Nouveau capital (1er) : reste dû de l'échéance actuelle
+  const newCapitalAfterPrincipal = dueItem?.remaining ?? Math.round(contract.amount - (payment.principalAmount || 0))
+  
+  // Nouveau capital (2ème) : montant global de l'échéance suivante
+  const newCapitalTotal = nextDueItem?.principal ?? Math.round(newCapitalAfterPrincipal + (payment.interestAmount || 0))
   
   // Calculer le taux d'intérêt (en pourcentage)
   const interestRate = contract.interestRate ? contract.interestRate * 100 : 0
-  
-  // Calculer le montant global (capital + intérêts du paiement)
-  const globalAmount = (payment.principalAmount || 0) + (payment.interestAmount || 0)
   
   // Formater la date d'échéance (on utilise la date de paiement comme date d'échéance)
   const formatDate = (date: Date) => {
@@ -71,7 +92,7 @@ export default function PaymentSummaryModal({
   const summaryData = [
     { label: 'CAPITAL', value: `${formatAmount(contract.amount)} FCFA`, highlight: 'green' },
     { label: 'TAUX', value: `${interestRate} %`, highlight: 'blue' },
-    { label: 'INTERETS', value: `${formatAmount(payment.interestAmount || 0)} FCFA`, highlight: 'blue' },
+    { label: 'INTERETS', value: `${formatAmount(interest)} FCFA`, highlight: 'blue' },
     { label: 'MONTANT GLOBAL', value: `${formatAmount(globalAmount)} FCFA`, highlight: 'yellow' },
     { label: 'DATE ECHEANCE', value: formatDate(payment.paymentDate), highlight: 'blue' },
     { label: 'DATE REMISE', value: formatDate(payment.paymentDate), highlight: 'blue' },
