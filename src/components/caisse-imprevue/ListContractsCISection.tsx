@@ -444,7 +444,7 @@ export default function ListContractsCISection() {
       </Tabs>
 
       {/* Statistiques */}
-      <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' ? undefined : activeTab} />
+      <StatisticsCI paymentFrequency={activeTab === 'all' || activeTab === 'overdue' || activeTab === 'currentMonth' ? undefined : (activeTab === 'DAILY' || activeTab === 'MONTHLY' ? activeTab : undefined)} />
 
       {/* Filtres */}
       <FiltersCI
