@@ -19,7 +19,7 @@ export default function IntermediaryCodeIdentityForm() {
                 <InputApp
                   value={field.value}
                   onChange={field.onChange}
-                  placeholder="Ex: 0001.MK.160925"
+                  placeholder="Ex: 1228.MK.0058"
                   icon={Hash}
                 />
                 {field.value && (
