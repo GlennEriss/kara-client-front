@@ -282,8 +282,8 @@ export const identitySchema = z.object({
             .min(2, 'Le nom doit contenir au moins 2 caractères')
             .max(50, 'Le code entremetteur ne peut pas dépasser 50 caractères')
             .regex(
-                /^\d{4}\.MK\.\d{6}$/,
-                'Format requis: [Numéro].MK.[Date] (ex: 0001.MK.160925)'
+                /^\d+\.MK\.\d+$/,
+                'Format requis: [Numéro].MK.[Numéro] (ex: 1228.MK.0058)'
             )
     ),
 

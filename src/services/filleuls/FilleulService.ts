@@ -44,7 +44,7 @@ export class FilleulService implements IFilleulService {
 
   /**
    * Valide un code intermédiaire
-   * Format attendu: 0001.MK.160925 (4 chiffres, .MK., 6 chiffres)
+   * Format attendu: [Numéro].MK.[Numéro] (nombres séparés par .MK.)
    * 
    * @param {string} intermediaryCode - Le code à valider
    * @returns {boolean} - True si le code est valide
@@ -56,13 +56,13 @@ export class FilleulService implements IFilleulService {
 
     const trimmedCode = intermediaryCode.trim()
     
-    // Vérifier la longueur minimale
-    if (trimmedCode.length < 10) {
+    // Vérifier la longueur minimale (au moins 5 caractères pour "1.MK.1")
+    if (trimmedCode.length < 5) {
       return false
     }
 
-    // Vérifier le format avec regex
-    const formatRegex = /^\d{4}\.MK\.\d{6}$/
+    // Vérifier le format avec regex : nombres séparés par .MK.
+    const formatRegex = /^\d+\.MK\.\d+$/
     return formatRegex.test(trimmedCode)
   }
 
