@@ -586,8 +586,9 @@ const MembershipRequestCard = ({
           requestId: request.id,
           adminId: user?.uid,
           membershipType: membershipType,
-          companyName: companyName.trim() || undefined,
-          professionName: professionName.trim() || undefined,
+          // On envoie toujours des chaînes (même vides) pour éviter les erreurs .toLowerCase() côté API
+          companyName: (companyName || '').trim(),
+          professionName: (professionName || '').trim(),
           adhesionPdfURL,
         }),
       })
