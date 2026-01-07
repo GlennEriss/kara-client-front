@@ -46,6 +46,7 @@ import {
   createTestMembershipRequestWithFilters 
 } from '@/utils/test-data'
 import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Couleurs pour les graphiques
 const COLORS = {
@@ -1333,6 +1334,10 @@ export default function MembershipRequestsList() {
     limit: 10
   })
 
+  const [activeTab, setActiveTab] = useState<
+    'all' | 'pending' | 'approved' | 'rejected' | 'under_review' | 'paid' | 'unpaid'
+  >('all')
+
   const {
     data: membershipData,
     isLoading,
@@ -1365,6 +1370,20 @@ export default function MembershipRequestsList() {
 
   const handleSearch = (searchQuery: string) => {
     handleFilterChange('searchQuery', searchQuery)
+  }
+
+  const handleTabChange = (
+    tab: 'all' | 'pending' | 'approved' | 'rejected' | 'under_review' | 'paid' | 'unpaid'
+  ) => {
+    setActiveTab(tab)
+
+    // Les onglets basés sur le statut pilotent directement le filtre status
+    if (tab === 'pending' || tab === 'approved' || tab === 'rejected' || tab === 'under_review') {
+      handleFilterChange('status', tab)
+    } else {
+      // Pour les onglets payées / non payées (ou toutes), on récupère tous les statuts
+      handleFilterChange('status', 'all')
+    }
   }
 
   // Fonctions de test (en développement uniquement)
@@ -1435,7 +1454,7 @@ export default function MembershipRequestsList() {
     }
   }
 
-  // Calcul des statistiques
+  // Calcul des statistiques globales (indépendantes des onglets)
   const stats = React.useMemo(() => {
     if (!membershipData) return null
     
@@ -1457,6 +1476,21 @@ export default function MembershipRequestsList() {
       underReviewPercentage: total > 0 ? (underReview / total) * 100 : 0,
     }
   }, [membershipData])
+
+  // Données affichées selon l'onglet actif (notamment pour payé / non payé)
+  const displayedRequests = React.useMemo(() => {
+    if (!membershipData) return []
+
+    let data = membershipData.data
+
+    if (activeTab === 'paid') {
+      data = data.filter((r) => r.isPaid)
+    } else if (activeTab === 'unpaid') {
+      data = data.filter((r) => !r.isPaid)
+    }
+
+    return data
+  }, [membershipData, activeTab])
 
   if (isError) {
     return (
@@ -1485,6 +1519,33 @@ export default function MembershipRequestsList() {
           Gérez efficacement les demandes d'adhésion de votre organisation
         </p>
       </div>
+
+      {/* Onglets de filtrage rapide */}
+      <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as any)}>
+        <TabsList className="bg-white shadow-sm border border-gray-200/80 rounded-full px-1 py-1 flex flex-wrap gap-1">
+          <TabsTrigger value="all" className="px-4 py-2 rounded-full">
+            Toutes
+          </TabsTrigger>
+          <TabsTrigger value="pending" className="px-4 py-2 rounded-full">
+            En attente
+          </TabsTrigger>
+          <TabsTrigger value="under_review" className="px-4 py-2 rounded-full">
+            En cours d'examen
+          </TabsTrigger>
+          <TabsTrigger value="approved" className="px-4 py-2 rounded-full">
+            Approuvées
+          </TabsTrigger>
+          <TabsTrigger value="rejected" className="px-4 py-2 rounded-full">
+            Refusées
+          </TabsTrigger>
+          <TabsTrigger value="paid" className="px-4 py-2 rounded-full">
+            Payées
+          </TabsTrigger>
+          <TabsTrigger value="unpaid" className="px-4 py-2 rounded-full">
+            Non payées
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Statistiques avec nouveau carousel */}
       {stats && <StatsCarousel stats={stats} />}
@@ -1611,7 +1672,7 @@ export default function MembershipRequestsList() {
           Array.from({ length: 5 }).map((_, index) => (
             <MembershipRequestSkeleton key={index} />
           ))
-        ) : membershipData?.data.length === 0 ? (
+        ) : displayedRequests.length === 0 ? (
           <Card className="shadow-xl border-0 bg-gradient-to-br from-white to-gray-50">
             <CardContent className="p-16 text-center">
               <div className="text-gray-500">
@@ -1622,7 +1683,7 @@ export default function MembershipRequestsList() {
             </CardContent>
           </Card>
         ) : (
-          membershipData?.data.map((request: MembershipRequest) => (
+          displayedRequests.map((request: MembershipRequest) => (
             <MembershipRequestCard
               key={request.id}
               request={request}
