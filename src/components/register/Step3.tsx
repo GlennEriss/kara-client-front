@@ -29,6 +29,19 @@ import {
 import { cn } from '@/lib/utils'
 import { findProfessionByName } from '@/db/profession.db'
 import { CompanyNameForm } from '@/components/company-form'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/hooks/useGeographie'
+import { useQueries } from '@tanstack/react-query'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import type { Commune } from '@/types/types'
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useMemo } from 'react'
 
 interface Step3Props {
   form: any // Type du form de react-hook-form
@@ -90,7 +103,10 @@ export default function Step3({ form }: Step3Props) {
   const [professionSuggestions, setProfessionSuggestions] = useState<Suggestion[]>([])
   const [isLoadingProfessionSuggestions, setIsLoadingProfessionSuggestions] = useState(false)
 
-  // États pour la géolocalisation de l'entreprise
+  // État pour l'onglet actif (BD par défaut)
+  const [addressTab, setAddressTab] = useState<'database' | 'photon'>('database')
+
+  // États pour la géolocalisation de l'entreprise (Photon)
   const [companyDistrictQuery, setCompanyDistrictQuery] = useState('')
   const [companySearchResults, setCompanySearchResults] = useState<PhotonResult[]>([])
   const [isSearchingCompany, setIsSearchingCompany] = useState(false)
@@ -106,6 +122,161 @@ export default function Step3({ form }: Step3Props) {
   const [detectedCompanyCityName, setDetectedCompanyCityName] = useState('')
 
   const { register, watch, setValue, formState: { errors }, clearErrors } = form
+
+  // États pour l'adresse basée sur la BD
+  const selectedCompanyProvinceId = watch('company.companyAddress.provinceId') || ''
+  const selectedCompanyCommuneId = watch('company.companyAddress.communeId') || ''
+  const selectedCompanyDistrictId = watch('company.companyAddress.districtId') || ''
+  const selectedCompanyQuarterId = watch('company.companyAddress.quarterId') || ''
+
+  // Charger les provinces pour l'adresse entreprise
+  const { data: companyProvinces = [], isLoading: isLoadingCompanyProvinces } = useProvinces()
+
+  // Charger les départements de la province sélectionnée
+  const { data: companyDepartments = [], isLoading: isLoadingCompanyDepartments } = useDepartments(
+    selectedCompanyProvinceId || undefined
+  )
+
+  // Charger toutes les communes de tous les départements de la province sélectionnée
+  const companyCommuneQueries = useQueries({
+    queries: companyDepartments.length > 0 
+      ? companyDepartments.map(dept => ({
+          queryKey: ['communes', dept.id, 'company'],
+          queryFn: async () => {
+            const service = ServiceFactory.getGeographieService()
+            return service.getCommunesByDepartmentId(dept.id)
+          },
+          enabled: !!selectedCompanyProvinceId && companyDepartments.length > 0,
+          staleTime: 5 * 60 * 1000,
+        }))
+      : []
+  })
+
+  const allCompanyCommunes = useMemo(() => {
+    const communes: Commune[] = []
+    companyCommuneQueries.forEach(query => {
+      if (query.data) {
+        communes.push(...query.data)
+      }
+    })
+    const uniqueCommunes = communes.filter((commune, index, self) =>
+      index === self.findIndex(c => c.id === commune.id)
+    )
+    return uniqueCommunes.sort((a, b) => a.name.localeCompare(b.name))
+  }, [companyCommuneQueries])
+
+  const isLoadingCompanyCommunes = companyCommuneQueries.some(query => query.isLoading)
+
+  // Charger les arrondissements (districts) de la commune sélectionnée
+  const { data: companyDistricts = [], isLoading: isLoadingCompanyDistricts } = useDistricts(
+    selectedCompanyCommuneId || undefined
+  )
+
+  // Charger les quartiers (quarters) de l'arrondissement sélectionné
+  const { data: companyQuarters = [], isLoading: isLoadingCompanyQuarters } = useQuarters(
+    selectedCompanyDistrictId || undefined
+  )
+
+  // Trouver les objets complets à partir des IDs pour remplir les champs texte
+  const selectedCompanyProvince = companyProvinces.find(p => p.id === selectedCompanyProvinceId)
+  const selectedCompanyCommune = allCompanyCommunes.find(c => c.id === selectedCompanyCommuneId)
+  const selectedCompanyDistrict = companyDistricts.find(d => d.id === selectedCompanyDistrictId)
+  const selectedCompanyQuarter = companyQuarters.find(q => q.id === selectedCompanyQuarterId)
+
+  // Mettre à jour les champs texte quand les sélections changent (BD)
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedCompanyProvince) {
+        setValue('company.companyAddress.province', selectedCompanyProvince.name, { shouldValidate: true })
+      } else if (!selectedCompanyProvinceId) {
+        setValue('company.companyAddress.province', '', { shouldValidate: true })
+      }
+    }
+  }, [selectedCompanyProvince, selectedCompanyProvinceId, setValue, addressTab])
+
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedCompanyCommune) {
+        setValue('company.companyAddress.city', selectedCompanyCommune.name, { shouldValidate: true })
+      } else if (!selectedCompanyCommuneId) {
+        setValue('company.companyAddress.city', '', { shouldValidate: true })
+        setValue('company.companyAddress.district', '', { shouldValidate: true })
+      }
+    }
+  }, [selectedCompanyCommune, selectedCompanyCommuneId, setValue, addressTab])
+
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedCompanyDistrict) {
+        // Ne pas écraser le district si un quartier est sélectionné
+        if (!selectedCompanyQuarterId) {
+          setValue('company.companyAddress.district', selectedCompanyDistrict.name, { shouldValidate: true })
+        }
+      } else if (!selectedCompanyDistrictId) {
+        if (!selectedCompanyQuarterId) {
+          setValue('company.companyAddress.district', '', { shouldValidate: true })
+        }
+      }
+    }
+  }, [selectedCompanyDistrict, selectedCompanyDistrictId, setValue, addressTab, selectedCompanyQuarterId])
+
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedCompanyQuarter) {
+        setValue('company.companyAddress.district', selectedCompanyQuarter.name, { shouldValidate: true })
+      } else if (!selectedCompanyQuarterId) {
+        // Ne pas réinitialiser si un district est sélectionné
+        if (!selectedCompanyDistrictId) {
+          setValue('company.companyAddress.district', '', { shouldValidate: true })
+        }
+      }
+    }
+  }, [selectedCompanyQuarter, selectedCompanyQuarterId, setValue, addressTab, selectedCompanyDistrictId])
+
+  // Réinitialiser les sélections en cascade quand un niveau supérieur change (BD)
+  const handleCompanyProvinceChange = (provinceId: string) => {
+    setValue('company.companyAddress.provinceId', provinceId, { shouldValidate: true })
+    setValue('company.companyAddress.communeId', '', { shouldValidate: true })
+    setValue('company.companyAddress.districtId', '', { shouldValidate: true })
+    setValue('company.companyAddress.quarterId', '', { shouldValidate: true })
+  }
+
+  const handleCompanyCommuneChange = (communeId: string) => {
+    setValue('company.companyAddress.communeId', communeId, { shouldValidate: true })
+    setValue('company.companyAddress.districtId', '', { shouldValidate: true })
+    setValue('company.companyAddress.quarterId', '', { shouldValidate: true })
+  }
+
+  const handleCompanyDistrictChange = (districtId: string) => {
+    setValue('company.companyAddress.districtId', districtId, { shouldValidate: true })
+    setValue('company.companyAddress.quarterId', '', { shouldValidate: true })
+  }
+
+  const handleCompanyQuarterChange = (quarterId: string) => {
+    setValue('company.companyAddress.quarterId', quarterId, { shouldValidate: true })
+  }
+
+  // Nettoyer les données Photon quand on passe à l'onglet BD
+  useEffect(() => {
+    if (addressTab === 'database') {
+      setCompanyDistrictQuery('')
+      setCompanySearchResults([])
+      setSelectedCompanyLocation(null)
+      setNeedsCompanyCityCorrection(false)
+      setCompanyCityQuery('')
+      setCompanyCitySearchResults([])
+    }
+  }, [addressTab])
+
+  // Nettoyer les données BD quand on passe à l'onglet Photon
+  useEffect(() => {
+    if (addressTab === 'photon') {
+      setValue('company.companyAddress.provinceId', '', { shouldValidate: true })
+      setValue('company.companyAddress.communeId', '', { shouldValidate: true })
+      setValue('company.companyAddress.districtId', '', { shouldValidate: true })
+      setValue('company.companyAddress.quarterId', '', { shouldValidate: true })
+    }
+  }, [addressTab, setValue])
 
   // Watch pour la logique conditionnelle et animations
   const isEmployed = watch('company.isEmployed')
@@ -454,7 +625,7 @@ export default function Step3({ form }: Step3Props) {
           <div className="space-y-6 sm:space-y-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
             {/* Nom de l'entreprise */}
             <CompanyNameForm form={form} />
-            {/* Adresse de l'entreprise */}
+            {/* Adresse de l'entreprise avec tabs */}
             <div className="space-y-4 w-full min-w-0">
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-[#224D62]" />
@@ -463,7 +634,194 @@ export default function Step3({ form }: Step3Props) {
                 </Label>
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 w-full">
+              <Tabs value={addressTab} onValueChange={(value) => setAddressTab(value as 'database' | 'photon')} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="database" className="text-xs sm:text-sm">
+                    Base de données
+                  </TabsTrigger>
+                  <TabsTrigger value="photon" className="text-xs sm:text-sm">
+                    Recherche Photon
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Onglet Base de données */}
+                <TabsContent value="database" className="space-y-4 mt-4">
+                  <div className="space-y-4 sm:space-y-6 w-full">
+                    {/* Province */}
+                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full">
+                      <Label htmlFor="companyProvince" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                        Province <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={selectedCompanyProvinceId}
+                        onValueChange={handleCompanyProvinceChange}
+                        disabled={isLoadingCompanyProvinces}
+                      >
+                        <SelectTrigger
+                          id="companyProvince"
+                          className={cn(
+                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                            errors.company?.companyAddress?.province && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          )}
+                        >
+                          <SelectValue placeholder="Sélectionnez une province..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingCompanyProvinces ? (
+                            <div className="flex items-center justify-center p-4">
+                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                            </div>
+                          ) : (
+                            companyProvinces.map((province) => (
+                              <SelectItem key={province.id} value={province.id}>
+                                {province.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {errors.company?.companyAddress?.province && (
+                        <p className="text-xs text-red-500">{errors.company.companyAddress.province.message as string}</p>
+                      )}
+                    </div>
+
+                    {/* Ville (Commune) */}
+                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-300 w-full">
+                      <Label htmlFor="companyCity" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                        Ville <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={selectedCompanyCommuneId}
+                        onValueChange={handleCompanyCommuneChange}
+                        disabled={!selectedCompanyProvinceId || isLoadingCompanyCommunes || isLoadingCompanyDepartments}
+                      >
+                        <SelectTrigger
+                          id="companyCity"
+                          className={cn(
+                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                            errors.company?.companyAddress?.city && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          )}
+                        >
+                          <SelectValue placeholder={
+                            !selectedCompanyProvinceId 
+                              ? "Sélectionnez d'abord une province..." 
+                              : isLoadingCompanyCommunes || isLoadingCompanyDepartments
+                              ? "Chargement..."
+                              : "Sélectionnez une ville..."
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingCompanyCommunes || isLoadingCompanyDepartments ? (
+                            <div className="flex items-center justify-center p-4">
+                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                            </div>
+                          ) : (
+                            allCompanyCommunes.map((commune) => (
+                              <SelectItem key={commune.id} value={commune.id}>
+                                {commune.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {errors.company?.companyAddress?.city && (
+                        <p className="text-xs text-red-500">{errors.company.companyAddress.city.message as string}</p>
+                      )}
+                    </div>
+
+                    {/* Arrondissement (District) */}
+                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full">
+                      <Label htmlFor="companyArrondissement" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                        Arrondissement <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={selectedCompanyDistrictId}
+                        onValueChange={handleCompanyDistrictChange}
+                        disabled={!selectedCompanyCommuneId || isLoadingCompanyDistricts}
+                      >
+                        <SelectTrigger
+                          id="companyArrondissement"
+                          className={cn(
+                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                            errors.company?.companyAddress?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          )}
+                        >
+                          <SelectValue placeholder={
+                            !selectedCompanyCommuneId 
+                              ? "Sélectionnez d'abord une ville..." 
+                              : isLoadingCompanyDistricts
+                              ? "Chargement..."
+                              : "Sélectionnez un arrondissement..."
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingCompanyDistricts ? (
+                            <div className="flex items-center justify-center p-4">
+                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                            </div>
+                          ) : (
+                            companyDistricts.map((district) => (
+                              <SelectItem key={district.id} value={district.id}>
+                                {district.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {errors.company?.companyAddress?.district && (
+                        <p className="text-xs text-red-500">{errors.company.companyAddress.district.message as string}</p>
+                      )}
+                    </div>
+
+                    {/* Quartier (Quarter) */}
+                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full">
+                      <Label htmlFor="companyQuarter" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                        Quartier <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={selectedCompanyQuarterId}
+                        onValueChange={handleCompanyQuarterChange}
+                        disabled={!selectedCompanyDistrictId || isLoadingCompanyQuarters}
+                      >
+                        <SelectTrigger
+                          id="companyQuarter"
+                          className={cn(
+                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                            errors.company?.companyAddress?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                          )}
+                        >
+                          <SelectValue placeholder={
+                            !selectedCompanyDistrictId 
+                              ? "Sélectionnez d'abord un arrondissement..." 
+                              : isLoadingCompanyQuarters
+                              ? "Chargement..."
+                              : "Sélectionnez un quartier..."
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingCompanyQuarters ? (
+                            <div className="flex items-center justify-center p-4">
+                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                            </div>
+                          ) : (
+                            companyQuarters.map((quarter) => (
+                              <SelectItem key={quarter.id} value={quarter.id}>
+                                {quarter.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {errors.company?.companyAddress?.district && (
+                        <p className="text-xs text-red-500">{errors.company.companyAddress.district.message as string}</p>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Onglet Photon Komoot */}
+                <TabsContent value="photon" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 w-full">
                 {/* Colonne de gauche - Recherche de quartier */}
                 <div className="space-y-4 sm:space-y-6 w-full min-w-0">
                   {/* Recherche de quartier */}
@@ -746,7 +1104,9 @@ export default function Step3({ form }: Step3Props) {
                     </div>
                   </div>
                 </div>
-              </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
             {/* Profession et Ancienneté */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 w-full">

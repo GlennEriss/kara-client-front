@@ -66,19 +66,39 @@ function Register() {
     setSecurityCodeInput
   } = useRegister()
 
+  // Ref pour le conteneur principal
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  // Scroll automatique vers le haut à chaque changement d'étape
+  React.useEffect(() => {
+    // Utiliser requestAnimationFrame pour s'assurer que le DOM est mis à jour
+    const scrollToTop = () => {
+      // Essayer de scroller vers le conteneur principal d'abord
+      if (containerRef.current) {
+        containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+      // Aussi scroller la fenêtre pour être sûr
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    
+    // Double vérification : une fois immédiatement et une fois après un court délai
+    requestAnimationFrame(() => {
+      scrollToTop()
+      // Aussi après un petit délai pour les cas où le rendu prend plus de temps
+      setTimeout(scrollToTop, 150)
+    })
+  }, [currentStep])
+
   // Gestionnaire pour passer à l'étape suivante
   const handleNext = async () => {
     const success = await nextStep()
-    if (success) {
-      // Optionnel : scroll vers le haut
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+    // Le scroll sera géré par le useEffect ci-dessus
   }
 
   // Gestionnaire pour l'étape précédente
   const handlePrev = () => {
     prevStep()
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Le scroll sera géré par le useEffect ci-dessus
   }
 
   // Gestionnaire pour la soumission finale
@@ -309,7 +329,7 @@ function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 py-4 sm:py-8 w-full max-w-full overflow-x-hidden relative">
+    <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 py-4 sm:py-8 w-full max-w-full overflow-x-hidden relative">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#224D62]/10 to-transparent rounded-full opacity-30 transform translate-x-48 -translate-y-48"></div>

@@ -92,7 +92,6 @@ export const identitySchema = z.object({
     ),
 
     contacts: z.array(z.string().optional())
-        .max(2, 'Maximum 2 numéros de téléphone')
         .superRefine((contacts: Array<string | undefined>, ctx) => {
             let numValid = 0
             const seen = new Set<string>()

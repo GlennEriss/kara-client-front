@@ -23,7 +23,12 @@ export const companySchema = z.object({
     district: z.preprocess(
       (val) => (typeof val === 'string' ? val.trim() : val),
       z.string().optional()
-    )
+    ),
+    // IDs pour la sélection depuis la base de données (optionnels)
+    provinceId: z.string().optional(),
+    communeId: z.string().optional(),
+    districtId: z.string().optional(),
+    quarterId: z.string().optional()
   }).optional(),
   
   profession: z.preprocess(
@@ -184,7 +189,11 @@ export const companyDefaultValues: CompanyFormData = {
   companyAddress: {
     province: '',
     city: '',
-    district: ''
+    district: '',
+    provinceId: '',
+    communeId: '',
+    districtId: '',
+    quarterId: ''
   },
   profession: '',
   seniority: ''
