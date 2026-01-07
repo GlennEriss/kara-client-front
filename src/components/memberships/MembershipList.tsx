@@ -765,7 +765,7 @@ const MembershipList = () => {
       {isLoading ? (
         <div className={
           viewMode === 'grid' 
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6'
+            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
             : 'space-y-6'
         }>
           {[...Array(itemsPerPage)].map((_, i) => (
@@ -776,7 +776,7 @@ const MembershipList = () => {
         <>
           <div className={
             viewMode === 'grid' 
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 items-stretch'
+              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
               : 'space-y-6'
           }>
             {membersWithSubscriptions.map((member, index) => (

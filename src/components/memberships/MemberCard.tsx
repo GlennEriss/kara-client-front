@@ -186,13 +186,20 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
             </DropdownMenu>
           </div>
 
-          {/* Deuxième ligne : Nom complet sur toute la largeur */}
+          {/* Deuxième ligne : Nom et prénom sur deux lignes séparées */}
           <div className="space-y-2">
-            <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
-              <span className="block truncate" title={`${member.firstName} ${member.lastName}`}>
-                {member.firstName} {member.lastName}
-              </span>
-            </h3>
+            <div className="space-y-0.5">
+              <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
+                <span className="block truncate" title={member.firstName || ''}>
+                  {member.firstName || ''}
+                </span>
+              </h3>
+              <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
+                <span className="block truncate" title={member.lastName || ''}>
+                  {member.lastName || ''}
+                </span>
+              </h3>
+            </div>
 
             {/* Matricule */}
             <p className="text-xs sm:text-sm text-gray-600 truncate">
