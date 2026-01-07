@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -9,6 +9,8 @@ const creditPaymentDue_1 = require("./scheduled/creditPaymentDue");
 const ciPaymentDue_1 = require("./scheduled/ciPaymentDue");
 const vehicleInsuranceExpiring_1 = require("./scheduled/vehicleInsuranceExpiring");
 const transformCreditSpeciale_1 = require("./scheduled/transformCreditSpeciale");
+const caisseSpecialeDemandReminders_1 = require("./scheduled/caisseSpecialeDemandReminders");
+const caisseImprevueDemandReminders_1 = require("./scheduled/caisseImprevueDemandReminders");
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
 exports.dailyBirthdayNotifications = (0, scheduler_1.onSchedule)({
@@ -85,6 +87,50 @@ exports.dailyTransformCreditSpeciale = (0, scheduler_1.onSchedule)({
 }, async (event) => {
     console.log('Démarrage du job quotidien pour la transformation des crédits spéciaux en crédit fixe');
     await (0, transformCreditSpeciale_1.transformCreditSpecialeToFixe)();
+    console.log('Job terminé avec succès');
+});
+// Job quotidien à 9h00 pour rappeler les demandes en attente (Caisse Spéciale)
+exports.dailyCaisseSpecialePendingReminders = (0, scheduler_1.onSchedule)({
+    schedule: '0 9 * * *', // 9h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+}, async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes en attente (Caisse Spéciale)');
+    await (0, caisseSpecialeDemandReminders_1.remindPendingCaisseSpecialeDemands)();
+    console.log('Job terminé avec succès');
+});
+// Job quotidien à 10h00 pour rappeler les demandes acceptées non converties (Caisse Spéciale)
+exports.dailyCaisseSpecialeApprovedNotConvertedReminders = (0, scheduler_1.onSchedule)({
+    schedule: '0 10 * * *', // 10h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+}, async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes acceptées non converties (Caisse Spéciale)');
+    await (0, caisseSpecialeDemandReminders_1.remindApprovedNotConvertedCaisseSpecialeDemands)();
+    console.log('Job terminé avec succès');
+});
+// Job quotidien à 11h00 pour rappeler les demandes en attente (Caisse Imprévue)
+exports.dailyCaisseImprevuePendingReminders = (0, scheduler_1.onSchedule)({
+    schedule: '0 11 * * *', // 11h00 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+}, async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes en attente (Caisse Imprévue)');
+    await (0, caisseImprevueDemandReminders_1.remindPendingCaisseImprevueDemands)();
+    console.log('Job terminé avec succès');
+});
+// Job quotidien à 11h30 pour rappeler les demandes acceptées non converties (Caisse Imprévue)
+exports.dailyCaisseImprevueApprovedNotConvertedReminders = (0, scheduler_1.onSchedule)({
+    schedule: '30 11 * * *', // 11h30 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540, // 9 minutes max
+}, async (event) => {
+    console.log('Démarrage du job quotidien pour les rappels de demandes acceptées non converties (Caisse Imprévue)');
+    await (0, caisseImprevueDemandReminders_1.remindApprovedNotConvertedCaisseImprevueDemands)();
     console.log('Job terminé avec succès');
 });
 //# sourceMappingURL=index.js.map
