@@ -168,10 +168,10 @@ export class IdentityFormMediator {
     }
 
     /**
-     * Vérifie si on peut ajouter un autre contact (max 3)
+     * Vérifie si on peut ajouter un autre contact (pas de limite)
      */
     canAddContact(): boolean {
-        return this.getContactsCount() < 3
+        return true // Pas de limite sur le nombre de contacts
     }
 
     /**

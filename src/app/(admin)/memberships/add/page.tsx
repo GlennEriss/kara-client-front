@@ -17,13 +17,7 @@ export default function AddMemberPage() {
 
 function AddMemberContent() {
   const router = useRouter()
-  const { isSubmitted, correctionRequest, resetForm } = useRegister()
-
-  useEffect(() => {
-    // Forcer un formulaire neuf à l'étape 1 dans le contexte d'ajout admin
-    resetForm()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const { isSubmitted, correctionRequest } = useRegister()
 
   useEffect(() => {
     if (isSubmitted && !correctionRequest) {
