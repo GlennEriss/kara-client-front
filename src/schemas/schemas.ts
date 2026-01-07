@@ -36,9 +36,7 @@ export const documentsSchema = z.object({
   identityDocumentNumber: z.preprocess(
     (val) => (typeof val === 'string' ? val.trim() : val),
     z.string()
-      .min(3, 'Le numéro de la pièce d\'identité doit contenir au moins 3 caractères')
-      .max(50, 'Le numéro de la pièce d\'identité ne peut pas dépasser 50 caractères')
-      .regex(/^[a-zA-Z0-9\s\-\/]+$/, 'Le numéro ne peut contenir que des lettres, chiffres, espaces, tirets et slashs'),
+      .min(1, 'Le numéro de la pièce d\'identité est requis'),
   ),
   // Photo de la pièce d'identité recto
   documentPhotoFront: z.union([
