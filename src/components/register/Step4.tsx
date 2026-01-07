@@ -163,7 +163,7 @@ export default function Step4({ form }: Step4Props) {
       }
 
       // Nettoyer les erreurs de numéro de document
-      if (value.documents?.identityDocumentNumber && value.documents.identityDocumentNumber.length >= 2 && errors.documents?.identityDocumentNumber) {
+      if (value.documents?.identityDocumentNumber && value.documents.identityDocumentNumber.length >= 1 && errors.documents?.identityDocumentNumber) {
         clearErrors('documents.identityDocumentNumber')
       }
 
