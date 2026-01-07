@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, usePayMembershipRequest, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
-import type { MembershipRequest, MembershipRequestStatus, TypePayment } from '@/types/types'
+import type { MembershipRequest, MembershipRequestStatus, TypePayment, PaymentMode } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
 import { getNationalityName } from '@/constantes/nationality'
@@ -409,7 +409,7 @@ const MembershipRequestCard = ({
   const [approvalPdfFile, setApprovalPdfFile] = React.useState<File | null>(null)
   const [paymentOpen, setPaymentOpen] = React.useState(false)
   const [paymentDate, setPaymentDate] = React.useState<string>('')
-  const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
+  const [paymentMode, setPaymentMode] = React.useState<PaymentMode | ''>('')
   const [paymentAmount, setPaymentAmount] = React.useState<string>('')
   const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
   const [paymentTime, setPaymentTime] = React.useState<string>('')
@@ -1027,7 +1027,17 @@ const MembershipRequestCard = ({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Mode de paiement</label>
-              <Select value={paymentMode || undefined} onValueChange={(val) => setPaymentMode(val as any)} disabled={isPaying}>
+              <Select 
+                value={paymentMode || undefined} 
+                onValueChange={(val) => {
+                  setPaymentMode(val as any)
+                  // Si le mode est "cash" (Espèce), mettre automatiquement "Sans frais"
+                  if (val === 'cash') {
+                    setWithFees('no')
+                  }
+                }} 
+                disabled={isPaying}
+              >
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choisir un mode" />
                 </SelectTrigger>
@@ -1040,7 +1050,11 @@ const MembershipRequestCard = ({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Frais</label>
-              <Select value={withFees || undefined} onValueChange={(val) => setWithFees(val as any)} disabled={isPaying}>
+              <Select 
+                value={withFees || undefined} 
+                onValueChange={(val) => setWithFees(val as any)} 
+                disabled={isPaying || paymentMode === 'cash'}
+              >
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Avec ou sans frais?" />
                 </SelectTrigger>
@@ -1049,6 +1063,9 @@ const MembershipRequestCard = ({
                   <SelectItem value="no">Sans frais</SelectItem>
                 </SelectContent>
               </Select>
+              {paymentMode === 'cash' && (
+                <p className="text-xs text-gray-500">Le paiement en espèce n'a pas de frais</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Montant</label>
