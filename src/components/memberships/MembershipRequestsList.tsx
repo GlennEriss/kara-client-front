@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useMembershipRequests, useUpdateMembershipRequestStatus, useRenewSecurityCode, usePayMembershipRequest, type MembershipRequestFilters } from '@/hooks/useMembershipRequests'
-import type { MembershipRequest, MembershipRequestStatus, TypePayment } from '@/types/types'
+import type { MembershipRequest, MembershipRequestStatus, TypePayment, PaymentMode } from '@/types/types'
 import { MEMBERSHIP_STATUS_LABELS } from '@/types/types'
 import { toast } from 'sonner'
 import { getNationalityName } from '@/constantes/nationality'
@@ -409,7 +409,7 @@ const MembershipRequestCard = ({
   const [approvalPdfFile, setApprovalPdfFile] = React.useState<File | null>(null)
   const [paymentOpen, setPaymentOpen] = React.useState(false)
   const [paymentDate, setPaymentDate] = React.useState<string>('')
-  const [paymentMode, setPaymentMode] = React.useState<'airtel_money' | 'mobicash' | ''>('')
+  const [paymentMode, setPaymentMode] = React.useState<PaymentMode | ''>('')
   const [paymentAmount, setPaymentAmount] = React.useState<string>('')
   const [paymentType, setPaymentType] = React.useState<TypePayment>('Membership')
   const [paymentTime, setPaymentTime] = React.useState<string>('')
