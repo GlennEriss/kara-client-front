@@ -46,10 +46,14 @@ export async function POST(req: NextRequest) {
         console.log('Matricule utilisé depuis la demande:', matricule);
 
         // Générer l'email automatiquement : nomprenom4premierschiffresMatricule@kara.ga
-        const firstName = membershipRequest.identity.firstName.toLowerCase().replace(/[^a-z]/g, '');
-        const lastName = membershipRequest.identity.lastName.toLowerCase().replace(/[^a-z]/g, '');
+        // Sécuriser au cas où firstName / lastName seraient manquants
+        const rawFirstName = (membershipRequest.identity.firstName || '').toString();
+        const rawLastName = (membershipRequest.identity.lastName || '').toString();
+        const firstName = rawFirstName.toLowerCase().replace(/[^a-z]/g, '');
+        const lastName = rawLastName.toLowerCase().replace(/[^a-z]/g, '');
         const matriculeDigits = matricule.replace(/\D/g, '').slice(0, 4); // Prendre les 4 premiers chiffres
-        const generatedEmail = `${firstName}${lastName}${matriculeDigits}@kara.ga`;
+        const namePart = (firstName + lastName) || 'member';
+        const generatedEmail = `${namePart}${matriculeDigits}@kara.ga`;
         
         console.log('Email généré automatiquement:', generatedEmail);
 
