@@ -413,13 +413,21 @@ export async function getMembershipRequestsPaginated(options: {
         let filteredRequests = requests;
         if (searchQuery && searchQuery.trim()) {
             const searchTerm = searchQuery.toLowerCase().trim();
-            filteredRequests = requests.filter(request => 
-                request.identity.firstName.toLowerCase().includes(searchTerm) ||
-                request.identity.lastName.toLowerCase().includes(searchTerm) ||
-                request.identity.email?.toLowerCase().includes(searchTerm) ||
-                request.identity.nationality.toLowerCase().includes(searchTerm) ||
-                request.identity.contacts.some(contact => contact.includes(searchTerm))
-            );
+            filteredRequests = requests.filter(request => {
+                const firstName = request.identity.firstName?.toLowerCase() || '';
+                const lastName = request.identity.lastName?.toLowerCase() || '';
+                const email = request.identity.email?.toLowerCase() || '';
+                const nationality = request.identity.nationality?.toLowerCase() || '';
+                const contacts = request.identity.contacts || [];
+
+                return (
+                    firstName.includes(searchTerm) ||
+                    lastName.includes(searchTerm) ||
+                    email.includes(searchTerm) ||
+                    nationality.includes(searchTerm) ||
+                    contacts.some(contact => contact?.toLowerCase?.().includes(searchTerm))
+                );
+            });
         }
 
         return {

@@ -619,7 +619,12 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `Fiche_Adhesion_${request.identity.lastName}_${request.identity.firstName}_${new Date().toISOString().split('T')[0]}.pdf`
+      // Nouveau format: Adhesion_MK_prenom nom_YYYY-MM-DD
+      const firstName = (request.identity.firstName || '').trim()
+      const lastName = (request.identity.lastName || '').trim()
+      const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Membre'
+      const today = new Date().toISOString().split('T')[0]
+      link.download = `Adhesion_MK_${fullName}_${today}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
