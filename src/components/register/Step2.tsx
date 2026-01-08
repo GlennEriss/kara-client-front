@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useEffect } from 'react'
+import React, { useMemo, useEffect, useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -15,12 +15,20 @@ import {
 import { 
   MapPin,
   Loader2,
+  Plus,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useIsAdminContext } from '@/hooks/useIsAdminContext'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import AddProvinceModal from '@/components/geographie/modals/AddProvinceModal'
+import AddCommuneModal from '@/components/geographie/modals/AddCommuneModal'
+import AddDistrictModal from '@/components/geographie/modals/AddDistrictModal'
+import AddQuarterModal from '@/components/geographie/modals/AddQuarterModal'
+import type { Province, Commune, District, Quarter, RegisterFormData } from '@/types/types'
 import { cn } from '@/lib/utils'
 import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/hooks/useGeographie'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-import type { RegisterFormData } from '@/types/types'
-import type { Commune } from '@/types/types'
 
 interface Step2Props {
   form: any // Type du form de react-hook-form
@@ -28,6 +36,14 @@ interface Step2Props {
 
 export default function Step2({ form }: Step2Props) {
   const { register, watch, setValue, formState: { errors } } = form
+  const isAdminContext = useIsAdminContext()
+  const queryClient = useQueryClient()
+  
+  // États pour les modals
+  const [showAddProvinceModal, setShowAddProvinceModal] = useState(false)
+  const [showAddCommuneModal, setShowAddCommuneModal] = useState(false)
+  const [showAddDistrictModal, setShowAddDistrictModal] = useState(false)
+  const [showAddQuarterModal, setShowAddQuarterModal] = useState(false)
 
   // Surveiller les valeurs sélectionnées pour le chargement en cascade
   const selectedProvinceId = watch('address.provinceId') || ''
@@ -37,6 +53,13 @@ export default function Step2({ form }: Step2Props) {
 
   // Charger les provinces
   const { data: provinces = [], isLoading: isLoadingProvinces } = useProvinces()
+
+  // Trier les provinces par ordre alphabétique
+  const sortedProvinces = useMemo(() => {
+    return [...provinces].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [provinces])
 
   // Charger les départements de la province sélectionnée
   const { data: departments = [], isLoading: isLoadingDepartments } = useDepartments(
@@ -69,7 +92,9 @@ export default function Step2({ form }: Step2Props) {
     const uniqueCommunes = communes.filter((commune, index, self) =>
       index === self.findIndex(c => c.id === commune.id)
     )
-    return uniqueCommunes.sort((a, b) => a.name.localeCompare(b.name))
+    return uniqueCommunes.sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
   }, [communeQueries])
 
   const isLoadingCommunes = communeQueries.some(query => query.isLoading)
@@ -79,16 +104,30 @@ export default function Step2({ form }: Step2Props) {
     selectedCommuneId || undefined
   )
 
+  // Trier les districts par ordre alphabétique
+  const sortedDistricts = useMemo(() => {
+    return [...districts].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [districts])
+
   // Charger les quartiers (quarters) de l'arrondissement sélectionné
   const { data: quarters = [], isLoading: isLoadingQuarters } = useQuarters(
     selectedDistrictId || undefined
   )
 
+  // Trier les quarters par ordre alphabétique
+  const sortedQuarters = useMemo(() => {
+    return [...quarters].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [quarters])
+
   // Trouver les objets complets à partir des IDs pour remplir les champs texte
-  const selectedProvince = provinces.find(p => p.id === selectedProvinceId)
+  const selectedProvince = sortedProvinces.find(p => p.id === selectedProvinceId)
   const selectedCommune = allCommunes.find(c => c.id === selectedCommuneId)
-  const selectedDistrict = districts.find(d => d.id === selectedDistrictId)
-  const selectedQuarter = quarters.find(q => q.id === selectedQuarterId)
+  const selectedDistrict = sortedDistricts.find(d => d.id === selectedDistrictId)
+  const selectedQuarter = sortedQuarters.find(q => q.id === selectedQuarterId)
 
   // Mettre à jour les champs texte quand les sélections changent
   useEffect(() => {
@@ -149,6 +188,31 @@ export default function Step2({ form }: Step2Props) {
     setValue('address.quarterId', quarterId, { shouldValidate: true })
   }
 
+  // Handlers pour les modals de création
+  const handleProvinceCreated = (newProvince: Province) => {
+    queryClient.invalidateQueries({ queryKey: ['provinces'] })
+    setValue('address.provinceId', newProvince.id, { shouldValidate: true })
+    toast.success(`Province "${newProvince.name}" créée et sélectionnée`)
+  }
+
+  const handleCommuneCreated = (newCommune: Commune) => {
+    queryClient.invalidateQueries({ queryKey: ['communes'] })
+    setValue('address.communeId', newCommune.id, { shouldValidate: true })
+    toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
+  }
+
+  const handleDistrictCreated = (newDistrict: District) => {
+    queryClient.invalidateQueries({ queryKey: ['districts'] })
+    setValue('address.districtId', newDistrict.id, { shouldValidate: true })
+    toast.success(`Arrondissement "${newDistrict.name}" créé et sélectionné`)
+  }
+
+  const handleQuarterCreated = (newQuarter: Quarter) => {
+    queryClient.invalidateQueries({ queryKey: ['quarters'] })
+    setValue('address.quarterId', newQuarter.id, { shouldValidate: true })
+    toast.success(`Quartier "${newQuarter.name}" créé et sélectionné`)
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header avec animation */}
@@ -179,174 +243,239 @@ export default function Step2({ form }: Step2Props) {
 
       {/* Formulaire avec les 4 selects en cascade */}
       <div className="space-y-4 sm:space-y-6 w-full">
-        {/* Province */}
-        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full">
-          <Label htmlFor="province" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Province <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={selectedProvinceId}
-            onValueChange={handleProvinceChange}
-            disabled={isLoadingProvinces}
-          >
-            <SelectTrigger
-              id="province"
-              className={cn(
-                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                errors.address?.province && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+        {/* Ligne 1 : Province et Ville */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+          {/* Province */}
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full">
+            <Label htmlFor="province" className="text-xs sm:text-sm font-medium text-[#224D62]">
+              Province <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedProvinceId}
+                onValueChange={handleProvinceChange}
+                disabled={isLoadingProvinces}
+              >
+                <SelectTrigger
+                  id="province"
+                  className={cn(
+                    "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                    errors.address?.province && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                >
+                  <SelectValue placeholder="Sélectionnez une province..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingProvinces ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                    </div>
+                  ) : (
+                    sortedProvinces.map((province) => (
+                      <SelectItem key={province.id} value={province.id}>
+                        {province.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {isAdminContext && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowAddProvinceModal(true)}
+                  className="h-10 w-10 flex-shrink-0"
+                  title="Ajouter une nouvelle province"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               )}
-            >
-              <SelectValue placeholder="Sélectionnez une province..." />
-            </SelectTrigger>
-            <SelectContent>
-              {isLoadingProvinces ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                </div>
-              ) : (
-                provinces.map((province) => (
-                  <SelectItem key={province.id} value={province.id}>
-                    {province.name}
-                  </SelectItem>
-                ))
+            </div>
+            {errors.address?.province && (
+              <p className="text-xs text-red-500">{errors.address.province.message as string}</p>
+            )}
+          </div>
+
+          {/* Ville (Commune) */}
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-300 w-full">
+            <Label htmlFor="city" className="text-xs sm:text-sm font-medium text-[#224D62]">
+              Ville <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedCommuneId}
+                onValueChange={handleCommuneChange}
+                disabled={!selectedProvinceId || isLoadingCommunes || isLoadingDepartments}
+              >
+                <SelectTrigger
+                  id="city"
+                  className={cn(
+                    "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                    errors.address?.city && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                >
+                  <SelectValue placeholder={
+                    !selectedProvinceId 
+                      ? "Sélectionnez d'abord une province..." 
+                      : isLoadingCommunes || isLoadingDepartments
+                      ? "Chargement..."
+                      : "Sélectionnez une ville..."
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingCommunes || isLoadingDepartments ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                    </div>
+                  ) : (
+                    allCommunes.map((commune) => (
+                      <SelectItem key={commune.id} value={commune.id}>
+                        {commune.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {isAdminContext && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowAddCommuneModal(true)}
+                  className="h-10 w-10 flex-shrink-0"
+                  title="Ajouter une nouvelle commune"
+                  disabled={!selectedProvinceId}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               )}
-            </SelectContent>
-          </Select>
-          {errors.address?.province && (
-            <p className="text-xs text-red-500">{errors.address.province.message as string}</p>
-          )}
+            </div>
+            {errors.address?.city && (
+              <p className="text-xs text-red-500">{errors.address.city.message as string}</p>
+            )}
+          </div>
         </div>
 
-        {/* Ville (Commune) */}
-        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-300 w-full">
-          <Label htmlFor="city" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Ville <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={selectedCommuneId}
-            onValueChange={handleCommuneChange}
-            disabled={!selectedProvinceId || isLoadingCommunes || isLoadingDepartments}
-          >
-            <SelectTrigger
-              id="city"
-              className={cn(
-                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                errors.address?.city && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+        {/* Ligne 2 : Arrondissement et Quartier */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+          {/* Arrondissement (District) */}
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full">
+            <Label htmlFor="arrondissement" className="text-xs sm:text-sm font-medium text-[#224D62]">
+              Arrondissement <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedDistrictId}
+                onValueChange={handleDistrictChange}
+                disabled={!selectedCommuneId || isLoadingDistricts}
+              >
+                <SelectTrigger
+                  id="arrondissement"
+                  className={cn(
+                    "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                    errors.address?.arrondissement && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                >
+                  <SelectValue placeholder={
+                    !selectedCommuneId 
+                      ? "Sélectionnez d'abord une ville..." 
+                      : isLoadingDistricts
+                      ? "Chargement..."
+                      : "Sélectionnez un arrondissement..."
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingDistricts ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                    </div>
+                  ) : (
+                    sortedDistricts.map((district) => (
+                      <SelectItem key={district.id} value={district.id}>
+                        {district.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {isAdminContext && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowAddDistrictModal(true)}
+                  className="h-10 w-10 flex-shrink-0"
+                  title="Ajouter un nouvel arrondissement"
+                  disabled={!selectedCommuneId}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               )}
-            >
-              <SelectValue placeholder={
-                !selectedProvinceId 
-                  ? "Sélectionnez d'abord une province..." 
-                  : isLoadingCommunes || isLoadingDepartments
-                  ? "Chargement..."
-                  : "Sélectionnez une ville..."
-              } />
-            </SelectTrigger>
-            <SelectContent>
-              {isLoadingCommunes || isLoadingDepartments ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                </div>
-              ) : (
-                allCommunes.map((commune) => (
-                  <SelectItem key={commune.id} value={commune.id}>
-                    {commune.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-          {errors.address?.city && (
-            <p className="text-xs text-red-500">{errors.address.city.message as string}</p>
-          )}
-        </div>
+            </div>
+            {errors.address?.arrondissement && (
+              <p className="text-xs text-red-500">{errors.address.arrondissement.message as string}</p>
+            )}
+          </div>
 
-        {/* Arrondissement (District) */}
-        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full">
-          <Label htmlFor="arrondissement" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Arrondissement <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={selectedDistrictId}
-            onValueChange={handleDistrictChange}
-            disabled={!selectedCommuneId || isLoadingDistricts}
-          >
-            <SelectTrigger
-              id="arrondissement"
-              className={cn(
-                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                errors.address?.arrondissement && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+          {/* Quartier (Quarter) */}
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full">
+            <Label htmlFor="quarter" className="text-xs sm:text-sm font-medium text-[#224D62]">
+              Quartier <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedQuarterId}
+                onValueChange={handleQuarterChange}
+                disabled={!selectedDistrictId || isLoadingQuarters}
+              >
+                <SelectTrigger
+                  id="quarter"
+                  className={cn(
+                    "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                    errors.address?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                >
+                  <SelectValue placeholder={
+                    !selectedDistrictId 
+                      ? "Sélectionnez d'abord un arrondissement..." 
+                      : isLoadingQuarters
+                      ? "Chargement..."
+                      : "Sélectionnez un quartier..."
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingQuarters ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                    </div>
+                  ) : (
+                    sortedQuarters.map((quarter) => (
+                      <SelectItem key={quarter.id} value={quarter.id}>
+                        {quarter.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {isAdminContext && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowAddQuarterModal(true)}
+                  className="h-10 w-10 flex-shrink-0"
+                  title="Ajouter un nouveau quartier"
+                  disabled={!selectedDistrictId}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               )}
-            >
-              <SelectValue placeholder={
-                !selectedCommuneId 
-                  ? "Sélectionnez d'abord une ville..." 
-                  : isLoadingDistricts
-                  ? "Chargement..."
-                  : "Sélectionnez un arrondissement..."
-              } />
-            </SelectTrigger>
-            <SelectContent>
-              {isLoadingDistricts ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                </div>
-              ) : (
-                districts.map((district) => (
-                  <SelectItem key={district.id} value={district.id}>
-                    {district.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-          {errors.address?.arrondissement && (
-            <p className="text-xs text-red-500">{errors.address.arrondissement.message as string}</p>
-          )}
-        </div>
-
-        {/* Quartier (Quarter) */}
-        <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full">
-          <Label htmlFor="quarter" className="text-xs sm:text-sm font-medium text-[#224D62]">
-            Quartier <span className="text-red-500">*</span>
-          </Label>
-          <Select
-            value={selectedQuarterId}
-            onValueChange={handleQuarterChange}
-            disabled={!selectedDistrictId || isLoadingQuarters}
-          >
-            <SelectTrigger
-              id="quarter"
-              className={cn(
-                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                errors.address?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-              )}
-            >
-              <SelectValue placeholder={
-                !selectedDistrictId 
-                  ? "Sélectionnez d'abord un arrondissement..." 
-                  : isLoadingQuarters
-                  ? "Chargement..."
-                  : "Sélectionnez un quartier..."
-              } />
-            </SelectTrigger>
-            <SelectContent>
-              {isLoadingQuarters ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                </div>
-              ) : (
-                quarters.map((quarter) => (
-                  <SelectItem key={quarter.id} value={quarter.id}>
-                    {quarter.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-          {errors.address?.district && (
-            <p className="text-xs text-red-500">{errors.address.district.message as string}</p>
-          )}
+            </div>
+            {errors.address?.district && (
+              <p className="text-xs text-red-500">{errors.address.district.message as string}</p>
+            )}
+          </div>
         </div>
 
         {/* Informations complémentaires */}
@@ -373,6 +502,35 @@ export default function Step2({ form }: Step2Props) {
           </div>
         </div>
       </div>
+
+      {/* Modals de création rapide (uniquement en contexte admin) */}
+      {isAdminContext && (
+        <>
+          <AddProvinceModal
+            open={showAddProvinceModal}
+            onClose={() => setShowAddProvinceModal(false)}
+            onSuccess={handleProvinceCreated}
+          />
+          <AddCommuneModal
+            open={showAddCommuneModal}
+            onClose={() => setShowAddCommuneModal(false)}
+            onSuccess={handleCommuneCreated}
+            provinceId={selectedProvinceId || undefined}
+          />
+          <AddDistrictModal
+            open={showAddDistrictModal}
+            onClose={() => setShowAddDistrictModal(false)}
+            onSuccess={handleDistrictCreated}
+            communeId={selectedCommuneId || undefined}
+          />
+          <AddQuarterModal
+            open={showAddQuarterModal}
+            onClose={() => setShowAddQuarterModal(false)}
+            onSuccess={handleQuarterCreated}
+            districtId={selectedDistrictId || undefined}
+          />
+        </>
+      )}
     </div>
   )
 }
