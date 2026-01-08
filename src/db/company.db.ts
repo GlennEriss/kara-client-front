@@ -96,10 +96,46 @@ export async function createCompany(
   try {
     const normalizedName = normalizeName(companyName);
     
+    // Filtrer les valeurs undefined pour éviter les erreurs Firebase
+    const filteredAdditionalData: Record<string, any> = {}
+    
+    // Filtrer l'adresse si elle existe
+    if (additionalData.address) {
+      const filteredAddress: Record<string, string> = {}
+      if (additionalData.address.province !== undefined && additionalData.address.province !== null && additionalData.address.province.trim() !== '') {
+        filteredAddress.province = additionalData.address.province.trim()
+      }
+      if (additionalData.address.city !== undefined && additionalData.address.city !== null && additionalData.address.city.trim() !== '') {
+        filteredAddress.city = additionalData.address.city.trim()
+      }
+      if (additionalData.address.district !== undefined && additionalData.address.district !== null && additionalData.address.district.trim() !== '') {
+        filteredAddress.district = additionalData.address.district.trim()
+      }
+      if (additionalData.address.arrondissement !== undefined && additionalData.address.arrondissement !== null && additionalData.address.arrondissement.trim() !== '') {
+        filteredAddress.arrondissement = additionalData.address.arrondissement.trim()
+      }
+      if (additionalData.address.additionalInfo !== undefined && additionalData.address.additionalInfo !== null && additionalData.address.additionalInfo.trim() !== '') {
+        filteredAddress.additionalInfo = additionalData.address.additionalInfo.trim()
+      }
+      if (Object.keys(filteredAddress).length > 0) {
+        filteredAdditionalData.address = filteredAddress
+      }
+    }
+    
+    // Filtrer industry
+    if (additionalData.industry !== undefined && additionalData.industry !== null && additionalData.industry.trim() !== '') {
+      filteredAdditionalData.industry = additionalData.industry.trim()
+    }
+    
+    // Filtrer employeeCount
+    if (additionalData.employeeCount !== undefined && additionalData.employeeCount !== null) {
+      filteredAdditionalData.employeeCount = additionalData.employeeCount
+    }
+    
     const companyData = {
       name: companyName,
       normalizedName,
-      ...additionalData
+      ...filteredAdditionalData
     };
     
     const companyId = await createModel<typeof companyData>(
@@ -305,10 +341,19 @@ export async function createProfession(
   try {
     const normalizedName = normalizeName(professionName);
     
+    // Filtrer les valeurs undefined pour éviter les erreurs Firebase
+    const filteredAdditionalData: Record<string, string> = {}
+    if (additionalData.category !== undefined && additionalData.category !== null && additionalData.category.trim() !== '') {
+      filteredAdditionalData.category = additionalData.category.trim()
+    }
+    if (additionalData.description !== undefined && additionalData.description !== null && additionalData.description.trim() !== '') {
+      filteredAdditionalData.description = additionalData.description.trim()
+    }
+    
     const professionData = {
       name: professionName,
       normalizedName,
-      ...additionalData
+      ...filteredAdditionalData
     };
     
     const professionId = await createModel<typeof professionData>(

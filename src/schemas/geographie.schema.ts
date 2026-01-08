@@ -11,8 +11,7 @@ export const provinceSchema = z.object({
   name: z
     .string()
     .min(1, 'Le nom est requis')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
 })
 
 export type ProvinceFormData = z.infer<typeof provinceSchema>
@@ -24,8 +23,7 @@ export const departmentSchema = z.object({
   name: z
     .string()
     .min(1, 'Le nom est requis')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
   code: z
     .string()
     .max(50, 'Le code ne peut pas dépasser 50 caractères')
@@ -43,8 +41,7 @@ export const communeSchema = z.object({
   name: z
     .string()
     .min(1, 'Le nom est requis')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
   postalCode: z
     .string()
     .max(10, 'Le code postal ne peut pas dépasser 10 caractères')
@@ -67,8 +64,7 @@ export const districtSchema = z.object({
   name: z
     .string()
     .min(1, 'Le nom est requis')
-    .max(100, 'Le nom ne peut pas dépasser 100 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets'),
+    .max(100, 'Le nom ne peut pas dépasser 100 caractères'),
 })
 
 export type DistrictFormData = z.infer<typeof districtSchema>

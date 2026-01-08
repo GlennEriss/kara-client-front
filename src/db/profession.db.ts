@@ -181,11 +181,20 @@ export async function createProfession(
   try {
     const normalizedName = normalizeName(professionName);
     
+    // Filtrer les valeurs undefined pour éviter les erreurs Firebase
+    const filteredAdditionalData: Record<string, string> = {}
+    if (additionalData.category !== undefined && additionalData.category !== null && additionalData.category.trim() !== '') {
+      filteredAdditionalData.category = additionalData.category.trim()
+    }
+    if (additionalData.description !== undefined && additionalData.description !== null && additionalData.description.trim() !== '') {
+      filteredAdditionalData.description = additionalData.description.trim()
+    }
+    
     const professionData = {
       name: professionName,
       normalizedName,
       createdBy: adminId,
-      ...additionalData
+      ...filteredAdditionalData
     };
     
     const professionId = await createModel<typeof professionData>(

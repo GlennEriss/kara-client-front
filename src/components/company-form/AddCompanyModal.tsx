@@ -48,12 +48,16 @@ export default function AddCompanyModal({ open, onClose, onSuccess }: AddCompany
 
     setIsSubmitting(true)
     try {
+      // Construire additionalData en excluant les valeurs vides/undefined
+      const additionalData: { industry?: string } = {}
+      if (data.industry && data.industry.trim()) {
+        additionalData.industry = data.industry.trim()
+      }
+
       await createCompany.mutateAsync({
         companyName: data.name,
         adminId: user.uid,
-        additionalData: {
-          industry: data.industry || undefined,
-        }
+        additionalData: Object.keys(additionalData).length > 0 ? additionalData : undefined
       })
       
       // Invalider le cache des entreprises

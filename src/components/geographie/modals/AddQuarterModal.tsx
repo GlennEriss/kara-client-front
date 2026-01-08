@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { useQuarterMutations, useDistricts } from '@/hooks/useGeographie'
+import { useQuarterMutations, useDistricts, useDistrict } from '@/hooks/useGeographie'
 import { quarterSchema, type QuarterFormData } from '@/schemas/geographie.schema'
-import type { Quarter } from '@/types/types'
+import type { Quarter, District } from '@/types/types'
 
 interface AddQuarterModalProps {
   open: boolean
@@ -33,7 +33,23 @@ export default function AddQuarterModal({ open, onClose, onSuccess, districtId }
   })
 
   const selectedDistrictId = form.watch('districtId')
-  const { data: districts = [] } = useDistricts(districtId)
+  
+  // Charger tous les arrondissements (sans filtre par commune)
+  // pour que l'arrondissement sélectionné apparaisse dans la liste
+  const { data: allDistricts = [] } = useDistricts()
+  
+  // Si districtId est fourni, récupérer l'arrondissement spécifique
+  const { data: selectedDistrict } = useDistrict(districtId || '')
+  
+  // Construire la liste des arrondissements : inclure l'arrondissement sélectionné s'il n'est pas déjà dans la liste
+  const districts = useMemo(() => {
+    const districtList = [...allDistricts]
+    // Si on a un districtId sélectionné et qu'il n'est pas dans la liste, l'ajouter
+    if (selectedDistrict && !districtList.find(d => d.id === selectedDistrict.id)) {
+      districtList.push(selectedDistrict)
+    }
+    return districtList
+  }, [allDistricts, selectedDistrict])
 
   // Trier les districts par ordre alphabétique
   const sortedDistricts = useMemo(() => {
