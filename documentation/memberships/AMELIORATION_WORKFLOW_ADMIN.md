@@ -50,11 +50,21 @@ Ajouter des boutons "+" (ou "Ajouter") à côté de chaque select/combobox pour 
 
 ##### 1.1 Step 2 - Géographie
 
-**Composants à créer :**
-- `AddProvinceModal.tsx`
-- `AddCommuneModal.tsx`
-- `AddDistrictModal.tsx`
-- `AddQuarterModal.tsx`
+**⚠️ IMPORTANT : Hiérarchie Géographique Complète**
+
+La structure géographique suit cette hiérarchie stricte :
+```
+Province → Département → Commune (Ville) → Arrondissement → Quartier
+```
+
+**Note importante :** Dans le formulaire `Step2.tsx`, les départements ne sont **pas affichés** à l'utilisateur car ils ne sont pas nécessaires pour la sélection. Cependant, ils sont **essentiels** pour créer une commune, car chaque commune appartient à un département.
+
+**Composants à créer/modifier :**
+- `AddProvinceModal.tsx` ✅ (déjà créé)
+- `AddDepartmentModal.tsx` (nouveau - nécessaire pour créer une commune)
+- `AddCommuneModal.tsx` ✅ (déjà créé, mais doit permettre la création de département)
+- `AddDistrictModal.tsx` ✅ (déjà créé, mais doit suivre la hiérarchie complète)
+- `AddQuarterModal.tsx` ✅ (déjà créé)
 
 **Modifications dans `Step2.tsx` :**
 
@@ -64,15 +74,18 @@ Ajouter des boutons "+" (ou "Ajouter") à côté de chaque select/combobox pour 
   <Select ...>
     {/* Select existant */}
   </Select>
-  <Button
-    type="button"
-    variant="outline"
-    size="icon"
-    onClick={() => setShowAddProvinceModal(true)}
-    className="h-10 w-10"
-  >
-    <Plus className="w-4 h-4" />
-  </Button>
+  {isAdminContext && (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={() => setShowAddProvinceModal(true)}
+      className="h-10 w-10 flex-shrink-0"
+      title="Ajouter une nouvelle province"
+    >
+      <Plus className="w-4 h-4" />
+    </Button>
+  )}
 </div>
 
 // Modal de création
@@ -80,10 +93,9 @@ Ajouter des boutons "+" (ou "Ajouter") à côté de chaque select/combobox pour 
   open={showAddProvinceModal}
   onClose={() => setShowAddProvinceModal(false)}
   onSuccess={(newProvince) => {
-    // Sélectionner automatiquement la nouvelle province
-    setValue('address.provinceId', newProvince.id)
-    // Rafraîchir la liste des provinces
-    refetchProvinces()
+    queryClient.invalidateQueries({ queryKey: ['provinces'] })
+    setValue('address.provinceId', newProvince.id, { shouldValidate: true })
+    toast.success(`Province "${newProvince.name}" créée et sélectionnée`)
   }}
 />
 ```
@@ -94,6 +106,7 @@ Ajouter des boutons "+" (ou "Ajouter") à côté de chaque select/combobox pour 
 - Toast de confirmation
 - Rafraîchissement automatique de la liste après création
 - Sélection automatique de l'élément créé
+- Respect de la hiérarchie géographique complète
 
 ##### 1.2 Step 3 - Entreprise
 
@@ -434,15 +447,15 @@ import ProfessionCombobox from '@/components/profession-form/ProfessionCombobox'
 
 ### Structure Générale
 
-Tous les modals suivront cette structure :
+Tous les modals suivront cette structure de base, avec des adaptations selon la hiérarchie géographique :
 
 ```tsx
 interface AddXModalProps {
   open: boolean
   onClose: () => void
   onSuccess: (newItem: X) => void
-  // Props spécifiques si nécessaire (ex: provinceId pour commune)
-  parentId?: string
+  // Props spécifiques selon la hiérarchie
+  parentId?: string // ID du parent dans la hiérarchie
 }
 
 export default function AddXModal({ open, onClose, onSuccess, parentId }: AddXModalProps) {
@@ -453,13 +466,13 @@ export default function AddXModal({ open, onClose, onSuccess, parentId }: AddXMo
   const handleSubmit = async (data: XFormData) => {
     setIsSubmitting(true)
     try {
-      const newItem = await create(data)
+      const newItem = await create.mutateAsync(data)
       toast.success(`${X} créé(e) avec succès`)
       onSuccess(newItem)
       form.reset()
       onClose()
-    } catch (error) {
-      toast.error(`Erreur lors de la création de ${X}`)
+    } catch (error: any) {
+      toast.error(error?.message || `Erreur lors de la création de ${X}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -476,100 +489,7 @@ export default function AddXModal({ open, onClose, onSuccess, parentId }: AddXMo
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
-            {/* Champs du formulaire */}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Création...' : 'Créer'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-```
-
-### Exemple : AddProvinceModal
-
-```tsx
-'use client'
-
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import { useProvinceMutations } from '@/hooks/useGeographie'
-import { provinceSchema, type ProvinceFormData } from '@/schemas/geographie.schema'
-import type { Province } from '@/types/types'
-
-interface AddProvinceModalProps {
-  open: boolean
-  onClose: () => void
-  onSuccess: (newProvince: Province) => void
-}
-
-export default function AddProvinceModal({ open, onClose, onSuccess }: AddProvinceModalProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const { create } = useProvinceMutations()
-  
-  const form = useForm<ProvinceFormData>({
-    resolver: zodResolver(provinceSchema),
-    defaultValues: {
-      name: '',
-    }
-  })
-
-  const handleSubmit = async (data: ProvinceFormData) => {
-    setIsSubmitting(true)
-    try {
-      const newProvince = await create(data)
-      toast.success('Province créée avec succès')
-      onSuccess(newProvince)
-      form.reset()
-      onClose()
-    } catch (error: any) {
-      toast.error(error?.message || 'Erreur lors de la création de la province')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Ajouter une nouvelle province</DialogTitle>
-          <DialogDescription>
-            Créez rapidement une nouvelle province sans quitter le formulaire
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nom de la province <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Ex: Estuaire" 
-                      {...field} 
-                      autoFocus
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Champs du formulaire avec sélection hiérarchique si nécessaire */}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Annuler
@@ -586,6 +506,275 @@ export default function AddProvinceModal({ open, onClose, onSuccess }: AddProvin
 }
 ```
 
+### Hiérarchie Géographique et Dépendances
+
+**Structure complète :**
+```
+Province (indépendant)
+  └─ Département (dépend de Province)
+      └─ Commune/Ville (dépend de Département)
+          └─ Arrondissement (dépend de Commune)
+              └─ Quartier (dépend de Arrondissement)
+```
+
+**Règles importantes :**
+1. **Province** : Aucune dépendance, peut être créée directement
+2. **Département** : Nécessite une Province (provinceId)
+3. **Commune** : Nécessite un Département (departmentId), mais dans le formulaire register on passe par provinceId car on charge tous les départements de la province
+4. **Arrondissement** : Nécessite une Commune (communeId), mais pour créer une commune depuis le modal, il faut pouvoir créer/sélectionner un département
+5. **Quartier** : Nécessite un Arrondissement (districtId)
+
+### Détails des Modals par Entité
+
+#### 1. AddProvinceModal ✅ (Déjà implémenté)
+
+**Dépendances :** Aucune
+
+**Champs requis :**
+- `name` : Nom de la province (ex: "Estuaire")
+- `code` : Code de la province (ex: "EST")
+
+**Structure :**
+```tsx
+interface AddProvinceModalProps {
+  open: boolean
+  onClose: () => void
+  onSuccess: (newProvince: Province) => void
+}
+```
+
+**Comportement :**
+- Modal simple avec 2 champs (nom et code)
+- Aucune sélection hiérarchique nécessaire
+- Le code est automatiquement converti en majuscules
+
+---
+
+#### 2. AddDepartmentModal (À créer)
+
+**Dépendances :** Province (provinceId)
+
+**Champs requis :**
+- `provinceId` : ID de la province (sélection depuis liste)
+- `name` : Nom du département (ex: "Libreville")
+- `code` : Code du département (optionnel)
+
+**Structure :**
+```tsx
+interface AddDepartmentModalProps {
+  open: boolean
+  onClose: () => void
+  onSuccess: (newDepartment: Department) => void
+  provinceId?: string // Province pré-sélectionnée si disponible depuis Step2
+}
+```
+
+**Comportement :**
+- Si `provinceId` est fourni en prop, le select de province est pré-rempli et désactivé
+- Si `provinceId` n'est pas fourni, afficher un select de province (obligatoire)
+- Permet de créer un département pour une province existante
+- Utilisé principalement depuis `AddCommuneModal` quand aucun département n'existe pour la province sélectionnée
+
+---
+
+#### 3. AddCommuneModal ✅ (Déjà implémenté, mais à améliorer)
+
+**Dépendances :** Département (departmentId), qui dépend lui-même de Province
+
+**Champs requis :**
+- `departmentId` : ID du département (sélection depuis liste filtrée par province)
+- `name` : Nom de la commune (ex: "Libreville")
+- `postalCode` : Code postal (optionnel, ex: "24100")
+- `alias` : Alias de la commune (optionnel, ex: "LBV")
+
+**Structure actuelle :**
+```tsx
+interface AddCommuneModalProps {
+  open: boolean
+  onClose: () => void
+  onSuccess: (newCommune: Commune) => void
+  provinceId?: string // Province pré-sélectionnée depuis Step2
+}
+```
+
+**⚠️ Problème identifié :**
+Le modal actuel demande seulement la sélection d'un département, mais si aucun département n'existe pour la province sélectionnée, l'admin ne peut pas créer la commune.
+
+**Solution à implémenter :**
+1. Afficher un bouton "+" à côté du select de département pour créer un nouveau département
+2. Ouvrir `AddDepartmentModal` en cascade depuis `AddCommuneModal`
+3. Après création du département, revenir à `AddCommuneModal` avec le département pré-sélectionné
+4. Permettre la création complète de la chaîne : Province → Département → Commune
+
+**Comportement amélioré :**
+```tsx
+// Dans AddCommuneModal
+<div className="flex items-center gap-2">
+  <Select
+    value={selectedDepartmentId}
+    onValueChange={handleDepartmentChange}
+    disabled={!provinceId || departments.length === 0}
+  >
+    {/* Select de département */}
+  </Select>
+  {isAdminContext && (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={() => setShowAddDepartmentModal(true)}
+      className="h-10 w-10 flex-shrink-0"
+      title="Créer un nouveau département"
+      disabled={!provinceId}
+    >
+      <Plus className="w-4 h-4" />
+    </Button>
+  )}
+</div>
+
+// Modal de création de département en cascade
+<AddDepartmentModal
+  open={showAddDepartmentModal}
+  onClose={() => setShowAddDepartmentModal(false)}
+  onSuccess={(newDepartment) => {
+    queryClient.invalidateQueries({ queryKey: ['departments'] })
+    setValue('departmentId', newDepartment.id, { shouldValidate: true })
+    toast.success(`Département "${newDepartment.name}" créé et sélectionné`)
+  }}
+  provinceId={provinceId} // Pré-sélectionner la province
+/>
+```
+
+---
+
+#### 4. AddDistrictModal ✅ (Déjà implémenté, mais à améliorer)
+
+**Dépendances :** Commune (communeId), qui dépend elle-même de Département → Province
+
+**Champs requis :**
+- `communeId` : ID de la commune (sélection depuis liste)
+- `name` : Nom de l'arrondissement (ex: "1er arrondissement")
+
+**Structure actuelle :**
+```tsx
+interface AddDistrictModalProps {
+  open: boolean
+  onClose: () => void
+  onSuccess: (newDistrict: District) => void
+  communeId?: string // Commune pré-sélectionnée depuis Step2
+}
+```
+
+**⚠️ Problème identifié :**
+Le modal actuel demande seulement la sélection d'une commune, mais dans le module géographie (`DistrictList.tsx`), le formulaire suit la hiérarchie complète : **Province → Département → Commune**.
+
+**Solution à implémenter :**
+Le modal doit suivre la même structure que dans le module géographie pour garantir la cohérence :
+
+```tsx
+// Structure améliorée avec sélection en cascade
+<FormField
+  control={form.control}
+  name="communeId"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Commune <span className="text-red-500">*</span></FormLabel>
+      <div className="grid gap-3">
+        {/* 1. Sélection de la Province */}
+        <Select
+          value={formProvinceId}
+          onValueChange={(value) => {
+            setFormProvinceId(value)
+            setFormDepartmentId('all')
+            field.onChange('')
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner une province" />
+          </SelectTrigger>
+          <SelectContent>
+            {provinces.map((province) => (
+              <SelectItem key={province.id} value={province.id}>
+                {province.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* 2. Sélection du Département (filtré par province) */}
+        <Select
+          value={formDepartmentId}
+          onValueChange={(value) => {
+            setFormDepartmentId(value)
+            field.onChange('')
+          }}
+          disabled={formProvinceId === 'all'}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner un département" />
+          </SelectTrigger>
+          <SelectContent>
+            {departmentsForForm.map((department) => (
+              <SelectItem key={department.id} value={department.id}>
+                {department.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* 3. Sélection de la Commune (filtrée par département) */}
+        <Select
+          onValueChange={field.onChange}
+          value={field.value}
+          disabled={formDepartmentId === 'all'}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner une commune" />
+          </SelectTrigger>
+          <SelectContent>
+            {communesForForm.map((commune) => (
+              <SelectItem key={commune.id} value={commune.id}>
+                {commune.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+```
+
+**Optimisation :**
+- Si `communeId` est fourni en prop depuis Step2, pré-remplir automatiquement la hiérarchie complète (Province → Département → Commune) en désactivant les selects
+- Sinon, permettre la navigation complète dans la hiérarchie
+
+---
+
+#### 5. AddQuarterModal ✅ (Déjà implémenté)
+
+**Dépendances :** Arrondissement (districtId)
+
+**Champs requis :**
+- `districtId` : ID de l'arrondissement (sélection depuis liste)
+- `name` : Nom du quartier (ex: "Glass")
+
+**Structure :**
+```tsx
+interface AddQuarterModalProps {
+  open: boolean
+  onClose: () => void
+  onSuccess: (newQuarter: Quarter) => void
+  districtId?: string // Arrondissement pré-sélectionné depuis Step2
+}
+```
+
+**Comportement :**
+- Si `districtId` est fourni en prop, le select est pré-rempli et désactivé
+- Sinon, afficher un select d'arrondissement (obligatoire)
+- Modal simple, pas de hiérarchie complexe nécessaire
+
 ---
 
 ## 🔄 Gestion du Rafraîchissement des Données
@@ -595,6 +784,7 @@ Après la création d'un nouvel élément, il faut :
 1. Rafraîchir la liste correspondante
 2. Sélectionner automatiquement le nouvel élément
 3. Invalider le cache React Query si nécessaire
+4. Gérer les dépendances hiérarchiques (ex: invalider les départements après création de province)
 
 ### Implémentation
 
@@ -603,9 +793,11 @@ Après la création d'un nouvel élément, il faut :
 ```tsx
 // Utiliser useQueryClient pour invalider le cache
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 const queryClient = useQueryClient()
 
+// Exemple 1 : Création de province
 const handleProvinceCreated = (newProvince: Province) => {
   // Invalider le cache des provinces
   queryClient.invalidateQueries({ queryKey: ['provinces'] })
@@ -615,6 +807,91 @@ const handleProvinceCreated = (newProvince: Province) => {
   
   // Toast de confirmation
   toast.success(`Province "${newProvince.name}" créée et sélectionnée`)
+}
+
+// Exemple 2 : Création de département (depuis AddCommuneModal)
+const handleDepartmentCreated = (newDepartment: Department) => {
+  // Invalider le cache des départements pour la province concernée
+  queryClient.invalidateQueries({ queryKey: ['departments', newDepartment.provinceId] })
+  queryClient.invalidateQueries({ queryKey: ['departments'] })
+  
+  // Sélectionner automatiquement le nouveau département dans le formulaire de commune
+  setValue('departmentId', newDepartment.id, { shouldValidate: true })
+  
+  // Toast de confirmation
+  toast.success(`Département "${newDepartment.name}" créé et sélectionné`)
+}
+
+// Exemple 3 : Création de commune
+const handleCommuneCreated = (newCommune: Commune) => {
+  // Invalider le cache des communes pour le département concerné
+  queryClient.invalidateQueries({ queryKey: ['communes'] })
+  queryClient.invalidateQueries({ queryKey: ['communes', newCommune.departmentId] })
+  
+  // Sélectionner automatiquement la nouvelle commune
+  setValue('address.communeId', newCommune.id, { shouldValidate: true })
+  
+  // Toast de confirmation
+  toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
+}
+
+// Exemple 4 : Création d'arrondissement
+const handleDistrictCreated = (newDistrict: District) => {
+  // Invalider le cache des arrondissements pour la commune concernée
+  queryClient.invalidateQueries({ queryKey: ['districts'] })
+  queryClient.invalidateQueries({ queryKey: ['districts', newDistrict.communeId] })
+  
+  // Sélectionner automatiquement le nouvel arrondissement
+  setValue('address.districtId', newDistrict.id, { shouldValidate: true })
+  
+  // Toast de confirmation
+  toast.success(`Arrondissement "${newDistrict.name}" créé et sélectionné`)
+}
+
+// Exemple 5 : Création de quartier
+const handleQuarterCreated = (newQuarter: Quarter) => {
+  // Invalider le cache des quartiers pour l'arrondissement concerné
+  queryClient.invalidateQueries({ queryKey: ['quarters'] })
+  queryClient.invalidateQueries({ queryKey: ['quarters', newQuarter.districtId] })
+  
+  // Sélectionner automatiquement le nouveau quartier
+  setValue('address.quarterId', newQuarter.id, { shouldValidate: true })
+  
+  // Toast de confirmation
+  toast.success(`Quartier "${newQuarter.name}" créé et sélectionné`)
+}
+```
+
+### Gestion des Créations en Cascade
+
+Quand un élément parent est créé depuis un modal enfant (ex: créer un département depuis `AddCommuneModal`), il faut :
+
+1. **Fermer le modal parent temporairement** (ou garder ouvert selon UX)
+2. **Ouvrir le modal enfant** (`AddDepartmentModal`)
+3. **Après création réussie** :
+   - Fermer le modal enfant
+   - Rafraîchir les données dans le modal parent
+   - Pré-sélectionner l'élément créé dans le modal parent
+   - Revenir au modal parent pour continuer la création
+
+**Exemple d'implémentation :**
+
+```tsx
+// Dans AddCommuneModal
+const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false)
+
+const handleDepartmentCreated = (newDepartment: Department) => {
+  // Invalider le cache
+  queryClient.invalidateQueries({ queryKey: ['departments'] })
+  
+  // Pré-sélectionner le département dans le formulaire de commune
+  form.setValue('departmentId', newDepartment.id, { shouldValidate: true })
+  
+  // Fermer le modal de département
+  setShowAddDepartmentModal(false)
+  
+  // Toast de confirmation
+  toast.success(`Département "${newDepartment.name}" créé et sélectionné`)
 }
 ```
 
@@ -629,12 +906,36 @@ const handleProvinceCreated = (newProvince: Province) => {
 - [ ] Ajouter le tri dans `Step3.tsx` pour l'adresse entreprise
 
 ### Phase 2 : Modals de Création Rapide - Géographie
-- [ ] Créer `AddProvinceModal.tsx`
-- [ ] Créer `AddCommuneModal.tsx` (avec sélection de province/département)
-- [ ] Créer `AddDistrictModal.tsx` (avec sélection de commune)
-- [ ] Créer `AddQuarterModal.tsx` (avec sélection de district)
-- [ ] Intégrer les modals dans `Step2.tsx`
-- [ ] Intégrer les modals dans `Step3.tsx` (adresse entreprise)
+
+#### 2.1 Modals de Base
+- [x] Créer `AddProvinceModal.tsx` ✅
+- [x] Créer `AddCommuneModal.tsx` ✅ (existe mais nécessite amélioration)
+- [x] Créer `AddDistrictModal.tsx` ✅ (existe mais nécessite amélioration)
+- [x] Créer `AddQuarterModal.tsx` ✅
+
+#### 2.2 Améliorations Nécessaires
+- [ ] **Créer `AddDepartmentModal.tsx`** (nouveau composant requis)
+  - Permet de créer un département pour une province
+  - Utilisé depuis `AddCommuneModal` quand aucun département n'existe
+  - Structure similaire à `AddProvinceModal` avec sélection de province
+
+- [ ] **Améliorer `AddCommuneModal.tsx`**
+  - Ajouter un bouton "+" à côté du select de département
+  - Intégrer `AddDepartmentModal` en cascade
+  - Gérer le rafraîchissement après création de département
+  - Pré-sélectionner automatiquement le département créé
+
+- [ ] **Améliorer `AddDistrictModal.tsx`**
+  - Implémenter la sélection en cascade complète : Province → Département → Commune
+  - Suivre la même structure que dans `DistrictList.tsx` du module géographie
+  - Si `communeId` est fourni en prop, pré-remplir automatiquement la hiérarchie
+  - Permettre la création de commune/département en cascade si nécessaire
+
+#### 2.3 Intégration dans les Formulaires
+- [x] Intégrer les modals dans `Step2.tsx` ✅
+- [x] Intégrer les modals dans `Step3.tsx` (adresse entreprise) ✅
+- [ ] Vérifier que tous les boutons "+" sont fonctionnels
+- [ ] Tester les créations en cascade (Province → Département → Commune → Arrondissement → Quartier)
 
 ### Phase 3 : Modals de Création Rapide - Entreprise et Profession
 - [ ] Créer `AddCompanyModal.tsx`
@@ -719,6 +1020,69 @@ Pour mesurer l'efficacité des améliorations :
 
 ---
 
+## ⚠️ Points Critiques et Cohérence avec le Module Géographie
+
+### Importance de la Documentation
+
+**⚠️ ATTENTION :** Cette documentation sert de référence pour l'implémentation. Si elle est incomplète ou incorrecte, les fonctionnalités résultantes seront incohérentes et difficiles à maintenir.
+
+### Règles de Cohérence
+
+1. **Respect de la Hiérarchie Géographique**
+   - La hiérarchie **Province → Département → Commune → Arrondissement → Quartier** doit être respectée partout
+   - Les modals doivent suivre la même structure que dans le module géographie (`/geographie`)
+   - Les validations doivent vérifier l'existence des parents dans la hiérarchie
+
+2. **Cohérence avec `DistrictList.tsx`**
+   - Le modal `AddDistrictModal` dans le formulaire register doit suivre la même structure que dans `DistrictList.tsx`
+   - Sélection en cascade : Province → Département → Commune
+   - Ne pas simplifier au point de perdre la cohérence avec le module géographie
+
+3. **Gestion des Départements**
+   - Les départements ne sont **pas affichés** dans `Step2.tsx` car non nécessaires pour la sélection
+   - Mais ils sont **essentiels** pour créer une commune
+   - Le modal `AddCommuneModal` doit permettre la création de département si nécessaire
+
+4. **Créations en Cascade**
+   - Permettre la création complète de la chaîne depuis n'importe quel niveau
+   - Exemple : Créer Province → Département → Commune depuis le bouton "+" de Commune
+   - Gérer correctement les rafraîchissements et sélections automatiques
+
+### Checklist de Vérification Avant Implémentation
+
+Avant d'implémenter chaque modal, vérifier :
+
+- [ ] La structure correspond à celle du module géographie
+- [ ] Toutes les dépendances hiérarchiques sont gérées
+- [ ] Les créations en cascade sont possibles
+- [ ] Les rafraîchissements de cache sont corrects
+- [ ] Les sélections automatiques fonctionnent
+- [ ] Les validations sont cohérentes avec les schémas Zod
+- [ ] Les toasts de confirmation sont présents
+- [ ] Les états de chargement sont gérés
+- [ ] Les erreurs sont gérées proprement
+
+### Exemple de Workflow Complet
+
+**Scénario :** Créer un quartier pour une nouvelle commune qui n'existe pas encore
+
+1. Admin clique sur "+" à côté de "Quartier" dans Step2
+2. `AddQuarterModal` s'ouvre, mais aucun arrondissement n'existe
+3. Admin clique sur "+" à côté de "Arrondissement" dans le modal
+4. `AddDistrictModal` s'ouvre, mais aucune commune n'existe
+5. Admin clique sur "+" à côté de "Commune" dans le modal
+6. `AddCommuneModal` s'ouvre, mais aucun département n'existe pour la province
+7. Admin clique sur "+" à côté de "Département" dans le modal
+8. `AddDepartmentModal` s'ouvre avec la province pré-sélectionnée
+9. Admin crée le département → retour automatique à `AddCommuneModal` avec département sélectionné
+10. Admin crée la commune → retour automatique à `AddDistrictModal` avec commune sélectionnée
+11. Admin crée l'arrondissement → retour automatique à `AddQuarterModal` avec arrondissement sélectionné
+12. Admin crée le quartier → retour à Step2 avec quartier sélectionné
+
+**Ce workflow doit être fluide et sans interruption.**
+
+---
+
 ## 🚀 Conclusion
 
 Ces améliorations permettront de :
@@ -726,6 +1090,10 @@ Ces améliorations permettront de :
 - ✅ Améliorer l'expérience utilisateur pour les administrateurs
 - ✅ Éliminer les interruptions de workflow
 - ✅ Rendre le processus plus intuitif et fluide
+- ✅ Maintenir la cohérence avec le module géographie
+- ✅ Permettre la création complète de la hiérarchie géographique depuis le formulaire
 
 L'implémentation peut être faite de manière progressive, en commençant par le tri alphabétique (impact immédiat, faible effort), puis les modals de création rapide (impact majeur, effort modéré).
+
+**⚠️ IMPORTANT :** Respecter scrupuleusement cette documentation pour garantir la cohérence et la maintenabilité du code.
 

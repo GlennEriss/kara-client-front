@@ -48,12 +48,16 @@ export default function AddProfessionModal({ open, onClose, onSuccess }: AddProf
 
     setIsSubmitting(true)
     try {
+      // Construire additionalData en excluant les valeurs vides/undefined
+      const additionalData: { category?: string } = {}
+      if (data.category && data.category.trim()) {
+        additionalData.category = data.category.trim()
+      }
+
       await createProfession.mutateAsync({
         professionName: data.name,
         adminId: user.uid,
-        additionalData: {
-          category: data.category || undefined,
-        }
+        additionalData: Object.keys(additionalData).length > 0 ? additionalData : undefined
       })
       
       // Invalider le cache des professions
