@@ -24,16 +24,27 @@ import {
   MapPinIcon,
   Building2,
   Home,
-  Navigation
+  Navigation,
+  Plus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { findProfessionByName } from '@/db/profession.db'
-import { CompanyNameForm } from '@/components/company-form'
+import CompanyCombobox from '@/components/company-form/CompanyCombobox'
+import AddCompanyModal from '@/components/company-form/AddCompanyModal'
+import ProfessionCombobox from '@/components/profession-form/ProfessionCombobox'
+import AddProfessionModal from '@/components/profession-form/AddProfessionModal'
+import { useIsAdminContext } from '@/hooks/useIsAdminContext'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import AddProvinceModal from '@/components/geographie/modals/AddProvinceModal'
+import AddCommuneModal from '@/components/geographie/modals/AddCommuneModal'
+import AddDistrictModal from '@/components/geographie/modals/AddDistrictModal'
+import AddQuarterModal from '@/components/geographie/modals/AddQuarterModal'
+import type { Province, Commune, District, Quarter } from '@/types/types'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/hooks/useGeographie'
 import { useQueries } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-import type { Commune } from '@/types/types'
 import { 
   Select,
   SelectContent,
@@ -106,6 +117,18 @@ export default function Step3({ form }: Step3Props) {
   // État pour l'onglet actif (BD par défaut)
   const [addressTab, setAddressTab] = useState<'database' | 'photon'>('database')
 
+  // Contexte admin
+  const isAdminContext = useIsAdminContext()
+  const queryClient = useQueryClient()
+
+  // États pour les modals
+  const [showAddCompanyModal, setShowAddCompanyModal] = useState(false)
+  const [showAddProfessionModal, setShowAddProfessionModal] = useState(false)
+  const [showAddCompanyProvinceModal, setShowAddCompanyProvinceModal] = useState(false)
+  const [showAddCompanyCommuneModal, setShowAddCompanyCommuneModal] = useState(false)
+  const [showAddCompanyDistrictModal, setShowAddCompanyDistrictModal] = useState(false)
+  const [showAddCompanyQuarterModal, setShowAddCompanyQuarterModal] = useState(false)
+
   // États pour la géolocalisation de l'entreprise (Photon)
   const [companyDistrictQuery, setCompanyDistrictQuery] = useState('')
   const [companySearchResults, setCompanySearchResults] = useState<PhotonResult[]>([])
@@ -123,6 +146,43 @@ export default function Step3({ form }: Step3Props) {
 
   const { register, watch, setValue, formState: { errors }, clearErrors } = form
 
+  // Handlers pour les modals de création
+  const handleCompanyCreated = (companyName: string) => {
+    queryClient.invalidateQueries({ queryKey: ['companies'] })
+    setValue('company.companyName', companyName, { shouldValidate: true })
+    toast.success(`Entreprise "${companyName}" créée et sélectionnée`)
+  }
+
+  const handleProfessionCreated = (professionName: string) => {
+    queryClient.invalidateQueries({ queryKey: ['professions'] })
+    setValue('company.profession', professionName, { shouldValidate: true })
+    toast.success(`Profession "${professionName}" créée et sélectionnée`)
+  }
+
+  const handleCompanyProvinceCreated = (newProvince: Province) => {
+    queryClient.invalidateQueries({ queryKey: ['provinces'] })
+    setValue('company.companyAddress.provinceId', newProvince.id, { shouldValidate: true })
+    toast.success(`Province "${newProvince.name}" créée et sélectionnée`)
+  }
+
+  const handleCompanyCommuneCreated = (newCommune: Commune) => {
+    queryClient.invalidateQueries({ queryKey: ['communes'] })
+    setValue('company.companyAddress.communeId', newCommune.id, { shouldValidate: true })
+    toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
+  }
+
+  const handleCompanyDistrictCreated = (newDistrict: District) => {
+    queryClient.invalidateQueries({ queryKey: ['districts'] })
+    setValue('company.companyAddress.districtId', newDistrict.id, { shouldValidate: true })
+    toast.success(`Arrondissement "${newDistrict.name}" créé et sélectionné`)
+  }
+
+  const handleCompanyQuarterCreated = (newQuarter: Quarter) => {
+    queryClient.invalidateQueries({ queryKey: ['quarters'] })
+    setValue('company.companyAddress.quarterId', newQuarter.id, { shouldValidate: true })
+    toast.success(`Quartier "${newQuarter.name}" créé et sélectionné`)
+  }
+
   // États pour l'adresse basée sur la BD
   const selectedCompanyProvinceId = watch('company.companyAddress.provinceId') || ''
   const selectedCompanyCommuneId = watch('company.companyAddress.communeId') || ''
@@ -131,6 +191,13 @@ export default function Step3({ form }: Step3Props) {
 
   // Charger les provinces pour l'adresse entreprise
   const { data: companyProvinces = [], isLoading: isLoadingCompanyProvinces } = useProvinces()
+
+  // Trier les provinces par ordre alphabétique
+  const sortedCompanyProvinces = useMemo(() => {
+    return [...companyProvinces].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [companyProvinces])
 
   // Charger les départements de la province sélectionnée
   const { data: companyDepartments = [], isLoading: isLoadingCompanyDepartments } = useDepartments(
@@ -162,7 +229,9 @@ export default function Step3({ form }: Step3Props) {
     const uniqueCommunes = communes.filter((commune, index, self) =>
       index === self.findIndex(c => c.id === commune.id)
     )
-    return uniqueCommunes.sort((a, b) => a.name.localeCompare(b.name))
+    return uniqueCommunes.sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
   }, [companyCommuneQueries])
 
   const isLoadingCompanyCommunes = companyCommuneQueries.some(query => query.isLoading)
@@ -172,16 +241,30 @@ export default function Step3({ form }: Step3Props) {
     selectedCompanyCommuneId || undefined
   )
 
+  // Trier les districts par ordre alphabétique
+  const sortedCompanyDistricts = useMemo(() => {
+    return [...companyDistricts].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [companyDistricts])
+
   // Charger les quartiers (quarters) de l'arrondissement sélectionné
   const { data: companyQuarters = [], isLoading: isLoadingCompanyQuarters } = useQuarters(
     selectedCompanyDistrictId || undefined
   )
 
+  // Trier les quarters par ordre alphabétique
+  const sortedCompanyQuarters = useMemo(() => {
+    return [...companyQuarters].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [companyQuarters])
+
   // Trouver les objets complets à partir des IDs pour remplir les champs texte
-  const selectedCompanyProvince = companyProvinces.find(p => p.id === selectedCompanyProvinceId)
+  const selectedCompanyProvince = sortedCompanyProvinces.find(p => p.id === selectedCompanyProvinceId)
   const selectedCompanyCommune = allCompanyCommunes.find(c => c.id === selectedCompanyCommuneId)
-  const selectedCompanyDistrict = companyDistricts.find(d => d.id === selectedCompanyDistrictId)
-  const selectedCompanyQuarter = companyQuarters.find(q => q.id === selectedCompanyQuarterId)
+  const selectedCompanyDistrict = sortedCompanyDistricts.find(d => d.id === selectedCompanyDistrictId)
+  const selectedCompanyQuarter = sortedCompanyQuarters.find(q => q.id === selectedCompanyQuarterId)
 
   // Mettre à jour les champs texte quand les sélections changent (BD)
   useEffect(() => {
@@ -624,7 +707,10 @@ export default function Step3({ form }: Step3Props) {
         {isEmployed && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
             {/* Nom de l'entreprise */}
-            <CompanyNameForm form={form} />
+            <CompanyCombobox 
+              form={form} 
+              onAddNew={isAdminContext ? () => setShowAddCompanyModal(true) : undefined}
+            />
             {/* Adresse de l'entreprise avec tabs */}
             <div className="space-y-4 w-full min-w-0">
               <div className="flex items-center space-x-2">
@@ -647,174 +733,239 @@ export default function Step3({ form }: Step3Props) {
                 {/* Onglet Base de données */}
                 <TabsContent value="database" className="space-y-4 mt-4">
                   <div className="space-y-4 sm:space-y-6 w-full">
-                    {/* Province */}
-                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full">
-                      <Label htmlFor="companyProvince" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                        Province <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={selectedCompanyProvinceId}
-                        onValueChange={handleCompanyProvinceChange}
-                        disabled={isLoadingCompanyProvinces}
-                      >
-                        <SelectTrigger
-                          id="companyProvince"
-                          className={cn(
-                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                            errors.company?.companyAddress?.province && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                    {/* Ligne 1 : Province et Ville */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+                      {/* Province */}
+                      <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full">
+                        <Label htmlFor="companyProvince" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                          Province <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={selectedCompanyProvinceId}
+                            onValueChange={handleCompanyProvinceChange}
+                            disabled={isLoadingCompanyProvinces}
+                          >
+                            <SelectTrigger
+                              id="companyProvince"
+                              className={cn(
+                                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                                errors.company?.companyAddress?.province && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                              )}
+                            >
+                              <SelectValue placeholder="Sélectionnez une province..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {isLoadingCompanyProvinces ? (
+                                <div className="flex items-center justify-center p-4">
+                                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                </div>
+                              ) : (
+                                sortedCompanyProvinces.map((province) => (
+                                  <SelectItem key={province.id} value={province.id}>
+                                    {province.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {isAdminContext && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddCompanyProvinceModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter une nouvelle province"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
                           )}
-                        >
-                          <SelectValue placeholder="Sélectionnez une province..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoadingCompanyProvinces ? (
-                            <div className="flex items-center justify-center p-4">
-                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                            </div>
-                          ) : (
-                            companyProvinces.map((province) => (
-                              <SelectItem key={province.id} value={province.id}>
-                                {province.name}
-                              </SelectItem>
-                            ))
+                        </div>
+                        {errors.company?.companyAddress?.province && (
+                          <p className="text-xs text-red-500">{errors.company.companyAddress.province.message as string}</p>
+                        )}
+                      </div>
+
+                      {/* Ville (Commune) */}
+                      <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-300 w-full">
+                        <Label htmlFor="companyCity" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                          Ville <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={selectedCompanyCommuneId}
+                            onValueChange={handleCompanyCommuneChange}
+                            disabled={!selectedCompanyProvinceId || isLoadingCompanyCommunes || isLoadingCompanyDepartments}
+                          >
+                            <SelectTrigger
+                              id="companyCity"
+                              className={cn(
+                                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                                errors.company?.companyAddress?.city && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                              )}
+                            >
+                              <SelectValue placeholder={
+                                !selectedCompanyProvinceId 
+                                  ? "Sélectionnez d'abord une province..." 
+                                  : isLoadingCompanyCommunes || isLoadingCompanyDepartments
+                                  ? "Chargement..."
+                                  : "Sélectionnez une ville..."
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {isLoadingCompanyCommunes || isLoadingCompanyDepartments ? (
+                                <div className="flex items-center justify-center p-4">
+                                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                </div>
+                              ) : (
+                                allCompanyCommunes.map((commune) => (
+                                  <SelectItem key={commune.id} value={commune.id}>
+                                    {commune.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {isAdminContext && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddCompanyCommuneModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter une nouvelle commune"
+                              disabled={!selectedCompanyProvinceId}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
                           )}
-                        </SelectContent>
-                      </Select>
-                      {errors.company?.companyAddress?.province && (
-                        <p className="text-xs text-red-500">{errors.company.companyAddress.province.message as string}</p>
-                      )}
+                        </div>
+                        {errors.company?.companyAddress?.city && (
+                          <p className="text-xs text-red-500">{errors.company.companyAddress.city.message as string}</p>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Ville (Commune) */}
-                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-300 w-full">
-                      <Label htmlFor="companyCity" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                        Ville <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={selectedCompanyCommuneId}
-                        onValueChange={handleCompanyCommuneChange}
-                        disabled={!selectedCompanyProvinceId || isLoadingCompanyCommunes || isLoadingCompanyDepartments}
-                      >
-                        <SelectTrigger
-                          id="companyCity"
-                          className={cn(
-                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                            errors.company?.companyAddress?.city && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                    {/* Ligne 2 : Arrondissement et Quartier */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+                      {/* Arrondissement (District) */}
+                      <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full">
+                        <Label htmlFor="companyArrondissement" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                          Arrondissement <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={selectedCompanyDistrictId}
+                            onValueChange={handleCompanyDistrictChange}
+                            disabled={!selectedCompanyCommuneId || isLoadingCompanyDistricts}
+                          >
+                            <SelectTrigger
+                              id="companyArrondissement"
+                              className={cn(
+                                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                                errors.company?.companyAddress?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                              )}
+                            >
+                              <SelectValue placeholder={
+                                !selectedCompanyCommuneId 
+                                  ? "Sélectionnez d'abord une ville..." 
+                                  : isLoadingCompanyDistricts
+                                  ? "Chargement..."
+                                  : "Sélectionnez un arrondissement..."
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {isLoadingCompanyDistricts ? (
+                                <div className="flex items-center justify-center p-4">
+                                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                </div>
+                              ) : (
+                                sortedCompanyDistricts.map((district) => (
+                                  <SelectItem key={district.id} value={district.id}>
+                                    {district.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {isAdminContext && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddCompanyDistrictModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter un nouvel arrondissement"
+                              disabled={!selectedCompanyCommuneId}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
                           )}
-                        >
-                          <SelectValue placeholder={
-                            !selectedCompanyProvinceId 
-                              ? "Sélectionnez d'abord une province..." 
-                              : isLoadingCompanyCommunes || isLoadingCompanyDepartments
-                              ? "Chargement..."
-                              : "Sélectionnez une ville..."
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoadingCompanyCommunes || isLoadingCompanyDepartments ? (
-                            <div className="flex items-center justify-center p-4">
-                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                            </div>
-                          ) : (
-                            allCompanyCommunes.map((commune) => (
-                              <SelectItem key={commune.id} value={commune.id}>
-                                {commune.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {errors.company?.companyAddress?.city && (
-                        <p className="text-xs text-red-500">{errors.company.companyAddress.city.message as string}</p>
-                      )}
-                    </div>
+                        </div>
+                        {errors.company?.companyAddress?.district && (
+                          <p className="text-xs text-red-500">{errors.company.companyAddress.district.message as string}</p>
+                        )}
+                      </div>
 
-                    {/* Arrondissement (District) */}
-                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full">
-                      <Label htmlFor="companyArrondissement" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                        Arrondissement <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={selectedCompanyDistrictId}
-                        onValueChange={handleCompanyDistrictChange}
-                        disabled={!selectedCompanyCommuneId || isLoadingCompanyDistricts}
-                      >
-                        <SelectTrigger
-                          id="companyArrondissement"
-                          className={cn(
-                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                            errors.company?.companyAddress?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      {/* Quartier (Quarter) */}
+                      <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full">
+                        <Label htmlFor="companyQuarter" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                          Quartier <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={selectedCompanyQuarterId}
+                            onValueChange={handleCompanyQuarterChange}
+                            disabled={!selectedCompanyDistrictId || isLoadingCompanyQuarters}
+                          >
+                            <SelectTrigger
+                              id="companyQuarter"
+                              className={cn(
+                                "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
+                                errors.company?.companyAddress?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                              )}
+                            >
+                              <SelectValue placeholder={
+                                !selectedCompanyDistrictId 
+                                  ? "Sélectionnez d'abord un arrondissement..." 
+                                  : isLoadingCompanyQuarters
+                                  ? "Chargement..."
+                                  : "Sélectionnez un quartier..."
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {isLoadingCompanyQuarters ? (
+                                <div className="flex items-center justify-center p-4">
+                                  <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                </div>
+                              ) : (
+                                sortedCompanyQuarters.map((quarter) => (
+                                  <SelectItem key={quarter.id} value={quarter.id}>
+                                    {quarter.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {isAdminContext && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddCompanyQuarterModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter un nouveau quartier"
+                              disabled={!selectedCompanyDistrictId}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
                           )}
-                        >
-                          <SelectValue placeholder={
-                            !selectedCompanyCommuneId 
-                              ? "Sélectionnez d'abord une ville..." 
-                              : isLoadingCompanyDistricts
-                              ? "Chargement..."
-                              : "Sélectionnez un arrondissement..."
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoadingCompanyDistricts ? (
-                            <div className="flex items-center justify-center p-4">
-                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                            </div>
-                          ) : (
-                            companyDistricts.map((district) => (
-                              <SelectItem key={district.id} value={district.id}>
-                                {district.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {errors.company?.companyAddress?.district && (
-                        <p className="text-xs text-red-500">{errors.company.companyAddress.district.message as string}</p>
-                      )}
-                    </div>
-
-                    {/* Quartier (Quarter) */}
-                    <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full">
-                      <Label htmlFor="companyQuarter" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                        Quartier <span className="text-red-500">*</span>
-                      </Label>
-                      <Select
-                        value={selectedCompanyQuarterId}
-                        onValueChange={handleCompanyQuarterChange}
-                        disabled={!selectedCompanyDistrictId || isLoadingCompanyQuarters}
-                      >
-                        <SelectTrigger
-                          id="companyQuarter"
-                          className={cn(
-                            "w-full border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20",
-                            errors.company?.companyAddress?.district && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                          )}
-                        >
-                          <SelectValue placeholder={
-                            !selectedCompanyDistrictId 
-                              ? "Sélectionnez d'abord un arrondissement..." 
-                              : isLoadingCompanyQuarters
-                              ? "Chargement..."
-                              : "Sélectionnez un quartier..."
-                          } />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoadingCompanyQuarters ? (
-                            <div className="flex items-center justify-center p-4">
-                              <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
-                            </div>
-                          ) : (
-                            companyQuarters.map((quarter) => (
-                              <SelectItem key={quarter.id} value={quarter.id}>
-                                {quarter.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {errors.company?.companyAddress?.district && (
-                        <p className="text-xs text-red-500">{errors.company.companyAddress.district.message as string}</p>
-                      )}
+                        </div>
+                        {errors.company?.companyAddress?.district && (
+                          <p className="text-xs text-red-500">{errors.company.companyAddress.district.message as string}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -1111,89 +1262,10 @@ export default function Step3({ form }: Step3Props) {
             {/* Profession et Ancienneté */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 w-full">
               {/* Profession */}
-              <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full min-w-0">
-                <Label htmlFor="profession" className="text-xs sm:text-sm font-medium text-[#224D62]">
-                  Profession <span className="text-red-500">*</span>
-                  <Badge variant="secondary" className="ml-2 bg-[#224D62]/10 text-[#224D62] text-[10px] sm:text-xs">
-                    Suggestions automatiques
-                  </Badge>
-                </Label>
-                <div className="relative w-full min-w-0">
-                  <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
-                  <Input
-                    id="profession"
-                    {...register('company.profession')}
-                    placeholder="Ex: Ingénieur, Médecin..."
-                    onFocus={() => {
-                      const value = watch('company.profession')
-                      if (value && value.trim().length >= 2) {
-                        fetchProfessionSuggestions(value)
-                        setShowProfessionSuggestions(true)
-                      }
-                    }}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      if (value.length >= 2) {
-                        fetchProfessionSuggestions(value)
-                        setShowProfessionSuggestions(true)
-                      } else {
-                        setProfessionSuggestions([])
-                        setShowProfessionSuggestions(false)
-                      }
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => setShowProfessionSuggestions(false), 200)
-                    }}
-                    className={cn(
-                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-                      errors?.company?.profession && "border-red-300 focus:border-red-500 bg-red-50/50",
-                      watchedFields[4] && !errors?.company?.profession && "border-[#CBB171] bg-[#CBB171]/5"
-                    )}
-                  />
-                                  {isLoadingProfessionSuggestions && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-spin z-10" />
-                  )}
-                  {watchedFields[4] && !errors?.company?.profession && !isLoadingProfessionSuggestions && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
-                  )}
-                  {/* Suggestions professions */}
-                  {showProfessionSuggestions && professionSuggestions.length > 0 && (
-                    <Card className="absolute top-full left-0 right-0 mt-1 z-20 border border-[#CBB171]/30 shadow-lg animate-in fade-in-0 slide-in-from-top-2 duration-200 max-h-32 sm:max-h-48 overflow-y-auto w-full">
-                      <CardContent className="p-2">
-                        <div className="space-y-1">
-                          {professionSuggestions.map((suggestion, index) => (
-                            <Button
-                              key={index}
-                              variant="ghost"
-                              size="sm"
-                              className={cn(
-                                "w-full justify-start text-left hover:bg-[#224D62]/5 transition-colors text-xs sm:text-sm p-2",
-                                suggestion.isNew && "text-[#CBB171] font-medium"
-                              )}
-                              onMouseDown={() => handleSuggestionClick('company.profession', suggestion.name, suggestion.isNew)}
-                            >
-                              <div className="flex items-center space-x-2 w-full">
-                                {suggestion.isNew ? (
-                                  <Search className="w-3 h-3 text-[#CBB171] flex-shrink-0" />
-                                ) : (
-                                  <GraduationCap className="w-3 h-3 text-[#224D62] flex-shrink-0" />
-                                )}
-                                <span className="truncate">{suggestion.name}</span>
-                              </div>
-                            </Button>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-                {errors?.company?.profession && (
-                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{errors.company.profession.message}</span>
-                  </div>
-                )}
-              </div>
+              <ProfessionCombobox 
+                form={form} 
+                onAddNew={isAdminContext ? () => setShowAddProfessionModal(true) : undefined}
+              />
               {/* Ancienneté */}
               <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-600 w-full min-w-0">
                 <Label htmlFor="seniority" className="text-xs sm:text-sm font-medium text-[#224D62]">
@@ -1290,6 +1362,45 @@ export default function Step3({ form }: Step3Props) {
           </div>
         </div>
       </div>
+
+      {/* Modals de création rapide (uniquement en contexte admin) */}
+      {isAdminContext && (
+        <>
+          <AddCompanyModal
+            open={showAddCompanyModal}
+            onClose={() => setShowAddCompanyModal(false)}
+            onSuccess={handleCompanyCreated}
+          />
+          <AddProfessionModal
+            open={showAddProfessionModal}
+            onClose={() => setShowAddProfessionModal(false)}
+            onSuccess={handleProfessionCreated}
+          />
+          <AddProvinceModal
+            open={showAddCompanyProvinceModal}
+            onClose={() => setShowAddCompanyProvinceModal(false)}
+            onSuccess={handleCompanyProvinceCreated}
+          />
+          <AddCommuneModal
+            open={showAddCompanyCommuneModal}
+            onClose={() => setShowAddCompanyCommuneModal(false)}
+            onSuccess={handleCompanyCommuneCreated}
+            provinceId={selectedCompanyProvinceId || undefined}
+          />
+          <AddDistrictModal
+            open={showAddCompanyDistrictModal}
+            onClose={() => setShowAddCompanyDistrictModal(false)}
+            onSuccess={handleCompanyDistrictCreated}
+            communeId={selectedCompanyCommuneId || undefined}
+          />
+          <AddQuarterModal
+            open={showAddCompanyQuarterModal}
+            onClose={() => setShowAddCompanyQuarterModal(false)}
+            onSuccess={handleCompanyQuarterCreated}
+            districtId={selectedCompanyDistrictId || undefined}
+          />
+        </>
+      )}
     </div>
   )
 }
