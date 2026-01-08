@@ -201,10 +201,12 @@ export default function Step2({ form }: Step2Props) {
     toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
   }
 
-  const handleDistrictCreated = (newDistrict: District) => {
+  const handleDistrictCreated = (newDistricts: any[]) => {
+    // Après création en masse, rafraîchir la liste des arrondissements
     queryClient.invalidateQueries({ queryKey: ['districts'] })
-    setValue('address.districtId', newDistrict.id, { shouldValidate: true })
-    toast.success(`Arrondissement "${newDistrict.name}" créé et sélectionné`)
+    // Ne pas sélectionner automatiquement car plusieurs arrondissements ont été créés
+    // L'utilisateur pourra choisir parmi les nouveaux arrondissements créés
+    toast.success('Arrondissements créés avec succès')
   }
 
   const handleQuarterCreated = (newQuarter: Quarter) => {

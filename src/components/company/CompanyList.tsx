@@ -1,5 +1,5 @@
 "use client"
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,12 +7,25 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { companyCrudSchema, type CompanyCrudFormData } from '@/schemas/schemas'
 import { useCompaniesPaginated, useCompanyMutations } from '@/hooks/useCompaniesQuery'
+import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/hooks/useGeographie'
+import { useQueries } from '@tanstack/react-query'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, MapPinIcon, CheckCircle, Loader2, Home } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, MapPinIcon, CheckCircle, Loader2, Home, MapPin } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type { Province, Commune, District, Quarter } from '@/types/types'
+import AddProvinceModal from '@/components/geographie/modals/AddProvinceModal'
+import AddCommuneModal from '@/components/geographie/modals/AddCommuneModal'
+import AddDistrictModal from '@/components/geographie/modals/AddDistrictModal'
+import AddQuarterModal from '@/components/geographie/modals/AddQuarterModal'
+import { useQueryClient } from '@tanstack/react-query'
 
 function CompanySkeleton() {
   return (
@@ -37,12 +50,29 @@ export default function CompanyList() {
   const [companyToDelete, setCompanyToDelete] = useState<{ id: string; name: string } | null>(null)
   const [editingCompany, setEditingCompany] = useState<{ id: string; name: string; industry?: string; employeeCount?: number; address?: { province?: string; city?: string; district?: string } } | null>(null)
 
-  // États pour la géolocalisation
+  // État pour l'onglet actif (BD par défaut)
+  const [addressTab, setAddressTab] = useState<'database' | 'photon'>('database')
+
+  // États pour la géolocalisation Photon
   const [districtQuery, setDistrictQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<any>(null)
+
+  // États pour les sélections en cascade (Base de données)
+  const [selectedProvinceId, setSelectedProvinceId] = useState<string>('')
+  const [selectedCommuneId, setSelectedCommuneId] = useState<string>('')
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string>('')
+  const [selectedQuarterId, setSelectedQuarterId] = useState<string>('')
+
+  // États pour les modals de création rapide
+  const [showAddProvinceModal, setShowAddProvinceModal] = useState(false)
+  const [showAddCommuneModal, setShowAddCommuneModal] = useState(false)
+  const [showAddDistrictModal, setShowAddDistrictModal] = useState(false)
+  const [showAddQuarterModal, setShowAddQuarterModal] = useState(false)
+
+  const queryClient = useQueryClient()
 
   const filters = useMemo(() => ({ search: search.trim() || undefined }), [search])
   const { data, isLoading, error, refetch } = useCompaniesPaginated(filters, page, limit)
@@ -50,25 +80,230 @@ export default function CompanyList() {
 
   const form = useForm({ resolver: zodResolver(companyCrudSchema), defaultValues: { name: '', industry: '', address: { province: '', city: '', district: '' } } })
 
+  // Charger les provinces
+  const { data: provinces = [], isLoading: isLoadingProvinces } = useProvinces()
+
+  // Trier les provinces par ordre alphabétique
+  const sortedProvinces = useMemo(() => {
+    return [...provinces].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [provinces])
+
+  // Charger les départements de la province sélectionnée
+  const { data: departments = [], isLoading: isLoadingDepartments } = useDepartments(
+    selectedProvinceId || undefined
+  )
+
+  // Charger toutes les communes de tous les départements de la province sélectionnée
+  const communeQueries = useQueries({
+    queries: departments.length > 0 
+      ? departments.map(dept => ({
+          queryKey: ['communes', dept.id, 'company'],
+          queryFn: async () => {
+            const service = ServiceFactory.getGeographieService()
+            return service.getCommunesByDepartmentId(dept.id)
+          },
+          enabled: !!selectedProvinceId && departments.length > 0,
+          staleTime: 5 * 60 * 1000,
+        }))
+      : []
+  })
+
+  const allCommunes = useMemo(() => {
+    const communes: Commune[] = []
+    communeQueries.forEach(query => {
+      if (query.data) {
+        communes.push(...query.data)
+      }
+    })
+    const uniqueCommunes = communes.filter((commune, index, self) =>
+      index === self.findIndex(c => c.id === commune.id)
+    )
+    return uniqueCommunes.sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [communeQueries])
+
+  const isLoadingCommunes = communeQueries.some(query => query.isLoading)
+
+  // Charger les arrondissements (districts) de la commune sélectionnée
+  const { data: districts = [], isLoading: isLoadingDistricts } = useDistricts(
+    selectedCommuneId || undefined
+  )
+
+  // Trier les districts par ordre alphabétique
+  const sortedDistricts = useMemo(() => {
+    return [...districts].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [districts])
+
+  // Charger les quartiers (quarters) de l'arrondissement sélectionné
+  const { data: quarters = [], isLoading: isLoadingQuarters } = useQuarters(
+    selectedDistrictId || undefined
+  )
+
+  // Trier les quarters par ordre alphabétique
+  const sortedQuarters = useMemo(() => {
+    return [...quarters].sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+  }, [quarters])
+
+  // Trouver les objets complets à partir des IDs pour remplir les champs texte
+  const selectedProvince = sortedProvinces.find(p => p.id === selectedProvinceId)
+  const selectedCommune = allCommunes.find(c => c.id === selectedCommuneId)
+  const selectedDistrict = sortedDistricts.find(d => d.id === selectedDistrictId)
+  const selectedQuarter = sortedQuarters.find(q => q.id === selectedQuarterId)
+
+  // Mettre à jour les champs texte quand les sélections changent (BD)
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedProvince) {
+        form.setValue('address.province', selectedProvince.name, { shouldValidate: true })
+      } else if (!selectedProvinceId) {
+        form.setValue('address.province', '', { shouldValidate: true })
+      }
+    }
+  }, [selectedProvince, selectedProvinceId, form, addressTab])
+
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedCommune) {
+        form.setValue('address.city', selectedCommune.name, { shouldValidate: true })
+      } else if (!selectedCommuneId) {
+        form.setValue('address.city', '', { shouldValidate: true })
+        form.setValue('address.district', '', { shouldValidate: true })
+      }
+    }
+  }, [selectedCommune, selectedCommuneId, form, addressTab])
+
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedDistrict) {
+        if (!selectedQuarterId) {
+          form.setValue('address.district', selectedDistrict.name, { shouldValidate: true })
+        }
+      } else if (!selectedDistrictId) {
+        if (!selectedQuarterId) {
+          form.setValue('address.district', '', { shouldValidate: true })
+        }
+      }
+    }
+  }, [selectedDistrict, selectedDistrictId, form, addressTab, selectedQuarterId])
+
+  useEffect(() => {
+    if (addressTab === 'database') {
+      if (selectedQuarter) {
+        form.setValue('address.district', selectedQuarter.name, { shouldValidate: true })
+      } else if (!selectedQuarterId) {
+        if (!selectedDistrictId) {
+          form.setValue('address.district', '', { shouldValidate: true })
+        }
+      }
+    }
+  }, [selectedQuarter, selectedQuarterId, form, addressTab, selectedDistrictId])
+
+  // Réinitialiser les sélections en cascade quand un niveau supérieur change (BD)
+  const handleProvinceChange = (provinceId: string) => {
+    setSelectedProvinceId(provinceId)
+    setSelectedCommuneId('')
+    setSelectedDistrictId('')
+    setSelectedQuarterId('')
+  }
+
+  const handleCommuneChange = (communeId: string) => {
+    setSelectedCommuneId(communeId)
+    setSelectedDistrictId('')
+    setSelectedQuarterId('')
+  }
+
+  const handleDistrictChange = (districtId: string) => {
+    setSelectedDistrictId(districtId)
+    setSelectedQuarterId('')
+  }
+
+  const handleQuarterChange = (quarterId: string) => {
+    setSelectedQuarterId(quarterId)
+  }
+
+  // Handlers pour les modals de création
+  const handleProvinceCreated = (newProvince: Province) => {
+    queryClient.invalidateQueries({ queryKey: ['provinces'] })
+    setSelectedProvinceId(newProvince.id)
+    toast.success(`Province "${newProvince.name}" créée et sélectionnée`)
+  }
+
+  const handleCommuneCreated = (newCommune: Commune) => {
+    queryClient.invalidateQueries({ queryKey: ['communes'] })
+    setSelectedCommuneId(newCommune.id)
+    toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
+  }
+
+  const handleDistrictCreated = (newDistricts: any[]) => {
+    queryClient.invalidateQueries({ queryKey: ['districts'] })
+    toast.success('Arrondissements créés avec succès')
+  }
+
+  const handleQuarterCreated = (newQuarter: Quarter) => {
+    queryClient.invalidateQueries({ queryKey: ['quarters'] })
+    setSelectedQuarterId(newQuarter.id)
+    toast.success(`Quartier "${newQuarter.name}" créé et sélectionné`)
+  }
+
+  // Nettoyer les données Photon quand on passe à l'onglet BD
+  useEffect(() => {
+    if (addressTab === 'database') {
+      setDistrictQuery('')
+      setSearchResults([])
+      setSelectedLocation(null)
+    }
+  }, [addressTab])
+
+  // Nettoyer les données BD quand on passe à l'onglet Photon
+  useEffect(() => {
+    if (addressTab === 'photon') {
+      setSelectedProvinceId('')
+      setSelectedCommuneId('')
+      setSelectedDistrictId('')
+      setSelectedQuarterId('')
+    }
+  }, [addressTab])
+
   const openCreate = () => {
     setEditingCompany(null)
     form.reset({ name: '', industry: '', address: { province: '', city: '', district: '' } })
-    // Réinitialiser les états de géolocalisation
+    // Réinitialiser les états de géolocalisation Photon
     setDistrictQuery('')
     setSearchResults([])
     setSelectedLocation(null)
     setShowResults(false)
+    // Réinitialiser les états de sélection en cascade (BD)
+    setSelectedProvinceId('')
+    setSelectedCommuneId('')
+    setSelectedDistrictId('')
+    setSelectedQuarterId('')
+    // Réinitialiser l'onglet
+    setAddressTab('database')
     setIsCreateOpen(true)
   }
 
   const openEdit = (c: { id: string; name: string; industry?: string; employeeCount?: number; address?: { province?: string; city?: string; district?: string } }) => {
     setEditingCompany(c)
     form.reset({ name: c.name, industry: c.industry || '', address: { province: c.address?.province || '', city: c.address?.city || '', district: c.address?.district || '' } })
-    // Réinitialiser et remplir les états de géolocalisation
+    // Réinitialiser et remplir les états de géolocalisation Photon
     setDistrictQuery(c.address?.district || '')
     setSearchResults([])
     setSelectedLocation(null)
     setShowResults(false)
+    // Réinitialiser les états de sélection en cascade (BD) - on ne peut pas pré-remplir car on n'a que les noms, pas les IDs
+    setSelectedProvinceId('')
+    setSelectedCommuneId('')
+    setSelectedDistrictId('')
+    setSelectedQuarterId('')
+    // Par défaut, utiliser l'onglet Photon si une adresse existe
+    setAddressTab(c.address?.district ? 'photon' : 'database')
     setIsCreateOpen(true)
   }
 
@@ -272,7 +507,7 @@ export default function CompanyList() {
 
       {/* Modal création / édition */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingCompany ? 'Modifier une entreprise' : 'Nouvelle entreprise'}</DialogTitle>
             <DialogDescription>Renseignez les informations de l'entreprise</DialogDescription>
@@ -306,7 +541,223 @@ export default function CompanyList() {
                 )}
               />
               
-              {/* Recherche de quartier avec géolocalisation automatique */}
+              {/* Adresse de l'entreprise avec tabs */}
+              <div className="space-y-4 w-full min-w-0">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-4 h-4 text-[#224D62]" />
+                  <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+                    Adresse de l'entreprise
+                  </Label>
+                </div>
+                
+                <Tabs value={addressTab} onValueChange={(value) => setAddressTab(value as 'database' | 'photon')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="database" className="text-xs sm:text-sm">
+                      Base de données
+                    </TabsTrigger>
+                    <TabsTrigger value="photon" className="text-xs sm:text-sm">
+                      Recherche Photon
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* Onglet Base de données */}
+                  <TabsContent value="database" className="space-y-4 mt-4">
+                    <div className="space-y-4 sm:space-y-6 w-full">
+                      {/* Ligne 1 : Province et Ville */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+                        {/* Province */}
+                        <div className="space-y-2 w-full">
+                          <Label htmlFor="province" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                            Province
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={selectedProvinceId}
+                              onValueChange={handleProvinceChange}
+                              disabled={isLoadingProvinces}
+                            >
+                              <SelectTrigger id="province" className="w-full">
+                                <SelectValue placeholder="Sélectionnez une province..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {isLoadingProvinces ? (
+                                  <div className="flex items-center justify-center p-4">
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                  </div>
+                                ) : (
+                                  sortedProvinces.map((province) => (
+                                    <SelectItem key={province.id} value={province.id}>
+                                      {province.name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddProvinceModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter une nouvelle province"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Ville (Commune) */}
+                        <div className="space-y-2 w-full">
+                          <Label htmlFor="city" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                            Ville
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={selectedCommuneId}
+                              onValueChange={handleCommuneChange}
+                              disabled={!selectedProvinceId || isLoadingCommunes || isLoadingDepartments}
+                            >
+                              <SelectTrigger id="city" className="w-full">
+                                <SelectValue placeholder={
+                                  !selectedProvinceId 
+                                    ? "Sélectionnez d'abord une province..." 
+                                    : isLoadingCommunes || isLoadingDepartments
+                                    ? "Chargement..."
+                                    : "Sélectionnez une ville..."
+                                } />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {isLoadingCommunes || isLoadingDepartments ? (
+                                  <div className="flex items-center justify-center p-4">
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                  </div>
+                                ) : (
+                                  allCommunes.map((commune) => (
+                                    <SelectItem key={commune.id} value={commune.id}>
+                                      {commune.name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddCommuneModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter une nouvelle commune"
+                              disabled={!selectedProvinceId}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ligne 2 : Arrondissement et Quartier */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full">
+                        {/* Arrondissement (District) */}
+                        <div className="space-y-2 w-full">
+                          <Label htmlFor="district" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                            Arrondissement
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={selectedDistrictId}
+                              onValueChange={handleDistrictChange}
+                              disabled={!selectedCommuneId || isLoadingDistricts}
+                            >
+                              <SelectTrigger id="district" className="w-full">
+                                <SelectValue placeholder={
+                                  !selectedCommuneId 
+                                    ? "Sélectionnez d'abord une ville..." 
+                                    : isLoadingDistricts
+                                    ? "Chargement..."
+                                    : "Sélectionnez un arrondissement..."
+                                } />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {isLoadingDistricts ? (
+                                  <div className="flex items-center justify-center p-4">
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                  </div>
+                                ) : (
+                                  sortedDistricts.map((district) => (
+                                    <SelectItem key={district.id} value={district.id}>
+                                      {district.name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddDistrictModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter un nouvel arrondissement"
+                              disabled={!selectedCommuneId}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Quartier (Quarter) */}
+                        <div className="space-y-2 w-full">
+                          <Label htmlFor="quarter" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                            Quartier
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={selectedQuarterId}
+                              onValueChange={handleQuarterChange}
+                              disabled={!selectedDistrictId || isLoadingQuarters}
+                            >
+                              <SelectTrigger id="quarter" className="w-full">
+                                <SelectValue placeholder={
+                                  !selectedDistrictId 
+                                    ? "Sélectionnez d'abord un arrondissement..." 
+                                    : isLoadingQuarters
+                                    ? "Chargement..."
+                                    : "Sélectionnez un quartier..."
+                                } />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {isLoadingQuarters ? (
+                                  <div className="flex items-center justify-center p-4">
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                                  </div>
+                                ) : (
+                                  sortedQuarters.map((quarter) => (
+                                    <SelectItem key={quarter.id} value={quarter.id}>
+                                      {quarter.name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setShowAddQuarterModal(true)}
+                              className="h-10 w-10 flex-shrink-0"
+                              title="Ajouter un nouveau quartier"
+                              disabled={!selectedDistrictId}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Onglet Photon Komoot */}
+                  <TabsContent value="photon" className="space-y-4 mt-4">
               <div className="space-y-4">
                 <FormField
                   control={form.control}
@@ -462,6 +913,9 @@ export default function CompanyList() {
                     )}
                   />
                 </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Annuler</Button>
@@ -471,6 +925,31 @@ export default function CompanyList() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Modals de création rapide */}
+      <AddProvinceModal
+        open={showAddProvinceModal}
+        onClose={() => setShowAddProvinceModal(false)}
+        onSuccess={handleProvinceCreated}
+      />
+      <AddCommuneModal
+        open={showAddCommuneModal}
+        onClose={() => setShowAddCommuneModal(false)}
+        onSuccess={handleCommuneCreated}
+        provinceId={selectedProvinceId || undefined}
+      />
+      <AddDistrictModal
+        open={showAddDistrictModal}
+        onClose={() => setShowAddDistrictModal(false)}
+        onSuccess={handleDistrictCreated}
+        communeId={selectedCommuneId || undefined}
+      />
+      <AddQuarterModal
+        open={showAddQuarterModal}
+        onClose={() => setShowAddQuarterModal(false)}
+        onSuccess={handleQuarterCreated}
+        districtId={selectedDistrictId || undefined}
+      />
 
       {/* Confirmation suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>

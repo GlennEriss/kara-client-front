@@ -8,10 +8,13 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { toast } from 'sonner'
+import { Plus, Loader2 } from 'lucide-react'
 import { useCommuneMutations, useDepartments } from '@/hooks/useGeographie'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { communeSchema, type CommuneFormData } from '@/schemas/geographie.schema'
-import type { Commune } from '@/types/types'
+import type { Commune, Department } from '@/types/types'
+import AddDepartmentModal from './AddDepartmentModal'
 
 interface AddCommuneModalProps {
   open: boolean
@@ -22,7 +25,9 @@ interface AddCommuneModalProps {
 
 export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }: AddCommuneModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false)
   const communeMutations = useCommuneMutations()
+  const queryClient = useQueryClient()
   
   const form = useForm<CommuneFormData>({
     resolver: zodResolver(communeSchema),
@@ -35,7 +40,8 @@ export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }
   })
 
   const selectedDepartmentId = form.watch('departmentId')
-  const { data: departments = [] } = useDepartments(provinceId)
+  // Charger TOUS les départements, pas seulement ceux de la province (comme dans CommuneList.tsx)
+  const { data: departments = [], isLoading: isLoadingDepartments } = useDepartments(undefined)
 
   // Trier les départements par ordre alphabétique
   const sortedDepartments = useMemo(() => {
@@ -43,6 +49,21 @@ export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }
       a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
     )
   }, [departments])
+
+  // Handler pour la création de département en cascade
+  const handleDepartmentCreated = (newDepartment: Department) => {
+    // Invalider le cache des départements
+    queryClient.invalidateQueries({ queryKey: ['departments'] })
+    
+    // Pré-sélectionner le département dans le formulaire de commune
+    form.setValue('departmentId', newDepartment.id, { shouldValidate: true })
+    
+    // Fermer le modal de département
+    setShowAddDepartmentModal(false)
+    
+    // Toast de confirmation
+    toast.success(`Département "${newDepartment.name}" créé et sélectionné`)
+  }
 
   const handleSubmit = async (data: CommuneFormData) => {
     setIsSubmitting(true)
@@ -75,20 +96,53 @@ export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Département <span className="text-red-500">*</span></FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={!provinceId || departments.length === 0}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={!provinceId ? "Sélectionnez d'abord une province" : "Sélectionnez un département"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {sortedDepartments.map((dept) => (
-                        <SelectItem key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value} 
+                      disabled={isLoadingDepartments}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            isLoadingDepartments
+                              ? "Chargement..."
+                              : sortedDepartments.length === 0
+                              ? "Aucun département disponible"
+                              : "Sélectionnez un département"
+                          } />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {isLoadingDepartments ? (
+                          <div className="flex items-center justify-center p-4">
+                            <Loader2 className="w-4 h-4 animate-spin text-[#224D62]" />
+                          </div>
+                        ) : sortedDepartments.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            Aucun département disponible
+                          </div>
+                        ) : (
+                          sortedDepartments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {/* Toujours permettre la création de département, même sans province pré-sélectionnée */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowAddDepartmentModal(true)}
+                      className="h-10 w-10 flex-shrink-0"
+                      title="Créer un nouveau département"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -155,6 +209,14 @@ export default function AddCommuneModal({ open, onClose, onSuccess, provinceId }
           </form>
         </Form>
       </DialogContent>
+
+      {/* Modal de création de département en cascade */}
+      <AddDepartmentModal
+        open={showAddDepartmentModal}
+        onClose={() => setShowAddDepartmentModal(false)}
+        onSuccess={handleDepartmentCreated}
+        provinceId={provinceId}
+      />
     </Dialog>
   )
 }
