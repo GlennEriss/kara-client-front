@@ -709,10 +709,40 @@ export default function Step3({ form }: Step3Props) {
         {isEmployed && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
             {/* Nom de l'entreprise */}
-            <CompanyCombobox 
-              form={form} 
-              onAddNew={isAdminContext ? () => setShowAddCompanyModal(true) : undefined}
-            />
+            {isAdminContext ? (
+              <CompanyCombobox 
+                form={form} 
+                onAddNew={() => setShowAddCompanyModal(true)}
+              />
+            ) : (
+              <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full">
+                <Label htmlFor="companyName" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                  Nom de l'entreprise <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative w-full">
+                  <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
+                  <Input
+                    id="companyName"
+                    {...register('company.companyName')}
+                    placeholder="Ex: Total Gabon, Ministère de la Santé..."
+                    className={cn(
+                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                      errors?.company?.companyName && "border-red-300 focus:border-red-500 bg-red-50/50",
+                      watch('company.companyName') && !errors?.company?.companyName && "border-[#CBB171] bg-[#CBB171]/5"
+                    )}
+                  />
+                  {watch('company.companyName') && !errors?.company?.companyName && (
+                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                  )}
+                </div>
+                {errors?.company?.companyName && (
+                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{errors.company.companyName.message}</span>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Adresse de l'entreprise avec tabs */}
             <div className="space-y-4 w-full min-w-0">
               <div className="flex items-center space-x-2">
@@ -1264,10 +1294,40 @@ export default function Step3({ form }: Step3Props) {
             {/* Profession et Ancienneté */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 w-full">
               {/* Profession */}
-              <ProfessionCombobox 
-                form={form} 
-                onAddNew={isAdminContext ? () => setShowAddProfessionModal(true) : undefined}
-              />
+              {isAdminContext ? (
+                <ProfessionCombobox 
+                  form={form} 
+                  onAddNew={() => setShowAddProfessionModal(true)}
+                />
+              ) : (
+                <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full min-w-0">
+                  <Label htmlFor="profession" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                    Profession <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative w-full min-w-0">
+                    <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
+                    <Input
+                      id="profession"
+                      {...register('company.profession')}
+                      placeholder="Ex: Enseignant, Médecin, Ingénieur..."
+                      className={cn(
+                        "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                        errors?.company?.profession && "border-red-300 focus:border-red-500 bg-red-50/50",
+                        watch('company.profession') && !errors?.company?.profession && "border-[#CBB171] bg-[#CBB171]/5"
+                      )}
+                    />
+                    {watch('company.profession') && !errors?.company?.profession && (
+                      <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                    )}
+                  </div>
+                  {errors?.company?.profession && (
+                    <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.company.profession.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Ancienneté */}
               <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-600 w-full min-w-0">
                 <Label htmlFor="seniority" className="text-xs sm:text-sm font-medium text-[#224D62]">

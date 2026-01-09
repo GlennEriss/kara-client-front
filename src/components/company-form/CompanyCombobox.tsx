@@ -30,19 +30,28 @@ interface CompanyComboboxProps {
 
 export default function CompanyCombobox({ form, onAddNew }: CompanyComboboxProps) {
   const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { companies, isLoading, error } = useCompanies()
   const { watch, setValue, formState: { errors } } = form
   
   const selectedCompanyName = watch('company.companyName') || ''
   
-  // Trier les entreprises par ordre alphabétique
-  const sortedCompanies = useMemo(() => {
-    return [...companies].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-  }, [companies])
+  // Trier et filtrer les entreprises
+  const filteredCompanies = useMemo(() => {
+    const sorted = [...companies].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+    if (!searchQuery.trim()) return sorted
+    const query = searchQuery.toLowerCase()
+    return sorted.filter(company => 
+      company.name.toLowerCase().includes(query) ||
+      (company.industry && company.industry.toLowerCase().includes(query))
+    )
+  }, [companies, searchQuery])
 
   const handleSelect = (companyName: string) => {
-    setValue('company.companyName', companyName === selectedCompanyName ? '' : companyName, { shouldValidate: true })
+    const newValue = companyName === selectedCompanyName ? '' : companyName
+    setValue('company.companyName', newValue, { shouldValidate: true })
     setOpen(false)
+    setSearchQuery('')
   }
 
   return (
@@ -77,10 +86,12 @@ export default function CompanyCombobox({ form, onAddNew }: CompanyComboboxProps
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-          <Command>
+          <Command shouldFilter={false}>
             <CommandInput 
               placeholder="Rechercher une entreprise..." 
               className="h-9"
+              value={searchQuery}
+              onValueChange={setSearchQuery}
             />
             <CommandList>
               {isLoading ? (
@@ -94,42 +105,39 @@ export default function CompanyCombobox({ form, onAddNew }: CompanyComboboxProps
                     <span className="text-sm">{error}</span>
                   </div>
                 </CommandEmpty>
+              ) : filteredCompanies.length === 0 ? (
+                <CommandEmpty>
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    {searchQuery ? `Aucun résultat pour "${searchQuery}"` : "Aucune entreprise disponible."}
+                  </div>
+                </CommandEmpty>
               ) : (
                 <CommandGroup>
-                  {sortedCompanies.length === 0 ? (
-                    <CommandEmpty>
-                      <div className="p-4 text-center text-sm text-gray-500">
-                        Aucune entreprise disponible.
+                  {filteredCompanies.map((company) => (
+                    <div
+                      key={company.id}
+                      onClick={() => handleSelect(company.name)}
+                      className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedCompanyName === company.name
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      <div className="flex items-center space-x-2 flex-1">
+                        <Building2 className="w-4 h-4 text-[#224D62] flex-shrink-0" />
+                        <span className="text-sm">{company.name}</span>
+                        {company.industry && (
+                          <span className="text-xs text-gray-500 ml-auto">
+                            {company.industry}
+                          </span>
+                        )}
                       </div>
-                    </CommandEmpty>
-                  ) : (
-                    sortedCompanies.map((company) => (
-                      <CommandItem
-                        key={company.id}
-                        value={company.name}
-                        onSelect={() => handleSelect(company.name)}
-                        className="cursor-pointer"
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            selectedCompanyName === company.name
-                              ? "opacity-100"
-                              : "opacity-0"
-                          )}
-                        />
-                        <div className="flex items-center space-x-2 flex-1">
-                          <Building2 className="w-4 h-4 text-[#224D62] flex-shrink-0" />
-                          <span className="text-sm">{company.name}</span>
-                          {company.industry && (
-                            <span className="text-xs text-gray-500 ml-auto">
-                              {company.industry}
-                            </span>
-                          )}
-                        </div>
-                      </CommandItem>
-                    ))
-                  )}
+                    </div>
+                  ))}
                 </CommandGroup>
               )}
             </CommandList>
