@@ -29,21 +29,30 @@ interface ProfessionComboboxProps {
 
 export default function ProfessionCombobox({ form, onAddNew }: ProfessionComboboxProps) {
   const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { professions, isLoading, error } = useProfessions()
   const { watch, setValue, formState: { errors } } = form
   
   const selectedProfessionName = watch('company.profession') || ''
   
-  // Trier les professions par ordre alphabétique
-  const sortedProfessions = useMemo(() => {
-    return [...professions].sort((a, b) => 
+  // Trier et filtrer les professions
+  const filteredProfessions = useMemo(() => {
+    const sorted = [...professions].sort((a, b) => 
       a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
     )
-  }, [professions])
+    if (!searchQuery.trim()) return sorted
+    const query = searchQuery.toLowerCase()
+    return sorted.filter(profession => 
+      profession.name.toLowerCase().includes(query) ||
+      (profession.category && profession.category.toLowerCase().includes(query))
+    )
+  }, [professions, searchQuery])
 
   const handleSelect = (professionName: string) => {
-    setValue('company.profession', professionName === selectedProfessionName ? '' : professionName, { shouldValidate: true })
+    const newValue = professionName === selectedProfessionName ? '' : professionName
+    setValue('company.profession', newValue, { shouldValidate: true })
     setOpen(false)
+    setSearchQuery('')
   }
 
   return (
@@ -78,10 +87,12 @@ export default function ProfessionCombobox({ form, onAddNew }: ProfessionCombobo
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-            <Command>
+            <Command shouldFilter={false}>
               <CommandInput 
                 placeholder="Rechercher une profession..." 
                 className="h-9"
+                value={searchQuery}
+                onValueChange={setSearchQuery}
               />
               <CommandList>
                 {isLoading ? (
@@ -95,42 +106,39 @@ export default function ProfessionCombobox({ form, onAddNew }: ProfessionCombobo
                       <span className="text-sm">{error}</span>
                     </div>
                   </CommandEmpty>
+                ) : filteredProfessions.length === 0 ? (
+                  <CommandEmpty>
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      {searchQuery ? `Aucun résultat pour "${searchQuery}"` : "Aucune profession disponible."}
+                    </div>
+                  </CommandEmpty>
                 ) : (
                   <CommandGroup>
-                    {sortedProfessions.length === 0 ? (
-                      <CommandEmpty>
-                        <div className="p-4 text-center text-sm text-gray-500">
-                          Aucune profession disponible.
+                    {filteredProfessions.map((profession) => (
+                      <div
+                        key={profession.id}
+                        onClick={() => handleSelect(profession.name)}
+                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedProfessionName === profession.name
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        <div className="flex items-center space-x-2 flex-1">
+                          <GraduationCap className="w-4 h-4 text-[#224D62] flex-shrink-0" />
+                          <span className="text-sm">{profession.name}</span>
+                          {profession.category && (
+                            <span className="text-xs text-gray-500 ml-auto">
+                              {profession.category}
+                            </span>
+                          )}
                         </div>
-                      </CommandEmpty>
-                    ) : (
-                      sortedProfessions.map((profession) => (
-                        <CommandItem
-                          key={profession.id}
-                          value={profession.name}
-                          onSelect={() => handleSelect(profession.name)}
-                          className="cursor-pointer"
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedProfessionName === profession.name
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          <div className="flex items-center space-x-2 flex-1">
-                            <GraduationCap className="w-4 h-4 text-[#224D62] flex-shrink-0" />
-                            <span className="text-sm">{profession.name}</span>
-                            {profession.category && (
-                              <span className="text-xs text-gray-500 ml-auto">
-                                {profession.category}
-                              </span>
-                            )}
-                          </div>
-                        </CommandItem>
-                      ))
-                    )}
+                      </div>
+                    ))}
                   </CommandGroup>
                 )}
               </CommandList>
