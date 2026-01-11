@@ -1,0 +1,238 @@
+@startuml CLASSES_BIENFAITEUR
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightYellow
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Bienfaiteur
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + matricule: string
+    ...
+  }
+  
+  class Document {
+    + id: string
+    + type: DocumentType
+    ...
+  }
+  
+  class Group {
+    + id: string
+    + name: string
+    ...
+  }
+  
+  class Payment {
+    + date: Date
+    + mode: PaymentMode
+    + amount: number
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : CHARITY_EVENT (Évènement de charité)
+' ============================================
+class CharityEvent {
+  + id: string
+  + title: string
+  + slug?: string
+  + description: string
+  + location: string
+  + startDate: Date
+  + endDate: Date
+  + minContributionAmount?: number
+  + targetAmount?: number
+  + currency: string
+  + coverPhotoUrl?: string
+  + coverPhotoPath?: string
+  + status: CharityEventStatus
+  + isPublic?: boolean
+  + totalCollectedAmount: number
+  + totalContributionsCount: number
+  + totalParticipantsCount: number
+  + totalGroupsCount: number
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : CHARITY_PARTICIPANT (Participant)
+' ============================================
+class CharityParticipant {
+  + id: string
+  + eventId: string
+  + participantType: CharityParticipantType
+  + memberId?: string
+  + groupId?: string
+  + totalAmount: number
+  + contributionsCount: number
+  + lastContributionAt?: Date
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : CHARITY_CONTRIBUTION (Contribution)
+' ============================================
+class CharityContribution {
+  + id: string
+  + eventId: string
+  + participantId: string
+  + contributionType: CharityContributionType
+  + contributionDate?: Date
+  + payment?: Payment
+  + inKindDescription?: string
+  + estimatedValue?: number
+  + notes?: string
+  + proofUrl?: string
+  + proofPath?: string
+  + proofType?: ProofType
+  + receiptUrl?: string
+  + receiptPath?: string
+  + status: CharityContributionStatus
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : CHARITY_MEDIA (Média)
+' ============================================
+class CharityMedia {
+  + id: string
+  + eventId: string
+  + type: CharityMediaType
+  + url: string
+  + path: string
+  + thumbnailUrl?: string
+  + thumbnailPath?: string
+  + caption?: string
+  + order: number
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum CharityEventStatus {
+  draft
+  upcoming
+  ongoing
+  closed
+  archived
+}
+
+enum CharityParticipantType {
+  member
+  group
+}
+
+enum CharityContributionType {
+  cash
+  mobile_money
+  bank_transfer
+  in_kind
+}
+
+enum CharityContributionStatus {
+  pending
+  approved
+  rejected
+}
+
+enum CharityMediaType {
+  photo
+  video
+}
+
+enum ProofType {
+  image
+  pdf
+  other
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' CharityEvent a plusieurs CharityParticipant (agrégation)
+CharityEvent "1" --> "*" CharityParticipant : has_participants
+
+' CharityParticipant référence User (agrégation optionnelle)
+User "1" --> "*" CharityParticipant : participates_as_member
+
+' CharityParticipant référence Group (agrégation optionnelle)
+Group "1" --> "*" CharityParticipant : participates_as_group
+
+' CharityParticipant a plusieurs CharityContribution (agrégation)
+CharityParticipant "1" --> "*" CharityContribution : has_contributions
+
+' CharityContribution contient Payment (composition optionnelle)
+CharityContribution *-- Payment : has_payment
+
+' CharityEvent a plusieurs CharityMedia (agrégation)
+CharityEvent "1" --> "*" CharityMedia : has_media
+
+' CharityEvent référence Document (via coverPhotoUrl, etc.)
+CharityEvent --> Document : references
+
+' CharityContribution référence Document (via proofUrl, receiptUrl)
+CharityContribution --> Document : references
+
+' CharityMedia référence Document (via url)
+CharityMedia --> Document : references
+
+note right of CharityEvent
+  **Collection Firestore:** charity-events
+  Clé primaire: id
+  Index sur: status, startDate, endDate, isPublic
+  Types: draft, upcoming, ongoing, closed, archived
+end note
+
+note right of CharityParticipant
+  **Sous-collection:** charity-events/{eventId}/participants
+  Index sur: eventId, participantType, memberId, groupId
+  Types: member (individuel) ou group (groupe)
+end note
+
+note right of CharityContribution
+  **Sous-collection:** charity-events/{eventId}/contributions
+  Index sur: eventId, participantId, contributionDate, status
+  Types: cash, mobile_money, bank_transfer, in_kind
+end note
+
+note right of CharityMedia
+  **Sous-collection:** charity-events/{eventId}/media
+  Index sur: eventId, type, order
+  Types: photo, video
+end note
+
+note bottom of CharityEvent
+  **Workflow:**
+  1. Évènement créé (draft)
+  2. Publié (upcoming)
+  3. En cours (ongoing)
+  4. Terminé (closed)
+  5. Archivé (archived)
+  
+  Les participants (membres ou groupes) peuvent contribuer avec de l'argent ou en nature (in_kind)
+end note
+
+@enduml

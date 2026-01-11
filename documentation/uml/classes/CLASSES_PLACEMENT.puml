@@ -1,0 +1,238 @@
+@startuml CLASSES_PLACEMENT
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightSalmon
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Placement
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + matricule: string
+    + roles: UserRole[]
+    ...
+  }
+  
+  class Document {
+    + id: string
+    + type: DocumentType
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : PLACEMENT
+' ============================================
+class Placement {
+  + id: string
+  + benefactorId: string
+  + benefactorName?: string
+  + benefactorPhone?: string
+  + urgentContact?: UrgentContactPlacement
+  + amount: number
+  + rate: number
+  + periodMonths: number
+  + payoutMode: PayoutMode
+  + status: PlacementStatus
+  + startDate?: Date
+  + endDate?: Date
+  + nextCommissionDate?: Date
+  + hasOverdueCommission?: boolean
+  + contractDocumentId?: string
+  + finalQuittanceDocumentId?: string
+  + earlyExitQuittanceDocumentId?: string
+  + earlyExitAddendumDocumentId?: string
+  + closingReason?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : PLACEMENT_DEMAND (Demande de placement)
+' ============================================
+class PlacementDemand {
+  + id: string
+  + benefactorId: string
+  + benefactorName?: string
+  + benefactorPhone?: string
+  + amount: number
+  + rate: number
+  + periodMonths: number
+  + payoutMode: PayoutMode
+  + desiredDate: string
+  + cause?: string
+  + urgentContact?: UrgentContactPlacement
+  + status: PlacementDemandStatus
+  + decisionMadeAt?: Date
+  + decisionMadeBy?: string
+  + decisionMadeByName?: string
+  + decisionReason?: string
+  + reopenedAt?: Date
+  + reopenedBy?: string
+  + reopenedByName?: string
+  + reopenReason?: string
+  + placementId?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : COMMISSION_PAYMENT_PLACEMENT (Commission)
+' ============================================
+class CommissionPaymentPlacement {
+  + id: string
+  + placementId: string
+  + dueDate: Date
+  + amount: number
+  + status: CommissionStatus
+  + proofDocumentId?: string
+  + receiptDocumentId?: string
+  + paidAt?: Date
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : EARLY_EXIT_PLACEMENT (Retrait anticipé)
+' ============================================
+class EarlyExitPlacement {
+  + id: string
+  + placementId: string
+  + requestedAt: Date
+  + validatedAt?: Date
+  + commissionDue: number
+  + payoutAmount: number
+  + reason?: string
+  + documentPdfId?: string
+  + quittanceDocumentId?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : URGENT_CONTACT_PLACEMENT (Contact d'urgence)
+' ============================================
+class UrgentContactPlacement {
+  + name: string
+  + firstName?: string
+  + phone: string
+  + phone2?: string
+  + relationship?: string
+  + idNumber?: string
+  + typeId?: string
+  + documentPhotoUrl?: string
+  + memberId?: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum PlacementStatus {
+  Draft
+  Active
+  Closed
+  EarlyExit
+  Canceled
+}
+
+enum PlacementDemandStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
+enum CommissionStatus {
+  Due
+  Paid
+  Partial
+  Canceled
+}
+
+enum PayoutMode {
+  MonthlyCommission_CapitalEnd
+  CapitalPlusCommission_End
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' PlacementDemand peut devenir Placement (après validation)
+PlacementDemand ..> Placement : becomes
+
+' Placement référence User (bienfaiteur, agrégation)
+User "1" --> "*" Placement : has_placements
+
+' Placement contient UrgentContactPlacement (composition optionnelle)
+Placement *-- UrgentContactPlacement : has
+
+' PlacementDemand contient UrgentContactPlacement (composition optionnelle)
+PlacementDemand *-- UrgentContactPlacement : has
+
+' Placement a plusieurs CommissionPaymentPlacement (agrégation)
+Placement "1" --> "*" CommissionPaymentPlacement : has_commissions
+
+' Placement a plusieurs EarlyExitPlacement (agrégation)
+Placement "1" --> "*" EarlyExitPlacement : has_early_exits
+
+' Placement référence Document (via contractDocumentId, etc.)
+Placement --> Document : references
+
+' CommissionPaymentPlacement référence Document (via proofDocumentId, receiptDocumentId)
+CommissionPaymentPlacement --> Document : references
+
+' EarlyExitPlacement référence Document (via documentPdfId, quittanceDocumentId)
+EarlyExitPlacement --> Document : references
+
+' PlacementDemand référence User (bienfaiteur, agrégation)
+User "1" --> "*" PlacementDemand : creates_demands
+
+note right of Placement
+  **Collection Firestore:** placements
+  Clé primaire: id
+  Index sur: benefactorId, status, startDate
+  Durée: 1-7 mois
+  Taux de commission: 0-100%
+end note
+
+note right of PlacementDemand
+  **Collection Firestore:** placement-demands
+  Clé primaire: id
+  Index sur: benefactorId, status, createdAt
+  Format ID: MK_DEMANDE_PL_{matriculeBienfaiteur}_{date}_{heure}
+end note
+
+note right of CommissionPaymentPlacement
+  **Sous-collection:** placements/{placementId}/commissions
+  Index sur: placementId, dueDate, status
+  Mode MonthlyCommission_CapitalEnd: commissions mensuelles, capital à la fin
+  Mode CapitalPlusCommission_End: capital + commissions à la fin
+end note
+
+note right of EarlyExitPlacement
+  **Sous-collection:** placements/{placementId}/earlyExits
+  Retrait anticipé du placement avant la fin de la période
+end note
+
+note bottom of Placement
+  **Modes de paiement:**
+  - MonthlyCommission_CapitalEnd: Commissions mensuelles, capital restitué à la fin
+  - CapitalPlusCommission_End: Capital + commissions versés à la fin
+end note
+
+@enduml

@@ -1,0 +1,376 @@
+@startuml CLASSES_CAISSE_IMPREVUE
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightSteelBlue
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Caisse Imprévue
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + matricule: string
+    ...
+  }
+  
+  class Document {
+    + id: string
+    + type: DocumentType
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : CONTRACT_CI (Contrat Caisse Imprévue)
+' ============================================
+class ContractCI {
+  + id: string
+  + memberId: string
+  + memberFirstName: string
+  + memberLastName: string
+  + memberContacts: string[]
+  + memberEmail?: string
+  + memberGender?: string
+  + memberBirthDate?: string
+  + memberNationality?: string
+  + memberAddress?: string
+  + memberProfession?: string
+  + memberPhotoUrl?: string
+  + subscriptionCIID: string
+  + subscriptionCICode: string
+  + subscriptionCILabel?: string
+  + subscriptionCIAmountPerMonth: number
+  + subscriptionCINominal: number
+  + subscriptionCIDuration: number
+  + subscriptionCISupportMin: number
+  + subscriptionCISupportMax: number
+  + paymentFrequency: CaisseImprevuePaymentFrequency
+  + firstPaymentDate: string
+  + emergencyContact: EmergencyContactCI
+  + status: ContractCIStatus
+  + contractStartId?: string
+  + contractCanceledId?: string
+  + contractFinishedId?: string
+  + earlyRefundDocumentId?: string
+  + finalRefundDocumentId?: string
+  + currentSupportId?: string
+  + supportHistory: string[]
+  + totalMonthsPaid: number
+  + isEligibleForSupport: boolean
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy: string
+}
+
+' ============================================
+' CLASSE : SUBSCRIPTION_CI (Forfait Caisse Imprévue)
+' ============================================
+class SubscriptionCI {
+  + id: string
+  + label?: string
+  + code: string
+  + amountPerMonth: number
+  + nominal: number
+  + durationInMonths: number
+  + penaltyRate: number
+  + penaltyDelayDays: number
+  + supportMin: number
+  + supportMax: number
+  + status: SubscriptionStatus
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : PAYMENT_CI (Paiement mensuel)
+' ============================================
+class PaymentCI {
+  + id: string
+  + contractId: string
+  + monthIndex: number
+  + dueDate: Date
+  + status: PaymentCIStatus
+  + amount: number
+  + versements: VersementCI[]
+  + totalPaid: number
+  + penalty?: number
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy: string
+}
+
+' ============================================
+' CLASSE : VERSEMENT_CI (Versement individuel)
+' ============================================
+class VersementCI {
+  + id: string
+  + date: string
+  + time: string
+  + amount: number
+  + mode: PaymentMode
+  + proofUrl: string
+  + proofPath: string
+  + penalty?: number
+  + daysLate?: number
+  + supportRepaymentAmount?: number
+  + supportRepaymentId?: string
+  + createdAt: Date
+  + createdBy: string
+}
+
+' ============================================
+' CLASSE : SUPPORT_CI (Support/Aide financière)
+' ============================================
+class SupportCI {
+  + id: string
+  + contractId: string
+  + amount: number
+  + status: SupportCIStatus
+  + documentId?: string
+  + documentUrl?: string
+  + documentPath?: string
+  + amountRepaid: number
+  + amountRemaining: number
+  + deductions: Deduction[]
+  + repayments: SupportRepaymentCI[]
+  + requestedAt: Date
+  + approvedAt: Date
+  + approvedBy: string
+  + repaidAt?: Date
+  + createdAt: Date
+  + createdBy: string
+  + updatedAt: Date
+  + updatedBy: string
+}
+
+' ============================================
+' CLASSE : SUPPORT_REPAYMENT_CI (Remboursement de support)
+' ============================================
+class SupportRepaymentCI {
+  + id: string
+  + amount: number
+  + date: string
+  + time: string
+  + monthIndex: number
+  + versementId: string
+  + createdAt: Date
+  + createdBy: string
+}
+
+' ============================================
+' CLASSE : DEDUCTION
+' ============================================
+class Deduction {
+  + monthIndex: number
+  + amount: number
+}
+
+' ============================================
+' CLASSE : EARLY_REFUND_CI (Retrait anticipé)
+' ============================================
+class EarlyRefundCI {
+  + id: string
+  + contractId: string
+  + type: RefundTypeEarly
+  + reason: string
+  + withdrawalDate: Date
+  + withdrawalTime: string
+  + withdrawalAmount: number
+  + withdrawalMode: WithdrawalMode
+  + proofUrl: string
+  + proofPath: string
+  + documentId: string
+  + amountNominal: number
+  + amountBonus: number
+  + status: EarlyRefundCIStatus
+  + deadlineAt?: Date
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy: string
+}
+
+' ============================================
+' CLASSE : FINAL_REFUND_CI (Remboursement final)
+' ============================================
+class FinalRefundCI {
+  + id: string
+  + contractId: string
+  + type: RefundTypeFinal
+  + amountNominal: number
+  + amountBonus: number
+  + status: FinalRefundCIStatus
+  + deadlineAt: Date
+  + documentId: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy: string
+  + approvedBy?: string
+  + approvedAt?: Date
+  + paidAt?: Date
+}
+
+' ============================================
+' CLASSE : EMERGENCY_CONTACT_CI (Contact d'urgence)
+' ============================================
+class EmergencyContactCI {
+  + memberId?: string
+  + lastName: string
+  + firstName?: string
+  + phone1: string
+  + phone2?: string
+  + relationship: string
+  + idNumber: string
+  + typeId: string
+  + documentPhotoUrl: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum CaisseImprevuePaymentFrequency {
+  DAILY
+  MONTHLY
+}
+
+enum ContractCIStatus {
+  ACTIVE
+  FINISHED
+  CANCELED
+}
+
+enum PaymentCIStatus {
+  DUE
+  PAID
+  PARTIAL
+}
+
+enum SupportCIStatus {
+  ACTIVE
+  REPAID
+}
+
+enum EarlyRefundCIStatus {
+  PENDING
+  APPROVED
+  PAID
+  ARCHIVED
+}
+
+enum FinalRefundCIStatus {
+  PENDING
+  APPROVED
+  PAID
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PaymentMode {
+  airtel_money
+  mobicash
+  cash
+  bank_transfer
+  other
+}
+
+enum RefundTypeEarly {
+  EARLY
+}
+
+enum RefundTypeFinal {
+  FINAL
+}
+
+enum WithdrawalMode {
+  cash
+  bank_transfer
+  airtel_money
+  mobicash
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' ContractCI référence User (agrégation)
+User "1" --> "*" ContractCI : has_contracts
+
+' ContractCI référence SubscriptionCI (agrégation)
+SubscriptionCI "1" --> "*" ContractCI : used_in_contracts
+
+' ContractCI contient EmergencyContactCI (composition)
+ContractCI *-- EmergencyContactCI : has
+
+' ContractCI a plusieurs PaymentCI (agrégation - sous-collection)
+ContractCI "1" --> "*" PaymentCI : has_payments
+
+' PaymentCI a plusieurs VersementCI (composition)
+PaymentCI "1" --> "*" VersementCI : contains
+
+' ContractCI a plusieurs SupportCI (agrégation - sous-collection)
+ContractCI "1" --> "*" SupportCI : has_supports
+
+' SupportCI a plusieurs SupportRepaymentCI (composition)
+SupportCI "1" --> "*" SupportRepaymentCI : has_repayments
+
+' SupportCI contient Deduction[] (composition)
+SupportCI "1" --> "*" Deduction : has_deductions
+
+' ContractCI a plusieurs EarlyRefundCI (agrégation - sous-collection)
+ContractCI "1" --> "*" EarlyRefundCI : has_early_refunds
+
+' ContractCI a plusieurs FinalRefundCI (agrégation - sous-collection)
+ContractCI "1" --> "*" FinalRefundCI : has_final_refunds
+
+' ContractCI référence Document (via contractStartId, etc.)
+ContractCI --> Document : references
+
+' SupportCI référence Document (via documentId)
+SupportCI --> Document : references
+
+' EarlyRefundCI référence Document (via documentId)
+EarlyRefundCI --> Document : references
+
+' FinalRefundCI référence Document (via documentId)
+FinalRefundCI --> Document : references
+
+note right of ContractCI
+  **Collection Firestore:** contractsCI
+  Clé primaire: id
+  Index sur: memberId, status, createdAt
+  Sous-collections: payments, supports, earlyRefunds, finalRefunds
+end note
+
+note right of SubscriptionCI
+  **Collection Firestore:** subscription-ci
+  Clé primaire: id
+  Codes: A, B, C, D, E
+  Durée: généralement 12 mois
+end note
+
+note right of PaymentCI
+  **Sous-collection:** contractsCI/{contractId}/payments
+  Index sur: contractId, monthIndex, dueDate
+end note
+
+note right of SupportCI
+  **Sous-collection:** contractsCI/{contractId}/supports
+  Éligibilité: totalMonthsPaid >= 3 && !currentSupportId
+  Remboursement déduit des 3 derniers mois
+end note
+
+@enduml

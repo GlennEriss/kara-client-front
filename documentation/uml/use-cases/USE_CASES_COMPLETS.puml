@@ -1,0 +1,587 @@
+@startuml USE_CASES_COMPLETS
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
+}
+
+title Use Cases Complets - KARA Mutuelle\n(Niveau Architecte Senior)
+
+' ============================================
+' ACTEURS PRINCIPAUX
+' ============================================
+actor "Admin KARA" as Admin
+actor "Membre" as Member
+
+' ============================================
+' ACTEURS SECONDAIRES
+' ============================================
+actor "Garant" as Guarantor
+actor "Bienfaiteur" as Benefactor
+actor "Système" as System
+
+' ============================================
+' DOMAINE : INFRASTRUCTURE - Géographie
+' ============================================
+package "Domaine Infrastructure" {
+  package "Géographie" {
+    usecase "UC-GEO-001: Gérer les provinces" as UC_GEO_PROVINCES
+    usecase "UC-GEO-002: Gérer les départements" as UC_GEO_DEPARTMENTS
+    usecase "UC-GEO-003: Gérer les communes\n(villes)" as UC_GEO_COMMUNES
+    usecase "UC-GEO-004: Gérer les arrondissements" as UC_GEO_DISTRICTS
+    usecase "UC-GEO-005: Gérer les quartiers" as UC_GEO_QUARTERS
+    
+    ' Relations hiérarchiques
+    UC_GEO_DEPARTMENTS ..> UC_GEO_PROVINCES : <<include>>
+    UC_GEO_COMMUNES ..> UC_GEO_DEPARTMENTS : <<include>>
+    UC_GEO_DISTRICTS ..> UC_GEO_COMMUNES : <<include>>
+    UC_GEO_QUARTERS ..> UC_GEO_DISTRICTS : <<include>>
+  }
+  
+  ' ============================================
+  ' DOMAINE : INFRASTRUCTURE - Services Partagés
+  ' ============================================
+  package "Services Partagés" {
+    package "Gestion Documentaire" {
+      usecase "UC-INFRA-001: Uploader un document" as UC_INFRA_UPLOAD_DOC
+      usecase "UC-INFRA-002: Télécharger un document" as UC_INFRA_DOWNLOAD_DOC
+      usecase "UC-INFRA-003: Supprimer un document" as UC_INFRA_DELETE_DOC
+      usecase "UC-INFRA-004: Générer un contrat PDF\n(template prérempli)" as UC_INFRA_GEN_CONTRACT
+      usecase "UC-INFRA-005: Sauvegarder une preuve\nde paiement" as UC_INFRA_SAVE_DOC
+      usecase "UC-INFRA-006: Uploader un fichier\n(média, image)" as UC_INFRA_UPLOAD_FILE
+    }
+    
+    package "Notifications" {
+      usecase "UC-INFRA-007: Envoyer une notification\n(SMS/Email/WhatsApp)" as UC_INFRA_SEND_NOTIF
+      usecase "UC-INFRA-008: Planifier une notification" as UC_INFRA_SCHEDULE_NOTIF
+      usecase "UC-INFRA-009: Consulter l'historique\ndes notifications" as UC_INFRA_NOTIF_HISTORY
+    }
+    
+    package "Référentiels" {
+      usecase "UC-INFRA-010: Gérer les entreprises\n(référentiel)" as UC_INFRA_COMPANIES
+      usecase "UC-INFRA-011: Gérer les professions\n(référentiel)" as UC_INFRA_PROFESSIONS
+    }
+    
+    package "Gestion des Utilisateurs" {
+      usecase "UC-INFRA-012: Gérer les utilisateurs\n(users, admins, rôles)" as UC_INFRA_USERS
+      usecase "UC-INFRA-013: Authentifier un utilisateur" as UC_INFRA_AUTH
+      usecase "UC-INFRA-014: Valider les permissions" as UC_INFRA_CHECK_PERMISSIONS
+    }
+    
+    package "Validation & Sécurité" {
+      usecase "UC-INFRA-015: Valider un formulaire" as UC_INFRA_VALIDATE_FORM
+      usecase "UC-INFRA-016: Valider les données métier" as UC_INFRA_VALIDATE_BUSINESS
+    }
+    
+    ' Relations include dans Infrastructure
+    UC_INFRA_GEN_CONTRACT ..> UC_INFRA_UPLOAD_DOC : <<include>>
+    UC_INFRA_SAVE_DOC ..> UC_INFRA_UPLOAD_DOC : <<include>>
+    UC_INFRA_SCHEDULE_NOTIF ..> UC_INFRA_SEND_NOTIF : <<include>>
+    UC_INFRA_CHECK_PERMISSIONS ..> UC_INFRA_AUTH : <<include>>
+' ============================================
+' DOMAINE : MEMBERSHIP (Gestion des Membres)
+' ============================================
+package "Domaine Membership" {
+  
+  package "Gestion des Inscriptions" {
+    usecase "UC-MEM-001: S'inscrire à la mutuelle\n(formulaire public)" as UC_REGISTER
+    usecase "UC-MEM-002: Valider une demande d'inscription" as UC_VALIDATE
+    usecase "UC-MEM-003: Refuser une demande d'inscription" as UC_REJECT
+    usecase "UC-MEM-004: Consulter les demandes\n(en attente)" as UC_LIST_REQUESTS
+  }
+  
+  package "Gestion des Membres" {
+    usecase "UC-MEM-005: Consulter la liste des membres" as UC_LIST_MEMBERS
+    usecase "UC-MEM-006: Consulter le détail d'un membre" as UC_MEMBER_DETAIL
+    usecase "UC-MEM-007: Modifier les informations\nd'un membre" as UC_UPDATE_MEMBER
+    usecase "UC-MEM-008: Désactiver/Réactiver un membre" as UC_TOGGLE_MEMBER
+  }
+  
+  package "Gestion des Groupes" {
+    usecase "UC-MEM-009: Créer un groupe" as UC_GROUP_CREATE
+    usecase "UC-MEM-010: Modifier un groupe" as UC_GROUP_UPDATE
+    usecase "UC-MEM-011: Ajouter/Retirer membres\nd'un groupe" as UC_GROUP_MEMBERS
+    usecase "UC-MEM-012: Consulter les groupes" as UC_GROUP_LIST
+  }
+  
+  ' Relations include/extend dans Membership
+  UC_REGISTER ..> UC_INFRA_VALIDATE_FORM : <<include>>
+  UC_VALIDATE ..> UC_MEMBER_DETAIL : <<include>>
+  UC_REJECT ..> UC_MEMBER_DETAIL : <<include>>
+}
+
+' ============================================
+' DOMAINE : FINANCIAL - Caisse Spéciale
+' ============================================
+package "Domaine Financial" {
+  
+  package "Caisse Spéciale" {
+    package "Cycle de Vie Contrat" {
+      usecase "UC-CS-001: Créer un contrat\nde caisse spéciale" as UC_CS_CREATE
+      usecase "UC-CS-002: Modifier un contrat\n(avant validation)" as UC_CS_UPDATE
+      usecase "UC-CS-003: Valider un contrat" as UC_CS_VALIDATE_CONTRACT
+      usecase "UC-CS-004: Résilier/Clôturer un contrat" as UC_CS_TERMINATE
+    }
+    
+    package "Gestion des Demandes" {
+      usecase "UC-CS-005: Créer une demande\nde caisse spéciale" as UC_CS_DEMAND
+      usecase "UC-CS-006: Valider/Refuser une demande" as UC_CS_VALIDATE
+      usecase "UC-CS-007: Convertir demande en contrat" as UC_CS_CONVERT
+    }
+    
+    package "Gestion des Versements" {
+      usecase "UC-CS-008: Enregistrer un versement" as UC_CS_PAYMENT
+      usecase "UC-CS-009: Consulter l'historique\ndes versements" as UC_CS_PAYMENT_HISTORY
+      usecase "UC-CS-010: Calculer le solde d'un contrat" as UC_CS_BALANCE
+    }
+    
+    package "Consultation & Reporting" {
+      usecase "UC-CS-011: Consulter les contrats" as UC_CS_LIST
+      usecase "UC-CS-012: Filtrer les contrats en retard" as UC_CS_FILTER_DELAY
+      usecase "UC-CS-013: Consulter le calendrier\ndes échéances" as UC_CS_CALENDAR
+      usecase "UC-CS-014: Exporter les contrats\n(PDF/Excel)" as UC_CS_EXPORT
+    }
+    
+    package "Configuration" {
+      usecase "UC-CS-015: Gérer les paramètres\n(caisse spéciale)" as UC_CS_SETTINGS
+    }
+    
+    ' Relations include/extend
+    UC_CS_CREATE ..> UC_MEMBER_DETAIL : <<include>>
+    UC_CS_CREATE ..> UC_INFRA_GEN_CONTRACT : <<include>>
+    UC_CS_PAYMENT ..> UC_CS_BALANCE : <<include>>
+    UC_CS_PAYMENT ..> UC_INFRA_SAVE_DOC : <<include>>
+    UC_CS_FILTER_DELAY ..> UC_CS_LIST : <<extend>>
+    UC_CS_CONVERT ..> UC_CS_CREATE : <<include>>
+  }
+  
+  ' ============================================
+  ' DOMAINE : FINANCIAL - Caisse Imprévue
+  ' ============================================
+  package "Caisse Imprévue" {
+    package "Cycle de Vie Contrat" {
+      usecase "UC-CI-001: Créer un contrat\nde caisse imprévue" as UC_CI_CREATE
+      usecase "UC-CI-002: Modifier un contrat\n(avant validation)" as UC_CI_UPDATE
+      usecase "UC-CI-003: Valider un contrat" as UC_CI_VALIDATE_CONTRACT
+      usecase "UC-CI-004: Résilier/Clôturer un contrat" as UC_CI_TERMINATE
+    }
+    
+    package "Gestion des Souscriptions" {
+      usecase "UC-CI-005: Gérer les souscriptions\n(forfaits)" as UC_CI_SUBSCRIPTION
+      usecase "UC-CI-006: Activer/Désactiver souscription" as UC_CI_TOGGLE_SUB
+    }
+    
+    package "Gestion des Demandes" {
+      usecase "UC-CI-007: Créer une demande\nde caisse imprévue" as UC_CI_DEMAND
+      usecase "UC-CI-008: Valider/Refuser une demande" as UC_CI_VALIDATE
+      usecase "UC-CI-009: Convertir demande en contrat" as UC_CI_CONVERT
+      usecase "UC-CI-010: Réouvrir une demande refusée" as UC_CI_REOPEN
+    }
+    
+    package "Gestion des Versements" {
+      usecase "UC-CI-011: Enregistrer un versement" as UC_CI_PAYMENT
+      usecase "UC-CI-012: Consulter l'historique\ndes versements" as UC_CI_PAYMENT_HISTORY
+    }
+    
+    package "Consultation & Reporting" {
+      usecase "UC-CI-013: Consulter les contrats" as UC_CI_LIST
+      usecase "UC-CI-014: Filtrer les contrats en retard" as UC_CI_FILTER_DELAY
+      usecase "UC-CI-015: Consulter le calendrier\ndes échéances" as UC_CI_CALENDAR
+    }
+    
+    package "Notifications" {
+      usecase "UC-CI-016: Notifier les échéances" as UC_CI_NOTIFY_DUE
+      usecase "UC-CI-017: Notifier les retards" as UC_CI_NOTIFY_LATE
+    }
+    
+    ' Relations include/extend
+    UC_CI_CREATE ..> UC_MEMBER_DETAIL : <<include>>
+    UC_CI_CREATE ..> UC_CI_SUBSCRIPTION : <<include>>
+    UC_CI_PAYMENT ..> UC_INFRA_SAVE_DOC : <<include>>
+    UC_CI_FILTER_DELAY ..> UC_CI_LIST : <<extend>>
+    UC_CI_CONVERT ..> UC_CI_CREATE : <<include>>
+    UC_CI_NOTIFY_DUE ..> UC_CI_LIST : <<extend>>
+  }
+  
+  ' ============================================
+  ' DOMAINE : FINANCIAL - Crédit Spéciale
+  ' ============================================
+  package "Crédit Spéciale" {
+    package "Gestion des Demandes" {
+      usecase "UC-CREDIT-001: Créer une demande de crédit" as UC_CREDIT_DEMAND
+      usecase "UC-CREDIT-002: Valider/Refuser une demande" as UC_CREDIT_VALIDATE
+      usecase "UC-CREDIT-003: Vérifier l'éligibilité\n(client ou garant à jour CI)" as UC_CREDIT_ELIGIBILITY
+    }
+    
+    package "Simulations" {
+      usecase "UC-CREDIT-004: Calculer simulation standard\n(montant, taux, durée, 1er versement)" as UC_CREDIT_SIMU_STD
+      usecase "UC-CREDIT-005: Simuler personnalisée\n(montants variables par mois)" as UC_CREDIT_SIMU_PERSO
+      usecase "UC-CREDIT-006: Générer tableaux récapitulatifs\n(limite 7/3 vs personnalisé)" as UC_CREDIT_TABLES
+      usecase "UC-CREDIT-007: Valider simulation\n(limites métier)" as UC_CREDIT_VALIDATE_SIMU
+    }
+    
+    package "Gestion du Garant" {
+      usecase "UC-CREDIT-008: Sélectionner/Enregistrer un garant\n(membre ou admin, lien parenté)" as UC_CREDIT_GUARANTOR
+      usecase "UC-CREDIT-009: Vérifier statut garant\n(à jour CI)" as UC_CREDIT_CHECK_GUARANTOR
+      usecase "UC-CREDIT-010: Rémunérer le garant membre\n(2% du mensuel)" as UC_CREDIT_REMUNERATE
+    }
+    
+    package "Cycle de Vie Contrat" {
+      usecase "UC-CREDIT-011: Générer le contrat PDF" as UC_CREDIT_CONTRACT
+      usecase "UC-CREDIT-012: Signer le contrat" as UC_CREDIT_SIGN
+      usecase "UC-CREDIT-013: Téléverser le contrat signé\net remettre les fonds" as UC_CREDIT_UPLOAD
+      usecase "UC-CREDIT-014: Activer le contrat" as UC_CREDIT_ACTIVATE
+    }
+    
+    package "Gestion des Remboursements" {
+      usecase "UC-CREDIT-015: Enregistrer les versements\n(preuve, note, commentaire)" as UC_CREDIT_PAYMENTS
+      usecase "UC-CREDIT-016: Consulter l'historique\ndes versements" as UC_CREDIT_PAYMENT_HISTORY
+      usecase "UC-CREDIT-017: Calculer le solde restant" as UC_CREDIT_BALANCE
+    }
+    
+    package "Gestion des Pénalités" {
+      usecase "UC-CREDIT-018: Calculer les pénalités retard\n(règle de 3)" as UC_CREDIT_PENALTIES
+      usecase "UC-CREDIT-019: Notifier les pénalités et\nenregistrer le choix du client" as UC_CREDIT_NOTIF_PEN
+      usecase "UC-CREDIT-020: Enregistrer paiement pénalités" as UC_CREDIT_PAY_PENALTIES
+    }
+    
+    package "Règles Métier Automatiques" {
+      usecase "UC-CREDIT-021: Transformer en crédit fixe\naprès 7 mois (supprimer intérêts)" as UC_CREDIT_TRANSFORM
+      usecase "UC-CREDIT-022: Bloquer nouvelle demande\nsi pénalités impayées" as UC_CREDIT_BLOCK
+      usecase "UC-CREDIT-023: Planifier rappels d'échéance" as UC_CREDIT_REMINDERS
+    }
+    
+    package "Fin de Contrat" {
+      usecase "UC-CREDIT-024: Générer la décharge\n(en fin de remboursement)" as UC_CREDIT_DISCHARGE
+      usecase "UC-CREDIT-025: Clôturer le contrat" as UC_CREDIT_CLOSE
+    }
+    
+    package "Consultation & Reporting" {
+      usecase "UC-CREDIT-026: Consulter les contrats actifs" as UC_CREDIT_LIST_ACTIVE
+      usecase "UC-CREDIT-027: Consulter les contrats en retard" as UC_CREDIT_LIST_OVERDUE
+      usecase "UC-CREDIT-028: Consulter les contrats clos" as UC_CREDIT_LIST_CLOSED
+      usecase "UC-CREDIT-029: Exporter les contrats\n(PDF/Excel)" as UC_CREDIT_EXPORT
+    }
+    
+    ' Relations include/extend
+    UC_CREDIT_DEMAND ..> UC_CREDIT_ELIGIBILITY : <<include>>
+    UC_CREDIT_VALIDATE ..> UC_CREDIT_SIMU_STD : <<include>>
+    UC_CREDIT_SIMU_PERSO ..> UC_CREDIT_VALIDATE_SIMU : <<include>>
+    UC_CREDIT_SIMU_PERSO ..> UC_CREDIT_TABLES : <<include>>
+    UC_CREDIT_CONTRACT ..> UC_MEMBER_DETAIL : <<include>>
+    UC_CREDIT_CONTRACT ..> UC_CREDIT_GUARANTOR : <<include>>
+    UC_CREDIT_CONTRACT ..> UC_INFRA_GEN_CONTRACT : <<include>>
+    UC_CREDIT_PAYMENTS ..> UC_INFRA_SAVE_DOC : <<include>>
+    UC_CREDIT_PAYMENTS ..> UC_CREDIT_BALANCE : <<include>>
+    UC_CREDIT_PENALTIES ..> UC_CREDIT_PAYMENTS : <<extend>>
+    UC_CREDIT_LIST_OVERDUE ..> UC_CREDIT_LIST_ACTIVE : <<extend>>
+    UC_CREDIT_TRANSFORM ..> UC_CREDIT_LIST_ACTIVE : <<extend>>
+    UC_CREDIT_BLOCK ..> UC_CREDIT_PENALTIES : <<extend>>
+  }
+  
+  ' ============================================
+  ' DOMAINE : FINANCIAL - Placement
+  ' ============================================
+  package "Placement" {
+    package "Gestion des Demandes" {
+      usecase "UC-PLACEMENT-001: Créer une demande de placement" as UC_PLACEMENT_DEMAND
+      usecase "UC-PLACEMENT-002: Préqualifier un bienfaiteur\n(KYC simplifié, appétence)" as UC_PLACEMENT_PREQUALIFY
+    }
+    
+    package "Sollicitations" {
+      usecase "UC-PLACEMENT-003: Envoyer sollicitations\n(SMS/e-mail/WhatsApp)" as UC_PLACEMENT_SOLICIT
+      usecase "UC-PLACEMENT-004: Suivre les réponses\ndes bienfaiteurs" as UC_PLACEMENT_TRACK_RESPONSE
+    }
+    
+    package "Offres & Simulations" {
+      usecase "UC-PLACEMENT-005: Proposer l'offre standard\n(taux, période 1-7 mois, mode)" as UC_PLACEMENT_OFFER
+      usecase "UC-PLACEMENT-006: Calculer la simulation finale" as UC_PLACEMENT_SIMULATE
+      usecase "UC-PLACEMENT-007: Valider la simulation\navec le bienfaiteur" as UC_PLACEMENT_VALIDATE_SIMU
+    }
+    
+    package "Paiement & Collecte" {
+      usecase "UC-PLACEMENT-008: Générer lien de virement\nou RDV collecte" as UC_PLACEMENT_PAYMENT_LINK
+      usecase "UC-PLACEMENT-009: Enregistrer la collecte\ndes fonds" as UC_PLACEMENT_RECORD_COLLECTION
+    }
+    
+    package "Cycle de Vie Contrat" {
+      usecase "UC-PLACEMENT-010: Générer contrat PDF prérempli" as UC_PLACEMENT_CONTRACT
+      usecase "UC-PLACEMENT-011: Signer le contrat\n(côté Kara et bienfaiteur)" as UC_PLACEMENT_SIGN
+      usecase "UC-PLACEMENT-012: Déposer/Notifier/Verrouiller\nle contrat signé" as UC_PLACEMENT_UPLOAD
+      usecase "UC-PLACEMENT-013: Activer le placement" as UC_PLACEMENT_ACTIVATE
+    }
+    
+    package "Gestion des Commissions" {
+      usecase "UC-PLACEMENT-014: Calculer les commissions" as UC_PLACEMENT_CALC_COMMISSION
+      usecase "UC-PLACEMENT-015: Enregistrer les paiements\nde commissions" as UC_PLACEMENT_PAY_COMMISSION
+      usecase "UC-PLACEMENT-016: Consulter les commissions" as UC_PLACEMENT_COMMISSIONS
+    }
+    
+    package "Retrait Anticipé" {
+      usecase "UC-PLACEMENT-017: Calculer commission\nde retrait anticipé" as UC_PLACEMENT_COMMISSION_EARLY
+      usecase "UC-PLACEMENT-018: Générer avenant\n(retrait anticipé)" as UC_PLACEMENT_AMENDMENT
+      usecase "UC-PLACEMENT-019: Valider retrait anticipé" as UC_PLACEMENT_VALIDATE_EARLY
+    }
+    
+    package "Notifications & Rappels" {
+      usecase "UC-PLACEMENT-020: Planifier rappels\net notifier avant échéance" as UC_PLACEMENT_REMINDERS
+    }
+    
+    package "Fin de Placement" {
+      usecase "UC-PLACEMENT-021: Générer quittances\n(finale, sortie)" as UC_PLACEMENT_RECEIPTS
+      usecase "UC-PLACEMENT-022: Clôturer le placement" as UC_PLACEMENT_CLOSE
+    }
+    
+    package "Consultation & Reporting" {
+      usecase "UC-PLACEMENT-023: Consulter les placements" as UC_PLACEMENT_LIST
+      usecase "UC-PLACEMENT-024: Exporter les placements\n(PDF/Excel)" as UC_PLACEMENT_EXPORT
+    }
+    
+    ' Relations include/extend
+    UC_PLACEMENT_DEMAND ..> UC_PLACEMENT_PREQUALIFY : <<include>>
+    UC_PLACEMENT_PREQUALIFY ..> UC_MEMBER_DETAIL : <<include>>
+    UC_PLACEMENT_SOLICIT ..> UC_INFRA_SEND_NOTIF : <<include>>
+    UC_PLACEMENT_CONTRACT ..> UC_INFRA_GEN_CONTRACT : <<include>>
+    UC_PLACEMENT_SIGN ..> UC_INFRA_SAVE_DOC : <<include>>
+    UC_PLACEMENT_CALC_COMMISSION ..> UC_PLACEMENT_SIMULATE : <<include>>
+    UC_PLACEMENT_COMMISSION_EARLY ..> UC_PLACEMENT_LIST : <<extend>>
+    UC_PLACEMENT_AMENDMENT ..> UC_INFRA_GEN_CONTRACT : <<include>>
+  }
+}
+
+' ============================================
+' DOMAINE : COMPLEMENTARY - Bienfaiteur
+' ============================================
+package "Domaine Complementary" {
+  package "Bienfaiteur" {
+    package "Gestion des Événements" {
+      usecase "UC-CHARITY-001: Créer un événement caritatif" as UC_CHARITY_CREATE
+      usecase "UC-CHARITY-002: Modifier un événement caritatif" as UC_CHARITY_UPDATE
+      usecase "UC-CHARITY-003: Consulter les événements caritatifs" as UC_CHARITY_LIST
+      usecase "UC-CHARITY-004: Archiver un événement" as UC_CHARITY_ARCHIVE
+    }
+    
+    package "Gestion des Participants" {
+      usecase "UC-CHARITY-005: Ajouter des participants\n(membres et groupes)" as UC_CHARITY_PARTICIPANTS
+      usecase "UC-CHARITY-006: Retirer des participants" as UC_CHARITY_REMOVE_PARTICIPANTS
+    }
+    
+    package "Gestion des Contributions" {
+      usecase "UC-CHARITY-007: Enregistrer les contributions\n(financières ou en nature)" as UC_CHARITY_CONTRIBUTIONS
+      usecase "UC-CHARITY-008: Modifier une contribution" as UC_CHARITY_UPDATE_CONTRIBUTION
+      usecase "UC-CHARITY-009: Consulter l'historique\ndes contributions" as UC_CHARITY_CONTRIBUTION_HISTORY
+    }
+    
+    package "Gestion des Médias" {
+      usecase "UC-CHARITY-010: Uploader des médias\n(photos/vidéos)" as UC_CHARITY_MEDIA_UPLOAD
+      usecase "UC-CHARITY-011: Supprimer des médias" as UC_CHARITY_MEDIA_DELETE
+      usecase "UC-CHARITY-012: Consulter les médias" as UC_CHARITY_MEDIA_VIEW
+    }
+    
+    package "Reporting & Statistiques" {
+      usecase "UC-CHARITY-013: Produire des statistiques\nde progression" as UC_CHARITY_STATS
+      usecase "UC-CHARITY-014: Exporter les données\n(CSV/PDF)" as UC_CHARITY_EXPORT
+    }
+    
+    ' Relations include/extend
+    UC_CHARITY_CREATE ..> UC_MEMBER_DETAIL : <<include>>
+    UC_CHARITY_CONTRIBUTIONS ..> UC_INFRA_SAVE_DOC : <<include>>
+    UC_CHARITY_MEDIA_UPLOAD ..> UC_INFRA_UPLOAD_FILE : <<include>>
+    UC_CHARITY_STATS ..> UC_CHARITY_CONTRIBUTIONS : <<include>>
+  }
+  
+  ' ============================================
+  ' DOMAINE : COMPLEMENTARY - Véhicule
+  ' ============================================
+  package "Véhicule" {
+    package "Gestion des Véhicules" {
+      usecase "UC-VEHICLE-001: Enregistrer un véhicule" as UC_VEHICLE_CREATE
+      usecase "UC-VEHICLE-002: Modifier un véhicule" as UC_VEHICLE_UPDATE
+      usecase "UC-VEHICLE-003: Consulter les véhicules" as UC_VEHICLE_LIST
+      usecase "UC-VEHICLE-004: Supprimer un véhicule" as UC_VEHICLE_DELETE
+    }
+    
+    package "Gestion des Assurances" {
+      usecase "UC-VEHICLE-005: Créer une assurance véhicule" as UC_VEHICLE_INSURANCE_CREATE
+      usecase "UC-VEHICLE-006: Modifier une assurance" as UC_VEHICLE_INSURANCE_UPDATE
+      usecase "UC-VEHICLE-007: Consulter les assurances" as UC_VEHICLE_INSURANCE_LIST
+      usecase "UC-VEHICLE-008: Gérer les renouvellements" as UC_VEHICLE_RENEWAL
+      usecase "UC-VEHICLE-009: Notifier les renouvellements" as UC_VEHICLE_NOTIFY_RENEWAL
+    }
+    
+    ' Relations include/extend
+    UC_VEHICLE_CREATE ..> UC_MEMBER_DETAIL : <<include>>
+    UC_VEHICLE_INSURANCE_CREATE ..> UC_VEHICLE_CREATE : <<include>>
+    UC_VEHICLE_RENEWAL ..> UC_VEHICLE_INSURANCE_LIST : <<extend>>
+    UC_VEHICLE_NOTIFY_RENEWAL ..> UC_VEHICLE_RENEWAL : <<extend>>
+  }
+}
+
+  }
+}
+
+' ============================================
+' RELATIONS ACTEURS PRINCIPAUX → USE CASES
+' ============================================
+
+' Membership
+Member --> UC_REGISTER
+Admin --> UC_VALIDATE
+Admin --> UC_REJECT
+Admin --> UC_LIST_MEMBERS
+Admin --> UC_MEMBER_DETAIL
+Admin --> UC_UPDATE_MEMBER
+Admin --> UC_TOGGLE_MEMBER
+Admin --> UC_GROUP_CREATE
+Admin --> UC_GROUP_UPDATE
+Admin --> UC_GROUP_MEMBERS
+Admin --> UC_GROUP_LIST
+Admin --> UC_LIST_REQUESTS
+
+' Financial - Caisse Spéciale
+Admin --> UC_CS_CREATE
+Admin --> UC_CS_UPDATE
+Admin --> UC_CS_VALIDATE_CONTRACT
+Admin --> UC_CS_TERMINATE
+Admin --> UC_CS_DEMAND
+Admin --> UC_CS_VALIDATE
+Admin --> UC_CS_CONVERT
+Admin --> UC_CS_PAYMENT
+Admin --> UC_CS_PAYMENT_HISTORY
+Admin --> UC_CS_BALANCE
+Admin --> UC_CS_LIST
+Admin --> UC_CS_FILTER_DELAY
+Admin --> UC_CS_CALENDAR
+Admin --> UC_CS_EXPORT
+Admin --> UC_CS_SETTINGS
+
+' Financial - Caisse Imprévue
+Admin --> UC_CI_CREATE
+Admin --> UC_CI_UPDATE
+Admin --> UC_CI_VALIDATE_CONTRACT
+Admin --> UC_CI_TERMINATE
+Admin --> UC_CI_SUBSCRIPTION
+Admin --> UC_CI_TOGGLE_SUB
+Admin --> UC_CI_DEMAND
+Admin --> UC_CI_VALIDATE
+Admin --> UC_CI_CONVERT
+Admin --> UC_CI_REOPEN
+Admin --> UC_CI_PAYMENT
+Admin --> UC_CI_PAYMENT_HISTORY
+Admin --> UC_CI_LIST
+Admin --> UC_CI_FILTER_DELAY
+Admin --> UC_CI_CALENDAR
+
+' Financial - Crédit Spéciale
+Admin --> UC_CREDIT_DEMAND
+Admin --> UC_CREDIT_VALIDATE
+Guarantor --> UC_CREDIT_GUARANTOR
+Admin --> UC_CREDIT_SIMU_PERSO
+Admin --> UC_CREDIT_SIGN
+Admin --> UC_CREDIT_UPLOAD
+Admin --> UC_CREDIT_PAYMENTS
+Admin --> UC_CREDIT_PAYMENT_HISTORY
+Admin --> UC_CREDIT_PAY_PENALTIES
+Admin --> UC_CREDIT_DISCHARGE
+Admin --> UC_CREDIT_CLOSE
+Admin --> UC_CREDIT_LIST_ACTIVE
+Admin --> UC_CREDIT_LIST_OVERDUE
+Admin --> UC_CREDIT_LIST_CLOSED
+Admin --> UC_CREDIT_EXPORT
+System --> UC_CREDIT_SIMU_STD
+System --> UC_CREDIT_TABLES
+System --> UC_CREDIT_ELIGIBILITY
+System --> UC_CREDIT_CHECK_GUARANTOR
+System --> UC_CREDIT_CONTRACT
+System --> UC_CREDIT_BALANCE
+System --> UC_CREDIT_PENALTIES
+System --> UC_CREDIT_NOTIF_PEN
+System --> UC_CREDIT_TRANSFORM
+System --> UC_CREDIT_BLOCK
+System --> UC_CREDIT_REMUNERATE
+System --> UC_CREDIT_REMINDERS
+Member --> UC_CREDIT_SIGN
+
+' Financial - Placement
+Admin --> UC_PLACEMENT_DEMAND
+Admin --> UC_PLACEMENT_PREQUALIFY
+Admin --> UC_PLACEMENT_OFFER
+Admin --> UC_PLACEMENT_VALIDATE_SIMU
+Admin --> UC_PLACEMENT_RECORD_COLLECTION
+Admin --> UC_PLACEMENT_SIGN
+Admin --> UC_PLACEMENT_UPLOAD
+Admin --> UC_PLACEMENT_PAY_COMMISSION
+Admin --> UC_PLACEMENT_COMMISSIONS
+Admin --> UC_PLACEMENT_VALIDATE_EARLY
+Admin --> UC_PLACEMENT_LIST
+Admin --> UC_PLACEMENT_EXPORT
+Benefactor --> UC_PLACEMENT_SIGN
+System --> UC_PLACEMENT_SOLICIT
+System --> UC_PLACEMENT_TRACK_RESPONSE
+System --> UC_PLACEMENT_SIMULATE
+System --> UC_PLACEMENT_PAYMENT_LINK
+System --> UC_PLACEMENT_CONTRACT
+System --> UC_PLACEMENT_ACTIVATE
+System --> UC_PLACEMENT_CALC_COMMISSION
+System --> UC_PLACEMENT_COMMISSION_EARLY
+System --> UC_PLACEMENT_AMENDMENT
+System --> UC_PLACEMENT_REMINDERS
+System --> UC_PLACEMENT_RECEIPTS
+System --> UC_PLACEMENT_CLOSE
+
+' Complementary - Bienfaiteur
+Admin --> UC_CHARITY_CREATE
+Admin --> UC_CHARITY_UPDATE
+Admin --> UC_CHARITY_LIST
+Admin --> UC_CHARITY_ARCHIVE
+Admin --> UC_CHARITY_PARTICIPANTS
+Admin --> UC_CHARITY_REMOVE_PARTICIPANTS
+Admin --> UC_CHARITY_CONTRIBUTIONS
+Admin --> UC_CHARITY_UPDATE_CONTRIBUTION
+Admin --> UC_CHARITY_CONTRIBUTION_HISTORY
+Admin --> UC_CHARITY_MEDIA_UPLOAD
+Admin --> UC_CHARITY_MEDIA_DELETE
+Admin --> UC_CHARITY_MEDIA_VIEW
+Admin --> UC_CHARITY_EXPORT
+System --> UC_CHARITY_STATS
+
+' Complementary - Véhicule
+Admin --> UC_VEHICLE_CREATE
+Admin --> UC_VEHICLE_UPDATE
+Admin --> UC_VEHICLE_LIST
+Admin --> UC_VEHICLE_DELETE
+Admin --> UC_VEHICLE_INSURANCE_CREATE
+Admin --> UC_VEHICLE_INSURANCE_UPDATE
+Admin --> UC_VEHICLE_INSURANCE_LIST
+Admin --> UC_VEHICLE_RENEWAL
+System --> UC_VEHICLE_NOTIFY_RENEWAL
+
+' Infrastructure
+Admin --> UC_GEO_PROVINCES
+Admin --> UC_GEO_DEPARTMENTS
+Admin --> UC_GEO_COMMUNES
+Admin --> UC_GEO_DISTRICTS
+Admin --> UC_GEO_QUARTERS
+Admin --> UC_INFRA_UPLOAD_DOC
+Admin --> UC_INFRA_DOWNLOAD_DOC
+Admin --> UC_INFRA_DELETE_DOC
+Admin --> UC_INFRA_COMPANIES
+Admin --> UC_INFRA_PROFESSIONS
+Admin --> UC_INFRA_USERS
+System --> UC_INFRA_GEN_CONTRACT
+System --> UC_INFRA_SAVE_DOC
+System --> UC_INFRA_UPLOAD_FILE
+System --> UC_INFRA_SEND_NOTIF
+System --> UC_INFRA_SCHEDULE_NOTIF
+System --> UC_INFRA_NOTIF_HISTORY
+System --> UC_INFRA_AUTH
+System --> UC_INFRA_CHECK_PERMISSIONS
+System --> UC_INFRA_VALIDATE_FORM
+System --> UC_INFRA_VALIDATE_BUSINESS
+
+' Caisse Imprévue - Notifications
+System --> UC_CI_NOTIFY_DUE
+System --> UC_CI_NOTIFY_LATE
+
+@enduml

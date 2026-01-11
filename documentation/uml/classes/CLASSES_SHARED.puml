@@ -1,0 +1,253 @@
+@startuml CLASSES_SHARED
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightYellow
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Infrastructure Partagée (Shared)
+
+' ============================================
+' CLASSE : USER (Utilisateur)
+' ============================================
+class User {
+  + id: string
+  + matricule: string
+  + lastName: string
+  + firstName: string
+  + birthDate: string
+  + birthPlace?: string
+  + contacts: string[]
+  + gender: string
+  + email?: string
+  + nationality: string
+  + hasCar: boolean
+  + address?: Address
+  + companyName?: string
+  + profession?: string
+  + photoURL?: string
+  + photoPath?: string
+  + identityDocument?: string
+  + identityDocumentNumber?: string
+  + subscriptions: string[]
+  + roles: UserRole[]
+  + isActive: boolean
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy?: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : ADDRESS (Adresse)
+' ============================================
+class Address {
+  + province: string
+  + city: string
+  + district: string
+  + arrondissement: string
+  + additionalInfo?: string
+}
+
+' ============================================
+' CLASSE : DOCUMENT (Document)
+' ============================================
+class Document {
+  + id?: string
+  + type: DocumentType
+  + format: DocumentFormat
+  + libelle: string
+  + path: string
+  + url: string
+  + size: number
+  + memberId: string
+  + contractId?: string
+  + createdBy: string
+  + updatedBy: string
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : COMPANY (Entreprise)
+' ============================================
+class Company {
+  + id: string
+  + name: string
+  + normalizedName: string
+  + address?: CompanyAddress
+  + industry?: string
+  + employeeCount?: number
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+}
+
+' ============================================
+' CLASSE : COMPANY_ADDRESS (Adresse Entreprise)
+' ============================================
+class CompanyAddress {
+  + province?: string
+  + city?: string
+  + district?: string
+}
+
+' ============================================
+' CLASSE : PROFESSION (Profession)
+' ============================================
+class Profession {
+  + id: string
+  + name: string
+  + normalizedName: string
+  + category?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy?: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : NOTIFICATION (Notification)
+' ============================================
+class Notification {
+  + id: string
+  + module: NotificationModule
+  + entityId: string
+  + type: NotificationType
+  + title: string
+  + message: string
+  + isRead: boolean
+  + createdAt: Date
+  + scheduledAt?: Date
+  + sentAt?: Date
+  + metadata?: Record<string, any>
+  + requestId?: string
+  + memberId?: string
+  + contractId?: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum UserRole {
+  Adherant
+  Bienfaiteur
+  Sympathisant
+  Admin
+  SuperAdmin
+  Secretary
+}
+
+enum DocumentType {
+  ADHESION_CS
+  ADHESION_CI
+  CANCELED_CS
+  CANCELED_CI
+  FINISHED_CS
+  FINISHED_CI
+  SUPPORT_CI
+  EARLY_REFUND_CI
+  FINAL_REFUND_CI
+  EARLY_REFUND_CS
+  FINAL_REFUND_CS
+  CHARITY_EVENT_MEDIA
+  CHARITY_CONTRIBUTION_RECEIPT
+  CHARITY_EVENT_REPORT
+  PLACEMENT_CONTRACT
+  PLACEMENT_COMMISSION_PROOF
+  PLACEMENT_EARLY_EXIT_QUITTANCE
+  PLACEMENT_FINAL_QUITTANCE
+  PLACEMENT_EARLY_EXIT_ADDENDUM
+  PLACEMENT_EARLY_EXIT_DOCUMENT
+  CREDIT_SPECIALE_CONTRACT
+  CREDIT_SPECIALE_CONTRACT_SIGNED
+  CREDIT_SPECIALE_RECEIPT
+  CREDIT_SPECIALE_DISCHARGE
+}
+
+enum DocumentFormat {
+  pdf
+  word
+  excel
+  image
+  text
+}
+
+enum NotificationModule {
+  memberships
+  vehicule
+  caisse_speciale
+  caisse_imprevue
+  bienfaiteur
+  placement
+  credit_speciale
+}
+
+enum NotificationType {
+  birthday_reminder
+  new_request
+  status_update
+  reminder
+  contract_expiring
+  payment_due
+  contract_created
+  contract_finished
+  contract_canceled
+  commission_due_reminder
+  commission_overdue
+  placement_activated
+  ...
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' User contient une Address (composition)
+User *-- Address : contains
+
+' User peut avoir plusieurs Documents (agrégation)
+User "1" --> "*" Document : has
+
+' User peut avoir une Company (référence)
+User --> Company : works_at
+
+' User peut avoir une Profession (référence)
+User --> Profession : has_profession
+
+' User peut recevoir plusieurs Notifications (agrégation)
+User "1" --> "*" Notification : receives
+
+' Company a une CompanyAddress (composition)
+Company *-- CompanyAddress : has_address
+
+' Document peut être lié à une entité (User, Contract, etc.)
+' (relation via relatedEntityType/relatedEntityId)
+
+note right of User
+  **Collection Firestore:** users
+  Clé primaire: id (égal à UID Firebase et matricule)
+end note
+
+note right of Document
+  **Collection Firestore:** documents
+  Liens via relatedEntityType/relatedEntityId
+end note
+
+note right of Company
+  **Collection Firestore:** companies
+  Recherche par normalizedName
+end note
+
+note right of Profession
+  **Collection Firestore:** professions
+  Recherche par normalizedName
+end note
+
+note right of Notification
+  **Collection Firestore:** notifications
+  Index sur userId, isRead, createdAt
+end note
+
+@enduml
