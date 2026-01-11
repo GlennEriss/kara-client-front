@@ -1,3 +1,11 @@
+/**
+ * Noms de collections Firestore
+ * 
+ * Note: Chaque environnement (dev, preprod, prod) utilise sa propre base de données Firebase,
+ * donc les noms de collections sont identiques dans tous les environnements.
+ * Pas besoin de suffixes -dev, -preprod, etc.
+ */
+
 export const firebaseCollectionNames = {
     membershipRequests: "membership-requests",
     members: "members",
@@ -43,23 +51,44 @@ export const firebaseCollectionNames = {
 
 // Export également en majuscules pour compatibilité
 export const FIREBASE_COLLECTION_NAMES = {
-    MEMBERSHIP_REQUESTS: "membership-requests",
-    MEMBERS: "members",
-    USERS: "users",
-    ADMINS: "admins",
-    GROUPS: "groups",
-    EVENTS: "events",
-    NEWS: "news",
-    NOTIFICATIONS: "notifications",
-    SETTINGS: "settings",
-    CATEGORIES: "categories",
-    SUBSCRIPTIONS: "subscriptions",
-    ADDRESSES: "addresses",
-    COMPANIES: "companies",
-    PROFESSIONS: "professions",
-    PLACEMENTS: "placements",
+    MEMBERSHIP_REQUESTS: firebaseCollectionNames.membershipRequests,
+    MEMBERS: firebaseCollectionNames.members,
+    USERS: firebaseCollectionNames.users,
+    ADMINS: firebaseCollectionNames.admins,
+    GROUPS: firebaseCollectionNames.groups,
+    EVENTS: firebaseCollectionNames.events,
+    NEWS: firebaseCollectionNames.news,
+    NOTIFICATIONS: firebaseCollectionNames.notifications,
+    SETTINGS: firebaseCollectionNames.settings,
+    CATEGORIES: firebaseCollectionNames.categories,
+    SUBSCRIPTIONS: firebaseCollectionNames.subscriptions,
+    ADDRESSES: firebaseCollectionNames.addresses,
+    COMPANIES: firebaseCollectionNames.companies,
+    PROFESSIONS: firebaseCollectionNames.professions,
+    PLACEMENTS: firebaseCollectionNames.placements,
     // Caisse Spéciale
-    CAISSE_CONTRACTS: "caisseContracts",
-    CAISSE_SETTINGS: "caisseSettings",
-    CAISSE_ADMIN_NOTES: "caisseAdminNotes",
+    CAISSE_CONTRACTS: firebaseCollectionNames.caisseContracts,
+    CAISSE_SETTINGS: firebaseCollectionNames.caisseSettings,
+    CAISSE_ADMIN_NOTES: firebaseCollectionNames.caisseAdminNotes,
+    CAISSE_SPECIALE_DEMANDS: firebaseCollectionNames.caisseSpecialeDemands,
+    // Caisse Imprévue
+    SUBSCRIPTIONS_CI: firebaseCollectionNames.subscriptionsCI,
+    CONTRACTS_CI: firebaseCollectionNames.contractsCI,
+    CAISSE_IMPREVUE_DEMANDS: firebaseCollectionNames.caisseImprevueDemands,
+    // Documents
+    DOCUMENTS: firebaseCollectionNames.documents,
+    PLACEMENT_DEMANDS: firebaseCollectionNames.placementDemands,
+    // Géographie
+    PROVINCES: firebaseCollectionNames.provinces,
+    DEPARTMENTS: firebaseCollectionNames.departments,
+    COMMUNES: firebaseCollectionNames.communes,
+    DISTRICTS: firebaseCollectionNames.districts,
+    QUARTERS: firebaseCollectionNames.quarters,
+    // Crédit spéciale
+    CREDIT_DEMANDS: firebaseCollectionNames.creditDemands,
+    CREDIT_CONTRACTS: firebaseCollectionNames.creditContracts,
+    CREDIT_INSTALLMENTS: firebaseCollectionNames.creditInstallments,
+    CREDIT_PAYMENTS: firebaseCollectionNames.creditPayments,
+    CREDIT_PENALTIES: firebaseCollectionNames.creditPenalties,
+    GUARANTOR_REMUNERATIONS: firebaseCollectionNames.guarantorRemunerations,
 }

@@ -21,9 +21,11 @@ export default function AuthFirebaseProvider({ children }: AuthFirebaseProviderP
         startTokenRefreshTimer()
       } else {
         // Utilisateur déconnecté - supprimer le cookie et arrêter le timer
-        //console.log('🚪 Utilisateur déconnecté')
         stopTokenRefreshTimer()
-        document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=strict'
+        // Cookie secure uniquement en production
+        const isProduction = window.location.protocol === 'https:';
+        const cookieOptions = `path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=strict${isProduction ? '; secure' : ''}`;
+        document.cookie = `auth-token=; ${cookieOptions}`;
       }
     })
 

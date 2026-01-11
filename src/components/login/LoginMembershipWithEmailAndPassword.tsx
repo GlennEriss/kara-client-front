@@ -9,7 +9,7 @@ import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
 import Link from 'next/link'
-import { useLogin } from '@/hooks/login'
+import { useLogin } from '@/domains/auth/hooks/useLogin'
 import { useRouter } from 'next/navigation'
 
 export default function LoginMembershipWithEmailAndPassword() {
@@ -24,36 +24,48 @@ export default function LoginMembershipWithEmailAndPassword() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Mobile View - Formulaire centré */}
-      <div className="lg:hidden min-h-screen bg-gradient-to-br from-slate-50 via-[#234E64]/5 to-[#234E64]/10 relative overflow-hidden w-full">
+      {/* Mobile View - Formulaire centré avec design premium */}
+      <div className="lg:hidden min-h-screen relative overflow-hidden w-full">
+        {/* Background Image Mobile - Subtle */}
+        <div className="absolute inset-0">
+          <img
+            src="/imgkara.webp"
+            alt="KARA Background"
+            className="w-full h-full object-cover opacity-10"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-[#234E64]/5 to-[#234E64]/15"></div>
+        </div>
+        
         {/* Background Effects Mobile */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 w-72 h-72 bg-[#234E64]/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+          <div className="absolute top-0 left-1/4 w-72 h-72 bg-[#CBB171]/15 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
           <div className="absolute top-0 right-1/4 w-72 h-72 bg-[#234E64]/15 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-          <div className="absolute -bottom-8 left-1/3 w-72 h-72 bg-[#234E64]/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+          <div className="absolute -bottom-8 left-1/3 w-72 h-72 bg-[#CBB171]/10 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
         </div>
 
         <div className="absolute inset-0 bg-grid-slate-100/[0.02] bg-[size:75px_75px]" />
 
         <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
           <div className="w-full max-w-md">
-            {/* Header Mobile */}
+            {/* Header Mobile - Style amélioré */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl shadow-lg mb-6 group-hover:scale-110 transition-transform duration-300 overflow-hidden bg-white">
-                <Logo variant="with-bg" size="md" alt="KARA" />
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl shadow-xl mb-6 bg-gradient-to-br from-[#234E64] to-[#1a3b4d] border border-white/20 hover:scale-110 transition-transform duration-500 overflow-hidden">
+                <div className="logo-white-filter">
+                  <Logo variant="default" size="lg" alt="KARA" />
+                </div>
               </div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#234E64] to-[#234E64] bg-clip-text text-transparent mb-2">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-[#234E64] via-[#234E64] to-[#CBB171] bg-clip-text text-transparent mb-2">
                 Bienvenue sur KARA
               </h1>
-              <p className="text-slate-600 text-lg">
+              <p className="text-slate-600 text-lg font-light">
                 Connectez-vous à votre espace membre
               </p>
             </div>
 
-            {/* Main Card Mobile */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#234E64]/20 to-[#234E64]/20 rounded-3xl blur-xl opacity-60" />
-              <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-8">
+            {/* Main Card Mobile - Design premium avec glow doré */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#234E64]/30 via-[#CBB171]/40 to-[#234E64]/30 rounded-3xl blur-xl opacity-60 group-hover:opacity-80 transition duration-500" />
+              <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-8">
 
                 <div className="text-center mb-8">
                   <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-[#234E64]/10 to-[#234E64]/10 rounded-2xl mb-4">
@@ -161,11 +173,11 @@ export default function LoginMembershipWithEmailAndPassword() {
                       )}
                     />
 
-                    {/* Bouton de connexion */}
+                    {/* Bouton de connexion - Style identique au desktop */}
                     <Button
                       type="submit"
                       disabled={form.formState.isSubmitting}
-                      className="w-full h-14 bg-gradient-to-r from-[#234E64] to-[#234E64] hover:from-[#234E64] hover:to-[#234E64] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 group"
+                      className="w-full h-14 bg-gradient-to-r from-[#234E64] via-[#234E64] to-[#CBB171] hover:from-[#CBB171] hover:via-[#234E64] hover:to-[#234E64] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 group"
                     >
                       {form.formState.isSubmitting ? (
                         <div className="flex items-center justify-center space-x-2">
@@ -173,7 +185,7 @@ export default function LoginMembershipWithEmailAndPassword() {
                           <span>Connexion en cours...</span>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2 group-hover:scale-105 transition-transform duration-300">
                           <CheckCircle2 className="w-5 h-5" />
                           <span>Se connecter</span>
                         </div>
@@ -195,11 +207,22 @@ export default function LoginMembershipWithEmailAndPassword() {
               </div>
             </div>
 
-            {/* Footer Mobile */}
-            <div className="text-center mt-8 space-y-4">
-              <div className="flex items-center justify-center space-x-2 text-slate-600">
-                <Shield className="w-4 h-4" />
-                <span className="text-sm">Connexion sécurisée avec identifiants</span>
+            {/* Footer Mobile - Badges de confiance */}
+            <div className="text-center mt-8 space-y-5">
+              {/* Trust Badges */}
+              <div className="flex items-center justify-center space-x-4 text-slate-600">
+                <div className="flex items-center space-x-1.5 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm">
+                  <Shield className="w-4 h-4 text-[#CBB171]" />
+                  <span className="text-xs font-medium">Sécurisé</span>
+                </div>
+                <div className="flex items-center space-x-1.5 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm">
+                  <CheckCircle2 className="w-4 h-4 text-[#CBB171]" />
+                  <span className="text-xs font-medium">Fiable</span>
+                </div>
+                <div className="flex items-center space-x-1.5 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm">
+                  <Lock className="w-4 h-4 text-[#CBB171]" />
+                  <span className="text-xs font-medium">Protégé</span>
+                </div>
               </div>
 
               <p className="text-sm text-slate-500">
@@ -207,7 +230,7 @@ export default function LoginMembershipWithEmailAndPassword() {
                 <button
                   onClick={() => router.push(routes.public.register)}
                   disabled={form.formState.isSubmitting}
-                  className="cursor-pointer text-[#234E64] hover:text-[#234E64] font-semibold underline transition-colors duration-300"
+                  className="cursor-pointer text-[#234E64] hover:text-[#CBB171] font-semibold underline transition-all duration-300"
                 >
                   Rejoignez KARA
                 </button>

@@ -12,6 +12,11 @@
 
 # testing
 /coverage
+/playwright/.auth/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/
@@ -42,6 +47,10 @@ firebase-export-*/
 
 # env files (can opt-in for committing if needed)
 .env*
+
+# service accounts (sensitive data)
+service-accounts/*.json
+service-accounts/*.pem
 
 # vercel
 .vercel

@@ -7,7 +7,7 @@ import { ICaisseImprevueService } from '@/services/caisse-imprevue/ICaisseImprev
 import { CaisseImprevueService } from '@/services/caisse-imprevue/CaisseImprevueService'
 import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceService'
 import { NotificationService } from '@/services/notifications/NotificationService'
-import { GeographieService } from '@/services/geographie/GeographieService'
+import { GeographieService } from '@/domains/infrastructure/geography/services/GeographieService'
 import { PlacementService } from '@/services/placement/PlacementService'
 import { DocumentService } from '@/services/documents/DocumentService'
 import { ICreditSpecialeService } from '@/services/credit-speciale/ICreditSpecialeService'
@@ -15,6 +15,8 @@ import { CreditSpecialeService } from '@/services/credit-speciale/CreditSpeciale
 import { ICaisseSpecialeService } from '@/services/caisse-speciale/ICaisseSpecialeService'
 import { CaisseSpecialeService } from '@/services/caisse-speciale/CaisseSpecialeService'
 import { MembershipService } from '@/services/memberships/MembershipService'
+import { ILoginService } from '@/domains/auth/services/ILoginService'
+import { LoginService } from '@/domains/auth/services/LoginService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -164,6 +166,18 @@ export class ServiceFactory {
     const key = 'MembershipService'
     if (!this.services.has(key)) {
       this.services.set(key, new MembershipService())
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de login/authentification
+   */
+  static getLoginService(): ILoginService {
+    const key = 'LoginService'
+    if (!this.services.has(key)) {
+      const userRepository = RepositoryFactory.getUserRepository()
+      this.services.set(key, new LoginService(userRepository))
     }
     return this.services.get(key)
   }

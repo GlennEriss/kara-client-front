@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "fir-demo-project"
+    "default": "kara-gabon-dev",
+    "dev": "kara-gabon-dev",
+    "preprod": "kara-gabon-preprod",
+    "prod": "kara-gabon"
   }
 }

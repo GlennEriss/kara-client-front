@@ -7,6 +7,35 @@
   display: none;
 }
 @theme inline {
+  /* Couleurs KARA - Logo (#224D62 et #CBB171) */
+  --color-kara-primary-dark: #224D62;
+  --color-kara-primary-light: #CBB171;
+  --color-kara-secondary-dark: #1a3d4f;
+  --color-kara-secondary-light: #d4c085;
+  
+  /* Couleurs KARA - Neutres */
+  --color-kara-neutral-50: #f8f9fa;
+  --color-kara-neutral-100: #e9ecef;
+  --color-kara-neutral-200: #dee2e6;
+  --color-kara-neutral-300: #ced4da;
+  --color-kara-neutral-400: #adb5bd;
+  --color-kara-neutral-500: #6c757d;
+  --color-kara-neutral-600: #495057;
+  --color-kara-neutral-700: #343a40;
+  --color-kara-neutral-800: #212529;
+  --color-kara-neutral-900: #0d1117;
+  
+  /* Couleurs KARA - États */
+  --color-kara-success: #10b981;
+  --color-kara-success-light: #d1fae5;
+  --color-kara-error: #ef4444;
+  --color-kara-error-light: #fee2e2;
+  --color-kara-warning: #f59e0b;
+  --color-kara-warning-light: #fef3c7;
+  --color-kara-info: #3b82f6;
+  --color-kara-info-light: #dbeafe;
+  
+  /* Shadcn colors (utilisant les couleurs KARA pour primary) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -47,6 +76,12 @@
 }
 
 :root {
+  /* Variables KARA (basées sur le logo) */
+  --kara-blue: #224D62;
+  --kara-gold: #CBB171;
+  --kara-blue-rgb: 34, 77, 98;
+  --kara-gold-rgb: 203, 177, 113;
+  
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
@@ -54,9 +89,11 @@
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
+  /* Primary utilise la couleur KARA Blue (#224D62) */
+  --primary: 201 60% 25%; /* Conversion de #224D62 en HSL pour compatibilité oklch */
   --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
+  /* Secondary utilise la couleur KARA Gold (#CBB171) */
+  --secondary: 45 50% 70%; /* Conversion de #CBB171 en HSL pour compatibilité oklch */
   --secondary-foreground: oklch(0.208 0.042 265.755);
   --muted: oklch(0.968 0.007 247.896);
   --muted-foreground: oklch(0.554 0.046 257.417);
@@ -65,7 +102,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --ring: 201 60% 25%; /* KARA Blue pour le ring */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -73,12 +110,12 @@
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary: 201 60% 25%; /* KARA Blue */
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.968 0.007 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --sidebar-ring: 201 60% 25%; /* KARA Blue */
 }
 
 .dark {
@@ -202,10 +239,6 @@ html {
 
 /* Styles personnalisés pour les toasts */
 @layer base {
-  :root {
-    --kara-blue: #224D62;
-    --kara-gold: #CBB171;
-  }
 
   /* Animations pour les toasts */
   .toaster [data-sonner-toast] {

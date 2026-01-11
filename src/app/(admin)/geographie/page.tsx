@@ -1,4 +1,4 @@
-import GeographieManagement from '@/components/geographie/GeographieManagement'
+import GeographieManagement from '@/domains/infrastructure/geography/components/GeographieManagement'
 import React from 'react'
 
 export default function GeographiePage() {
