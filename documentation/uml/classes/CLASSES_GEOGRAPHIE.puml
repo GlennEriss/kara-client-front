@@ -1,0 +1,135 @@
+@startuml CLASSES_GEOGRAPHIE
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightGreen
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Géographie
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + address?: Address
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : PROVINCE
+' ============================================
+class Province {
+  + id: string
+  + code: string
+  + name: string
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : DEPARTMENT (Département)
+' ============================================
+class Department {
+  + id: string
+  + provinceId: string
+  + name: string
+  + code?: string
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : COMMUNE (Ville)
+' ============================================
+class Commune {
+  + id: string
+  + departmentId: string
+  + name: string
+  + postalCode?: string
+  + alias?: string
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : DISTRICT (Arrondissement)
+' ============================================
+class District {
+  + id: string
+  + communeId: string
+  + name: string
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : QUARTER (Quartier)
+' ============================================
+class Quarter {
+  + id: string
+  + districtId: string
+  + name: string
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' RELATIONS HIÉRARCHIQUES
+' ============================================
+
+' Province (1) --> Department (*) : contient
+Province "1" --> "*" Department : contains
+
+' Department (1) --> Commune (*) : contient
+Department "1" --> "*" Commune : contains
+
+' Commune (1) --> District (*) : contient
+Commune "1" --> "*" District : contains
+
+' District (1) --> Quarter (*) : contient
+District "1" --> "*" Quarter : contains
+
+note right of Province
+  **Collection Firestore:** provinces
+  Clé primaire: id
+  Index sur: code, name
+end note
+
+note right of Department
+  **Collection Firestore:** departments
+  Clé primaire: id
+  Index sur: provinceId, name
+end note
+
+note right of Commune
+  **Collection Firestore:** communes
+  Clé primaire: id
+  Index sur: departmentId, name
+  Note: Les communes sont des villes
+end note
+
+note right of District
+  **Collection Firestore:** districts
+  Clé primaire: id
+  Index sur: communeId, name
+  Note: Les districts sont des arrondissements
+end note
+
+note right of Quarter
+  **Collection Firestore:** quarters
+  Clé primaire: id
+  Index sur: districtId, name
+end note
+
+note bottom of Province
+  **Hiérarchie géographique:**
+  Province → Department → Commune (Ville) → District (Arrondissement) → Quarter (Quartier)
+  
+  Chaque niveau référence le niveau supérieur via un ID
+end note
+
+@enduml

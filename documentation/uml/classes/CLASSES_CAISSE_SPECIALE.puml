@@ -1,0 +1,239 @@
+@startuml CLASSES_CAISSE_SPECIALE
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightCyan
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Caisse Spéciale
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + matricule: string
+    ...
+  }
+  
+  class Document {
+    + id: string
+    + type: DocumentType
+    ...
+  }
+  
+  class Group {
+    + id: string
+    + name: string
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : CAISSE_CONTRACT (Contrat Caisse Spéciale)
+' ============================================
+class CaisseContract {
+  + id?: string
+  + memberId: string
+  + groupeId?: string
+  + contractType: ContractType
+  + caisseType: CaisseType
+  + monthlyAmount: number
+  + monthsPlanned: number
+  + status: string
+  + nominalPaid: number
+  + bonusAccrued: number
+  + penaltiesTotal: number
+  + currentMonthIndex: number
+  + withdrawLockedUntilM: number
+  + contractStartAt?: Date
+  + contractEndAt?: Date
+  + nextDueAt?: Date
+  + payments: Payment[]
+  + refunds: RefundWithDocument[]
+  + contractPdf?: ContractPdf
+  + emergencyContact?: EmergencyContact
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : CAISSE_SPECIALE_DEMAND (Demande de contrat)
+' ============================================
+class CaisseSpecialeDemand {
+  + id: string
+  + memberId?: string
+  + groupeId?: string
+  + contractType: ContractType
+  + caisseType: CaisseType
+  + monthlyAmount: number
+  + monthsPlanned: number
+  + desiredDate: string
+  + cause?: string
+  + status: CaisseSpecialeDemandStatus
+  + decisionMadeAt?: Date
+  + decisionMadeBy?: string
+  + decisionMadeByName?: string
+  + decisionReason?: string
+  + reopenedAt?: Date
+  + reopenedBy?: string
+  + reopenedByName?: string
+  + reopenReason?: string
+  + contractId?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : REFUND_WITH_DOCUMENT (Remboursement)
+' ============================================
+class RefundWithDocument {
+  + id: string
+  + type: RefundType
+  + status: RefundStatus
+  + amountNominal: number
+  + amountBonus: number
+  + deadlineAt?: Date
+  + reason?: string
+  + withdrawalDate?: Date
+  + withdrawalTime?: string
+  + document?: RefundDocument
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : REFUND_DOCUMENT (Document de remboursement)
+' ============================================
+class RefundDocument {
+  + id: string
+  + url: string
+  + path: string
+  + uploadedAt: Date
+  + uploadedBy: string
+  + originalFileName: string
+  + fileSize: number
+  + status: DocumentStatus
+}
+
+' ============================================
+' CLASSE : CONTRACT_PDF
+' ============================================
+class ContractPdf {
+  + url: string
+  + path: string
+  + uploadedAt: Date
+  + originalFileName: string
+  + fileSize: number
+}
+
+' ============================================
+' CLASSE : EMERGENCY_CONTACT (Contact d'urgence)
+' ============================================
+class EmergencyContact {
+  + lastName: string
+  + firstName?: string
+  + phone: string
+  + phone2?: string
+  + relationship: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum ContractType {
+  INDIVIDUAL
+  GROUP
+}
+
+enum CaisseType {
+  STANDARD
+  JOURNALIERE
+  LIBRE
+}
+
+enum CaisseSpecialeDemandStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
+enum RefundType {
+  FINAL
+  EARLY
+  DEFAULT
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  PAID
+  ARCHIVED
+}
+
+enum DocumentStatus {
+  active
+  archived
+  replaced
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' CaisseSpecialeDemand peut devenir CaisseContract (après validation)
+CaisseSpecialeDemand ..> CaisseContract : becomes
+
+' CaisseContract référence User (agrégation)
+User "1" --> "*" CaisseContract : has_contracts
+
+' CaisseContract référence Group (optionnel, agrégation)
+Group "1" --> "*" CaisseContract : has_contracts
+
+' CaisseContract contient EmergencyContact (composition)
+CaisseContract *-- EmergencyContact : has
+
+' CaisseContract contient ContractPdf (composition optionnelle)
+CaisseContract *-- ContractPdf : has
+
+' CaisseContract a plusieurs RefundWithDocument (agrégation)
+CaisseContract "1" --> "*" RefundWithDocument : has_refunds
+
+' RefundWithDocument contient RefundDocument (composition optionnelle)
+RefundWithDocument *-- RefundDocument : has_document
+
+' CaisseContract référence Document (via contractPdf ou refunds)
+CaisseContract --> Document : references
+
+' CaisseSpecialeDemand référence User (agrégation)
+User "1" --> "*" CaisseSpecialeDemand : creates_demands
+
+' CaisseSpecialeDemand référence Group (optionnel, agrégation)
+Group "1" --> "*" CaisseSpecialeDemand : creates_demands
+
+note right of CaisseContract
+  **Collection Firestore:** caisse-contracts
+  Clé primaire: id
+  Index sur: memberId, groupeId, status, contractStartAt
+  Note: Les paiements sont dans un tableau payments
+  Les remboursements sont dans un tableau refunds
+end note
+
+note right of CaisseSpecialeDemand
+  **Collection Firestore:** caisse-speciale-demands
+  Clé primaire: id
+  Index sur: status, memberId, groupeId, createdAt
+  Format ID: MK_DEMANDE_CS_{matricule}_{date}_{heure}
+end note
+
+note right of RefundWithDocument
+  Stocké dans le tableau refunds de CaisseContract
+  Types: FINAL (fin de contrat), EARLY (retrait anticipé), DEFAULT
+end note
+
+@enduml

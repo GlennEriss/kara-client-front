@@ -1,0 +1,272 @@
+@startuml CLASSES_MEMBERSHIP
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Membership
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + matricule: string
+    + roles: UserRole[]
+    ...
+  }
+  
+  class Document {
+    + id: string
+    + type: DocumentType
+    + url: string
+    ...
+  }
+  
+  class Address {
+    + province: string
+    + city: string
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : MEMBERSHIP_REQUEST (Demande d'adhésion)
+' ============================================
+class MembershipRequest {
+  + id: string
+  + matricule: string
+  + status: MembershipRequestStatus
+  + identity: IdentityData
+  + address: AddressData
+  + company: CompanyData
+  + documents: DocumentsData
+  + processedAt?: Date
+  + processedBy?: string
+  + updatedBy?: string
+  + adminComments?: string
+  + memberNumber?: string
+  + reviewNote?: string
+  + motifReject?: string
+  + isPaid?: boolean
+  + payments?: Payment[]
+  + securityCode?: string
+  + securityCodeExpiry?: Date
+  + securityCodeUsed?: boolean
+  + priorityScore?: number
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : PAYMENT (Paiement)
+' ============================================
+class Payment {
+  + date: Date
+  + time?: string
+  + mode: PaymentMode
+  + amount: number
+  + acceptedBy: string
+  + paymentType: TypePayment
+  + withFees?: boolean
+}
+
+' ============================================
+' CLASSE : IDENTITY_DATA (Données d'identité)
+' ============================================
+class IdentityData {
+  + civility: string
+  + lastName: string
+  + firstName: string
+  + birthDate: string
+  + birthPlace: string
+  + birthCertificateNumber: string
+  + prayerPlace: string
+  + religion: string
+  + contacts: string[]
+  + email?: string
+  + gender: string
+  + nationality: string
+  + maritalStatus: string
+  + spouseLastName?: string
+  + spouseFirstName?: string
+  + spousePhone?: string
+  + intermediaryCode?: string
+  + hasCar: boolean
+  + photoURL?: string
+  + photoPath?: string
+}
+
+' ============================================
+' CLASSE : ADDRESS_DATA (Données d'adresse)
+' ============================================
+class AddressData {
+  + province: string
+  + city: string
+  + district: string
+  + arrondissement: string
+  + additionalInfo?: string
+}
+
+' ============================================
+' CLASSE : COMPANY_DATA (Données d'entreprise)
+' ============================================
+class CompanyData {
+  + isEmployed: boolean
+  + companyName?: string
+  + companyAddress?: CompanyAddressData
+  + profession?: string
+  + seniority?: string
+}
+
+' ============================================
+' CLASSE : COMPANY_ADDRESS_DATA
+' ============================================
+class CompanyAddressData {
+  + province?: string
+  + city?: string
+  + district?: string
+}
+
+' ============================================
+' CLASSE : DOCUMENTS_DATA (Données de documents)
+' ============================================
+class DocumentsData {
+  + identityDocument: string
+  + identityDocumentNumber: string
+  + documentPhotoFrontURL?: string
+  + documentPhotoFrontPath?: string
+  + documentPhotoBackURL?: string
+  + documentPhotoBackPath?: string
+  + expirationDate: string
+  + issuingPlace: string
+  + issuingDate: string
+}
+
+' ============================================
+' CLASSE : GROUP (Groupe)
+' ============================================
+class Group {
+  + id: string
+  + name: string
+  + label?: string
+  + description?: string
+  + createdAt: Date
+  + createdBy: string
+  + updatedAt: Date
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : SUBSCRIPTION (Souscription)
+' ============================================
+class Subscription {
+  + id: string
+  + userId: string
+  + dateStart: Date
+  + dateEnd: Date
+  + montant: number
+  + currency: string
+  + type: MembershipType
+  + isValid?: boolean
+  + adhesionPdfURL?: string
+  + adhesionPdfPath?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum MembershipRequestStatus {
+  pending
+  approved
+  rejected
+  under_review
+}
+
+enum PaymentMode {
+  airtel_money
+  mobicash
+  cash
+  bank_transfer
+  other
+}
+
+enum TypePayment {
+  Membership
+  Subscription
+  Tontine
+  Charity
+}
+
+enum MembershipType {
+  adherant
+  bienfaiteur
+  sympathisant
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' MembershipRequest contient IdentityData (composition)
+MembershipRequest *-- IdentityData : contains
+
+' MembershipRequest contient AddressData (composition)
+MembershipRequest *-- AddressData : contains
+
+' MembershipRequest contient CompanyData (composition)
+MembershipRequest *-- CompanyData : contains
+
+' MembershipRequest contient DocumentsData (composition)
+MembershipRequest *-- DocumentsData : contains
+
+' CompanyData contient CompanyAddressData (composition)
+CompanyData *-- CompanyAddressData : contains
+
+' MembershipRequest peut devenir User (après validation)
+MembershipRequest ..> User : becomes
+
+' MembershipRequest peut avoir plusieurs Payment (agrégation)
+MembershipRequest "1" --> "*" Payment : has
+
+' User peut avoir plusieurs Subscription (agrégation)
+User "1" --> "*" Subscription : has
+
+' Group référence User (via membres dans User, pas de relation directe dans Firestore)
+' Note: Les groupes stockent les IDs des membres dans User.groups ou via une sous-collection
+User "1" --> "*" Group : belongs_to
+
+' User peut avoir plusieurs Documents (agrégation - référencé depuis Shared)
+User "1" --> "*" Document : has
+
+note right of MembershipRequest
+  **Collection Firestore:** membership-requests
+  Clé primaire: id
+  Index sur: status, createdAt, matricule
+end note
+
+note right of User
+  **Collection Firestore:** users
+  Clé primaire: id (égal à matricule et UID Firebase)
+  Relation avec MembershipRequest: après validation
+end note
+
+note right of Group
+  **Collection Firestore:** groups
+  Clé primaire: id
+  Relation avec User: indirecte (via User.groups ou sous-collection)
+end note
+
+note right of Subscription
+  **Collection Firestore:** subscriptions
+  Clé primaire: id
+  Index sur: userId, dateStart, dateEnd
+end note
+
+@enduml

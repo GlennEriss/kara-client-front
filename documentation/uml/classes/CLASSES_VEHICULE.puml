@@ -1,0 +1,134 @@
+@startuml CLASSES_VEHICULE
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor Lavender
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Véhicule (Assurance)
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + matricule: string
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : VEHICLE_INSURANCE (Assurance véhicule)
+' ============================================
+class VehicleInsurance {
+  + id: string
+  + holderType: VehicleInsuranceHolderType
+  + city?: string
+  + primaryPhone?: string
+  + memberId?: string
+  + memberFirstName?: string
+  + memberLastName?: string
+  + memberMatricule?: string
+  + memberContacts?: string[]
+  + memberPhotoUrl?: string
+  + nonMemberFirstName?: string
+  + nonMemberLastName?: string
+  + nonMemberPhone1?: string
+  + nonMemberPhone2?: string
+  + sponsorMemberId?: string
+  + sponsorName?: string
+  + sponsorMatricule?: string
+  + sponsorContacts?: string[]
+  + vehicleType: VehicleType
+  + vehicleBrand?: string
+  + vehicleModel?: string
+  + vehicleYear?: number
+  + plateNumber?: string
+  + energySource?: VehicleEnergySource
+  + fiscalPower?: string
+  + insuranceCompany: string
+  + policyNumber: string
+  + startDate: Date
+  + endDate: Date
+  + premiumAmount: number
+  + currency: string
+  + status: VehicleInsuranceStatus
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum VehicleInsuranceHolderType {
+  member
+  non_member
+}
+
+enum VehicleType {
+  car
+  motorcycle
+  truck
+  bus
+  maison
+  other
+}
+
+enum VehicleEnergySource {
+  essence
+  diesel
+  electrique
+  hybride
+  gaz
+  autre
+}
+
+enum VehicleInsuranceStatus {
+  active
+  expires_soon
+  expired
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' VehicleInsurance référence User (titulaire membre, agrégation optionnelle)
+User "1" --> "*" VehicleInsurance : has_insurance_as_member
+
+' VehicleInsurance référence User (parrain, agrégation optionnelle)
+User "1" --> "*" VehicleInsurance : sponsors
+
+note right of VehicleInsurance
+  **Collection Firestore:** vehicle-insurances
+  Clé primaire: id
+  Index sur: memberId, sponsorMemberId, status, endDate, insuranceCompany
+  Types de titulaires: member (membre) ou non-member (non-membre)
+end note
+
+note bottom of VehicleInsurance
+  **Types de véhicules:**
+  - car (voiture)
+  - motorcycle (moto)
+  - truck (camion)
+  - bus (bus)
+  - maison (maison)
+  - other (autre)
+  
+  **Sources d'énergie:**
+  - essence, diesel, electrique, hybride, gaz, autre
+  
+  **Statuts:**
+  - active: Assurance active
+  - expires_soon: Expire bientôt (proche de endDate)
+  - expired: Expirée (endDate dépassée)
+  
+  **Parrainage:**
+  Un non-membre peut être parrainé par un membre (sponsorMemberId)
+end note
+
+@enduml
