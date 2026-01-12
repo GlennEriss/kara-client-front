@@ -4,6 +4,14 @@ import { adminAuth } from "@/firebase/adminAuth";
 // Recherche un utilisateur Firebase Auth par UID (matricule)
 // Body: { uid: string }
 export async function POST(req: NextRequest) {
+  // Vérifier si Firebase Admin est disponible
+  if (!adminAuth) {
+    return NextResponse.json(
+      { error: "Firebase Admin non configuré" },
+      { status: 503 }
+    );
+  }
+
   try {
     const { uid } = await req.json();
     if (!uid || typeof uid !== "string") {

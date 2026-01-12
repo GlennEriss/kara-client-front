@@ -2,6 +2,14 @@ import { adminAuth } from '@/firebase/adminAuth'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
+  // Vérifier si Firebase Admin est disponible
+  if (!adminAuth) {
+    return NextResponse.json(
+      { authenticated: false, error: "Firebase Admin non configuré" },
+      { status: 503 }
+    );
+  }
+
   try {
     const { token } = await request.json()
     
