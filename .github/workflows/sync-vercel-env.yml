@@ -1,0 +1,69 @@
+name: Sync Vercel Environment Variables
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to sync (preview or production)'
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+  sync-env:
+    name: Sync Vercel Env Variables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            echo "env=preview" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "env=production" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Sync Vercel Environment Variables
+        run: pnpm tsx scripts/sync-vercel-env.ts ${{ steps.env.outputs.env }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          # Variables Preview
+          NEXT_PUBLIC_FIREBASE_API_KEY_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PREPROD }}
+          FIREBASE_PROJECT_ID_PREPROD: ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_APP_ID_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID_PREPROD }}
+          # Variables Production
+          NEXT_PUBLIC_FIREBASE_API_KEY_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY_PROD }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROD }}
+          FIREBASE_PROJECT_ID_PROD: ${{ secrets.FIREBASE_PROJECT_ID_PROD }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PROD }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PROD }}
+          NEXT_PUBLIC_FIREBASE_APP_ID_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID_PROD }}

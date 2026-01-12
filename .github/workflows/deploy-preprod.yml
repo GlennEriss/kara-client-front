@@ -1,0 +1,85 @@
+name: Deploy Preprod
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches:
+      - develop
+    types:
+      - completed
+
+jobs:
+  deploy:
+    name: Deploy to Preprod
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build Next.js
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_APP_ENV: preprod
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PREPROD }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID_PREPROD }}
+          NEXT_PUBLIC_GEOGRAPHY_VERSION: V2
+      
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+      
+      - name: Authenticate Firebase
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PREPROD }}' > firebase-service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/firebase-service-account.json"
+          firebase use ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+      
+      - name: Deploy Firestore Rules
+        run: firebase deploy --only firestore:rules --project ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
+      
+      - name: Deploy Firestore Indexes
+        run: firebase deploy --only firestore:indexes --project ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
+      
+      - name: Deploy Storage Rules
+        run: firebase deploy --only storage --project ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
+      
+      - name: Deploy Cloud Functions
+        run: |
+          cd functions
+          npm install
+          cd ..
+          firebase deploy --only functions --project ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
+      
+      - name: Deploy Firebase Hosting
+        run: firebase deploy --only hosting --project ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
+      
+      - name: Cleanup
+        if: always()
+        run: rm -f firebase-service-account.json
