@@ -52,6 +52,7 @@ export default defineConfig({
       thresholds: {
         // Seuils globaux désactivés (0) pour ne pas bloquer les autres modules
         // Le module géographie V2 doit avoir 80% de couverture (vérifié manuellement)
+        
         lines: 0,
         functions: 0,
         branches: 0,
