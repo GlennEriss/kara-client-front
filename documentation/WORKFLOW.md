@@ -288,7 +288,10 @@ Exemples :
 - [ ] Responsive : Fonctionne sur mobile, tablette, desktop
 - [ ] Validation : Schemas Zod pour formulaires
 - [ ] Rules : Firestore/Storage rules à jour si impact
-- [ ] Indexes : `firestore.indexes.json` à jour si nouvelles queries
+- [ ] **Indexes : `firestore.indexes.json` à jour si nouvelles queries (OBLIGATOIRE)**
+  - [ ] Index ajouté dans `firestore.indexes.json` (pas de création manuelle)
+  - [ ] Index testé en dev et déployé
+  - [ ] Vérification que l'index est construit avant merge
 - [ ] **Tests locaux** : tous les tests passent (`pnpm lint`, `pnpm typecheck`, `pnpm test --run`, `pnpm build`)
 - [ ] Tests : unit + component + integration (minimum)
 - [ ] **Tests E2E locaux** : tests E2E passent pour les flows critiques avec Firebase Cloud (dev)
@@ -911,22 +914,261 @@ Créer une PR `develop` → `main`.
 ## 6) Gestion Rules & Indexes (Firebase)
 
 ### Fichiers versionnés
-- `firestore.rules`
-- `firestore.indexes.json`
-- `storage.rules`
+- `firestore.rules` — Règles de sécurité Firestore
+- `firestore.indexes.json` — **Indexes Firestore (OBLIGATOIRE pour requêtes complexes)**
+- `storage.rules` — Règles de sécurité Storage
 
-### Déploiement
-Préprod :
+### ⚠️ RÈGLE CRITIQUE : Indexes versionnés
+
+**AUCUN INDEX NE DOIT ÊTRE CRÉÉ MANUELLEMENT** via la console Firebase. Tous les indexes doivent être définis dans `firestore.indexes.json` et déployés automatiquement.
+
+---
+
+### 6.1) Quand créer un index ?
+
+Un index est nécessaire quand :
+- ✅ Requête avec plusieurs champs (`where().where().orderBy()`)
+- ✅ Requête avec `orderBy()` sur un champ différent du `where()`
+- ✅ Requête avec filtres sur plusieurs champs + tri
+
+**Exemple** : Requête nécessitant un index
+```typescript
+// Cette requête nécessite un index composite
+db.collection('notifications')
+  .where('isRead', '==', false)
+  .where('createdAt', '>=', date)
+  .orderBy('createdAt', 'desc')
+```
+
+---
+
+### 6.2) Processus : Ajouter un nouvel index
+
+#### Étape 1 : Détecter le besoin d'index
+
+Lors du développement, si une requête échoue, Firebase affiche une erreur avec un lien :
+
+```
+The query requires an index. You can create it here: 
+https://console.firebase.google.com/v1/r/project/kara-gabon-dev/firestore/indexes?create_composite=...
+```
+
+#### Étape 2 : Extraire la définition de l'index
+
+**Option A : Script automatique (MÉTHODE RECOMMANDÉE) ⭐**
+
+Utilisez le script `add-firestore-index.ts` pour extraire automatiquement les indexes depuis les URLs Firebase :
+
+```bash
+# Pour un seul index
+npx ts-node scripts/add-firestore-index.ts "https://console.firebase.google.com/v1/r/project/kara-gabon-dev/firestore/indexes?create_composite=..."
+
+# Pour plusieurs indexes en une fois
+npx ts-node scripts/add-firestore-index.ts \
+  "URL1" \
+  "URL2" \
+  "URL3"
+```
+
+**Le script fait automatiquement** :
+- ✅ Décode l'URL Firebase Console
+- ✅ Extrait les informations de l'index
+- ✅ Vérifie si l'index existe déjà (évite les doublons)
+- ✅ Ajoute l'index dans `firestore.indexes.json`
+- ✅ Trie les indexes par collection pour une meilleure lisibilité
+
+**Exemple d'utilisation** :
+1. Copiez toutes les URLs des erreurs Firebase
+2. Exécutez le script avec toutes les URLs
+3. Le script ajoute tous les indexes en une seule fois
+
+**Option B : Création manuelle**
+
+Si vous préférez créer manuellement l'entrée dans `firestore.indexes.json` en analysant la requête :
+
+**Exemple de requête** :
+```typescript
+db.collection('notifications')
+  .where('isRead', '==', false)
+  .where('createdAt', '>=', date)
+  .orderBy('createdAt', 'desc')
+```
+
+**Index correspondant dans `firestore.indexes.json`** :
+```json
+{
+  "collectionGroup": "notifications",
+  "queryScope": "COLLECTION",
+  "fields": [
+    {
+      "fieldPath": "isRead",
+      "order": "ASCENDING"
+    },
+    {
+      "fieldPath": "createdAt",
+      "order": "ASCENDING"
+    },
+    {
+      "fieldPath": "__name__",
+      "order": "DESCENDING"
+    }
+  ]
+}
+```
+
+#### Étape 3 : Ajouter l'index dans `firestore.indexes.json`
+
+**Format du fichier** :
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isRead",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+```
+
+**Règles importantes** :
+- ✅ Toujours inclure `__name__` en dernier champ si `orderBy()` est utilisé
+- ✅ L'ordre des champs doit correspondre à l'ordre de la requête
+- ✅ `queryScope: "COLLECTION"` pour une collection simple
+- ✅ `queryScope: "COLLECTION_GROUP"` pour une collection group
+
+#### Étape 4 : Tester localement (dev)
+
+```bash
+# 1. Vérifier que le fichier JSON est valide
+cat firestore.indexes.json | jq .
+
+# 2. Déployer l'index sur le projet DEV
+firebase use dev  # ou kara-gabon-dev
+firebase deploy --only firestore:indexes
+
+# 3. Attendre que l'index soit construit (peut prendre quelques minutes)
+# Vérifier dans Firebase Console > Firestore > Indexes
+```
+
+#### Étape 5 : Commit et PR
+
+```bash
+git add firestore.indexes.json
+git commit -m "feat(firestore): add composite index for notifications query"
+git push
+```
+
+**⚠️ IMPORTANT** : L'index sera automatiquement déployé en préprod et prod via les workflows CI/CD.
+
+---
+
+### 6.3) Déploiement automatique (CI/CD)
+
+Les indexes sont déployés automatiquement via les workflows GitHub Actions :
+
+**Workflow `deploy-preprod.yml`** (sur `develop`) :
+- Déploie automatiquement `firestore.indexes.json` vers préprod
+- S'exécute uniquement si `ci.yml` est vert
+
+**Workflow `deploy-prod.yml`** (sur `main`) :
+- Déploie automatiquement `firestore.indexes.json` vers prod
+- S'exécute uniquement si `ci.yml` est vert
+
+**Aucune action manuelle nécessaire** en préprod/prod ! 🎉
+
+---
+
+### 6.4) Déploiement manuel (si nécessaire)
+
+**Préprod** :
 ```bash
 firebase use preprod
-firebase deploy --only firestore:rules,firestore:indexes,storage,functions
+firebase deploy --only firestore:indexes
 ```
 
-Prod :
+**Prod** :
 ```bash
 firebase use prod
-firebase deploy --only firestore:rules,firestore:indexes,storage,functions
+firebase deploy --only firestore:indexes
 ```
+
+**⚠️ ATTENTION** : Le déploiement manuel ne devrait être utilisé qu'en cas d'urgence. Le workflow normal passe par Git → CI/CD.
+
+---
+
+### 6.5) Vérifier les indexes existants
+
+**Via Firebase CLI** :
+```bash
+# Lister les indexes d'un projet
+firebase firestore:indexes
+```
+
+**Via Firebase Console** :
+- Aller dans Firebase Console > Firestore > Indexes
+- Voir tous les indexes créés
+
+---
+
+### 6.6) Gérer plusieurs indexes en masse
+
+Si vous avez **beaucoup d'indexes** à créer (erreurs multiples) :
+
+1. **Collecter toutes les URLs** :
+   - Copiez toutes les URLs des erreurs Firebase Console
+   - Gardez-les dans un fichier temporaire ou collez-les directement
+
+2. **Utiliser le script en masse** :
+   ```bash
+   # Exemple avec plusieurs URLs
+   npx ts-node scripts/add-firestore-index.ts \
+     "https://console.firebase.google.com/.../indexes?create_composite=ClRwcm9qZWN0cy..." \
+     "https://console.firebase.google.com/.../indexes?create_composite=ClRwcm9qZWN0cy..." \
+     "https://console.firebase.google.com/.../indexes?create_composite=ClRwcm9qZWN0cy..."
+   ```
+
+3. **Vérifier le résultat** :
+   ```bash
+   # Voir tous les indexes ajoutés
+   cat firestore.indexes.json | jq '.indexes | length'
+   
+   # Voir le contenu formaté
+   cat firestore.indexes.json | jq .
+   ```
+
+4. **Déployer** :
+   ```bash
+   firebase deploy --only firestore:indexes
+   ```
+
+---
+
+### 6.7) Checklist : Nouvel index
+
+- [ ] Erreur Firebase détectée avec lien de création
+- [ ] Index ajouté dans `firestore.indexes.json` (via script ou manuellement)
+- [ ] Format JSON validé (`jq . firestore.indexes.json`)
+- [ ] Index déployé en dev et testé
+- [ ] Commit avec message clair (`feat(firestore): add index for ...`)
+- [ ] PR créée vers `develop`
+- [ ] CI vert (index déployé automatiquement en préprod)
+- [ ] Vérification en préprod que l'index est construit
+- [ ] Merge vers `main` (index déployé automatiquement en prod)
 
 ---
 
@@ -1042,10 +1284,36 @@ NEXT_PUBLIC_USE_FIREBASE_EMULATORS=false
 
 ## 8) Tests — organisation standard
 
-### Structure
-- **unit/component** : `src/**/__tests__/*.test.ts(x)` — Tests mockés (rapides)
-- **integration** : `tests/integration/*.test.ts` — Tests mockés (rapides)
-- **e2e** : `tests/e2e/**/*.spec.ts` — Tests E2E avec Playwright (Firebase Cloud)
+> **Documentation complète** : Voir `documentation/TESTS_ARCHITECTURE.md`
+
+### Structure des fichiers
+
+```
+project-root/
+├── tests/                        # Tests partagés et utilitaires
+│   ├── README.md                 # Documentation des tests
+│   ├── __mocks__/                # Mocks partagés
+│   │   ├── firebase/             # Mocks Firebase
+│   │   │   └── firestore.ts      # Mock Firestore
+│   │   ├── repositories/         # Mocks des repositories
+│   │   │   └── geography/        # Ex: province.mock.ts
+│   │   └── services/             # Mocks des services
+│   │
+│   ├── fixtures/                 # Données de test (JSON)
+│   │   ├── geography/            # Fixtures géographie
+│   │   └── index.ts              # Export centralisé
+│   │
+│   ├── helpers/                  # Utilitaires de test
+│   │   ├── render-with-providers.tsx
+│   │   ├── test-utils.ts
+│   │   └── e2e/                  # Helpers E2E
+│   │
+│   └── results/                  # Résultats des tests (gitignored)
+│
+├── src/**/__tests__/             # Tests unitaires par domaine
+├── e2e/                          # Tests E2E Playwright
+└── coverage/                     # Rapports de couverture (gitignored)
+```
 
 ### Stratégie de tests
 
@@ -1064,6 +1332,94 @@ NEXT_PUBLIC_USE_FIREBASE_EMULATORS=false
 - **Tests mockés** : Pour tester rapidement la logique UI et la validation
 - **Tests E2E locaux** : **OBLIGATOIRES** pour les flows critiques (auth, register, etc.) avec Firebase Cloud (dev)
 - **Tests E2E préprod** : **OBLIGATOIRES** avant production avec la vraie base Firebase (preprod)
+
+### Gestion des Mocks
+
+**Principes** :
+1. **Centralisation** : Tous les mocks dans `tests/__mocks__/`
+2. **Réutilisabilité** : Un mock par module/service
+3. **Consistance** : Même interface que le code réel
+4. **Reset** : Fonction `reset*Mocks()` pour chaque mock
+
+**Structure d'un mock** :
+```typescript
+// tests/__mocks__/repositories/geography/province.mock.ts
+import { vi } from 'vitest'
+
+export const mockProvinces = [...] // Données par défaut
+
+export const mockProvinceRepository = {
+  getPaginated: vi.fn().mockResolvedValue({...}),
+  getCount: vi.fn().mockResolvedValue(5),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}
+
+export function setupPaginatedResponse(provinces, hasNextPage) {...}
+export function resetProvinceRepositoryMocks() {...}
+```
+
+**Utilisation** :
+```typescript
+import { mockProvinceRepository } from '@/tests/__mocks__/repositories/geography/province.mock'
+
+vi.mock('@/.../ProvinceRepositoryV2', () => ({
+  ProvinceRepositoryV2: { getInstance: () => mockProvinceRepository }
+}))
+```
+
+### Gestion des Fixtures
+
+**Format JSON** :
+```json
+// tests/fixtures/geography/provinces.json
+{
+  "provinces": [...],
+  "pagination": { "page1": {...}, "page2": {...} },
+  "search": { "ogooue": ["prov-2", "prov-3"] }
+}
+```
+
+**Export centralisé** :
+```typescript
+import { provinceFixtures, searchProvinces } from '@/tests/fixtures'
+```
+
+### Seuils de Couverture
+
+| Module | Minimum | Cible |
+|--------|---------|-------|
+| Repositories V2 | 80% | 90% |
+| Hooks V2 | 80% | 90% |
+| Services | 80% | 90% |
+| Schemas | 90% | 95% |
+| Components | 70% | 80% |
+
+### Scripts NPM
+
+```bash
+# Tests unitaires
+pnpm test                    # Mode watch
+pnpm test:run                # Exécution unique
+pnpm test:coverage           # Avec couverture
+
+# Tests E2E
+pnpm test:e2e                # Exécution
+pnpm test:e2e:ui             # Interface graphique
+pnpm test:e2e:headed         # Avec navigateur visible
+
+# Tous les tests avec rapport
+pnpm test:all:report         # Génère tests/results/test-report.md
+```
+
+### Seed des données de test
+
+Pour les tests E2E avec Firebase Cloud, utiliser le script de seed :
+
+```bash
+pnpm seed-geography          # Crée des données de test en dev
+```
 
 ---
 
@@ -1173,6 +1529,7 @@ documentation/
 │
 ├── DESIGN_SYSTEM_ET_QUALITE_UI.md
 ├── DESIGN_SYSTEM_COULEURS_KARA.md
+├── TESTS_ARCHITECTURE.md         # Architecture des tests et mocks
 └── QUALITE_ET_STABILISATION.md
 ```
 

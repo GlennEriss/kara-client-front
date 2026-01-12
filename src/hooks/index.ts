@@ -4,11 +4,8 @@ export * from './usePlacements'
 // Homepage hooks
 export * from './homepage'
 
-// Auth hooks
-export * from './auth'
-
-// Login hooks
-export * from './login'
+// Auth hooks (refactorisé vers domains/auth/hooks)
+export * from './useAuth'
 
 // Register hooks
 export * from './register'

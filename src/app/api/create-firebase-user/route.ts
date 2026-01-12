@@ -25,6 +25,14 @@ function membershipTypeToRole(membershipType: string): UserRole {
 }
 
 export async function POST(req: NextRequest) {
+    // Vérifier si Firebase Admin est disponible
+    if (!adminAuth) {
+        return NextResponse.json(
+            { error: "Firebase Admin non configuré" },
+            { status: 503 }
+        );
+    }
+
     try {
         const { phoneNumber, requestId, adminId, membershipType, companyName, professionName, adhesionPdfURL } = await req.json();
 

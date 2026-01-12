@@ -1,9 +1,9 @@
-import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
 import { app } from './app';
 
-let storageInstance: ReturnType<typeof getStorage> | null = null;
+let storageInstance: FirebaseStorage | null = null;
 
-export const getStorageInstance = () => {
+export const getStorageInstance = (): FirebaseStorage => {
   if (!storageInstance) {
     storageInstance = getStorage(app);
     
@@ -23,6 +23,11 @@ export const getStorageInstance = () => {
 };
 
 export const storage = getStorageInstance();
+
+// Helper pour vérifier si Storage utilise de vraies credentials
+export const isStorageAvailable = (): boolean => {
+  return !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+};
 
 export {
   ref,

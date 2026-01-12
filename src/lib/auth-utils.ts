@@ -9,8 +9,10 @@ export async function logout() {
     // Déconnexion Firebase
     await signOut(auth)
     
-    // Supprimer le cookie d'authentification
-    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=strict'
+    // Supprimer le cookie d'authentification (secure uniquement en production)
+    const isProduction = window.location.protocol === 'https:';
+    const cookieOptions = `path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=strict${isProduction ? '; secure' : ''}`;
+    document.cookie = `auth-token=; ${cookieOptions}`;
     
     // Redirection vers la page de connexion
     window.location.href = '/login'
@@ -27,7 +29,10 @@ export async function refreshAuthToken() {
     const user = auth.currentUser
     if (user) {
       const idToken = await user.getIdToken(true) // Force refresh
-      document.cookie = `auth-token=${idToken}; path=/; max-age=3600; secure; samesite=strict`
+      // Cookie secure uniquement en production
+      const isProduction = window.location.protocol === 'https:';
+      const cookieOptions = `path=/; max-age=3600; samesite=strict${isProduction ? '; secure' : ''}`;
+      document.cookie = `auth-token=${idToken}; ${cookieOptions}`;
       return idToken
     }
   } catch (error) {

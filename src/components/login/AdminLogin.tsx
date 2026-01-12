@@ -33,8 +33,10 @@ export default function AdminLogin() {
         // Obtenir le token ID pour l'authentification côté serveur
         const idToken = await userCred.user.getIdToken()
         
-        // Sauvegarder le token dans un cookie
-        document.cookie = `auth-token=${idToken}; path=/; max-age=3600; secure; samesite=strict`
+        // Sauvegarder le token dans un cookie (secure uniquement en production)
+        const isProduction = window.location.protocol === 'https:';
+        const cookieOptions = `path=/; max-age=3600; samesite=strict${isProduction ? '; secure' : ''}`;
+        document.cookie = `auth-token=${idToken}; ${cookieOptions}`;
         
         // Toast de succès avec fond vert
         toast.success("Connexion réussie !", {

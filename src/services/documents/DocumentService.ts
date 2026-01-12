@@ -10,7 +10,7 @@ import {
   DocumentFilterOption,
 } from '@/utils/documents/documentTypes'
 
-export interface MemberDocumentQueryParams extends DocumentListQuery {}
+export type MemberDocumentQueryParams = DocumentListQuery
 
 export interface MemberDocumentList {
   documents: Document[]

@@ -18,7 +18,7 @@ const hasValidContractPdf = (contract: any) => {
 	
 	// Vérifier que toutes les propriétés requises sont présentes
 	const requiredProperties = ['fileSize', 'originalFileName', 'path', 'uploadedAt', 'url']
-	return requiredProperties.every(prop => contractPdf.hasOwnProperty(prop) && contractPdf[prop] !== null && contractPdf[prop] !== undefined)
+	return requiredProperties.every(prop => Object.prototype.hasOwnProperty.call(contractPdf, prop) && contractPdf[prop] !== null && contractPdf[prop] !== undefined)
 }
 
 export default function AdminCaisseContractDetailsPage() {

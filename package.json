@@ -2,6 +2,7 @@
   "name": "kara",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -16,7 +17,27 @@
     "build:preview": "npm run copy:env:preview && next build",
     "copy:env:dev": "cp .env.dev .env.local",
     "copy:env:preview": "cp .env.preview .env.local",
-    "lint": "next lint"
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx || true",
+    "lint:next": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:all": "playwright test --reporter=list",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:json": "playwright test --reporter=json > tests/results/e2e-tests.json",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:json": "vitest run --coverage --reporter=json --outputFile=tests/results/unit-tests.json",
+    "test:all": "pnpm test:run && pnpm test:e2e:all",
+    "test:all:report": "pnpm test:coverage:json && pnpm test:e2e:json && node scripts/generate-test-report.js",
+    "typecheck": "tsc --noEmit",
+    "create-dev-admin": "tsx scripts/create-dev-admin-user.ts",
+    "seed-geography": "tsx scripts/seed-geography-test-data.ts",
+    "sync-vercel-env:preview": "tsx scripts/sync-vercel-env.ts preview",
+    "sync-vercel-env:prod": "tsx scripts/sync-vercel-env.ts production"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.0",
@@ -28,6 +49,7 @@
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-radio-group": "^1.3.8",
     "@radix-ui/react-select": "^2.2.5",
@@ -67,12 +89,27 @@
     "zod": "^4.0.10"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.48.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^16.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "jsdom": "^24.1.0",
+    "playwright": "^1.48.0",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.52.0",
+    "vitest": "^2.1.0"
   }
 }

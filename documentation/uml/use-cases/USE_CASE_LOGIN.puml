@@ -1,0 +1,67 @@
+@startuml USE_CASE_LOGIN
+!theme plain
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+
+title Use Cases - Module Login/Authentification
+
+left to right direction
+
+actor "Membre" as Member
+actor "Admin KARA" as Admin
+actor "Système" as System
+
+package "Authentification" {
+  usecase "UC-LOGIN-001\nConnexion Membre\n(matricule/email/password)" as UC_LOGIN_001
+  usecase "UC-LOGIN-002\nConnexion Admin\n(email/password)" as UC_LOGIN_002
+  usecase "UC-LOGIN-003\nDéconnexion" as UC_LOGIN_003
+  usecase "UC-LOGIN-004\nVérification état\nd'authentification" as UC_LOGIN_004
+  usecase "UC-LOGIN-005\nRécupération informations\nutilisateur" as UC_LOGIN_005
+  usecase "UC-LOGIN-006\nGestion des erreurs\nde connexion" as UC_LOGIN_006
+  usecase "UC-LOGIN-007\nRedirection selon\nle rôle" as UC_LOGIN_007
+}
+
+' Relations
+Member --> UC_LOGIN_001
+Member --> UC_LOGIN_003
+Member --> UC_LOGIN_004
+
+Admin --> UC_LOGIN_002
+Admin --> UC_LOGIN_003
+Admin --> UC_LOGIN_004
+
+System --> UC_LOGIN_004
+System --> UC_LOGIN_005
+System --> UC_LOGIN_006
+System --> UC_LOGIN_007
+
+UC_LOGIN_001 --> UC_LOGIN_005
+UC_LOGIN_001 --> UC_LOGIN_006
+UC_LOGIN_001 --> UC_LOGIN_007
+
+UC_LOGIN_002 --> UC_LOGIN_005
+UC_LOGIN_002 --> UC_LOGIN_006
+UC_LOGIN_002 --> UC_LOGIN_007
+
+note right of UC_LOGIN_001
+  **Préconditions** :
+  - Utilisateur non connecté
+  - Matricule, email et password valides
+  
+  **Postconditions** :
+  - Utilisateur connecté
+  - Token sauvegardé
+  - Redirection selon le rôle
+end note
+
+note right of UC_LOGIN_006
+  **Types d'erreurs** :
+  - USER_NOT_FOUND
+  - MATRICULE_EMAIL_MISMATCH
+  - auth/wrong-password
+  - auth/user-not-found
+  - auth/invalid-email
+  - auth/too-many-requests
+end note
+
+@enduml

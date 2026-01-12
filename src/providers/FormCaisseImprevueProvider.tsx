@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef } from 'react'
-import { useForm, UseFormReturn } from 'react-hook-form'
+import { useForm, UseFormReturn, Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { CaisseImprevuFormMediator } from '@/mediators/CaisseImprevuFormMediator'
@@ -73,7 +73,7 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
 
   // Initialisation du formulaire global avec keepValues pour préserver les données
   const form = useForm<CaisseImprevueGlobalFormData>({
-    resolver: async (values, context, options) => {
+    resolver: (async (values, context, options) => {
       const step = currentStepRef.current
 
       // Normaliser les numéros de téléphone en retirant les espaces avant la validation
@@ -84,18 +84,20 @@ export function FormCaisseImprevueProvider({ children }: FormCaisseImprevueProvi
           phone1: values.step3.phone1?.replace(/\s/g, '') || '',
           phone2: values.step3.phone2?.replace(/\s/g, '') || ''
         } : values.step3
-      }
+      } as CaisseImprevueGlobalFormData
 
-      // @ts-ignore - Typage complexe, mais fonctionnel
+      // Créer le schéma selon l'étape courante
       const schemaToUse = step === 1
         ? z.object({ step1: caisseImprevueStep1Schema, step2: z.any().optional(), step3: z.any().optional() })
         : step === 2
           ? z.object({ step1: caisseImprevueStep1Schema, step2: caisseImprevueStep2Schema, step3: z.any().optional() })
           : caisseImprevueGlobalSchema
 
-      // @ts-ignore
-      return zodResolver(schemaToUse)(normalizedValues, context, options)
-    },
+      // Utiliser zodResolver avec le schéma dynamique
+      const resolver = zodResolver(schemaToUse)
+      // @ts-expect-error - Le resolver dynamique nécessite un type assertion car le schéma change selon l'étape
+      return resolver(normalizedValues, context, options)
+    }) as Resolver<CaisseImprevueGlobalFormData>,
     defaultValues: defaultCaisseImprevueGlobalValues,
     mode: 'onSubmit',
     shouldUnregister: false,

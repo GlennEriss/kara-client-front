@@ -1,0 +1,21 @@
+{
+  "departments": [
+    { "id": "dept-1", "provinceId": "prov-1", "name": "Libreville", "searchableText": "libreville" },
+    { "id": "dept-2", "provinceId": "prov-1", "name": "Ntoum", "searchableText": "ntoum" },
+    { "id": "dept-3", "provinceId": "prov-1", "name": "Komo-Mondah", "searchableText": "komo-mondah" },
+    { "id": "dept-4", "provinceId": "prov-2", "name": "Franceville", "searchableText": "franceville" },
+    { "id": "dept-5", "provinceId": "prov-2", "name": "Lékoni", "searchableText": "lekoni" },
+    { "id": "dept-6", "provinceId": "prov-3", "name": "Lambaréné", "searchableText": "lambarene" },
+    { "id": "dept-7", "provinceId": "prov-3", "name": "Ndjolé", "searchableText": "ndjole" },
+    { "id": "dept-8", "provinceId": "prov-4", "name": "Mouila", "searchableText": "mouila" },
+    { "id": "dept-9", "provinceId": "prov-4", "name": "Fougamou", "searchableText": "fougamou" },
+    { "id": "dept-10", "provinceId": "prov-5", "name": "Tchibanga", "searchableText": "tchibanga" }
+  ],
+  "byProvince": {
+    "prov-1": ["dept-1", "dept-2", "dept-3"],
+    "prov-2": ["dept-4", "dept-5"],
+    "prov-3": ["dept-6", "dept-7"],
+    "prov-4": ["dept-8", "dept-9"],
+    "prov-5": ["dept-10"]
+  }
+}

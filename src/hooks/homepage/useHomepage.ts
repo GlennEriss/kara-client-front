@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
-import { useAuth } from '@/hooks/auth/useAuth'
+import { useAuth } from '@/hooks/useAuth'
 
 export interface HomepageState {
   isMenuOpen: boolean
