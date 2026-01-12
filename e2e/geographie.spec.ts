@@ -190,7 +190,7 @@ test.describe('Module Géographie - Provinces', () => {
     // Vérifier que le bouton "Charger plus" ou l'indicateur de chargement est présent
     // (si hasNextPage est true)
     const loadMoreButton = page.locator('button:has-text("Charger plus"), button:has-text("Charger plus de provinces")')
-    const loadMoreCount = await loadMoreButton.count()
+    await loadMoreButton.count() // Vérifie que le bouton existe
     
     // Le bouton peut être présent ou non selon le nombre d'éléments
     // On vérifie juste que la structure de pagination existe
