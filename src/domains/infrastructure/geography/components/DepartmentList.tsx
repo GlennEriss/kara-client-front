@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { departmentSchema, type DepartmentFormData } from '../schemas/geographie.schema'
 import { useDepartments, useDepartmentMutations, useProvinces } from '../hooks/useGeographie'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, Loader2, Download } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Building2, Loader2, Download } from 'lucide-react'
 import type { Department } from '../entities/geography.types'
 
 function DepartmentSkeleton() {
@@ -37,7 +37,7 @@ export default function DepartmentList() {
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
 
   const { data: provinces = [] } = useProvinces()
-  const { data: departments = [], isLoading, error, refetch } = useDepartments(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
+  const { data: departments = [], isLoading, error } = useDepartments(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
   const { create, update, remove } = useDepartmentMutations()
 
   const form = useForm<DepartmentFormData>({
@@ -119,20 +119,31 @@ export default function DepartmentList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Départements</h2>
-          <p className="text-gray-600 mt-1">{filteredDepartments.length} département(s)</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Départements</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">{filteredDepartments.length} département(s)</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredDepartments.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={exportCsv} 
+            disabled={filteredDepartments.length === 0}
+            className="text-xs sm:text-sm"
+          >
+            <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">CSV</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
-          </Button>
-          <Button size="sm" onClick={openCreate} className="bg-[#234D65] hover:bg-[#234D65]/90 text-white">
-            <Plus className="h-4 w-4 mr-2" /> Nouveau Département
+          <Button 
+            size="sm" 
+            onClick={openCreate} 
+            className="bg-[#234D65] hover:bg-[#234D65]/90 text-white text-xs sm:text-sm"
+          >
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Nouveau Département</span>
+            <span className="sm:hidden">Nouveau</span>
           </Button>
         </div>
       </div>

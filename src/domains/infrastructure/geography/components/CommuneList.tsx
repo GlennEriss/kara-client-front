@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { communeSchema, type CommuneFormData } from '../schemas/geographie.schema'
 import { useCommunes, useCommuneMutations, useDepartments, useProvinces } from '../hooks/useGeographie'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Building2, RefreshCw, Loader2, Download } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Building2, Loader2, Download } from 'lucide-react'
 import type { Commune } from '../entities/geography.types'
 
 function CommuneSkeleton() {
@@ -39,7 +39,7 @@ export default function CommuneList() {
 
   const { data: provinces = [] } = useProvinces()
   const { data: departments = [] } = useDepartments(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
-  const { data: communes = [], isLoading, error, refetch } = useCommunes(selectedDepartmentId === 'all' ? undefined : selectedDepartmentId)
+  const { data: communes = [], isLoading, error } = useCommunes(selectedDepartmentId === 'all' ? undefined : selectedDepartmentId)
   const { create, update, remove } = useCommuneMutations()
 
   const form = useForm<CommuneFormData>({
@@ -130,20 +130,31 @@ export default function CommuneList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Communes</h2>
-          <p className="text-gray-600 mt-1">{filteredCommunes.length} commune(s)</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Communes</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">{filteredCommunes.length} commune(s)</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredCommunes.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={exportCsv} 
+            disabled={filteredCommunes.length === 0}
+            className="text-xs sm:text-sm"
+          >
+            <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">CSV</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
-          </Button>
-          <Button size="sm" onClick={openCreate} className="bg-[#234D65] hover:bg-[#234D65]/90 text-white">
-            <Plus className="h-4 w-4 mr-2" /> Nouvelle Commune
+          <Button 
+            size="sm" 
+            onClick={openCreate} 
+            className="bg-[#234D65] hover:bg-[#234D65]/90 text-white text-xs sm:text-sm"
+          >
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Nouvelle Commune</span>
+            <span className="sm:hidden">Nouvelle</span>
           </Button>
         </div>
       </div>

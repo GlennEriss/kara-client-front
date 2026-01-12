@@ -34,13 +34,20 @@ export function useProvinceMutations() {
   const { user } = useAuth()
   const service = ServiceFactory.getGeographieService()
 
+  // Helper pour invalider toutes les queries liées
+  const invalidateGeographyQueries = () => {
+    qc.invalidateQueries({ queryKey: ['provinces'] })
+    qc.invalidateQueries({ queryKey: ['province'] })
+    // Les stats se mettront à jour automatiquement car elles dépendent des queries
+  }
+
   const create = useMutation({
     mutationFn: (data: ProvinceFormData) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.createProvince(data, user.uid)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['provinces'] })
+      invalidateGeographyQueries()
       toast.success('Province créée avec succès')
     },
     onError: (error: any) => {
@@ -54,7 +61,7 @@ export function useProvinceMutations() {
       return service.updateProvince(id, data, user.uid)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['provinces'] })
+      invalidateGeographyQueries()
       toast.success('Province mise à jour avec succès')
     },
     onError: (error: any) => {
@@ -65,7 +72,7 @@ export function useProvinceMutations() {
   const remove = useMutation({
     mutationFn: (id: string) => service.deleteProvince(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['provinces'] })
+      invalidateGeographyQueries()
       toast.success('Province supprimée avec succès')
     },
     onError: (error: any) => {
@@ -106,14 +113,19 @@ export function useDepartmentMutations() {
   const { user } = useAuth()
   const service = ServiceFactory.getGeographieService()
 
+  // Helper pour invalider toutes les queries liées
+  const invalidateDepartmentQueries = () => {
+    qc.invalidateQueries({ queryKey: ['departments'], exact: false })
+    qc.invalidateQueries({ queryKey: ['department'], exact: false })
+  }
+
   const create = useMutation({
     mutationFn: (data: DepartmentFormData) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.createDepartment(data, user.uid)
     },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ['departments'], exact: false })
-      qc.refetchQueries({ queryKey: ['departments'], exact: false })
+    onSuccess: () => {
+      invalidateDepartmentQueries()
       toast.success('Département créé avec succès')
     },
     onError: (error: any) => {
@@ -127,9 +139,7 @@ export function useDepartmentMutations() {
       return service.updateDepartment(id, data, user.uid)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['departments'], exact: false })
-      qc.invalidateQueries({ queryKey: ['department'], exact: false })
-      qc.refetchQueries({ queryKey: ['departments'], exact: false })
+      invalidateDepartmentQueries()
       toast.success('Département mis à jour avec succès')
     },
     onError: (error: any) => {
@@ -140,9 +150,7 @@ export function useDepartmentMutations() {
   const remove = useMutation({
     mutationFn: (id: string) => service.deleteDepartment(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['departments'], exact: false })
-      qc.invalidateQueries({ queryKey: ['department'], exact: false })
-      qc.refetchQueries({ queryKey: ['departments'], exact: false })
+      invalidateDepartmentQueries()
       toast.success('Département supprimé avec succès')
     },
     onError: (error: any) => {
@@ -187,14 +195,19 @@ export function useCommuneMutations() {
   const { user } = useAuth()
   const service = ServiceFactory.getGeographieService()
 
+  // Helper pour invalider toutes les queries liées
+  const invalidateCommuneQueries = () => {
+    qc.invalidateQueries({ queryKey: ['communes'], exact: false })
+    qc.invalidateQueries({ queryKey: ['commune'], exact: false })
+  }
+
   const create = useMutation({
     mutationFn: (data: CommuneFormData) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.createCommune(data, user.uid)
     },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ['communes'], exact: false })
-      qc.refetchQueries({ queryKey: ['communes'], exact: false })
+    onSuccess: () => {
+      invalidateCommuneQueries()
       toast.success('Commune créée avec succès')
     },
     onError: (error: any) => {
@@ -208,9 +221,7 @@ export function useCommuneMutations() {
       return service.updateCommune(id, data, user.uid)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['communes'], exact: false })
-      qc.invalidateQueries({ queryKey: ['commune'], exact: false })
-      qc.refetchQueries({ queryKey: ['communes'], exact: false })
+      invalidateCommuneQueries()
       toast.success('Commune mise à jour avec succès')
     },
     onError: (error: any) => {
@@ -221,9 +232,7 @@ export function useCommuneMutations() {
   const remove = useMutation({
     mutationFn: (id: string) => service.deleteCommune(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['communes'], exact: false })
-      qc.invalidateQueries({ queryKey: ['commune'], exact: false })
-      qc.refetchQueries({ queryKey: ['communes'], exact: false })
+      invalidateCommuneQueries()
       toast.success('Commune supprimée avec succès')
     },
     onError: (error: any) => {
@@ -268,14 +277,19 @@ export function useDistrictMutations() {
   const { user } = useAuth()
   const service = ServiceFactory.getGeographieService()
 
+  // Helper pour invalider toutes les queries liées
+  const invalidateDistrictQueries = () => {
+    qc.invalidateQueries({ queryKey: ['districts'], exact: false })
+    qc.invalidateQueries({ queryKey: ['district'], exact: false })
+  }
+
   const create = useMutation({
     mutationFn: (data: DistrictFormData) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.createDistrict(data, user.uid)
     },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ['districts'] })
-      qc.invalidateQueries({ queryKey: ['districts', variables.communeId] })
+    onSuccess: () => {
+      invalidateDistrictQueries()
       toast.success('Arrondissement créé avec succès')
     },
     onError: (error: any) => {
@@ -289,7 +303,7 @@ export function useDistrictMutations() {
       return service.updateDistrict(id, data, user.uid)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['districts'] })
+      invalidateDistrictQueries()
       toast.success('Arrondissement mis à jour avec succès')
     },
     onError: (error: any) => {
@@ -300,7 +314,7 @@ export function useDistrictMutations() {
   const remove = useMutation({
     mutationFn: (id: string) => service.deleteDistrict(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['districts'] })
+      invalidateDistrictQueries()
       toast.success('Arrondissement supprimé avec succès')
     },
     onError: (error: any) => {
@@ -314,9 +328,7 @@ export function useDistrictMutations() {
       return service.createDistrictsBulk(communeId, count, user.uid)
     },
     onSuccess: (_, variables) => {
-      // Invalider et refetch toutes les queries d'arrondissements
-      qc.invalidateQueries({ queryKey: ['districts'], exact: false })
-      qc.refetchQueries({ queryKey: ['districts'], exact: false })
+      invalidateDistrictQueries()
       toast.success(`${variables.count} arrondissement(s) créé(s) avec succès`)
     },
     onError: (error: any) => {
@@ -361,14 +373,19 @@ export function useQuarterMutations() {
   const { user } = useAuth()
   const service = ServiceFactory.getGeographieService()
 
+  // Helper pour invalider toutes les queries liées
+  const invalidateQuarterQueries = () => {
+    qc.invalidateQueries({ queryKey: ['quarters'], exact: false })
+    qc.invalidateQueries({ queryKey: ['quarter'], exact: false })
+  }
+
   const create = useMutation({
     mutationFn: (data: QuarterFormData) => {
       if (!user?.uid) throw new Error('Utilisateur non authentifié')
       return service.createQuarter(data, user.uid)
     },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ['quarters'] })
-      qc.invalidateQueries({ queryKey: ['quarters', variables.districtId] })
+    onSuccess: () => {
+      invalidateQuarterQueries()
       toast.success('Quartier créé avec succès')
     },
     onError: (error: any) => {
@@ -382,7 +399,7 @@ export function useQuarterMutations() {
       return service.updateQuarter(id, data, user.uid)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['quarters'] })
+      invalidateQuarterQueries()
       toast.success('Quartier mis à jour avec succès')
     },
     onError: (error: any) => {
@@ -393,7 +410,7 @@ export function useQuarterMutations() {
   const remove = useMutation({
     mutationFn: (id: string) => service.deleteQuarter(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['quarters'] })
+      invalidateQuarterQueries()
       toast.success('Quartier supprimé avec succès')
     },
     onError: (error: any) => {

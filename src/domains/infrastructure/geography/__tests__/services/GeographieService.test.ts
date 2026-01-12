@@ -233,4 +233,95 @@ describe('GeographieService - Provinces', () => {
       expect(mockProvinceRepository.getAll).toHaveBeenCalled();
     });
   });
+
+  describe('createDistrictsBulk', () => {
+    it('devrait créer plusieurs arrondissements en masse', async () => {
+      const communeId = 'commune-1';
+      const count = 5;
+      
+      // Mock la commune pour qu'elle existe
+      mockCommuneRepository.getById.mockResolvedValue({
+        id: communeId,
+        name: 'Libreville',
+        departmentId: 'dept-1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: 'user-id',
+      });
+      
+      // Mock qu'il n'y a pas d'arrondissements existants
+      mockDistrictRepository.getByCommuneId.mockResolvedValue([]);
+      
+      mockDistrictRepository.create = vi.fn()
+        .mockResolvedValueOnce({ id: '1', name: 'Arrondissement 1', communeId, createdAt: new Date(), updatedAt: new Date(), createdBy: 'user-id' })
+        .mockResolvedValueOnce({ id: '2', name: 'Arrondissement 2', communeId, createdAt: new Date(), updatedAt: new Date(), createdBy: 'user-id' })
+        .mockResolvedValueOnce({ id: '3', name: 'Arrondissement 3', communeId, createdAt: new Date(), updatedAt: new Date(), createdBy: 'user-id' })
+        .mockResolvedValueOnce({ id: '4', name: 'Arrondissement 4', communeId, createdAt: new Date(), updatedAt: new Date(), createdBy: 'user-id' })
+        .mockResolvedValueOnce({ id: '5', name: 'Arrondissement 5', communeId, createdAt: new Date(), updatedAt: new Date(), createdBy: 'user-id' });
+
+      const result = await service.createDistrictsBulk(communeId, count, 'user-id');
+
+      expect(result).toHaveLength(5);
+      expect(mockCommuneRepository.getById).toHaveBeenCalledWith(communeId);
+      expect(mockDistrictRepository.create).toHaveBeenCalledTimes(5);
+      expect(result[0].name).toBe('Arrondissement 1');
+      expect(result[4].name).toBe('Arrondissement 5');
+    });
+
+    it('devrait rejeter si le count est invalide', async () => {
+      await expect(
+        service.createDistrictsBulk('commune-1', 0, 'user-id')
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('getProvinceById', () => {
+    it('devrait retourner une province par ID', async () => {
+      const province: Province = {
+        id: '1',
+        name: 'Province 1',
+        code: 'P1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: 'user-id',
+      };
+
+      mockProvinceRepository.getById.mockResolvedValue(province);
+
+      const result = await service.getProvinceById('1');
+
+      expect(result).toEqual(province);
+      expect(mockProvinceRepository.getById).toHaveBeenCalledWith('1');
+    });
+
+    it('devrait retourner null si la province n\'existe pas', async () => {
+      mockProvinceRepository.getById.mockResolvedValue(null);
+
+      const result = await service.getProvinceById('999');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('searchProvinces', () => {
+    it('devrait rechercher des provinces par nom', async () => {
+      const provinces: Province[] = [
+        {
+          id: '1',
+          name: 'Estuaire',
+          code: 'EST',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: 'user-id',
+        },
+      ];
+
+      mockProvinceRepository.searchByName.mockResolvedValue(provinces);
+
+      const result = await service.searchProvinces('Estuaire');
+
+      expect(result).toEqual(provinces);
+      expect(mockProvinceRepository.searchByName).toHaveBeenCalledWith('Estuaire');
+    });
+  });
 });

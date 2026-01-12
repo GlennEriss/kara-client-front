@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { provinceSchema, type ProvinceFormData } from '../schemas/geographie.schema'
 import { useProvinces, useProvinceMutations } from '../hooks/useGeographie'
 import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, MapPin, RefreshCw, Loader2, Download } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, MapPin, Loader2, Download } from 'lucide-react'
 import type { Province } from '../entities/geography.types'
 
 function ProvinceSkeleton() {
@@ -34,7 +34,7 @@ export default function ProvinceList() {
   const [provinceToDelete, setProvinceToDelete] = useState<Province | null>(null)
   const [editingProvince, setEditingProvince] = useState<Province | null>(null)
 
-  const { data: provinces = [], isLoading, error, refetch } = useProvinces()
+  const { data: provinces = [], isLoading, error } = useProvinces()
   const { create, update, remove } = useProvinceMutations()
 
   const form = useForm<ProvinceFormData>({
@@ -75,7 +75,7 @@ export default function ProvinceList() {
         await create.mutateAsync(values)
       }
       setIsCreateOpen(false)
-      await refetch()
+      // React Query invalide automatiquement les queries après mutation
     } catch (e: any) {
       // L'erreur est déjà gérée dans le hook avec toast
     }
@@ -87,7 +87,7 @@ export default function ProvinceList() {
       await remove.mutateAsync(provinceToDelete.id)
       setIsDeleteOpen(false)
       setProvinceToDelete(null)
-      await refetch()
+      // React Query invalide automatiquement les queries après mutation
     } catch (e: any) {
       // L'erreur est déjà gérée dans le hook avec toast
     }
@@ -111,20 +111,31 @@ export default function ProvinceList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Provinces</h2>
-          <p className="text-gray-600 mt-1">{filteredProvinces.length} province(s)</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Provinces</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">{filteredProvinces.length} province(s)</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredProvinces.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={exportCsv} 
+            disabled={filteredProvinces.length === 0}
+            className="text-xs sm:text-sm"
+          >
+            <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">CSV</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
-          </Button>
-          <Button size="sm" onClick={openCreate} className="bg-[#234D65] hover:bg-[#234D65]/90 text-white">
-            <Plus className="h-4 w-4 mr-2" /> Nouvelle Province
+          <Button 
+            size="sm" 
+            onClick={openCreate} 
+            className="bg-[#234D65] hover:bg-[#234D65]/90 text-white text-xs sm:text-sm"
+          >
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Nouvelle Province</span>
+            <span className="sm:hidden">Nouvelle</span>
           </Button>
         </div>
       </div>

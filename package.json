@@ -23,12 +23,17 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
+    "test:e2e:json": "playwright test --reporter=json > tests/results/e2e-tests.json",
     "test": "vitest",
     "test:run": "vitest run",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:json": "vitest run --coverage --reporter=json --outputFile=tests/results/unit-tests.json",
+    "test:all": "pnpm test:run && pnpm test:e2e:all",
+    "test:all:report": "pnpm test:coverage:json && pnpm test:e2e:json && node scripts/generate-test-report.js",
     "typecheck": "tsc --noEmit",
-    "create-dev-admin": "tsx scripts/create-dev-admin-user.ts"
+    "create-dev-admin": "tsx scripts/create-dev-admin-user.ts",
+    "seed-geography": "tsx scripts/seed-geography-test-data.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.0",

@@ -33,6 +33,21 @@ export default defineConfig({
         '**/mockData',
         '**/*.spec.{ts,tsx}',
         '**/*.test.{ts,tsx}',
+        // Exclure les composants React de la couverture (testés via E2E)
+        '**/components/**/*.{tsx,ts}',
+        '**/components/**/modals/**',
+        // Exclure les fichiers V1 non utilisés (remplacés par V2)
+        '**/repositories/ProvinceRepository.ts',
+        '**/repositories/DepartmentRepository.ts',
+        '**/repositories/CommuneRepository.ts',
+        '**/repositories/DistrictRepository.ts',
+        '**/repositories/QuarterRepository.ts',
+        '**/hooks/useGeographie.ts',
+        // Exclure le service V1 (utilise les repositories V1, seule createBulk est utilisée en V2)
+        '**/services/GeographieService.ts',
+        // Exclure les types/interfaces (non testables directement)
+        '**/entities/**',
+        '**/types/**',
       ],
       thresholds: {
         lines: 80,

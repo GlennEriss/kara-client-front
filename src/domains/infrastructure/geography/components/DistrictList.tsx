@@ -11,8 +11,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { districtSchema, districtBulkCreateSchema, type DistrictFormData, type DistrictBulkCreateFormData } from '../schemas/geographie.schema'
 import { useDistricts, useDistrictMutations, useCommunes, useDepartments, useProvinces } from '../hooks/useGeographie'
-import { toast } from 'sonner'
-import { Plus, Search, Edit3, Trash2, Map, RefreshCw, Loader2, Download } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, Map, Loader2, Download } from 'lucide-react'
 import type { District } from '../entities/geography.types'
 
 function DistrictSkeleton() {
@@ -43,7 +42,7 @@ export default function DistrictList() {
   const { data: provinces = [] } = useProvinces()
   const { data: departments = [] } = useDepartments(selectedProvinceId === 'all' ? undefined : selectedProvinceId)
   const { data: communes = [] } = useCommunes(selectedDepartmentId === 'all' ? undefined : selectedDepartmentId)
-  const { data: districts = [], isLoading, error, refetch } = useDistricts(selectedCommuneId === 'all' ? undefined : selectedCommuneId)
+  const { data: districts = [], isLoading, error } = useDistricts(selectedCommuneId === 'all' ? undefined : selectedCommuneId)
   const { create, update, remove, createBulk } = useDistrictMutations()
 
   const form = useForm<DistrictFormData>({
@@ -111,7 +110,7 @@ export default function DistrictList() {
         await create.mutateAsync(values)
       }
       setIsCreateOpen(false)
-      await refetch()
+      // React Query invalide automatiquement les queries après mutation
     } catch (e: any) {
       // L'erreur est déjà gérée dans le hook avec toast
     }
@@ -123,7 +122,7 @@ export default function DistrictList() {
       await remove.mutateAsync(districtToDelete.id)
       setIsDeleteOpen(false)
       setDistrictToDelete(null)
-      await refetch()
+      // React Query invalide automatiquement les queries après mutation
     } catch (e: any) {
       // L'erreur est déjà gérée dans le hook avec toast
     }
@@ -157,20 +156,31 @@ export default function DistrictList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Arrondissements</h2>
-          <p className="text-gray-600 mt-1">{filteredDistricts.length} arrondissement(s)</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Arrondissements</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">{filteredDistricts.length} arrondissement(s)</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={filteredDistricts.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={exportCsv} 
+            disabled={filteredDistricts.length === 0}
+            className="text-xs sm:text-sm"
+          >
+            <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">CSV</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
-          </Button>
-          <Button size="sm" onClick={openCreate} className="bg-[#234D65] hover:bg-[#234D65]/90 text-white">
-            <Plus className="h-4 w-4 mr-2" /> Nouvel Arrondissement
+          <Button 
+            size="sm" 
+            onClick={openCreate} 
+            className="bg-[#234D65] hover:bg-[#234D65]/90 text-white text-xs sm:text-sm"
+          >
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> 
+            <span className="hidden sm:inline">Nouvel Arrondissement</span>
+            <span className="sm:hidden">Nouveau</span>
           </Button>
         </div>
       </div>

@@ -17,6 +17,9 @@
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/tests/results/*.json
+/tests/results/test-report.md
+/tests/coverage-reports/
 
 # next.js
 /.next/

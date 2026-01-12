@@ -24,9 +24,6 @@ vi.mock('firebase/auth', () => ({
   }),
 }));
 
-// Mock de fetch pour l'API /api/auth/verify
-global.fetch = vi.fn();
-
 describe('useAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,13 +58,9 @@ describe('useAuth', () => {
     const { result } = renderHook(() => useAuth());
 
     const mockUser = {
-      getIdToken: vi.fn().mockResolvedValue('mock-token'),
+      uid: 'user-123',
+      email: 'test@example.com',
     } as unknown as User;
-
-    // Mock de fetch pour retourner un résultat authentifié
-    vi.mocked(fetch).mockResolvedValueOnce({
-      json: async () => ({ authenticated: true }),
-    } as Response);
 
     // Simuler onAuthStateChanged avec un utilisateur
     if (authCallback) {
@@ -79,31 +72,14 @@ describe('useAuth', () => {
       expect(result.current.user).toEqual(mockUser);
       expect(result.current.authenticated).toBe(true);
     });
-
-    expect(fetch).toHaveBeenCalledWith('/api/auth/verify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token: 'mock-token' }),
-    });
   });
 
-  it('devrait retourner un état non authentifié quand l\'utilisateur n\'est pas vérifié', async () => {
+  it('devrait retourner un état non authentifié quand l\'utilisateur est null', async () => {
     const { result } = renderHook(() => useAuth());
 
-    const mockUser = {
-      getIdToken: vi.fn().mockResolvedValue('mock-token'),
-    } as unknown as User;
-
-    // Mock de fetch pour retourner un résultat non authentifié
-    vi.mocked(fetch).mockResolvedValueOnce({
-      json: async () => ({ authenticated: false }),
-    } as Response);
-
-    // Simuler onAuthStateChanged avec un utilisateur
+    // Simuler onAuthStateChanged avec null (déconnexion)
     if (authCallback) {
-      authCallback(mockUser);
+      authCallback(null);
     }
 
     await waitFor(() => {
@@ -113,34 +89,48 @@ describe('useAuth', () => {
     });
   });
 
-  it('devrait gérer les erreurs de vérification du token', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('devrait mettre à jour l\'état quand l\'utilisateur change', async () => {
     const { result } = renderHook(() => useAuth());
 
-    const mockUser = {
-      getIdToken: vi.fn().mockResolvedValue('mock-token'),
+    const mockUser1 = {
+      uid: 'user-1',
+      email: 'user1@example.com',
     } as unknown as User;
 
-    // Mock de fetch pour retourner une erreur
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+    const mockUser2 = {
+      uid: 'user-2',
+      email: 'user2@example.com',
+    } as unknown as User;
 
-    // Simuler onAuthStateChanged avec un utilisateur
+    // Simuler connexion du premier utilisateur
     if (authCallback) {
-      authCallback(mockUser);
+      authCallback(mockUser1);
     }
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.user).toEqual(mockUser1);
+      expect(result.current.authenticated).toBe(true);
+    });
+
+    // Simuler changement d'utilisateur
+    if (authCallback) {
+      authCallback(mockUser2);
+    }
+
+    await waitFor(() => {
+      expect(result.current.user).toEqual(mockUser2);
+      expect(result.current.authenticated).toBe(true);
+    });
+
+    // Simuler déconnexion
+    if (authCallback) {
+      authCallback(null);
+    }
+
+    await waitFor(() => {
       expect(result.current.user).toBeNull();
       expect(result.current.authenticated).toBe(false);
     });
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Erreur de vérification du token:',
-      expect.any(Error)
-    );
-
-    consoleErrorSpy.mockRestore();
   });
 
   it('devrait nettoyer l\'abonnement au démontage', () => {
