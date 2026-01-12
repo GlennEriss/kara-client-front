@@ -63,4 +63,4 @@ service-accounts/*.pem
 next-env.d.ts
 
 # cursor
-.cursor/debug.log
+.cursor/debug.log.pnpm-store
