@@ -1,11 +1,17 @@
-import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
 import { app } from "./app";
 
-export const auth = getAuth(app);
+// Toujours créer auth (même avec config mock pour le build)
+export const auth: Auth = getAuth(app);
 
 /* if (process.env.NODE_ENV === 'development') {
   connectAuthEmulator(auth, `http://127.0.0.1:9099`);
 } */
+
+// Helper pour vérifier si l'auth utilise de vraies credentials
+export const isAuthAvailable = (): boolean => {
+  return !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+};
 
 export {
   createUserWithEmailAndPassword,
