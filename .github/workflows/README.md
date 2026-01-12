@@ -10,35 +10,33 @@
 
 ## Secrets GitHub à configurer
 
-### Pour les tests E2E (PR et CI)
-
-**Development (pour PRs)** :
-- `FIREBASE_API_KEY_DEV`
-- `FIREBASE_AUTH_DOMAIN_DEV`
-- `FIREBASE_PROJECT_ID_DEV`
-- `FIREBASE_STORAGE_BUCKET_DEV`
-- `FIREBASE_MESSAGING_SENDER_ID_DEV`
-- `FIREBASE_APP_ID_DEV`
-
 ### Pour les déploiements Firebase
 
-**Preprod** :
-- `FIREBASE_SERVICE_ACCOUNT_PREPROD` : Contenu JSON du service account Firebase (preprod)
-- `FIREBASE_PROJECT_ID_PREPROD` : ID du projet Firebase preprod (ex: `kara-gabon-preprod`)
-- `NEXT_PUBLIC_FIREBASE_API_KEY_PREPROD` : Clé API Firebase preprod
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PREPROD` : Domaine auth Firebase preprod
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PREPROD` : Bucket Storage Firebase preprod
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PREPROD` : Sender ID Firebase preprod
-- `NEXT_PUBLIC_FIREBASE_APP_ID_PREPROD` : App ID Firebase preprod
+✅ **Approche recommandée (propre)** : utiliser **GitHub Environments** pour séparer **préprod** et **prod**,
+avec **les mêmes noms de secrets** (sans suffixe).
 
-**Production** :
-- `FIREBASE_SERVICE_ACCOUNT_PROD` : Contenu JSON du service account Firebase (prod)
-- `FIREBASE_PROJECT_ID_PROD` : ID du projet Firebase prod (ex: `kara-gabon-prod`)
-- `NEXT_PUBLIC_FIREBASE_API_KEY_PROD` : Clé API Firebase prod
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROD` : Domaine auth Firebase prod
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PROD` : Bucket Storage Firebase prod
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PROD` : Sender ID Firebase prod
-- `NEXT_PUBLIC_FIREBASE_APP_ID_PROD` : App ID Firebase prod
+Créer 2 environnements :
+- **`Preview`** → préprod (branche `develop`)
+- **`Production`** → prod (branche `main`)
+
+Puis, dans **chacun** de ces environnements, ajouter les secrets/variables suivants :
+
+**Environment secrets** (données sensibles) :
+- `FIREBASE_CLIENT_EMAIL` : Email du service account Firebase (ex: `firebase-adminsdk-xxx@project.iam.gserviceaccount.com`)
+- `FIREBASE_PRIVATE_KEY` : Clé privée du service account Firebase (format: `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n`)
+
+**Environment variables** (données non sensibles) :
+- `FIREBASE_PROJECT_ID` : ID du projet Firebase (ex: `kara-gabon-preprod` ou `kara-gabon-prod`)
+- `FIREBASE_PRIVATE_KEY_ID` : ID de la clé privée du service account (ex: `3d337cc13616980423e08255c2553966a15cee02`)
+- `FIREBASE_CLIENT_ID` : ID du client du service account (ex: `114013063754458102878`)
+- `NEXT_PUBLIC_APP_ENV` : `preprod` (Preview) ou `production` (Production)
+- `NEXT_PUBLIC_GEOGRAPHY_VERSION` : `V2`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID` : Même valeur que `FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
 
 ### Pour la synchronisation Vercel
 
@@ -46,6 +44,9 @@
 - `VERCEL_TOKEN` : Token d'API Vercel (obtenir sur https://vercel.com/account/tokens)
 - `VERCEL_PROJECT_ID` : ID du projet Vercel (trouvable dans les paramètres du projet)
 - `VERCEL_ORG_ID` : ID de l'organisation Vercel (trouvable dans les paramètres de l'organisation)
+
+> Ces 3 secrets peuvent rester en **Repository secrets** (mêmes valeurs en préprod/prod),
+> ou être dupliqués dans les environnements `Preview` et `Production` si tu préfères tout regrouper.
 
 ## Comment configurer les secrets
 
@@ -56,11 +57,19 @@
 
 ## Service Account Firebase
 
-Pour obtenir le service account JSON :
+Pour obtenir les variables du service account :
 1. Aller dans Firebase Console > Project Settings > Service Accounts
 2. Cliquer sur "Generate new private key"
-3. Copier le contenu JSON complet
-4. Coller dans le secret GitHub correspondant
+3. Télécharger le fichier JSON
+4. Extraire les valeurs suivantes du JSON :
+   - `client_email` → Secret GitHub `FIREBASE_CLIENT_EMAIL`
+   - `private_key` → Secret GitHub `FIREBASE_PRIVATE_KEY` (garder les `\n` dans la clé)
+   - `project_id` → Variable GitHub `FIREBASE_PROJECT_ID` (et `NEXT_PUBLIC_FIREBASE_PROJECT_ID`)
+   - `private_key_id` → Variable GitHub `FIREBASE_PRIVATE_KEY_ID`
+   - `client_id` → Variable GitHub `FIREBASE_CLIENT_ID`
+
+> ⚠️ **Important** : Le fichier JSON ne doit **jamais** être commité dans le repository.
+> Les workflows construisent automatiquement le JSON à partir des variables séparées.
 
 ## Flux de déploiement
 

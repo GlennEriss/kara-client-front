@@ -31,26 +31,21 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
 
   // Mapping des variables d'environnement selon l'environnement
   const envVars: Record<string, string> = {
-    NEXT_PUBLIC_APP_ENV: environment === 'preview' ? 'preprod' : 'production',
-    NEXT_PUBLIC_GEOGRAPHY_VERSION: 'V2',
+    // Les secrets GitHub sont gérés via Environments (Preview / Production)
+    // et exposés SANS suffixe (ex: NEXT_PUBLIC_FIREBASE_API_KEY).
+    NEXT_PUBLIC_APP_ENV:
+      process.env.NEXT_PUBLIC_APP_ENV ||
+      (environment === 'preview' ? 'preprod' : 'production'),
+    NEXT_PUBLIC_GEOGRAPHY_VERSION: process.env.NEXT_PUBLIC_GEOGRAPHY_VERSION || 'V2',
   };
 
   // Variables Firebase selon l'environnement
-  if (environment === 'preview') {
-    envVars.NEXT_PUBLIC_FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY_PREPROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PREPROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID_PREPROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PREPROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PREPROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID_PREPROD || '';
-  } else {
-    envVars.NEXT_PUBLIC_FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY_PROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID_PROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PROD || '';
-    envVars.NEXT_PUBLIC_FIREBASE_APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID_PROD || '';
-  }
+  envVars.NEXT_PUBLIC_FIREBASE_API_KEY = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '').trim();
+  envVars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '').trim();
+  envVars.NEXT_PUBLIC_FIREBASE_PROJECT_ID = (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '').trim();
+  envVars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
+  envVars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '').trim();
+  envVars.NEXT_PUBLIC_FIREBASE_APP_ID = (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '').trim();
 
   const target = environment === 'preview' ? ['preview', 'development'] : ['production'];
 
