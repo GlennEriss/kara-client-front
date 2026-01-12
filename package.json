@@ -35,6 +35,7 @@
     "test:all:report": "pnpm test:coverage:json && pnpm test:e2e:json && node scripts/generate-test-report.js",
     "typecheck": "tsc --noEmit",
     "create-dev-admin": "tsx scripts/create-dev-admin-user.ts",
+    "create-preprod-admin": "tsx scripts/create-preprod-admin-user.ts",
     "seed-geography": "tsx scripts/seed-geography-test-data.ts",
     "sync-vercel-env:preview": "tsx scripts/sync-vercel-env.ts preview",
     "sync-vercel-env:prod": "tsx scripts/sync-vercel-env.ts production"

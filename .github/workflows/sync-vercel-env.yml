@@ -19,6 +19,10 @@ jobs:
   sync-env:
     name: Sync Vercel Env Variables
     runs-on: ubuntu-latest
+    # Utilise les secrets GitHub Environments :
+    # - Preview (préprod) sur develop
+    # - Production sur main
+    environment: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production') && 'Production' || (github.ref == 'refs/heads/main' && 'Production' || 'Preview') }}
     steps:
       - uses: actions/checkout@v4
       
@@ -53,17 +57,12 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          # Variables Preview
-          NEXT_PUBLIC_FIREBASE_API_KEY_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY_PREPROD }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PREPROD }}
-          FIREBASE_PROJECT_ID_PREPROD: ${{ secrets.FIREBASE_PROJECT_ID_PREPROD }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PREPROD }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PREPROD }}
-          NEXT_PUBLIC_FIREBASE_APP_ID_PREPROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID_PREPROD }}
-          # Variables Production
-          NEXT_PUBLIC_FIREBASE_API_KEY_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY_PROD }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_PROD }}
-          FIREBASE_PROJECT_ID_PROD: ${{ secrets.FIREBASE_PROJECT_ID_PROD }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET_PROD }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID_PROD }}
-          NEXT_PUBLIC_FIREBASE_APP_ID_PROD: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID_PROD }}
+          # Secrets injectés selon l'environnement GitHub (Preview / Production)
+          NEXT_PUBLIC_APP_ENV: ${{ secrets.NEXT_PUBLIC_APP_ENV }}
+          NEXT_PUBLIC_GEOGRAPHY_VERSION: ${{ secrets.NEXT_PUBLIC_GEOGRAPHY_VERSION }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
