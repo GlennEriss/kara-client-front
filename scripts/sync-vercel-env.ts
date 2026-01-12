@@ -39,13 +39,16 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
     NEXT_PUBLIC_GEOGRAPHY_VERSION: process.env.NEXT_PUBLIC_GEOGRAPHY_VERSION || 'V2',
   };
 
-  // Variables Firebase selon l'environnement
+  // Variables Firebase côté client (NEXT_PUBLIC_*)
   envVars.NEXT_PUBLIC_FIREBASE_API_KEY = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '').trim();
   envVars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '').trim();
   envVars.NEXT_PUBLIC_FIREBASE_PROJECT_ID = (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '').trim();
   envVars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
   envVars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '').trim();
   envVars.NEXT_PUBLIC_FIREBASE_APP_ID = (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '').trim();
+
+  // Variables Firebase côté serveur (sans NEXT_PUBLIC_)
+  envVars.FIREBASE_PROJECT_ID = (process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '').trim();
 
   const target = environment === 'preview' ? ['preview', 'development'] : ['production'];
 
