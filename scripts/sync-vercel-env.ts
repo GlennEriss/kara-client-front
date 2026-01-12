@@ -72,9 +72,19 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
     throw new Error(`Failed to fetch existing env vars: ${existingVarsResponse.statusText}`);
   }
 
-  const existingVars = await existingVarsResponse.json();
-  const existingVarsMap = new Map(
-    existingVars.envs?.map((env: any) => [`${env.key}:${env.target?.join(',') || 'all'}`, env]) || []
+  interface VercelEnvVar {
+    key: string;
+    id?: string;
+    target?: string[];
+    value?: string;
+  }
+
+  const existingVars = await existingVarsResponse.json() as { envs?: VercelEnvVar[] };
+  const existingVarsMap = new Map<string, VercelEnvVar>(
+    (existingVars.envs || []).map((env) => [
+      `${env.key}:${env.target?.join(',') || 'all'}`,
+      env,
+    ])
   );
 
   // Créer ou mettre à jour les variables
@@ -87,7 +97,7 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
     const envKey = `${key}:${target.join(',')}`;
     const existing = existingVarsMap.get(envKey);
 
-    if (existing) {
+    if (existing?.id) {
       // Mettre à jour la variable existante
       console.log(`✏️  Mise à jour: ${key}`);
       const updateResponse = await fetch(
