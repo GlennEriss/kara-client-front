@@ -97,38 +97,49 @@ const createAdminUser = async () => {
     console.log(`   Projet: ${projectId}\n`);
 
     // Vérifier si l'utilisateur existe déjà
+    // Supprimer l'utilisateur existant s'il existe (Auth + Firestore)
     let userRecord;
     try {
       userRecord = await auth.getUserByEmail(email);
       console.log(`⚠️  L'utilisateur avec l'email ${email} existe déjà (UID: ${userRecord.uid})`);
-      console.log('   Mise à jour de l\'utilisateur...');
+      console.log('   Suppression de l\'utilisateur existant...');
       
-      // Mettre à jour l'utilisateur existant
-      await auth.updateUser(userRecord.uid, {
-        email,
-        password,
-        displayName: 'Admin KARA',
-        disabled: false,
-      });
+      // Supprimer le document Firestore
+      const usersCollection = "users";
+      const userDocRef = firestore.collection(usersCollection).doc(matricule);
+      try {
+        await userDocRef.delete();
+        console.log('✅ Document Firestore supprimé');
+      } catch (firestoreError: any) {
+        if (firestoreError.code !== 5) { // 5 = NOT_FOUND
+          console.log(`⚠️  Erreur lors de la suppression du document Firestore: ${firestoreError.message}`);
+        } else {
+          console.log('ℹ️  Document Firestore n\'existait pas');
+        }
+      }
       
-      userRecord = await auth.getUser(userRecord.uid);
-      console.log('✅ Utilisateur mis à jour avec succès');
+      // Supprimer l'utilisateur Auth
+      await auth.deleteUser(userRecord.uid);
+      console.log('✅ Utilisateur Auth supprimé');
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') {
-        // Créer l'utilisateur
-        console.log('✨ Création du nouvel utilisateur...');
-        userRecord = await auth.createUser({
-          uid: matricule,
-          email,
-          password,
-          displayName: 'Admin KARA',
-          disabled: false,
-        });
-        console.log(`✅ Utilisateur créé avec succès (UID: ${userRecord.uid})`);
+        console.log('ℹ️  Aucun utilisateur existant à supprimer');
       } else {
-        throw error;
+        console.log(`⚠️  Erreur lors de la suppression: ${error.message}`);
+        // Continuer quand même pour créer l'utilisateur
       }
     }
+    
+    // Créer le nouvel utilisateur
+    console.log('\n✨ Création du nouvel utilisateur...');
+    userRecord = await auth.createUser({
+      uid: matricule,
+      email,
+      password,
+      displayName: 'Admin KARA',
+      disabled: false,
+    });
+    console.log(`✅ Utilisateur créé avec succès (UID: ${userRecord.uid})`);
 
     // Définir les custom claims (rôle admin)
     console.log(`\n🔐 Définition des custom claims (rôle: ${role})...`);

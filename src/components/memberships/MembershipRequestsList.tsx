@@ -34,8 +34,7 @@ import MemberIdentityModal from './MemberIdentityModal'
 import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
 import { useRouter } from 'next/navigation'
-import { findCompanyByName } from '@/db/company.db'
-import { findProfessionByName } from '@/db/profession.db'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { cn } from '@/lib/utils'
 import { 
   createTestMembershipRequestPending, 
@@ -45,7 +44,7 @@ import {
   createTestMembershipRequestApproved, 
   createTestMembershipRequestWithFilters 
 } from '@/utils/test-data'
-import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Couleurs pour les graphiques
@@ -436,14 +435,16 @@ const MembershipRequestCard = ({
     
     try {
       if (request.company?.companyName) {
-        const companyResult = await findCompanyByName(request.company.companyName)
+        const companyService = ServiceFactory.getCompanyService()
+        const companyResult = await companyService.findByName(request.company.companyName)
         setCompanyExists(companyResult.found)
       } else {
         setCompanyExists(false)
       }
       
       if (request.company?.profession) {
-        const professionResult = await findProfessionByName(request.company.profession)
+        const professionService = ServiceFactory.getProfessionService()
+        const professionResult = await professionService.findByName(request.company.profession)
         setProfessionExists(professionResult.found)
       } else {
         setProfessionExists(false)

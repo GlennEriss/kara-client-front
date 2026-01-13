@@ -9,7 +9,7 @@ import { IGuarantorRemunerationRepository, GuarantorRemunerationFilters } from "
 import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
-import { IDocumentRepository } from "@/repositories/documents/IDocumentRepository";
+import { IDocumentRepository } from "@/domains/infrastructure/documents/repositories/IDocumentRepository";
 import { RepositoryFactory } from "@/factories/RepositoryFactory";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";

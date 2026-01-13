@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
-import { useProfessions } from '@/hooks/useProfessions'
+import { useProfessions } from '@/domains/infrastructure/references/hooks/useProfessions'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Check, ChevronsUpDown, Loader2, GraduationCap, AlertCircle, Plus } from 'lucide-react'
@@ -30,7 +30,7 @@ interface ProfessionComboboxProps {
 export default function ProfessionCombobox({ form, onAddNew }: ProfessionComboboxProps) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const { professions, isLoading, error } = useProfessions()
+  const { data: professions = [], isLoading, error } = useProfessions()
   const { watch, setValue, formState: { errors } } = form
   
   const selectedProfessionName = watch('company.profession') || ''
@@ -103,7 +103,7 @@ export default function ProfessionCombobox({ form, onAddNew }: ProfessionCombobo
                   <CommandEmpty>
                     <div className="flex items-center space-x-2 text-red-500 p-4">
                       <AlertCircle className="w-4 h-4" />
-                      <span className="text-sm">{error}</span>
+                      <span className="text-sm">{error?.message || 'Erreur lors du chargement'}</span>
                     </div>
                   </CommandEmpty>
                 ) : filteredProfessions.length === 0 ? (

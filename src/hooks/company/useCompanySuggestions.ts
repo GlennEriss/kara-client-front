@@ -5,8 +5,8 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
-import { findCompanyByName } from '@/db/company.db'
-import type { CompanySearchResult } from '@/types/types'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import type { CompanySearchResult } from '@/domains/infrastructure/references/entities/company.types'
 
 export interface CompanySuggestion {
   name: string
@@ -42,7 +42,10 @@ export function useCompanySuggestions({
     refetch
   } = useQuery<CompanySearchResult>({
     queryKey: ['company-suggestions', query.toLowerCase().trim()],
-    queryFn: () => findCompanyByName(query),
+    queryFn: async () => {
+      const companyService = ServiceFactory.getCompanyService()
+      return companyService.findByName(query)
+    },
     enabled: enabled && query.length >= 2,
     staleTime,
     gcTime: 30 * 60 * 1000, // Remplace cacheTime
@@ -98,7 +101,10 @@ export function useCompanySuggestions({
       popularQueries.map(query => 
         queryClient.prefetchQuery({
           queryKey: ['company-suggestions', query.toLowerCase()],
-          queryFn: () => findCompanyByName(query),
+          queryFn: async () => {
+            const companyService = ServiceFactory.getCompanyService()
+            return companyService.findByName(query)
+          },
           staleTime: 10 * 60 * 1000, // 10 minutes pour les entreprises populaires
         })
       )

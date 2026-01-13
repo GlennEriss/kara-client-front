@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
-import { useCompanies } from '@/hooks/useCompanies'
+import { useCompanies } from '@/domains/infrastructure/references/hooks/useCompanies'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Check, ChevronsUpDown, Loader2, Building2, AlertCircle, Plus } from 'lucide-react'
@@ -21,7 +21,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import type { Company } from '@/types/types'
+import type { Company } from '@/domains/infrastructure/references/entities/company.types'
 
 interface CompanyComboboxProps {
   form: UseFormReturn<RegisterFormData>
@@ -31,7 +31,7 @@ interface CompanyComboboxProps {
 export default function CompanyCombobox({ form, onAddNew }: CompanyComboboxProps) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const { companies, isLoading, error } = useCompanies()
+  const { data: companies = [], isLoading, error } = useCompanies()
   const { watch, setValue, formState: { errors } } = form
   
   const selectedCompanyName = watch('company.companyName') || ''
@@ -102,7 +102,7 @@ export default function CompanyCombobox({ form, onAddNew }: CompanyComboboxProps
                 <CommandEmpty>
                   <div className="flex items-center space-x-2 text-red-500 p-4">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="text-sm">{error}</span>
+                    <span className="text-sm">{error?.message || 'Erreur lors du chargement'}</span>
                   </div>
                 </CommandEmpty>
               ) : filteredCompanies.length === 0 ? (

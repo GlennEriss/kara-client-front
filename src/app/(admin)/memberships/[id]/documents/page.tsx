@@ -1,5 +1,5 @@
 import React from 'react'
-import ListDocuments from '@/components/member/ListDocuments'
+import ListDocumentsV2 from '@/domains/infrastructure/documents/components/ListDocumentsV2'
 
 interface MemberDocumentsPageProps {
   params: Promise<{ id: string }>
@@ -7,5 +7,5 @@ interface MemberDocumentsPageProps {
 
 export default async function MemberDocumentsPage({ params }: MemberDocumentsPageProps) {
   const { id } = await params
-  return <ListDocuments memberId={id} />
+  return <ListDocumentsV2 memberId={id} />
 }

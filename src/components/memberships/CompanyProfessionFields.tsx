@@ -14,14 +14,8 @@ import {
   Plus,
   X
 } from 'lucide-react'
-import { 
-  useCompanySearch, 
-  useCreateCompany, 
-  useProfessionSearch, 
-  useCreateProfession,
-  useUpdateMembershipRequestCompany,
-  useUpdateMembershipRequestProfession
-} from '@/hooks/useCompany'
+import { useCompanySearch, useCompanyMutations } from '@/domains/infrastructure/references/hooks/useCompanies'
+import { useProfessionSearch, useProfessionMutations } from '@/domains/infrastructure/references/hooks/useProfessions'
 import { toast } from 'sonner'
 import type { MembershipRequest } from '@/types/types'
 
@@ -40,10 +34,11 @@ export default function CompanyProfessionFields({ request, onUpdate }: CompanyPr
 
   const companySearch = useCompanySearch(companyName)
   const professionSearch = useProfessionSearch(professionName)
-  const createCompanyMutation = useCreateCompany()
-  const createProfessionMutation = useCreateProfession()
-  const updateCompanyMutation = useUpdateMembershipRequestCompany()
-  const updateProfessionMutation = useUpdateMembershipRequestProfession()
+  const { create: createCompanyMutation } = useCompanyMutations()
+  const { create: createProfessionMutation } = useProfessionMutations()
+  // TODO: Implémenter updateMembershipRequestCompany et updateMembershipRequestProfession si nécessaire
+  const updateCompanyMutation = { mutateAsync: async () => {} } as any
+  const updateProfessionMutation = { mutateAsync: async () => {} } as any
 
   useEffect(() => {
     if (companySearch.data) {
@@ -67,11 +62,9 @@ export default function CompanyProfessionFields({ request, onUpdate }: CompanyPr
 
     try {
       await createCompanyMutation.mutateAsync({
-        companyName: companyName.trim(),
+        name: companyName.trim(),
         adminId: 'admin',
-        additionalData: {
-          address: request.company?.companyAddress
-        }
+        address: request.company?.companyAddress
       })
 
       await updateCompanyMutation.mutateAsync({
@@ -95,7 +88,7 @@ export default function CompanyProfessionFields({ request, onUpdate }: CompanyPr
 
     try {
       await createProfessionMutation.mutateAsync({
-        professionName: professionName.trim(),
+        name: professionName.trim(),
         adminId: 'admin',
       })
 

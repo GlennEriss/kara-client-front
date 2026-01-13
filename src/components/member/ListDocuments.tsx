@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { useDocumentList } from '@/hooks/documents/useDocumentList'
+import { useDocumentList } from '@/domains/infrastructure/documents/hooks/useDocumentList'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,9 +15,9 @@ import {
   DOCUMENT_CATEGORY_ORDER,
   DocumentFilterOption,
   getDocumentTypeInfo,
-} from '@/utils/documents/documentTypes'
+} from '@/domains/infrastructure/documents/utils/documentTypes'
 import { DocumentPreviewModal } from './DocumentPreviewModal'
-import type { Document as DocumentType } from '@/types/types'
+import type { Document as DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
 import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 
 interface ListDocumentsProps {

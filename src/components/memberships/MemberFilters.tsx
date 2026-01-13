@@ -29,8 +29,8 @@ import {
 import { UserFilters, MembershipType, MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAddresses } from '@/hooks/useAddresses'
-import { useCompanies } from '@/hooks/useCompanies'
-import { useProfessions } from '@/hooks/useProfessions'
+import { useCompanies } from '@/domains/infrastructure/references/hooks/useCompanies'
+import { useProfessions } from '@/domains/infrastructure/references/hooks/useProfessions'
 
 interface MemberFiltersProps {
   filters: UserFilters
@@ -44,8 +44,8 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
   
   // Hooks pour les données
   const { addressData, loadCities, loadArrondissements, loadDistricts } = useAddresses()
-  const { companies } = useCompanies()
-  const { professions } = useProfessions()
+  const { data: companies = [] } = useCompanies()
+  const { data: professions = [] } = useProfessions()
   
   // Debounce search term
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
@@ -416,7 +416,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Toutes les entreprises</SelectItem>
-                  {companies.map((company) => (
+                  {companies.map((company: { id: string; name: string }) => (
                     <SelectItem key={company.id} value={company.name}>
                       {company.name}
                     </SelectItem>
@@ -440,7 +440,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Toutes les professions</SelectItem>
-                  {professions.map((profession) => (
+                  {professions.map((profession: { id: string; name: string }) => (
                     <SelectItem key={profession.id} value={profession.name}>
                       {profession.name}
                     </SelectItem>

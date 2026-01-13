@@ -1037,6 +1037,14 @@ test.describe('Module Géographie - Design et Responsive', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     
+    // Fermer la sidebar pour avoir l'espace complet disponible en tablette
+    // La sidebar réduit l'espace disponible quand elle est ouverte
+    const sidebarTrigger = page.locator('[data-sidebar="trigger"], [data-slot="sidebar-trigger"]');
+    if (await sidebarTrigger.count() > 0 && await sidebarTrigger.isVisible()) {
+      await sidebarTrigger.click({ force: true });
+      await page.waitForTimeout(500); // Attendre que la sidebar se ferme
+    }
+    
     // Vérifier que le contenu est toujours visible
     await expect(page.locator('h1:has-text("Gestion Géographique")')).toBeVisible();
     await expect(page.locator('[role="tablist"]')).toBeVisible();
@@ -1063,6 +1071,16 @@ for (const viewport of viewports) {
       await page.goto('/geographie');
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(2000); // Donner le temps aux requêtes React Query de se charger
+      
+      // Fermer la sidebar pour les tablettes pour avoir l'espace complet disponible
+      // La sidebar réduit l'espace disponible quand elle est ouverte
+      if (viewport.name === 'Tablette') {
+        const sidebarTrigger = page.locator('[data-sidebar="trigger"], [data-slot="sidebar-trigger"]');
+        if (await sidebarTrigger.count() > 0 && await sidebarTrigger.isVisible()) {
+          await sidebarTrigger.click({ force: true });
+          await page.waitForTimeout(500); // Attendre que la sidebar se ferme
+        }
+      }
     });
 
     test(`devrait créer une province sur ${viewport.name}`, async ({ page }) => {
