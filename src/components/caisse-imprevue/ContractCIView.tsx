@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { ContractCI } from '@/types/types'
-import { getDocumentTypeLabel } from '@/constantes/document-types'
+import { getDocumentTypeLabel } from '@/domains/infrastructure/documents/constants/document-types'
 import { getNationalityName } from '@/constantes/nationality'
 
 interface ContractCIViewProps {

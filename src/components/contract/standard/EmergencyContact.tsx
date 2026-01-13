@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { AlertTriangle, Phone, User, Heart, IdCard } from "lucide-react"
 import type { EmergencyContact } from "@/schemas/emergency-contact.schema"
-import { getDocumentTypeLabel } from "@/constantes/document-types"
+import { getDocumentTypeLabel } from "@/domains/infrastructure/documents/constants/document-types"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI

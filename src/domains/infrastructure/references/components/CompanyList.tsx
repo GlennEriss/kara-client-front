@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { companyCrudSchema, type CompanyCrudFormData } from '@/schemas/schemas'
-import { useCompaniesPaginated, useCompanyMutations } from '@/hooks/useCompaniesQuery'
+import { useCompaniesPaginated, useCompanyMutations } from '../hooks/useCompanies'
 import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
 import { useQueries } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'

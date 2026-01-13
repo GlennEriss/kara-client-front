@@ -9,7 +9,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { jobSchema, type JobFormData } from '@/schemas/schemas'
-import { useJobs, useJobMutations } from '@/hooks/useJobs'
+import { useJobs, useJobMutations } from '../hooks/useProfessions'
 import { toast } from 'sonner'
 import { Plus, Search, Edit3, Trash2, Briefcase, RefreshCw } from 'lucide-react'
 
@@ -27,7 +27,7 @@ function JobSkeleton() {
     )
 }
 
-export default function JobsList() {
+export default function ProfessionList() {
     const [search, setSearch] = useState('')
     const [page, setPage] = useState(1)
     const [limit, setLimit] = useState(12)

@@ -5,7 +5,7 @@
 
 import { useEffect, useCallback, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { findCompanyByName } from '@/db/company.db'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 
 interface CacheManagerOptions {
   updateInterval?: number // en millisecondes
@@ -48,7 +48,8 @@ export function useCompanyCacheManager({
           }
           
           // Récupérer les nouvelles données
-          const freshData = await findCompanyByName(companyName)
+          const companyService = ServiceFactory.getCompanyService()
+          const freshData = await companyService.findByName(companyName)
           queryClient.setQueryData(queryKey, freshData)
         })
       )

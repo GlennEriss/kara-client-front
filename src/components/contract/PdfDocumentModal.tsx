@@ -9,8 +9,9 @@ import { toast } from 'sonner'
 import { uploadContractDocument, deleteContractDocument } from '@/db/upload-file.db'
 import { updateRefund } from '@/db/caisse/refunds.db'
 import { useAuth } from '@/hooks/useAuth'
-import type { RefundDocument, DocumentType } from '@/types/types'
-import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import type { RefundDocument } from '@/types/types'
+import type { DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
+import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 
 interface PdfDocumentModalProps {
   isOpen: boolean

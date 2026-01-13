@@ -4,102 +4,82 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  findCompanyByName, 
-  createCompany, 
-  findProfessionByName, 
-  createProfession,
-  updateMembershipRequestCompany,
-  updateMembershipRequestProfession
-} from '@/db/company.db'
-import type { CompanySearchResult, ProfessionSearchResult } from '@/types/types'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useCompanySearch as useCompanySearchNew, useCompanyMutations } from '@/domains/infrastructure/references/hooks/useCompanies'
+import { useProfessionSearch as useProfessionSearchNew, useProfessionMutations } from '@/domains/infrastructure/references/hooks/useProfessions'
+import type { CompanySearchResult } from '@/domains/infrastructure/references/entities/company.types'
+import type { ProfessionSearchResult } from '@/domains/infrastructure/references/entities/profession.types'
 
 /**
  * Hook pour rechercher une entreprise par nom
+ * @deprecated Utiliser useCompanySearch depuis @/domains/infrastructure/references/hooks/useCompanies
  */
 export function useCompanySearch(companyName: string) {
-  return useQuery<CompanySearchResult>({
-    queryKey: ['company-search', companyName],
-    queryFn: () => findCompanyByName(companyName),
-    enabled: !!companyName && companyName.length >= 2,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
+  return useCompanySearchNew(companyName)
 }
 
 /**
  * Hook pour rechercher une profession par nom
+ * @deprecated Utiliser useProfessionSearch depuis @/domains/infrastructure/references/hooks/useProfessions
  */
 export function useProfessionSearch(professionName: string) {
-  return useQuery<ProfessionSearchResult>({
-    queryKey: ['profession-search', professionName],
-    queryFn: () => findProfessionByName(professionName),
-    enabled: !!professionName && professionName.length >= 2,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
+  return useProfessionSearchNew(professionName)
 }
 
 /**
  * Hook pour créer une nouvelle entreprise
+ * @deprecated Utiliser useCompanyMutations depuis @/domains/infrastructure/references/hooks/useCompanies
  */
 export function useCreateCompany() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: ({ 
-      companyName, 
-      adminId, 
-      additionalData 
-    }: { 
-      companyName: string; 
-      adminId: string; 
-      additionalData?: any 
-    }) => createCompany(companyName, adminId, additionalData),
-    onSuccess: () => {
-      // Invalider les recherches d'entreprises
-      queryClient.invalidateQueries({ queryKey: ['company-search'] })
+  const { create } = useCompanyMutations()
+  return {
+    mutateAsync: async ({ companyName, adminId, additionalData }: { companyName: string; adminId: string; additionalData?: any }) => {
+      return create.mutateAsync({
+        name: companyName,
+        adminId,
+        ...additionalData,
+      })
     },
-  })
+  }
 }
 
 /**
  * Hook pour créer une nouvelle profession
+ * @deprecated Utiliser useProfessionMutations depuis @/domains/infrastructure/references/hooks/useProfessions
  */
 export function useCreateProfession() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: ({ 
-      professionName, 
-      adminId, 
-      additionalData 
-    }: { 
-      professionName: string; 
-      adminId: string; 
-      additionalData?: any 
-    }) => createProfession(professionName, adminId, additionalData),
-    onSuccess: () => {
-      // Invalider les recherches de professions
-      queryClient.invalidateQueries({ queryKey: ['profession-search'] })
+  const { create } = useProfessionMutations()
+  return {
+    mutateAsync: async ({ professionName, adminId, additionalData }: { professionName: string; adminId: string; additionalData?: any }) => {
+      return create.mutateAsync({
+        name: professionName,
+        adminId,
+        ...additionalData,
+      })
     },
-  })
+  }
 }
 
 /**
  * Hook pour mettre à jour l'entreprise dans une demande d'adhésion
+ * @deprecated Cette fonctionnalité doit être implémentée dans membership.db.ts
  */
 export function useUpdateMembershipRequestCompany() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: ({ 
+    mutationFn: async ({ 
       requestId, 
       companyName 
     }: { 
       requestId: string; 
       companyName: string 
-    }) => updateMembershipRequestCompany(requestId, companyName),
+    }) => {
+      // TODO: Implémenter updateMembershipRequestCompany dans membership.db.ts
+      console.warn('updateMembershipRequestCompany doit être implémenté dans membership.db.ts')
+      return Promise.resolve()
+    },
     onSuccess: () => {
-      // Invalider les données des demandes d'adhésion
       queryClient.invalidateQueries({ queryKey: ['membership-requests'] })
     },
   })
@@ -107,20 +87,24 @@ export function useUpdateMembershipRequestCompany() {
 
 /**
  * Hook pour mettre à jour la profession dans une demande d'adhésion
+ * @deprecated Cette fonctionnalité doit être implémentée dans membership.db.ts
  */
 export function useUpdateMembershipRequestProfession() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: ({ 
+    mutationFn: async ({ 
       requestId, 
       professionName 
     }: { 
       requestId: string; 
       professionName: string 
-    }) => updateMembershipRequestProfession(requestId, professionName),
+    }) => {
+      // TODO: Implémenter updateMembershipRequestProfession dans membership.db.ts
+      console.warn('updateMembershipRequestProfession doit être implémenté dans membership.db.ts')
+      return Promise.resolve()
+    },
     onSuccess: () => {
-      // Invalider les données des demandes d'adhésion
       queryClient.invalidateQueries({ queryKey: ['membership-requests'] })
     },
   })

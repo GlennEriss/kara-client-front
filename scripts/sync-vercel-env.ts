@@ -37,6 +37,10 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
       process.env.NEXT_PUBLIC_APP_ENV ||
       (environment === 'preview' ? 'preprod' : 'production'),
     NEXT_PUBLIC_GEOGRAPHY_VERSION: process.env.NEXT_PUBLIC_GEOGRAPHY_VERSION || 'V2',
+    // Variables de contact/support
+    NEXT_PUBLIC_NUMBER_AGENT_AIRTEL: (process.env.NEXT_PUBLIC_NUMBER_AGENT_AIRTEL || '').trim(),
+    NEXT_PUBLIC_NUMBER_AGENT_MOBICASH: (process.env.NEXT_PUBLIC_NUMBER_AGENT_MOBICASH || '').trim(),
+    NEXT_PUBLIC_WHATSAPP_AGENT: (process.env.NEXT_PUBLIC_WHATSAPP_AGENT || '').trim(),
   };
 
   // Variables Firebase côté client (NEXT_PUBLIC_*)
@@ -49,6 +53,12 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
 
   // Variables Firebase côté serveur (sans NEXT_PUBLIC_)
   envVars.FIREBASE_PROJECT_ID = (process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '').trim();
+    
+  // Variables Firebase Admin SDK (secrets sensibles)
+  envVars.FIREBASE_CLIENT_EMAIL = (process.env.FIREBASE_CLIENT_EMAIL || '').trim();
+  envVars.FIREBASE_PRIVATE_KEY = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
+  envVars.FIREBASE_PRIVATE_KEY_ID = (process.env.FIREBASE_PRIVATE_KEY_ID || '').trim();
+  envVars.FIREBASE_CLIENT_ID = (process.env.FIREBASE_CLIENT_ID || '').trim();
 
   const target = environment === 'preview' ? ['preview', 'development'] : ['production'];
 
@@ -85,6 +95,13 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
     ])
   );
 
+  // Liste des secrets sensibles (à marquer comme 'encrypted' dans Vercel)
+  const sensitiveSecrets = [
+    'FIREBASE_CLIENT_EMAIL',
+    'FIREBASE_PRIVATE_KEY',
+    'FIREBASE_PRIVATE_KEY_ID', // Optionnel mais sensible
+  ];
+
   // Créer ou mettre à jour les variables
   for (const [key, value] of Object.entries(envVars)) {
     if (!value) {
@@ -92,12 +109,16 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
       continue;
     }
 
+    // Déterminer le type : 'encrypted' pour les secrets sensibles, 'plain' pour le reste
+    const isSecret = sensitiveSecrets.includes(key);
+    const varType = isSecret ? 'encrypted' : 'plain';
+
     const envKey = `${key}:${target.join(',')}`;
     const existing = existingVarsMap.get(envKey);
 
     if (existing?.id) {
       // Mettre à jour la variable existante
-      console.log(`✏️  Mise à jour: ${key}`);
+      console.log(`✏️  Mise à jour: ${key} (${varType})`);
       const updateResponse = await fetch(
         `${VERCEL_API_URL}/v10/projects/${vercelProjectId}/env/${existing.id}?teamId=${vercelOrgId}`,
         {
@@ -109,6 +130,7 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
           body: JSON.stringify({
             value,
             target,
+            type: varType, // Mettre à jour le type si nécessaire
           }),
         }
       );
@@ -121,7 +143,7 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
       }
     } else {
       // Créer une nouvelle variable
-      console.log(`➕ Création: ${key}`);
+      console.log(`➕ Création: ${key} (${varType})`);
       const createResponse = await fetch(
         `${VERCEL_API_URL}/v10/projects/${vercelProjectId}/env?teamId=${vercelOrgId}`,
         {
@@ -133,7 +155,7 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
           body: JSON.stringify({
             key,
             value,
-            type: 'plain',
+            type: varType,
             target,
           }),
         }

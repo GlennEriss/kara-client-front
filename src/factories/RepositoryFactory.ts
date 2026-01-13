@@ -13,8 +13,8 @@ import { SupportCIRepository } from '@/repositories/caisse-imprevu/SupportCIRepo
 import { EarlyRefundCIRepository } from '@/repositories/caisse-imprevu/EarlyRefundCIRepository'
 import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
-import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
-import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { IDocumentRepository } from '@/domains/infrastructure/documents/repositories/IDocumentRepository'
+import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
 import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
@@ -43,6 +43,10 @@ import { ICaisseImprevueDemandRepository } from '@/repositories/caisse-imprevue/
 import { CaisseImprevueDemandRepository } from '@/repositories/caisse-imprevue/CaisseImprevueDemandRepository'
 import { IUserRepository } from '@/domains/auth/repositories/IUserRepository'
 import { UserRepository } from '@/domains/auth/repositories/UserRepository'
+import { ICompanyRepository } from '@/domains/infrastructure/references/repositories/ICompanyRepository'
+import { CompanyRepository } from '@/domains/infrastructure/references/repositories/CompanyRepository'
+import { IProfessionRepository } from '@/domains/infrastructure/references/repositories/IProfessionRepository'
+import { ProfessionRepository } from '@/domains/infrastructure/references/repositories/ProfessionRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -106,6 +110,28 @@ export class RepositoryFactory {
       this.repositories.set(key, new DocumentRepository())
     }
     return this.repositories.get(key) as IDocumentRepository
+  }
+
+  /**
+   * Obtient le repository des entreprises
+   */
+  static getCompanyRepository(): ICompanyRepository {
+    const key = 'CompanyRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CompanyRepository())
+    }
+    return this.repositories.get(key) as ICompanyRepository
+  }
+
+  /**
+   * Obtient le repository des professions
+   */
+  static getProfessionRepository(): IProfessionRepository {
+    const key = 'ProfessionRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new ProfessionRepository())
+    }
+    return this.repositories.get(key) as IProfessionRepository
   }
 
   /**

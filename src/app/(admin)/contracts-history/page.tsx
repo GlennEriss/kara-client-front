@@ -28,8 +28,8 @@ import {
   User,
   Package,
 } from 'lucide-react'
-import { useDocuments } from '@/hooks/documents'
-import { Document, DocumentType, DocumentFormat } from '@/types/types'
+import { useDocuments } from '@/domains/infrastructure/documents/hooks'
+import { Document, DocumentType, DocumentFormat } from '@/domains/infrastructure/documents/entities/document.types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import * as XLSX from 'xlsx'
@@ -176,8 +176,8 @@ export default function ContractsHistoryPage() {
   useEffect(() => {
     if (!documents.length) return
 
-    const uniqueMemberIds = [...new Set(documents.map((doc: Document) => doc.memberId))]
-    uniqueMemberIds.forEach((memberId: string) => {
+    const uniqueMemberIds = [...new Set(documents.map((doc) => doc.memberId))]
+    uniqueMemberIds.forEach((memberId) => {
       if (memberId && !memberInfos[memberId]) {
         fetchMemberInfo(memberId)
       }

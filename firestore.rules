@@ -77,6 +77,22 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // COLLECTIONS RÉFÉRENTIELS (MÉTIERS)
+    // ==========================================
+    
+    // Entreprises
+    match /companies/{companyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Métiers / Professions
+    match /professions/{professionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
     // AUTRES COLLECTIONS (ajoutez selon vos besoins)
     // ==========================================
     

@@ -1,5 +1,7 @@
 import { ICompanySuggestionsService } from '@/services/interfaces/IService'
-import { CompanySuggestionsService } from '@/services/suggestions/CompanySuggestionsService'
+import { CompanySuggestionsService } from '@/domains/infrastructure/references/services/CompanySuggestionsService'
+import { CompanyService } from '@/domains/infrastructure/references/services/CompanyService'
+import { ProfessionService } from '@/domains/infrastructure/references/services/ProfessionService'
 import { IFilleulService } from '@/services/filleuls/IFilleulService'
 import { FilleulService } from '@/services/filleuls/FilleulService'
 import { RepositoryFactory } from './RepositoryFactory'
@@ -9,7 +11,7 @@ import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceSer
 import { NotificationService } from '@/services/notifications/NotificationService'
 import { GeographieService } from '@/domains/infrastructure/geography/services/GeographieService'
 import { PlacementService } from '@/services/placement/PlacementService'
-import { DocumentService } from '@/services/documents/DocumentService'
+import { DocumentService } from '@/domains/infrastructure/documents/services/DocumentService'
 import { ICreditSpecialeService } from '@/services/credit-speciale/ICreditSpecialeService'
 import { CreditSpecialeService } from '@/services/credit-speciale/CreditSpecialeService'
 import { ICaisseSpecialeService } from '@/services/caisse-speciale/ICaisseSpecialeService'
@@ -25,13 +27,38 @@ export class ServiceFactory {
   private static services = new Map<string, any>()
 
   /**
+   * Obtient le service de gestion des entreprises
+   */
+  static getCompanyService(): CompanyService {
+    const key = 'CompanyService'
+    if (!this.services.has(key)) {
+      const companyRepository = RepositoryFactory.getCompanyRepository()
+      this.services.set(key, new CompanyService(companyRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des professions
+   */
+  static getProfessionService(): ProfessionService {
+    const key = 'ProfessionService'
+    if (!this.services.has(key)) {
+      const professionRepository = RepositoryFactory.getProfessionRepository()
+      this.services.set(key, new ProfessionService(professionRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
    * Obtient le service de suggestions d'entreprises
    */
   static getCompanySuggestionsService(): ICompanySuggestionsService {
     const key = 'CompanySuggestionsService'
 
     if (!this.services.has(key)) {
-      this.services.set(key, new CompanySuggestionsService())
+      const companyRepository = RepositoryFactory.getCompanyRepository()
+      this.services.set(key, new CompanySuggestionsService(companyRepository))
     }
 
     return this.services.get(key)

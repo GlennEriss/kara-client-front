@@ -9,9 +9,8 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { useCreateProfession } from '@/hooks/useCompany'
+import { useProfessionMutations } from '@/domains/infrastructure/references/hooks/useProfessions'
 import { useAuth } from '@/hooks/useAuth'
-import { useQueryClient } from '@tanstack/react-query'
 
 const professionFormSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(100, 'Le nom ne peut pas dépasser 100 caractères'),
@@ -28,9 +27,8 @@ interface AddProfessionModalProps {
 
 export default function AddProfessionModal({ open, onClose, onSuccess }: AddProfessionModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const createProfession = useCreateProfession()
+  const { create } = useProfessionMutations()
   const { user } = useAuth()
-  const queryClient = useQueryClient()
   
   const form = useForm<ProfessionFormData>({
     resolver: zodResolver(professionFormSchema),
@@ -48,20 +46,11 @@ export default function AddProfessionModal({ open, onClose, onSuccess }: AddProf
 
     setIsSubmitting(true)
     try {
-      // Construire additionalData en excluant les valeurs vides/undefined
-      const additionalData: { category?: string } = {}
-      if (data.category && data.category.trim()) {
-        additionalData.category = data.category.trim()
-      }
-
-      await createProfession.mutateAsync({
-        professionName: data.name,
+      await create.mutateAsync({
+        name: data.name,
         adminId: user.uid,
-        additionalData: Object.keys(additionalData).length > 0 ? additionalData : undefined
+        category: data.category?.trim() || undefined,
       })
-      
-      // Invalider le cache des professions
-      queryClient.invalidateQueries({ queryKey: ['professions'] })
       
       toast.success('Profession créée avec succès')
       onSuccess(data.name)

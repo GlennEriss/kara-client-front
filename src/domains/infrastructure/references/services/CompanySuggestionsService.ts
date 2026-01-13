@@ -1,12 +1,14 @@
-import { ICompanySuggestionsService, CompanySuggestion } from '../interfaces/IService'
-import { findCompanyByName } from '@/db/company.db'
-import { CompanyAddress } from '@/types/types'
+import { ICompanySuggestionsService, CompanySuggestion } from '@/services/interfaces/IService'
+import { ICompanyRepository } from '../repositories/ICompanyRepository'
+import { CompanyAddress } from '../entities/company.types'
 
 /**
  * Service pour la gestion des suggestions d'entreprises
  */
 export class CompanySuggestionsService implements ICompanySuggestionsService {
   readonly name = 'CompanySuggestionsService'
+
+  constructor(private readonly companyRepository: ICompanyRepository) {}
 
   /**
    * Recherche des suggestions d'entreprises
@@ -17,7 +19,7 @@ export class CompanySuggestionsService implements ICompanySuggestionsService {
     }
 
     try {
-      const result = await findCompanyByName(query)
+      const result = await this.companyRepository.findByName(query)
       const suggestions: CompanySuggestion[] = []
       
       // Ajouter l'entreprise trouvée si elle existe
@@ -61,7 +63,7 @@ export class CompanySuggestionsService implements ICompanySuggestionsService {
    */
   async loadCompanyAddress(companyName: string): Promise<CompanyAddress | null> {
     try {
-      const result = await findCompanyByName(companyName)
+      const result = await this.companyRepository.findByName(companyName)
       if (result.found && result.company && result.company.address) {
         const address = result.company.address
         

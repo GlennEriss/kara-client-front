@@ -9,9 +9,8 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { useCreateCompany } from '@/hooks/useCompany'
+import { useCompanyMutations } from '@/domains/infrastructure/references/hooks/useCompanies'
 import { useAuth } from '@/hooks/useAuth'
-import { useQueryClient } from '@tanstack/react-query'
 
 const companyFormSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(100, 'Le nom ne peut pas dépasser 100 caractères'),
@@ -28,9 +27,8 @@ interface AddCompanyModalProps {
 
 export default function AddCompanyModal({ open, onClose, onSuccess }: AddCompanyModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const createCompany = useCreateCompany()
+  const { create } = useCompanyMutations()
   const { user } = useAuth()
-  const queryClient = useQueryClient()
   
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companyFormSchema),
@@ -48,20 +46,11 @@ export default function AddCompanyModal({ open, onClose, onSuccess }: AddCompany
 
     setIsSubmitting(true)
     try {
-      // Construire additionalData en excluant les valeurs vides/undefined
-      const additionalData: { industry?: string } = {}
-      if (data.industry && data.industry.trim()) {
-        additionalData.industry = data.industry.trim()
-      }
-
-      await createCompany.mutateAsync({
-        companyName: data.name,
+      await create.mutateAsync({
+        name: data.name,
         adminId: user.uid,
-        additionalData: Object.keys(additionalData).length > 0 ? additionalData : undefined
+        industry: data.industry?.trim() || undefined,
       })
-      
-      // Invalider le cache des entreprises
-      queryClient.invalidateQueries({ queryKey: ['companies'] })
       
       toast.success('Entreprise créée avec succès')
       onSuccess(data.name)

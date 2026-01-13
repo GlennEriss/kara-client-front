@@ -28,15 +28,15 @@ import {
   Plus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { findProfessionByName } from '@/db/profession.db'
-import CompanyCombobox from '@/components/company-form/CompanyCombobox'
-import AddCompanyModal from '@/components/company-form/AddCompanyModal'
-import ProfessionCombobox from '@/components/profession-form/ProfessionCombobox'
-import AddProfessionModal from '@/components/profession-form/AddProfessionModal'
+import CompanyCombobox from '@/domains/infrastructure/references/components/forms/CompanyCombobox'
+import AddCompanyModal from '@/domains/infrastructure/references/components/forms/AddCompanyModal'
+import ProfessionCombobox from '@/domains/infrastructure/references/components/forms/ProfessionCombobox'
+import AddProfessionModal from '@/domains/infrastructure/references/components/forms/AddProfessionModal'
 import { useIsAdminContext } from '@/hooks/useIsAdminContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
 import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
 import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
@@ -44,7 +44,6 @@ import type { Province, Commune, District, Quarter } from '@/domains/infrastruct
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
 import { useQueries } from '@tanstack/react-query'
-import { ServiceFactory } from '@/factories/ServiceFactory'
 import { 
   Select,
   SelectContent,
@@ -418,7 +417,8 @@ export default function Step3({ form }: Step3Props) {
 
     setIsLoadingProfessionSuggestions(true)
     try {
-      const result = await findProfessionByName(query)
+      const professionService = ServiceFactory.getProfessionService()
+      const result = await professionService.findByName(query)
       const suggestions: Suggestion[] = []
       
       if (result.found && result.profession) {
