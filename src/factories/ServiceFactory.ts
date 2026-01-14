@@ -19,6 +19,8 @@ import { CaisseSpecialeService } from '@/services/caisse-speciale/CaisseSpeciale
 import { MembershipService } from '@/services/memberships/MembershipService'
 import { ILoginService } from '@/domains/auth/services/ILoginService'
 import { LoginService } from '@/domains/auth/services/LoginService'
+import { ILogoutService } from '@/domains/auth/services/ILogoutService'
+import { LogoutService } from '@/domains/auth/services/LogoutService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -205,6 +207,17 @@ export class ServiceFactory {
     if (!this.services.has(key)) {
       const userRepository = RepositoryFactory.getUserRepository()
       this.services.set(key, new LoginService(userRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de déconnexion
+   */
+  static getLogoutService(): ILogoutService {
+    const key = 'LogoutService'
+    if (!this.services.has(key)) {
+      this.services.set(key, new LogoutService())
     }
     return this.services.get(key)
   }
