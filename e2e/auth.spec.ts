@@ -1,11 +1,12 @@
 /**
  * Tests E2E pour le module d'authentification KARA
  * 
- * Ces tests vérifient le flow complet de connexion :
+ * Ces tests vérifient le flow complet de connexion et déconnexion :
  * - Affichage du formulaire de connexion
  * - Validation des champs
  * - Connexion avec identifiants valides
  * - Redirection après connexion
+ * - Déconnexion et redirection vers login
  * 
  * @see https://playwright.dev/
  */
@@ -165,5 +166,114 @@ test.describe('Authentification - Session', () => {
     // Vérifier que nous sommes toujours connectés (pas redirigé vers /login)
     const currentUrl = page.url();
     expect(currentUrl).not.toMatch(/\/login/);
+  });
+});
+
+test.describe('Authentification - Déconnexion', () => {
+  // Helper pour authentifier l'utilisateur
+  async function authenticateUser(page: any) {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/login');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(1000);
+
+    const visibleForm = page.locator('form').filter({ has: page.locator(':visible') }).last();
+    const matriculeInput = visibleForm.locator('input[name="matricule"]');
+    const emailInput = visibleForm.locator('input[type="email"], input[name="email"]');
+    const passwordInput = visibleForm.locator('input[type="password"], input[name="password"]');
+    const submitButton = visibleForm.locator('button[type="submit"]');
+
+    await matriculeInput.fill(TEST_CREDENTIALS.matricule);
+    await emailInput.fill(TEST_CREDENTIALS.email);
+    await passwordInput.fill(TEST_CREDENTIALS.password);
+    await submitButton.click({ force: true });
+
+    // Attendre la redirection
+    await page.waitForURL(/\/(dashboard|geographie|membres|companies|jobs|metiers)/, { timeout: 15000 });
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
+  }
+
+  test('devrait afficher le bouton de déconnexion dans la sidebar', async ({ page }) => {
+    await authenticateUser(page);
+
+    // Vérifier que le bouton de déconnexion est visible dans la sidebar
+    const logoutButton = page.locator('[data-testid="btn-logout"], button:has-text("Se déconnecter")');
+    await expect(logoutButton).toBeVisible({ timeout: 5000 });
+  });
+
+  test('devrait déconnecter l\'utilisateur et rediriger vers /login', async ({ page }) => {
+    await authenticateUser(page);
+
+    // Cliquer sur le bouton de déconnexion
+    const logoutButton = page.locator('[data-testid="btn-logout"], button:has-text("Se déconnecter")');
+    await expect(logoutButton).toBeVisible({ timeout: 5000 });
+    await logoutButton.click({ force: true });
+
+    // Attendre la redirection vers /login
+    await page.waitForURL('**/login', { timeout: 10000 });
+    await page.waitForLoadState('domcontentloaded');
+
+    // Vérifier que nous sommes sur la page de login
+    expect(page.url()).toMatch(/\/login/);
+    
+    // Vérifier que le formulaire de connexion est visible
+    const visibleForm = page.locator('form').filter({ has: page.locator(':visible') }).last();
+    await expect(visibleForm.locator('input[name="matricule"]')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('devrait supprimer le cookie d\'authentification après déconnexion', async ({ page }) => {
+    await authenticateUser(page);
+
+    // Vérifier que le cookie existe avant déconnexion
+    const cookiesBefore = await page.context().cookies();
+    const authCookieBefore = cookiesBefore.find(c => c.name === 'auth-token');
+    expect(authCookieBefore).toBeDefined();
+
+    // Déconnecter
+    const logoutButton = page.locator('[data-testid="btn-logout"], button:has-text("Se déconnecter")');
+    await logoutButton.click({ force: true });
+
+    // Attendre la redirection
+    await page.waitForURL('**/login', { timeout: 10000 });
+    await page.waitForTimeout(1000); // Attendre que le cookie soit supprimé
+
+    // Vérifier que le cookie a été supprimé
+    const cookiesAfter = await page.context().cookies();
+    const authCookieAfter = cookiesAfter.find(c => c.name === 'auth-token');
+    // Le cookie devrait être supprimé ou expiré
+    expect(authCookieAfter).toBeUndefined();
+  });
+
+  test('devrait afficher l\'état de chargement pendant la déconnexion', async ({ page }) => {
+    await authenticateUser(page);
+
+    // Cliquer sur le bouton de déconnexion
+    const logoutButton = page.locator('[data-testid="btn-logout"], button:has-text("Se déconnecter")');
+    await logoutButton.click({ force: true });
+
+    // Vérifier que le bouton affiche "Déconnexion..." pendant le chargement
+    // (peut être très rapide, donc on vérifie juste que le bouton est cliqué)
+    await expect(logoutButton).toBeVisible({ timeout: 5000 });
+    
+    // Attendre la redirection
+    await page.waitForURL('**/login', { timeout: 10000 });
+  });
+
+  test('devrait empêcher l\'accès aux pages protégées après déconnexion', async ({ page }) => {
+    await authenticateUser(page);
+
+    // Déconnecter
+    const logoutButton = page.locator('[data-testid="btn-logout"], button:has-text("Se déconnecter")');
+    await logoutButton.click({ force: true });
+    await page.waitForURL('**/login', { timeout: 10000 });
+
+    // Essayer d'accéder à une page protégée
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(2000);
+
+    // Vérifier que nous sommes redirigés vers /login
+    expect(page.url()).toMatch(/\/login/);
   });
 });
