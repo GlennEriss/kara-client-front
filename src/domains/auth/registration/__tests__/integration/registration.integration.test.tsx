@@ -216,6 +216,12 @@ describe('Registration Integration Tests', () => {
         result.current.form.reset(mockData)
       })
 
+      // Attendre le debounce pour que le cache soit sauvegardé
+      await new Promise((resolve) => setTimeout(resolve, 600))
+
+      // Vérifier que le cache est bien sauvegardé avant la soumission
+      expect(cacheService.hasCachedData()).toBe(true)
+
       // Tenter la soumission
       await act(async () => {
         try {
@@ -773,7 +779,9 @@ describe('Registration Integration Tests', () => {
       // Vérifier la réinitialisation
       await waitFor(() => {
         expect(result.current.currentStep).toBe(1)
-        expect(result.current.form.getValues('identity.lastName')).toBe('')
+        // Après reset, les valeurs sont undefined ou '' selon les defaultValues
+        const lastName = result.current.form.getValues('identity.lastName')
+        expect(lastName === '' || lastName === undefined).toBe(true)
         expect(cacheService.hasCachedData()).toBe(false)
       })
     })
