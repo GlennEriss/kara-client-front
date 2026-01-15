@@ -7,15 +7,15 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Send,
-  Save,
-  RotateCcw,
   Shield,
   Home,
   User,
   MapPin,
   Briefcase,
   FileText,
-  Sparkles
+  Sparkles,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -55,24 +55,33 @@ export default function RegistrationFormV2() {
 
   const { handleSubmit, trigger } = methods
 
-  // Charger les données du cache au montage
+  // Charger les données du cache au montage (une seule fois)
   useEffect(() => {
+    let isMounted = true
     try {
       const cached = localStorage.getItem('kara-register-form-v2')
-      if (cached) {
+      if (cached && isMounted) {
         const { data, step, completed, timestamp } = JSON.parse(cached)
         // Vérifier si le cache n'a pas expiré (7 jours)
         const weekInMs = 7 * 24 * 60 * 60 * 1000
         if (Date.now() - timestamp < weekInMs) {
-          methods.reset(data)
-          setCurrentStep(step || 1)
-          setCompletedSteps(new Set(completed || []))
+          // Utiliser setTimeout pour s'assurer que le formulaire est prêt
+          setTimeout(() => {
+            if (isMounted) {
+              methods.reset(data)
+              setCurrentStep(step || 1)
+              setCompletedSteps(new Set(completed || []))
+            }
+          }, 100)
         }
       }
     } catch {
       // Ignorer les erreurs de parsing
     }
-  }, [methods])
+    return () => {
+      isMounted = false
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sauvegarder automatiquement dans le cache
   const saveToCache = useCallback(() => {
@@ -89,11 +98,31 @@ export default function RegistrationFormV2() {
     }
   }, [methods, currentStep, completedSteps])
 
-  // Auto-save toutes les 30 secondes
+  // Auto-save avec debounce après chaque changement de valeur + intervalle de 30 secondes
   useEffect(() => {
     const interval = setInterval(saveToCache, 30000)
-    return () => clearInterval(interval)
-  }, [saveToCache])
+    
+    // Debounce pour éviter trop de sauvegardes
+    let debounceTimer: NodeJS.Timeout | null = null
+    
+    // Écouter les changements de valeurs du formulaire avec debounce
+    const subscription = methods.watch(() => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
+      debounceTimer = setTimeout(() => {
+        saveToCache()
+      }, 1000) // Sauvegarder 1 seconde après le dernier changement
+    })
+    
+    return () => {
+      clearInterval(interval)
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
+      subscription.unsubscribe()
+    }
+  }, [saveToCache, methods])
 
   // Valider l'étape actuelle
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
@@ -152,11 +181,12 @@ export default function RegistrationFormV2() {
 
   // Réinitialiser le formulaire
   const resetForm = useCallback(() => {
-    if (confirm('Êtes-vous sûr de vouloir effacer toutes les données ?')) {
+    if (confirm('Êtes-vous sûr de vouloir effacer toutes les données ? Cette action est irréversible.')) {
       methods.reset(defaultValues as RegisterFormData)
       setCurrentStep(1)
       setCompletedSteps(new Set())
       localStorage.removeItem('kara-register-form-v2')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [methods])
 
@@ -253,27 +283,17 @@ export default function RegistrationFormV2() {
 
             {/* Navigation */}
             <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-300">
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={saveToCache}
-                  className="text-slate-500 hover:text-kara-primary-dark border-slate-200"
-                >
-                  <Save className="w-4 h-4 mr-1" />
-                  Sauvegarder
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={resetForm}
-                  className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </Button>
-              </div>
+              {/* Bouton de réinitialisation */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetForm}
+                className="text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4 mr-1" />
+                Réinitialiser
+              </Button>
 
               <div className="flex gap-3">
                 <Button

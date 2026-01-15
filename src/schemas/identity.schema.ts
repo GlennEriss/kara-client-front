@@ -314,25 +314,52 @@ export const identitySchema = z.object({
                 message: 'Mettre une photo est obligatoire (formats acceptés : JPEG, PNG ou WebP, max 5MB)'
             }
         )
-}).refine((data) => {
+}).superRefine((data, ctx) => {
     // Si la situation matrimoniale indique un conjoint, les champs du conjoint deviennent obligatoires
     const marriedStatuses = ['Marié(e)', 'Concubinage']
 
     if (marriedStatuses.includes(data.maritalStatus)) {
-        // Pour les situations avec conjoint, vérifier que les champs sont remplis
-        const hasSpouseLastName = data.spouseLastName && data.spouseLastName.trim().length >= 2
-        const hasSpouseFirstName = data.spouseFirstName && data.spouseFirstName.trim().length >= 2
-        const hasSpousePhone = data.spousePhone && data.spousePhone.trim().length >= 8
+        // Vérifier le nom du conjoint
+        if (!data.spouseLastName || data.spouseLastName.trim().length < 2) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Le nom du conjoint(e) est requis',
+                path: ['spouseLastName']
+            })
+        }
 
-        return hasSpouseLastName && hasSpouseFirstName && hasSpousePhone
-    } else {
-        // Pour les situations sans conjoint, les champs du conjoint ne doivent pas bloquer la validation
-        // même s'ils contiennent des données (on les ignore)
-        return true
+        // Vérifier le prénom du conjoint
+        if (!data.spouseFirstName || data.spouseFirstName.trim().length < 2) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Le prénom du conjoint(e) est requis',
+                path: ['spouseFirstName']
+            })
+        }
+
+        // Vérifier le téléphone du conjoint (format: +241 + 8 chiffres = 12 caractères)
+        if (!data.spousePhone || data.spousePhone.trim().length < 12) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Le numéro de téléphone du conjoint(e) est requis',
+                path: ['spousePhone']
+            })
+        } else if (!data.spousePhone.startsWith('+241')) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Le numéro doit commencer par +241',
+                path: ['spousePhone']
+            })
+        } else if (data.spousePhone.trim().length !== 12) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Le numéro doit contenir exactement 8 chiffres après +241',
+                path: ['spousePhone']
+            })
+        }
     }
-}, {
-    message: 'Les informations du conjoint sont requises pour votre situation matrimoniale',
-    path: ['spouseLastName']
+    // Pour les situations sans conjoint, les champs du conjoint ne doivent pas bloquer la validation
+    // même s'ils contiennent des données (on les ignore)
 })
 
 // ================== TYPES INFÉRÉS ==================

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { 
   MapPin, 
@@ -26,7 +26,7 @@ import { ServiceFactory } from '@/factories/ServiceFactory'
 import type { Commune } from '@/domains/infrastructure/geography/entities/geography.types'
 
 export default function AddressStepV2() {
-  const { register, watch, setValue, formState: { errors } } = useFormContext<RegisterFormData>()
+  const { register, watch, setValue, formState: { errors, isSubmitted, touchedFields } } = useFormContext<RegisterFormData>()
 
   // Valeurs sélectionnées (états locaux pour la cascade)
   const [selectedProvinceId, setSelectedProvinceId] = useState('')
@@ -63,13 +63,64 @@ export default function AddressStepV2() {
 
   const loadingCommunes = communeQueries.some(q => q.isLoading)
 
-  // Trier les données
+  // Filtrer les entrées de test et trier les données
   const sortedProvinces = useMemo(() =>
-    [...provinces].sort((a, b) => a.name.localeCompare(b.name, 'fr')), [provinces])
+    [...provinces]
+      .filter(p => !p.name.toLowerCase().includes('test e2e') && !p.name.toLowerCase().includes('test'))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr')), [provinces])
   const sortedDistricts = useMemo(() =>
-    [...districts].sort((a, b) => a.name.localeCompare(b.name, 'fr')), [districts])
+    [...districts]
+      .filter(d => !d.name.toLowerCase().includes('test e2e') && !d.name.toLowerCase().includes('test'))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr')), [districts])
   const sortedQuarters = useMemo(() =>
-    [...quarters].sort((a, b) => a.name.localeCompare(b.name, 'fr')), [quarters])
+    [...quarters]
+      .filter(q => !q.name.toLowerCase().includes('test e2e') && !q.name.toLowerCase().includes('test'))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr')), [quarters])
+  
+  // Filtrer aussi les communes
+  const filteredCommunes = useMemo(() =>
+    communes.filter(c => !c.name.toLowerCase().includes('test e2e') && !c.name.toLowerCase().includes('test')),
+    [communes]
+  )
+
+  // Initialiser les états depuis les valeurs du formulaire au montage et quand les données sont chargées
+  const provinceName = watch('address.province')
+  const cityName = watch('address.city')
+  const arrondissementName = watch('address.arrondissement')
+  const districtName = watch('address.district')
+
+  // Initialiser la province
+  useEffect(() => {
+    if (provinceName && sortedProvinces.length > 0) {
+      const province = sortedProvinces.find(p => p.name === provinceName)
+      if (province && province.id !== selectedProvinceId) {
+        setSelectedProvinceId(province.id)
+      }
+    }
+  }, [provinceName, sortedProvinces, selectedProvinceId])
+
+  // Initialiser la commune (nécessite que les communes soient chargées après la province)
+  useEffect(() => {
+    if (cityName && filteredCommunes.length > 0 && selectedProvinceId) {
+      const commune = filteredCommunes.find(c => c.name === cityName)
+      if (commune && commune.id !== selectedCommuneId) {
+        setSelectedCommuneId(commune.id)
+      }
+    }
+  }, [cityName, filteredCommunes, selectedProvinceId, selectedCommuneId])
+
+  // Initialiser le district (nécessite que les districts soient chargés après la commune)
+  useEffect(() => {
+    if (arrondissementName && sortedDistricts.length > 0 && selectedCommuneId) {
+      const district = sortedDistricts.find(d => d.name === arrondissementName)
+      if (district && district.id !== selectedDistrictId) {
+        setSelectedDistrictId(district.id)
+      }
+    }
+  }, [arrondissementName, sortedDistricts, selectedCommuneId, selectedDistrictId])
+
+  // Note: Le quartier n'a pas besoin d'initialisation d'état car le Select trouve automatiquement
+  // le quartier par son nom via sortedQuarters.find(q => q.name === watch('address.district'))?.id
 
   // Handlers de changement cascade
   const handleProvinceChange = (provinceId: string) => {
@@ -85,7 +136,7 @@ export default function AddressStepV2() {
 
   const handleCommuneChange = (communeId: string) => {
     setSelectedCommuneId(communeId)
-    const commune = communes.find(c => c.id === communeId)
+    const commune = filteredCommunes.find(c => c.id === communeId)
     setValue('address.city', commune?.name || '')
     setValue('address.arrondissement', '')
     setValue('address.district', '')
@@ -232,7 +283,7 @@ export default function AddressStepV2() {
               ))}
             </SelectContent>
           </Select>
-          {errors.address?.province && (
+          {errors.address?.province && (isSubmitted || touchedFields.address?.province || selectedProvinceId) && (
             <p className="text-xs text-red-500 mt-2">{errors.address.province.message}</p>
           )}
         </div>
@@ -299,7 +350,7 @@ export default function AddressStepV2() {
               ))}
             </SelectContent>
           </Select>
-          {errors.address?.city && (
+          {errors.address?.city && (isSubmitted || touchedFields.address?.city || selectedCommuneId) && (
             <p className="text-xs text-red-500 mt-2">{errors.address.city.message}</p>
           )}
         </div>
@@ -433,7 +484,7 @@ export default function AddressStepV2() {
               ))}
             </SelectContent>
           </Select>
-          {errors.address?.district && (
+          {errors.address?.district && (isSubmitted || touchedFields.address?.district || watch('address.district')) && (
             <p className="text-xs text-red-500 mt-2">{errors.address.district.message}</p>
           )}
         </div>

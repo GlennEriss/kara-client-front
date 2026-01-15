@@ -5,13 +5,20 @@ import { vi } from 'vitest'
 import type { Commune } from '@/domains/infrastructure/geography/entities/geography.types'
 import type { PaginatedResult } from '@/domains/infrastructure/geography/types/pagination.types'
 
-// Données mock par défaut
+// Données mock par défaut - 3 communes par département (structure cohérente)
 export const mockCommunes: Commune[] = [
-  { id: 'comm-1', departmentId: 'dept-1', name: 'Libreville Centre', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'comm-2', departmentId: 'dept-1', name: 'Akanda', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'comm-3', departmentId: 'dept-1', name: 'Owendo', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'comm-4', departmentId: 'dept-2', name: 'Ntoum Centre', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'comm-5', departmentId: 'dept-3', name: 'Franceville Centre', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Komo-Mondah (dept-1)
+  { id: 'comm-1', departmentId: 'dept-1', name: 'Ntoum', postalCode: '24110', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'comm-2', departmentId: 'dept-1', name: 'Cocobeach', postalCode: '24111', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'comm-3', departmentId: 'dept-1', name: 'Kango', postalCode: '24112', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Libreville (dept-2)
+  { id: 'comm-4', departmentId: 'dept-2', name: 'Libreville Centre', postalCode: '24100', alias: 'Ville', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'comm-5', departmentId: 'dept-2', name: 'Akanda', postalCode: '24101', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'comm-6', departmentId: 'dept-2', name: 'Owendo', postalCode: '24102', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Komo-Océan (dept-3)
+  { id: 'comm-7', departmentId: 'dept-3', name: 'Ndzomoé', postalCode: '24120', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'comm-8', departmentId: 'dept-3', name: 'Cap Estérias', postalCode: '24121', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'comm-9', departmentId: 'dept-3', name: 'Ntoum', postalCode: '24122', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
 ]
 
 // Mock du repository

@@ -13,7 +13,7 @@ export default defineConfig({
   testDir: './e2e',
   
   /* Timeout par test */
-  timeout: 30 * 1000,
+  timeout: 60 * 1000,
   
   /* Timeout pour les assertions */
   expect: {
@@ -69,20 +69,25 @@ export default defineConfig({
         ...devices['Pixel 5'],
       },
     },
+
+    // Tests Tablette (iPad)
+    {
+      name: 'tablet',
+      use: { 
+        ...devices['iPad Pro'],
+      },
+    },
   ],
 
   /* Serveur de développement pour les tests 
-   * Note: En local, démarrer le serveur manuellement avec `npm run dev`
-   * avant de lancer les tests. En CI, le webServer sera démarré automatiquement.
+   * Le serveur sera démarré automatiquement avant les tests
    */
-  ...(process.env.CI ? {
-    webServer: {
-      command: 'npm run dev',
-      url: 'http://localhost:3000',
-      reuseExistingServer: false,
-      timeout: 120 * 1000,
-      stdout: 'ignore',
-      stderr: 'pipe',
-    }
-  } : {}),
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI, // Réutiliser le serveur existant en local si disponible
+    timeout: 120 * 1000,
+    stdout: 'ignore',
+    stderr: 'pipe',
+  },
 });

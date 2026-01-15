@@ -88,7 +88,7 @@ const useDebounce = (value: string, delay: number) => {
 
 export default function CompanyStepV2() {
   const form = useFormContext<RegisterFormData>()
-  const { register, watch, setValue, formState: { errors }, clearErrors } = form
+  const { register, watch, setValue, formState: { errors, isSubmitted, touchedFields }, clearErrors } = form
   
   const isAdminContext = useIsAdminContext()
   const queryClient = useQueryClient()
@@ -132,9 +132,11 @@ export default function CompanyStepV2() {
   const { data: companyProvinces = [], isLoading: isLoadingCompanyProvinces } = useProvinces()
   
   const sortedCompanyProvinces = useMemo(() => {
-    return [...companyProvinces].sort((a, b) => 
-      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-    )
+    return [...companyProvinces]
+      .filter(p => !p.name.toLowerCase().includes('test e2e') && !p.name.toLowerCase().includes('test'))
+      .sort((a, b) => 
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      )
   }, [companyProvinces])
   
   // Charger les départements de la province sélectionnée
@@ -167,9 +169,11 @@ export default function CompanyStepV2() {
     const uniqueCommunes = communes.filter((commune, index, self) =>
       index === self.findIndex(c => c.id === commune.id)
     )
-    return uniqueCommunes.sort((a, b) => 
-      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-    )
+    return uniqueCommunes
+      .filter(c => !c.name.toLowerCase().includes('test e2e') && !c.name.toLowerCase().includes('test'))
+      .sort((a, b) => 
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      )
   }, [companyCommuneQueries])
   
   const isLoadingCompanyCommunes = companyCommuneQueries.some(query => query.isLoading)
@@ -180,9 +184,11 @@ export default function CompanyStepV2() {
   )
   
   const sortedCompanyDistricts = useMemo(() => {
-    return [...companyDistricts].sort((a, b) => 
-      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-    )
+    return [...companyDistricts]
+      .filter(d => !d.name.toLowerCase().includes('test e2e') && !d.name.toLowerCase().includes('test'))
+      .sort((a, b) => 
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      )
   }, [companyDistricts])
   
   // Charger les quartiers (quarters)
@@ -191,9 +197,11 @@ export default function CompanyStepV2() {
   )
   
   const sortedCompanyQuarters = useMemo(() => {
-    return [...companyQuarters].sort((a, b) => 
-      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-    )
+    return [...companyQuarters]
+      .filter(q => !q.name.toLowerCase().includes('test e2e') && !q.name.toLowerCase().includes('test'))
+      .sort((a, b) => 
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      )
   }, [companyQuarters])
   
   // Trouver les objets complets pour remplir les champs texte
@@ -201,6 +209,51 @@ export default function CompanyStepV2() {
   const selectedCompanyCommune = allCompanyCommunes.find(c => c.id === selectedCompanyCommuneId)
   const selectedCompanyDistrict = sortedCompanyDistricts.find(d => d.id === selectedCompanyDistrictId)
   const selectedCompanyQuarter = sortedCompanyQuarters.find(q => q.id === selectedCompanyQuarterId)
+  
+  // Initialiser les états depuis les valeurs du formulaire au montage et quand les données sont chargées
+  const companyProvinceName = watch('company.companyAddress.province')
+  const companyCityName = watch('company.companyAddress.city')
+  const companyDistrictName = watch('company.companyAddress.district')
+
+  // Initialiser la province de l'entreprise
+  useEffect(() => {
+    if (companyProvinceName && sortedCompanyProvinces.length > 0 && !selectedCompanyProvinceId) {
+      const province = sortedCompanyProvinces.find(p => p.name === companyProvinceName)
+      if (province) {
+        setSelectedCompanyProvinceId(province.id)
+      }
+    }
+  }, [companyProvinceName, sortedCompanyProvinces, selectedCompanyProvinceId])
+
+  // Initialiser la commune de l'entreprise (nécessite que les communes soient chargées après la province)
+  useEffect(() => {
+    if (companyCityName && allCompanyCommunes.length > 0 && selectedCompanyProvinceId && !selectedCompanyCommuneId) {
+      const commune = allCompanyCommunes.find(c => c.name === companyCityName)
+      if (commune) {
+        setSelectedCompanyCommuneId(commune.id)
+      }
+    }
+  }, [companyCityName, allCompanyCommunes, selectedCompanyProvinceId, selectedCompanyCommuneId])
+
+  // Initialiser le district de l'entreprise (peut être un district ou un quartier)
+  useEffect(() => {
+    if (companyDistrictName && selectedCompanyCommuneId) {
+      // D'abord chercher dans les districts
+      if (sortedCompanyDistricts.length > 0 && !selectedCompanyDistrictId && !selectedCompanyQuarterId) {
+        const district = sortedCompanyDistricts.find(d => d.name === companyDistrictName)
+        if (district) {
+          setSelectedCompanyDistrictId(district.id)
+        }
+      }
+      // Si pas trouvé dans les districts, chercher dans les quartiers (nécessite que les quartiers soient chargés)
+      if (!selectedCompanyDistrictId && sortedCompanyQuarters.length > 0 && !selectedCompanyQuarterId) {
+        const quarter = sortedCompanyQuarters.find(q => q.name === companyDistrictName)
+        if (quarter) {
+          setSelectedCompanyQuarterId(quarter.id)
+        }
+      }
+    }
+  }, [companyDistrictName, sortedCompanyDistricts, sortedCompanyQuarters, selectedCompanyCommuneId, selectedCompanyDistrictId, selectedCompanyQuarterId])
   
   // Mettre à jour les champs texte quand les sélections changent (BD)
   useEffect(() => {
@@ -657,8 +710,8 @@ export default function CompanyStepV2() {
                         </Button>
                       )}
                     </div>
-                    {errors.company?.companyAddress?.province && (
-                      <p className="text-xs text-red-500">{errors.company.companyAddress.province.message}</p>
+                    {errors.company?.companyAddress?.province && (isSubmitted || touchedFields.company?.companyAddress?.province) && (
+                      <p className="text-xs text-red-500 mt-1">{errors.company.companyAddress.province.message}</p>
                     )}
                   </div>
 
@@ -711,8 +764,8 @@ export default function CompanyStepV2() {
                         </Button>
                       )}
                     </div>
-                    {errors.company?.companyAddress?.city && (
-                      <p className="text-xs text-red-500">{errors.company.companyAddress.city.message}</p>
+                    {errors.company?.companyAddress?.city && (isSubmitted || touchedFields.company?.companyAddress?.city || (selectedCompanyProvinceId && !isLoadingCompanyCommunes && !isLoadingCompanyDepartments)) && (
+                      <p className="text-xs text-red-500 mt-1">{errors.company.companyAddress.city.message}</p>
                     )}
                   </div>
 
@@ -765,8 +818,8 @@ export default function CompanyStepV2() {
                         </Button>
                       )}
                     </div>
-                    {errors.company?.companyAddress?.district && (
-                      <p className="text-xs text-red-500">{errors.company.companyAddress.district.message}</p>
+                    {errors.company?.companyAddress?.district && (isSubmitted || touchedFields.company?.companyAddress?.district || selectedCompanyDistrictId || selectedCompanyQuarterId) && (
+                      <p className="text-xs text-red-500 mt-1">{errors.company.companyAddress.district.message}</p>
                     )}
                   </div>
 
@@ -819,8 +872,8 @@ export default function CompanyStepV2() {
                         </Button>
                       )}
                     </div>
-                    {errors.company?.companyAddress?.district && (
-                      <p className="text-xs text-red-500">{errors.company.companyAddress.district.message}</p>
+                    {errors.company?.companyAddress?.district && (isSubmitted || touchedFields.company?.companyAddress?.district || selectedCompanyDistrictId || selectedCompanyQuarterId) && (
+                      <p className="text-xs text-red-500 mt-1">{errors.company.companyAddress.district.message}</p>
                     )}
                   </div>
                 </div>

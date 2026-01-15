@@ -58,6 +58,7 @@ export interface RegisterFormData {
   };
   documents: {
     identityDocument: string;
+    customDocumentType?: string;
     identityDocumentNumber: string;
     documentPhotoFront?: string | File;
     documentPhotoBack?: string | File;

@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import type { RegisterFormData } from '@/schemas/schemas'
 import { GabonPhoneInputList } from '@/components/shared/GabonPhoneInput'
+import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 
 const CIVILITIES = ['Monsieur', 'Madame', 'Mademoiselle'] as const
 const GENDERS = ['Homme', 'Femme'] as const
@@ -68,7 +69,7 @@ const YEARS = Array.from({ length: 71 }, (_, i) => ({
 
 
 export default function IdentityStepV2() {
-  const { register, watch, setValue, formState: { errors }, clearErrors } = useFormContext<RegisterFormData>()
+  const { register, watch, setValue, getValues, formState: { errors, isSubmitted, touchedFields }, clearErrors } = useFormContext<RegisterFormData>()
 
   const contacts = watch('identity.contacts') || []
   const maritalStatus = watch('identity.maritalStatus')
@@ -77,31 +78,53 @@ export default function IdentityStepV2() {
   const birthDate = watch('identity.birthDate')
   const requiresSpouseInfo = ['Marié(e)', 'Concubinage'].includes(maritalStatus)
 
+  // Fonction helper pour parser et initialiser les dates
+  const parseBirthDate = (date: string | undefined) => {
+    if (date && date.includes('-')) {
+      const [year, month, day] = date.split('-')
+      return { year: year || '', month: month || '', day: day || '' }
+    }
+    return { year: '', month: '', day: '' }
+  }
+
+  // Initialiser les états de date depuis birthDate au montage
+  const initialBirthDate = getValues('identity.birthDate')
+  const initialParsed = parseBirthDate(initialBirthDate)
+  
   // États pour la date de naissance (jour/mois/année séparés)
-  const [birthDay, setBirthDay] = useState('')
-  const [birthMonth, setBirthMonth] = useState('')
-  const [birthYear, setBirthYear] = useState('')
+  const [birthDay, setBirthDay] = useState(initialParsed.day)
+  const [birthMonth, setBirthMonth] = useState(initialParsed.month)
+  const [birthYear, setBirthYear] = useState(initialParsed.year)
   
   // État pour la prévisualisation de la photo
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
-  // Initialiser les états de date depuis birthDate
+  // Initialiser les états de date depuis birthDate quand birthDate change
   useEffect(() => {
-    if (birthDate && birthDate.includes('-')) {
-      const [year, month, day] = birthDate.split('-')
-      setBirthYear(year || '')
-      setBirthMonth(month || '')
-      setBirthDay(day || '')
+    // Utiliser getValues pour obtenir la valeur actuelle
+    const currentBirthDate = birthDate || getValues('identity.birthDate')
+    const parsed = parseBirthDate(currentBirthDate)
+    
+    // Toujours mettre à jour pour s'assurer que les états sont synchronisés
+    // (important lors de la réinitialisation du formulaire)
+    if (parsed.day !== birthDay || parsed.month !== birthMonth || parsed.year !== birthYear) {
+      setBirthYear(parsed.year)
+      setBirthMonth(parsed.month)
+      setBirthDay(parsed.day)
     }
-  }, [birthDate])
+  }, [birthDate, getValues]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mettre à jour birthDate quand les selects changent
   useEffect(() => {
     if (birthDay && birthMonth && birthYear) {
       const newDate = `${birthYear}-${birthMonth}-${birthDay}`
-      setValue('identity.birthDate', newDate, { shouldValidate: true })
+      const currentDate = getValues('identity.birthDate')
+      // Ne mettre à jour que si la date est différente pour éviter les boucles
+      if (currentDate !== newDate) {
+        setValue('identity.birthDate', newDate, { shouldValidate: true, shouldDirty: false })
+      }
     }
-  }, [birthDay, birthMonth, birthYear, setValue])
+  }, [birthDay, birthMonth, birthYear, setValue, getValues])
 
   // Initialiser photoPreview depuis la valeur du formulaire
   useEffect(() => {
@@ -127,14 +150,6 @@ export default function IdentityStepV2() {
     }
   }, [requiresSpouseInfo, setValue, clearErrors])
 
-  // Extraire les 8 chiffres du numéro (sans +241) pour le champ du conjoint
-  const getPhoneDigits = (number: string): string => {
-    if (!number || number.trim() === '') return ''
-    if (number.startsWith('+241')) {
-      return number.substring(4).replace(/\D/g, '')
-    }
-    return number.replace(/\D/g, '')
-  }
 
   // Gérer l'upload de photo
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,7 +232,7 @@ export default function IdentityStepV2() {
                 <User className="w-4 h-4 text-kara-primary-dark" />
                 Civilité *
               </Label>
-              <Select onValueChange={(v) => setValue('identity.civility', v)} defaultValue={watch('identity.civility')}>
+              <Select onValueChange={(v) => setValue('identity.civility', v)} value={watch('identity.civility') || ''}>
                 <SelectTrigger className="h-12 rounded-xl border-2 border-slate-200 hover:border-kara-primary-dark/30 focus:border-kara-primary-dark transition-all">
                   <SelectValue placeholder="Choisir..." />
                 </SelectTrigger>
@@ -234,7 +249,7 @@ export default function IdentityStepV2() {
 
             <div className="space-y-2">
               <Label className="text-slate-700 font-semibold text-sm">Genre *</Label>
-              <Select onValueChange={(v) => setValue('identity.gender', v)} defaultValue={watch('identity.gender')}>
+              <Select onValueChange={(v) => setValue('identity.gender', v)} value={watch('identity.gender') || ''}>
                 <SelectTrigger className="h-12 rounded-xl border-2 border-slate-200 hover:border-kara-primary-dark/30 focus:border-kara-primary-dark transition-all">
                   <SelectValue placeholder="Choisir..." />
                 </SelectTrigger>
@@ -381,7 +396,7 @@ export default function IdentityStepV2() {
               <Globe className="w-4 h-4 text-amber-600" />
               Nationalité *
             </Label>
-            <Select onValueChange={(v) => setValue('identity.nationality', v)} defaultValue={watch('identity.nationality')}>
+            <Select onValueChange={(v) => setValue('identity.nationality', v)} value={watch('identity.nationality') || ''}>
               <SelectTrigger className="h-12 rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all bg-white">
                 <SelectValue placeholder="Sélectionnez..." />
               </SelectTrigger>
@@ -452,7 +467,7 @@ export default function IdentityStepV2() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-slate-700 font-semibold text-sm">Religion *</Label>
-              <Select onValueChange={(v) => setValue('identity.religion', v)} defaultValue={watch('identity.religion')}>
+              <Select onValueChange={(v) => setValue('identity.religion', v)} value={watch('identity.religion') || ''}>
                 <SelectTrigger className="h-12 rounded-xl border-2 border-purple-200 hover:border-purple-400 focus:border-purple-500 transition-all bg-white">
                   <SelectValue placeholder="Sélectionnez..." />
                 </SelectTrigger>
@@ -496,7 +511,7 @@ export default function IdentityStepV2() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-slate-700 font-semibold text-sm">Situation matrimoniale *</Label>
-              <Select onValueChange={(v) => setValue('identity.maritalStatus', v)} defaultValue={watch('identity.maritalStatus')}>
+              <Select onValueChange={(v) => setValue('identity.maritalStatus', v)} value={watch('identity.maritalStatus') || ''}>
                 <SelectTrigger className="h-12 rounded-xl border-2 border-rose-200 hover:border-rose-400 focus:border-rose-500 transition-all bg-white">
                   <SelectValue placeholder="Sélectionnez..." />
                 </SelectTrigger>
@@ -536,82 +551,67 @@ export default function IdentityStepV2() {
 
       {/* Informations du conjoint (conditionnel) */}
       {requiresSpouseInfo && (
-        <div className="bg-gradient-to-r from-pink-50 via-rose-50 to-red-50 rounded-2xl p-6 border-2 border-dashed border-rose-300 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-350">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
               <h3 className="font-bold text-slate-800">Informations du conjoint(e)</h3>
-              <p className="text-xs text-rose-600">Obligatoire pour les personnes mariées ou en concubinage</p>
+              <p className="text-xs text-blue-600 font-medium">
+                {maritalStatus === 'Marié(e)' 
+                  ? 'Ces informations sont requises car vous avez déclaré être marié(e)'
+                  : 'Ces informations sont requises car vous avez déclaré être en concubinage'}
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-semibold text-sm">Nom du conjoint(e) *</Label>
-              <Input
-                {...register('identity.spouseLastName')}
-                placeholder="MBOUMBA"
-                className={cn(
-                  "h-12 rounded-xl border-2 border-rose-200 hover:border-rose-400 focus:border-rose-500 transition-all bg-white font-medium uppercase",
-                  errors.identity?.spouseLastName && "border-red-300"
-                )}
-              />
-              {errors.identity?.spouseLastName && (
-                <p className="text-xs text-red-500">{errors.identity.spouseLastName.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-semibold text-sm">Prénom du conjoint(e) *</Label>
-              <Input
-                {...register('identity.spouseFirstName')}
-                placeholder="Marie"
-                className={cn(
-                  "h-12 rounded-xl border-2 border-rose-200 hover:border-rose-400 focus:border-rose-500 transition-all bg-white font-medium capitalize",
-                  errors.identity?.spouseFirstName && "border-red-300"
-                )}
-              />
-              {errors.identity?.spouseFirstName && (
-                <p className="text-xs text-red-500">{errors.identity.spouseFirstName.message}</p>
-              )}
-            </div>
-
-            <div className="sm:col-span-2 space-y-2">
-              <Label className="text-slate-700 font-semibold text-sm">Téléphone du conjoint(e) *</Label>
-              <div className={cn(
-                "flex items-center gap-2 rounded-xl border-2 transition-all duration-300",
-                errors.identity?.spousePhone ? "border-red-300 bg-red-50/50" : "border-rose-200 hover:border-rose-400",
-              )}>
-                {/* Indicatif fixe (non éditable) */}
-                <div className="flex items-center gap-2 px-3 py-2 h-11 bg-rose-100 rounded-lg min-w-[120px] border border-rose-200">
-                  <span className="text-xl">🇬🇦</span>
-                  <span className="font-semibold text-rose-700">+241</span>
-                </div>
-                {/* Input numéro simple */}
+          <div className="space-y-4">
+            {/* Nom et Prénom côte à côte */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-semibold text-sm">Nom du conjoint(e) *</Label>
                 <Input
-                  value={getPhoneDigits(watch('identity.spousePhone') || '')}
-                  onChange={(e) => {
-                    // Nettoyer et limiter à 8 chiffres
-                    const cleaned = e.target.value.replace(/\D/g, '').substring(0, 8)
-                    // Stocker au format +241XXXXXXXX
-                    const fullNumber = cleaned.length > 0 ? `+241${cleaned}` : ''
-                    setValue('identity.spousePhone', fullNumber, { shouldValidate: false })
-                  }}
-                  placeholder="73898345"
+                  {...register('identity.spouseLastName')}
+                  placeholder="MBOUMBA"
                   className={cn(
-                    "h-11 text-base font-medium flex-1 focus-visible:ring-2 focus-visible:ring-rose-500/20",
-                    errors.identity?.spousePhone && "border-red-300"
+                    "h-12 rounded-xl border-2 border-blue-200 hover:border-blue-400 focus:border-blue-500 transition-all bg-white font-medium uppercase",
+                    errors.identity?.spouseLastName && "border-red-300"
                   )}
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={8}
                 />
+                {errors.identity?.spouseLastName && (isSubmitted || touchedFields.identity?.spouseLastName || watch('identity.spouseLastName')) && (
+                  <p className="text-xs text-red-500 mt-1">{errors.identity.spouseLastName.message}</p>
+                )}
               </div>
-              {errors.identity?.spousePhone && (
-                <p className="text-xs text-red-500">{errors.identity.spousePhone.message}</p>
-              )}
+
+              <div className="space-y-2">
+                <Label className="text-slate-700 font-semibold text-sm">Prénom du conjoint(e) *</Label>
+                <Input
+                  {...register('identity.spouseFirstName')}
+                  placeholder="Marie"
+                  className={cn(
+                    "h-12 rounded-xl border-2 border-blue-200 hover:border-blue-400 focus:border-blue-500 transition-all bg-white font-medium capitalize",
+                    errors.identity?.spouseFirstName && "border-red-300"
+                  )}
+                />
+                {errors.identity?.spouseFirstName && (isSubmitted || touchedFields.identity?.spouseFirstName || watch('identity.spouseFirstName')) && (
+                  <p className="text-xs text-red-500 mt-1">{errors.identity.spouseFirstName.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Téléphone avec le composant unifié */}
+            <div className="space-y-2">
+              <Label className="text-slate-700 font-semibold text-sm flex items-center gap-2">
+                <Phone className="w-4 h-4 text-blue-600" />
+                Téléphone du conjoint(e) *
+              </Label>
+              <GabonPhoneInput
+                value={watch('identity.spousePhone') || ''}
+                onChange={(value) => setValue('identity.spousePhone', value, { shouldValidate: true })}
+                error={errors.identity?.spousePhone?.message}
+                placeholder="XX XX XX XX"
+              />
             </div>
           </div>
         </div>

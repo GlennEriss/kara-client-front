@@ -1,21 +1,18 @@
 {
   "departments": [
-    { "id": "dept-1", "provinceId": "prov-1", "name": "Libreville", "searchableText": "libreville" },
-    { "id": "dept-2", "provinceId": "prov-1", "name": "Ntoum", "searchableText": "ntoum" },
-    { "id": "dept-3", "provinceId": "prov-1", "name": "Komo-Mondah", "searchableText": "komo-mondah" },
-    { "id": "dept-4", "provinceId": "prov-2", "name": "Franceville", "searchableText": "franceville" },
-    { "id": "dept-5", "provinceId": "prov-2", "name": "Lékoni", "searchableText": "lekoni" },
-    { "id": "dept-6", "provinceId": "prov-3", "name": "Lambaréné", "searchableText": "lambarene" },
-    { "id": "dept-7", "provinceId": "prov-3", "name": "Ndjolé", "searchableText": "ndjole" },
-    { "id": "dept-8", "provinceId": "prov-4", "name": "Mouila", "searchableText": "mouila" },
-    { "id": "dept-9", "provinceId": "prov-4", "name": "Fougamou", "searchableText": "fougamou" },
-    { "id": "dept-10", "provinceId": "prov-5", "name": "Tchibanga", "searchableText": "tchibanga" }
+    { "id": "dept-1", "provinceId": "prov-1", "name": "Komo-Mondah", "code": "KMM", "searchableText": "komo-mondah kmm" },
+    { "id": "dept-2", "provinceId": "prov-1", "name": "Libreville", "code": "LBV", "searchableText": "libreville lbv" },
+    { "id": "dept-3", "provinceId": "prov-1", "name": "Komo-Océan", "code": "KMO", "searchableText": "komo-ocean kmo" },
+    { "id": "dept-4", "provinceId": "prov-2", "name": "Franceville", "code": "FRV", "searchableText": "franceville frv" },
+    { "id": "dept-5", "provinceId": "prov-2", "name": "Lékoni", "code": "LKN", "searchableText": "lekoni lkn" },
+    { "id": "dept-6", "provinceId": "prov-2", "name": "Lékabi-Léwolo", "code": "LKL", "searchableText": "lekabi-lewolo lkl" },
+    { "id": "dept-7", "provinceId": "prov-3", "name": "Lambaréné", "code": "LMB", "searchableText": "lambarene lmb" },
+    { "id": "dept-8", "provinceId": "prov-3", "name": "Aboumi", "code": "ABM", "searchableText": "aboumi abm" },
+    { "id": "dept-9", "provinceId": "prov-3", "name": "Ogooué et des Lacs", "code": "OGL", "searchableText": "ogooue et des lacs ogl" }
   ],
   "byProvince": {
     "prov-1": ["dept-1", "dept-2", "dept-3"],
-    "prov-2": ["dept-4", "dept-5"],
-    "prov-3": ["dept-6", "dept-7"],
-    "prov-4": ["dept-8", "dept-9"],
-    "prov-5": ["dept-10"]
+    "prov-2": ["dept-4", "dept-5", "dept-6"],
+    "prov-3": ["dept-7", "dept-8", "dept-9"]
   }
 }

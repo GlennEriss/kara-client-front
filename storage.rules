@@ -1,10 +1,33 @@
 rules_version = '2';
 
-// Règles pour l'émulateur - permettre tout accès
 service firebase.storage {
   match /b/{bucket}/o {
+    // ==========================================
+    // PHOTOS ET DOCUMENTS D'INSCRIPTION
+    // ==========================================
+    // Permettre l'upload de photos et documents par des utilisateurs non authentifiés
+    // pour le formulaire d'inscription
+    
+    // Photos de profil pour les demandes d'adhésion
+    match /membership-photos/{fileName} {
+      allow read: if true; // Lecture publique pour afficher les photos
+      allow write: if true; // Upload autorisé pour l'inscription
+    }
+    
+    // Documents (recto/verso) pour les demandes d'adhésion
+    match /membership-documents/{userId}/{fileName} {
+      allow read: if true; // Lecture publique pour afficher les documents
+      allow write: if true; // Upload autorisé pour l'inscription
+    }
+    
+    // ==========================================
+    // AUTRES FICHIERS
+    // ==========================================
+    // Par défaut, refuser l'accès aux autres chemins
+    // (les autres règles peuvent être ajoutées ici selon les besoins)
+    
     match /{allPaths=**} {
-      allow read, write: if true;
+      allow read, write: if false; // Refuser par défaut
     }
   }
 }

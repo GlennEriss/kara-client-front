@@ -21,34 +21,36 @@ service cloud.firestore {
     // ==========================================
     // COLLECTIONS GÉOGRAPHIQUES
     // ==========================================
+    // Lecture publique pour permettre le remplissage du formulaire d'inscription
+    // Écriture réservée aux admins
     
     // Provinces
     match /provinces/{provinceId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
       allow write: if isAdmin();
     }
     
     // Départements
     match /departments/{departmentId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
       allow write: if isAdmin();
     }
     
     // Communes
     match /communes/{communeId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
       allow write: if isAdmin();
     }
     
     // Arrondissements
     match /districts/{districtId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
       allow write: if isAdmin();
     }
     
     // Quartiers
     match /quarters/{quarterId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
       allow write: if isAdmin();
     }
     
@@ -79,17 +81,32 @@ service cloud.firestore {
     // ==========================================
     // COLLECTIONS RÉFÉRENTIELS (MÉTIERS)
     // ==========================================
+    // Lecture publique pour permettre le remplissage du formulaire d'inscription
+    // Écriture réservée aux admins
     
     // Entreprises
     match /companies/{companyId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
       allow write: if isAdmin();
     }
     
     // Métiers / Professions
     match /professions/{professionId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
       allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // DEMANDES D'ADHÉSION (MEMBERSHIP REQUESTS)
+    // ==========================================
+    // Permettre la création par des utilisateurs non authentifiés pour l'inscription
+    // Lecture et modification réservées aux admins
+    
+    match /membership-requests/{requestId} {
+      // Permettre la création par n'importe qui (pour l'inscription)
+      allow create: if true;
+      // Lecture et modification réservées aux admins
+      allow read, update, delete: if isAdmin();
     }
     
     // ==========================================

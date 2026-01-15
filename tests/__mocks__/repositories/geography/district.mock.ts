@@ -5,13 +5,20 @@ import { vi } from 'vitest'
 import type { District } from '@/domains/infrastructure/geography/entities/geography.types'
 import type { PaginatedResult } from '@/domains/infrastructure/geography/types/pagination.types'
 
-// Données mock par défaut
+// Données mock par défaut - 3 arrondissements par commune (structure cohérente)
 export const mockDistricts: District[] = [
-  { id: 'dist-1', communeId: 'comm-1', name: 'Centre-Ville 1', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dist-2', communeId: 'comm-1', name: 'Quartier Administratif 1', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dist-3', communeId: 'comm-2', name: 'Zone Industrielle 2', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dist-4', communeId: 'comm-2', name: 'Résidentiel Nord 2', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dist-5', communeId: 'comm-3', name: 'Résidentiel Sud 3', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Ntoum (comm-1)
+  { id: 'dist-1', communeId: 'comm-1', name: 'Centre-Ville', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dist-2', communeId: 'comm-1', name: 'Quartier Administratif', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dist-3', communeId: 'comm-1', name: 'Zone Industrielle', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Cocobeach (comm-2)
+  { id: 'dist-4', communeId: 'comm-2', name: 'Résidentiel Nord', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dist-5', communeId: 'comm-2', name: 'Résidentiel Sud', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dist-6', communeId: 'comm-2', name: 'Commercial', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Kango (comm-3)
+  { id: 'dist-7', communeId: 'comm-3', name: 'Portuaire', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dist-8', communeId: 'comm-3', name: 'Aéroportuaire', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dist-9', communeId: 'comm-3', name: 'Zone Périphérique', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
 ]
 
 // Mock du repository

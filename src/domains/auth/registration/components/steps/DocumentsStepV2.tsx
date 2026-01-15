@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useFormContext } from 'react-hook-form'
 import {
   FileText,
@@ -17,7 +17,7 @@ import {
   Eye,
   CheckCircle2,
   AlertTriangle,
-  IdCard,
+  IdCard,       
   Book,
   Landmark,
   Badge,
@@ -73,7 +73,7 @@ const YEARS_EXPIRY = Array.from({ length: 20 }, (_, i) => ({
 }))
 
 export default function DocumentsStepV2() {
-  const { register, watch, setValue, formState: { errors } } = useFormContext<RegisterFormData>()
+  const { register, watch, setValue, getValues, formState: { errors, isSubmitted } } = useFormContext<RegisterFormData>()
 
   const getPreviewValue = (value: string | File | undefined): string | null => {
     if (typeof value === 'string') return value
@@ -85,30 +85,78 @@ export default function DocumentsStepV2() {
   const [isCompressingFront, setIsCompressingFront] = useState(false)
   const [isCompressingBack, setIsCompressingBack] = useState(false)
 
+  // Fonction helper pour parser les dates
+  const parseDate = (date: string | undefined) => {
+    if (date && date.includes('-')) {
+      const [year, month, day] = date.split('-')
+      return { year: year || '', month: month || '', day: day || '' }
+    }
+    return { year: '', month: '', day: '' }
+  }
+
+  const termsAccepted = watch('documents.termsAccepted')
+  const documentType = watch('documents.identityDocument')
+  const issuingDate = watch('documents.issuingDate')
+  const expirationDate = watch('documents.expirationDate')
+
+  // Initialiser les dates depuis les valeurs du formulaire au montage
+  const initialIssuingDate = getValues('documents.issuingDate')
+  const initialExpirationDate = getValues('documents.expirationDate')
+  const initialParsedIssuing = parseDate(initialIssuingDate)
+  const initialParsedExpiry = parseDate(initialExpirationDate)
+
   // États pour les dates (jour/mois/année séparés)
-  const [issuingDay, setIssuingDay] = useState('')
-  const [issuingMonth, setIssuingMonth] = useState('')
-  const [issuingYear, setIssuingYear] = useState('')
-  const [expiryDay, setExpiryDay] = useState('')
-  const [expiryMonth, setExpiryMonth] = useState('')
-  const [expiryYear, setExpiryYear] = useState('')
+  const [issuingDay, setIssuingDay] = useState(initialParsedIssuing.day)
+  const [issuingMonth, setIssuingMonth] = useState(initialParsedIssuing.month)
+  const [issuingYear, setIssuingYear] = useState(initialParsedIssuing.year)
+  const [expiryDay, setExpiryDay] = useState(initialParsedExpiry.day)
+  const [expiryMonth, setExpiryMonth] = useState(initialParsedExpiry.month)
+  const [expiryYear, setExpiryYear] = useState(initialParsedExpiry.year)
 
   const frontInputRef = useRef<HTMLInputElement>(null)
   const backInputRef = useRef<HTMLInputElement>(null)
 
-  const termsAccepted = watch('documents.termsAccepted')
-  const documentType = watch('documents.identityDocument')
+  // Initialiser les dates depuis les valeurs du formulaire quand elles changent
+  useEffect(() => {
+    // Date de délivrance
+    const currentIssuingDate = issuingDate || getValues('documents.issuingDate')
+    const parsedIssuing = parseDate(currentIssuingDate)
+    if (parsedIssuing.day !== issuingDay || parsedIssuing.month !== issuingMonth || parsedIssuing.year !== issuingYear) {
+      setIssuingYear(parsedIssuing.year)
+      setIssuingMonth(parsedIssuing.month)
+      setIssuingDay(parsedIssuing.day)
+    }
+
+    // Date d'expiration
+    const currentExpirationDate = expirationDate || getValues('documents.expirationDate')
+    const parsedExpiry = parseDate(currentExpirationDate)
+    if (parsedExpiry.day !== expiryDay || parsedExpiry.month !== expiryMonth || parsedExpiry.year !== expiryYear) {
+      setExpiryYear(parsedExpiry.year)
+      setExpiryMonth(parsedExpiry.month)
+      setExpiryDay(parsedExpiry.day)
+    }
+  }, [issuingDate, expirationDate, getValues]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mettre à jour les dates quand les selects changent
   const updateIssuingDate = (day: string, month: string, year: string) => {
     if (day && month && year) {
-      setValue('documents.issuingDate', `${year}-${month}-${day}`, { shouldValidate: true })
+      const newDate = `${year}-${month}-${day}`
+      const currentDate = getValues('documents.issuingDate')
+      // Ne mettre à jour que si la date est différente pour éviter les boucles
+      if (currentDate !== newDate) {
+        setValue('documents.issuingDate', newDate, { shouldValidate: true, shouldDirty: false })
+      }
     }
   }
 
   const updateExpiryDate = (day: string, month: string, year: string) => {
     if (day && month && year) {
-      setValue('documents.expirationDate', `${year}-${month}-${day}`, { shouldValidate: true })
+      const newDate = `${year}-${month}-${day}`
+      const currentDate = getValues('documents.expirationDate')
+      // Ne mettre à jour que si la date est différente pour éviter les boucles
+      if (currentDate !== newDate) {
+        setValue('documents.expirationDate', newDate, { shouldValidate: true, shouldDirty: false })
+      }
     }
   }
 
@@ -307,8 +355,14 @@ export default function DocumentsStepV2() {
           <div className="space-y-2">
             <Label className="text-slate-700 font-semibold text-sm">Type de document *</Label>
             <Select
-              onValueChange={(v) => setValue('documents.identityDocument', v)}
-              defaultValue={documentType}
+              value={documentType}
+              onValueChange={(v) => {
+                setValue('documents.identityDocument', v)
+                // Réinitialiser le champ personnalisé si on change de type
+                if (v !== 'Autre') {
+                  setValue('documents.customDocumentType', '')
+                }
+              }}
             >
               <SelectTrigger className={cn(
                 "h-12 rounded-xl border-2 transition-all bg-white",
@@ -355,6 +409,33 @@ export default function DocumentsStepV2() {
             )}
           </div>
         </div>
+
+        {/* Champ conditionnel pour le type de document personnalisé */}
+        {documentType === 'Autre' && (
+          <div className="space-y-2 animate-in fade-in-0 slide-in-from-top-4 duration-300">
+            <Label className="text-slate-700 font-semibold text-sm flex items-center gap-2">
+              <Clipboard className="w-4 h-4 text-purple-600" />
+              Précisez le nom du document *
+            </Label>
+            <Input
+              {...register('documents.customDocumentType')}
+              placeholder="Ex: Attestation, Permis de conduire, Carte d'étudiant..."
+              className={cn(
+                "h-12 rounded-xl border-2 transition-all bg-white",
+                watch('documents.customDocumentType') 
+                  ? "border-purple-400" 
+                  : "border-purple-200 hover:border-purple-400 focus:border-purple-500",
+                errors.documents?.customDocumentType && "border-red-300"
+              )}
+            />
+            {errors.documents?.customDocumentType && (isSubmitted || watch('documents.customDocumentType')) && (
+              <p className="text-xs text-red-500 mt-1">{errors.documents.customDocumentType.message}</p>
+            )}
+            <p className="text-xs text-slate-500 mt-1">
+              Indiquez le type exact de votre document d'identité
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Photos du document */}
@@ -387,85 +468,103 @@ export default function DocumentsStepV2() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-250">
         {/* Date de délivrance */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-200">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
               <Calendar className="w-4 h-4 text-white" />
             </div>
             <Label className="text-slate-700 font-semibold text-sm">Délivrance *</Label>
           </div>
           
-          <div className="flex gap-2">
-            <Select value={issuingDay} onValueChange={(v) => { setIssuingDay(v); updateIssuingDate(v, issuingMonth, issuingYear) }}>
-              <SelectTrigger className="h-10 rounded-lg border-2 border-blue-200 hover:border-blue-400 bg-white flex-1">
-                <SelectValue placeholder="Jour" />
-              </SelectTrigger>
-              <SelectContent>
-                {DAYS.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Jour</Label>
+              <Select value={issuingDay} onValueChange={(v) => { setIssuingDay(v); updateIssuingDate(v, issuingMonth, issuingYear) }}>
+                <SelectTrigger className="h-11 rounded-lg border-2 border-blue-200 hover:border-blue-400 focus:border-blue-500 bg-white w-full transition-colors">
+                  <SelectValue placeholder="Sélectionnez le jour" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {DAYS.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             
-            <Select value={issuingMonth} onValueChange={(v) => { setIssuingMonth(v); updateIssuingDate(issuingDay, v, issuingYear) }}>
-              <SelectTrigger className="h-10 rounded-lg border-2 border-blue-200 hover:border-blue-400 bg-white flex-[1.5]">
-                <SelectValue placeholder="Mois" />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Mois</Label>
+              <Select value={issuingMonth} onValueChange={(v) => { setIssuingMonth(v); updateIssuingDate(issuingDay, v, issuingYear) }}>
+                <SelectTrigger className="h-11 rounded-lg border-2 border-blue-200 hover:border-blue-400 focus:border-blue-500 bg-white w-full transition-colors">
+                  <SelectValue placeholder="Sélectionnez le mois" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             
-            <Select value={issuingYear} onValueChange={(v) => { setIssuingYear(v); updateIssuingDate(issuingDay, issuingMonth, v) }}>
-              <SelectTrigger className="h-10 rounded-lg border-2 border-blue-200 hover:border-blue-400 bg-white flex-1">
-                <SelectValue placeholder="Année" />
-              </SelectTrigger>
-              <SelectContent>
-                {YEARS_ISSUING.map(y => <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Année</Label>
+              <Select value={issuingYear} onValueChange={(v) => { setIssuingYear(v); updateIssuingDate(issuingDay, issuingMonth, v) }}>
+                <SelectTrigger className="h-11 rounded-lg border-2 border-blue-200 hover:border-blue-400 focus:border-blue-500 bg-white w-full transition-colors">
+                  <SelectValue placeholder="Sélectionnez l'année" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {YEARS_ISSUING.map(y => <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          {errors.documents?.issuingDate && (
-            <p className="text-xs text-red-500 mt-2">{errors.documents.issuingDate.message}</p>
+          {errors.documents?.issuingDate && (issuingDay || issuingMonth || issuingYear) && (
+            <p className="text-xs text-red-500 mt-3 font-medium">{errors.documents.issuingDate.message}</p>
           )}
         </div>
 
         {/* Date d'expiration */}
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 text-white" />
             </div>
             <Label className="text-slate-700 font-semibold text-sm">Expiration *</Label>
           </div>
           
-          <div className="flex gap-2">
-            <Select value={expiryDay} onValueChange={(v) => { setExpiryDay(v); updateExpiryDate(v, expiryMonth, expiryYear) }}>
-              <SelectTrigger className="h-10 rounded-lg border-2 border-amber-200 hover:border-amber-400 bg-white flex-1">
-                <SelectValue placeholder="Jour" />
-              </SelectTrigger>
-              <SelectContent>
-                {DAYS.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Jour</Label>
+              <Select value={expiryDay} onValueChange={(v) => { setExpiryDay(v); updateExpiryDate(v, expiryMonth, expiryYear) }}>
+                <SelectTrigger className="h-11 rounded-lg border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 bg-white w-full transition-colors">
+                  <SelectValue placeholder="Sélectionnez le jour" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {DAYS.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             
-            <Select value={expiryMonth} onValueChange={(v) => { setExpiryMonth(v); updateExpiryDate(expiryDay, v, expiryYear) }}>
-              <SelectTrigger className="h-10 rounded-lg border-2 border-amber-200 hover:border-amber-400 bg-white flex-[1.5]">
-                <SelectValue placeholder="Mois" />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Mois</Label>
+              <Select value={expiryMonth} onValueChange={(v) => { setExpiryMonth(v); updateExpiryDate(expiryDay, v, expiryYear) }}>
+                <SelectTrigger className="h-11 rounded-lg border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 bg-white w-full transition-colors">
+                  <SelectValue placeholder="Sélectionnez le mois" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             
-            <Select value={expiryYear} onValueChange={(v) => { setExpiryYear(v); updateExpiryDate(expiryDay, expiryMonth, v) }}>
-              <SelectTrigger className="h-10 rounded-lg border-2 border-amber-200 hover:border-amber-400 bg-white flex-1">
-                <SelectValue placeholder="Année" />
-              </SelectTrigger>
-              <SelectContent>
-                {YEARS_EXPIRY.map(y => <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Année</Label>
+              <Select value={expiryYear} onValueChange={(v) => { setExpiryYear(v); updateExpiryDate(expiryDay, expiryMonth, v) }}>
+                <SelectTrigger className="h-11 rounded-lg border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 bg-white w-full transition-colors">
+                  <SelectValue placeholder="Sélectionnez l'année" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {YEARS_EXPIRY.map(y => <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          {errors.documents?.expirationDate && (
-            <p className="text-xs text-red-500 mt-2">{errors.documents.expirationDate.message}</p>
+          {errors.documents?.expirationDate && (expiryDay || expiryMonth || expiryYear || isSubmitted) && (
+            <p className="text-xs text-red-500 mt-3 font-medium">{errors.documents.expirationDate.message}</p>
           )}
         </div>
 

@@ -2,13 +2,13 @@
   "provinces": [
     { "id": "prov-1", "code": "EST", "name": "Estuaire", "searchableText": "estuaire est" },
     { "id": "prov-2", "code": "HOG", "name": "Haut-Ogooué", "searchableText": "haut-ogooue hog" },
-    { "id": "prov-3", "code": "MOG", "name": "Moyen-Ogooué", "searchableText": "moyen-ogooue mog" },
-    { "id": "prov-4", "code": "NGO", "name": "Ngounié", "searchableText": "ngounie ngo" },
+    { "id": "prov-3", "code": "MOY", "name": "Moyen-Ogooué", "searchableText": "moyen-ogooue moy" },
+    { "id": "prov-4", "code": "NGU", "name": "Ngounié", "searchableText": "ngounie ngu" },
     { "id": "prov-5", "code": "NYA", "name": "Nyanga", "searchableText": "nyanga nya" },
     { "id": "prov-6", "code": "OGI", "name": "Ogooué-Ivindo", "searchableText": "ogooue-ivindo ogi" },
     { "id": "prov-7", "code": "OGL", "name": "Ogooué-Lolo", "searchableText": "ogooue-lolo ogl" },
     { "id": "prov-8", "code": "OGM", "name": "Ogooué-Maritime", "searchableText": "ogooue-maritime ogm" },
-    { "id": "prov-9", "code": "WOL", "name": "Woleu-Ntem", "searchableText": "woleu-ntem wol" }
+    { "id": "prov-9", "code": "WNT", "name": "Woleu-Ntem", "searchableText": "woleu-ntem wnt" }
   ],
   "pagination": {
     "page1": {
