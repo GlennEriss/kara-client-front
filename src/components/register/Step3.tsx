@@ -24,7 +24,6 @@ import {
   MapPinIcon,
   Building2,
   Home,
-  Navigation,
   Plus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -40,7 +39,7 @@ import { ServiceFactory } from '@/factories/ServiceFactory'
 import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
 import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
 import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
-import type { Province, Commune, District, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
+import type { Province, Commune, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
 import { useQueries } from '@tanstack/react-query'
@@ -106,12 +105,7 @@ const useDebounce = (value: string, delay: number) => {
 }
 
 export default function Step3({ form }: Step3Props) {
-  const [showProfessionSuggestions, setShowProfessionSuggestions] = useState(false)
   const [showSenioritySuggestions, setShowSenioritySuggestions] = useState(false)
-  
-  // États pour les suggestions dynamiques
-  const [professionSuggestions, setProfessionSuggestions] = useState<Suggestion[]>([])
-  const [isLoadingProfessionSuggestions, setIsLoadingProfessionSuggestions] = useState(false)
 
   // État pour l'onglet actif (BD par défaut)
   const [addressTab, setAddressTab] = useState<'database' | 'photon'>('database')
@@ -170,7 +164,7 @@ export default function Step3({ form }: Step3Props) {
     toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
   }
 
-  const handleCompanyDistrictCreated = (newDistricts: any[]) => {
+  const handleCompanyDistrictCreated = (_newDistricts: any[]) => {
     // Après création en masse, rafraîchir la liste des arrondissements
     queryClient.invalidateQueries({ queryKey: ['districts'] })
     // Ne pas sélectionner automatiquement car plusieurs arrondissements ont été créés
@@ -408,42 +402,6 @@ export default function Step3({ form }: Step3Props) {
   }, [watch, clearErrors, errors.company])
 
 
-  // Fonction pour récupérer les suggestions de professions
-  const fetchProfessionSuggestions = useCallback(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-      setProfessionSuggestions([])
-      return
-    }
-
-    setIsLoadingProfessionSuggestions(true)
-    try {
-      const professionService = ServiceFactory.getProfessionService()
-      const result = await professionService.findByName(query)
-      const suggestions: Suggestion[] = []
-      
-      if (result.found && result.profession) {
-        suggestions.push({ name: result.profession.name })
-      }
-      
-      if (result.suggestions) {
-        result.suggestions.forEach(suggestion => {
-          suggestions.push({ name: suggestion })
-        })
-      }
-      
-      // Ajouter l'option de créer une nouvelle profession
-      if (query.trim().length >= 2) {
-        suggestions.push({ name: `Créer "${query}"`, isNew: true })
-      }
-      
-      setProfessionSuggestions(suggestions)
-    } catch (error) {
-      console.error('Erreur lors de la récupération des suggestions de professions:', error)
-      setProfessionSuggestions([])
-    } finally {
-      setIsLoadingProfessionSuggestions(false)
-    }
-  }, [])
 
 
   // Fonction pour rechercher avec Photon API pour l'entreprise
@@ -563,8 +521,6 @@ export default function Step3({ form }: Step3Props) {
     const finalValue = isNew ? value.replace(/^Créer "/, '').replace(/"$/, '') : value
     setValue(field, finalValue)
     
-    
-    if (field === 'company.profession') setShowProfessionSuggestions(false)
     if (field === 'company.seniority') setShowSenioritySuggestions(false)
   }
 

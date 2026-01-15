@@ -6,7 +6,6 @@ import {
   Lightbulb
 } from 'lucide-react'
 
-import useStep1Form from '@/hooks/register/useStep1Form'
 import PhotoIdentityForm from '../identity-form/PhotoIdentityForm'
 import CivilityIdentityForm from '@/components/identity-form/CivilityIdentityForm'
 import LastNameIdentityForm from '@/components/identity-form/LastNameIdentityForm'
@@ -27,7 +26,7 @@ interface Step1Props {
   requestId?: string // ID de la demande pour exclure lors de la vérification des numéros
 }
 
-export default function Step1({ requestId }: Step1Props) {
+export default function Step1({ requestId: _requestId }: Step1Props) {
 
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import { Phone, Shield, Loader2, IdCard, ArrowLeft, ChevronRight, Sparkles, Lock, Zap, CheckCircle2 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
@@ -30,15 +30,11 @@ const step3Schema = z.object({
   otp: z.string().regex(/^\d{6}$/g, 'Code à 6 chiffres requis')
 })
 
-const fullSchema = z.object({
-  matricule: z.string().min(1, "Le matricule est requis"),
-  phoneNumber: z.string().min(8, "Le numéro de téléphone doit contenir au moins 8 chiffres")
-})
 
 type Step1Data = z.infer<typeof step1Schema>
 type Step2Data = z.infer<typeof step2Schema>
 type Step3Data = z.infer<typeof step3Schema>
-type FullFormData = z.infer<typeof fullSchema>
+type FullFormData = Step1Data & Step2Data
 
 export default function LoginMembership() {
   const [isLoading, setIsLoading] = useState(false)
@@ -124,18 +120,6 @@ export default function LoginMembership() {
     setStep(1)
   }
 
-  // Formatage automatique du numéro de téléphone
-  const formatPhoneNumber = (value: string) => {
-    const numbers = value.replace(/\D/g, '')
-    const match = numbers.match(/^(\d{0,3})(\d{0,2})(\d{0,2})(\d{0,2})(\d{0,2})/)
-    if (match) {
-      return [match[1], match[2], match[3], match[4], match[5]]
-        .filter(Boolean)
-        .join(' ')
-        .trim()
-    }
-    return value
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-[#234E64]/5 to-[#234E64]/10 relative overflow-hidden">
@@ -392,7 +376,7 @@ export default function LoginMembership() {
                           const role = await JSON.parse(((auth?.currentUser as any)?.reloadUserInfo?.customAttributes))["role"]
                           const isAdmin = role && ADMIN_ROLES.includes(role)
                           router.push(isAdmin ? routes.admin.dashboard : routes.member.home)
-                        } catch (err) {
+                        } catch {
                           toast.error('Code invalide', { description: 'Veuillez vérifier le code et réessayer.' })
                         } finally {
                           setIsLoading(false)
@@ -470,7 +454,7 @@ export default function LoginMembership() {
                                 const conf = await signInWithPhoneNumber(auth, step2Form.getValues('phoneNumber'), appVerifier)
                                 setConfirmation(conf)
                                 toast.success('Code renvoyé')
-                              } catch (e) {
+                              } catch {
                                 toast.error('Impossible de renvoyer le code')
                               }
                             }}

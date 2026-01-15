@@ -75,6 +75,25 @@ export default defineConfig({
           branches: 80,
           statements: 80,
         },
+        // Seuils spécifiques pour le module registration (objectif: 80%)
+        'src/domains/auth/registration/repositories/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+        'src/domains/auth/registration/services/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+        'src/domains/auth/registration/hooks/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
       },
     },
   },

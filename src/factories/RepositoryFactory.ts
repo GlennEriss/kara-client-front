@@ -47,6 +47,8 @@ import { ICompanyRepository } from '@/domains/infrastructure/references/reposito
 import { CompanyRepository } from '@/domains/infrastructure/references/repositories/CompanyRepository'
 import { IProfessionRepository } from '@/domains/infrastructure/references/repositories/IProfessionRepository'
 import { ProfessionRepository } from '@/domains/infrastructure/references/repositories/ProfessionRepository'
+import { IRegistrationRepository } from '@/domains/auth/registration/repositories/IRegistrationRepository'
+import { RegistrationRepository } from '@/domains/auth/registration/repositories/RegistrationRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -132,6 +134,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new ProfessionRepository())
     }
     return this.repositories.get(key) as IProfessionRepository
+  }
+
+  /**
+   * Obtient le repository des inscriptions
+   */
+  static getRegistrationRepository(): IRegistrationRepository {
+    const key = 'RegistrationRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new RegistrationRepository())
+    }
+    return this.repositories.get(key) as IRegistrationRepository
   }
 
   /**

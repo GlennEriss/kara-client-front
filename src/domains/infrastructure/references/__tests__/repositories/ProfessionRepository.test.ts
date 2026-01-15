@@ -569,6 +569,101 @@ describe('ProfessionRepository', () => {
       expect(result.data).toHaveLength(1)
       expect(result.pagination.totalItems).toBeGreaterThanOrEqual(1)
     })
+
+    it('devrait gérer le cas où getCountFromServer échoue avec une page suivante', async () => {
+      // 11 résultats pour simuler une page suivante
+      const mockDocs = Array.from({ length: 11 }, (_, i) => ({
+        id: `prof-${i}`,
+        data: () => ({
+          name: `Profession ${i}`,
+          normalizedName: `profession ${i}`,
+          createdAt: { toDate: () => new Date() },
+          updatedAt: { toDate: () => new Date() },
+          createdBy: 'admin-1',
+        }),
+      }))
+
+      mockGetDocs.mockResolvedValue({
+        docs: mockDocs,
+        forEach: (callback: any) => mockDocs.forEach(callback),
+      })
+      
+      // getCountFromServer échoue (pas d'index composite)
+      mockGetCountFromServer.mockRejectedValue(new Error('No index'))
+
+      const result = await repository.getPaginated({}, 1, 10)
+
+      // Devrait estimer le total avec page suivante
+      expect(result.data).toHaveLength(10)
+      expect(result.pagination.totalItems).toBeGreaterThanOrEqual(11)
+    })
+
+    it('devrait gérer le cas où il n\'y a pas de curseur pour une page > 1', async () => {
+      // Simuler une page 2 sans curseur en cache
+      const mockDocs = Array.from({ length: 10 }, (_, i) => ({
+        id: `prof-${i}`,
+        data: () => ({
+          name: `Profession ${i}`,
+          normalizedName: `profession ${i}`,
+          createdAt: { toDate: () => new Date() },
+          updatedAt: { toDate: () => new Date() },
+          createdBy: 'admin-1',
+        }),
+      }))
+
+      // Première fois : page 2 sans curseur, devrait revenir à la page 1
+      mockGetDocs.mockResolvedValue({
+        docs: mockDocs,
+        forEach: (callback: any) => mockDocs.forEach(callback),
+      })
+      
+      mockGetCountFromServer.mockResolvedValue({
+        data: () => ({ count: 10 })
+      })
+
+      const result = await repository.getPaginated({}, 2, 10)
+
+      // Devrait retourner la page 1
+      expect(result.pagination.currentPage).toBe(1)
+      expect(result.data).toHaveLength(10)
+    })
+
+    it('devrait gérer le cas où le curseur n\'existe plus', async () => {
+      // Simuler une page 2 avec un curseur qui n'existe plus
+      // D'abord, créer un curseur en cache pour la page 2
+      repository['cursorCache'] = { '{}_2': 'invalid-cursor-id' }
+
+      const mockDocs = Array.from({ length: 10 }, (_, i) => ({
+        id: `prof-${i}`,
+        data: () => ({
+          name: `Profession ${i}`,
+          normalizedName: `profession ${i}`,
+          createdAt: { toDate: () => new Date() },
+          updatedAt: { toDate: () => new Date() },
+          createdBy: 'admin-1',
+        }),
+      }))
+
+      mockDoc.mockReturnValue({})
+      mockGetDoc.mockResolvedValue({
+        exists: () => false, // Le curseur n'existe plus
+      })
+
+      mockGetDocs.mockResolvedValue({
+        docs: mockDocs,
+        forEach: (callback: any) => mockDocs.forEach(callback),
+      })
+      
+      mockGetCountFromServer.mockResolvedValue({
+        data: () => ({ count: 10 })
+      })
+
+      const result = await repository.getPaginated({}, 2, 10)
+
+      // Devrait revenir à la page 1
+      expect(result.pagination.currentPage).toBe(1)
+      expect(result.data).toHaveLength(10)
+    })
   })
 
   describe('update', () => {
@@ -675,7 +770,11 @@ describe('ProfessionRepository', () => {
       
       mockGetDocs
         .mockResolvedValueOnce({ empty: true, docs: [] }) // findByName
-        .mockResolvedValueOnce({ empty: true, docs: [] }) // suggestions
+        .mockResolvedValueOnce({ 
+          empty: true, 
+          docs: [],
+          forEach: (callback: any) => [].forEach(callback),
+        }) // suggestions
       
       mockAddDoc.mockResolvedValue(mockDocRef)
       mockDoc.mockReturnValue({})
@@ -702,7 +801,11 @@ describe('ProfessionRepository', () => {
       
       mockGetDocs
         .mockResolvedValueOnce({ empty: true, docs: [] })
-        .mockResolvedValueOnce({ empty: true, docs: [] })
+        .mockResolvedValueOnce({ 
+          empty: true, 
+          docs: [],
+          forEach: (callback: any) => [].forEach(callback),
+        })
       
       mockAddDoc.mockResolvedValue(mockDocRef)
       mockDoc.mockReturnValue({})
@@ -731,7 +834,11 @@ describe('ProfessionRepository', () => {
     it('devrait propager les erreurs lors de la création', async () => {
       mockGetDocs
         .mockResolvedValueOnce({ empty: true, docs: [] }) // findByName exact
-        .mockResolvedValueOnce({ empty: true, docs: [] }) // findByName suggestions
+        .mockResolvedValueOnce({ 
+          empty: true, 
+          docs: [],
+          forEach: (callback: any) => [].forEach(callback),
+        }) // findByName suggestions
       
       mockCollection.mockReturnValue({})
       mockAddDoc.mockRejectedValue(new Error('Firestore error'))

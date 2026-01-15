@@ -347,7 +347,7 @@ export class ProfessionRepository implements IProfessionRepository {
         const countQuery = query(jobsRef, ...constraints);
         const countSnapshot = await getCountFromServer(countQuery);
         totalItems = countSnapshot.data().count;
-      } catch (countError) {
+      } catch (_countError) {
         // Si getCountFromServer échoue (pas d'index composite), estimer
         // Estimation basique : si on a une page suivante, il y a au moins (page * limit) + 1 éléments
         const hasNextPage = pageData.length === limit && lastDocId !== null;
