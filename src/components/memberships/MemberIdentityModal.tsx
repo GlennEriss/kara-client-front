@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { X, Download, Eye, EyeOff, IdCard, FileImage } from 'lucide-react'
+import { Download, EyeOff, IdCard, FileImage } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -43,7 +43,6 @@ const MemberIdentityModal: React.FC<MemberIdentityModalProps> = ({
 }) => {
   const [showFront, setShowFront] = useState(true)
   const [isDownloading, setIsDownloading] = useState(false)
-  const isMobile = useIsMobile()
 
   // Fonction pour télécharger une image
   const handleDownloadImage = async (url: string, filename: string) => {

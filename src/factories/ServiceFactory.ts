@@ -21,6 +21,10 @@ import { ILoginService } from '@/domains/auth/services/ILoginService'
 import { LoginService } from '@/domains/auth/services/LoginService'
 import { ILogoutService } from '@/domains/auth/services/ILogoutService'
 import { LogoutService } from '@/domains/auth/services/LogoutService'
+import { IRegistrationService } from '@/domains/auth/registration/services/IRegistrationService'
+import { RegistrationService } from '@/domains/auth/registration/services/RegistrationService'
+import { IRegistrationCacheService } from '@/domains/auth/registration/services/IRegistrationCacheService'
+import { RegistrationCacheService } from '@/domains/auth/registration/services/RegistrationCacheService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -218,6 +222,29 @@ export class ServiceFactory {
     const key = 'LogoutService'
     if (!this.services.has(key)) {
       this.services.set(key, new LogoutService())
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service d'inscription
+   */
+  static getRegistrationService(): IRegistrationService {
+    const key = 'RegistrationService'
+    if (!this.services.has(key)) {
+      const registrationRepository = RepositoryFactory.getRegistrationRepository()
+      this.services.set(key, new RegistrationService(registrationRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de cache pour les inscriptions
+   */
+  static getRegistrationCacheService(): IRegistrationCacheService {
+    const key = 'RegistrationCacheService'
+    if (!this.services.has(key)) {
+      this.services.set(key, new RegistrationCacheService())
     }
     return this.services.get(key)
   }

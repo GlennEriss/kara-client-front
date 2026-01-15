@@ -33,6 +33,12 @@ export const InsuranceTypeEnum = z.enum([
 export const documentsSchema = z.object({
   identityDocument: IdentityDocumentEnum,
 
+  // Type de document personnalisé (requis si "Autre" est sélectionné)
+  customDocumentType: z.preprocess(
+    (val) => (typeof val === 'string' ? val.trim() : val || ''),
+    z.string().optional()
+  ),
+
   identityDocumentNumber: z.preprocess(
     (val) => (typeof val === 'string' ? val.trim() : val),
     z.string()
@@ -111,17 +117,36 @@ export const documentsSchema = z.object({
   // Acceptation des conditions (obligatoire)
   termsAccepted: z.boolean()
     .refine((value) => value === true, 'Vous devez accepter les conditions pour continuer')
-}).refine((data) => {
+}).superRefine((data, ctx) => {
   // Validation croisée : la date d'expiration doit être postérieure à la date de délivrance
   if (data.issuingDate && data.expirationDate) {
     const issuingDate = new Date(data.issuingDate)
     const expirationDate = new Date(data.expirationDate)
-    return expirationDate > issuingDate
+    if (expirationDate <= issuingDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La date d\'expiration doit être postérieure à la date de délivrance',
+        path: ['expirationDate']
+      })
+    }
   }
-  return true
-}, {
-  message: 'La date d\'expiration doit être postérieure à la date de délivrance',
-  path: ['expirationDate']
+  
+  // Validation conditionnelle : customDocumentType est requis si identityDocument === 'Autre'
+  if (data.identityDocument === 'Autre') {
+    if (!data.customDocumentType || data.customDocumentType.trim().length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Merci de saisir le type de document',
+        path: ['customDocumentType']
+      })
+    } else if (data.customDocumentType.trim().length > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le type de document ne peut pas dépasser 100 caractères',
+        path: ['customDocumentType']
+      })
+    }
+  }
 })
 
 // ================== SCHÉMA COMPLET ==================
@@ -261,6 +286,7 @@ export const defaultValues = {
   company: companyDefaultValues,
   documents: {
     identityDocument: 'NIP',
+    customDocumentType: '',
     identityDocumentNumber: '',
     documentPhotoFront: undefined as any, // Sera défini lors de l'upload
     documentPhotoBack: undefined,

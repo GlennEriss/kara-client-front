@@ -5,13 +5,20 @@ import { vi } from 'vitest'
 import type { Department } from '@/domains/infrastructure/geography/entities/geography.types'
 import type { PaginatedResult } from '@/domains/infrastructure/geography/types/pagination.types'
 
-// Données mock par défaut
+// Données mock par défaut - 3 départements par province (structure cohérente)
 export const mockDepartments: Department[] = [
-  { id: 'dept-1', provinceId: 'prov-1', name: 'Libreville', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dept-2', provinceId: 'prov-1', name: 'Ntoum', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dept-3', provinceId: 'prov-2', name: 'Franceville', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dept-4', provinceId: 'prov-2', name: 'Lékoni', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'dept-5', provinceId: 'prov-3', name: 'Lambaréné', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Estuaire (prov-1)
+  { id: 'dept-1', provinceId: 'prov-1', name: 'Komo-Mondah', code: 'KMM', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dept-2', provinceId: 'prov-1', name: 'Libreville', code: 'LBV', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dept-3', provinceId: 'prov-1', name: 'Komo-Océan', code: 'KMO', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Haut-Ogooué (prov-2)
+  { id: 'dept-4', provinceId: 'prov-2', name: 'Franceville', code: 'FRV', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dept-5', provinceId: 'prov-2', name: 'Lékoni', code: 'LKN', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dept-6', provinceId: 'prov-2', name: 'Lékabi-Léwolo', code: 'LKL', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  // Moyen-Ogooué (prov-3)
+  { id: 'dept-7', provinceId: 'prov-3', name: 'Lambaréné', code: 'LMB', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dept-8', provinceId: 'prov-3', name: 'Aboumi', code: 'ABM', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'dept-9', provinceId: 'prov-3', name: 'Ogooué et des Lacs', code: 'OGL', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
 ]
 
 // Mock du repository

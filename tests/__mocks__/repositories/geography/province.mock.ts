@@ -5,13 +5,17 @@ import { vi } from 'vitest'
 import type { Province } from '@/domains/infrastructure/geography/entities/geography.types'
 import type { PaginatedResult } from '@/domains/infrastructure/geography/types/pagination.types'
 
-// Données mock par défaut
+// Données mock par défaut - 9 provinces du Gabon
 export const mockProvinces: Province[] = [
   { id: 'prov-1', code: 'EST', name: 'Estuaire', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
   { id: 'prov-2', code: 'HOG', name: 'Haut-Ogooué', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'prov-3', code: 'MOG', name: 'Moyen-Ogooué', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
-  { id: 'prov-4', code: 'NGO', name: 'Ngounié', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'prov-3', code: 'MOY', name: 'Moyen-Ogooué', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'prov-4', code: 'NGU', name: 'Ngounié', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
   { id: 'prov-5', code: 'NYA', name: 'Nyanga', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'prov-6', code: 'OGI', name: 'Ogooué-Ivindo', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'prov-7', code: 'OGL', name: 'Ogooué-Lolo', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'prov-8', code: 'OGM', name: 'Ogooué-Maritime', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
+  { id: 'prov-9', code: 'WNT', name: 'Woleu-Ntem', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test-user' },
 ]
 
 // Mock du repository
