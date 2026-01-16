@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { cleanupGeographyTestData, initializeFirebaseAdmin } from './helpers/firebase-admin';
 
 /**
  * Tests E2E pour le module Géographie
@@ -10,6 +11,8 @@ import { test, expect } from '@playwright/test';
  * - Serveur de développement lancé (pnpm dev)
  * - Utilisateur admin authentifié
  * - Firebase Cloud (projet dev) ou émulateur Firebase
+ * 
+ * Note : Les données de test créées (contenant "Test E2E") sont automatiquement nettoyées après tous les tests
  */
 
 // Identifiants de test
@@ -18,6 +21,31 @@ const TEST_CREDENTIALS = {
   email: process.env.E2E_AUTH_EMAIL || 'glenneriss@gmail.com',
   password: process.env.E2E_AUTH_PASSWORD || '0001.MK.110126',
 };
+
+// Nettoyer les données de test avant et après tous les tests
+test.beforeAll(async () => {
+  try {
+    initializeFirebaseAdmin()
+    const deleted = await cleanupGeographyTestData()
+    if (deleted > 0) {
+      console.log(`\n🧹 Nettoyage pré-test : ${deleted} document(s) de test supprimé(s)`)
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du nettoyage pré-test:', error)
+  }
+});
+
+test.afterAll(async () => {
+  try {
+    initializeFirebaseAdmin()
+    const deleted = await cleanupGeographyTestData()
+    if (deleted > 0) {
+      console.log(`\n🧹 Nettoyage post-test : ${deleted} document(s) de test supprimé(s)`)
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors du nettoyage post-test:', error)
+  }
+});
 
 // Helper pour trouver un élément par son nom dans la liste (utilise data-testid)
 function getEntityNameLocator(page: any, entityType: 'province' | 'department' | 'commune' | 'district' | 'quarter', name: string) {

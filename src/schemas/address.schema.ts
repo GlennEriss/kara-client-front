@@ -2,6 +2,13 @@ import { z } from 'zod'
 
 // ================== STEP 2: ADRESSE ==================
 export const addressSchema = z.object({
+  // IDs pour la persistence lors de la navigation entre étapes
+  provinceId: z.string().optional(),
+  communeId: z.string().optional(),
+  districtId: z.string().optional(),
+  quarterId: z.string().optional(),
+  
+  // Noms pour l'affichage et la validation
   province: z.preprocess(
     (val) => (typeof val === 'string' ? val.trim() : val),
     z.string()
@@ -40,6 +47,10 @@ export type AddressFormData = z.infer<typeof addressSchema>
 
 // ================== VALEURS PAR DÉFAUT ==================
 export const addressDefaultValues: AddressFormData = {
+  provinceId: '',
+  communeId: '',
+  districtId: '',
+  quarterId: '',
   province: '',
   city: '',
   district: '',

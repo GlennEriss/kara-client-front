@@ -39,6 +39,12 @@ export interface RegisterFormData {
     photoPath?: string | null;
   };
   address: {
+    // IDs pour la persistence lors de la navigation entre étapes
+    provinceId?: string;
+    communeId?: string;
+    districtId?: string;
+    quarterId?: string;
+    // Noms pour l'affichage et la validation
     province: string;
     city: string;
     district: string;

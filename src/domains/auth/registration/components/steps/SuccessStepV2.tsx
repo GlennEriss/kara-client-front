@@ -14,7 +14,8 @@ import {
   Clock,
   AlertTriangle,
   Home,
-  LogIn
+  LogIn,
+  PlusCircle
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,14 @@ export default function SuccessStepV2({ userData }: SuccessStepV2Props) {
       `Bonjour, je viens de soumettre ma demande d'inscription à la mutuelle Kara. Je vous envoie la capture d'écran de mon transfert de 10300 FCFA via ${currentProvider} pour finaliser mon inscription.`
     )
     window.open(`https://wa.me/${whatsappNumber.replace(/\s/g, '')}?text=${message}`, '_blank')
+  }
+
+  const handleNewRequest = () => {
+    // Nettoyer toutes les données de localStorage liées à l'inscription
+    localStorage.removeItem('kara-register-submitted')
+    localStorage.removeItem('kara-register-form-v2')
+    // Recharger la page pour réinitialiser complètement le formulaire
+    window.location.reload()
   }
 
   // Formater le message de félicitations
@@ -196,6 +205,14 @@ export default function SuccessStepV2({ userData }: SuccessStepV2Props) {
 
         {/* Boutons d'action */}
         <div className="flex flex-col sm:flex-row gap-3 animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-500">
+          <Button
+            variant="outline"
+            onClick={handleNewRequest}
+            className="flex-1 h-11 border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400"
+          >
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Faire une nouvelle demande
+          </Button>
           <Button
             variant="outline"
             onClick={() => window.location.href = routes.public.homepage}
