@@ -1,10 +1,5 @@
-import { RegisterProvider } from '@/providers/RegisterProvider'
-import Register from '@/components/register/Register'
+import RegistrationFormV2 from '@/domains/auth/registration/components/RegistrationFormV2'
 
 export default function RegisterPage() {
-  return (
-    <RegisterProvider>
-      <Register />
-    </RegisterProvider>
-  )
+  return <RegistrationFormV2 />
 }

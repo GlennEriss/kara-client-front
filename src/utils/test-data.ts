@@ -397,7 +397,8 @@ export async function createTestMembershipRequestPending() {
         documentPhotoFrontURL: `https://ui-avatars.com/api/?name=CNI+Front&background=1F2937&color=fff&size=300&font-size=0.3`,
         documentPhotoFrontPath: null,
         documentPhotoBackURL: `https://ui-avatars.com/api/?name=CNI+Back&background=374151&color=fff&size=300&font-size=0.3`,
-        documentPhotoBackPath: null
+        documentPhotoBackPath: null,
+        termsAccepted: true
       },
       isPaid: true,
       payments: [{
@@ -499,7 +500,8 @@ export async function createTestMembershipRequestUnderReview() {
         documentPhotoFrontURL: `https://ui-avatars.com/api/?name=Passeport+Front&background=1E40AF&color=fff&size=300&font-size=0.3`,
         documentPhotoFrontPath: null,
         documentPhotoBackURL: `https://ui-avatars.com/api/?name=Passeport+Back&background=2563EB&color=fff&size=300&font-size=0.3`,
-        documentPhotoBackPath: null
+        documentPhotoBackPath: null,
+        termsAccepted: true
       },
       isPaid: true,
       payments: [{
@@ -589,7 +591,8 @@ export async function createTestMembershipRequestRejected() {
         documentPhotoFrontURL: `https://ui-avatars.com/api/?name=CNI+Expiré+Front&background=DC2626&color=fff&size=300&font-size=0.25`,
         documentPhotoFrontPath: null,
         documentPhotoBackURL: `https://ui-avatars.com/api/?name=CNI+Expiré+Back&background=EF4444&color=fff&size=300&font-size=0.25`,
-        documentPhotoBackPath: null
+        documentPhotoBackPath: null,
+        termsAccepted: true
       },
       isPaid: false,
       payments: [],
@@ -679,7 +682,8 @@ export async function createTestMembershipRequestApproved() {
         documentPhotoFrontURL: `https://ui-avatars.com/api/?name=Passeport+Valide+Front&background=059669&color=fff&size=300&font-size=0.25`,
         documentPhotoFrontPath: null,
         documentPhotoBackURL: `https://ui-avatars.com/api/?name=Passeport+Valide+Back&background=10B981&color=fff&size=300&font-size=0.25`,
-        documentPhotoBackPath: null
+        documentPhotoBackPath: null,
+        termsAccepted: true
       },
       isPaid: true,
       payments: [{
@@ -777,7 +781,8 @@ export async function createTestMembershipRequestWithFilters() {
         documentPhotoFrontURL: `https://ui-avatars.com/api/?name=CNI+Filtres+Front&background=7C3AED&color=fff&size=300&font-size=0.25`,
         documentPhotoFrontPath: null,
         documentPhotoBackURL: `https://ui-avatars.com/api/?name=CNI+Filtres+Back&background=8B5CF6&color=fff&size=300&font-size=0.25`,
-        documentPhotoBackPath: null
+        documentPhotoBackPath: null,
+        termsAccepted: true
       },
       isPaid: false,
       payments: [],
@@ -858,7 +863,8 @@ export async function createTestMembershipRequestPendingUnpaid() {
         documentPhotoFrontURL: `https://ui-avatars.com/api/?name=CNI+NonPayée+Front&background=D97706&color=fff&size=300&font-size=0.25&length=2`,
         documentPhotoFrontPath: null,
         documentPhotoBackURL: `https://ui-avatars.com/api/?name=CNI+NonPayée+Back&background=F59E0B&color=fff&size=300&font-size=0.25&length=2`,
-        documentPhotoBackPath: null
+        documentPhotoBackPath: null,
+        termsAccepted: true
       },
       isPaid: false,
       payments: [], // Aucun paiement

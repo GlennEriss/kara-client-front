@@ -21,13 +21,13 @@ import { Button } from '@/components/ui/button'
 import { useIsAdminContext } from '@/hooks/useIsAdminContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import AddProvinceModal from '@/components/geographie/modals/AddProvinceModal'
-import AddCommuneModal from '@/components/geographie/modals/AddCommuneModal'
-import AddDistrictModal from '@/components/geographie/modals/AddDistrictModal'
-import AddQuarterModal from '@/components/geographie/modals/AddQuarterModal'
-import type { Province, Commune, District, Quarter, RegisterFormData } from '@/types/types'
+import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
+import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
+import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
+import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
+import type { Province, Commune, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
 import { cn } from '@/lib/utils'
-import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/hooks/useGeographie'
+import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 
 interface Step2Props {
@@ -201,7 +201,7 @@ export default function Step2({ form }: Step2Props) {
     toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
   }
 
-  const handleDistrictCreated = (newDistricts: any[]) => {
+  const handleDistrictCreated = (_newDistricts: any[]) => {
     // Après création en masse, rafraîchir la liste des arrondissements
     queryClient.invalidateQueries({ queryKey: ['districts'] })
     // Ne pas sélectionner automatiquement car plusieurs arrondissements ont été créés

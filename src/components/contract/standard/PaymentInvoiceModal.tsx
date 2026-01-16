@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { FileText, X, Download } from "lucide-react"
+import { FileText, Download } from "lucide-react"
 import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
 import IndividualPaymentInvoice from "./IndividualPaymentInvoice"
 import GroupPaymentInvoice from "./GroupPaymentInvoice"
@@ -228,14 +228,14 @@ export default function PaymentInvoiceModal({
               
               doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
               yPos += imgHeight + 8
-            } catch (error) {
-              doc.setFontSize(9)
-              doc.setFont('helvetica', 'italic')
-              doc.setTextColor(128, 128, 128)
-              doc.text('(Image non disponible)', 14, yPos)
-              yPos += 8
-              doc.setTextColor(0, 0, 0)
-            }
+          } catch {
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'italic')
+            doc.setTextColor(128, 128, 128)
+            doc.text('(Image non disponible)', 14, yPos)
+            yPos += 8
+            doc.setTextColor(0, 0, 0)
+          }
           }
         }
       } else {
@@ -279,7 +279,7 @@ export default function PaymentInvoiceModal({
             }
             
             doc.addImage(imgData, 'JPEG', 14, yPos, imgWidth, imgHeight)
-          } catch (error) {
+          } catch {
             doc.setFontSize(9)
             doc.setFont('helvetica', 'italic')
             doc.setTextColor(128, 128, 128)

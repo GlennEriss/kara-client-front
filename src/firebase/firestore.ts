@@ -1,11 +1,17 @@
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { connectFirestoreEmulator, getFirestore, type Firestore } from 'firebase/firestore';
 import { app } from './app';
 
-export const db = getFirestore(app);
+// Toujours créer db (même avec config mock pour le build)
+export const db: Firestore = getFirestore(app);
 
 /* if (process.env.NODE_ENV === 'development') {
   connectFirestoreEmulator(db, '127.0.0.1', 8080, { mockUserToken: { user_id: 'test-user' } });
 } */
+
+// Helper pour vérifier si Firestore utilise de vraies credentials
+export const isFirestoreAvailable = (): boolean => {
+  return !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+};
 
 export {
   collection,

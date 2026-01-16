@@ -4,6 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 // Met à jour un utilisateur Firebase Auth
 // Body JSON attendu: { uid?: string, phoneNumber?: string, displayName?: string, photoURL?: string, disabled?: boolean }
 export async function POST(req: NextRequest) {
+  // Vérifier si Firebase Admin est disponible
+  if (!adminAuth) {
+    return NextResponse.json(
+      { error: "Firebase Admin non configuré" },
+      { status: 503 }
+    );
+  }
+
   try {
     const { uid, phoneNumber, displayName, photoURL, disabled } = await req.json();
 

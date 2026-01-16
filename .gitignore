@@ -12,6 +12,14 @@
 
 # testing
 /coverage
+/playwright/.auth/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/tests/results/*.json
+/tests/results/test-report.md
+/tests/coverage-reports/
 
 # next.js
 /.next/
@@ -43,6 +51,10 @@ firebase-export-*/
 # env files (can opt-in for committing if needed)
 .env*
 
+# service accounts (sensitive data)
+service-accounts/*.json
+service-accounts/*.pem
+
 # vercel
 .vercel
 
@@ -51,4 +63,4 @@ firebase-export-*/
 next-env.d.ts
 
 # cursor
-.cursor/debug.log
+.cursor/debug.log.pnpm-store

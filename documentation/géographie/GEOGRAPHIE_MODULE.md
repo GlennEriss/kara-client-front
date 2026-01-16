@@ -118,6 +118,31 @@ classDiagram
 - Arrondissement : filtre obligatoire par commune; validation `communeId` existant.
 - Quartier : filtre obligatoire par arrondissement; validation `districtId` existant.
 
+### 6.1. Gestion d'état avec React Query
+- **Invalidation automatique** : Les mutations (create/update/delete) invalident automatiquement les queries concernées via `queryClient.invalidateQueries()`.
+- **Pas de bouton "Actualiser"** : Les données se mettent à jour automatiquement après chaque mutation grâce à l'invalidation des queries.
+- **Optimistic updates** : Les mutations utilisent `onSuccess` pour invalider les queries et mettre à jour l'UI immédiatement.
+- **Cache intelligent** : `staleTime: 5 minutes` et `gcTime: 10 minutes` pour optimiser les performances.
+
+### 6.2. Export CSV
+- **Fonctionnalité** : Chaque liste (Provinces, Départements, Communes, Arrondissements, Quartiers) dispose d'un bouton "Export CSV".
+- **Format** : CSV avec séparateur `;` (point-virgule), encodage UTF-8, valeurs entre guillemets.
+- **Colonnes** : 
+  - Provinces : `Province`, `Code`
+  - Départements : `Département`, `Code`, `Province`
+  - Communes : `Commune`, `Code Postal`, `Département`, `Province`
+  - Arrondissements : `Arrondissement`, `Commune`, `Département`, `Province`
+  - Quartiers : `Quartier`, `Arrondissement`, `Commune`, `Département`, `Province`
+- **Filtrage** : L'export inclut uniquement les éléments filtrés/recherchés (pas tous les éléments de la base).
+- **Nom du fichier** : `provinces.csv`, `departements.csv`, `communes.csv`, `districts.csv`, `quarters.csv`
+
+### 6.3. Design Responsive
+- **Mobile-first** : Le design est optimisé pour mobile avec adaptation progressive vers desktop.
+- **Tabs** : En mobile, les onglets sont en scroll horizontal pour éviter le débordement.
+- **Statistiques** : Grid responsive (2 colonnes mobile, 3 tablette, 5 desktop).
+- **Boutons** : Texte tronqué en mobile ("CSV" au lieu de "Export CSV", "Nouvelle" au lieu de "Nouvelle Province").
+- **Cards** : Layout responsive avec grid adaptatif (1 colonne mobile, 2 tablette, 3 desktop).
+
 ### 7. Stratégie d'implémentation (plan)
 1) Ajouter les types dans `src/types/types.ts` + routes admin.
 2) Créer schémas Zod (`geographie.schema.ts`) pour les cinq formulaires.
@@ -136,3 +161,8 @@ classDiagram
 - Traçabilité : toujours remplir `createdBy/updatedBy` depuis `useAuth`.
 - Note sur Commune/Ville : Le terme "Commune" est utilisé comme entité principale, avec un champ optionnel `alias` pour indiquer si c'est une "Ville" (ex: Libreville peut être une Commune avec alias "Ville").
 
+### 9. Workflow de développement
+- **Pas de refetch manuel** : Utiliser uniquement `invalidateQueries()` dans les mutations, jamais `refetch()` ou `refetchQueries()`.
+- **Pas de bouton "Actualiser"** : Les données se mettent à jour automatiquement après chaque mutation.
+- **Export CSV** : Implémenté dans chaque composant de liste, utilise les données filtrées.
+- **Design responsive** : Tester sur mobile, tablette et desktop avant de valider une PR.

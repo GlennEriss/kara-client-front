@@ -209,7 +209,7 @@ export class NotificationService {
    */
   formatNotificationMessage(type: NotificationType, metadata: any): string {
     switch (type) {
-      case 'birthday_reminder':
+      case 'birthday_reminder': {
         const { memberFirstName, memberLastName, daysUntil, age } = metadata
         if (daysUntil === 2) {
           return `L'anniversaire de ${memberFirstName} ${memberLastName} est dans 2 jours. Il/Elle aura ${age} ans.`
@@ -218,6 +218,7 @@ export class NotificationService {
         } else {
           return `L'anniversaire de ${memberFirstName} ${memberLastName} était hier. Il/Elle a fêté ses ${age} ans.`
         }
+      }
       case 'new_request':
         return `Une nouvelle demande d'adhésion a été soumise.`
       case 'status_update':

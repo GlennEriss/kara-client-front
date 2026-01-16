@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateMembershipRequestStatus, getMembershipRequestById, checkPhoneNumberExists } from "@/db/membership.db";
 import { createUserWithMatricule, addSubscriptionToUser } from "@/db/user.db";
 import { createDefaultSubscription, updateSubscription } from "@/db/subscription.db";
-import { findOrCreateCompany } from "@/db/company.db";
-import { findOrCreateProfession } from "@/db/profession.db";
+import { ServiceFactory } from "@/factories/ServiceFactory";
 import { registerAddress } from "@/db/address.db";
 import type { User, UserRole, MembershipType } from "@/types/types";
 
@@ -25,6 +24,14 @@ function membershipTypeToRole(membershipType: string): UserRole {
 }
 
 export async function POST(req: NextRequest) {
+    // Vérifier si Firebase Admin est disponible
+    if (!adminAuth) {
+        return NextResponse.json(
+            { error: "Firebase Admin non configuré" },
+            { status: 503 }
+        );
+    }
+
     try {
         const { phoneNumber, requestId, adminId, membershipType, companyName, professionName, adhesionPdfURL } = await req.json();
 
@@ -183,7 +190,8 @@ export async function POST(req: NextRequest) {
                         }
                     } : undefined;
                     
-                    const companyResult = await findOrCreateCompany(
+                    const companyService = ServiceFactory.getCompanyService();
+                    const companyResult = await companyService.findOrCreate(
                         finalCompanyName,
                         adminId || 'system',
                         companyAddress
@@ -200,7 +208,8 @@ export async function POST(req: NextRequest) {
             if (professionName || membershipRequest.company?.profession) {
                 try {
                     const finalProfessionName = professionName || membershipRequest.company.profession;
-                    const professionResult = await findOrCreateProfession(
+                    const professionService = ServiceFactory.getProfessionService();
+                    const professionResult = await professionService.findOrCreate(
                         finalProfessionName,
                         adminId || 'system'
                     );

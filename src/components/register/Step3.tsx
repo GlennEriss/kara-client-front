@@ -24,27 +24,25 @@ import {
   MapPinIcon,
   Building2,
   Home,
-  Navigation,
   Plus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { findProfessionByName } from '@/db/profession.db'
-import CompanyCombobox from '@/components/company-form/CompanyCombobox'
-import AddCompanyModal from '@/components/company-form/AddCompanyModal'
-import ProfessionCombobox from '@/components/profession-form/ProfessionCombobox'
-import AddProfessionModal from '@/components/profession-form/AddProfessionModal'
+import CompanyCombobox from '@/domains/infrastructure/references/components/forms/CompanyCombobox'
+import AddCompanyModal from '@/domains/infrastructure/references/components/forms/AddCompanyModal'
+import ProfessionCombobox from '@/domains/infrastructure/references/components/forms/ProfessionCombobox'
+import AddProfessionModal from '@/domains/infrastructure/references/components/forms/AddProfessionModal'
 import { useIsAdminContext } from '@/hooks/useIsAdminContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import AddProvinceModal from '@/components/geographie/modals/AddProvinceModal'
-import AddCommuneModal from '@/components/geographie/modals/AddCommuneModal'
-import AddDistrictModal from '@/components/geographie/modals/AddDistrictModal'
-import AddQuarterModal from '@/components/geographie/modals/AddQuarterModal'
-import type { Province, Commune, District, Quarter } from '@/types/types'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/hooks/useGeographie'
-import { useQueries } from '@tanstack/react-query'
+import AddProvinceModal from '@/domains/infrastructure/geography/components/modals/AddProvinceModal'
 import { ServiceFactory } from '@/factories/ServiceFactory'
+import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
+import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
+import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
+import type { Province, Commune, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
+import { useQueries } from '@tanstack/react-query'
 import { 
   Select,
   SelectContent,
@@ -107,12 +105,7 @@ const useDebounce = (value: string, delay: number) => {
 }
 
 export default function Step3({ form }: Step3Props) {
-  const [showProfessionSuggestions, setShowProfessionSuggestions] = useState(false)
   const [showSenioritySuggestions, setShowSenioritySuggestions] = useState(false)
-  
-  // États pour les suggestions dynamiques
-  const [professionSuggestions, setProfessionSuggestions] = useState<Suggestion[]>([])
-  const [isLoadingProfessionSuggestions, setIsLoadingProfessionSuggestions] = useState(false)
 
   // État pour l'onglet actif (BD par défaut)
   const [addressTab, setAddressTab] = useState<'database' | 'photon'>('database')
@@ -171,7 +164,7 @@ export default function Step3({ form }: Step3Props) {
     toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
   }
 
-  const handleCompanyDistrictCreated = (newDistricts: any[]) => {
+  const handleCompanyDistrictCreated = (_newDistricts: any[]) => {
     // Après création en masse, rafraîchir la liste des arrondissements
     queryClient.invalidateQueries({ queryKey: ['districts'] })
     // Ne pas sélectionner automatiquement car plusieurs arrondissements ont été créés
@@ -409,41 +402,6 @@ export default function Step3({ form }: Step3Props) {
   }, [watch, clearErrors, errors.company])
 
 
-  // Fonction pour récupérer les suggestions de professions
-  const fetchProfessionSuggestions = useCallback(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-      setProfessionSuggestions([])
-      return
-    }
-
-    setIsLoadingProfessionSuggestions(true)
-    try {
-      const result = await findProfessionByName(query)
-      const suggestions: Suggestion[] = []
-      
-      if (result.found && result.profession) {
-        suggestions.push({ name: result.profession.name })
-      }
-      
-      if (result.suggestions) {
-        result.suggestions.forEach(suggestion => {
-          suggestions.push({ name: suggestion })
-        })
-      }
-      
-      // Ajouter l'option de créer une nouvelle profession
-      if (query.trim().length >= 2) {
-        suggestions.push({ name: `Créer "${query}"`, isNew: true })
-      }
-      
-      setProfessionSuggestions(suggestions)
-    } catch (error) {
-      console.error('Erreur lors de la récupération des suggestions de professions:', error)
-      setProfessionSuggestions([])
-    } finally {
-      setIsLoadingProfessionSuggestions(false)
-    }
-  }, [])
 
 
   // Fonction pour rechercher avec Photon API pour l'entreprise
@@ -563,8 +521,6 @@ export default function Step3({ form }: Step3Props) {
     const finalValue = isNew ? value.replace(/^Créer "/, '').replace(/"$/, '') : value
     setValue(field, finalValue)
     
-    
-    if (field === 'company.profession') setShowProfessionSuggestions(false)
     if (field === 'company.seniority') setShowSenioritySuggestions(false)
   }
 
@@ -709,10 +665,40 @@ export default function Step3({ form }: Step3Props) {
         {isEmployed && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
             {/* Nom de l'entreprise */}
-            <CompanyCombobox 
-              form={form} 
-              onAddNew={isAdminContext ? () => setShowAddCompanyModal(true) : undefined}
-            />
+            {isAdminContext ? (
+              <CompanyCombobox 
+                form={form} 
+                onAddNew={() => setShowAddCompanyModal(true)}
+              />
+            ) : (
+              <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200 w-full">
+                <Label htmlFor="companyName" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                  Nom de l'entreprise <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative w-full">
+                  <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
+                  <Input
+                    id="companyName"
+                    {...register('company.companyName')}
+                    placeholder="Ex: Total Gabon, Ministère de la Santé..."
+                    className={cn(
+                      "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                      errors?.company?.companyName && "border-red-300 focus:border-red-500 bg-red-50/50",
+                      watch('company.companyName') && !errors?.company?.companyName && "border-[#CBB171] bg-[#CBB171]/5"
+                    )}
+                  />
+                  {watch('company.companyName') && !errors?.company?.companyName && (
+                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                  )}
+                </div>
+                {errors?.company?.companyName && (
+                  <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{errors.company.companyName.message}</span>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Adresse de l'entreprise avec tabs */}
             <div className="space-y-4 w-full min-w-0">
               <div className="flex items-center space-x-2">
@@ -1264,10 +1250,40 @@ export default function Step3({ form }: Step3Props) {
             {/* Profession et Ancienneté */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 w-full">
               {/* Profession */}
-              <ProfessionCombobox 
-                form={form} 
-                onAddNew={isAdminContext ? () => setShowAddProfessionModal(true) : undefined}
-              />
+              {isAdminContext ? (
+                <ProfessionCombobox 
+                  form={form} 
+                  onAddNew={() => setShowAddProfessionModal(true)}
+                />
+              ) : (
+                <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-500 w-full min-w-0">
+                  <Label htmlFor="profession" className="text-xs sm:text-sm font-medium text-[#224D62]">
+                    Profession <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative w-full min-w-0">
+                    <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] z-10" />
+                    <Input
+                      id="profession"
+                      {...register('company.profession')}
+                      placeholder="Ex: Enseignant, Médecin, Ingénieur..."
+                      className={cn(
+                        "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                        errors?.company?.profession && "border-red-300 focus:border-red-500 bg-red-50/50",
+                        watch('company.profession') && !errors?.company?.profession && "border-[#CBB171] bg-[#CBB171]/5"
+                      )}
+                    />
+                    {watch('company.profession') && !errors?.company?.profession && (
+                      <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200 z-10" />
+                    )}
+                  </div>
+                  {errors?.company?.profession && (
+                    <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-left-2 duration-300 break-words">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.company.profession.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Ancienneté */}
               <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-600 w-full min-w-0">
                 <Label htmlFor="seniority" className="text-xs sm:text-sm font-medium text-[#224D62]">

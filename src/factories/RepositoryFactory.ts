@@ -13,17 +13,16 @@ import { SupportCIRepository } from '@/repositories/caisse-imprevu/SupportCIRepo
 import { EarlyRefundCIRepository } from '@/repositories/caisse-imprevu/EarlyRefundCIRepository'
 import { IAdminRepository } from '@/repositories/admins/IAdminRepository'
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
-import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
-import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { IDocumentRepository } from '@/domains/infrastructure/documents/repositories/IDocumentRepository'
+import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 import { VehicleInsuranceRepository } from '@/repositories/vehicule/VehicleInsuranceRepository'
-import { INotificationRepository } from '@/repositories/notifications/INotificationRepository'
 import { NotificationRepository } from '@/repositories/notifications/NotificationRepository'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
-import { ProvinceRepository } from '@/repositories/geographie/ProvinceRepository'
-import { DepartmentRepository } from '@/repositories/geographie/DepartmentRepository'
-import { CommuneRepository } from '@/repositories/geographie/CommuneRepository'
-import { DistrictRepository } from '@/repositories/geographie/DistrictRepository'
-import { QuarterRepository } from '@/repositories/geographie/QuarterRepository'
+import { ProvinceRepository } from '@/domains/infrastructure/geography/repositories/ProvinceRepository'
+import { DepartmentRepository } from '@/domains/infrastructure/geography/repositories/DepartmentRepository'
+import { CommuneRepository } from '@/domains/infrastructure/geography/repositories/CommuneRepository'
+import { DistrictRepository } from '@/domains/infrastructure/geography/repositories/DistrictRepository'
+import { QuarterRepository } from '@/domains/infrastructure/geography/repositories/QuarterRepository'
 import { ICreditDemandRepository } from '@/repositories/credit-speciale/ICreditDemandRepository'
 import { ICreditContractRepository } from '@/repositories/credit-speciale/ICreditContractRepository'
 import { ICreditPaymentRepository } from '@/repositories/credit-speciale/ICreditPaymentRepository'
@@ -42,6 +41,14 @@ import { IPlacementDemandRepository } from '@/repositories/placement/IPlacementD
 import { PlacementDemandRepository } from '@/repositories/placement/PlacementDemandRepository'
 import { ICaisseImprevueDemandRepository } from '@/repositories/caisse-imprevue/ICaisseImprevueDemandRepository'
 import { CaisseImprevueDemandRepository } from '@/repositories/caisse-imprevue/CaisseImprevueDemandRepository'
+import { IUserRepository } from '@/domains/auth/repositories/IUserRepository'
+import { UserRepository } from '@/domains/auth/repositories/UserRepository'
+import { ICompanyRepository } from '@/domains/infrastructure/references/repositories/ICompanyRepository'
+import { CompanyRepository } from '@/domains/infrastructure/references/repositories/CompanyRepository'
+import { IProfessionRepository } from '@/domains/infrastructure/references/repositories/IProfessionRepository'
+import { ProfessionRepository } from '@/domains/infrastructure/references/repositories/ProfessionRepository'
+import { IRegistrationRepository } from '@/domains/auth/registration/repositories/IRegistrationRepository'
+import { RegistrationRepository } from '@/domains/auth/registration/repositories/RegistrationRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -105,6 +112,39 @@ export class RepositoryFactory {
       this.repositories.set(key, new DocumentRepository())
     }
     return this.repositories.get(key) as IDocumentRepository
+  }
+
+  /**
+   * Obtient le repository des entreprises
+   */
+  static getCompanyRepository(): ICompanyRepository {
+    const key = 'CompanyRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new CompanyRepository())
+    }
+    return this.repositories.get(key) as ICompanyRepository
+  }
+
+  /**
+   * Obtient le repository des professions
+   */
+  static getProfessionRepository(): IProfessionRepository {
+    const key = 'ProfessionRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new ProfessionRepository())
+    }
+    return this.repositories.get(key) as IProfessionRepository
+  }
+
+  /**
+   * Obtient le repository des inscriptions
+   */
+  static getRegistrationRepository(): IRegistrationRepository {
+    const key = 'RegistrationRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new RegistrationRepository())
+    }
+    return this.repositories.get(key) as IRegistrationRepository
   }
 
   /**
@@ -325,6 +365,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new CaisseImprevueDemandRepository())
     }
     return this.repositories.get(key) as ICaisseImprevueDemandRepository
+  }
+
+  /**
+   * Obtient le repository des utilisateurs
+   */
+  static getUserRepository(): IUserRepository {
+    const key = 'UserRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new UserRepository())
+    }
+    return this.repositories.get(key) as IUserRepository
   }
 
   /**

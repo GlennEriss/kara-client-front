@@ -1,0 +1,336 @@
+@startuml CLASSES_CREDIT_SPECIALE
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightPink
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Crédit Spéciale
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class User {
+    + id: string
+    + matricule: string
+    ...
+  }
+  
+  class Document {
+    + id: string
+    + type: DocumentType
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : CREDIT_DEMAND (Demande de crédit)
+' ============================================
+class CreditDemand {
+  + id: string
+  + clientId: string
+  + clientFirstName: string
+  + clientLastName: string
+  + clientContacts: string[]
+  + creditType: CreditType
+  + amount: number
+  + monthlyPaymentAmount?: number
+  + desiredDate: string
+  + cause: string
+  + status: CreditDemandStatus
+  + guarantorId?: string
+  + guarantorFirstName?: string
+  + guarantorLastName?: string
+  + guarantorRelation?: string
+  + guarantorIsMember: boolean
+  + eligibilityOverride?: EligibilityOverride
+  + adminComments?: string
+  + score?: number
+  + scoreUpdatedAt?: Date
+  + contractId?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : ELIGIBILITY_OVERRIDE
+' ============================================
+class EligibilityOverride {
+  + justification: string
+  + adminId: string
+  + adminName: string
+  + createdAt: Date
+}
+
+' ============================================
+' CLASSE : CREDIT_CONTRACT (Contrat de crédit)
+' ============================================
+class CreditContract {
+  + id: string
+  + demandId: string
+  + parentContractId?: string
+  + clientId: string
+  + clientFirstName: string
+  + clientLastName: string
+  + clientContacts: string[]
+  + creditType: CreditType
+  + amount: number
+  + interestRate: number
+  + monthlyPaymentAmount: number
+  + totalAmount: number
+  + duration: number
+  + firstPaymentDate: Date
+  + nextDueAt?: Date
+  + status: CreditContractStatus
+  + amountPaid: number
+  + amountRemaining: number
+  + guarantorId?: string
+  + guarantorFirstName?: string
+  + guarantorLastName?: string
+  + guarantorRelation?: string
+  + guarantorIsMember: boolean
+  + guarantorIsParrain: boolean
+  + guarantorRemunerationPercentage: number
+  + emergencyContact?: EmergencyContact
+  + contractUrl?: string
+  + signedContractUrl?: string
+  + dischargeUrl?: string
+  + activatedAt?: Date
+  + fundsReleasedAt?: Date
+  + dischargedAt?: Date
+  + transformedAt?: Date
+  + extendedAt?: Date
+  + blockedAt?: Date
+  + blockedReason?: string
+  + score?: number
+  + scoreUpdatedAt?: Date
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : CREDIT_INSTALLMENT (Échéance)
+' ============================================
+class CreditInstallment {
+  + id: string
+  + creditId: string
+  + installmentNumber: number
+  + dueDate: Date
+  + principalAmount: number
+  + interestAmount: number
+  + totalAmount: number
+  + paidAmount: number
+  + remainingAmount: number
+  + status: InstallmentStatus
+  + paidAt?: Date
+  + paymentId?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : CREDIT_PAYMENT (Paiement)
+' ============================================
+class CreditPayment {
+  + id: string
+  + creditId: string
+  + installmentId?: string
+  + amount: number
+  + principalAmount: number
+  + interestAmount: number
+  + penaltyAmount: number
+  + paymentDate: Date
+  + paymentTime: string
+  + mode: CreditPaymentMode
+  + proofUrl?: string
+  + comment?: string
+  + note?: number
+  + reference?: string
+  + receiptUrl?: string
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : CREDIT_PENALTY (Pénalité)
+' ============================================
+class CreditPenalty {
+  + id: string
+  + creditId: string
+  + installmentId: string
+  + amount: number
+  + daysLate: number
+  + dueDate: Date
+  + paid: boolean
+  + paidAt?: Date
+  + paymentId?: string
+  + reported: boolean
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : GUARANTOR_REMUNERATION (Rémunération garant)
+' ============================================
+class GuarantorRemuneration {
+  + id: string
+  + creditId: string
+  + guarantorId: string
+  + paymentId: string
+  + amount: number
+  + createdAt: Date
+  + updatedAt: Date
+  + createdBy: string
+  + updatedBy?: string
+}
+
+' ============================================
+' CLASSE : EMERGENCY_CONTACT (Contact d'urgence)
+' ============================================
+class EmergencyContact {
+  + lastName: string
+  + firstName?: string
+  + phone: string
+  + phone2?: string
+  + relationship: string
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum CreditType {
+  SPECIALE
+  FIXE
+  AIDE
+}
+
+enum CreditDemandStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CreditContractStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  SIMULATED
+  ACTIVE
+  OVERDUE
+  PARTIAL
+  TRANSFORMED
+  BLOCKED
+  DISCHARGED
+  CLOSED
+  EXTENDED
+}
+
+enum InstallmentStatus {
+  PENDING
+  DUE
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum CreditPaymentMode {
+  CASH
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CHEQUE
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' CreditDemand peut devenir CreditContract (après validation)
+CreditDemand ..> CreditContract : becomes
+
+' CreditContract référence User (client, agrégation)
+User "1" --> "*" CreditContract : has_credits_as_client
+
+' CreditContract référence User (garant, optionnel, agrégation)
+User "1" --> "0..*" CreditContract : guarantees
+
+' CreditContract peut référencer CreditContract (parent, pour augmentation)
+CreditContract "1" --> "0..*" CreditContract : extends
+
+' CreditContract contient EmergencyContact (composition optionnelle)
+CreditContract *-- EmergencyContact : has
+
+' CreditContract contient EligibilityOverride (composition optionnelle)
+CreditDemand *-- EligibilityOverride : has
+
+' CreditContract a plusieurs CreditInstallment (agrégation)
+CreditContract "1" --> "*" CreditInstallment : has_installments
+
+' CreditContract a plusieurs CreditPayment (agrégation)
+CreditContract "1" --> "*" CreditPayment : has_payments
+
+' CreditInstallment a plusieurs CreditPayment (agrégation)
+CreditInstallment "1" --> "*" CreditPayment : receives
+
+' CreditInstallment a plusieurs CreditPenalty (agrégation)
+CreditInstallment "1" --> "*" CreditPenalty : has_penalties
+
+' CreditContract a plusieurs GuarantorRemuneration (agrégation)
+CreditContract "1" --> "*" GuarantorRemuneration : has_remunerations
+
+' CreditPayment peut payer CreditPenalty (agrégation)
+CreditPayment --> CreditPenalty : pays
+
+' CreditContract référence Document (via contractUrl, etc.)
+CreditContract --> Document : references
+
+' CreditDemand référence User (client, agrégation)
+User "1" --> "*" CreditDemand : creates_demands
+
+note right of CreditContract
+  **Collection Firestore:** credit-contracts
+  Clé primaire: id
+  Index sur: clientId, guarantorId, status, createdAt
+  Types: SPECIALE (crédit spéciale), FIXE (crédit fixe), AIDE (aide)
+end note
+
+note right of CreditDemand
+  **Collection Firestore:** credit-demands
+  Clé primaire: id
+  Index sur: clientId, status, createdAt
+  Relation 1:1 avec CreditContract (contractId)
+end note
+
+note right of CreditInstallment
+  **Sous-collection:** credit-contracts/{creditId}/installments
+  Index sur: creditId, dueDate, installmentNumber
+end note
+
+note right of CreditPayment
+  **Sous-collection:** credit-contracts/{creditId}/payments
+  Index sur: creditId, paymentDate, installmentId
+end note
+
+note right of CreditPenalty
+  **Sous-collection:** credit-contracts/{creditId}/penalties
+  Générée automatiquement en cas de retard de paiement
+end note
+
+note bottom of CreditContract
+  **Transformation:** Après 7 mois, un crédit spéciale peut être transformé en crédit fixe
+  **Extension:** Un contrat peut être étendu (augmentation de crédit) via parentContractId
+  **Garant parrain:** Si guarantorIsParrain=true, rémunération de 2% (par défaut) du montant versé
+end note
+
+@enduml

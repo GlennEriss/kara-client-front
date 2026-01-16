@@ -1,0 +1,122 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function pour vérifier si l'utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function pour vérifier si l'utilisateur est admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.role in ['Admin', 'SuperAdmin'];
+    }
+    
+    // Note: Chaque environnement (dev, preprod, prod) utilise sa propre base de données Firebase,
+    // donc les noms de collections sont identiques dans tous les environnements.
+    // Pas besoin de gérer des suffixes -dev, -preprod, etc.
+    
+    // ==========================================
+    // COLLECTIONS GÉOGRAPHIQUES
+    // ==========================================
+    // Lecture publique pour permettre le remplissage du formulaire d'inscription
+    // Écriture réservée aux admins
+    
+    // Provinces
+    match /provinces/{provinceId} {
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow write: if isAdmin();
+    }
+    
+    // Départements
+    match /departments/{departmentId} {
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow write: if isAdmin();
+    }
+    
+    // Communes
+    match /communes/{communeId} {
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow write: if isAdmin();
+    }
+    
+    // Arrondissements
+    match /districts/{districtId} {
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow write: if isAdmin();
+    }
+    
+    // Quartiers
+    match /quarters/{quarterId} {
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // COLLECTIONS UTILISATEURS
+    // ==========================================
+    
+    // Utilisateurs
+    match /users/{userId} {
+      // Permettre la lecture pour vérifier l'existence lors de la connexion
+      // et pour les utilisateurs authentifiés
+      allow read: if true; // Permettre la lecture publique pour la connexion
+      allow write: if isAdmin();
+    }
+    
+    // Membres
+    match /members/{memberId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // COLLECTIONS RÉFÉRENTIELS (MÉTIERS)
+    // ==========================================
+    // Lecture publique pour permettre le remplissage du formulaire d'inscription
+    // Écriture réservée aux admins
+    
+    // Entreprises
+    match /companies/{companyId} {
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow write: if isAdmin();
+    }
+    
+    // Métiers / Professions
+    match /professions/{professionId} {
+      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // DEMANDES D'ADHÉSION (MEMBERSHIP REQUESTS)
+    // ==========================================
+    // Permettre la création par des utilisateurs non authentifiés pour l'inscription
+    // Lecture et modification réservées aux admins
+    
+    match /membership-requests/{requestId} {
+      // Permettre la création par n'importe qui (pour l'inscription)
+      allow create: if true;
+      // Lecture et modification réservées aux admins
+      allow read, update, delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // AUTRES COLLECTIONS (ajoutez selon vos besoins)
+    // ==========================================
+    
+    // Pour le développement : Autoriser tout si l'utilisateur est authentifié
+    // ATTENTION: À adapter selon vos besoins de sécurité en production
+    match /{document=**} {
+      allow read, write: if false; // Par défaut, refuser tout accès non explicitement autorisé
+    }
+  }
+}

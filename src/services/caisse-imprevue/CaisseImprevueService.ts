@@ -1,11 +1,12 @@
-import { User, Admin, ContractCI, Document, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
+import { User, Admin, ContractCI, PaymentCI, VersementCI, SupportCI, SupportRepaymentCI, EarlyRefundCI, FinalRefundCI, CaisseImprevueDemand, CaisseImprevueDemandFilters, CaisseImprevueDemandStats } from "@/types/types";
+import { Document } from "@/domains/infrastructure/documents/entities/document.types";
 import { ICaisseImprevueService, VersementFormData } from "./ICaisseImprevueService";
 import { IMemberRepository } from "@/repositories/members/IMemberRepository";
 import { SubscriptionCI } from "@/types/types";
 import { ISubscriptionCIRepository } from "@/repositories/caisse-imprevu/ISubscriptionCIRepository";
 import { IContractCIRepository, ContractsCIFilters, ContractsCIStats } from "@/repositories/caisse-imprevu/IContractCIRepository";
 import { IAdminRepository } from "@/repositories/admins/IAdminRepository";
-import { IDocumentRepository } from "@/repositories/documents/IDocumentRepository";
+import { IDocumentRepository } from "@/domains/infrastructure/documents/repositories/IDocumentRepository";
 import { IPaymentCIRepository } from "@/repositories/caisse-imprevu/IPaymentCIRepository";
 import { ISupportCIRepository } from "@/repositories/caisse-imprevu/ISupportCIRepository";
 import { IEarlyRefundCIRepository } from "@/repositories/caisse-imprevu/IEarlyRefundCIRepository";

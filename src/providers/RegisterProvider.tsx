@@ -851,6 +851,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
               documentPhotoFrontPath: request.documents.documentPhotoFrontPath,
               documentPhotoBackURL: request.documents.documentPhotoBackURL,
               documentPhotoBackPath: request.documents.documentPhotoBackPath,
+              termsAccepted: request.documents.termsAccepted ?? false,
             }
           }
 

@@ -9,7 +9,7 @@ import { Phone, User, Users, AlertTriangle, CheckCircle, FileText, IdCard, Uploa
 import { cn } from '@/lib/utils'
 import { EmergencyContactCI } from '@/types/types'
 import SelectApp, { SelectOption } from '@/components/forms/SelectApp'
-import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeLabel } from '@/constantes/document-types'
+import { DOCUMENT_TYPE_OPTIONS, getDocumentTypeLabel } from '@/domains/infrastructure/documents/constants/document-types'
 import { RELATIONSHIP_OPTIONS } from '@/constantes/relationship-types'
 import { getStorageInstance } from '@/firebase/storage'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'

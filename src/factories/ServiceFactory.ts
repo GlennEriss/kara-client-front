@@ -1,5 +1,7 @@
 import { ICompanySuggestionsService } from '@/services/interfaces/IService'
-import { CompanySuggestionsService } from '@/services/suggestions/CompanySuggestionsService'
+import { CompanySuggestionsService } from '@/domains/infrastructure/references/services/CompanySuggestionsService'
+import { CompanyService } from '@/domains/infrastructure/references/services/CompanyService'
+import { ProfessionService } from '@/domains/infrastructure/references/services/ProfessionService'
 import { IFilleulService } from '@/services/filleuls/IFilleulService'
 import { FilleulService } from '@/services/filleuls/FilleulService'
 import { RepositoryFactory } from './RepositoryFactory'
@@ -7,14 +9,22 @@ import { ICaisseImprevueService } from '@/services/caisse-imprevue/ICaisseImprev
 import { CaisseImprevueService } from '@/services/caisse-imprevue/CaisseImprevueService'
 import { VehicleInsuranceService } from '@/services/vehicule/VehicleInsuranceService'
 import { NotificationService } from '@/services/notifications/NotificationService'
-import { GeographieService } from '@/services/geographie/GeographieService'
+import { GeographieService } from '@/domains/infrastructure/geography/services/GeographieService'
 import { PlacementService } from '@/services/placement/PlacementService'
-import { DocumentService } from '@/services/documents/DocumentService'
+import { DocumentService } from '@/domains/infrastructure/documents/services/DocumentService'
 import { ICreditSpecialeService } from '@/services/credit-speciale/ICreditSpecialeService'
 import { CreditSpecialeService } from '@/services/credit-speciale/CreditSpecialeService'
 import { ICaisseSpecialeService } from '@/services/caisse-speciale/ICaisseSpecialeService'
 import { CaisseSpecialeService } from '@/services/caisse-speciale/CaisseSpecialeService'
 import { MembershipService } from '@/services/memberships/MembershipService'
+import { ILoginService } from '@/domains/auth/services/ILoginService'
+import { LoginService } from '@/domains/auth/services/LoginService'
+import { ILogoutService } from '@/domains/auth/services/ILogoutService'
+import { LogoutService } from '@/domains/auth/services/LogoutService'
+import { IRegistrationService } from '@/domains/auth/registration/services/IRegistrationService'
+import { RegistrationService } from '@/domains/auth/registration/services/RegistrationService'
+import { IRegistrationCacheService } from '@/domains/auth/registration/services/IRegistrationCacheService'
+import { RegistrationCacheService } from '@/domains/auth/registration/services/RegistrationCacheService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -23,13 +33,38 @@ export class ServiceFactory {
   private static services = new Map<string, any>()
 
   /**
+   * Obtient le service de gestion des entreprises
+   */
+  static getCompanyService(): CompanyService {
+    const key = 'CompanyService'
+    if (!this.services.has(key)) {
+      const companyRepository = RepositoryFactory.getCompanyRepository()
+      this.services.set(key, new CompanyService(companyRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de gestion des professions
+   */
+  static getProfessionService(): ProfessionService {
+    const key = 'ProfessionService'
+    if (!this.services.has(key)) {
+      const professionRepository = RepositoryFactory.getProfessionRepository()
+      this.services.set(key, new ProfessionService(professionRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
    * Obtient le service de suggestions d'entreprises
    */
   static getCompanySuggestionsService(): ICompanySuggestionsService {
     const key = 'CompanySuggestionsService'
 
     if (!this.services.has(key)) {
-      this.services.set(key, new CompanySuggestionsService())
+      const companyRepository = RepositoryFactory.getCompanyRepository()
+      this.services.set(key, new CompanySuggestionsService(companyRepository))
     }
 
     return this.services.get(key)
@@ -164,6 +199,52 @@ export class ServiceFactory {
     const key = 'MembershipService'
     if (!this.services.has(key)) {
       this.services.set(key, new MembershipService())
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de login/authentification
+   */
+  static getLoginService(): ILoginService {
+    const key = 'LoginService'
+    if (!this.services.has(key)) {
+      const userRepository = RepositoryFactory.getUserRepository()
+      this.services.set(key, new LoginService(userRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de déconnexion
+   */
+  static getLogoutService(): ILogoutService {
+    const key = 'LogoutService'
+    if (!this.services.has(key)) {
+      this.services.set(key, new LogoutService())
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service d'inscription
+   */
+  static getRegistrationService(): IRegistrationService {
+    const key = 'RegistrationService'
+    if (!this.services.has(key)) {
+      const registrationRepository = RepositoryFactory.getRegistrationRepository()
+      this.services.set(key, new RegistrationService(registrationRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service de cache pour les inscriptions
+   */
+  static getRegistrationCacheService(): IRegistrationCacheService {
+    const key = 'RegistrationCacheService'
+    if (!this.services.has(key)) {
+      this.services.set(key, new RegistrationCacheService())
     }
     return this.services.get(key)
   }

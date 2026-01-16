@@ -14,8 +14,9 @@ import { createFile } from '@/db/upload-image.db'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react'
-import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
-import { CaisseContract, DocumentType } from '@/types/types'
+import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
+import { CaisseContract } from '@/types/types'
+import { DocumentType } from '@/domains/infrastructure/documents/entities/document.types'
 
 interface ContractPdfUploadModalProps {
   isOpen: boolean

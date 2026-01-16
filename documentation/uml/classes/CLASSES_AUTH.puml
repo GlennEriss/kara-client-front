@@ -1,0 +1,134 @@
+@startuml CLASSES_AUTH
+!theme plain
+skinparam classAttributeIconSize 0
+
+title Diagramme de Classes - Module Authentification/Login
+
+package "Entities" {
+  class User {
+    +String uid
+    +String email
+    +String matricule
+    +String displayName
+    +String role
+    +Date createdAt
+    +Date updatedAt
+  }
+}
+
+package "Repositories" {
+  interface IUserRepository {
+    +getUserByUid(uid: string): Promise<User | null>
+    +getUserByEmail(email: string): Promise<User | null>
+  }
+  
+  class UserRepository {
+    -Firestore db
+    +getUserByUid(uid: string): Promise<User | null>
+    +getUserByEmail(email: string): Promise<User | null>
+  }
+  
+  IUserRepository <|.. UserRepository
+}
+
+package "Services" {
+  interface ILoginService {
+    +signIn(data: LoginFormData): Promise<string>
+  }
+  
+  class LoginService {
+    -IUserRepository userRepository
+    +signIn(data: LoginFormData): Promise<string>
+    -verifyUserExists(uid: string): Promise<boolean>
+    -authenticateWithFirebase(email: string, password: string): Promise<UserCredential>
+    -validateMatriculeMatch(user: User, matricule: string): void
+  }
+  
+  ILoginService <|.. LoginService
+}
+
+package "Schemas" {
+  class LoginFormData {
+    +String matricule
+    +String email
+    +String password
+  }
+  
+  class MemberLoginSchema {
+    +validate(data: unknown): LoginFormData
+  }
+  
+  class AdminLoginSchema {
+    +validate(data: unknown): AdminLoginFormData
+  }
+}
+
+package "Hooks" {
+  class useLogin {
+    +form: UseFormReturn
+    +mediator: LoginMediator
+    +onSubmit(data: LoginFormData): Promise<void>
+    +onInvalid(errors: FieldErrors): void
+  }
+  
+  class useAuth {
+    +user: User | null
+    +loading: boolean
+    +authenticated: boolean
+  }
+}
+
+package "Components" {
+  class LoginForm {
+    +onSubmit: (data: LoginFormData) => void
+    +isLoading: boolean
+    +errors: FieldErrors
+  }
+  
+  class LoginPage {
+    +variant: "member" | "admin"
+  }
+}
+
+package "Mediators" {
+  class LoginMediator {
+    +form: UseFormReturn
+    +handleSubmit(onSubmit, onInvalid): void
+  }
+}
+
+' Relations
+UserRepository --> User : uses
+LoginService --> IUserRepository : uses
+LoginService --> LoginFormData : uses
+LoginService --> User : returns
+
+useLogin --> LoginService : uses
+useLogin --> LoginFormData : uses
+useLogin --> LoginMediator : uses
+
+LoginForm --> useLogin : uses
+LoginForm --> LoginFormData : uses
+LoginPage --> LoginForm : uses
+
+MemberLoginSchema --> LoginFormData : validates
+AdminLoginSchema --> LoginFormData : validates
+
+useAuth --> User : manages
+
+note right of LoginService
+  **Responsabilités** :
+  - Vérifier l'existence de l'utilisateur
+  - Authentifier avec Firebase
+  - Valider la correspondance matricule/email
+  - Retourner le token ID
+end note
+
+note right of UserRepository
+  **Responsabilités** :
+  - Accéder aux données utilisateur dans Firestore
+  - Gérer les requêtes Firestore
+  - Transformer les données Firestore en entités User
+end note
+
+@enduml

@@ -20,8 +20,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
 import routes from "@/constantes/routes"
-import { auth, signOut } from "@/firebase/auth"
 import { cn } from "@/lib/utils"
+import { useLogout } from "@/domains/auth/hooks"
 
 // Menu items pour l'administration
 type SidebarSubItem = {
@@ -213,6 +213,8 @@ export function AppSidebar() {
     const router = useRouter()
     const pathname = usePathname()
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+    const { logout, isLoading } = useLogout()
+    
     const handleToggleSection = (title: string) => {
         setOpenSections((prev) => ({
             ...prev,
@@ -220,10 +222,13 @@ export function AppSidebar() {
         }))
     }
 
-
     const handleLogout = async () => {
-        await signOut(auth)
-        router.push(routes.public.login)
+        try {
+            await logout()
+        } catch (error) {
+            // L'erreur est déjà gérée dans useLogout
+            console.error('Erreur lors de la déconnexion:', error)
+        }
     }
 
     // Fonction pour détecter si une route est active
@@ -447,9 +452,11 @@ export function AppSidebar() {
                         variant="ghost"
                         className="w-full justify-start text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-300 hover:shadow-lg hover:scale-105 backdrop-blur-sm rounded-xl border border-red-400/20 hover:border-red-400/50 group"
                         onClick={handleLogout}
+                        disabled={isLoading}
+                        data-testid="btn-logout"
                     >
                         <LogOut className="mr-3 h-4 w-4 transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
-                        <span className="font-medium">Se déconnecter</span>
+                        <span className="font-medium">{isLoading ? 'Déconnexion...' : 'Se déconnecter'}</span>
                     </Button>
                 </div>
             </SidebarFooter>

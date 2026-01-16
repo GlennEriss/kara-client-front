@@ -58,12 +58,14 @@ export interface RegisterFormData {
   };
   documents: {
     identityDocument: string;
+    customDocumentType?: string;
     identityDocumentNumber: string;
     documentPhotoFront?: string | File;
     documentPhotoBack?: string | File;
     expirationDate: string;
     issuingPlace: string;
     issuingDate: string;
+    termsAccepted: boolean;
     // Champs ajoutés après upload (pour MembershipRequest)
     documentPhotoFrontURL?: string | null;
     documentPhotoFrontPath?: string | null;

@@ -1,21 +1,22 @@
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { auth } from '@/firebase/auth'
-import { signOut } from 'firebase/auth'
 
 /**
  * Déconnecte l'utilisateur et supprime le cookie d'authentification
+ * 
+ * @deprecated Utilisez useLogout() hook dans les composants React ou LogoutService directement
+ * Cette fonction est conservée pour la compatibilité avec le code existant
  */
 export async function logout() {
   try {
-    // Déconnexion Firebase
-    await signOut(auth)
-    
-    // Supprimer le cookie d'authentification
-    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=strict'
+    const logoutService = ServiceFactory.getLogoutService()
+    await logoutService.logout()
     
     // Redirection vers la page de connexion
     window.location.href = '/login'
   } catch (error) {
     console.error('Erreur lors de la déconnexion:', error)
+    throw error
   }
 }
 
@@ -27,7 +28,10 @@ export async function refreshAuthToken() {
     const user = auth.currentUser
     if (user) {
       const idToken = await user.getIdToken(true) // Force refresh
-      document.cookie = `auth-token=${idToken}; path=/; max-age=3600; secure; samesite=strict`
+      // Cookie secure uniquement en production
+      const isProduction = window.location.protocol === 'https:';
+      const cookieOptions = `path=/; max-age=3600; samesite=strict${isProduction ? '; secure' : ''}`;
+      document.cookie = `auth-token=${idToken}; ${cookieOptions}`;
       return idToken
     }
   } catch (error) {

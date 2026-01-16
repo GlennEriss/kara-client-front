@@ -15,7 +15,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import ContractCIView from './ContractCIView'
 import { getNationalityName } from '@/constantes/nationality'
-import { getDocumentTypeLabel } from '@/constantes/document-types'
+import { getDocumentTypeLabel } from '@/domains/infrastructure/documents/constants/document-types'
 import { Badge } from '@/components/ui/badge'
 
 interface DownloadContractCIModalProps {
