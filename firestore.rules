@@ -100,13 +100,29 @@ service cloud.firestore {
     // DEMANDES D'ADHÉSION (MEMBERSHIP REQUESTS)
     // ==========================================
     // Permettre la création par des utilisateurs non authentifiés pour l'inscription
-    // Lecture et modification réservées aux admins
+    // Lecture publique pour permettre la vérification d'unicité du matricule
+    // Modification et suppression réservées aux admins
     
     match /membership-requests/{requestId} {
       // Permettre la création par n'importe qui (pour l'inscription)
       allow create: if true;
-      // Lecture et modification réservées aux admins
-      allow read, update, delete: if isAdmin();
+      // Lecture publique (nécessaire pour vérifier l'unicité du matricule lors de l'inscription)
+      allow read: if true;
+      // Modification et suppression réservées aux admins
+      allow update, delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // COLLECTION ADMINS
+    // ==========================================
+    // Lecture publique pour permettre la vérification d'unicité du matricule
+    // Écriture réservée aux SuperAdmins
+    
+    match /admins/{adminId} {
+      // Lecture publique (nécessaire pour vérifier l'unicité du matricule)
+      allow read: if true;
+      // Écriture réservée aux SuperAdmins
+      allow write: if isAuthenticated() && request.auth.token.role == 'SuperAdmin';
     }
     
     // ==========================================
