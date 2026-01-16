@@ -700,10 +700,10 @@ export default function CompanyStepV2() {
             <Tabs value={addressTab} onValueChange={(value) => setAddressTab(value as 'database' | 'photon')} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="database" className="text-sm">
-                  Base de données
+                  Recherche manuelle
                 </TabsTrigger>
                 <TabsTrigger value="photon" className="text-sm">
-                  Recherche Photon
+                  Recherche automatique
                 </TabsTrigger>
               </TabsList>
 
