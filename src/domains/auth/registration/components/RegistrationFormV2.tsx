@@ -141,13 +141,25 @@ export default function RegistrationFormV2() {
   }, [currentStep, methods, trigger])
 
   // Aller à l'étape suivante
-  const nextStep = useCallback(async () => {
+  const nextStep = useCallback(async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    // Empêcher la soumission du formulaire
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     const isValid = await validateCurrentStep()
     if (!isValid) return
+
+    // Vérifier explicitement qu'on n'est pas à la dernière étape
+    if (currentStep >= totalSteps) {
+      return // Ne rien faire si on est déjà à la dernière étape
+    }
 
     setCompletedSteps(prev => new Set([...prev, currentStep]))
     saveToCache()
 
+    // Passer à l'étape suivante uniquement si on n'est pas à la dernière
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -155,7 +167,13 @@ export default function RegistrationFormV2() {
   }, [currentStep, totalSteps, validateCurrentStep, saveToCache])
 
   // Aller à l'étape précédente
-  const prevStep = useCallback(() => {
+  const prevStep = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+    // Empêcher la soumission du formulaire
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -267,7 +285,17 @@ export default function RegistrationFormV2() {
 
         {/* Formulaire */}
         <FormProvider {...methods}>
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form 
+            onSubmit={(e) => {
+              // Ne soumettre que si on est vraiment à la dernière étape
+              if (currentStep !== totalSteps) {
+                e.preventDefault()
+                e.stopPropagation()
+                return false
+              }
+              return handleSubmit(onSubmit)(e)
+            }}
+          >
             {/* Contenu de l'étape */}
             <div className="mt-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/50 overflow-hidden animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
               <div
@@ -299,7 +327,11 @@ export default function RegistrationFormV2() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={prevStep}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    prevStep(e)
+                  }}
                   disabled={currentStep === 1}
                   className={cn(
                     "flex-1 sm:flex-none border-slate-200",
@@ -313,7 +345,11 @@ export default function RegistrationFormV2() {
                 {currentStep < totalSteps ? (
                   <Button
                     type="button"
-                    onClick={nextStep}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      nextStep(e)
+                    }}
                     className="flex-1 sm:flex-none bg-linear-to-r from-kara-primary-dark to-kara-primary-dark/90 hover:from-kara-primary-dark/90 hover:to-kara-primary-dark/80 text-white shadow-lg shadow-kara-primary-dark/20"
                   >
                     Suivant
