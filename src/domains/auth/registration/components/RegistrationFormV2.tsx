@@ -51,6 +51,11 @@ export default function RegistrationFormV2() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
+  const [submittedUserData, setSubmittedUserData] = useState<{
+    firstName?: string
+    lastName?: string
+    civility?: string
+  } | null>(null)
 
   const totalSteps = STEPS.length
 
@@ -64,8 +69,33 @@ export default function RegistrationFormV2() {
 
   const { handleSubmit, trigger } = methods
 
-  // Charger les données du cache au montage (une seule fois)
+  // Vérifier si une demande a déjà été soumise avec succès au montage
   useEffect(() => {
+    try {
+      const submittedData = localStorage.getItem('kara-register-submitted')
+      if (submittedData) {
+        const { userData, timestamp } = JSON.parse(submittedData)
+        // Vérifier si le cache n'a pas expiré (7 jours)
+        const weekInMs = 7 * 24 * 60 * 60 * 1000
+        if (Date.now() - timestamp < weekInMs) {
+          setIsSubmitted(true)
+          setSubmittedUserData(userData || null)
+          return // Ne pas charger les données du formulaire si une demande a été soumise
+        } else {
+          // Supprimer les données expirées
+          localStorage.removeItem('kara-register-submitted')
+        }
+      }
+    } catch {
+      // Ignorer les erreurs de parsing
+    }
+  }, [])
+
+  // Charger les données du cache au montage (une seule fois) - seulement si pas de demande soumise
+  useEffect(() => {
+    // Ne pas charger le formulaire si une demande a déjà été soumise
+    if (isSubmitted) return
+
     let isMounted = true
     try {
       const cached = localStorage.getItem('kara-register-form-v2')
@@ -76,7 +106,7 @@ export default function RegistrationFormV2() {
         if (Date.now() - timestamp < weekInMs) {
           // Utiliser setTimeout pour s'assurer que le formulaire est prêt
           setTimeout(() => {
-            if (isMounted) {
+            if (isMounted && !isSubmitted) {
               methods.reset(data)
               setCurrentStep(step || 1)
               setCompletedSteps(new Set(completed || []))
@@ -90,7 +120,7 @@ export default function RegistrationFormV2() {
     return () => {
       isMounted = false
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isSubmitted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sauvegarder automatiquement dans le cache
   const saveToCache = useCallback(() => {
@@ -202,14 +232,31 @@ export default function RegistrationFormV2() {
       // Appeler le service d'inscription pour créer le document dans Firestore
       const membershipId = await registrationService.submitRegistration(data)
       
+      // Préparer les données utilisateur pour la page de succès
+      const userData = {
+        firstName: data.identity.firstName,
+        lastName: data.identity.lastName,
+        civility: data.identity.civility,
+      }
+      
       // Afficher un message de succès avec le matricule
       toast.success('Inscription réussie !', {
         description: `Votre demande a été enregistrée. Matricule: ${membershipId}`,
         duration: 5000,
       })
       
-      setIsSubmitted(true)
+      // Sauvegarder l'état de soumission dans localStorage pour persister la page de succès
+      localStorage.setItem('kara-register-submitted', JSON.stringify({
+        userData,
+        membershipId,
+        timestamp: Date.now(),
+      }))
+      
+      // Nettoyer le cache du formulaire
       localStorage.removeItem('kara-register-form-v2')
+      
+      setIsSubmitted(true)
+      setSubmittedUserData(userData)
     } catch (error) {
       console.error('[RegistrationFormV2] ❌ ERREUR lors de la soumission:', error)
       
@@ -245,7 +292,13 @@ export default function RegistrationFormV2() {
 
   // Affichage de la page de succès
   if (isSubmitted) {
-    return <SuccessStepV2 userData={methods.getValues('identity')} />
+    // Utiliser les données sauvegardées ou celles du formulaire en dernier recours
+    const userDataToShow = submittedUserData || {
+      firstName: methods.getValues('identity.firstName'),
+      lastName: methods.getValues('identity.lastName'),
+      civility: methods.getValues('identity.civility'),
+    }
+    return <SuccessStepV2 userData={userDataToShow} />
   }
 
   return (
