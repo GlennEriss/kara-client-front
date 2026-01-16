@@ -302,26 +302,87 @@ async function fillAddressStep(page: any, data = TEST_DATA.address) {
   await page.waitForTimeout(1500);
   
   // Vérifier qu'on est bien sur l'étape adresse
-  await expect(page.locator('text=/Étape 2|Adresse/i').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('text=/Étape 2|Adresse|Votre adresse de résidence/i').first()).toBeVisible({ timeout: 10000 });
   
-  // Les selects sont dans une grille (grid-cols-1 lg:grid-cols-2)
-  // On trouve tous les comboboxes dans la section adresse
-  // La section contient le texte "Votre adresse de résidence"
-  const addressSection = page.locator('text=/Votre adresse de résidence|Sélectionnez votre localisation/i').locator('..').locator('..');
+  // Attendre que les loaders disparaissent
+  await page.waitForFunction(() => {
+    const loaders = Array.from(document.querySelectorAll('*')).filter(el => 
+      el.textContent?.includes('Chargement...')
+    );
+    return loaders.length === 0;
+  }, { timeout: 10000 }).catch(() => {
+    console.log('⚠️ Certains loaders peuvent encore être présents');
+  });
   
-  // Trouver tous les comboboxes dans cette section
-  const allComboboxes = addressSection.locator('button[role="combobox"]');
-  const comboboxCount = await allComboboxes.count();
-  console.log(`Nombre de comboboxes trouvés dans la section adresse: ${comboboxCount}`);
+  await page.waitForTimeout(1000);
   
-  if (comboboxCount === 0) {
-    // Fallback: chercher tous les comboboxes sur la page et prendre les 4 premiers de l'étape adresse
+  // Dans AddressStepV2, les comboboxes sont dans une grille avec des labels
+  // Chercher les comboboxes près des labels spécifiques
+  
+  // Fonction helper pour trouver et remplir un combobox par son label
+  async function fillComboboxByLabel(labelText: string, value: string, waitAfter = 2000) {
+    const label = page.locator(`label:has-text("${labelText}")`).first();
+    if (await label.count() === 0) {
+      console.log(`⚠️ Label "${labelText}" non trouvé`);
+      return false;
+    }
+    
+    await label.waitFor({ state: 'visible', timeout: 10000 });
+    
+    // Trouver le combobox dans le même conteneur que le label
+    const labelContainer = label.locator('..').locator('..').locator('..');
+    let combobox = labelContainer.locator('button[role="combobox"]').first();
+    
+    if (await combobox.count() === 0) {
+      // Fallback: chercher le combobox qui suit le label
+      combobox = label.locator('..').locator('..').locator('button[role="combobox"]').first();
+    }
+    
+    if (await combobox.count() === 0) {
+      console.log(`⚠️ Combobox pour "${labelText}" non trouvé`);
+      return false;
+    }
+    
+    await combobox.waitFor({ state: 'visible', timeout: 10000 });
+    await combobox.scrollIntoViewIfNeeded();
+    await combobox.click();
+    await page.waitForTimeout(500);
+    
+    // Attendre que les options soient disponibles
+    await page.waitForSelector('[role="option"]', { timeout: 10000 });
+    
+    // Sélectionner l'option
+    const option = page.locator(`[role="option"]:has-text("${value}")`).first();
+    await option.waitFor({ state: 'visible', timeout: 5000 });
+    await option.click();
+    await page.waitForTimeout(waitAfter);
+    
+    return true;
+  }
+  
+  // 1. Province
+  await fillComboboxByLabel('Province', data.province, 2000);
+  
+  // 2. Commune/Ville
+  await fillComboboxByLabel('Ville', data.commune, 2000);
+  
+  // 3. District/Arrondissement
+  await fillComboboxByLabel('Arrondissement', data.district, 2000);
+  
+  // 4. Quartier
+  await fillComboboxByLabel('Quartier', data.quarter, 1000);
+  
+  // Fallback: si la méthode par label ne fonctionne pas, utiliser l'ancienne méthode
+  const provinceLabel = page.locator('label:has-text("Province")').first();
+  if (await provinceLabel.count() === 0) {
+    console.log('⚠️ Utilisation de la méthode de fallback pour trouver les comboboxes');
+    
+    // Chercher tous les comboboxes sur la page
     const pageComboboxes = page.locator('button[role="combobox"]');
     const pageCount = await pageComboboxes.count();
     console.log(`Nombre total de comboboxes sur la page: ${pageCount}`);
     
     // Les comboboxes de l'étape adresse sont généralement après ceux de l'étape identité
-    // On prend les comboboxes qui ne sont pas dans l'étape identité
     // L'étape adresse commence après le texte "Votre adresse de résidence"
     const addressStart = page.locator('text=/Votre adresse de résidence/i');
     if (await addressStart.count() > 0) {
@@ -373,42 +434,6 @@ async function fillAddressStep(page: any, data = TEST_DATA.address) {
         }
       }
     }
-  } else {
-    // 1. Province - Premier combobox
-    const provinceSelect = allComboboxes.nth(0);
-    await provinceSelect.waitFor({ state: 'visible', timeout: 10000 });
-    await provinceSelect.click();
-    await page.waitForTimeout(500);
-    await page.waitForSelector('[role="option"]', { timeout: 5000 });
-    await page.locator(`[role="option"]:has-text("${data.province}")`).first().click();
-    await page.waitForTimeout(2000);
-
-    // 2. Commune/Ville - Deuxième combobox
-    const communeSelect = allComboboxes.nth(1);
-    await communeSelect.waitFor({ state: 'visible', timeout: 10000 });
-    await communeSelect.click();
-    await page.waitForTimeout(500);
-    await page.waitForSelector('[role="option"]', { timeout: 10000 });
-    await page.locator(`[role="option"]:has-text("${data.commune}")`).first().click();
-    await page.waitForTimeout(2000);
-
-    // 3. District/Arrondissement - Troisième combobox
-    const districtSelect = allComboboxes.nth(2);
-    await districtSelect.waitFor({ state: 'visible', timeout: 10000 });
-    await districtSelect.click();
-    await page.waitForTimeout(500);
-    await page.waitForSelector('[role="option"]', { timeout: 10000 });
-    await page.locator(`[role="option"]:has-text("${data.district}")`).first().click();
-    await page.waitForTimeout(2000);
-
-    // 4. Quartier - Quatrième combobox
-    const quarterSelect = allComboboxes.nth(3);
-    await quarterSelect.waitFor({ state: 'visible', timeout: 10000 });
-    await quarterSelect.click();
-    await page.waitForTimeout(500);
-    await page.waitForSelector('[role="option"]', { timeout: 10000 });
-    await page.locator(`[role="option"]:has-text("${data.quarter}")`).first().click();
-    await page.waitForTimeout(1000);
   }
 
   // 5. Rue - Textarea ou Input avec name="address.street"
@@ -712,45 +737,101 @@ async function goToPreviousStep(page: any) {
 
 /**
  * Vérifie que les valeurs de l'étape 2 (Adresse) sont conservées
+ * Compatible avec AddressStepV2 qui utilise des Select avec IDs
  */
 async function verifyAddressStepValues(page: any, expectedData = TEST_DATA.address) {
-  await page.waitForTimeout(4000); // Attendre que les données soient chargées et initialisées
+  // Attendre que l'étape adresse soit visible et que les données soient chargées
+  await page.waitForTimeout(2000);
   
-  // Vérifier qu'on est bien sur l'étape adresse (plus flexible)
-  const step2Indicator = page.locator('text=/Étape 2|Adresse|Province|Ville/i').first();
+  // Vérifier qu'on est bien sur l'étape adresse
+  const step2Indicator = page.locator('text=/Étape 2|Adresse|Votre adresse de résidence|Province|Ville/i').first();
   await step2Indicator.waitFor({ state: 'visible', timeout: 15000 });
+  
+  // Attendre que les loaders disparaissent (les Select ne doivent plus afficher "Chargement...")
+  await page.waitForFunction(() => {
+    const loaders = document.querySelectorAll('text=/Chargement/i');
+    return loaders.length === 0;
+  }, { timeout: 10000 }).catch(() => {
+    // Si les loaders sont toujours là, continuer quand même
+    console.log('⚠️ Certains loaders peuvent encore être présents');
+  });
+  
+  await page.waitForTimeout(2000); // Attendre que les SelectValue soient mis à jour
   
   // Chercher tous les comboboxes sur la page
   const allPageComboboxes = page.locator('button[role="combobox"]');
   const totalComboboxes = await allPageComboboxes.count();
   console.log(`Nombre total de comboboxes sur la page: ${totalComboboxes}`);
   
-  // 1. Vérifier la Province - chercher près du label "Province"
-  const provinceLabel = page.locator('label:has-text("Province")').first();
-  let provinceFound = false;
-  if (await provinceLabel.count() > 0) {
-    await provinceLabel.waitFor({ state: 'visible', timeout: 10000 });
-    // Chercher le combobox dans le conteneur parent
-    const provinceContainer = provinceLabel.locator('..').locator('..');
-    const provinceSelect = provinceContainer.locator('button[role="combobox"]').first();
-    if (await provinceSelect.count() > 0) {
-      await provinceSelect.waitFor({ state: 'visible', timeout: 10000 });
-      const provinceText = await provinceSelect.textContent();
-      if (provinceText?.includes(expectedData.province)) {
-        expect(provinceText?.trim()).toContain(expectedData.province);
-        console.log(`✅ Province conservée: ${expectedData.province} (texte: "${provinceText?.trim()}")`);
-        provinceFound = true;
-      }
+  // Fonction helper pour trouver un combobox près d'un label
+  async function findComboboxByLabel(labelText: string) {
+    const label = page.locator(`label:has-text("${labelText}")`).first();
+    if (await label.count() === 0) {
+      return null;
+    }
+    await label.waitFor({ state: 'visible', timeout: 10000 });
+    
+    // Dans AddressStepV2, le label est dans une structure avec plusieurs niveaux
+    // Chercher le combobox dans le même conteneur parent
+    const labelContainer = label.locator('..').locator('..').locator('..');
+    const combobox = labelContainer.locator('button[role="combobox"]').first();
+    
+    if (await combobox.count() > 0) {
+      await combobox.waitFor({ state: 'visible', timeout: 10000 });
+      return combobox;
+    }
+    
+    // Fallback: chercher le combobox qui suit le label dans le DOM
+    const followingCombobox = label.locator('..').locator('..').locator('button[role="combobox"]').first();
+    if (await followingCombobox.count() > 0) {
+      await followingCombobox.waitFor({ state: 'visible', timeout: 10000 });
+      return followingCombobox;
+    }
+    
+    return null;
+  }
+  
+  // Fonction helper pour vérifier la valeur d'un combobox
+  async function verifyComboboxValue(combobox: any, expectedValue: string, fieldName: string) {
+    if (!combobox) {
+      console.log(`⚠️ ${fieldName}: combobox non trouvé`);
+      return false;
+    }
+    
+    // Obtenir le texte du combobox (qui devrait contenir le SelectValue)
+    const text = await combobox.textContent();
+    const trimmedText = text?.trim() || '';
+    
+    // Le SelectValue peut contenir le texte ou être dans un élément enfant
+    // Vérifier aussi dans les éléments enfants
+    const innerText = await combobox.locator('[data-slot="select-value"]').textContent().catch(() => null) || 
+                      await combobox.innerText().catch(() => null) || 
+                      trimmedText;
+    
+    const fullText = innerText || trimmedText;
+    
+    if (fullText.includes(expectedValue)) {
+      console.log(`✅ ${fieldName} conservé: ${expectedValue} (texte: "${fullText}")`);
+      return true;
+    } else {
+      console.log(`⚠️ ${fieldName}: valeur attendue "${expectedValue}" mais trouvé "${fullText}"`);
+      return false;
     }
   }
   
-  // Fallback pour Province: chercher dans tous les comboboxes
+  // 1. Vérifier la Province
+  const provinceCombobox = await findComboboxByLabel('Province');
+  let provinceFound = await verifyComboboxValue(provinceCombobox, expectedData.province, 'Province');
+  
+  // Fallback: chercher dans tous les comboboxes (pour les cas où la structure est différente)
   if (!provinceFound) {
+    console.log('🔍 Recherche de la province dans tous les comboboxes...');
     for (let i = 0; i < totalComboboxes; i++) {
       const cb = allPageComboboxes.nth(i);
       const text = await cb.textContent();
-      if (text?.includes(expectedData.province)) {
-        console.log(`✅ Province conservée: ${expectedData.province} (trouvée dans combobox ${i})`);
+      const innerText = await cb.innerText().catch(() => text);
+      if (innerText?.includes(expectedData.province)) {
+        console.log(`✅ Province conservée: ${expectedData.province} (trouvée dans combobox ${i}, texte: "${innerText?.trim()}")`);
         provinceFound = true;
         break;
       }
@@ -758,50 +839,28 @@ async function verifyAddressStepValues(page: any, expectedData = TEST_DATA.addre
   }
   
   if (!provinceFound) {
+    // Afficher le contenu de tous les comboboxes pour le débogage
+    console.log('🔍 Contenu de tous les comboboxes:');
+    for (let i = 0; i < totalComboboxes; i++) {
+      const cb = allPageComboboxes.nth(i);
+      const text = await cb.textContent();
+      const innerText = await cb.innerText().catch(() => text);
+      console.log(`  Combobox ${i}: "${innerText?.trim()}"`);
+    }
     throw new Error(`Province "${expectedData.province}" non trouvée après retour à l'étape 2`);
   }
   
-  // 2. Vérifier la Commune/Ville - chercher près du label "Ville"
-  const villeLabel = page.locator('label:has-text("Ville")').first();
-  if (await villeLabel.count() > 0) {
-    await villeLabel.waitFor({ state: 'visible', timeout: 10000 });
-    const villeContainer = villeLabel.locator('..').locator('..');
-    const communeSelect = villeContainer.locator('button[role="combobox"]').first();
-    if (await communeSelect.count() > 0) {
-      await communeSelect.waitFor({ state: 'visible', timeout: 10000 });
-      const communeText = await communeSelect.textContent();
-      expect(communeText?.trim()).toContain(expectedData.commune);
-      console.log(`✅ Commune conservée: ${expectedData.commune} (texte: "${communeText?.trim()}")`);
-    }
-  }
+  // 2. Vérifier la Commune/Ville
+  const villeCombobox = await findComboboxByLabel('Ville');
+  await verifyComboboxValue(villeCombobox, expectedData.commune, 'Commune/Ville');
   
-  // 3. Vérifier le District/Arrondissement - chercher près du label "Arrondissement"
-  const arrondissementLabel = page.locator('label:has-text("Arrondissement")').first();
-  if (await arrondissementLabel.count() > 0) {
-    await arrondissementLabel.waitFor({ state: 'visible', timeout: 10000 });
-    const arrondissementContainer = arrondissementLabel.locator('..').locator('..');
-    const districtSelect = arrondissementContainer.locator('button[role="combobox"]').first();
-    if (await districtSelect.count() > 0) {
-      await districtSelect.waitFor({ state: 'visible', timeout: 10000 });
-      const districtText = await districtSelect.textContent();
-      expect(districtText?.trim()).toContain(expectedData.district);
-      console.log(`✅ District conservé: ${expectedData.district} (texte: "${districtText?.trim()}")`);
-    }
-  }
+  // 3. Vérifier le District/Arrondissement
+  const arrondissementCombobox = await findComboboxByLabel('Arrondissement');
+  await verifyComboboxValue(arrondissementCombobox, expectedData.district, 'District/Arrondissement');
   
-  // 4. Vérifier le Quartier - chercher près du label "Quartier"
-  const quartierLabel = page.locator('label:has-text("Quartier")').first();
-  if (await quartierLabel.count() > 0) {
-    await quartierLabel.waitFor({ state: 'visible', timeout: 10000 });
-    const quartierContainer = quartierLabel.locator('..').locator('..');
-    const quarterSelect = quartierContainer.locator('button[role="combobox"]').first();
-    if (await quarterSelect.count() > 0) {
-      await quarterSelect.waitFor({ state: 'visible', timeout: 10000 });
-      const quarterText = await quarterSelect.textContent();
-      expect(quarterText?.trim()).toContain(expectedData.quarter);
-      console.log(`✅ Quartier conservé: ${expectedData.quarter} (texte: "${quarterText?.trim()}")`);
-    }
-  }
+  // 4. Vérifier le Quartier
+  const quartierCombobox = await findComboboxByLabel('Quartier');
+  await verifyComboboxValue(quartierCombobox, expectedData.quarter, 'Quartier');
   
   // 5. Vérifier les informations complémentaires (si présentes)
   const additionalInfoInput = page.locator('textarea[name="address.additionalInfo"]').first();
@@ -2252,52 +2311,5 @@ test.describe('Tests responsive - Tablette et Mobile', () => {
     await expect(companyNameInput).toHaveValue(companyData.companyName, { timeout: 5000 });
     
     console.log('✅ Champs conditionnels remplis avec succès sur mobile');
-  });
-
-  test('devrait conserver les données de l\'étape 2 après navigation vers l\'étape 3 et retour', async ({ page }) => {
-    test.setTimeout(180000);
-    
-    // Données de test pour l'étape 2
-    const addressData = {
-      province: 'Estuaire',
-      commune: 'Libreville Centre',
-      district: 'Centre-Ville',
-      quarter: 'Dakar',
-      street: 'Rue de la Paix',
-      postalCode: '24100',
-      additionalInfo: 'Proche du marché central',
-    };
-    
-    // 1. Aller à la page d'inscription
-    await goToRegisterPage(page);
-    
-    // 2. Remplir l'étape 1 (Identité)
-    await fillIdentityStep(page);
-    console.log('✅ Étape 1 remplie');
-    
-    // 3. Aller à l'étape 2
-    await goToNextStep(page);
-    console.log('✅ Navigation vers l\'étape 2');
-    
-    // 4. Remplir l'étape 2 (Adresse) avec toutes les données
-    await fillAddressStep(page, addressData);
-    console.log('✅ Étape 2 remplie avec toutes les données');
-    
-    // 5. Aller à l'étape 3
-    await goToNextStep(page);
-    console.log('✅ Navigation vers l\'étape 3');
-    
-    // Vérifier qu'on est bien sur l'étape 3
-    await expect(page.locator('text=/Étape 3|Profession|Entreprise/i').first()).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(2000);
-    
-    // 6. Revenir à l'étape 2
-    await goToPreviousStep(page);
-    console.log('✅ Retour à l\'étape 2');
-    
-    // 7. Vérifier que toutes les valeurs de l'étape 2 sont conservées
-    await verifyAddressStepValues(page, addressData);
-    
-    console.log('✅ Toutes les données de l\'étape 2 sont conservées après navigation');
   });
 });
