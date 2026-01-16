@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -22,12 +23,20 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { registerSchema, defaultValues, type RegisterFormData } from '@/domains/auth/registration/schemas/registration.schema'
 
+// Services et repositories pour la soumission
+import { RegistrationService } from '@/domains/auth/registration/services/RegistrationService'
+import { RegistrationRepository } from '@/domains/auth/registration/repositories/RegistrationRepository'
+
 import StepIndicatorV2 from './StepIndicatorV2'
 import IdentityStepV2 from './steps/IdentityStepV2'
 import AddressStepV2 from './steps/AddressStepV2'
 import CompanyStepV2 from './steps/CompanyStepV2'
 import DocumentsStepV2 from './steps/DocumentsStepV2'
 import SuccessStepV2 from './steps/SuccessStepV2'
+
+// Instancier le service d'inscription
+const registrationRepository = new RegistrationRepository()
+const registrationService = new RegistrationService(registrationRepository)
 
 // Configuration des étapes
 const STEPS = [
@@ -136,7 +145,13 @@ export default function RegistrationFormV2() {
     }
 
     const fieldsToValidate = stepKey as keyof RegisterFormData
-    const result = await trigger(fieldsToValidate)
+    
+    // Effacer d'abord les erreurs de l'étape pour éviter les erreurs "stale"
+    methods.clearErrors(fieldsToValidate)
+    
+    // Déclencher la validation de l'étape avec shouldFocus pour montrer les erreurs
+    const result = await trigger(fieldsToValidate, { shouldFocus: true })
+    
     return result
   }, [currentStep, methods, trigger])
 
@@ -180,18 +195,33 @@ export default function RegistrationFormV2() {
     }
   }, [currentStep])
 
-  // Soumettre le formulaire
+  // Soumettre le formulaire via RegistrationService
   const onSubmit = async (data: RegisterFormData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Implémenter la soumission via RegistrationService
-      console.log('Form data:', data)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Appeler le service d'inscription pour créer le document dans Firestore
+      const membershipId = await registrationService.submitRegistration(data)
+      
+      // Afficher un message de succès avec le matricule
+      toast.success('Inscription réussie !', {
+        description: `Votre demande a été enregistrée. Matricule: ${membershipId}`,
+        duration: 5000,
+      })
       
       setIsSubmitted(true)
       localStorage.removeItem('kara-register-form-v2')
     } catch (error) {
-      console.error('Erreur lors de la soumission:', error)
+      console.error('[RegistrationFormV2] ❌ ERREUR lors de la soumission:', error)
+      
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur inattendue s\'est produite'
+      
+      toast.error('Échec de l\'inscription', {
+        description: errorMessage,
+        duration: 5000,
+      })
+      
+      // Re-lancer l'erreur pour que le test puisse la capturer
+      throw error
     } finally {
       setIsSubmitting(false)
     }
@@ -286,14 +316,17 @@ export default function RegistrationFormV2() {
         {/* Formulaire */}
         <FormProvider {...methods}>
           <form 
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               // Ne soumettre que si on est vraiment à la dernière étape
               if (currentStep !== totalSteps) {
                 e.preventDefault()
                 e.stopPropagation()
                 return false
               }
-              return handleSubmit(onSubmit)(e)
+              
+              // Appeler handleSubmit qui va valider et appeler onSubmit
+              const result = await handleSubmit(onSubmit)(e)
+              return result
             }}
           >
             {/* Contenu de l'étape */}

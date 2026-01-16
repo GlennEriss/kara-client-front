@@ -194,14 +194,18 @@ export default function IdentityStepV2() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-100">
         {/* Photo de profil - Card dédiée */}
         <div className="lg:col-span-4">
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200 h-full flex flex-col items-center justify-center">
+          <div className={cn(
+            "bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border h-full flex flex-col items-center justify-center",
+            errors.identity?.photo ? "border-red-300 bg-red-50/50" : "border-slate-200"
+          )}>
             <label className="group cursor-pointer">
               <div className={cn(
                 "relative w-32 h-32 rounded-full overflow-hidden transition-all duration-300",
                 "bg-gradient-to-br from-kara-primary-dark/20 to-kara-primary-light/20",
-                "border-4 border-dashed border-slate-300 group-hover:border-kara-primary-dark",
+                "border-4 border-dashed group-hover:border-kara-primary-dark",
                 "flex items-center justify-center",
-                photoPreview && "border-solid border-kara-primary-light"
+                photoPreview && "border-solid border-kara-primary-light",
+                !photoPreview && errors.identity?.photo ? "border-red-400" : "border-slate-300"
               )}>
                 {photoPreview ? (
                   <>
@@ -215,8 +219,16 @@ export default function IdentityStepV2() {
                   </>
                 ) : (
                   <div className="text-center">
-                    <Camera className="w-10 h-10 text-slate-400 group-hover:text-kara-primary-dark transition-colors mx-auto mb-2" />
-                    <span className="text-xs text-slate-400 group-hover:text-kara-primary-dark">Ajouter photo</span>
+                    <Camera className={cn(
+                      "w-10 h-10 transition-colors mx-auto mb-2",
+                      errors.identity?.photo ? "text-red-400" : "text-slate-400 group-hover:text-kara-primary-dark"
+                    )} />
+                    <span className={cn(
+                      "text-xs",
+                      errors.identity?.photo ? "text-red-500 font-medium" : "text-slate-400 group-hover:text-kara-primary-dark"
+                    )}>
+                      {errors.identity?.photo ? "Photo requise !" : "Ajouter photo"}
+                    </span>
                   </div>
                 )}
               </div>
@@ -227,9 +239,17 @@ export default function IdentityStepV2() {
                 onChange={handlePhotoUpload}
               />
             </label>
-            <p className="text-xs text-slate-400 mt-3 text-center">
-              Photo optionnelle<br />JPG, PNG (max 5MB)
+            <p className={cn(
+              "text-xs mt-3 text-center",
+              errors.identity?.photo ? "text-red-500" : "text-slate-400"
+            )}>
+              Photo obligatoire *<br />JPG, PNG, WebP (max 5MB)
             </p>
+            {errors.identity?.photo && (
+              <p className="text-xs text-red-500 mt-2 text-center font-medium animate-in fade-in-0 slide-in-from-top-2">
+                {errors.identity.photo.message as string}
+              </p>
+            )}
           </div>
         </div>
 

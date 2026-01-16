@@ -127,7 +127,6 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
 
         // Générer un matricule unique pour cette demande
         const matricule = await generateMatricule()
-        console.log('Matricule généré:', matricule)
 
         // Préparer les données de base (adaptées à createModel)
         // Préparer l'identité sans les propriétés photo initialement
@@ -149,7 +148,6 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
             state: 'IN_PROGRESS', // Convention du projet (sera ajouté par createModel)
             status: 'pending', // Statut métier spécifique aux adhésions
         };
-        console.log('photo', typeof formData.identity.photo)
         
         // Upload de la photo de profil si fournie (data URL string)
         if (formData.identity.photo && typeof formData.identity.photo === 'string' && formData.identity.photo.startsWith('data:image/')) {
@@ -166,11 +164,25 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
                 
                 membershipData.identity.photoURL = fileURL;
                 membershipData.identity.photoPath = filePATH;
-                console.log('Profile photo uploaded:', fileURL)
 
-            } catch (photoError) {
-                console.warn("Erreur lors de l'upload de la photo de profil, continuons sans photo:", photoError);
-                // On continue même si l'upload de photo échoue
+            } catch (photoError: any) {
+                console.error("❌ ERREUR lors de l'upload de la photo de profil:");
+                console.error("   Type:", photoError?.constructor?.name);
+                console.error("   Code:", photoError?.code);
+                console.error("   Message:", photoError?.message);
+                console.error("   Stack:", photoError?.stack);
+                
+                // Vérifier si c'est une erreur de permissions Storage
+                if (photoError?.code === 'storage/unauthorized' || photoError?.code === 'storage/permission-denied' || 
+                    photoError?.message?.includes('permission') || photoError?.message?.includes('unauthorized')) {
+                    console.error("   ⚠️ PROBLÈME DE PERMISSIONS STORAGE:");
+                    console.error("      - Vérifiez que Firebase Storage est créé dans votre projet");
+                    console.error("      - Vérifiez que les règles Storage sont déployées: firebase deploy --only storage");
+                    console.error("      - Vérifiez que les règles autorisent l'upload sur membership-photos/");
+                }
+                
+                console.warn("   ⚠️ Continuons la création du document sans photo de profil");
+                // On continue même si l'upload de photo échoue - ne pas bloquer la création du document
             }
         }
 
@@ -190,10 +202,12 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
                 
                 membershipData.documents.documentPhotoFrontURL = frontURL;
                 membershipData.documents.documentPhotoFrontPath = frontPATH;
-                console.log('Document recto uploaded:', frontURL)
 
-            } catch (frontPhotoError) {
-                console.warn("Erreur lors de l'upload de la photo recto du document:", frontPhotoError);
+            } catch (frontPhotoError: any) {
+                console.error("❌ ERREUR lors de l'upload de la photo recto du document:");
+                console.error("   Code:", frontPhotoError?.code);
+                console.error("   Message:", frontPhotoError?.message);
+                console.warn("   ⚠️ Continuons la création du document sans photo recto");
                 // On continue même si l'upload échoue
             }
         }
@@ -214,10 +228,12 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
                 
                 membershipData.documents.documentPhotoBackURL = backURL;
                 membershipData.documents.documentPhotoBackPath = backPATH;
-                console.log('Document verso uploaded:', backURL)
 
-            } catch (backPhotoError) {
-                console.warn("Erreur lors de l'upload de la photo verso du document:", backPhotoError);
+            } catch (backPhotoError: any) {
+                console.error("❌ ERREUR lors de l'upload de la photo verso du document:");
+                console.error("   Code:", backPhotoError?.code);
+                console.error("   Message:", backPhotoError?.message);
+                console.warn("   ⚠️ Continuons la création du document sans photo verso");
                 // On continue même si l'upload échoue
             }
         }
@@ -226,7 +242,6 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
 
         // Nettoyer toutes les valeurs undefined avant d'envoyer à Firestore
         const cleanedMembershipData = cleanUndefinedValues(membershipData);
-        console.log('cleanedMembershipData', cleanedMembershipData)
         
         // Créer le document avec l'ID personnalisé (le matricule)
         const { db, doc, setDoc, serverTimestamp } = await getFirestore();
@@ -240,14 +255,31 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
         };
         
         // Sauvegarder avec l'ID personnalisé
-        await setDoc(docRef, finalData);
+        try {
+            await setDoc(docRef, finalData);
+            return matricule; // Retourner le matricule comme ID
+        } catch (setDocError: any) {
+            // Vérifier spécifiquement les erreurs de permissions
+            if (setDocError?.code === 'permission-denied' || setDocError?.message?.includes('permission')) {
+                console.error("❌ ERREUR DE PERMISSIONS FIRESTORE:");
+                console.error("   Code:", setDocError.code);
+                console.error("   Message:", setDocError.message);
+                console.error("   Vérifiez que les règles Firestore sont déployées et autorisent la création sur membership-requests");
+                throw new Error(`Permissions insuffisantes: ${setDocError.message || 'Règles Firestore peuvent bloquer la création'}`);
+            }
+            throw setDocError; // Re-lancer l'erreur si ce n'est pas une erreur de permissions
+        }
 
-        console.log(`Demande d'adhésion créée avec succès: ID=${matricule}, Matricule: ${matricule}`);
-        return matricule; // Retourner le matricule comme ID
-
-    } catch (error) {
-        console.error("Erreur lors de la création de la demande d'adhésion:", error);
-        throw new Error("Impossible de soumettre la demande d'adhésion");
+    } catch (error: any) {
+        console.error("❌ Erreur lors de la création de la demande d'adhésion:", error);
+        console.error("   Type d'erreur:", error?.constructor?.name);
+        console.error("   Code d'erreur:", error?.code);
+        console.error("   Message:", error?.message);
+        console.error("   Stack:", error?.stack);
+        
+        // Message d'erreur plus détaillé
+        const errorMessage = error?.message || 'Une erreur inattendue s\'est produite lors de la création de la demande';
+        throw new Error(`Impossible de soumettre la demande d'adhésion: ${errorMessage}`);
     }
 }
 
@@ -588,8 +620,6 @@ export async function findMembershipRequestsByPhone(phoneNumber: string): Promis
         // Générer toutes les variantes possibles du numéro
         const phoneVariants = generatePhoneVariants(phoneNumber);
         
-        console.log('🔍 Recherche avec les variantes de téléphone:', phoneVariants);
-        
         // Créer une requête OR pour chercher toutes les variantes
         const constraints = phoneVariants.map(variant => 
             where("identity.contacts", "array-contains", variant)
@@ -614,7 +644,6 @@ export async function findMembershipRequestsByPhone(phoneNumber: string): Promis
             requests.push(transformDBToMembershipRequest(dbData));
         });
 
-        console.log(`📱 ${requests.length} demande(s) trouvée(s) pour le numéro ${phoneNumber}`);
         return requests;
     } catch (error) {
         console.error("Erreur lors de la recherche par téléphone:", error);
@@ -699,8 +728,6 @@ export async function checkPhoneNumberExists(
             // Ajouter l'indicatif +241 par défaut
             normalizedPhone = '+241' + normalizedPhone;
         }
-
-        console.log('Vérification du numéro normalisé:', normalizedPhone);
 
         // Chercher toutes les demandes avec ce numéro de téléphone
         const existingRequests = await findMembershipRequestsByPhone(normalizedPhone);

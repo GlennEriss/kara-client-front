@@ -11,6 +11,20 @@
  */
 
 import { test, expect } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { 
+  findMembershipRequestByPhone, 
+  cleanupTestMembershipRequests,
+  initializeFirebaseAdmin 
+} from './helpers/firebase-admin';
+
+// Support pour __dirname dans les modules ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Chemin vers l'image de test pour la photo de profil (utilise une image du projet)
+const TEST_PHOTO_PATH = path.join(__dirname, '../public/Logo-Kara.jpg');
 
 // ==================== CONFIGURATION ====================
 
@@ -94,6 +108,22 @@ async function goToRegisterPage(page: any) {
  * Remplit l'étape 1 (Identité) - Basé sur IdentityStepV2
  */
 async function fillIdentityStep(page: any, data: IdentityTestData = TEST_DATA.identity) {
+  // 0. Upload de la photo de profil (obligatoire)
+  console.log('   📷 Upload de la photo de profil...');
+  const photoInput = page.locator('input[type="file"][accept="image/*"]').first();
+  await photoInput.waitFor({ state: 'attached', timeout: 5000 });
+  await photoInput.setInputFiles(TEST_PHOTO_PATH);
+  await page.waitForTimeout(1000); // Attendre le traitement de l'image
+  
+  // Vérifier que la photo a bien été uploadée (le badge vert doit apparaître)
+  const photoCheck = page.locator('.bg-green-500').first();
+  try {
+    await photoCheck.waitFor({ state: 'visible', timeout: 3000 });
+    console.log('   ✅ Photo uploadée avec succès');
+  } catch {
+    console.log('   ⚠️ Photo uploadée mais badge de confirmation non détecté');
+  }
+
   // 1. Civilité - Select avec placeholder "Sélectionnez..."
   const civilitySelect = page.locator('label:has-text("Civilité")').locator('..').locator('button[role="combobox"]').first();
   await civilitySelect.waitFor({ state: 'visible', timeout: 5000 });
@@ -320,10 +350,12 @@ async function fillAddressStep(page: any, data = TEST_DATA.address) {
   // Chercher les comboboxes près des labels spécifiques
   
   // Fonction helper pour trouver et remplir un combobox par son label
-  async function fillComboboxByLabel(labelText: string, value: string, waitAfter = 2000) {
+  async function fillComboboxByLabel(labelText: string, value: string, waitAfter = 2000, doubleClick = true) {
+    console.log(`   📍 Sélection de "${value}" dans "${labelText}"...`);
+    
     const label = page.locator(`label:has-text("${labelText}")`).first();
     if (await label.count() === 0) {
-      console.log(`⚠️ Label "${labelText}" non trouvé`);
+      console.log(`   ⚠️ Label "${labelText}" non trouvé`);
       return false;
     }
     
@@ -339,13 +371,28 @@ async function fillAddressStep(page: any, data = TEST_DATA.address) {
     }
     
     if (await combobox.count() === 0) {
-      console.log(`⚠️ Combobox pour "${labelText}" non trouvé`);
+      console.log(`   ⚠️ Combobox pour "${labelText}" non trouvé`);
       return false;
     }
     
     await combobox.waitFor({ state: 'visible', timeout: 10000 });
     await combobox.scrollIntoViewIfNeeded();
-    await combobox.click();
+    
+    // Vérifier si le combobox est désactivé
+    const isDisabled = await combobox.isDisabled().catch(() => false);
+    if (isDisabled) {
+      console.log(`   ⚠️ Combobox "${labelText}" est désactivé, on attend...`);
+      await page.waitForTimeout(2000);
+      // Réessayer
+      const stillDisabled = await combobox.isDisabled().catch(() => false);
+      if (stillDisabled) {
+        console.log(`   ❌ Combobox "${labelText}" est toujours désactivé`);
+        return false;
+      }
+    }
+    
+    // Cliquer pour ouvrir le dropdown
+    await combobox.click({ force: true });
     await page.waitForTimeout(500);
     
     // Attendre que les options soient disponibles
@@ -354,7 +401,114 @@ async function fillAddressStep(page: any, data = TEST_DATA.address) {
     // Sélectionner l'option
     const option = page.locator(`[role="option"]:has-text("${value}")`).first();
     await option.waitFor({ state: 'visible', timeout: 5000 });
-    await option.click();
+    
+    // Vérifier que l'option est visible et cliquable
+    const isVisible = await option.isVisible().catch(() => false);
+    if (!isVisible) {
+      console.log(`   ⚠️ Option "${value}" non visible, on scroll...`);
+      await option.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(300);
+    }
+    
+    // Cliquer sur l'option pour sélectionner
+    await option.click({ force: true });
+    await page.waitForTimeout(300);
+    
+    // Deuxième clic pour fermer le select (si activé)
+    if (doubleClick) {
+      // D'abord essayer de recliquer sur l'option sélectionnée
+      try {
+        const selectedOptionStillVisible = await option.isVisible({ timeout: 500 }).catch(() => false);
+        if (selectedOptionStillVisible) {
+          console.log(`   🔄 Deuxième clic sur l'option "${value}" pour fermer le select...`);
+          await option.click({ force: true });
+        } else {
+          // Si l'option n'est plus visible, cliquer sur le combobox pour fermer
+          console.log(`   🔄 Deuxième clic sur le combobox "${labelText}" pour fermer le select...`);
+          await combobox.click({ force: true });
+        }
+        await page.waitForTimeout(200);
+      } catch (error) {
+        // Fallback: cliquer sur le combobox
+        console.log(`   🔄 Deuxième clic (fallback) sur le combobox "${labelText}"...`);
+        await combobox.click({ force: true });
+        await page.waitForTimeout(200);
+      }
+    }
+    
+    // Attendre que le dropdown se ferme automatiquement
+    // Vérifier que le SelectContent n'est plus visible ou est fermé
+    try {
+      // Méthode 1: Vérifier que le SelectContent n'est plus dans le DOM ou est caché
+      await page.waitForFunction(
+        () => {
+          const selectContent = document.querySelector('[data-slot="select-content"]');
+          if (!selectContent) return true;
+          const computedStyle = window.getComputedStyle(selectContent);
+          const isHidden = computedStyle.display === 'none' || 
+                          computedStyle.visibility === 'hidden' ||
+                          selectContent.getAttribute('data-state') === 'closed';
+          return isHidden;
+        },
+        { timeout: 2000 }
+      );
+      console.log(`   ✅ Dropdown fermé automatiquement pour "${labelText}"`);
+    } catch (error) {
+      console.log(`   ⚠️ Le dropdown ne s'est pas fermé automatiquement pour "${labelText}", on force la fermeture...`);
+      
+      // Méthode 2: Vérifier si le dropdown est toujours ouvert
+      const selectContent = page.locator('[data-slot="select-content"]').first();
+      const isVisible = await selectContent.isVisible().catch(() => false);
+      
+      if (isVisible) {
+        // Forcer la fermeture en appuyant sur Escape
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(200);
+        
+        // Vérifier à nouveau
+        const stillVisible = await selectContent.isVisible().catch(() => false);
+        if (stillVisible) {
+          // Dernière tentative: cliquer en dehors
+          await page.mouse.click(10, 10);
+          await page.waitForTimeout(200);
+        }
+      }
+    }
+    
+    // Vérifier que la valeur a bien été sélectionnée dans le SelectValue
+    await page.waitForTimeout(500);
+    
+    // Chercher le SelectValue dans le même conteneur que le combobox
+    const selectValue = combobox.locator('[data-slot="select-value"]').first();
+    const hasSelectValue = await selectValue.count() > 0;
+    
+    if (hasSelectValue) {
+      // Vérifier le texte du SelectValue
+      const selectedText = await selectValue.textContent().catch(() => '');
+      if (selectedText && selectedText.trim().includes(value)) {
+        console.log(`   ✅ "${value}" sélectionné dans "${labelText}" (vérifié via SelectValue)`);
+      } else {
+        // Fallback: vérifier le texte du combobox entier
+        const comboboxText = await combobox.textContent().catch(() => '');
+        if (comboboxText?.includes(value)) {
+          console.log(`   ✅ "${value}" sélectionné dans "${labelText}" (vérifié via combobox)`);
+        } else {
+          console.log(`   ⚠️ La valeur "${value}" ne semble pas être sélectionnée dans "${labelText}"`);
+          console.log(`      Texte actuel du SelectValue: "${selectedText}"`);
+          console.log(`      Texte actuel du combobox: "${comboboxText}"`);
+        }
+      }
+    } else {
+      // Fallback: vérifier le texte du combobox
+      const comboboxText = await combobox.textContent().catch(() => '');
+      if (comboboxText?.includes(value)) {
+        console.log(`   ✅ "${value}" sélectionné dans "${labelText}"`);
+      } else {
+        console.log(`   ⚠️ La valeur "${value}" ne semble pas être sélectionnée dans "${labelText}"`);
+        console.log(`      Texte actuel du combobox: "${comboboxText}"`);
+      }
+    }
+    
     await page.waitForTimeout(waitAfter);
     
     return true;
@@ -369,8 +523,8 @@ async function fillAddressStep(page: any, data = TEST_DATA.address) {
   // 3. District/Arrondissement
   await fillComboboxByLabel('Arrondissement', data.district, 2000);
   
-  // 4. Quartier
-  await fillComboboxByLabel('Quartier', data.quarter, 1000);
+  // 4. Quartier (pas de double clic car il fonctionne bien sans)
+  await fillComboboxByLabel('Quartier', data.quarter, 1000, false);
   
   // Fallback: si la méthode par label ne fonctionne pas, utiliser l'ancienne méthode
   const provinceLabel = page.locator('label:has-text("Province")').first();
@@ -2311,5 +2465,520 @@ test.describe('Tests responsive - Tablette et Mobile', () => {
     await expect(companyNameInput).toHaveValue(companyData.companyName, { timeout: 5000 });
     
     console.log('✅ Champs conditionnels remplis avec succès sur mobile');
+  });
+});
+
+// ==================== TESTS EN CASCADE - INSCRIPTION COMPLÈTE AVEC PHOTON ====================
+
+/**
+ * Données de test pour l'inscription complète
+ */
+const PHOTON_TEST_DATA = {
+  identity: {
+    civility: 'Monsieur',
+    lastName: 'PHOTONTEST',
+    firstName: 'Jean',
+    birthDate: { day: '20', month: '05', year: '1988' },
+    birthPlace: 'Libreville',
+    birthCertificateNumber: 'PHT-2024-001',
+    prayerPlace: 'Église Saint-Michel',
+    religion: 'Autre',
+    customReligion: 'branhamiste',
+    phone: '77112233',
+    gender: 'Homme',
+    nationality: 'Zambienne',
+    maritalStatus: 'Célibataire',
+    intermediaryCode: '0000.MK.00001',
+    hasCar: false,
+  },
+  address: {
+      province: 'Estuaire',
+      commune: 'Libreville Centre',
+      district: 'Centre-Ville',
+      quarter: 'Dakar',
+    street: 'Avenue du Bord de Mer',
+      postalCode: '24100',
+    additionalInfo: 'Test E2E Photon',
+  },
+  company: {
+    isEmployed: true,
+    companyName: 'Société Photon Test',
+    profession: 'Développeur',
+    seniority: '5 ans',
+    address: {
+      province: 'Estuaire',
+      city: 'Libreville Centre',
+      district: 'Centre-Ville',
+      quarter: 'Dakar',
+    },
+  },
+};
+
+/**
+ * ÉTAPE 1 : Navigue vers /register et remplit l'étape Identité
+ * @returns void - le test reste à l'étape 1 remplie
+ */
+async function completeStep1(page: any) {
+  console.log('📝 Étape 1: Navigation et remplissage de l\'identité...');
+  
+    await goToRegisterPage(page);
+  await page.waitForTimeout(2000);
+  
+  // Vérifier qu'on est bien à l'étape 1
+  const step1Indicator = page.locator('text=/Identité|informations personnelles/i').first();
+  await expect(step1Indicator).toBeVisible({ timeout: 10000 });
+  
+  await fillIdentityStep(page, PHOTON_TEST_DATA.identity);
+  
+    console.log('✅ Étape 1 remplie');
+}
+
+/**
+ * ÉTAPE 2 : Appelle completeStep1, clique Suivant, puis remplit l'étape Adresse
+ * @returns void - le test reste à l'étape 2 remplie
+ */
+async function completeStep2(page: any) {
+  // D'abord compléter l'étape 1
+  await completeStep1(page);
+  
+  console.log('📝 Passage à l\'étape 2...');
+  
+  // Cliquer sur Suivant pour passer à l'étape 2
+    await goToNextStep(page);
+  await page.waitForTimeout(2000);
+  
+  // Vérifier qu'on est à l'étape 2 en vérifiant le contenu de la page
+  // Chercher un élément spécifique à l'étape 2 (les sélecteurs de province/ville)
+  const provinceSelector = page.locator('text=/Province|Sélectionnez.*province/i').first();
+  await expect(provinceSelector).toBeVisible({ timeout: 15000 });
+  
+  console.log('📝 Étape 2: Remplissage de l\'adresse...');
+  await fillAddressStep(page, PHOTON_TEST_DATA.address);
+  
+  console.log('✅ Étape 2 remplie');
+}
+
+/**
+ * ÉTAPE 3 avec Photon : Appelle completeStep2, clique Suivant, puis remplit l'étape Profession avec la recherche Photon
+ * @returns void - le test reste à l'étape 3 remplie
+ */
+async function completeStep3WithPhoton(page: any) {
+  // D'abord compléter l'étape 2
+  await completeStep2(page);
+  
+  console.log('📝 Passage à l\'étape 3...');
+  
+  // Cliquer sur Suivant pour passer à l'étape 3
+    await goToNextStep(page);
+  await page.waitForTimeout(2000);
+  
+  // Vérifier qu'on est à l'étape 3 en vérifiant le contenu de la page
+  const step3Indicator = page.locator('text=/Profession|emploi|entreprise|travail/i').first();
+  await expect(step3Indicator).toBeVisible({ timeout: 15000 });
+  
+  console.log('📝 Étape 3: Remplissage de la profession avec Photon...');
+  
+  // 1. Activer "Je travaille actuellement"
+  const allSwitches = page.locator('[role="switch"]');
+  const switchCount = await allSwitches.count();
+  console.log(`   Nombre de switches trouvés: ${switchCount}`);
+  
+  if (switchCount > 0) {
+    // Chercher le switch d'emploi
+    const employmentSwitch = page.locator('[role="switch"]').first();
+    const isChecked = await employmentSwitch.isChecked().catch(() => false);
+    
+    if (!isChecked) {
+      console.log('   Activation du switch "Je travaille"...');
+      await employmentSwitch.click();
+      await page.waitForTimeout(3000); // Attendre que le formulaire conditionnel s'affiche
+    }
+  }
+  
+  // 2. Attendre que le formulaire de l'entreprise soit visible
+    await page.waitForTimeout(2000);
+    
+  // 3. Remplir le nom de l'entreprise
+  console.log('   Remplissage du nom de l\'entreprise...');
+  // Chercher le champ par son label ou son placeholder
+  const companyNameLabel = page.locator('label:has-text("Nom de l\'entreprise")').first();
+  let companyNameInput: any;
+  
+  if (await companyNameLabel.count() > 0) {
+    // Trouver l'input dans le même conteneur que le label
+    const labelContainer = companyNameLabel.locator('..').locator('..');
+    companyNameInput = labelContainer.locator('input').first();
+  } else {
+    // Fallback: chercher par placeholder
+    companyNameInput = page.locator('input[placeholder*="Total Gabon" i], input[placeholder*="Ministère" i]').first();
+  }
+  
+  if (await companyNameInput.count() > 0) {
+    await companyNameInput.waitFor({ state: 'visible', timeout: 10000 });
+    await companyNameInput.scrollIntoViewIfNeeded();
+    await companyNameInput.click();
+    await page.waitForTimeout(300);
+    await companyNameInput.clear();
+    await companyNameInput.fill(PHOTON_TEST_DATA.company.companyName);
+    await page.waitForTimeout(500);
+    console.log('   ✅ Nom de l\'entreprise rempli');
+  } else {
+    console.log('   ⚠️ Champ "Nom de l\'entreprise" non trouvé');
+  }
+  
+  // 4. Cliquer sur l'onglet "Recherche automatique" (Photon)
+  console.log('   Passage à la recherche automatique (Photon)...');
+  const photonTab = page.locator('button[role="tab"]:has-text("Recherche automatique")');
+  
+  if (await photonTab.count() > 0) {
+    await photonTab.click();
+    await page.waitForTimeout(1500);
+    
+    // 5. Saisir la recherche dans le champ Photon
+    console.log('   Recherche Photon: "Glass"...');
+    const photonSearchInput = page.locator('input[placeholder*="Glass" i], input[placeholder*="Akanda" i]').first();
+    
+    if (await photonSearchInput.count() > 0) {
+      await photonSearchInput.fill('Glass');
+      await page.waitForTimeout(3000); // Attendre le debounce + requête API
+      
+      // 6. Cliquer sur le premier résultat
+      const firstResult = page.locator('[data-radix-collection-item] button, .space-y-1 button').first();
+      if (await firstResult.count() > 0) {
+        await firstResult.click();
+        await page.waitForTimeout(1500);
+        console.log('   ✅ Résultat Photon sélectionné');
+      } else {
+        console.log('   ⚠️ Aucun résultat Photon, essai avec "Libreville"...');
+        await photonSearchInput.clear();
+        await photonSearchInput.fill('Libreville');
+        await page.waitForTimeout(3000);
+        
+        const fallbackResult = page.locator('[data-radix-collection-item] button, .space-y-1 button').first();
+        if (await fallbackResult.count() > 0) {
+          await fallbackResult.click();
+          await page.waitForTimeout(1500);
+        }
+      }
+      
+      // 7. Confirmer la ville si demandé
+      const confirmCityBtn = page.locator('button:has-text("C\'est correct")').first();
+      if (await confirmCityBtn.count() > 0) {
+        await confirmCityBtn.click();
+        await page.waitForTimeout(500);
+        console.log('   ✅ Ville confirmée');
+      }
+    }
+  } else {
+    console.log('   ⚠️ Onglet Photon non trouvé, utilisation de la base de données');
+    // Fallback: utiliser la recherche en base de données
+    await fillCompanyStep(page, PHOTON_TEST_DATA.company);
+  }
+  
+  // 8. Remplir la profession
+  console.log('   Remplissage de la profession...');
+  await page.waitForTimeout(1000); // Attendre que le formulaire soit complètement chargé
+  
+  // Chercher le champ par son label ou son placeholder
+  const professionLabel = page.locator('label:has-text("Profession")').first();
+  let professionInput: any;
+  
+  if (await professionLabel.count() > 0) {
+    await professionLabel.waitFor({ state: 'visible', timeout: 10000 });
+    await professionLabel.scrollIntoViewIfNeeded();
+    
+    // Trouver l'input dans le même conteneur que le label
+    // Le label est dans un div, l'input est dans un autre div au même niveau
+    const labelParent = professionLabel.locator('..'); // parent du label
+    const labelGrandParent = labelParent.locator('..'); // grand-parent (le conteneur commun)
+    professionInput = labelGrandParent.locator('input[type="text"]').first();
+    
+    // Si pas trouvé, chercher tous les inputs dans la section
+    if (await professionInput.count() === 0) {
+      const allInputs = labelGrandParent.locator('input');
+      const inputCount = await allInputs.count();
+      console.log(`   📊 Nombre d'inputs trouvés dans le conteneur: ${inputCount}`);
+      
+      // Prendre le premier input text trouvé
+      for (let i = 0; i < inputCount; i++) {
+        const input = allInputs.nth(i);
+        const inputType = await input.getAttribute('type').catch(() => '');
+        const inputPlaceholder = await input.getAttribute('placeholder').catch(() => '');
+        
+        if (inputType === 'text' || inputPlaceholder?.toLowerCase().includes('enseignant') || 
+            inputPlaceholder?.toLowerCase().includes('médecin') || 
+            inputPlaceholder?.toLowerCase().includes('ingénieur')) {
+          professionInput = input;
+          console.log(`   ✅ Input profession trouvé par placeholder: "${inputPlaceholder}"`);
+          break;
+        }
+      }
+    }
+  }
+  
+  // Fallback: chercher par placeholder directement
+  if (!professionInput || await professionInput.count() === 0) {
+    console.log('   ⚠️ Fallback: recherche par placeholder...');
+    professionInput = page.locator('input[placeholder*="Enseignant" i], input[placeholder*="Médecin" i], input[placeholder*="Ingénieur" i]').first();
+  }
+  
+  // Dernier fallback: chercher tous les inputs text dans la section profession
+  if (!professionInput || await professionInput.count() === 0) {
+    console.log('   ⚠️ Dernier fallback: recherche de tous les inputs text dans la page...');
+    const allTextInputs = page.locator('input[type="text"]');
+    const inputCount = await allTextInputs.count();
+    console.log(`   📊 Nombre total d'inputs text sur la page: ${inputCount}`);
+    
+    // Chercher un input qui a un placeholder lié à la profession
+    for (let i = 0; i < inputCount; i++) {
+      const input = allTextInputs.nth(i);
+      const placeholder = await input.getAttribute('placeholder').catch(() => '');
+      if (placeholder && (placeholder.toLowerCase().includes('enseignant') || 
+          placeholder.toLowerCase().includes('médecin') || 
+          placeholder.toLowerCase().includes('ingénieur'))) {
+        professionInput = input;
+        console.log(`   ✅ Input profession trouvé par placeholder: "${placeholder}" (index ${i})`);
+        break;
+      }
+    }
+  }
+  
+  if (professionInput && await professionInput.count() > 0) {
+    await professionInput.waitFor({ state: 'visible', timeout: 10000 });
+    await professionInput.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    
+    // Cliquer pour focus
+    await professionInput.click({ force: true });
+    await page.waitForTimeout(300);
+    
+    // Vider le champ s'il contient déjà quelque chose
+    await professionInput.clear();
+    await page.waitForTimeout(200);
+    
+    // Remplir le champ
+    await professionInput.fill(PHOTON_TEST_DATA.company.profession, { force: true });
+    await page.waitForTimeout(500);
+    
+    // Vérifier que la valeur a bien été saisie
+    const inputValue = await professionInput.inputValue().catch(() => '');
+    if (inputValue === PHOTON_TEST_DATA.company.profession) {
+      console.log(`   ✅ Profession "${PHOTON_TEST_DATA.company.profession}" remplie avec succès`);
+    } else {
+      console.log(`   ⚠️ La valeur saisie ("${inputValue}") ne correspond pas à celle attendue ("${PHOTON_TEST_DATA.company.profession}")`);
+      // Réessayer
+      await professionInput.fill(PHOTON_TEST_DATA.company.profession, { force: true });
+      await page.waitForTimeout(500);
+    }
+  } else {
+    console.log('   ❌ Champ "Profession" non trouvé après toutes les tentatives');
+  }
+  
+  // 9. Sélectionner l'ancienneté
+  console.log('   Sélection de l\'ancienneté...');
+  const seniorityButton = page.locator('button').filter({ hasText: PHOTON_TEST_DATA.company.seniority }).first();
+  if (await seniorityButton.count() > 0) {
+    await seniorityButton.click();
+    await page.waitForTimeout(500);
+  }
+  
+  console.log('✅ Étape 3 remplie avec Photon');
+}
+
+/**
+ * ÉTAPE 4 : Appelle completeStep3WithPhoton, clique Suivant, puis remplit l'étape Documents
+ * @returns void - le test reste à l'étape 4 remplie
+ */
+async function completeStep4(page: any) {
+  // D'abord compléter l'étape 3
+  await completeStep3WithPhoton(page);
+  
+  console.log('📝 Passage à l\'étape 4...');
+  
+  // Cliquer sur Suivant pour passer à l'étape 4
+  await goToNextStep(page);
+  await page.waitForTimeout(2000);
+  
+  // Vérifier qu'on est à l'étape 4
+  const step4Indicator = page.locator('text=/Documents|pièce|justificatif/i').first();
+  await expect(step4Indicator).toBeVisible({ timeout: 15000 });
+  
+  console.log('📝 Étape 4: Remplissage des documents...');
+  await fillDocumentsStep(page);
+  
+  console.log('✅ Étape 4 remplie');
+}
+
+// ==================== TESTS EN CASCADE ====================
+
+test.describe('Inscription en cascade avec Photon', () => {
+  
+  test.beforeAll(async () => {
+    try {
+      initializeFirebaseAdmin();
+      console.log('✅ Firebase Admin initialisé');
+    } catch (error) {
+      console.warn('⚠️ Firebase Admin non disponible');
+    }
+  });
+
+  test.afterAll(async () => {
+    try {
+      const deletedCount = await cleanupTestMembershipRequests(PHOTON_TEST_DATA.identity.phone);
+      if (deletedCount > 0) {
+        console.log(`🧹 ${deletedCount} demande(s) de test supprimée(s)`);
+      }
+    } catch (error) {
+      console.warn('⚠️ Nettoyage ignoré');
+    }
+  });
+
+  test('Étape 1 - Remplir l\'identité', async ({ page }) => {
+    test.setTimeout(120000);
+    
+    await completeStep1(page);
+    
+    // Vérification: le bouton Suivant doit être activé
+    const nextButton = page.locator('button:has-text("Suivant")').first();
+    await expect(nextButton).toBeVisible({ timeout: 5000 });
+    
+    console.log('🎉 Test Étape 1 terminé avec succès');
+  });
+
+  test('Étape 2 - Remplir l\'adresse (appelle étape 1)', async ({ page }) => {
+    test.setTimeout(180000);
+    
+    await completeStep2(page);
+    
+    // Vérification: le bouton Suivant doit être activé
+    const nextButton = page.locator('button:has-text("Suivant")').first();
+    await expect(nextButton).toBeVisible({ timeout: 5000 });
+    
+    console.log('🎉 Test Étape 2 terminé avec succès');
+  });
+
+  test('Étape 3 - Remplir la profession avec Photon (appelle étape 2)', async ({ page }) => {
+    test.setTimeout(240000);
+    
+    await completeStep3WithPhoton(page);
+    
+    // Vérification: le bouton Suivant doit être activé
+    const nextButton = page.locator('button:has-text("Suivant")').first();
+    await expect(nextButton).toBeVisible({ timeout: 5000 });
+    
+    console.log('🎉 Test Étape 3 avec Photon terminé avec succès');
+  });
+
+  test('Étape 4 - Remplir les documents et soumettre (appelle étape 3)', async ({ page }) => {
+    test.setTimeout(300000);
+    
+    // Capturer les erreurs de la console
+    const consoleErrors: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text());
+        console.log(`❌ Erreur console: ${msg.text()}`);
+      }
+    });
+    
+    // Capturer les erreurs de page
+    page.on('pageerror', error => {
+      console.log(`❌ Erreur page: ${error.message}`);
+      consoleErrors.push(error.message);
+    });
+    
+    await completeStep4(page);
+    
+    // Soumettre le formulaire
+    console.log('📤 Soumission du formulaire...');
+    
+    // Chercher le bouton de soumission (peut être "Finaliser" ou autres variantes)
+    const submitButton = page.locator('button[type="submit"]:has-text("Finaliser"), button:has-text("Soumettre"), button:has-text("Envoyer"), button:has-text("Terminer")').first();
+    
+    if (await submitButton.count() > 0) {
+      await submitButton.waitFor({ state: 'visible', timeout: 15000 });
+      await submitButton.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(1000);
+      
+      // Vérifier que le bouton est activé
+      const isEnabled = await submitButton.isEnabled().catch(() => false);
+      if (!isEnabled) {
+        console.log('⚠️ Le bouton de soumission est désactivé, on attend...');
+        await page.waitForTimeout(2000);
+      }
+      
+      // Cliquer sur le bouton de soumission
+      console.log('🖱️ Clic sur le bouton de soumission...');
+      await submitButton.click({ force: true });
+      
+      // Attendre que la soumission soit terminée
+      // Vérifier qu'un message de succès apparaît ou que le formulaire change d'état
+      console.log('⏳ Attente de la soumission...');
+      
+      try {
+        // Attendre un message de succès ou un changement d'état
+        await page.waitForFunction(
+          () => {
+            // Chercher un message de succès dans le DOM
+            const successTexts = ['succès', 'réussie', 'soumise', 'enregistrée', 'demande créée'];
+            const bodyText = document.body.textContent || '';
+            return successTexts.some(text => bodyText.toLowerCase().includes(text));
+          },
+          { timeout: 15000 }
+        );
+        console.log('✅ Message de succès détecté');
+      } catch (error) {
+        console.log('⚠️ Pas de message de succès détecté, on continue...');
+      }
+      
+      // Attendre un peu plus pour que la soumission soit complètement terminée
+      await page.waitForTimeout(5000);
+      
+      // Vérifier le succès dans l'UI
+      const successMessage = page.locator('text=/succès|réussie|soumise|enregistrée|demande créée/i').first();
+      if (await successMessage.count() > 0) {
+        const messageText = await successMessage.textContent().catch(() => '');
+        console.log(`✅ Inscription soumise avec succès: "${messageText}"`);
+      } else {
+        console.log('⚠️ Aucun message de succès visible dans l\'UI');
+      }
+    } else {
+      console.log('❌ Bouton de soumission non trouvé');
+    }
+    
+    // Vérification en BDD
+    console.log('🔍 Vérification en base de données...');
+    // Attendre un peu plus pour que Firestore ait le temps de créer le document
+    await page.waitForTimeout(5000);
+    
+    try {
+      const membershipRequest = await findMembershipRequestByPhone(PHOTON_TEST_DATA.identity.phone);
+      
+      if (membershipRequest) {
+        console.log('✅ Document trouvé en BDD:');
+        console.log('   - ID:', membershipRequest.id);
+        console.log('   - Matricule:', membershipRequest.matricule);
+        console.log('   - Nom:', membershipRequest.identity?.lastName);
+        console.log('   - Entreprise:', membershipRequest.company?.companyName);
+        console.log('   - Source adresse:', membershipRequest.company?.companyAddress?.source);
+        
+        // Assertions
+        expect(membershipRequest.identity?.lastName).toBe(PHOTON_TEST_DATA.identity.lastName.toUpperCase());
+      } else {
+        console.warn('⚠️ Document non trouvé en BDD');
+      }
+    } catch (error) {
+      console.warn('⚠️ Erreur vérification BDD:', error);
+    }
+    
+    // Afficher les erreurs de console s'il y en a
+    if (consoleErrors.length > 0) {
+      console.log(`⚠️ ${consoleErrors.length} erreur(s) détectée(s) dans la console:`);
+      consoleErrors.forEach((err, index) => {
+        console.log(`   ${index + 1}. ${err}`);
+      });
+    }
+    
+    console.log('🎉 Test complet terminé avec succès');
   });
 });

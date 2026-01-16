@@ -28,6 +28,7 @@ import type { Commune } from '@/domains/infrastructure/geography/entities/geogra
 export default function AddressStepV2() {
   const { register, watch, setValue, formState: { errors, isSubmitted, touchedFields } } = useFormContext<RegisterFormData>()
 
+
   // Surveiller les IDs sélectionnés depuis le formulaire (comme l'ancien composant)
   // Ceci permet de conserver les valeurs lors de la navigation entre les étapes
   // Note: Utilisation de 'as any' car les nouveaux champs sont ajoutés au schéma mais le type n'est pas encore régénéré
@@ -264,7 +265,11 @@ export default function AddressStepV2() {
             </div>
           </div>
           
-          <Select value={selectedProvinceId} onValueChange={handleProvinceChange} disabled={loadingProvinces}>
+          <Select 
+            value={selectedProvinceId} 
+            onValueChange={handleProvinceChange} 
+            disabled={loadingProvinces}
+          >
             <SelectTrigger className={cn(
               "h-12 rounded-xl border-2 transition-all bg-white",
               selectedProvinceId ? "border-emerald-300" : "border-emerald-200 hover:border-emerald-400 focus:border-emerald-500",

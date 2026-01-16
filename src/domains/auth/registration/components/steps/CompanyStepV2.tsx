@@ -128,6 +128,7 @@ export default function CompanyStepV2() {
   const [showAddCompanyDistrictModal, setShowAddCompanyDistrictModal] = useState(false)
   const [showAddCompanyQuarterModal, setShowAddCompanyQuarterModal] = useState(false)
   
+  
   // États pour la géolocalisation de l'entreprise (Photon)
   const [companyDistrictQuery, setCompanyDistrictQuery] = useState('')
   const [companySearchResults, setCompanySearchResults] = useState<PhotonResult[]>([])
@@ -538,19 +539,19 @@ export default function CompanyStepV2() {
     }
     
     if (setValue && typeof setValue === 'function') {
-      setValue('company.companyAddress.district', properties.name)
-      
-      let cityValue = ''
-      if (properties.type === 'city') {
-        cityValue = properties.name
-        setDetectedCompanyCityName(properties.name)
-        setNeedsCompanyCityCorrection(true)
-      } else {
-        cityValue = properties.city || properties.suburb || ''
-        setNeedsCompanyCityCorrection(false)
-      }
-      setValue('company.companyAddress.city', cityValue)
-      setValue('company.companyAddress.province', properties.state || '')
+    setValue('company.companyAddress.district', properties.name)
+    
+    let cityValue = ''
+    if (properties.type === 'city') {
+      cityValue = properties.name
+      setDetectedCompanyCityName(properties.name)
+      setNeedsCompanyCityCorrection(true)
+    } else {
+      cityValue = properties.city || properties.suburb || ''
+      setNeedsCompanyCityCorrection(false)
+    }
+    setValue('company.companyAddress.city', cityValue)
+    setValue('company.companyAddress.province', properties.state || '')
       
       // Sauvegarder le mode Photon dans le formulaire
       ;(setValue as any)('company.companyAddress.source', 'photon', { shouldValidate: false })
@@ -721,7 +722,7 @@ export default function CompanyStepV2() {
                   return (
                     <div className="flex items-center justify-center gap-3 py-3 px-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
                       <Building2 className="w-5 h-5 text-amber-600" />
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                         {[1, 2, 3, 4].map((step) => (
                           <div
                             key={step}
@@ -790,18 +791,22 @@ export default function CompanyStepV2() {
                       )}
                     </div>
                     
-                    <Select value={selectedCompanyProvinceId} onValueChange={handleCompanyProvinceChange} disabled={isLoadingCompanyProvinces}>
-                      <SelectTrigger className={cn(
+                    <Select 
+                      value={selectedCompanyProvinceId} 
+                      onValueChange={handleCompanyProvinceChange} 
+                      disabled={isLoadingCompanyProvinces}
+                    >
+                        <SelectTrigger className={cn(
                         "h-12 w-full rounded-xl border-2 transition-all bg-white",
                         selectedCompanyProvinceId ? "border-amber-300" : "border-amber-200 hover:border-amber-400 focus:border-amber-500",
-                        errors.company?.companyAddress?.province && "border-red-300"
-                      )}>
-                        {isLoadingCompanyProvinces ? (
+                          errors.company?.companyAddress?.province && "border-red-300"
+                        )}>
+                          {isLoadingCompanyProvinces ? (
                           <div className="flex items-center gap-2 text-slate-400">
                             <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                             <span className="truncate">Chargement...</span>
-                          </div>
-                        ) : (
+                            </div>
+                          ) : (
                           <SelectValue placeholder="Sélectionnez une province..." className="truncate" />
                         )}
                       </SelectTrigger>
@@ -809,8 +814,8 @@ export default function CompanyStepV2() {
                         {sortedCompanyProvinces.map(p => (
                           <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                      </Select>
                     {errors.company?.companyAddress?.province && (isSubmitted || touchedFields.company?.companyAddress?.province || selectedCompanyProvinceId) && (
                       <p className="text-xs text-red-500 mt-2">{errors.company.companyAddress.province.message}</p>
                     )}
@@ -859,29 +864,29 @@ export default function CompanyStepV2() {
                         >
                           <Plus className="w-4 h-4 text-orange-600" />
                         </Button>
-                      )}
-                    </div>
-                    
-                    <Select 
-                      value={selectedCompanyCommuneId} 
-                      onValueChange={handleCompanyCommuneChange}
-                      disabled={!selectedCompanyProvinceId || isLoadingCompanyCommunes || isLoadingCompanyDepartments}
-                    >
-                      <SelectTrigger className={cn(
+                    )}
+                  </div>
+
+                      <Select
+                        value={selectedCompanyCommuneId}
+                        onValueChange={handleCompanyCommuneChange}
+                        disabled={!selectedCompanyProvinceId || isLoadingCompanyCommunes || isLoadingCompanyDepartments}
+                      >
+                        <SelectTrigger className={cn(
                         "h-12 w-full rounded-xl border-2 transition-all",
                         selectedCompanyCommuneId 
                           ? "border-orange-300 bg-white" 
                           : !selectedCompanyProvinceId
                             ? "border-slate-200 bg-slate-100"
                             : "border-orange-200 hover:border-orange-400 focus:border-orange-500 bg-white",
-                        errors.company?.companyAddress?.city && "border-red-300"
-                      )}>
-                        {isLoadingCompanyCommunes || isLoadingCompanyDepartments ? (
+                          errors.company?.companyAddress?.city && "border-red-300"
+                        )}>
+                          {isLoadingCompanyCommunes || isLoadingCompanyDepartments ? (
                           <div className="flex items-center gap-2 text-slate-400">
                             <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                             <span className="truncate">Chargement...</span>
-                          </div>
-                        ) : (
+                            </div>
+                          ) : (
                           <SelectValue 
                             placeholder={selectedCompanyProvinceId ? "Sélectionnez une ville..." : "Sélectionnez d'abord une province"} 
                             className="truncate"
@@ -892,8 +897,8 @@ export default function CompanyStepV2() {
                         {allCompanyCommunes.map(c => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                      </Select>
                     {errors.company?.companyAddress?.city && (isSubmitted || touchedFields.company?.companyAddress?.city || selectedCompanyCommuneId) && (
                       <p className="text-xs text-red-500 mt-2">{errors.company.companyAddress.city.message}</p>
                     )}
@@ -942,29 +947,29 @@ export default function CompanyStepV2() {
                         >
                           <Plus className="w-4 h-4 text-yellow-600" />
                         </Button>
-                      )}
-                    </div>
-                    
-                    <Select 
-                      value={selectedCompanyDistrictId} 
-                      onValueChange={handleCompanyDistrictChange}
-                      disabled={!selectedCompanyCommuneId || isLoadingCompanyDistricts}
-                    >
-                      <SelectTrigger className={cn(
+                    )}
+                  </div>
+
+                      <Select
+                        value={selectedCompanyDistrictId}
+                        onValueChange={handleCompanyDistrictChange}
+                        disabled={!selectedCompanyCommuneId || isLoadingCompanyDistricts}
+                      >
+                        <SelectTrigger className={cn(
                         "h-12 w-full rounded-xl border-2 transition-all",
                         selectedCompanyDistrictId 
                           ? "border-yellow-300 bg-white" 
                           : !selectedCompanyCommuneId
                             ? "border-slate-200 bg-slate-100"
                             : "border-yellow-200 hover:border-yellow-400 focus:border-yellow-500 bg-white",
-                        errors.company?.companyAddress?.district && "border-red-300"
-                      )}>
-                        {isLoadingCompanyDistricts ? (
+                          errors.company?.companyAddress?.district && "border-red-300"
+                        )}>
+                          {isLoadingCompanyDistricts ? (
                           <div className="flex items-center gap-2 text-slate-400">
                             <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                             <span className="truncate">Chargement...</span>
-                          </div>
-                        ) : (
+                            </div>
+                          ) : (
                           <SelectValue 
                             placeholder={selectedCompanyCommuneId ? "Sélectionnez un arrondissement..." : "Sélectionnez d'abord une ville"} 
                             className="truncate"
@@ -975,8 +980,8 @@ export default function CompanyStepV2() {
                         {sortedCompanyDistricts.map(d => (
                           <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                      </Select>
                     {errors.company?.companyAddress?.district && (
                       <p className="text-xs text-red-500 mt-2">{errors.company.companyAddress.district.message}</p>
                     )}
@@ -1025,11 +1030,11 @@ export default function CompanyStepV2() {
                         >
                           <Plus className="w-4 h-4 text-lime-600" />
                         </Button>
-                      )}
-                    </div>
-                    
+                    )}
+                  </div>
+
                     <div className="w-full min-w-0">
-                      <Select 
+                      <Select
                         value={selectedCompanyQuarterId}
                         onValueChange={handleCompanyQuarterChange}
                         disabled={!selectedCompanyDistrictId || isLoadingCompanyQuarters}
