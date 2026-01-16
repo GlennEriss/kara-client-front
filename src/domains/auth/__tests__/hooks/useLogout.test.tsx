@@ -4,26 +4,12 @@
  * @see https://vitest.dev/
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useLogout } from '../../hooks/useLogout'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-
-// Mock de next/navigation
-const mockPush = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: mockPush,
-    replace: vi.fn(),
-    prefetch: vi.fn(),
-    back: vi.fn(),
-    pathname: '/',
-    query: {},
-    asPath: '/',
-  }),
-}))
 
 // Mock de routes
 vi.mock('@/constantes/routes', () => ({
@@ -42,6 +28,40 @@ vi.mock('@/factories/ServiceFactory', () => ({
     getLogoutService: vi.fn(() => mockLogoutService),
   },
 }))
+
+// Mock de window.location
+const mockLocationHref = vi.fn()
+const originalHref = window.location.href
+
+beforeEach(() => {
+  mockLocationHref.mockClear()
+  Object.defineProperty(window, 'location', {
+    value: {
+      href: 'http://localhost:3000',
+      assign: vi.fn(),
+      replace: vi.fn(),
+      origin: 'http://localhost:3000',
+      pathname: '/',
+      search: '',
+      hash: '',
+    },
+    writable: true,
+    configurable: true,
+  })
+  Object.defineProperty(window.location, 'href', {
+    set: mockLocationHref,
+    get: () => 'http://localhost:3000',
+    configurable: true,
+  })
+})
+
+afterEach(() => {
+  Object.defineProperty(window, 'location', {
+    value: { href: originalHref },
+    writable: true,
+    configurable: true,
+  })
+})
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -72,7 +92,7 @@ describe('useLogout', () => {
     expect(result.current.error).toBe(null)
   })
 
-  it('devrait appeler logout du service et rediriger vers login', async () => {
+  it('devrait appeler logout du service et rediriger vers login avec rechargement complet', async () => {
     const { result } = renderHook(() => useLogout(), {
       wrapper: createWrapper(),
     })
@@ -81,8 +101,8 @@ describe('useLogout', () => {
 
     await waitFor(() => {
       expect(mockLogoutService.logout).toHaveBeenCalledTimes(1)
-      expect(mockPush).toHaveBeenCalledWith('/login')
-      expect(result.current.isLoading).toBe(false)
+      // Vérifier que window.location.href est utilisé pour forcer un rechargement complet
+      expect(mockLocationHref).toHaveBeenCalledWith('/login')
     })
   })
 

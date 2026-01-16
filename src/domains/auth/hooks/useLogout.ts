@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import routes from '@/constantes/routes'
 
@@ -9,7 +8,6 @@ import routes from '@/constantes/routes'
  * @returns Objet contenant la fonction logout et l'état de chargement
  */
 export function useLogout() {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
@@ -21,8 +19,12 @@ export function useLogout() {
       const logoutService = ServiceFactory.getLogoutService()
       await logoutService.logout()
       
-      // Redirection vers la page de connexion
-      router.push(routes.public.login)
+      // Redirection vers la page de connexion avec rechargement complet
+      // Utiliser window.location.href au lieu de router.push() pour :
+      // - Nettoyer tous les états React et les contexts
+      // - Forcer le middleware à vérifier l'authentification
+      // - Garantir que l'utilisateur est bien déconnecté
+      window.location.href = routes.public.login
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Erreur lors de la déconnexion')
       setError(error)
@@ -31,7 +33,7 @@ export function useLogout() {
     } finally {
       setIsLoading(false)
     }
-  }, [router])
+  }, [])
 
   return {
     logout,

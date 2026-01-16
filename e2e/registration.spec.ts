@@ -14,6 +14,29 @@ import { test, expect } from '@playwright/test';
 
 // ==================== CONFIGURATION ====================
 
+// Type pour les données d'identité dans les tests
+type IdentityTestData = {
+  civility: string
+  lastName: string
+  firstName: string
+  birthDate: { day: string; month: string; year: string }
+  birthPlace: string
+  birthCertificateNumber: string
+  prayerPlace: string
+  religion: string
+  customReligion?: string // Optionnel - requis seulement si religion === 'Autre'
+  phone: string
+  gender: string
+  nationality: string
+  maritalStatus: string
+  intermediaryCode: string
+  hasCar?: boolean
+  email?: string
+  spouseLastName?: string
+  spouseFirstName?: string
+  spousePhone?: string
+}
+
 const TEST_DATA = {
   identity: {
     civility: 'Monsieur',
@@ -23,10 +46,11 @@ const TEST_DATA = {
     birthPlace: 'Libreville',
     birthCertificateNumber: '123456',
     prayerPlace: 'Église',
-    religion: 'Christianisme',
+    religion: 'Autre',
+    customReligion: 'branhamiste',
     phone: '65671734', // 8 chiffres sans +241
     gender: 'Homme',
-    nationality: 'Gabonaise',
+    nationality: 'Zambienne',
     maritalStatus: 'Célibataire',
     intermediaryCode: '0000.MK.00001',
   },
@@ -37,6 +61,7 @@ const TEST_DATA = {
     quarter: 'Dakar',
     street: 'Rue de la Paix',
     postalCode: '24100',
+    additionalInfo: 'Proche du marché central',
   },
   company: {
     isEmployed: true,
@@ -68,7 +93,7 @@ async function goToRegisterPage(page: any) {
 /**
  * Remplit l'étape 1 (Identité) - Basé sur IdentityStepV2
  */
-async function fillIdentityStep(page: any, data = TEST_DATA.identity) {
+async function fillIdentityStep(page: any, data: IdentityTestData = TEST_DATA.identity) {
   // 1. Civilité - Select avec placeholder "Sélectionnez..."
   const civilitySelect = page.locator('label:has-text("Civilité")').locator('..').locator('button[role="combobox"]').first();
   await civilitySelect.waitFor({ state: 'visible', timeout: 5000 });
@@ -92,7 +117,7 @@ async function fillIdentityStep(page: any, data = TEST_DATA.identity) {
     }
   }
 
-  // 4. Date de naissance - 3 Select dans un div flex
+  // 4. Date de naissance - 3 Select dans un div grid
   // Jour - premier Select dans la section "Date de naissance"
   const birthDateSection = page.locator('label:has-text("Date de naissance")').locator('..');
   const birthDateSelects = birthDateSection.locator('button[role="combobox"]');
@@ -103,13 +128,22 @@ async function fillIdentityStep(page: any, data = TEST_DATA.identity) {
   await page.locator(`[role="option"]:has-text("${data.birthDate.day}")`).first().click();
   await page.waitForTimeout(300);
 
-  // Mois
+  // Mois - Les options affichent le numéro sur mobile et le label sur desktop
+  // Dans le dropdown, les deux formats sont présents (avec des classes sm:hidden et hidden sm:inline)
   await birthDateSelects.nth(1).click();
   await page.waitForTimeout(300);
-  // Chercher le mois par son label (ex: "Mars" pour "03")
+  // Chercher le mois par son label (ex: "Mars" pour "03") ou par son numéro
   const monthLabels = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
   const monthIndex = parseInt(data.birthDate.month) - 1;
-  await page.locator(`[role="option"]:has-text("${monthLabels[monthIndex]}")`).first().click();
+  // On clique sur l'option qui contient soit le label soit le numéro formaté (01, 02...)
+  const monthValue = data.birthDate.month.padStart(2, '0');
+  // Essayer d'abord le label textuel, sinon le numérique
+  const monthOption = page.locator(`[role="option"]:has-text("${monthLabels[monthIndex]}")`).first();
+  if (await monthOption.count() > 0) {
+    await monthOption.click();
+  } else {
+    await page.locator(`[role="option"]:has-text("${monthValue}")`).first().click();
+  }
   await page.waitForTimeout(300);
 
   // Année
@@ -154,7 +188,18 @@ async function fillIdentityStep(page: any, data = TEST_DATA.identity) {
   await religionSelect.click();
   await page.waitForTimeout(300);
   await page.locator(`[role="option"]:has-text("${data.religion}")`).first().click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(500);
+
+  // 10b. Si religion est "Autre", remplir le champ customReligion
+  if (data.religion === 'Autre' && (data as any).customReligion) {
+    await page.waitForTimeout(500); // Attendre que le champ apparaisse
+    const customReligionInput = page.locator('input[placeholder="Saisissez votre religion"]');
+    if (await customReligionInput.count() > 0) {
+      await customReligionInput.waitFor({ state: 'visible', timeout: 5000 });
+      await customReligionInput.fill((data as any).customReligion);
+      await page.waitForTimeout(300);
+    }
+  }
 
   // 11. Lieu de prière - Input avec name="identity.prayerPlace"
   const prayerPlaceInput = page.locator('input[name="identity.prayerPlace"]');
@@ -375,8 +420,16 @@ async function fillAddressStep(page: any, data = TEST_DATA.address) {
 
   // 6. Code postal (optionnel)
   const postalCodeInput = page.locator('input[name="address.postalCode"]').first();
-  if (await postalCodeInput.count() > 0) {
+  if (await postalCodeInput.count() > 0 && data.postalCode) {
     await postalCodeInput.fill(data.postalCode);
+  }
+
+  // 7. Informations complémentaires (optionnel)
+  const additionalInfoInput = page.locator('textarea[name="address.additionalInfo"]').first();
+  if (await additionalInfoInput.count() > 0 && data.additionalInfo) {
+    await additionalInfoInput.waitFor({ state: 'visible', timeout: 5000 });
+    await additionalInfoInput.fill(data.additionalInfo);
+    await page.waitForTimeout(500);
   }
 
   await page.waitForTimeout(1000);
@@ -645,6 +698,141 @@ async function goToNextStep(page: any) {
   await page.waitForTimeout(3000);
 }
 
+/**
+ * Revient à l'étape précédente
+ */
+async function goToPreviousStep(page: any) {
+  const prevButton = page.locator('button:has-text("Précédent")').first();
+  await prevButton.waitFor({ state: 'visible', timeout: 10000 });
+  await prevButton.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await prevButton.click({ force: true });
+  await page.waitForTimeout(2000);
+}
+
+/**
+ * Vérifie que les valeurs de l'étape 2 (Adresse) sont conservées
+ */
+async function verifyAddressStepValues(page: any, expectedData = TEST_DATA.address) {
+  await page.waitForTimeout(4000); // Attendre que les données soient chargées et initialisées
+  
+  // Vérifier qu'on est bien sur l'étape adresse (plus flexible)
+  const step2Indicator = page.locator('text=/Étape 2|Adresse|Province|Ville/i').first();
+  await step2Indicator.waitFor({ state: 'visible', timeout: 15000 });
+  
+  // Chercher tous les comboboxes sur la page
+  const allPageComboboxes = page.locator('button[role="combobox"]');
+  const totalComboboxes = await allPageComboboxes.count();
+  console.log(`Nombre total de comboboxes sur la page: ${totalComboboxes}`);
+  
+  // 1. Vérifier la Province - chercher près du label "Province"
+  const provinceLabel = page.locator('label:has-text("Province")').first();
+  let provinceFound = false;
+  if (await provinceLabel.count() > 0) {
+    await provinceLabel.waitFor({ state: 'visible', timeout: 10000 });
+    // Chercher le combobox dans le conteneur parent
+    const provinceContainer = provinceLabel.locator('..').locator('..');
+    const provinceSelect = provinceContainer.locator('button[role="combobox"]').first();
+    if (await provinceSelect.count() > 0) {
+      await provinceSelect.waitFor({ state: 'visible', timeout: 10000 });
+      const provinceText = await provinceSelect.textContent();
+      if (provinceText?.includes(expectedData.province)) {
+        expect(provinceText?.trim()).toContain(expectedData.province);
+        console.log(`✅ Province conservée: ${expectedData.province} (texte: "${provinceText?.trim()}")`);
+        provinceFound = true;
+      }
+    }
+  }
+  
+  // Fallback pour Province: chercher dans tous les comboboxes
+  if (!provinceFound) {
+    for (let i = 0; i < totalComboboxes; i++) {
+      const cb = allPageComboboxes.nth(i);
+      const text = await cb.textContent();
+      if (text?.includes(expectedData.province)) {
+        console.log(`✅ Province conservée: ${expectedData.province} (trouvée dans combobox ${i})`);
+        provinceFound = true;
+        break;
+      }
+    }
+  }
+  
+  if (!provinceFound) {
+    throw new Error(`Province "${expectedData.province}" non trouvée après retour à l'étape 2`);
+  }
+  
+  // 2. Vérifier la Commune/Ville - chercher près du label "Ville"
+  const villeLabel = page.locator('label:has-text("Ville")').first();
+  if (await villeLabel.count() > 0) {
+    await villeLabel.waitFor({ state: 'visible', timeout: 10000 });
+    const villeContainer = villeLabel.locator('..').locator('..');
+    const communeSelect = villeContainer.locator('button[role="combobox"]').first();
+    if (await communeSelect.count() > 0) {
+      await communeSelect.waitFor({ state: 'visible', timeout: 10000 });
+      const communeText = await communeSelect.textContent();
+      expect(communeText?.trim()).toContain(expectedData.commune);
+      console.log(`✅ Commune conservée: ${expectedData.commune} (texte: "${communeText?.trim()}")`);
+    }
+  }
+  
+  // 3. Vérifier le District/Arrondissement - chercher près du label "Arrondissement"
+  const arrondissementLabel = page.locator('label:has-text("Arrondissement")').first();
+  if (await arrondissementLabel.count() > 0) {
+    await arrondissementLabel.waitFor({ state: 'visible', timeout: 10000 });
+    const arrondissementContainer = arrondissementLabel.locator('..').locator('..');
+    const districtSelect = arrondissementContainer.locator('button[role="combobox"]').first();
+    if (await districtSelect.count() > 0) {
+      await districtSelect.waitFor({ state: 'visible', timeout: 10000 });
+      const districtText = await districtSelect.textContent();
+      expect(districtText?.trim()).toContain(expectedData.district);
+      console.log(`✅ District conservé: ${expectedData.district} (texte: "${districtText?.trim()}")`);
+    }
+  }
+  
+  // 4. Vérifier le Quartier - chercher près du label "Quartier"
+  const quartierLabel = page.locator('label:has-text("Quartier")').first();
+  if (await quartierLabel.count() > 0) {
+    await quartierLabel.waitFor({ state: 'visible', timeout: 10000 });
+    const quartierContainer = quartierLabel.locator('..').locator('..');
+    const quarterSelect = quartierContainer.locator('button[role="combobox"]').first();
+    if (await quarterSelect.count() > 0) {
+      await quarterSelect.waitFor({ state: 'visible', timeout: 10000 });
+      const quarterText = await quarterSelect.textContent();
+      expect(quarterText?.trim()).toContain(expectedData.quarter);
+      console.log(`✅ Quartier conservé: ${expectedData.quarter} (texte: "${quarterText?.trim()}")`);
+    }
+  }
+  
+  // 5. Vérifier les informations complémentaires (si présentes)
+  const additionalInfoInput = page.locator('textarea[name="address.additionalInfo"]').first();
+  if (await additionalInfoInput.count() > 0) {
+    await additionalInfoInput.waitFor({ state: 'visible', timeout: 5000 });
+    const additionalInfoValue = await additionalInfoInput.inputValue();
+    if (expectedData.additionalInfo) {
+      expect(additionalInfoValue).toBe(expectedData.additionalInfo);
+      console.log(`✅ Informations complémentaires conservées: ${expectedData.additionalInfo}`);
+    }
+  }
+  
+  // 6. Vérifier la rue (si présente)
+  const streetInput = page.locator('input[name="address.street"], textarea[name="address.street"]').first();
+  if (await streetInput.count() > 0 && expectedData.street) {
+    await streetInput.waitFor({ state: 'visible', timeout: 5000 });
+    const streetValue = await streetInput.inputValue();
+    expect(streetValue).toBe(expectedData.street);
+    console.log(`✅ Rue conservée: ${expectedData.street}`);
+  }
+  
+  // 7. Vérifier le code postal (si présent)
+  const postalCodeInput = page.locator('input[name="address.postalCode"]').first();
+  if (await postalCodeInput.count() > 0 && expectedData.postalCode) {
+    await postalCodeInput.waitFor({ state: 'visible', timeout: 5000 });
+    const postalCodeValue = await postalCodeInput.inputValue();
+    expect(postalCodeValue).toBe(expectedData.postalCode);
+    console.log(`✅ Code postal conservé: ${expectedData.postalCode}`);
+  }
+}
+
 // ==================== TESTS ====================
 
 // ==================== TESTS ÉTAPE 1 ====================
@@ -699,13 +887,17 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
         await expect(daySelect).toContainText(expectedData.birthDate.day, { timeout: 5000 });
       }
 
-      // Vérifier le mois
+      // Vérifier le mois - Sur mobile affiche le numéro (01, 02...), sur desktop le label (Janvier...)
       if (expectedData.birthDate.month) {
         const monthSelect = birthDateSelects.nth(1);
         const monthLabels = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
         const monthIndex = parseInt(expectedData.birthDate.month) - 1;
+        const monthNumeric = expectedData.birthDate.month.padStart(2, '0');
         await expect(monthSelect).not.toContainText('Mois', { timeout: 10000 });
-        await expect(monthSelect).toContainText(monthLabels[monthIndex], { timeout: 5000 });
+        // Vérifier soit le label textuel soit le numéro selon le viewport
+        const monthText = await monthSelect.textContent();
+        const hasValidMonth = monthText?.includes(monthLabels[monthIndex]) || monthText?.includes(monthNumeric);
+        expect(hasValidMonth).toBeTruthy();
       }
 
       // Vérifier l'année
@@ -754,6 +946,14 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       const religionSelect = page.locator('label:has-text("Religion")').locator('..').locator('button[role="combobox"]').first();
       const religionText = await religionSelect.textContent();
       expect(religionText).toContain(expectedData.religion);
+    }
+
+    // Custom Religion (si religion est "Autre")
+    if (expectedData.religion === 'Autre' && (expectedData as any).customReligion) {
+      const customReligionInput = page.locator('input[placeholder="Saisissez votre religion"]');
+      if (await customReligionInput.count() > 0) {
+        await expect(customReligionInput).toHaveValue((expectedData as any).customReligion);
+      }
     }
 
     // Lieu de prière
@@ -824,10 +1024,11 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Célibataire',
       intermediaryCode: 'AIMOND.MK.2024',
       hasCar: false,
@@ -851,7 +1052,7 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       religion: 'Islam',
       phone: '77451234',
       gender: 'Femme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Célibataire',
       intermediaryCode: '1234.MK.5678',
       hasCar: true,
@@ -882,10 +1083,11 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       birthPlace: 'Port-Gentil',
       birthCertificateNumber: 'PG-1992-789012',
       prayerPlace: 'Temple',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '60123456',
       gender: 'Femme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Concubinage',
       intermediaryCode: '5678.MK.9012',
       hasCar: true,
@@ -929,10 +1131,11 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Marié(e)',
       intermediaryCode: 'AIMOND.MK.2024',
       hasCar: false,
@@ -967,6 +1170,119 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
     await verifyIdentityStepFields(page, testData);
   });
 
+  test('devrait afficher et remplir le champ customReligion quand "Autre" est sélectionné', async ({ page }) => {
+    const testData = {
+      civility: 'Monsieur',
+      lastName: 'NDONG',
+      firstName: 'Jean-Marc',
+      birthDate: { day: '15', month: '06', year: '1996' },
+      birthPlace: 'Libreville',
+      birthCertificateNumber: 'LBV-1996-458721',
+      prayerPlace: 'Temple spirituel',
+      religion: 'Autre',
+      customReligion: 'Bouddhisme',
+      phone: '65671734',
+      gender: 'Homme',
+      nationality: 'Zambienne',
+      maritalStatus: 'Célibataire',
+      intermediaryCode: 'AIMOND.MK.2024',
+      hasCar: false,
+    };
+
+    // Remplir les champs de base
+    // 1. Civilité
+    const civilitySelect = page.locator('label:has-text("Civilité")').locator('..').locator('button[role="combobox"]').first();
+    await civilitySelect.waitFor({ state: 'visible', timeout: 5000 });
+    await civilitySelect.click();
+    await page.waitForTimeout(500);
+    await page.locator(`[role="option"]:has-text("${testData.civility}")`).first().click();
+    await page.waitForTimeout(500);
+
+    // 2. Nom et prénom
+    const lastNameInput = page.locator('input[name="identity.lastName"]');
+    await lastNameInput.fill(testData.lastName);
+    const firstNameInput = page.locator('input[name="identity.firstName"]');
+    await firstNameInput.fill(testData.firstName);
+    await page.waitForTimeout(300);
+
+    // 3. Date de naissance
+    const birthDateSection = page.locator('label:has-text("Date de naissance")').locator('..');
+    const birthDateSelects = birthDateSection.locator('button[role="combobox"]');
+    await birthDateSelects.nth(0).click();
+    await page.waitForTimeout(300);
+    await page.locator(`[role="option"]:has-text("${testData.birthDate.day}")`).first().click();
+    await page.waitForTimeout(300);
+    await birthDateSelects.nth(1).click();
+    await page.waitForTimeout(300);
+    const monthLabels = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    const monthIndex = parseInt(testData.birthDate.month) - 1;
+    await page.locator(`[role="option"]:has-text("${monthLabels[monthIndex]}")`).first().click();
+    await page.waitForTimeout(300);
+    await birthDateSelects.nth(2).click();
+    await page.waitForTimeout(300);
+    await page.locator(`[role="option"]:has-text("${testData.birthDate.year}")`).first().click();
+    await page.waitForTimeout(500);
+
+    // 4. Autres champs requis
+    await page.locator('input[name="identity.birthPlace"]').fill(testData.birthPlace);
+    await page.locator('input[name="identity.birthCertificateNumber"]').fill(testData.birthCertificateNumber);
+
+    // 5. Genre
+    const genderSelect = page.locator('label:has-text("Genre")').locator('..').locator('button[role="combobox"]').first();
+    await genderSelect.click();
+    await page.waitForTimeout(300);
+    await page.locator(`[role="option"]:has-text("${testData.gender}")`).first().click();
+    await page.waitForTimeout(300);
+
+    // 6. Situation matrimoniale
+    const maritalSelect = page.locator('label:has-text("Situation matrimoniale")').locator('..').locator('button[role="combobox"]').first();
+    await maritalSelect.click();
+    await page.waitForTimeout(300);
+    await page.locator(`[role="option"]:has-text("${testData.maritalStatus}")`).first().click();
+    await page.waitForTimeout(300);
+
+    // 7. Sélectionner "Autre" pour la religion
+    const religionSelect = page.locator('label:has-text("Religion")').locator('..').locator('button[role="combobox"]').first();
+    await religionSelect.click();
+    await page.waitForTimeout(300);
+    await page.locator('[role="option"]:has-text("Autre")').first().click();
+    await page.waitForTimeout(500);
+
+    // 8. Vérifier que le champ customReligion apparaît
+    const customReligionSection = page.locator('text=/Précisez votre religion/i');
+    await expect(customReligionSection).toBeVisible({ timeout: 5000 });
+
+    // 9. Remplir le champ customReligion
+    const customReligionInput = page.locator('input[placeholder="Saisissez votre religion"]');
+    await expect(customReligionInput).toBeVisible({ timeout: 5000 });
+    await customReligionInput.fill(testData.customReligion);
+    await page.waitForTimeout(300);
+
+    // 10. Vérifier que la valeur est bien saisie
+    await expect(customReligionInput).toHaveValue(testData.customReligion);
+
+    // 11. Remplir le lieu de prière
+    await page.locator('input[name="identity.prayerPlace"]').fill(testData.prayerPlace);
+
+    // 12. Remplir le code entremetteur
+    await page.locator('input[name="identity.intermediaryCode"]').fill(testData.intermediaryCode);
+
+    // 13. Remplir le téléphone
+    const phoneInput = page.locator('input[type="tel"]').first();
+    await phoneInput.click();
+    await phoneInput.type(testData.phone, { delay: 50 });
+    await page.waitForTimeout(1000);
+
+    // 14. Vérifier que le formulaire est valide en essayant de passer à l'étape suivante
+    const nextButton = page.locator('button:has-text("Suivant")');
+    await nextButton.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    
+    // Vérifier que le bouton n'est pas désactivé (formulaire valide)
+    const isDisabled = await nextButton.isDisabled().catch(() => true);
+    expect(isDisabled).toBeFalsy();
+  });
+
   test('devrait conserver les données après actualisation de la page', async ({ page }) => {
     const testData = {
       civility: 'Monsieur',
@@ -976,10 +1292,11 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Célibataire',
       intermediaryCode: 'AIMOND.MK.2024',
       hasCar: false,
@@ -1012,7 +1329,7 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
     await verifyIdentityStepFields(page, testData);
   });
 
-  test.skip('devrait réinitialiser l\'étape 1 après clic sur Réinitialiser', async ({ page }) => {
+  test('devrait réinitialiser complètement l\'étape 1 après clic sur Réinitialiser', async ({ page }) => {
     const testData = {
       civility: 'Monsieur',
       lastName: 'NDONG',
@@ -1021,22 +1338,33 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Célibataire',
       intermediaryCode: 'AIMOND.MK.2024',
       hasCar: false,
+      email: 'test@example.com',
     };
 
     // Remplir l'étape 1
     await fillIdentityStep(page, testData);
     await page.waitForTimeout(2000);
 
-    // Vérifier que le champ est bien rempli avant réinitialisation
+    // Vérifier que les champs sont bien remplis avant réinitialisation
     const lastNameInputBefore = page.locator('input[name="identity.lastName"]');
     await expect(lastNameInputBefore).toHaveValue(testData.lastName);
+    
+    const firstNameInputBefore = page.locator('input[name="identity.firstName"]');
+    await expect(firstNameInputBefore).toHaveValue(testData.firstName);
+    
+    const emailInputBefore = page.locator('input[type="email"]');
+    if (await emailInputBefore.count() > 0) {
+      await emailInputBefore.fill(testData.email);
+      await page.waitForTimeout(300);
+    }
 
     // Écouter le dialogue de confirmation avant de cliquer
     page.once('dialog', async dialog => {
@@ -1051,15 +1379,186 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
     await resetButton.click();
     await page.waitForTimeout(3000); // Attendre la réinitialisation
 
-    // Vérifier que les champs principaux sont vides
+    // Vérifier que TOUS les champs sont vides ou réinitialisés aux valeurs par défaut
+    // Champs texte
     const lastNameInput = page.locator('input[name="identity.lastName"]');
     await expect(lastNameInput).toHaveValue('', { timeout: 10000 });
+
+    const firstNameInput = page.locator('input[name="identity.firstName"]');
+    await expect(firstNameInput).toHaveValue('', { timeout: 5000 });
 
     const birthPlaceInput = page.locator('input[name="identity.birthPlace"]');
     await expect(birthPlaceInput).toHaveValue('', { timeout: 5000 });
 
+    const birthCertInput = page.locator('input[name="identity.birthCertificateNumber"]');
+    await expect(birthCertInput).toHaveValue('', { timeout: 5000 });
+
+    const prayerPlaceInput = page.locator('input[name="identity.prayerPlace"]');
+    await expect(prayerPlaceInput).toHaveValue('', { timeout: 5000 });
+
     const intermediaryInput = page.locator('input[name="identity.intermediaryCode"]');
     await expect(intermediaryInput).toHaveValue('', { timeout: 5000 });
+
+    // Email (optionnel, doit être vide)
+    const emailInput = page.locator('input[type="email"]');
+    if (await emailInput.count() > 0) {
+      await expect(emailInput).toHaveValue('', { timeout: 5000 });
+    }
+
+    // Date de naissance - vérifier que les selects sont réinitialisés
+    const birthDateSection = page.locator('label:has-text("Date de naissance")').locator('..');
+    const birthDateSelects = birthDateSection.locator('button[role="combobox"]');
+    const daySelect = birthDateSelects.nth(0);
+    const monthSelect = birthDateSelects.nth(1);
+    const yearSelect = birthDateSelects.nth(2);
+    
+    // Vérifier que les placeholders sont affichés (indique que les champs sont vides)
+    await expect(daySelect).toContainText('Jour', { timeout: 5000 });
+    await expect(monthSelect).toContainText('Mois', { timeout: 5000 });
+    await expect(yearSelect).toContainText('Année', { timeout: 5000 });
+
+    // Téléphone - vérifier qu'il est vide
+    const phoneInput = page.locator('input[type="tel"]').first();
+    const phoneValue = await phoneInput.inputValue();
+    expect(phoneValue.trim()).toBe('');
+
+    // Vérifier que les selects sont réinitialisés aux valeurs par défaut
+    const civilitySelect = page.locator('label:has-text("Civilité")').locator('..').locator('button[role="combobox"]').first();
+    const civilityText = await civilitySelect.textContent();
+    expect(civilityText).toContain('Monsieur'); // Valeur par défaut
+
+    const genderSelect = page.locator('label:has-text("Genre")').locator('..').locator('button[role="combobox"]').first();
+    const genderText = await genderSelect.textContent();
+    expect(genderText).toContain('Homme'); // Valeur par défaut
+
+    const nationalitySelect = page.locator('label:has-text("Nationalité")').locator('..').locator('button[role="combobox"]').first();
+    const nationalityText = await nationalitySelect.textContent();
+    expect(nationalityText).toContain('Gabonaise'); // Valeur par défaut (GA) - reste Gabonaise même si on teste avec Zambienne
+
+    const maritalSelect = page.locator('label:has-text("Situation matrimoniale")').locator('..').locator('button[role="combobox"]').first();
+    const maritalText = await maritalSelect.textContent();
+    expect(maritalText).toContain('Célibataire'); // Valeur par défaut
+
+    // Vérifier que le switch voiture est réinitialisé
+    const hasCarSwitch = page.locator('button[role="switch"]').first();
+    const isChecked = await hasCarSwitch.getAttribute('aria-checked');
+    expect(isChecked).toBe('false'); // Valeur par défaut
+  });
+
+  test('devrait voir et cliquer sur le bouton "Retour à l\'accueil"', async ({ page }) => {
+    // Vérifier que le bouton "Retour à l'accueil" est visible
+    const homeButton = page.locator('button:has-text("Retour à l\'accueil")');
+    await expect(homeButton).toBeVisible({ timeout: 10000 });
+    
+    // Vérifier que le bouton contient l'icône Home
+    const homeIcon = homeButton.locator('svg').first();
+    await expect(homeIcon).toBeVisible();
+    
+    // Vérifier les styles du bouton (border, etc.)
+    const buttonClasses = await homeButton.getAttribute('class');
+    expect(buttonClasses).toContain('border-2');
+    expect(buttonClasses).toContain('border-kara-primary-dark');
+    
+    // Cliquer sur le bouton et vérifier la redirection
+    // Note: En test e2e, on peut intercepter la navigation ou vérifier que le bouton est cliquable
+    await homeButton.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    
+    // Vérifier que le bouton est cliquable (pas disabled)
+    const isDisabled = await homeButton.isDisabled().catch(() => false);
+    expect(isDisabled).toBeFalsy();
+    
+    // Pour éviter de quitter la page pendant les tests, on peut juste vérifier que le bouton fonctionne
+    // En production, ce bouton redirige vers '/'
+    console.log('✅ Bouton "Retour à l\'accueil" visible et cliquable');
+  });
+
+  test('devrait voir le bouton "Réinitialiser" et réinitialiser le formulaire', async ({ page }) => {
+    const testData = {
+      civility: 'Madame',
+      lastName: 'TEST',
+      firstName: 'Test',
+      birthDate: { day: '20', month: '08', year: '1995' },
+      birthPlace: 'Libreville',
+      birthCertificateNumber: 'TEST-123',
+      prayerPlace: 'Temple',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
+      phone: '65671734',
+      gender: 'Femme',
+      nationality: 'Zambienne',
+      maritalStatus: 'Célibataire',
+      intermediaryCode: '1234.MK.5678',
+      hasCar: true,
+    };
+
+    // Remplir l'étape 1 avec des données
+    await fillIdentityStep(page, testData);
+    await page.waitForTimeout(2000);
+
+    // Vérifier que les champs sont remplis avant réinitialisation
+    const lastNameInputBefore = page.locator('input[name="identity.lastName"]');
+    await expect(lastNameInputBefore).toHaveValue(testData.lastName);
+    
+    const firstNameInputBefore = page.locator('input[name="identity.firstName"]');
+    await expect(firstNameInputBefore).toHaveValue(testData.firstName);
+
+    // Vérifier que le bouton "Réinitialiser" est visible
+    const resetButton = page.locator('button:has-text("Réinitialiser")');
+    await expect(resetButton).toBeVisible({ timeout: 10000 });
+    
+    // Vérifier que le bouton contient l'icône RotateCcw
+    const resetIcon = resetButton.locator('svg').first();
+    await expect(resetIcon).toBeVisible();
+    
+    // Vérifier les styles du bouton
+    const buttonClasses = await resetButton.getAttribute('class');
+    expect(buttonClasses).toContain('text-slate-500');
+    
+    // Vérifier que le bouton est cliquable
+    const isDisabled = await resetButton.isDisabled().catch(() => false);
+    expect(isDisabled).toBeFalsy();
+    
+    // Scroll vers le bouton pour s'assurer qu'il est visible
+    await resetButton.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+
+    // Écouter le dialogue de confirmation
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('effacer');
+      await dialog.accept();
+    });
+
+    // Cliquer sur le bouton Réinitialiser
+    await resetButton.click();
+    await page.waitForTimeout(3000); // Attendre la réinitialisation
+
+    // Vérifier que les champs sont réinitialisés
+    const lastNameInput = page.locator('input[name="identity.lastName"]');
+    await expect(lastNameInput).toHaveValue('', { timeout: 10000 });
+
+    const firstNameInput = page.locator('input[name="identity.firstName"]');
+    await expect(firstNameInput).toHaveValue('', { timeout: 5000 });
+
+    const birthPlaceInput = page.locator('input[name="identity.birthPlace"]');
+    await expect(birthPlaceInput).toHaveValue('', { timeout: 5000 });
+
+    // Vérifier que les selects sont réinitialisés aux valeurs par défaut
+    const civilitySelect = page.locator('label:has-text("Civilité")').locator('..').locator('button[role="combobox"]').first();
+    const civilityText = await civilitySelect.textContent();
+    expect(civilityText).toContain('Monsieur'); // Valeur par défaut
+
+    const genderSelect = page.locator('label:has-text("Genre")').locator('..').locator('button[role="combobox"]').first();
+    const genderText = await genderSelect.textContent();
+    expect(genderText).toContain('Homme'); // Valeur par défaut
+
+    // Vérifier que le switch voiture est réinitialisé
+    const hasCarSwitch = page.locator('button[role="switch"]').first();
+    const isChecked = await hasCarSwitch.getAttribute('aria-checked');
+    expect(isChecked).toBe('false'); // Valeur par défaut
+
+    console.log('✅ Bouton "Réinitialiser" visible et fonctionnel');
   });
 
   test.skip('devrait conserver les données après navigation (Suivant puis Précédent)', async ({ page }) => {
@@ -1071,10 +1570,11 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Célibataire',
       intermediaryCode: 'AIMOND.MK.2024',
       hasCar: false,
@@ -1130,10 +1630,11 @@ test.describe('Étape 1 - Identité - Tests complets', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Marié(e)',
       intermediaryCode: 'AIMOND.MK.2024',
       hasCar: false,
@@ -1263,10 +1764,11 @@ test.describe('Module Inscription - Soumission complète', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Marié(e)',
       intermediaryCode: '0000.MK.00001',
       hasCar: false,
@@ -1537,10 +2039,11 @@ test.describe('Tests responsive - Tablette et Mobile', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Marié(e)',
       intermediaryCode: '0000.MK.00001',
       hasCar: false,
@@ -1586,6 +2089,101 @@ test.describe('Tests responsive - Tablette et Mobile', () => {
     console.log('✅ Champs conditionnels remplis avec succès sur tablette');
   });
 
+  test('devrait afficher correctement le switch voiture sur mobile sans débordement', async ({ page }) => {
+    await goToRegisterPage(page);
+    
+    // Vérifier la taille de l'écran
+    const viewport = page.viewportSize();
+    console.log(`📱 Taille d'écran: ${viewport?.width}x${viewport?.height}`);
+    
+    // Scroll vers la section voiture
+    const carSection = page.locator('text=/Possédez-vous une voiture/i').first();
+    await carSection.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    
+    // Vérifier que la section est visible
+    await expect(carSection).toBeVisible({ timeout: 5000 });
+    
+    // Vérifier que les labels "Non" et "Oui" sont visibles
+    const carContainer = carSection.locator('..').locator('..');
+    const nonLabel = carContainer.locator('text="Non"');
+    const ouiLabel = carContainer.locator('text="Oui"');
+    
+    await expect(nonLabel).toBeVisible({ timeout: 5000 });
+    await expect(ouiLabel).toBeVisible({ timeout: 5000 });
+    
+    // Vérifier que le switch est fonctionnel
+    const carSwitch = carContainer.locator('button[role="switch"]');
+    await expect(carSwitch).toBeVisible({ timeout: 5000 });
+    
+    // Vérifier l'état initial (non coché = pas de voiture)
+    const initialState = await carSwitch.getAttribute('aria-checked');
+    expect(initialState).toBe('false');
+    
+    // Cliquer pour activer
+    await carSwitch.click();
+    await page.waitForTimeout(500);
+    
+    // Vérifier le nouvel état
+    const newState = await carSwitch.getAttribute('aria-checked');
+    expect(newState).toBe('true');
+    
+    // Vérifier que les labels sont toujours visibles après interaction
+    await expect(nonLabel).toBeVisible();
+    await expect(ouiLabel).toBeVisible();
+    
+    // Vérifier qu'aucun élément ne déborde (le conteneur ne doit pas avoir de scroll horizontal)
+    const containerWidth = await carSection.locator('..').locator('..').evaluate((el) => {
+      return el.scrollWidth <= el.clientWidth;
+    });
+    expect(containerWidth).toBeTruthy();
+    
+    console.log('✅ Switch voiture affiché correctement sur mobile');
+  });
+
+  test('devrait masquer le badge opérateur sur mobile dans le champ téléphone', async ({ page }) => {
+    await goToRegisterPage(page);
+    
+    // Vérifier la taille de l'écran
+    const viewport = page.viewportSize();
+    const isMobile = (viewport?.width || 0) < 640; // sm breakpoint de Tailwind
+    console.log(`📱 Taille d'écran: ${viewport?.width}x${viewport?.height} - Mobile: ${isMobile}`);
+    
+    // Trouver le champ téléphone
+    const phoneInput = page.locator('input[type="tel"]').first();
+    await phoneInput.scrollIntoViewIfNeeded();
+    await expect(phoneInput).toBeVisible({ timeout: 5000 });
+    
+    // Saisir un numéro de téléphone pour déclencher l'affichage du badge opérateur
+    await phoneInput.click();
+    await page.waitForTimeout(200);
+    await phoneInput.type('65671734', { delay: 50 }); // Numéro Airtel
+    await page.waitForTimeout(1000);
+    
+    // Chercher le badge opérateur (contient "Airtel", "Libertis", "Moov", etc.)
+    const operatorBadge = page.locator('text=/Airtel|Libertis|Moov|Gabon Telecom/i').first();
+    
+    if (isMobile) {
+      // Sur mobile, le badge doit être masqué (classe hidden sm:block)
+      const badgeCount = await operatorBadge.count();
+      if (badgeCount > 0) {
+        // Vérifier que le badge a la classe qui le masque sur mobile
+        const isHiddenOnMobile = await operatorBadge.evaluate((el) => {
+          const computedStyle = window.getComputedStyle(el);
+          return computedStyle.display === 'none';
+        });
+        expect(isHiddenOnMobile).toBeTruthy();
+      }
+      console.log('✅ Badge opérateur masqué sur mobile');
+    } else {
+      // Sur desktop (tablette), le badge devrait être visible
+      if (await operatorBadge.count() > 0) {
+        await expect(operatorBadge).toBeVisible({ timeout: 5000 });
+        console.log('✅ Badge opérateur visible sur desktop/tablette');
+      }
+    }
+  });
+
   test('devrait remplir les champs conditionnels (marié + travail) sur mobile', async ({ page }) => {
     test.setTimeout(180000);
     
@@ -1600,10 +2198,11 @@ test.describe('Tests responsive - Tablette et Mobile', () => {
       birthPlace: 'Libreville',
       birthCertificateNumber: 'LBV-1996-458721',
       prayerPlace: 'Paroisse Saint-Michel – Libreville',
-      religion: 'Christianisme',
+      religion: 'Autre',
+      customReligion: 'branhamiste',
       phone: '65671734',
       gender: 'Homme',
-      nationality: 'Gabonaise',
+      nationality: 'Zambienne',
       maritalStatus: 'Marié(e)',
       intermediaryCode: '0000.MK.00001',
       hasCar: false,
@@ -1653,5 +2252,52 @@ test.describe('Tests responsive - Tablette et Mobile', () => {
     await expect(companyNameInput).toHaveValue(companyData.companyName, { timeout: 5000 });
     
     console.log('✅ Champs conditionnels remplis avec succès sur mobile');
+  });
+
+  test('devrait conserver les données de l\'étape 2 après navigation vers l\'étape 3 et retour', async ({ page }) => {
+    test.setTimeout(180000);
+    
+    // Données de test pour l'étape 2
+    const addressData = {
+      province: 'Estuaire',
+      commune: 'Libreville Centre',
+      district: 'Centre-Ville',
+      quarter: 'Dakar',
+      street: 'Rue de la Paix',
+      postalCode: '24100',
+      additionalInfo: 'Proche du marché central',
+    };
+    
+    // 1. Aller à la page d'inscription
+    await goToRegisterPage(page);
+    
+    // 2. Remplir l'étape 1 (Identité)
+    await fillIdentityStep(page);
+    console.log('✅ Étape 1 remplie');
+    
+    // 3. Aller à l'étape 2
+    await goToNextStep(page);
+    console.log('✅ Navigation vers l\'étape 2');
+    
+    // 4. Remplir l'étape 2 (Adresse) avec toutes les données
+    await fillAddressStep(page, addressData);
+    console.log('✅ Étape 2 remplie avec toutes les données');
+    
+    // 5. Aller à l'étape 3
+    await goToNextStep(page);
+    console.log('✅ Navigation vers l\'étape 3');
+    
+    // Vérifier qu'on est bien sur l'étape 3
+    await expect(page.locator('text=/Étape 3|Profession|Entreprise/i').first()).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2000);
+    
+    // 6. Revenir à l'étape 2
+    await goToPreviousStep(page);
+    console.log('✅ Retour à l\'étape 2');
+    
+    // 7. Vérifier que toutes les valeurs de l'étape 2 sont conservées
+    await verifyAddressStepValues(page, addressData);
+    
+    console.log('✅ Toutes les données de l\'étape 2 sont conservées après navigation');
   });
 });

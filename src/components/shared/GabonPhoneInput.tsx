@@ -167,12 +167,13 @@ export default function GabonPhoneInput({
             maxLength={11} // 8 chiffres + 3 espaces
           />
 
-          {/* Badge opérateur */}
+          {/* Badge opérateur - masqué en mobile pour ne pas obstruer le numéro */}
           {operator && digits.length >= 2 && (
             <div className={cn(
               "absolute right-2 top-1/2 -translate-y-1/2",
               "px-2.5 py-1 rounded-full text-xs font-bold",
               "animate-in fade-in zoom-in duration-200",
+              "hidden sm:block", // Masqué en mobile, visible en desktop
               operator.bg, operator.color
             )}>
               {operator.name}

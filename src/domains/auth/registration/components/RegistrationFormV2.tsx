@@ -228,10 +228,10 @@ export default function RegistrationFormV2() {
           {/* Bouton retour accueil */}
           <div className="mt-4">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => window.location.href = '/'}
-              className="text-slate-500 hover:text-kara-primary-dark"
+              className="border-2 border-kara-primary-dark text-kara-primary-dark hover:bg-kara-primary-dark hover:text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300"
             >
               <Home className="w-4 h-4 mr-2" />
               Retour à l'accueil
