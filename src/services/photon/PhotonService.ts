@@ -44,8 +44,7 @@ export class PhotonService {
 
       const data = await response.json()
       return data.features || []
-    } catch (error) {
-      console.error('Erreur lors de la recherche Photon:', error)
+    } catch {
       return []
     }
   }

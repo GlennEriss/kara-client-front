@@ -106,7 +106,7 @@ export default function AdminCaisseSettingsPage() {
     }
   }, [active.data?.id])
 
-  const updateActive = async (e: React.FormEvent) => {
+  const _updateActive = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!active.data) return
     const updates: any = {

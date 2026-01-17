@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { RelationshipEnum, emergencyContactSchema } from '@/schemas/emergency-contact.schema'
+import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
 import { identitySchema, CivilityEnum, GenderEnum, identityDefaultValues } from './identity.schema'
 import { addressSchema, addressDefaultValues } from './address.schema'
-import { companySchema, companyCrudSchema, companyDefaultValues } from './company.schema'
+import { companySchema, companyDefaultValues } from './company.schema'
 
 // Énumérations pour les options fixes (valeurs en français)
 export const IdentityDocumentEnum = z.enum([

@@ -1,0 +1,387 @@
+
+> kara@0.1.0 test /Users/glenneriss/Documents/projets/kara-client-front
+> vitest --run --coverage src/domains/memberships
+
+
+ RUN  v2.1.9 /Users/glenneriss/Documents/projets/kara-client-front
+      Coverage enabled with v8
+
+ ✓ src/domains/memberships/__tests__/unit/utils/membershipValidation.test.ts (17 tests) 17ms
+ ✓ src/domains/memberships/__tests__/unit/utils/securityCode.test.ts (13 tests) 89ms
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste paginée de demandes
+🔍 Repository.getAll - Filtres: {}
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste paginée de demandes
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:105:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste vide si aucune demande
+🔍 Repository.getAll - Filtres: {}
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste vide si aucune demande
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:129:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "pending"
+🔍 Repository.getAll - Filtres: { status: 'pending' }
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "pending"
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:157:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "approved"
+🔍 Repository.getAll - Filtres: { status: 'approved' }
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "approved"
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:184:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "rejected"
+🔍 Repository.getAll - Filtres: { status: 'rejected' }
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "rejected"
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:211:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "under_review"
+🔍 Repository.getAll - Filtres: { status: 'under_review' }
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "under_review"
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:238:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait trier par date décroissante par défaut
+🔍 Repository.getAll - Filtres: {}
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait trier par date décroissante par défaut
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:265:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par isPaid=true
+🔍 Repository.getAll - Filtres: { isPaid: true }
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par isPaid=true
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:297:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait combiner les filtres (status + isPaid)
+🔍 Repository.getAll - Filtres: { status: 'pending', isPaid: true }
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait combiner les filtres (status + isPaid)
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:324:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait throw une erreur si la connexion Firestore échoue
+🔍 Repository.getAll - Filtres: {}
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait throw une erreur si la connexion Firestore échoue
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:337:31
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stdout | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste vide si statut invalide
+🔍 Repository.getAll - Filtres: { status: 'invalid' }
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste vide si statut invalide
+❌ Erreur Repository.getAll: TypeError: Cannot read properties of undefined (reading 'type')
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+    at Array.map (<anonymous>)
+    at MembershipRepositoryV2.getAll (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:354:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stderr | src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > updateStatus > devrait throw si ID inexistant
+❌ Erreur Repository.updateStatus: Error: Demande avec ID non-existent-id introuvable
+    at MembershipRepositoryV2.updateStatus (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/MembershipRepositoryV2.ts:185:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:503:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ✓ src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts (16 tests) 262ms
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts (27 tests | 11 failed) 424ms
+   × MembershipRepositoryV2 > getAll > devrait retourner une liste paginée de demandes 94ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait retourner une liste vide si aucune demande 16ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait filtrer par statut "pending" 1ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait filtrer par statut "approved" 135ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait filtrer par statut "rejected" 1ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait filtrer par statut "under_review" 16ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait trier par date décroissante par défaut 7ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait filtrer par isPaid=true 1ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait combiner les filtres (status + isPaid) 2ms
+     → Cannot read properties of undefined (reading 'type')
+   × MembershipRepositoryV2 > getAll > devrait throw une erreur si la connexion Firestore échoue 139ms
+     → expected [Function] to throw error including 'Firestore connection error' but got 'Cannot read properties of undefined (…'
+   × MembershipRepositoryV2 > getAll > devrait retourner une liste vide si statut invalide 1ms
+     → Cannot read properties of undefined (reading 'type')
+ ✓ src/domains/memberships/__tests__/unit/hooks/useMembershipActionsV2.test.ts (6 tests) 546ms
+   ✓ useMembershipActionsV2 > approveMutation > devrait appeler approveMembershipRequest avec les bons paramètres 514ms
+ ✓ src/domains/memberships/__tests__/unit/hooks/useMembershipStatsV2.test.ts (4 tests) 748ms
+   ✓ useMembershipStatsV2 > devrait charger les statistiques au mount 485ms
+ ✓ src/domains/memberships/__tests__/unit/hooks/useMembershipRequestsV2.test.ts (11 tests) 1140ms
+   ✓ useMembershipRequestsV2 > fetching > devrait charger les demandes au mount 443ms
+ ✓ src/domains/memberships/__tests__/unit/utils/whatsappUrl.test.ts (15 tests) 20ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste paginée de demandes
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:105:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste vide si aucune demande
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:129:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "pending"
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:157:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "approved"
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:184:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "rejected"
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:211:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par statut "under_review"
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:238:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait trier par date décroissante par défaut
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:265:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait filtrer par isPaid=true
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:297:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait combiner les filtres (status + isPaid)
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:324:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait throw une erreur si la connexion Firestore échoue
+AssertionError: expected [Function] to throw error including 'Firestore connection error' but got 'Cannot read properties of undefined (…'
+
+Expected: "Firestore connection error"
+Received: "Cannot read properties of undefined (reading 'type')"
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts > MembershipRepositoryV2 > getAll > devrait retourner une liste vide si statut invalide
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:81
+     93|       // Debug: Log de la requête pour vérification
+     94|       console.log('🔍 Repository.getAll - Filtres:', filters)
+     95|       console.log('🔍 Repository.getAll - Constraints:', constraints.ma…
+       |                                                                                 ^
+     96|       
+     97|       // Exécuter la requête
+ ❯ MembershipRepositoryV2.getAll src/domains/memberships/repositories/MembershipRepositoryV2.ts:95:70
+ ❯ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts:354:39
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+ Test Files  1 failed | 7 passed (8)
+      Tests  11 failed | 98 passed (109)
+   Start at  10:45:47
+   Duration  10.49s (transform 5.37s, setup 10.70s, collect 7.66s, tests 3.24s, environment 9.02s, prepare 1.20s)
+
+ ELIFECYCLE  Test failed. See above for more details.

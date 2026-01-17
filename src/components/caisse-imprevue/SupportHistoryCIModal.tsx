@@ -436,7 +436,7 @@ function SupportCard({ support }: { support: SupportCI }) {
             Historique des remboursements ({support.repayments.length})
           </p>
           <div className="space-y-2 max-h-32 overflow-y-auto">
-            {support.repayments.map((repayment, idx) => (
+            {support.repayments.map((repayment) => (
               <div
                 key={repayment.id}
                 className="flex items-center justify-between text-xs bg-white rounded p-2"

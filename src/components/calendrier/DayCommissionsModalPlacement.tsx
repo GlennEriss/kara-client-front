@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Calendar, TrendingUp, ChevronRight, Wallet, CheckCircle2, Clock, AlertCircle } from "lucide-react"
 import type { DayCommissions, CalendarCommissionItem } from "@/hooks/useCalendarPlacement"

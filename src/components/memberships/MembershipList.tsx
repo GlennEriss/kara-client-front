@@ -25,7 +25,7 @@ import {
   Mars,
   Cake,
 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { useAllMembers } from '@/hooks/useMembers'
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'

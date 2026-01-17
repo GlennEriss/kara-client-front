@@ -28,7 +28,6 @@ export default function CreateCharityEventForm() {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
     setValue
   } = useForm<CharityEventFormData>({
     resolver: zodResolver(charityEventSchema) as any,

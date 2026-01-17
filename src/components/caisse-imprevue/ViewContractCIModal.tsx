@@ -11,9 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ContractCI } from '@/types/types'
-import { toast } from 'sonner'
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer'
 import CaisseImprevuePDF from './CaisseImprevuePDF'
 import { usePaymentsCI } from '@/hooks/caisse-imprevue'
@@ -47,7 +45,7 @@ export default function ViewContractCIModal({
   onClose,
   contract
 }: ViewContractCIModalProps) {
-  const isMobile = useIsMobile()
+  const _isMobile = useIsMobile()
   const [isGenerating, setIsGenerating] = useState(true)
 
   // Récupérer les paiements pour le récapitulatif

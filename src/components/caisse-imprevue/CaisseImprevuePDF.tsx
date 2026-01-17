@@ -221,34 +221,6 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
     return amount ? amount.toLocaleString('fr-FR') : '0'
   }
 
-  const getContractTypeLabel = (type: string) => {
-    switch (type) {
-      case 'DAILY': return 'Quotidien'
-      case 'MONTHLY': return 'Mensuel'
-      default: return type || 'Mensuel'
-    }
-  }
-
-  const getForfaitLabel = (amount: number) => {
-    switch (amount) {
-      case 10000: return 'A- 10 000'
-      case 20000: return 'B- 20 000'
-      case 30000: return 'C- 30 000'
-      case 40000: return 'D- 40 000'
-      case 50000: return 'E- 50 000'
-      default: return `${formatAmount(amount)}`
-    }
-  }
-
-  const getNominal = (monthlyAmount: number) => {
-    return monthlyAmount * 12
-  }
-
-  const getAppuiRange = (monthlyAmount: number) => {
-    const multiplier = monthlyAmount / 10000
-    const maxAppui = multiplier * 30000
-    return `[0 ; ${formatAmount(maxAppui)}]`
-  }
 
   return (
     <Document>

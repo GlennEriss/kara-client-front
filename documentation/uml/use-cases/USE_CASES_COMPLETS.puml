@@ -89,6 +89,7 @@ package "Domaine Membership" {
     usecase "UC-MEM-002: Valider une demande d'inscription" as UC_VALIDATE
     usecase "UC-MEM-003: Refuser une demande d'inscription" as UC_REJECT
     usecase "UC-MEM-004: Consulter les demandes\n(en attente)" as UC_LIST_REQUESTS
+    usecase "UC-MEM-013: Notifier automatiquement les admins\nlors de la création d'une demande" as UC_NOTIFY_NEW_REQUEST
   }
   
   package "Gestion des Membres" {
@@ -107,6 +108,7 @@ package "Domaine Membership" {
   
   ' Relations include/extend dans Membership
   UC_REGISTER ..> UC_INFRA_VALIDATE_FORM : <<include>>
+  UC_REGISTER ..> UC_NOTIFY_NEW_REQUEST : <<extend>>\n(notifie automatiquement après création)
   UC_VALIDATE ..> UC_MEMBER_DETAIL : <<include>>
   UC_REJECT ..> UC_MEMBER_DETAIL : <<include>>
 }
@@ -438,6 +440,9 @@ Admin --> UC_GROUP_UPDATE
 Admin --> UC_GROUP_MEMBERS
 Admin --> UC_GROUP_LIST
 Admin --> UC_LIST_REQUESTS
+
+' Notifications automatiques (déclenchées par le Système)
+System --> UC_NOTIFY_NEW_REQUEST
 
 ' Financial - Caisse Spéciale
 Admin --> UC_CS_CREATE

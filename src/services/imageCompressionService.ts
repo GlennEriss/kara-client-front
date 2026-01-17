@@ -36,8 +36,7 @@ export class ImageCompressionService {
       console.log('📉 Réduction:', (((file.size - compressedFile.size) / file.size) * 100).toFixed(1), '%')
 
       return compressedFile
-    } catch (error) {
-      console.error('❌ Erreur lors de la compression:', error)
+    } catch {
       // En cas d'erreur, retourner le fichier original
       return file
     }

@@ -88,6 +88,28 @@ describe('Logout Integration', () => {
     it('devrait intégrer correctement LogoutService avec useLogout', async () => {
       vi.mocked(signOut).mockResolvedValue(undefined)
 
+      // Mock window.location.href avec Object.defineProperty
+      const originalLocation = window.location
+      let currentHref = 'http://localhost:3000'
+      const mockHrefSetter = vi.fn((value: string) => {
+        currentHref = value
+      })
+
+      delete (window as any).location
+      Object.defineProperty(window, 'location', {
+        value: {
+          ...originalLocation,
+          get href() {
+            return currentHref
+          },
+          set href(value: string) {
+            mockHrefSetter(value)
+          },
+        },
+        writable: true,
+        configurable: true,
+      })
+
       const { result } = renderHook(() => useLogout(), {
         wrapper: createWrapper(),
       })
@@ -101,11 +123,18 @@ describe('Logout Integration', () => {
         // Vérifier que le cookie a été supprimé
         expect(document.cookie).toContain('auth-token=;')
         
-        // Vérifier que la redirection a été appelée
-        expect(mockPush).toHaveBeenCalledWith('/login')
+        // Vérifier que la redirection a été effectuée via window.location.href
+        expect(mockHrefSetter).toHaveBeenCalledWith('/login')
         
         // Vérifier que isLoading est revenu à false
         expect(result.current.isLoading).toBe(false)
+      })
+
+      // Restaurer window.location
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
       })
     })
 

@@ -27,11 +27,11 @@ export default function Step1() {
   const selectedMemberId = step1Values?.memberId
 
   // Callbacks mémorisés avec useCallback pour éviter les re-renders inutiles
-  const handleSearchSuccess = useCallback((data: User[]) => {
+  const handleSearchSuccess = useCallback((_data: User[]) => {
     setIsSearching(false)
   }, [])
 
-  const handleSearchError = useCallback((error: Error) => {
+  const handleSearchError = useCallback((_error: Error) => {
     setIsSearching(false)
   }, [])
 

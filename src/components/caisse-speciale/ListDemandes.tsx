@@ -12,11 +12,9 @@ import {
   List,
   AlertCircle,
   Plus,
-  Download,
   CheckCircle,
   XCircle,
   Clock,
-  Loader2,
   Eye,
   Calendar,
   RotateCcw,
@@ -25,7 +23,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { CaisseSpecialeDemand, CaisseSpecialeDemandStatus } from '@/types/types'
-import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats, useCaisseSpecialeDemandMutations } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
+import { useCaisseSpecialeDemands, useCaisseSpecialeDemandsStats } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
 import type { CaisseSpecialeDemandFilters } from '@/types/types'
 import CreateDemandModal from './CreateDemandModal'
 import AcceptDemandModal from './AcceptDemandModal'
@@ -37,7 +35,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 type ViewMode = 'grid' | 'list'
 
 // Composant skeleton moderne
-const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
+const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
@@ -65,7 +63,7 @@ const ListDemandes = () => {
     (searchParams.get('tab') as any) || 'all'
   )
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
-  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const [itemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [acceptModalState, setAcceptModalState] = useState<{

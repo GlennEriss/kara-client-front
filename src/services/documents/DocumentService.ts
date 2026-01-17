@@ -1,5 +1,4 @@
 import { Document } from '@/types/types'
-import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
 import { IDocumentRepository } from '@/repositories/documents/IDocumentRepository'
 import {
   DocumentListQuery,

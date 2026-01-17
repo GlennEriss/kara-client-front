@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient, useInfiniteQuery, useMutation } from '@tanstack/react-query'
-import { getUserById, getAllUsers, getUsersPage } from '@/db/user.db'
+import { getUserById, getUsersPage } from '@/db/user.db'
 import { getMembersByGroup, getMembershipRequestByDossier, getMemberStats, getMemberSubscriptions, getMemberWithSubscription, MemberWithSubscription, searchMembers, getMembers, updateMemberHasCar } from '@/db/member.db'
 import { Subscription, User, UserFilters, UserStats } from '@/types/types'
 

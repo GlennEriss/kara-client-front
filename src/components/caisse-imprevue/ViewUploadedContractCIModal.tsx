@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Download, Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
+import { Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -45,7 +45,7 @@ export default function ViewUploadedContractCIModal({
   onClose,
   contract
 }: ViewUploadedContractCIModalProps) {
-  const isMobile = useIsMobile()
+  const _isMobile = useIsMobile()
   
   // Récupérer le document via le hook
   const { data: document, isLoading, error } = useDocumentCI(contract?.contractStartId)

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { RegisterFormData } from '@/schemas/schemas'
-import { CompanyFormMediator } from '@/mediators/CompanyFormMediator'
 import { CompanySuggestion } from '@/services/interfaces/IService'
 import { CompanyFormMediatorFactory } from '@/factories/CompanyFormMediatorFactory'
 import { useCompanySuggestions } from '@/hooks/company/useCompanySuggestions'
@@ -24,7 +23,6 @@ export default function CompanyNameForm({ form }: CompanyNameFormProps) {
     isLoading, 
     error,
     prefetchPopularCompanies,
-    updateCacheWithNewCompany 
   } = useCompanySuggestions({ 
     query,
     enabled: query.length >= 2,

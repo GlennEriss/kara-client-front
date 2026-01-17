@@ -40,8 +40,8 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
   const [contributionType, setContributionType] = useState<'money' | 'in_kind'>('money')
   const [selectedMemberId, setSelectedMemberId] = useState<string>('')
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
-  const [selectedMemberName, setSelectedMemberName] = useState<string>('')
-  const [selectedGroupName, setSelectedGroupName] = useState<string>('')
+  const [_selectedMemberName, setSelectedMemberName] = useState<string>('')
+  const [_selectedGroupName, setSelectedGroupName] = useState<string>('')
 
   const { mutate: addContribution, isPending } = useAddParticipantWithContribution()
   const { mutate: updateContribution } = useUpdateCharityContribution()
@@ -52,7 +52,7 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
     handleSubmit,
     formState: { errors },
     setValue,
-    watch,
+    watch: _watch,
     reset,
     resetField
   } = useForm<CharityContributionFormData>({
@@ -102,14 +102,14 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
   const handleParticipantSelect = (id: string, type: 'member' | 'group', displayName: string) => {
     if (type === 'member') {
       setSelectedMemberId(id)
-      setSelectedMemberName(displayName)
+      setSelectedMemberName(displayName) // _selectedMemberName
       setValue('memberId', id)
       setValue('groupId', undefined)
       setSelectedGroupId('')
       setSelectedGroupName('')
     } else {
       setSelectedGroupId(id)
-      setSelectedGroupName(displayName)
+      setSelectedGroupName(displayName) // _selectedGroupName
       setValue('groupId', id)
       setValue('memberId', undefined)
       setSelectedMemberId('')
@@ -156,12 +156,17 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
       console.log('📦 Payload contribution:', contributionPayload)
 
       if (data.contributionType === 'money') {
+        const now = new Date()
         contributionPayload.payment = {
           amount: Number(data.amount),
           mode: data.paymentMethod as PaymentMode,
           paymentType: 'Charity',
           date: contributionDate,
+          time: now.toTimeString().slice(0, 5), // Format HH:mm
           acceptedBy: user?.uid || 'system',
+          recordedBy: user?.uid || 'system',
+          recordedByName: user?.displayName || user?.email || 'Admin',
+          recordedAt: now,
         }
       } else {
         contributionPayload.inKindDescription = data.inKindDescription || ''

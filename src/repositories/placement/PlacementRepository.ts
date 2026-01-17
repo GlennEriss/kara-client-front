@@ -102,7 +102,7 @@ export class PlacementRepository implements IRepository {
 
   // Commissions
   async createCommission(placementId: string, data: Omit<CommissionPaymentPlacement, 'id' | 'createdAt' | 'updatedAt'>): Promise<CommissionPaymentPlacement> {
-    const { collection, addDoc, db, serverTimestamp, doc, getDoc } = await getFirestore()
+    const { collection, addDoc, db, serverTimestamp, getDoc } = await getFirestore()
     const colRef = collection(db, `${this.collectionName}/${placementId}/commissions`)
     const docRef = await addDoc(colRef, {
       ...data,
@@ -132,7 +132,7 @@ export class PlacementRepository implements IRepository {
   }
 
   async listCommissions(placementId: string): Promise<CommissionPaymentPlacement[]> {
-    const { collection, query, where, getDocs, db, orderBy } = await getFirestore()
+    const { collection, query, getDocs, db, orderBy } = await getFirestore()
     const colRef = collection(db, `${this.collectionName}/${placementId}/commissions`)
     const q = query(colRef, orderBy('dueDate', 'asc'))
     const snaps = await getDocs(q)

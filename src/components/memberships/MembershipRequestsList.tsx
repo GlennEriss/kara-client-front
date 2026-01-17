@@ -46,6 +46,8 @@ import {
 } from '@/utils/test-data'
 import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+// Import des composants V2
+import { StatusBadgeV2, PaymentBadgeV2, RelativeDateV2 } from '@/domains/memberships/components/shared'
 
 // Couleurs pour les graphiques
 const COLORS = {
@@ -681,12 +683,8 @@ const MembershipRequestCard = ({
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:space-x-3 max-w-full">
-              <div className="max-w-full">{getStatusBadge(request.status)}</div>
-              {request.isPaid ? (
-                <Badge className="bg-green-100 text-green-700 border-green-200">Payé</Badge>
-              ) : (
-                <Badge className="bg-red-100 text-red-700 border-red-200">Non payé</Badge>
-              )}
+              <div className="max-w-full"><StatusBadgeV2 status={request.status} /></div>
+              <PaymentBadgeV2 isPaid={request.isPaid || false} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-300 hover:scale-110 self-start">
@@ -773,7 +771,20 @@ const MembershipRequestCard = ({
             {/* Date de création */}
             <div className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-all duration-300 group/info">
               <Calendar className="w-5 h-5 text-purple-600 group-hover/info:scale-110 transition-transform duration-300" />
-              <span className="text-sm font-medium">{formatDate(request.createdAt)}</span>
+              {request.createdAt && (
+                <RelativeDateV2 
+                  date={
+                    request.createdAt && typeof request.createdAt === 'object' && 'toDate' in request.createdAt
+                      ? (request.createdAt as any).toDate()
+                      : typeof request.createdAt === 'string'
+                      ? new Date(request.createdAt)
+                      : request.createdAt instanceof Date
+                      ? request.createdAt
+                      : new Date()
+                  }
+                  showIcon={false}
+                />
+              )}
             </div>
 
             {/* Âge */}
@@ -1084,6 +1095,7 @@ const MembershipRequestCard = ({
                 }
                 try {
                   setIsPaying(true)
+                  const now = new Date()
                   await payMutation.mutateAsync({
                     requestId: request.id!,
                     payment: {
@@ -1094,6 +1106,9 @@ const MembershipRequestCard = ({
                       paymentType,
                       time: paymentTime,
                       withFees: withFees === 'yes',
+                      recordedBy: user?.uid || 'unknown-admin',
+                      recordedByName: user?.displayName || user?.email || 'Admin',
+                      recordedAt: now,
                     },
                   })
                   toast.success('Paiement enregistré')

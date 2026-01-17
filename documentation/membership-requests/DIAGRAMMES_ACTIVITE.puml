@@ -1,0 +1,915 @@
+@startuml Diagrammes d'Activité - Module Membership Requests
+!theme plain
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #234D65
+    FontColor #000000
+}
+skinparam activityDiamond {
+    BackgroundColor #CBB171
+    BorderColor #234D65
+}
+skinparam start {
+    BackgroundColor #10b981
+    BorderColor #234D65
+}
+skinparam stop {
+    BackgroundColor #ef4444
+    BorderColor #234D65
+}
+
+' ==========================================
+' 1. VOIR LES DÉTAILS
+' ==========================================
+@startuml Voir_Details
+title Workflow : Voir les Détails d'une Demande d'Adhésion
+
+start
+
+:Admin clique sur "Voir les détails" 
+(dans dropdown menu "..." ou lien);
+
+:Navigation vers page de détails 
+/routes/admin/membership-requests/[id];
+
+:Chargement de la demande via 
+useMembershipRequest(requestId);
+
+if (Demande trouvée ?) then (oui)
+  :Récupérer informations parrain 
+  (si intermediaryCode existe);
+  
+  :Récupérer informations admin traiteur 
+  (si processedBy existe);
+  
+  :Afficher page de détails avec :
+  - Informations identité complètes
+  - Adresse
+  - Entreprise/Profession
+  - Statut et historique
+  - Parrain (si existe)
+  - Actions disponibles;
+else (non)
+  :Afficher erreur "Demande non trouvée";
+  stop
+endif
+
+:Afficher skeleton pendant chargement;
+
+stop
+@enduml
+
+' ==========================================
+' 2. FICHE D'ADHÉSION
+' ==========================================
+@startuml Fiche_Adhesion
+title Workflow : Générer et Télécharger la Fiche d'Adhésion
+
+note right
+  **Qu'est-ce que la Fiche d'Adhésion ?**
+  
+  La Fiche d'Adhésion est un document PDF
+  officiel qui contient :
+  - Logo KARA
+  - Photo du demandeur
+  - Type de membre (Adhérent/Sympathisant/Bienfaiteur)
+  - Informations personnelles complètes
+  - Adresse complète
+  - Informations entreprise/profession
+  - Véhicule (si applicable)
+  - Parrain (si applicable)
+  
+  C'est un document contractuel généré
+  avec react-pdf (@react-pdf/renderer)
+end note
+
+start
+
+:Admin clique sur "Fiche d'adhésion" 
+(dans dropdown menu "..." de la carte);
+
+:Afficher modal MemberDetailsModal;
+
+:Initialiser état isExporting = false;
+
+if (Admin clique sur "Télécharger PDF" ?) then (oui)
+  :isExporting = true;
+  
+  :Générer PDF avec react-pdf 
+  composant MutuelleKaraPDF;
+  
+  :Récupérer données de la demande :
+  - Identité complète
+  - Adresse
+  - Entreprise/Profession
+  - Photo (si existe)
+  - Parrain;
+  
+  :Créer blob PDF avec pdf().toBlob();
+  
+  :Générer nom de fichier :
+  format "NOM_PRENOM_ADHESION_MK_YYYY.pdf";
+  
+  :Créer lien de téléchargement;
+  
+  :Déclencher téléchargement automatique;
+  
+  :Libérer l'URL du blob;
+  
+  :Afficher toast "PDF téléchargé avec succès";
+  
+  :isExporting = false;
+else (non)
+  :Afficher prévisualisation dans modal 
+  (si disponible);
+endif
+
+if (Erreur lors génération ?) then (oui)
+  :Afficher toast erreur "Erreur de téléchargement";
+  :isExporting = false;
+  stop
+endif
+
+:Admin peut fermer la modal;
+
+stop
+@enduml
+
+' ==========================================
+' 3. VOIR LA PIÈCE D'IDENTITÉ
+' ==========================================
+@startuml Voir_Piece_Identite
+title Workflow : Voir la Pièce d'Identité (Recto/Verso)
+
+start
+
+:Admin clique sur "Voir la pièce d'identité" 
+(dans dropdown menu "..." de la carte);
+
+:Afficher modal MemberIdentityModal;
+
+:Initialiser vue à "recto" (showFront = true);
+
+:Vérifier si photos existent :
+- identity.identityDocumentFront
+- identity.identityDocumentBack;
+
+if (Photos existent ?) then (oui)
+  :Afficher image recto par défaut;
+  
+  if (Admin clique sur "Voir verso" ?) then (oui)
+    :showFront = false;
+    :Afficher image verso;
+  endif
+  
+  if (Admin clique sur "Voir recto" ?) then (oui)
+    :showFront = true;
+    :Afficher image recto;
+  endif
+  
+  :Afficher boutons toggle "Recto" / "Verso";
+else (non)
+  :Afficher message "Pièce d'identité non fournie";
+endif
+
+:Admin peut zoomer sur l'image (si supporté);
+
+:Admin peut fermer la modal;
+
+stop
+@enduml
+
+' ==========================================
+' 4. STATISTIQUES
+' ==========================================
+@startuml Statistiques
+title Workflow : Calcul et Affichage des Statistiques
+
+note right
+  **Statistiques Actuelles :**
+  
+  1. **Total** : Nombre total de demandes
+  2. **En attente** : Demandes avec status = 'pending'
+  3. **Approuvées** : Demandes avec status = 'approved'
+  4. **Rejetées** : Demandes avec status = 'rejected'
+  5. **En cours d'examen** : Demandes avec status = 'under_review'
+  
+  **Problème identifié :**
+  Les statistiques sont calculées sur les 10 items
+  de la page actuelle, pas sur le total réel !
+  
+  **Solution à implémenter :**
+  - Utiliser useMembershipRequestsStats() hook
+  - Requêtes parallèles pour chaque statut
+  - Calcul correct des pourcentages
+end note
+
+start
+
+:Page membership-requests se charge;
+
+:useMembershipRequestsStats() hook appelé;
+
+fork
+  :Requête 1 : getMembershipRequestsPaginated 
+  ({ status: 'pending', limit: 1000 });
+fork again
+  :Requête 2 : getMembershipRequestsPaginated 
+  ({ status: 'approved', limit: 1000 });
+fork again
+  :Requête 3 : getMembershipRequestsPaginated 
+  ({ status: 'rejected', limit: 1000 });
+fork again
+  :Requête 4 : getMembershipRequestsPaginated 
+  ({ status: 'under_review', limit: 1000 });
+end fork
+
+:Attendre toutes les requêtes (Promise.all);
+
+:Calculer statistiques :
+- total = somme de tous les statuts
+- pending = pending.pagination.totalItems
+- approved = approved.pagination.totalItems
+- rejected = rejected.pagination.totalItems
+- underReview = underReview.pagination.totalItems;
+
+:Calculer pourcentages :
+- pendingPercentage = (pending / total) * 100
+- approvedPercentage = (approved / total) * 100
+- rejectedPercentage = (rejected / total) * 100
+- underReviewPercentage = (underReview / total) * 100;
+
+:Afficher StatsCarousel avec :
+- 5 cartes de statistiques
+- Graphiques en camembert (PieChart)
+- Couleurs différenciées par statut;
+
+:Admin peut faire défiler les stats (carousel);
+
+stop
+
+note right
+  **⚠️ Problème Actuel :**
+  
+  Dans MembershipRequestsList.tsx ligne 1477-1497,
+  les stats sont calculées sur membershipData.data
+  (10 items seulement) au lieu du total réel !
+  
+  **Code problématique :**
+  const pending = membershipData.data.filter(
+    r => r.status === 'pending'
+  ).length
+end note
+
+@enduml
+
+' ==========================================
+' 5. APPROUVER
+' ==========================================
+@startuml Approuver
+title Workflow : Approuver une Demande d'Adhésion
+
+start
+
+:Admin clique sur "Approuver" 
+(bouton visible si status = 'pending');
+
+if (Demande est payée ?) then (non)
+  :Bouton désactivé;
+  :Afficher message "Paiement requis";
+  stop
+endif
+
+:Afficher modal de confirmation;
+
+:Demander type de membre :
+- Adhérent
+- Sympathisant  
+- Bienfaiteur;
+
+if (Type de membre sélectionné ?) then (non)
+  :Afficher erreur "Type de membre requis";
+  stop
+endif
+
+:Vérifier existence entreprise/profession 
+dans Firestore (si renseignées);
+
+:Demander nom entreprise (si vide);
+
+:Demander nom profession (si vide);
+
+:Demander upload PDF d'adhésion (optionnel);
+
+:Admin confirme l'approbation;
+
+:isApproving = true;
+
+fork
+  if (PDF fourni ?) then (oui)
+    :Upload PDF vers Firebase Storage
+    (chemin: membership-adhesion-pdfs/);
+    
+    :Générer nom de fichier :
+    format "firstName_lastName_YYYY-YYYY.pdf";
+    
+    :Récupérer URL et métadonnées du PDF;
+  else (non)
+    :adhesionPdfURL = undefined;
+  endif
+fork again
+  :Appel API POST /api/create-firebase-user-email-pwd
+  avec :
+  - requestId
+  - adminId
+  - membershipType
+  - companyName
+  - professionName
+  - adhesionPdfURL;
+end fork
+
+if (API répond OK ?) then (oui)
+  :Récupérer matricule, email, mot de passe;
+  
+  if (PDF uploadé avec succès ?) then (oui)
+    :Créer document dans DocumentRepository :
+    - type: 'ADHESION'
+    - format: 'pdf'
+    - libelle: 'Fiche d'adhésion - {matricule}'
+    - memberId: matricule
+    - path, url, size;
+    
+    if (Document créé ?) then (non)
+      :Afficher warning "Document non archivé";
+    endif
+  endif
+  
+  :Mise à jour statut demande = 'approved'
+  (via API create-firebase-user);
+  
+  :Invalider cache React Query 
+  (membershipRequests, stats);
+  
+  :Afficher toast succès avec :
+  - Matricule
+  - Email
+  - Mot de passe (⚠️ problème sécurité);
+else (non)
+  :Afficher toast erreur 
+  avec message d'erreur de l'API;
+endif
+
+:isApproving = false;
+
+stop
+
+note right
+  **⚠️ Problèmes identifiés :**
+  
+  1. Pas de rollback si erreur après création utilisateur
+  2. Mot de passe exposé dans le toast (sécurité)
+  3. Logique métier complexe dans le composant React
+  4. Pas de transaction Firestore
+end note
+
+@enduml
+
+' ==========================================
+' 6. REJETER
+' ==========================================
+@startuml Rejeter
+title Workflow : Rejeter une Demande d'Adhésion
+
+start
+
+:Admin clique sur "Rejeter" 
+(bouton visible si status = 'pending' ou 'under_review');
+
+:Afficher modal de confirmation;
+
+:Demander motif de rejet (optionnel mais recommandé);
+
+:Admin renseigne motif de rejet (texte libre);
+
+:Admin confirme le rejet;
+
+:Appel mutation useUpdateMembershipRequestStatus 
+avec :
+- requestId
+- newStatus: 'rejected'
+- reviewedBy: admin.uid
+- motifReject: motif renseigné;
+
+:Appel MembershipService.updateMembershipRequestStatus;
+
+:Mise à jour document Firestore :
+- status = 'rejected'
+- processedBy = adminId
+- processedAt = serverTimestamp()
+- motifReject = motif;
+
+:Notification automatique envoyée au demandeur
+(via NotificationService);
+
+:Invalider cache React Query 
+(membershipRequests, stats, notifications);
+
+:Afficher toast "Demande rejetée avec succès";
+
+stop
+
+@enduml
+
+' ==========================================
+' 7. DEMANDER CORRECTIONS
+' ==========================================
+@startuml Demander_Corrections
+title Workflow : Demander des Corrections (Mise en Examen)
+
+start
+
+:Admin clique sur "Demander corrections" 
+(bouton visible si status = 'pending');
+
+:Afficher modal de confirmation;
+
+:Demander liste des corrections 
+(texte libre, optionnel);
+
+if (Liste de corrections fournie ?) then (oui)
+  :Générer code de sécurité à 6 chiffres
+  (100000 - 999999);
+  
+  :Générer date d'expiration 
+  (48 heures après génération);
+  
+  :Mettre à jour document Firestore :
+  - status = 'under_review'
+  - reviewNote = liste corrections
+  - securityCode = code généré
+  - securityCodeExpiry = date expiration
+  - securityCodeUsed = false
+  - reviewedBy = adminId
+  - processedAt = serverTimestamp();
+else (non)
+  :Mettre à jour document Firestore :
+  - status = 'under_review'
+  - reviewedBy = adminId
+  - processedAt = serverTimestamp();
+endif
+
+:Notification automatique envoyée au demandeur;
+
+:Invalider cache React Query;
+
+:Afficher toast "Corrections demandées";
+
+:Afficher dans la carte de la demande :
+- Message "Corrections demandées"
+- Lien de correction (format : /register?requestId={id})
+- Code de sécurité (si généré)
+- Date d'expiration du code
+- Bouton "Copier le lien"
+- Bouton "Copier le code"
+- Bouton "Renouveler le code";
+
+if (Admin clique "Renouveler code" ?) then (oui)
+  :Appel useRenewSecurityCode(requestId);
+  
+  :Générer nouveau code à 6 chiffres;
+  
+  :Nouvelle date d'expiration (48h);
+  
+  :Mettre à jour securityCode et securityCodeExpiry;
+  
+  :Afficher toast "Code renouvelé" 
+  avec nouveau code;
+endif
+
+stop
+
+note right
+  **Workflow de correction côté demandeur :**
+  
+  1. Demandeur reçoit lien + code
+  2. Accède à /register?requestId={id}
+  3. Saisit code de sécurité
+  4. Code vérifié (non expiré, non utilisé)
+  5. Formulaire pré-rempli avec données actuelles
+  6. Demandeur modifie les données
+  7. Soumet nouvelle demande
+  8. Code marqué comme utilisé (securityCodeUsed = true)
+end note
+
+@enduml
+
+' ==========================================
+' 8. RECHERCHE
+' ==========================================
+@startuml Recherche
+title Workflow : Recherche de Demandes d'Adhésion
+
+start
+
+:Admin tape dans la barre de recherche;
+
+:Valeur stockée dans filters.searchQuery;
+
+if (Debounce actif ? (300ms)) then (oui)
+  :Attendre 300ms avant action;
+endif
+
+:Appel useMembershipRequests 
+avec searchQuery;
+
+:Appel getMembershipRequestsPaginated 
+avec searchQuery;
+
+note right
+  **⚠️ Problème actuel :**
+  
+  La recherche est effectuée côté CLIENT
+  après récupération des données Firestore !
+  
+  Le filtrage se fait sur les 10 items
+  de la page seulement, pas sur toute la collection.
+end note
+
+:Afficher indicateur de chargement (skeleton);
+
+if (Résultats trouvés ?) then (oui)
+  :Afficher demandes filtrées dans la liste;
+  
+  :Afficher message "X résultats trouvés";
+else (non)
+  :Afficher message "Aucune demande trouvée";
+endif
+
+if (Admin efface la recherche ?) then (oui)
+  :searchQuery = '';
+  :Recharger toutes les demandes 
+  (sans filtre de recherche);
+endif
+
+stop
+
+@enduml
+
+' ==========================================
+' 9. FILTRES
+' ==========================================
+@startuml Filtres
+title Workflow : Application des Filtres
+
+start
+
+:Admin ouvre la page membership-requests;
+
+:Initialisation filtres par défaut :
+- status: 'all'
+- searchQuery: ''
+- page: 1
+- limit: 10;
+
+if (Admin sélectionne un onglet ?) then (oui)
+  :activeTab = onglet sélectionné;
+  
+  if (Onglet = 'pending' | 'approved' | 'rejected' | 'under_review' ?) then (oui)
+    :filters.status = valeur onglet;
+  else (on est sur 'all' | 'paid' | 'unpaid')
+    :filters.status = 'all';
+  endif
+  
+  :filters.page = 1 (reset pagination);
+endif
+
+if (Admin change filtre statut (Select) ?) then (oui)
+  :filters.status = valeur sélectionnée;
+  
+  :filters.page = 1 (reset pagination);
+endif
+
+if (Admin active filtre "Payé" / "Non payé" ?) then (oui)
+  :Filtrage côté CLIENT 
+  sur membershipData.data;
+  
+  :Filtre appliqué après récupération
+  (pas côté serveur);
+endif
+
+:Appel useMembershipRequests 
+avec filtres mis à jour;
+
+:Afficher indicateur de chargement;
+
+:Récupérer données filtrées depuis Firestore;
+
+:Afficher résultats filtrés;
+
+:Afficher badges de filtres actifs 
+(en haut de la liste);
+
+if (Admin clique "Réinitialiser" ?) then (oui)
+  :filters = {
+    status: 'all',
+    searchQuery: '',
+    page: 1,
+    limit: 10
+  };
+  
+  :activeTab = 'all';
+  
+  :Recharger toutes les demandes;
+endif
+
+stop
+
+@enduml
+
+' ==========================================
+' 10. PAGINATION
+' ==========================================
+@startuml Pagination
+title Workflow : Navigation par Pagination
+
+start
+
+:Page membership-requests se charge;
+
+:Initialisation :
+- filters.page = 1
+- filters.limit = 10;
+
+:Appel useMembershipRequests 
+avec page=1, limit=10;
+
+:Récupération données Firestore :
+- Utilise startAfter pour pagination cursor
+- Récupère 10 documents
+- Total calculé avec getCountFromServer;
+
+:Afficher liste des 10 premières demandes;
+
+:Afficher contrôles de pagination :
+- "Précédent" (désactivé si page 1)
+- Numéros de pages avec ellipses
+- "Suivant" (désactivé si dernière page)
+- Info "Page X sur Y • Z résultats";
+
+if (Admin clique "Précédent" ?) then (oui)
+  :filters.page = filters.page - 1;
+  
+  :Appel useMembershipRequests 
+  avec nouvelle page;
+  
+  :Récupération données Firestore 
+  avec cursor de la page précédente;
+  
+  :Scroll en haut de la page;
+elseif (Admin clique "Suivant" ?) then (oui)
+  :filters.page = filters.page + 1;
+  
+  :Appel useMembershipRequests 
+  avec nouvelle page;
+  
+  :Récupération données Firestore 
+  avec cursor de la page suivante;
+  
+  :Scroll en haut de la page;
+elseif (Admin clique numéro de page ?) then (oui)
+  :filters.page = numéro cliqué;
+  
+  :Appel useMembershipRequests 
+  avec page cible;
+  
+  :Récupération données Firestore 
+  avec cursor calculé;
+  
+  :Scroll en haut de la page;
+elseif (Admin change "items par page" ?) then (oui)
+  :filters.limit = nouvelle valeur 
+  (10, 25, 50, 100);
+  
+  :filters.page = 1 (reset);
+  
+  :Appel useMembershipRequests 
+  avec nouveau limit;
+  
+  :Recalcul pagination avec nouveau limit;
+endif
+
+:Afficher données de la page;
+
+stop
+
+note right
+  **Implémentation actuelle :**
+  
+  - Pagination côté serveur (Firestore)
+  - Utilise les curseurs (startAfter)
+  - Total calculé avec getCountFromServer
+  - Limite configurable (10, 25, 50, 100)
+  
+  **Limitations :**
+  - Pas de tri multi-critères
+  - Pas de navigation directe à la dernière page
+end note
+
+@enduml
+
+' ==========================================
+' 11. LISTE DES DOSSIERS
+' ==========================================
+@startuml Liste_Dossiers
+title Workflow : Chargement et Affichage de la Liste des Dossiers
+
+start
+
+:Admin accède à /membership-requests;
+
+:Initialisation composant MembershipRequestsList;
+
+:Initialisation états :
+- filters = { status: 'all', searchQuery: '', page: 1, limit: 10 }
+- activeTab = 'all';
+
+:Appel useMembershipRequests 
+avec filtres initiaux;
+
+if (Chargement en cours ?) then (oui)
+  :Afficher skeletons (5 MembershipRequestSkeleton);
+elseif (Erreur ?) then (erreur)
+  :Afficher message d'erreur 
+  avec icône FileX;
+  stop
+else (données disponibles)
+  :Récupérer membershipData :
+  - data: MembershipRequest[]
+  - pagination: { currentPage, totalPages, totalItems, ... };
+  
+  :Calculer statistiques (⚠️ sur 10 items seulement);
+  
+  :Filtrer données selon activeTab :
+  if (activeTab === 'paid')
+    filtrer isPaid === true
+  else if (activeTab === 'unpaid')
+    filtrer isPaid === false
+  else
+    afficher toutes les données;
+  
+  :Afficher en-tête :
+  - Titre "Demandes d'Adhésion"
+  - Description;
+  
+  :Afficher onglets (7 onglets) :
+  - Toutes
+  - En attente
+  - En cours d'examen
+  - Approuvées
+  - Refusées
+  - Payées
+  - Non payées;
+  
+  :Afficher StatsCarousel 
+  (statistiques avec carousel);
+  
+  :Afficher barre de recherche et filtres 
+  (dans une Card);
+  
+  :Afficher liste des demandes :
+  for each request in displayedRequests
+    Afficher MembershipRequestCard
+    avec :
+    - Photo
+    - Nom complet
+    - Informations (email, téléphone, adresse, date, âge, véhicule)
+    - Badge statut
+    - Badge paiement
+    - Dropdown menu actions
+    - Boutons actions (si status = 'pending')
+  end;
+  
+  :Afficher pagination 
+  (si totalPages > 1);
+endif
+
+:Admin peut interagir avec :
+- Onglets (changement de filtre)
+- Recherche (filtrage texte)
+- Filtres statut (Select)
+- Pagination (navigation pages)
+- Actions sur les cartes;
+
+stop
+
+@enduml
+
+' ==========================================
+' 12. PAYER
+' ==========================================
+@startuml Payer
+title Workflow : Enregistrer un Paiement pour une Demande
+
+start
+
+:Admin clique sur "Payer" 
+(dans dropdown menu "..." de la carte,
+visible si status = 'pending' ET isPaid = false);
+
+:Afficher modal de paiement (Dialog);
+
+:Initialiser état isPaying = false;
+
+:Demander informations paiement :
+- Date (Input type="date")
+- Heure (Input type="time")
+- Mode de paiement (Select) :
+  * Espèce
+  * Mobile Money
+  * Virement
+  * Chèque
+  * Carte bancaire
+- Montant (Input type="number")
+- Type de paiement (Select) :
+  * Membership
+  * Autre
+- Avec frais ? (Select : Oui/Non);
+
+:Admin renseigne tous les champs;
+
+:Admin clique "Valider";
+
+if (Tous les champs remplis ?) then (non)
+  :Afficher toast erreur 
+  "Champs requis";
+  stop
+endif
+
+:isPaying = true;
+
+:Appel mutation usePayMembershipRequest 
+avec :
+- requestId
+- payment: {
+    date: Date (date + time)
+    mode: PaymentMode
+    amount: Number
+    acceptedBy: admin.uid
+    paymentType: TypePayment
+    time: string
+    withFees: boolean
+  };
+
+:Appel updateMembershipPayment 
+dans membership.db.ts;
+
+:Mise à jour document Firestore :
+- isPaid = true
+- payments[] = ajouter nouveau paiement :
+  {
+    date: Date
+    mode: PaymentMode
+    amount: number
+    acceptedBy: string
+    paymentType: TypePayment
+    time?: string
+    withFees?: boolean
+    createdAt: serverTimestamp()
+  }
+- paidAt = serverTimestamp()
+- paidBy = admin.uid;
+
+if (Mise à jour réussie ?) then (oui)
+  :Invalider cache React Query 
+  (membershipRequests);
+  
+  :Fermer modal de paiement;
+  
+  :Afficher toast succès "Paiement enregistré";
+  
+  :Badge "Non payé" change en "Payé" 
+  (mise à jour automatique);
+  
+  :Bouton "Approuver" devient actif 
+  (si status = 'pending');
+else (erreur)
+  :Afficher toast erreur "Erreur de paiement";
+endif
+
+:isPaying = false;
+
+stop
+
+note right
+  **Note :**
+  
+  Le paiement ne change pas le statut de la demande,
+  seulement isPaid = true.
+  
+  Le statut reste 'pending' jusqu'à approbation.
+  
+  Plusieurs paiements peuvent être enregistrés
+  (tableau payments[]).
+end note
+
+@enduml

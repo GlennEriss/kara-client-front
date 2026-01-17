@@ -14,9 +14,6 @@ import { Loader2, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { useEntitySearch } from '@/hooks/useEntitySearch'
 import { EntitySearchResult } from '@/types/types'
-import Step1 from './Step1'
-import Step2 from './Step2'
-import Step3 from './Step3'
 import { FormCaisseImprevueProvider } from '@/providers/FormCaisseImprevueProvider'
 import { cn } from '@/lib/utils'
 
@@ -126,7 +123,7 @@ function CreateDemandModalContent({
       resetSearch()
       setCurrentStep(1)
       onClose()
-    } catch (error) {
+    } catch {
       // L'erreur est gérée par le hook de mutation
     }
   }

@@ -1,5 +1,5 @@
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "./ICreditContractRepository";
-import { CreditContract, CreditContractStatus } from "@/types/types";
+import { CreditContract } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 
 const getFirestore = () => import("@/firebase/firestore");
@@ -67,8 +67,7 @@ export class CreditContractRepository implements ICreditContractRepository {
                 blockedAt: (data.blockedAt as any)?.toDate ? (data.blockedAt as any).toDate() : (data.blockedAt ? new Date(data.blockedAt) : undefined),
                 scoreUpdatedAt: (data.scoreUpdatedAt as any)?.toDate ? (data.scoreUpdatedAt as any).toDate() : (data.scoreUpdatedAt ? new Date(data.scoreUpdatedAt) : undefined),
             } as CreditContract;
-        } catch (error) {
-            console.error("Erreur lors de la récupération du contrat:", error);
+        } catch {
             return null;
         }
     }
@@ -91,8 +90,7 @@ export class CreditContractRepository implements ICreditContractRepository {
             });
 
             return contracts;
-        } catch (error) {
-            console.error("Erreur lors de la récupération des contrats:", error);
+        } catch {
             return [];
         }
     }
@@ -205,8 +203,7 @@ export class CreditContractRepository implements ICreditContractRepository {
             }
 
             return contracts;
-        } catch (error) {
-            console.error("Erreur lors de la récupération des contrats filtrés:", error);
+        } catch {
             return [];
         }
     }
@@ -236,8 +233,7 @@ export class CreditContractRepository implements ICreditContractRepository {
             };
 
             return stats;
-        } catch (error) {
-            console.error("Erreur lors du calcul des statistiques:", error);
+        } catch {
             return {
                 total: 0,
                 active: 0,

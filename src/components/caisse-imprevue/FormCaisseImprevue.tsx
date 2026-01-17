@@ -18,7 +18,7 @@ const Step2 = React.lazy(() => import('./Step2'))
 const Step3 = React.lazy(() => import('./Step3'))
 
 export default function FormCaisseImprevue() {
-    const { currentStep, steps, setStep, goToNextStep, goToPreviousStep, canGoNext, canGoPrevious, mediator } = useFormCaisseImprevueProvider()
+    const { currentStep, steps, setStep, goToNextStep, goToPreviousStep, canGoPrevious, mediator } = useFormCaisseImprevueProvider()
     const formTopRef = React.useRef<HTMLDivElement>(null)
 
     // Mettre à jour le contexte de navigation du médiateur quand l'étape change

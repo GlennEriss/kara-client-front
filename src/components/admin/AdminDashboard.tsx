@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Users, Shield, UserPlus, Search, RefreshCw, Edit3, Trash2, CheckCircle2, Phone, Mail, CalendarClock, MoreVertical, Eye, Loader2 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { Users, Shield, UserPlus, Search, RefreshCw, Edit3, Trash2, CheckCircle2, Phone, Mail, Loader2 } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import MembershipPagination from '@/components/memberships/MembershipPagination'
 import { useAdmins, useAdminMutations } from '@/hooks/useAdmins'
 import { updateAdminDeep } from '@/db/admin.db'
@@ -83,7 +83,6 @@ export default function AdminDashboard() {
   const [filters, setFilters] = useState<AdminFiltersUI>({})
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [search, setSearch] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -104,7 +103,7 @@ export default function AdminDashboard() {
     itemsPerPage
   )
 
-  const { createMutation, updateMutation, deleteMutation } = useAdminMutations()
+  const { updateMutation, deleteMutation } = useAdminMutations()
 
   useEffect(() => {
     setCurrentPage(1)
@@ -148,13 +147,13 @@ export default function AdminDashboard() {
   }
 
   const handleCreateOpen = () => setIsCreateOpen(true)
-  const handleCreateSubmit = async (values: AdminCreateFormData) => {
+  const handleCreateSubmit = async (_values: AdminCreateFormData) => {
     try {
       // La création est gérée intégralement dans AdminFormModal (Auth + Firestore).
       // Ici, on force juste un rafraîchissement pour mettre la liste à jour.
       await refetch()
       toast.success('Administrateur créé')
-    } catch (e) {
+    } catch {
       toast.error("Erreur lors de la création de l'administrateur")
     }
   }
@@ -163,7 +162,7 @@ export default function AdminDashboard() {
     try {
       await updateMutation.mutateAsync({ id: admin.id, updates: { isActive: !admin.isActive } })
       toast.success('Statut mis à jour')
-    } catch (e) {
+    } catch {
       toast.error('Erreur de mise à jour')
     }
   }
@@ -198,7 +197,7 @@ export default function AdminDashboard() {
         },
       })
       toast.success('Administrateur mis à jour')
-    } catch (e) {
+    } catch {
       toast.error("Erreur lors de la mise à jour de l'administrateur")
     } finally {
       setIsEditOpen(false)
@@ -217,7 +216,7 @@ export default function AdminDashboard() {
       // Supprimer dans notre collection admins/users listés
       await deleteMutation.mutateAsync(admin.id)
       toast.success('Administrateur supprimé')
-    } catch (e) {
+    } catch {
       toast.error('Erreur lors de la suppression')
     }
   }
@@ -402,8 +401,8 @@ export default function AdminDashboard() {
               </div>
             )}
             <div className="flex flex-wrap gap-3 mt-4">
-              {stats.statusData.map((item, index) => (
-                <div key={index} className="flex items-center gap-2">
+              {stats.statusData.map((item, _index) => (
+                <div key={_index} className="flex items-center gap-2">
                   <div
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: item.color }}

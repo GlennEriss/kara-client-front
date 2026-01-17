@@ -134,28 +134,28 @@ export default function AddressStepV2() {
   // Handlers de changement cascade - stockent les IDs dans le formulaire
   // Note: Utilisation de 'as any' car les nouveaux champs sont ajoutés au schéma mais le type n'est pas encore régénéré
   const handleProvinceChange = (provinceId: string) => {
-    (setValue as any)('address.provinceId', provinceId, { shouldValidate: true })
+    ;(setValue as any)('address.provinceId', provinceId, { shouldValidate: true })
     // Réinitialiser les niveaux inférieurs
-    (setValue as any)('address.communeId', '', { shouldValidate: true })
-    (setValue as any)('address.districtId', '', { shouldValidate: true })
-    (setValue as any)('address.quarterId', '', { shouldValidate: true })
+    ;(setValue as any)('address.communeId', '', { shouldValidate: true })
+    ;(setValue as any)('address.districtId', '', { shouldValidate: true })
+    ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
   }
 
   const handleCommuneChange = (communeId: string) => {
-    (setValue as any)('address.communeId', communeId, { shouldValidate: true })
+    ;(setValue as any)('address.communeId', communeId, { shouldValidate: true })
     // Réinitialiser les niveaux inférieurs
-    (setValue as any)('address.districtId', '', { shouldValidate: true })
-    (setValue as any)('address.quarterId', '', { shouldValidate: true })
+    ;(setValue as any)('address.districtId', '', { shouldValidate: true })
+    ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
   }
 
   const handleDistrictChange = (districtId: string) => {
-    (setValue as any)('address.districtId', districtId, { shouldValidate: true })
+    ;(setValue as any)('address.districtId', districtId, { shouldValidate: true })
     // Réinitialiser le quartier
-    (setValue as any)('address.quarterId', '', { shouldValidate: true })
+    ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
   }
 
   const handleQuarterChange = (quarterId: string) => {
-    (setValue as any)('address.quarterId', quarterId, { shouldValidate: true })
+    ;(setValue as any)('address.quarterId', quarterId, { shouldValidate: true })
   }
 
   // Calculer la progression

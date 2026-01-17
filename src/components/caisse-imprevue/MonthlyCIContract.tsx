@@ -44,8 +44,8 @@ import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 
 interface MonthlyCIContractProps {
   contract: ContractCI
-  document: any | null
-  isLoadingDocument: boolean
+  document?: any | null
+  isLoadingDocument?: boolean
 }
 
 // Hook personnalisé pour le carousel avec drag/swipe
@@ -111,7 +111,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -244,7 +244,7 @@ const PaymentStatsCarousel = ({ contract, paymentStats }: { contract: ContractCI
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+  const { goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
 
   return (
     <div className="relative">
@@ -260,8 +260,8 @@ const PaymentStatsCarousel = ({ contract, paymentStats }: { contract: ContractCI
       </div>
       <div ref={containerRef} className="ml-8 overflow-hidden py-2" onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
         <div className={cn('flex transition-transform duration-300 ease-out gap-4', isDragging && 'transition-none')} style={{ transform: `translateX(${translateX}%)`, cursor: isDragging ? 'grabbing' : 'grab' }}>
-          {statsData.map((stat, index) => (
-            <div key={index} className="flex-shrink-0 h-full" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
+          {statsData.map((stat, _index) => (
+            <div key={_index} className="flex-shrink-0 h-full" style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}>
               <StatsCard {...stat} />
             </div>
           ))}
@@ -271,7 +271,7 @@ const PaymentStatsCarousel = ({ contract, paymentStats }: { contract: ContractCI
   )
 }
 
-export default function MonthlyCIContract({ contract, document, isLoadingDocument }: MonthlyCIContractProps) {
+export default function MonthlyCIContract({ contract, document: _document, isLoadingDocument: _isLoadingDocument }: MonthlyCIContractProps) {
   const router = useRouter()
   const { user } = useAuth()
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number | null>(null)
@@ -290,13 +290,13 @@ export default function MonthlyCIContract({ contract, document, isLoadingDocumen
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
 
   // Récupérer les paiements depuis Firestore
-  const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsCI(contract.id)
+  const { data: payments = [] } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
   const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
-  const { data: supportsHistory = [] } = useSupportHistory(contract.id)
+  useSupportHistory(contract.id)
   
   // Récupérer les statistiques de paiement
   const { data: paymentStats } = useContractPaymentStats(contract.id)

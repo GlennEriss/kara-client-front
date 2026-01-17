@@ -190,7 +190,7 @@ export default function ContractPaymentsPage() {
     if (!payments.length) return
 
     // Préparer les données pour l'export
-    const exportData = payments.map((payment, index) => {
+    const exportData = payments.map((payment, _index) => {
       const now = new Date()
       const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
       
@@ -284,7 +284,7 @@ export default function ContractPaymentsPage() {
 
     // Tableau des contributions de groupe
     if ((payment as any).groupContributions && (payment as any).groupContributions.length > 0) {
-      const tableData = (payment as any).groupContributions.map((contrib: any, index: number) => {
+      const tableData = (payment as any).groupContributions.map((contrib: any, _index: number) => {
         const createdDate = contrib.createdAt ? (() => {
           try {
             const createdAtAny = contrib.createdAt as any
@@ -295,7 +295,7 @@ export default function ContractPaymentsPage() {
         })() : 'N/A'
 
         return [
-          (index + 1).toString(),
+          (_index + 1).toString(),
           `${contrib.memberFirstName} ${contrib.memberLastName}`,
           contrib.memberMatricule || '',
           `${formatAmountForPDF(contrib.amount)} FCFA`,
@@ -366,7 +366,7 @@ export default function ContractPaymentsPage() {
     } 
     // Tableau des contributions individuelles
     else if (payment.contribs && payment.contribs.length > 0) {
-      const tableData = payment.contribs.map((contrib: any, index: number) => {
+      const tableData = payment.contribs.map((contrib: any, _index: number) => {
         const paidDate = contrib.paidAt ? (() => {
           try {
             const paidAtAny = contrib.paidAt as any
@@ -377,7 +377,7 @@ export default function ContractPaymentsPage() {
         })() : 'N/A'
 
         return [
-          (index + 1).toString(),
+          (_index + 1).toString(),
           contrib.memberId || '',
           `${formatAmountForPDF(contrib.amount)} FCFA`,
           paidDate,
@@ -1011,33 +1011,28 @@ export default function ContractPaymentsPage() {
                 const now = new Date()
                 const dueDate = payment.dueAt ? new Date(payment.dueAt) : null
                 
-                let realStatus = payment.status
                 let statusLabel = ''
                 let statusColor = ''
                 let statusIcon = null
                 
                 if (payment.status === 'PAID') {
-                  realStatus = 'PAID'
                   statusLabel = translatePaymentStatus('PAID')
                   statusColor = 'bg-green-100 text-green-800'
                   statusIcon = <CheckCircle className="h-4 w-4 text-green-600" />
                 } else if (dueDate) {
                   // Si la date d'échéance est passée et pas payé = en retard
                   if (now > dueDate) {
-                    realStatus = 'DUE'
                     statusLabel = 'En retard'
                     statusColor = 'bg-red-100 text-red-800'
                     statusIcon = <AlertTriangle className="h-4 w-4 text-red-600" />
                   } else {
                     // Si la date d'échéance n'est pas encore arrivée = en attente
-                    realStatus = 'DUE'
                     statusLabel = 'En attente'
                     statusColor = 'bg-yellow-100 text-yellow-800'
                     statusIcon = <Clock className="h-4 w-4 text-yellow-600" />
                   }
                 } else {
                   // Pas de date d'échéance = en attente
-                  realStatus = 'DUE'
                   statusLabel = 'En attente'
                   statusColor = 'bg-yellow-100 text-yellow-800'
                   statusIcon = <Clock className="h-4 w-4 text-yellow-600" />
@@ -1249,8 +1244,8 @@ export default function ContractPaymentsPage() {
                         </Button>
                       </div>
                       <div className="space-y-3">
-                        {(payment as any).groupContributions.map((contrib: any, index: number) => (
-                          <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                        {(payment as any).groupContributions.map((contrib: any, _index: number) => (
+                          <div key={_index} className="bg-gray-50 p-3 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium text-gray-900">
@@ -1355,8 +1350,8 @@ export default function ContractPaymentsPage() {
                         </Button>
                       </div>
                       <div className="space-y-3">
-                        {payment.contribs.map((contrib, index) => (
-                          <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                        {payment.contribs.map((contrib, _index) => (
+                          <div key={_index} className="bg-gray-50 p-3 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm font-medium text-gray-900">Membre {contrib.memberId}</span>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${

@@ -3,7 +3,7 @@
 import React from 'react'
 import { useContractForm } from '@/providers/ContractFormProvider'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, ArrowRight, Check, Save } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function ContractFormActions() {

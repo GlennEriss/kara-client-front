@@ -8,7 +8,7 @@ export default function BirthDateIdentityForm() {
     <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-300 w-full min-w-0">
       <FormField
         name="identity.birthDate"
-        render={({ field, fieldState }) => (
+        render={({ field }) => (
           <FormItem>
             <FormLabel className="text-xs sm:text-sm font-medium text-[#224D62]">
               Date de naissance <span className="text-red-500">*</span>

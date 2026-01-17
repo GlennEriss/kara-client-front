@@ -29,7 +29,7 @@ import {
   BarChart3,
   Upload
 } from 'lucide-react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
@@ -108,7 +108,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -206,7 +206,7 @@ const StatsCard = ({
 
 // Composant Carrousel des statistiques avec drag/swipe
 const StatsCarousel = ({ stats, closedNominalSum }: { stats: any; closedNominalSum: number }) => {
-  const formatAmount = (amount: number) => {
+  const _formatAmount = (amount: number) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'XAF'
@@ -262,7 +262,7 @@ const StatsCarousel = ({ stats, closedNominalSum }: { stats: any; closedNominalS
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+  const { goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
 
   return (
     <div className="relative">
@@ -290,7 +290,7 @@ const StatsCarousel = ({ stats, closedNominalSum }: { stats: any; closedNominalS
 }
 
 // Composant skeleton moderne
-const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
+const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
@@ -414,7 +414,7 @@ const ListContracts = () => {
     caisseType: 'all'
   })
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(12)
+  const [itemsPerPage] = useState(12)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [isExporting, setIsExporting] = useState(false)
   const [selectedContractForPDF, setSelectedContractForPDF] = useState<any>(null)
@@ -513,7 +513,7 @@ const ListContracts = () => {
     setIsViewUploadedModalOpen(true)
   }
 
-  const handleViewRefundPDF = (contract: any) => {
+  const _handleViewRefundPDF = (contract: any) => {
     const refund = contractRefunds[contract.id]
     if (refund && refund.document && refund.document.url) {
       // Ouvrir le PDF dans un nouvel onglet
@@ -538,7 +538,7 @@ const ListContracts = () => {
     try {
       // Préparer les données pour l'export
       const exportData = filteredContracts.map((contract: any) => {
-        const toISO = (v: any) => {
+        const _toISO = (v: any) => {
           try {
             if (!v) return ''
             const d = v?.toDate ? v.toDate() : v instanceof Date ? v : new Date(v)
@@ -693,7 +693,7 @@ const ListContracts = () => {
     
     // Vérifier que toutes les propriétés requises sont présentes
     const requiredProperties = ['fileSize', 'originalFileName', 'path', 'uploadedAt', 'url']
-    return requiredProperties.every(prop => contractPdf.hasOwnProperty(prop) && contractPdf[prop] !== null && contractPdf[prop] !== undefined)
+    return requiredProperties.every(prop => Object.prototype.hasOwnProperty.call(contractPdf, prop) && contractPdf[prop] !== null && contractPdf[prop] !== undefined)
   }
 
   const getStatusColor = (status: string) => {
@@ -1136,11 +1136,11 @@ const ListContracts = () => {
               ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
               : 'space-y-6'
           }>
-            {currentContracts.map((contract: any, index: number) => (
+            {currentContracts.map((contract: any, _index: number) => (
               <div
                 key={contract.id}
                 className="animate-in fade-in-0 slide-in-from-bottom-4"
-                style={{ animationDelay: `${index * 0.05}s` }}
+                style={{ animationDelay: `${_index * 0.05}s` }}
               >
                 <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col">
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

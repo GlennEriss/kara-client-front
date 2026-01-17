@@ -1,0 +1,379 @@
+@startuml Diagrammes d'Activité - Notifications Membership Requests
+!theme plain
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #234D65
+    FontColor #000000
+}
+skinparam activityDiamond {
+    BackgroundColor #CBB171
+    BorderColor #234D65
+}
+skinparam start {
+    BackgroundColor #10b981
+    BorderColor #234D65
+}
+skinparam stop {
+    BackgroundColor #ef4444
+    BorderColor #234D65
+}
+
+' ==========================================
+' 1. NOTIFICATION APPROBATION
+' ==========================================
+@startuml Notif_Approbation
+title Workflow : Notification d'Approbation d'une Demande
+
+start
+
+:Admin approuve une demande;
+
+:MembershipApprovalService.approveRequest()
+appelé;
+
+:Approbation réussie :
+- Utilisateur Firebase créé
+- Statut mis à jour = 'approved'
+- Matricule généré;
+
+:Appel NotificationService.sendApprovalNotifications();
+
+fork
+  :Notification Admin (In-App) :
+  - Créer notification dans Firestore
+  - module: 'memberships'
+  - type: 'status_update'
+  - title: 'Demande approuvée'
+  - message: 'La demande de {name} a été approuvée. Matricule: {matricule}'
+  - metadata: {requestId, memberName, matricule, membershipType, approvedBy};
+fork again
+  if (Numéro de téléphone disponible ?) then (oui)
+    :Construire message WhatsApp :
+    "Bonjour {name}, Votre demande d'adhésion a été approuvée ! Votre matricule: {matricule}";
+    
+    :Générer URL WhatsApp :
+    wa.me/{phoneNumber}?text={encodedMessage};
+    
+    if (API WhatsApp Business disponible ?) then (oui)
+      :Appel API WhatsApp Business
+      pour envoyer message automatiquement;
+    else (non)
+      :Ouvrir WhatsApp Web
+      dans nouvelle fenêtre avec message pré-rempli;
+    endif
+  endif
+fork again
+  note right
+    **Notification Demandeur In-App (Futur)**
+    
+    À implémenter quand le système
+    de notifications pour les demandeurs
+    sera en place.
+    
+    Type: 'request_approved'
+    Title: 'Votre demande d\'adhésion a été approuvée'
+  end note
+end fork
+
+:Notifications envoyées;
+
+stop
+
+@enduml
+
+' ==========================================
+' 2. NOTIFICATION REJET
+' ==========================================
+@startuml Notif_Rejet
+title Workflow : Notification de Rejet d'une Demande
+
+start
+
+:Admin rejette une demande;
+
+:MembershipRejectionService.rejectRequest()
+appelé;
+
+:Rejet réussi :
+- Statut mis à jour = 'rejected'
+- motifReject enregistré
+- processedBy et processedAt mis à jour;
+
+:Appel NotificationService.sendRejectionNotifications();
+
+fork
+  :Notification Admin (In-App) :
+  - Créer notification dans Firestore
+  - module: 'memberships'
+  - type: 'status_update'
+  - title: 'Demande rejetée'
+  - message: 'La demande de {name} a été rejetée.{reason ? " Motif: " + reason : ""}'
+  - metadata: {requestId, memberName, reason, rejectedBy};
+fork again
+  if (Numéro de téléphone disponible ?) then (oui)
+    :Construire message WhatsApp :
+    "Bonjour {name}, Votre demande d'adhésion a été rejetée.{reason ? " Motif: " + reason : ""}";
+    
+    :Générer URL WhatsApp :
+    wa.me/{phoneNumber}?text={encodedMessage};
+    
+    if (API WhatsApp Business disponible ?) then (oui)
+      :Appel API WhatsApp Business;
+    else (non)
+      :Ouvrir WhatsApp Web
+      dans nouvelle fenêtre;
+    endif
+  endif
+fork again
+  note right
+    **Notification Demandeur In-App (Futur)**
+    
+    Type: 'request_rejected'
+    Title: 'Votre demande d\'adhésion a été rejetée'
+  end note
+end fork
+
+:Notifications envoyées;
+
+stop
+
+@enduml
+
+' ==========================================
+' 3. NOTIFICATION CORRECTIONS (PRIORITAIRE)
+' ==========================================
+@startuml Notif_Corrections
+title Workflow : Notification de Corrections Demandées (avec WhatsApp)
+
+start
+
+:Admin demande des corrections;
+
+:MembershipCorrectionService.requestCorrections()
+appelé;
+
+:Corrections enregistrées :
+- Statut mis à jour = 'under_review'
+- securityCode généré (6 chiffres)
+- securityCodeExpiry = Date + 48h
+- reviewNote = corrections
+- correctionLink généré;
+
+:Appel NotificationService.sendCorrectionRequestNotifications();
+
+fork
+  :Notification Admin (In-App) :
+  - Créer notification dans Firestore
+  - module: 'memberships'
+  - type: 'status_update'
+  - title: 'Corrections demandées'
+  - message: 'Des corrections ont été demandées pour la demande de {name}'
+  - metadata: {requestId, memberName, securityCode, correctionLink, reviewedBy};
+fork again
+  :Notification Demandeur (In-App - Futur) :
+  - Créer notification dans Firestore
+  - type: 'corrections_requested'
+  - title: 'Corrections demandées pour votre demande'
+  - message: 'Code: {securityCode}';
+fork again
+  if (Numéro de téléphone disponible ?) then (oui)
+    :Construire message WhatsApp :
+    "Bonjour {name},
+    Votre demande d'adhésion nécessite des corrections.
+    Corrections à apporter: {corrections}
+    Lien de correction: {link}
+    Code de sécurité: {code}";
+    
+    :Générer URL WhatsApp :
+    wa.me/{phoneNumber}?text={encodedMessage};
+    
+    if (Admin clique "Envoyer via WhatsApp" ?) then (oui)
+      if (API WhatsApp Business disponible ?) then (oui)
+        :Appel API WhatsApp Business
+        pour envoyer message automatiquement;
+        
+        :Afficher toast "Message envoyé via WhatsApp";
+      else (non)
+        :Ouvrir WhatsApp Web
+        dans nouvelle fenêtre avec message pré-rempli;
+        
+        :Afficher toast "Ouvrir WhatsApp pour envoyer";
+      endif
+    else (admin choisit d'envoyer manuellement)
+      :Afficher URL WhatsApp dans le modal
+      pour copier/coller;
+    endif
+  else (pas de numéro)
+    :Afficher message "Numéro de téléphone requis
+    pour envoyer via WhatsApp";
+  endif
+end fork
+
+:Notifications envoyées;
+
+stop
+
+@enduml
+
+' ==========================================
+' 4. NOTIFICATION PAIEMENT
+' ==========================================
+@startuml Notif_Paiement
+title Workflow : Notification d'Enregistrement de Paiement
+
+start
+
+:Admin enregistre un paiement;
+
+:MembershipPaymentService.registerPayment()
+appelé;
+
+:Paiement enregistré :
+- isPaid = true
+- payments[] mis à jour avec nouveau paiement
+- paidAt et paidBy enregistrés;
+
+:Appel NotificationService.sendPaymentNotifications();
+
+fork
+  :Notification Admin (In-App) :
+  - Créer notification dans Firestore
+  - module: 'memberships'
+  - type: 'payment_received'
+  - title: 'Paiement enregistré'
+  - message: 'Un paiement de {amount} {currency} a été enregistré pour la demande de {name}'
+  - metadata: {requestId, memberName, amount, paymentMode, paymentDate, recordedBy};
+fork again
+  note right
+    **Notification Demandeur In-App (Futur)**
+    
+    Type: 'payment_confirmed'
+    Title: 'Paiement confirmé'
+    Message: 'Votre paiement de {amount} {currency} a été enregistré'
+  end note
+end fork
+
+:Notifications envoyées;
+
+stop
+
+@enduml
+
+' ==========================================
+' 5. ENVOI WHATSAPP MANUEL (Bouton)
+' ==========================================
+@startuml Notif_WhatsApp_Manuel
+title Workflow : Envoi WhatsApp Manuel depuis le Modal
+
+start
+
+:Admin clique "Envoyer via WhatsApp"
+dans le modal de corrections;
+
+:Vérifier numéro de téléphone disponible
+dans request.identity.contacts[0];
+
+if (Numéro disponible ?) then (oui)
+  :Formater numéro :
+  - Ajouter préfixe pays (+241 pour Gabon)
+  - Enlever espaces et caractères spéciaux;
+  
+  :Construire message selon contexte :
+  - Approbation : message approbation
+  - Rejet : message rejet
+  - Corrections : message corrections (avec lien et code);
+  
+  :Encoder message pour URL :
+  encodeURIComponent(message);
+  
+  :Générer URL WhatsApp :
+  wa.me/{phoneNumber}?text={encodedMessage};
+  
+  if (API WhatsApp Business configurée ?) then (oui)
+    :Appel API WhatsApp Business :
+    - POST /api/whatsapp/send
+    - { phoneNumber, message };
+    
+    if (Réponse OK ?) then (oui)
+      :Afficher toast "Message envoyé avec succès";
+      
+      :Enregistrer log d'envoi dans Firestore
+      (pour traçabilité);
+    else (erreur)
+      :Afficher toast erreur
+      "Erreur lors de l'envoi WhatsApp";
+      
+      :Afficher URL de fallback
+      pour envoi manuel;
+    endif
+  else (non - mode manuel)
+    :Ouvrir nouvelle fenêtre :
+    window.open(whatsappUrl, '_blank');
+    
+    :Afficher toast "Ouvrir WhatsApp pour envoyer
+    le message";
+  endif
+else (pas de numéro)
+  :Afficher toast erreur
+  "Numéro de téléphone non disponible
+  pour cette demande";
+  
+  stop
+endif
+
+stop
+
+@enduml
+
+' ==========================================
+' 6. GÉNÉRATION URL WHATSAPP
+' ==========================================
+@startuml Notif_Gen_URL_WhatsApp
+title Workflow : Génération de l'URL WhatsApp
+
+start
+
+:Contexte : Approbation / Rejet / Corrections;
+
+:Récupérer numéro de téléphone
+depuis request.identity.contacts[0];
+
+if (Numéro vide ou invalide ?) then (oui)
+  :Retourner null;
+  stop
+endif
+
+:Nettoyer numéro :
+- Enlever espaces, tirets, points
+- Enlever préfixe si présent;
+
+:Vérifier format :
+- Doit commencer par +241 ou 241
+- Longueur entre 11 et 13 caractères;
+
+if (Format invalide ?) then (oui)
+  :Retourner null;
+  stop
+endif
+
+:Normaliser numéro :
+- Si commence par 241 : ajouter +
+- Si commence par 0 : remplacer par +241
+- Si commence par autre : ajouter +241;
+
+:Construire message selon type :
+- Approbation : utiliser APPROVAL_MESSAGE(name, matricule)
+- Rejet : utiliser REJECTION_MESSAGE(name, reason)
+- Corrections : utiliser CORRECTION_MESSAGE(name, corrections, link, code);
+
+:Encoder message pour URL :
+encodeURIComponent(message);
+
+:Construire URL complète :
+{WA_BASE_URL}/{phoneNumber}?text={encodedMessage};
+
+:Retourner URL WhatsApp;
+
+stop
+
+@enduml

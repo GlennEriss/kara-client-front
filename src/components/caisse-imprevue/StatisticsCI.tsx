@@ -159,7 +159,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -275,7 +275,7 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
   }, [allContracts])
 
   const { 
-    currentIndex, 
+    currentIndex: _currentIndex,
     goNext, 
     goPrev, 
     canGoPrev, 
@@ -398,12 +398,12 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
                   </ResponsiveContainer>
                 </div>
                 <div className="space-y-2 flex-1">
-                  {byPaymentFrequency.map((entry, index) => (
+                  {byPaymentFrequency.map((entry, _index) => (
                     <div key={entry.type} className="flex items-center justify-between rounded-lg border p-3">
                       <div className="flex items-center gap-3">
                         <span 
                           className="inline-block h-2 w-2 rounded-full" 
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }} 
+                          style={{ backgroundColor: COLORS[_index % COLORS.length] }} 
                         />
                         <span className="font-medium text-gray-700">{entry.label}</span>
                       </div>

@@ -111,8 +111,8 @@ export class VehicleInsuranceService {
           premiumAmount: payload.premiumAmount,
         },
       })
-    } catch (error) {
-      console.error('Erreur lors de la création de la notification:', error)
+    } catch {
+      // Erreur lors de la création de la notification - continue sans
     }
 
     return insuranceId

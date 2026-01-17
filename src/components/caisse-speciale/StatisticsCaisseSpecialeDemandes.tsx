@@ -14,8 +14,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCaisseSpecialeDemandsStats } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
-import { CaisseSpecialeDemandStatus } from '@/types/types'
-import type { CaisseSpecialeDemandFilters } from '@/types/types'
 
 // Composant pour les statistiques modernes
 const StatsCard = ({
@@ -113,7 +111,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -135,7 +133,7 @@ interface StatisticsCaisseSpecialeDemandesProps {
   // Les statistiques affichent toujours les totaux globaux, pas de filtrage
 }
 
-export default function StatisticsCaisseSpecialeDemandes({}: StatisticsCaisseSpecialeDemandesProps = {}) {
+export default function StatisticsCaisseSpecialeDemandes(_props: StatisticsCaisseSpecialeDemandesProps = {}) {
   // Toujours récupérer les stats globales sans filtre
   const { data: stats, isLoading } = useCaisseSpecialeDemandsStats(undefined)
 
@@ -189,7 +187,6 @@ export default function StatisticsCaisseSpecialeDemandes({}: StatisticsCaisseSpe
   ] : []
 
   const { 
-    currentIndex, 
     goNext, 
     goPrev, 
     canGoPrev, 
@@ -269,9 +266,9 @@ export default function StatisticsCaisseSpecialeDemandes({}: StatisticsCaisseSpe
             cursor: isDragging ? 'grabbing' : 'grab' 
           }}
         >
-          {statsData.map((stat, index) => (
+          {statsData.map((stat, _index) => (
             <div 
-              key={index} 
+              key={_index} 
               className="flex-shrink-0" 
               style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}
             >

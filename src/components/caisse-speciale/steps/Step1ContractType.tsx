@@ -37,7 +37,7 @@ export function Step1ContractType() {
   } = useEntitySearch(formData.contractType)
 
   const [selectedEntity, setSelectedEntity] = useState<EntitySearchResult | null>(null)
-  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [_showSearchResults, setShowSearchResults] = useState(false)
   
   // Référence pour le conteneur de recherche
   const searchContainerRef = useRef<HTMLDivElement>(null)

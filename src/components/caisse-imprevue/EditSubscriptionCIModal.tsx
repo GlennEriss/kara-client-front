@@ -37,7 +37,6 @@ export default function EditSubscriptionCIModal({
   const { updateSubscription } = useSubscriptionCI()
   const { user } = useAuth()
 
-  // @ts-ignore - Erreur de duplication de types react-hook-form
   const form = useForm<SubscriptionCIFormData>({
     resolver: zodResolver(subscriptionCISchema),
     defaultValues: subscription ? {

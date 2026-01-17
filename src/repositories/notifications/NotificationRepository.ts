@@ -177,7 +177,7 @@ export class NotificationRepository implements INotificationRepository {
    */
   async getUnreadCount(): Promise<number> {
     try {
-      const { collection, query, where, getDocs, db, getCountFromServer } = await getFirestore()
+      const { collection, query, where, db, getCountFromServer } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const q = query(collectionRef, where('isRead', '==', false))
 
@@ -266,7 +266,7 @@ export class NotificationRepository implements INotificationRepository {
     limit: number = 20
   ): Promise<PaginatedNotifications> {
     try {
-      const { collection, query, where, orderBy, getDocs, db, startAfter, limitToLast } =
+      const { collection, query, where, orderBy, getDocs, db } =
         await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.notifications)
       const constraints: any[] = []
