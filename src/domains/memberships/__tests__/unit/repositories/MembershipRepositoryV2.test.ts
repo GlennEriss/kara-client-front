@@ -20,10 +20,10 @@ vi.mock('@/firebase/app', () => ({
 const mockCollection = vi.fn()
 const mockDoc = vi.fn()
 const mockQuery = vi.fn()
-const mockWhere = vi.fn()
-const mockOrderBy = vi.fn()
-const mockLimit = vi.fn()
-const mockStartAfter = vi.fn()
+const mockWhere = vi.fn(() => ({ type: 'where', _field: { path: 'field' }, _operator: '==', _value: 'value' }))
+const mockOrderBy = vi.fn(() => ({ type: 'orderBy', _field: { path: 'field' }, _direction: 'desc' }))
+const mockLimit = vi.fn(() => ({ type: 'limit', _limit: 10 }))
+const mockStartAfter = vi.fn(() => ({ type: 'startAfter' }))
 const mockGetDocs = vi.fn()
 const mockGetDoc = vi.fn()
 const mockUpdateDoc = vi.fn()
@@ -45,6 +45,16 @@ vi.mock('@/firebase/firestore', () => ({
   serverTimestamp: () => ({ toMillis: () => Date.now() }),
 }))
 
+// Mock PaymentRepositoryV2
+const mockCreatePayment = vi.fn()
+vi.mock('../../../repositories/PaymentRepositoryV2', () => ({
+  PaymentRepositoryV2: {
+    getInstance: vi.fn(() => ({
+      createPayment: mockCreatePayment,
+    })),
+  },
+}))
+
 import { MembershipRepositoryV2 } from '../../../repositories/MembershipRepositoryV2'
 import { 
   createMembershipRequestFixture, 
@@ -55,7 +65,7 @@ import {
   rejectedRequest,
   underReviewRequest,
 } from '../../fixtures'
-import type { MembershipRequestFilters } from '../../../entities'
+import type { MembershipRequestFilters, PaymentInfo } from '../../../entities'
 
 function resetFirestoreMocks() {
   mockCollection.mockReset()
@@ -69,6 +79,7 @@ function resetFirestoreMocks() {
   mockGetDoc.mockReset()
   mockUpdateDoc.mockReset()
   mockGetCountFromServer.mockReset()
+  mockCreatePayment.mockReset()
 }
 
 describe('MembershipRepositoryV2', () => {
@@ -504,6 +515,27 @@ describe('MembershipRepositoryV2', () => {
         .rejects.toThrow()
     })
 
+    it('devrait gérer les erreurs lors de la mise à jour Firestore', async () => {
+      // Arrange
+      const requestId = 'test-id-123'
+      const request = createMembershipRequestFixture({ id: requestId })
+      
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => request,
+      })
+      
+      const firestoreError = new Error('Firestore update failed')
+      mockUpdateDoc.mockRejectedValue(firestoreError)
+      
+      // Act & Assert
+      await expect(repository.updateStatus(requestId, 'approved'))
+        .rejects.toThrow('Firestore update failed')
+      
+      expect(mockUpdateDoc).toHaveBeenCalled()
+    })
+
     it('devrait mettre à jour updatedAt', async () => {
       // Arrange
       const requestId = 'test-id-123'
@@ -526,13 +558,52 @@ describe('MembershipRepositoryV2', () => {
   })
 
   describe('markAsPaid', () => {
-    it('devrait marquer comme payé avec les infos de paiement', async () => {
+    it('devrait marquer comme payé avec les infos de paiement et la traçabilité', async () => {
       // Arrange
       const requestId = 'test-id-123'
-      const paymentInfo = {
+      const paymentInfo: PaymentInfo = {
         amount: 25000,
-        mode: 'Cash' as const,
+        mode: 'cash',
         date: new Date().toISOString(),
+        time: '14:30',
+        recordedBy: 'admin-123',
+        recordedByName: 'Admin Test',
+        recordedAt: new Date(),
+      }
+      const request = createMembershipRequestFixture({ id: requestId })
+      
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => request,
+      })
+      
+      mockUpdateDoc.mockResolvedValue(undefined)
+      mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
+      
+      // Act
+      await repository.markAsPaid(requestId, paymentInfo)
+      
+      // Assert
+      expect(mockUpdateDoc).toHaveBeenCalled()
+      // Vérifier que les champs de traçabilité sont bien passés dans paymentInfo
+      expect(paymentInfo.recordedBy).toBe('admin-123')
+      expect(paymentInfo.recordedByName).toBe('Admin Test')
+      expect(paymentInfo.recordedAt).toBeInstanceOf(Date)
+    })
+
+    it('devrait inclure les champs de traçabilité dans le paiement', async () => {
+      // Arrange
+      const requestId = 'test-id-123'
+      const recordedAt = new Date()
+      const paymentInfo: PaymentInfo = {
+        amount: 25000,
+        mode: 'cash',
+        date: new Date().toISOString(),
+        time: '14:30',
+        recordedBy: 'admin-123',
+        recordedByName: 'Admin Test',
+        recordedAt,
       }
       const request = createMembershipRequestFixture({ id: requestId })
       
@@ -549,15 +620,20 @@ describe('MembershipRepositoryV2', () => {
       
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
+      // Vérifier que les champs de traçabilité sont bien passés
+      expect(paymentInfo.recordedBy).toBe('admin-123')
+      expect(paymentInfo.recordedByName).toBe('Admin Test')
+      expect(paymentInfo.recordedAt).toBe(recordedAt)
     })
 
     it('devrait throw si montant invalide (<= 0)', async () => {
       // Arrange
       const requestId = 'test-id-123'
-      const paymentInfo = {
+      const paymentInfo: PaymentInfo = {
         amount: 0,
-        mode: 'Cash' as const,
+        mode: 'cash',
         date: new Date().toISOString(),
+        time: '14:30',
       }
       
       // Act & Assert
@@ -568,15 +644,84 @@ describe('MembershipRepositoryV2', () => {
     it('devrait throw si mode de paiement invalide', async () => {
       // Arrange
       const requestId = 'test-id-123'
-      const paymentInfo = {
+      const paymentInfo: PaymentInfo = {
         amount: 25000,
         mode: 'InvalidMode' as any,
         date: new Date().toISOString(),
+        time: '14:30',
       }
       
       // Act & Assert
       await expect(repository.markAsPaid(requestId, paymentInfo))
         .rejects.toThrow()
+    })
+
+    it('devrait enregistrer le paiement dans la collection centralisée', async () => {
+      // Arrange
+      const requestId = 'test-id-123'
+      const paymentInfo: PaymentInfo = {
+        amount: 25000,
+        mode: 'cash',
+        date: new Date().toISOString(),
+        time: '14:30',
+        recordedBy: 'admin-123',
+        recordedByName: 'Admin Test',
+        recordedAt: new Date(),
+      }
+      const request = createMembershipRequestFixture({ id: requestId })
+      
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => request,
+      })
+      
+      mockUpdateDoc.mockResolvedValue(undefined)
+      mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
+      
+      // Act
+      await repository.markAsPaid(requestId, paymentInfo)
+      
+      // Assert
+      expect(mockCreatePayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceType: 'membership-request',
+          sourceId: requestId,
+          beneficiaryId: requestId,
+          beneficiaryName: `${request.identity.firstName} ${request.identity.lastName}`.trim(),
+          recordedBy: 'admin-123',
+          recordedByName: 'Admin Test',
+          recordedAt: expect.any(Date),
+        })
+      )
+    })
+
+    it('ne devrait pas échouer si l\'enregistrement dans la collection centralisée échoue', async () => {
+      // Arrange
+      const requestId = 'test-id-123'
+      const paymentInfo: PaymentInfo = {
+        amount: 25000,
+        mode: 'cash',
+        date: new Date().toISOString(),
+        time: '14:30',
+        recordedBy: 'admin-123',
+        recordedByName: 'Admin Test',
+        recordedAt: new Date(),
+      }
+      const request = createMembershipRequestFixture({ id: requestId })
+      
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => request,
+      })
+      
+      mockUpdateDoc.mockResolvedValue(undefined)
+      mockCreatePayment.mockRejectedValue(new Error('Payment repository error'))
+      
+      // Act & Assert - ne devrait pas throw même si la collection centralisée échoue
+      await expect(repository.markAsPaid(requestId, paymentInfo)).resolves.not.toThrow()
+      expect(mockUpdateDoc).toHaveBeenCalled() // Le paiement doit quand même être enregistré dans membership-request
     })
   })
 
@@ -663,6 +808,16 @@ describe('MembershipRepositoryV2', () => {
       expect(result.percentages.rejected).toBe(0)
       // Pas de division par zéro
       expect(isNaN(result.percentages.pending)).toBe(false)
+    })
+
+    it('devrait gérer les erreurs lors de la récupération des statistiques', async () => {
+      // Arrange
+      const firestoreError = new Error('Firestore query failed')
+      mockGetCountFromServer.mockRejectedValue(firestoreError)
+      
+      // Act & Assert
+      await expect(repository.getStatistics())
+        .rejects.toThrow('Firestore query failed')
     })
   })
 })

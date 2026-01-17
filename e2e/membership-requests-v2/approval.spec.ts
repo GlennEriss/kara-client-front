@@ -11,10 +11,10 @@
 
 import { test, expect } from '@playwright/test'
 import { loginAsAdmin, goToMembershipRequestsV2, waitForRequestsList, getRequestRow, waitForSuccessToast, waitForErrorToast, waitForModal } from './helpers'
-import { createPendingPaidRequest, createPendingUnpaidRequest, deleteTestMembershipRequest } from './fixtures'
+import { createPendingPaidRequest, createPendingUnpaidRequest, deleteTestMembershipRequest, type CreateTestRequestResult } from './fixtures'
 
 test.describe('E2E: Approbation d\'une demande V2', () => {
-  const createdRequestIds: string[] = []
+  const createdRequests: CreateTestRequestResult[] = []
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
@@ -24,9 +24,9 @@ test.describe('E2E: Approbation d\'une demande V2', () => {
 
   test.afterEach(async () => {
     // Nettoyer les demandes créées
-    if (createdRequestIds.length > 0) {
-      await Promise.all(createdRequestIds.map(id => deleteTestMembershipRequest(id)))
-      createdRequestIds.length = 0
+    if (createdRequests.length > 0) {
+      await Promise.all(createdRequests.map(req => deleteTestMembershipRequest(req.id)))
+      createdRequests.length = 0
     }
   })
 
@@ -56,19 +56,20 @@ test.describe('E2E: Approbation d\'une demande V2', () => {
   })
 
   test('devrait ouvrir le modal d\'approbation', async ({ page }) => {
-    // Créer une demande payée pour le test
-    const requestId = await createPendingPaidRequest()
-    createdRequestIds.push(requestId)
+    // Arrange: Créer une demande payée pour le test
+    const testRequest = await createPendingPaidRequest()
+    createdRequests.push(testRequest)
     await page.reload()
     await waitForRequestsList(page)
 
-    // Filtrer sur "En attente" et chercher la demande créée
-    const pendingTab = page.locator('[role="tab"]:has-text("En attente"), button:has-text("En attente")').first()
-    await pendingTab.click()
-    await page.waitForTimeout(2000)
+    // Act: Rechercher la demande par matricule
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
 
-    // Chercher la ligne de la demande créée
-    const paidRow = await getRequestRow(page, requestId)
+    // Assert: La demande devrait être visible
+    const paidRow = await getRequestRow(page, testRequest.id)
     
     if (await paidRow.count() > 0) {
       // Chercher le bouton Approuver
@@ -86,19 +87,20 @@ test.describe('E2E: Approbation d\'une demande V2', () => {
   })
 
   test('devrait approuver une demande avec succès', async ({ page }) => {
-    // Créer une demande payée pour le test
-    const requestId = await createPendingPaidRequest()
-    createdRequestIds.push(requestId)
+    // Arrange: Créer une demande payée pour le test
+    const testRequest = await createPendingPaidRequest()
+    createdRequests.push(testRequest)
     await page.reload()
     await waitForRequestsList(page)
 
-    // Filtrer sur "En attente"
-    const pendingTab = page.locator('[role="tab"]:has-text("En attente"), button:has-text("En attente")').first()
-    await pendingTab.click()
-    await page.waitForTimeout(2000)
+    // Act: Rechercher la demande par matricule
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
 
-    // Chercher la demande créée
-    const paidRow = await getRequestRow(page, requestId)
+    // Assert: La demande devrait être visible
+    const paidRow = await getRequestRow(page, testRequest.id)
     
     if (await paidRow.count() > 0) {
       const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
@@ -133,19 +135,20 @@ test.describe('E2E: Approbation d\'une demande V2', () => {
   })
 
   test('devrait NE PAS permettre d\'approuver une demande non payée', async ({ page }) => {
-    // Créer une demande non payée pour le test
-    const requestId = await createPendingUnpaidRequest()
-    createdRequestIds.push(requestId)
+    // Arrange: Créer une demande non payée pour le test
+    const testRequest = await createPendingUnpaidRequest()
+    createdRequests.push(testRequest)
     await page.reload()
     await waitForRequestsList(page)
 
-    // Filtrer sur "En attente"
-    const pendingTab = page.locator('[role="tab"]:has-text("En attente"), button:has-text("En attente")').first()
-    await pendingTab.click()
-    await page.waitForTimeout(2000)
+    // Act: Rechercher la demande par matricule
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
 
-    // Chercher la demande créée
-    const unpaidRow = await getRequestRow(page, requestId)
+    // Assert: La demande devrait être visible
+    const unpaidRow = await getRequestRow(page, testRequest.id)
     
     if (await unpaidRow.count() > 0) {
       // Le bouton Approuver ne devrait pas être visible ou devrait être désactivé

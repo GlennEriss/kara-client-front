@@ -10,6 +10,7 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useMembershipActionsV2 } from '../../../hooks/useMembershipActionsV2'
 import { MembershipServiceV2 } from '../../../services/MembershipServiceV2'
+import type { PaymentInfo } from '../../../entities'
 
 // Mock du service
 vi.mock('../../../services/MembershipServiceV2')
@@ -186,9 +187,9 @@ describe('useMembershipActionsV2', () => {
         wrapper: createWrapper(),
       })
       
-      const paymentInfo = {
+      const paymentInfo: PaymentInfo = {
         amount: 25000,
-        mode: 'Cash' as const,
+        mode: 'cash',
         date: new Date().toISOString(),
         time: '10:30',
       }

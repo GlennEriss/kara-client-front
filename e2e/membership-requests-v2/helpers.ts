@@ -53,19 +53,51 @@ export async function loginAsAdmin(page: Page) {
  */
 export async function goToMembershipRequestsV2(page: Page) {
   await page.goto('/membership-requests')
-  await page.waitForLoadState('networkidle', { timeout: 30000 })
-  await page.waitForTimeout(2000) // Attendre le chargement des composants React Query
+  await page.waitForLoadState('domcontentloaded')
+  
+  // Attendre que la page soit chargée en vérifiant la présence d'éléments clés
+  // plutôt que d'attendre networkidle (qui peut ne jamais se produire avec React Query)
+  try {
+    // Attendre soit le titre, soit la barre de recherche, soit les tabs
+    await page.waitForSelector(
+      'h1, h2, [data-testid="search-input"], [data-testid="filter-tabs"], [role="tablist"]',
+      { timeout: 10000 }
+    )
+  } catch (error) {
+    // Si aucun élément n'est trouvé, attendre au moins que le DOM soit chargé
+    await page.waitForLoadState('domcontentloaded')
+  }
+  
+  // Attendre un peu pour que React Query initialise les requêtes
+  await page.waitForTimeout(2000)
 }
 
 /**
  * Attend que la liste des demandes soit chargée
  */
 export async function waitForRequestsList(page: Page) {
-  // Attendre soit la table (desktop) soit les cards (mobile)
-  await page.waitForSelector(
-    '[data-testid="membership-requests-table"], [data-testid="membership-request-mobile-card"]',
-    { timeout: 10000 }
-  )
+  // Attendre que le chargement soit terminé en vérifiant :
+  // 1. Soit une ligne/card de demande est visible
+  // 2. Soit l'état vide est affiché
+  // 3. Soit un skeleton de chargement disparaît
+  
+  // D'abord, attendre que les skeletons de chargement disparaissent (si présents)
+  try {
+    await page.waitForSelector('[data-testid="skeleton"], .skeleton', { state: 'hidden', timeout: 5000 })
+  } catch {
+    // Pas de skeleton, continuer
+  }
+  
+  // Ensuite, attendre soit une ligne/card, soit l'état vide, soit la table
+  await Promise.race([
+    page.waitForSelector('[data-testid="membership-request-row"]', { timeout: 10000 }).catch(() => null),
+    page.waitForSelector('[data-testid="membership-request-mobile-card"]', { timeout: 10000 }).catch(() => null),
+    page.waitForSelector('text=/Aucune demande/i', { timeout: 10000 }).catch(() => null),
+    page.waitForSelector('table', { timeout: 10000 }).catch(() => null),
+  ])
+  
+  // Attendre un peu pour que React finisse de rendre
+  await page.waitForTimeout(500)
 }
 
 /**

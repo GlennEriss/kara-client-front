@@ -31,15 +31,21 @@ import {
 } from '../entities/MembershipRequest'
 import { 
   MEMBERSHIP_REQUEST_COLLECTIONS, 
-  MEMBERSHIP_REQUEST_PAGINATION 
+  MEMBERSHIP_REQUEST_PAGINATION,
+  PAYMENT_MODES,
+  type PaymentMode,
 } from '@/constantes/membership-requests'
 import type { MembershipRequestStatus } from '@/types/types'
+import { PaymentRepositoryV2 } from './PaymentRepositoryV2'
 
 export class MembershipRepositoryV2 implements IMembershipRepository {
   private static instance: MembershipRepositoryV2
   private readonly collectionName = MEMBERSHIP_REQUEST_COLLECTIONS.REQUESTS
+  private paymentRepository: PaymentRepositoryV2
 
-  private constructor() {}
+  private constructor() {
+    this.paymentRepository = PaymentRepositoryV2.getInstance()
+  }
 
   static getInstance(): MembershipRepositoryV2 {
     if (!MembershipRepositoryV2.instance) {
@@ -90,14 +96,33 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       // Construire la requête
       const q = query(collectionRef, ...constraints)
       
-      // Debug: Log de la requête pour vérification
-      console.log('🔍 Repository.getAll - Filtres:', filters)
-      console.log('🔍 Repository.getAll - Constraints:', constraints.map(c => c.type === 'where' ? `${c._field?.path || c.field} ${c._operator || c.op} ${c._value || c.value}` : c.type).join(', '))
+      // Debug: Log de la requête pour vérification (uniquement en développement)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Repository.getAll - Filtres:', filters)
+        try {
+          const constraintsInfo = constraints.map(c => {
+            // Vérifier si l'objet a les propriétés attendues avant d'y accéder
+            if (c && typeof c === 'object') {
+              if ('type' in c) return String(c.type)
+              if ('_field' in c || 'field' in c) return 'where'
+              if ('_direction' in c || 'direction' in c) return 'orderBy'
+              return 'unknown'
+            }
+            return 'unknown'
+          }).join(', ')
+          console.log('🔍 Repository.getAll - Constraints:', constraintsInfo)
+        } catch (error) {
+          // Ignorer les erreurs de debug
+        }
+      }
       
       // Exécuter la requête
       const querySnapshot = await getDocs(q)
       
-      console.log('🔍 Repository.getAll - Résultats trouvés:', querySnapshot.size, 'documents')
+      // Debug: Log des résultats (uniquement en développement)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Repository.getAll - Résultats trouvés:', querySnapshot.size, 'documents')
+      }
       
       // Transformer les documents
       const items: MembershipRequest[] = []
@@ -205,9 +230,10 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       throw new Error('Le montant doit être positif')
     }
     
-    const validModes: PaymentInfo['mode'][] = ['AirtelMoney', 'Mobicash', 'Cash', 'Virement', 'Chèque']
+    // Utiliser les constantes centralisées pour la validation
+    const validModes = Object.values(PAYMENT_MODES) as PaymentMode[]
     if (!validModes.includes(paymentInfo.mode)) {
-      throw new Error(`Mode de paiement invalide: ${paymentInfo.mode}`)
+      throw new Error(`Mode de paiement invalide: ${paymentInfo.mode}. Modes autorisés: ${validModes.join(', ')}`)
     }
     
     try {
@@ -218,24 +244,76 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       }
       
       // Transformer PaymentInfo en Payment pour MembershipRequest
+      // Le mode est déjà dans le bon format (PaymentMode), pas besoin de transformation
+      // IMPORTANT: Ne pas inclure les champs undefined (Firestore refuse undefined)
       const payment: any = {
         date: new Date(paymentInfo.date),
-        mode: paymentInfo.mode.toLowerCase().replace('money', '_money').replace('transfer', '_transfer') as any,
+        mode: paymentInfo.mode, // Déjà au format PaymentMode (airtel_money, cash, etc.)
         amount: paymentInfo.amount,
-        acceptedBy: existing.processedBy || 'admin', // TODO: récupérer l'admin actuel
-        paymentType: 'Membership' as const,
-        time: paymentInfo.time,
-        withFees: paymentInfo.withFees,
+        acceptedBy: paymentInfo.recordedBy || existing.processedBy || 'admin', // ID de l'admin qui a enregistré
+        paymentType: paymentInfo.paymentType || 'Membership',
+        time: paymentInfo.time || '', // Obligatoire, ne peut pas être undefined
+        // Traçabilité : qui a enregistré et quand
+        recordedBy: paymentInfo.recordedBy, // ID de l'admin qui a enregistré
+        recordedByName: paymentInfo.recordedByName, // Nom complet de l'admin
+        recordedAt: paymentInfo.recordedAt || new Date(), // Date d'enregistrement
+      }
+      
+      // Ajouter withFees seulement si défini (pour Airtel Money/Mobicash)
+      if (paymentInfo.withFees !== undefined) {
+        payment.withFees = paymentInfo.withFees
+      }
+      
+      // Ajouter paymentMethodOther seulement si mode = 'other'
+      if (paymentInfo.mode === 'other' && paymentInfo.paymentMethodOther) {
+        payment.paymentMethodOther = paymentInfo.paymentMethodOther
+      }
+      
+      // Ajouter proofUrl seulement si défini
+      if (paymentInfo.proofUrl) {
+        payment.proofUrl = paymentInfo.proofUrl
+      }
+      
+      // Ajouter proofPath seulement si défini
+      if (paymentInfo.proofPath) {
+        payment.proofPath = paymentInfo.proofPath
       }
       
       const docRef = doc(db, this.collectionName, id)
       const currentPayments = existing.payments || []
       
-      await updateDoc(docRef, {
+      // Nettoyer le payload pour éviter les undefined
+      const updateData: any = {
         isPaid: true,
         payments: [...currentPayments, payment],
         updatedAt: serverTimestamp(),
+      }
+      
+      // Supprimer les champs undefined du updateData
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key]
+        }
       })
+      
+      // 1. Mettre à jour le document membership-request (pour compatibilité)
+      await updateDoc(docRef, updateData)
+      
+      // 2. Enregistrer dans la collection centralisée des paiements
+      try {
+        await this.paymentRepository.createPayment({
+          ...payment,
+          sourceType: 'membership-request',
+          sourceId: id,
+          beneficiaryId: existing.id, // ID de la demande
+          beneficiaryName: `${existing.identity.firstName} ${existing.identity.lastName}`.trim(),
+        })
+      } catch (paymentError) {
+        // Log l'erreur mais ne bloque pas la mise à jour du membership-request
+        // (pour éviter de casser le flux si la collection centralisée a un problème)
+        console.error('⚠️ Erreur lors de l\'enregistrement dans la collection centralisée:', paymentError)
+        // On continue quand même car le paiement est déjà enregistré dans membership-request
+      }
     } catch (error) {
       console.error('❌ Erreur Repository.markAsPaid:', error)
       throw error

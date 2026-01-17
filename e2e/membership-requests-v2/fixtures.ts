@@ -74,14 +74,22 @@ function generateTestMatricule(): string {
 }
 
 /**
+ * Résultat de création d'une demande de test
+ */
+export interface CreateTestRequestResult {
+  id: string
+  matricule: string
+}
+
+/**
  * Crée une demande d'adhésion de test dans Firestore
  * 
  * @param options - Options pour personnaliser la demande
- * @returns L'ID de la demande créée
+ * @returns L'ID et le matricule de la demande créée
  */
 export async function createTestMembershipRequest(
   options: CreateTestRequestOptions = {}
-): Promise<string> {
+): Promise<CreateTestRequestResult> {
   try {
     initializeFirebaseAdmin()
     const db = getFirestore()
@@ -169,7 +177,10 @@ export async function createTestMembershipRequest(
     
     console.log(`✅ Demande de test créée: ${docRef.id} (matricule: ${matricule})`)
     
-    return docRef.id
+    return {
+      id: docRef.id,
+      matricule,
+    }
   } catch (error) {
     console.error('❌ Erreur lors de la création de la demande de test:', error)
     throw error
@@ -223,7 +234,7 @@ export async function deleteTestMembershipRequests(requestIds: string[]): Promis
 /**
  * Crée une demande de test "En attente" non payée
  */
-export async function createPendingUnpaidRequest(): Promise<string> {
+export async function createPendingUnpaidRequest(): Promise<CreateTestRequestResult> {
   return createTestMembershipRequest({
     status: 'pending',
     isPaid: false,
@@ -233,7 +244,7 @@ export async function createPendingUnpaidRequest(): Promise<string> {
 /**
  * Crée une demande de test "En attente" payée
  */
-export async function createPendingPaidRequest(): Promise<string> {
+export async function createPendingPaidRequest(): Promise<CreateTestRequestResult> {
   const payment: Payment = {
     date: new Date(),
     mode: 'cash' as PaymentMode,
@@ -242,6 +253,9 @@ export async function createPendingPaidRequest(): Promise<string> {
     paymentType: 'Membership',
     time: '10:30',
     withFees: false,
+    recordedBy: 'test-admin',
+    recordedByName: 'Admin Test',
+    recordedAt: new Date(),
   }
 
   return createTestMembershipRequest({
@@ -254,7 +268,7 @@ export async function createPendingPaidRequest(): Promise<string> {
 /**
  * Crée une demande de test "Approuvée"
  */
-export async function createApprovedRequest(): Promise<string> {
+export async function createApprovedRequest(): Promise<CreateTestRequestResult> {
   const payment: Payment = {
     date: new Date(),
     mode: 'cash' as PaymentMode,
@@ -263,6 +277,9 @@ export async function createApprovedRequest(): Promise<string> {
     paymentType: 'Membership',
     time: '10:30',
     withFees: false,
+    recordedBy: 'test-admin',
+    recordedByName: 'Admin Test',
+    recordedAt: new Date(),
   }
 
   return createTestMembershipRequest({
@@ -278,7 +295,7 @@ export async function createApprovedRequest(): Promise<string> {
 /**
  * Crée une demande de test "Rejetée"
  */
-export async function createRejectedRequest(): Promise<string> {
+export async function createRejectedRequest(): Promise<CreateTestRequestResult> {
   return createTestMembershipRequest({
     status: 'rejected',
     isPaid: false,
@@ -291,7 +308,7 @@ export async function createRejectedRequest(): Promise<string> {
 /**
  * Crée une demande de test "En cours de révision"
  */
-export async function createUnderReviewRequest(): Promise<string> {
+export async function createUnderReviewRequest(): Promise<CreateTestRequestResult> {
   return createTestMembershipRequest({
     status: 'under_review',
     isPaid: false,
@@ -302,7 +319,7 @@ export async function createUnderReviewRequest(): Promise<string> {
 /**
  * Crée une demande de test avec corrections demandées
  */
-export async function createRequestWithCorrections(): Promise<string> {
+export async function createRequestWithCorrections(): Promise<CreateTestRequestResult> {
   return createTestMembershipRequest({
     status: 'pending',
     isPaid: false,

@@ -11,29 +11,48 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, goToMembershipRequestsV2, waitForRequestsList, waitForModal, waitForSuccessToast } from './helpers'
+import { loginAsAdmin, goToMembershipRequestsV2, waitForRequestsList, waitForModal, waitForSuccessToast, getRequestRow, getFirstRequestRow } from './helpers'
+import { createPendingUnpaidRequest, deleteTestMembershipRequest, type CreateTestRequestResult } from './fixtures'
 
 test.describe('E2E: Rejet d\'une demande V2', () => {
+  const createdRequests: CreateTestRequestResult[] = []
+
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
     await goToMembershipRequestsV2(page)
     await waitForRequestsList(page)
   })
 
-  test('devrait ouvrir le modal de rejet', async ({ page }) => {
-    // Filtrer sur "En attente"
-    const pendingTab = page.locator('[role="tab"]:has-text("En attente"), button:has-text("En attente")').first()
-    await pendingTab.click()
-    await page.waitForTimeout(2000)
+  test.afterEach(async () => {
+    // Nettoyer les demandes créées
+    if (createdRequests.length > 0) {
+      await Promise.all(createdRequests.map(req => deleteTestMembershipRequest(req.id)))
+      createdRequests.length = 0
+    }
+  })
 
-    const firstRow = page.locator('[data-testid="membership-request-row"], [data-testid="membership-request-mobile-card"]').first()
+  test('devrait ouvrir le modal de rejet', async ({ page }) => {
+    // Arrange: Créer une demande en attente pour le test
+    const testRequest = await createPendingUnpaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    // Act: Rechercher la demande par matricule
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    // Assert: La demande devrait être visible
+    const requestRow = await getRequestRow(page, testRequest.id)
     
-    if (await firstRow.count() > 0) {
+    if (await requestRow.count() > 0) {
       // Chercher le bouton Rejeter (peut être dans le menu ou directement visible)
-      const rejectButton = firstRow.locator('button:has-text("Rejeter"), [data-testid="action-reject-mobile"], [data-testid="action-reject-menu"]').first()
+      const rejectButton = requestRow.locator('button:has-text("Rejeter"), [data-testid="action-reject-mobile"], [data-testid="action-reject-menu"]').first()
       
       // Si dans le menu, ouvrir le menu d'abord
-      const menuButton = firstRow.locator('[data-testid="action-menu"], button:has-text("⋮"), [aria-label*="menu" i]').first()
+      const menuButton = requestRow.locator('[data-testid="action-menu"], button:has-text("⋮"), [aria-label*="menu" i]').first()
       if (await menuButton.count() > 0 && await menuButton.isVisible()) {
         await menuButton.click()
         await page.waitForTimeout(500)
@@ -50,22 +69,30 @@ test.describe('E2E: Rejet d\'une demande V2', () => {
   })
 
   test('devrait rejeter une demande avec un motif', async ({ page }) => {
-    // Filtrer sur "En attente"
-    const pendingTab = page.locator('[role="tab"]:has-text("En attente"), button:has-text("En attente")').first()
-    await pendingTab.click()
-    await page.waitForTimeout(2000)
+    // Arrange: Créer une demande en attente pour le test
+    const testRequest = await createPendingUnpaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
 
-    const firstRow = page.locator('[data-testid="membership-request-row"], [data-testid="membership-request-mobile-card"]').first()
+    // Act: Rechercher la demande par matricule
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    // Assert: La demande devrait être visible
+    const requestRow = await getRequestRow(page, testRequest.id)
     
-    if (await firstRow.count() > 0) {
+    if (await requestRow.count() > 0) {
       // Ouvrir le menu si nécessaire
-      const menuButton = firstRow.locator('[data-testid="action-menu"]').first()
+      const menuButton = requestRow.locator('[data-testid="action-menu"]').first()
       if (await menuButton.count() > 0 && await menuButton.isVisible()) {
         await menuButton.click()
         await page.waitForTimeout(500)
       }
 
-      const rejectButton = firstRow.locator('button:has-text("Rejeter"), [data-testid="action-reject-menu"]').first()
+      const rejectButton = requestRow.locator('button:has-text("Rejeter"), [data-testid="action-reject-menu"]').first()
       
       if (await rejectButton.count() > 0) {
         await rejectButton.click()
@@ -75,7 +102,7 @@ test.describe('E2E: Rejet d\'une demande V2', () => {
         // Act: Remplir le motif
         const reasonTextarea = page.locator('[data-testid="reject-reason"], textarea[name*="reason" i], textarea[placeholder*="motif" i]').first()
         if (await reasonTextarea.count() > 0) {
-          await reasonTextarea.fill('Document d\'identité invalide')
+          await reasonTextarea.fill('Document d\'identité invalide (test E2E)')
         }
 
         // Act: Confirmer
@@ -87,7 +114,7 @@ test.describe('E2E: Rejet d\'une demande V2', () => {
 
         // Assert: Le statut est mis à jour
         await page.waitForTimeout(3000)
-        const statusBadge = firstRow.locator('[data-testid="status-badge"], [data-testid="badge-status"]')
+        const statusBadge = requestRow.locator('[data-testid="status-badge"], [data-testid="badge-status"]')
         if (await statusBadge.count() > 0) {
           await expect(statusBadge.first()).toContainText(/rejetée|rejected/i, { timeout: 10000 })
         }

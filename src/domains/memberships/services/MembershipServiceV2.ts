@@ -8,6 +8,7 @@
 import { MembershipRepositoryV2 } from '../repositories/MembershipRepositoryV2'
 import { generateSecurityCode, calculateCodeExpiry } from '../utils/securityCode'
 import { generateWhatsAppUrl } from '../utils/whatsappUrl'
+import { AdminRepository } from '@/repositories/admins/AdminRepository'
 import type {
   IMembershipService,
   ApproveMembershipRequestParams,
@@ -15,23 +16,25 @@ import type {
   RequestCorrectionsParams,
   ProcessPaymentParams,
 } from './interfaces/IMembershipService'
-import { MEMBERSHIP_REQUEST_VALIDATION } from '@/constantes/membership-requests'
+import { MEMBERSHIP_REQUEST_VALIDATION, type PaymentMode } from '@/constantes/membership-requests'
 
 export class MembershipServiceV2 implements IMembershipService {
   private static instance: MembershipServiceV2
   private repository: MembershipRepositoryV2
+  private adminRepository: AdminRepository
 
-  private constructor(repository?: MembershipRepositoryV2) {
+  private constructor(repository?: MembershipRepositoryV2, adminRepository?: AdminRepository) {
     this.repository = repository || MembershipRepositoryV2.getInstance()
+    this.adminRepository = adminRepository || new AdminRepository()
   }
 
-  static getInstance(repository?: MembershipRepositoryV2): MembershipServiceV2 {
+  static getInstance(repository?: MembershipRepositoryV2, adminRepository?: AdminRepository): MembershipServiceV2 {
     if (!MembershipServiceV2.instance) {
-      MembershipServiceV2.instance = new MembershipServiceV2(repository)
+      MembershipServiceV2.instance = new MembershipServiceV2(repository, adminRepository)
     }
     // En test, permettre de réinitialiser avec un nouveau repository
-    if (repository && process.env.NODE_ENV === 'test') {
-      MembershipServiceV2.instance = new MembershipServiceV2(repository)
+    if ((repository || adminRepository) && process.env.NODE_ENV === 'test') {
+      MembershipServiceV2.instance = new MembershipServiceV2(repository, adminRepository)
     }
     return MembershipServiceV2.instance
   }
@@ -186,17 +189,33 @@ export class MembershipServiceV2 implements IMembershipService {
       throw new Error('Le montant doit être positif')
     }
 
-    // Vérifier le mode de paiement
-    const validModes: Array<'AirtelMoney' | 'Mobicash' | 'Cash' | 'Virement' | 'Chèque'> = [
-      'AirtelMoney',
-      'Mobicash',
-      'Cash',
-      'Virement',
-      'Chèque',
+    // Vérifier le mode de paiement (utilise les valeurs des constantes)
+    const validModes: Array<'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'> = [
+      'airtel_money',
+      'mobicash',
+      'cash',
+      'bank_transfer',
+      'other',
     ]
 
-    if (!validModes.includes(paymentInfo.mode)) {
+    if (!validModes.includes(paymentInfo.mode as any)) {
       throw new Error(`Mode de paiement invalide: ${paymentInfo.mode}. Modes autorisés: ${validModes.join(', ')}`)
+    }
+
+    // Vérifier que l'heure est fournie (obligatoire)
+    if (!paymentInfo.time || paymentInfo.time.trim() === '') {
+      throw new Error('L\'heure de versement est obligatoire')
+    }
+
+    // Vérifier que paymentMethodOther est fourni si mode = 'other'
+    if (paymentInfo.mode === 'other' && (!paymentInfo.paymentMethodOther || paymentInfo.paymentMethodOther.trim() === '')) {
+      throw new Error('Veuillez préciser le mode de paiement pour "Autre"')
+    }
+
+    // Vérifier que withFees est défini si mode = airtel_money ou mobicash
+    const mobileMoneyModes: PaymentMode[] = ['airtel_money', 'mobicash']
+    if (mobileMoneyModes.includes(paymentInfo.mode) && paymentInfo.withFees === undefined) {
+      throw new Error('Veuillez indiquer si le paiement est avec ou sans frais pour Airtel Money/Mobicash')
     }
 
     // Récupérer la demande
@@ -212,10 +231,22 @@ export class MembershipServiceV2 implements IMembershipService {
 
     // ==================== FLUX PRINCIPAL ====================
     
-    // Marquer comme payé
+    // Récupérer les informations de l'admin pour la traçabilité
+    const admin = await this.adminRepository.getAdminById(adminId)
+    const adminName = admin 
+      ? `${admin.firstName} ${admin.lastName}`.trim() || 'Admin inconnu'
+      : 'Admin inconnu'
+    
+    // Date d'enregistrement (maintenant)
+    const recordedAt = new Date()
+    
+    // Marquer comme payé avec traçabilité complète
     await this.repository.markAsPaid(requestId, {
       ...paymentInfo,
       date: paymentInfo.date || new Date().toISOString(),
+      recordedBy: adminId,
+      recordedByName: adminName,
+      recordedAt,
     })
 
     // TODO: Créer un reçu de paiement

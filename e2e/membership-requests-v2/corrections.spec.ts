@@ -10,26 +10,45 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, goToMembershipRequestsV2, waitForRequestsList, waitForModal, waitForSuccessToast } from './helpers'
+import { loginAsAdmin, goToMembershipRequestsV2, waitForRequestsList, waitForModal, waitForSuccessToast, getRequestRow } from './helpers'
+import { createPendingUnpaidRequest, deleteTestMembershipRequest, type CreateTestRequestResult } from './fixtures'
 
 test.describe('E2E: Demande de corrections V2', () => {
+  const createdRequests: CreateTestRequestResult[] = []
+
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
     await goToMembershipRequestsV2(page)
     await waitForRequestsList(page)
   })
 
-  test('devrait ouvrir le modal de corrections', async ({ page }) => {
-    // Filtrer sur "En attente"
-    const pendingTab = page.locator('[role="tab"]:has-text("En attente"), button:has-text("En attente")').first()
-    await pendingTab.click()
-    await page.waitForTimeout(2000)
+  test.afterEach(async () => {
+    // Nettoyer les demandes créées
+    if (createdRequests.length > 0) {
+      await Promise.all(createdRequests.map(req => deleteTestMembershipRequest(req.id)))
+      createdRequests.length = 0
+    }
+  })
 
-    const firstRow = page.locator('[data-testid="membership-request-row"], [data-testid="membership-request-mobile-card"]').first()
+  test('devrait ouvrir le modal de corrections', async ({ page }) => {
+    // Arrange: Créer une demande en attente pour le test
+    const testRequest = await createPendingUnpaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    // Act: Rechercher la demande par matricule
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    // Assert: La demande devrait être visible
+    const requestRow = await getRequestRow(page, testRequest.id)
     
-    if (await firstRow.count() > 0) {
+    if (await requestRow.count() > 0) {
       // Ouvrir le menu
-      const menuButton = firstRow.locator('[data-testid="action-menu"]').first()
+      const menuButton = requestRow.locator('[data-testid="action-menu"]').first()
       if (await menuButton.count() > 0 && await menuButton.isVisible()) {
         await menuButton.click()
         await page.waitForTimeout(500)
@@ -49,16 +68,24 @@ test.describe('E2E: Demande de corrections V2', () => {
   })
 
   test('devrait envoyer une demande de corrections', async ({ page }) => {
-    // Filtrer sur "En attente"
-    const pendingTab = page.locator('[role="tab"]:has-text("En attente"), button:has-text("En attente")').first()
-    await pendingTab.click()
-    await page.waitForTimeout(2000)
+    // Arrange: Créer une demande en attente pour le test
+    const testRequest = await createPendingUnpaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
 
-    const firstRow = page.locator('[data-testid="membership-request-row"], [data-testid="membership-request-mobile-card"]').first()
+    // Act: Rechercher la demande par matricule
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    // Assert: La demande devrait être visible
+    const requestRow = await getRequestRow(page, testRequest.id)
     
-    if (await firstRow.count() > 0) {
+    if (await requestRow.count() > 0) {
       // Ouvrir le menu
-      const menuButton = firstRow.locator('[data-testid="action-menu"]').first()
+      const menuButton = requestRow.locator('[data-testid="action-menu"]').first()
       if (await menuButton.count() > 0 && await menuButton.isVisible()) {
         await menuButton.click()
         await page.waitForTimeout(500)
@@ -74,7 +101,7 @@ test.describe('E2E: Demande de corrections V2', () => {
         // Act: Remplir les corrections
         const correctionsTextarea = page.locator('[data-testid="corrections-textarea"], textarea[name*="correction" i], textarea[placeholder*="correction" i]').first()
         if (await correctionsTextarea.count() > 0) {
-          await correctionsTextarea.fill('Veuillez mettre à jour votre photo et corriger votre adresse.')
+          await correctionsTextarea.fill('Veuillez mettre à jour votre photo et corriger votre adresse. (test E2E)')
         }
 
         // Act: Confirmer

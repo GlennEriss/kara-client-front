@@ -66,13 +66,90 @@ class MembershipRequest {
 ' ============================================
 class Payment {
   + date: Date
-  + time?: string
+  + time: string
   + mode: PaymentMode
   + amount: number
   + acceptedBy: string
   + paymentType: TypePayment
   + withFees?: boolean
+  + paymentMethodOther?: string
+  + proofUrl?: string
+  + proofPath?: string
+  + recordedBy: string
+  + recordedByName: string
+  + recordedAt: Date
 }
+
+note right of Payment
+  **Traçabilité du paiement:**
+  
+  **date** : Date de versement
+  (quand le client a effectué le paiement)
+  
+  **recordedAt** : Date d'enregistrement
+  (quand l'admin a enregistré le paiement)
+  
+  **recordedBy** : ID de l'admin qui a enregistré
+  
+  **recordedByName** : Nom complet de l'admin
+  (prénom + nom)
+  
+  **Exemple:**
+  - Client paie le 15/01/2025 à 10h30
+  - Admin enregistre le 16/01/2025 à 14h00
+  → date = 15/01/2025, recordedAt = 16/01/2025
+  
+  **Stockage:**
+  - Dupliqué dans membership-requests[].payments[]
+  - Centralisé dans collection "payments" (historique global)
+end note
+
+' ============================================
+' CLASSE : CENTRALIZED_PAYMENT (Paiement centralisé)
+' ============================================
+class CentralizedPayment {
+  + id: string
+  + date: Date
+  + time: string
+  + mode: PaymentMode
+  + amount: number
+  + acceptedBy: string
+  + paymentType: TypePayment
+  + withFees?: boolean
+  + paymentMethodOther?: string
+  + proofUrl?: string
+  + proofPath?: string
+  + recordedBy: string
+  + recordedByName: string
+  + recordedAt: Date
+  + sourceType: string
+  + sourceId: string
+  + beneficiaryId?: string
+  + beneficiaryName?: string
+  + createdAt: Date
+  + updatedAt: Date
+}
+
+note right of CentralizedPayment
+  **Collection Firestore:** payments
+  Clé primaire: id (auto-généré)
+  
+  **Rôle:**
+  Historique centralisé de TOUS les versements
+  (adhésion, caisse spéciale, crédit, placement, etc.)
+  
+  **sourceType:** Type de source
+  (membership-request, caisse-speciale, etc.)
+  
+  **sourceId:** ID du document source
+  
+  **Index recommandés:**
+  - sourceType + sourceId
+  - beneficiaryId
+  - date (desc)
+  - recordedBy
+  - paymentType
+end note
 
 ' ============================================
 ' CLASSE : IDENTITY_DATA (Données d'identité)

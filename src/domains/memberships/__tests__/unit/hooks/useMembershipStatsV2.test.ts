@@ -14,9 +14,6 @@ import { MembershipRepositoryV2 } from '../../../repositories/MembershipReposito
 // Mock du repository
 vi.mock('../../../repositories/MembershipRepositoryV2')
 
-import React from 'react'
-import { QueryClientProvider } from '@tanstack/react-query'
-
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {

@@ -420,7 +420,13 @@ export function MembershipRequestsPageV2() {
     amount: number
     mode: any
     date: string
-    time?: string
+    time: string // Obligatoire
+    paymentType?: 'Membership' | 'Subscription' | 'Tontine' | 'Charity'
+    withFees?: boolean
+    paymentMethodOther?: string
+    proofUrl?: string
+    proofPath?: string
+    proofJustification?: string // Justification si pas de preuve
   }) => {
     if (!selectedRequest?.id || !user?.uid) return
 
@@ -434,6 +440,12 @@ export function MembershipRequestsPageV2() {
           amount: data.amount,
           mode: data.mode,
           date: data.date,
+          time: data.time, // Obligatoire
+          paymentType: data.paymentType,
+          withFees: data.withFees,
+          paymentMethodOther: data.paymentMethodOther,
+          proofUrl: data.proofUrl,
+          proofPath: data.proofPath,
         },
       })
 
@@ -734,6 +746,7 @@ export function MembershipRequestsPageV2() {
                             onChange={(e) => handleSearch(e.target.value)}
                             className="pl-8 sm:pl-9 pr-8 sm:pr-9 h-8 sm:h-9 bg-kara-neutral-50 border border-kara-neutral-200 focus:border-kara-primary-dark focus:ring-1 focus:ring-kara-primary-dark/20 rounded-lg text-xs sm:text-sm placeholder:text-kara-neutral-400 transition-all duration-200"
                             title="Recherche rapide : nom, email, téléphone, ID de demande ou matricule"
+                            data-testid="search-input"
                           />
                           {searchQuery && (
                             <button

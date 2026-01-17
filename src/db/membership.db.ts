@@ -557,19 +557,37 @@ export async function updateMembershipPayment(
     try {
         const { db, doc, updateDoc, serverTimestamp, arrayUnion } = await getFirestore() as any;
         const docRef = doc(db, firebaseCollectionNames.membershipRequests || "membership-requests", requestId);
+        // Préparer le paiement avec traçabilité
+        // Si les champs de traçabilité ne sont pas fournis, utiliser des valeurs par défaut
+        const paymentData: any = {
+          date: payment.date,
+          mode: payment.mode,
+          amount: payment.amount,
+          acceptedBy: payment.acceptedBy,
+          paymentType: payment.paymentType,
+          time: payment.time || null,
+          withFees: payment.withFees ?? null,
+          paymentMethodOther: payment.paymentMethodOther ?? null,
+          proofUrl: payment.proofUrl ?? null,
+          proofPath: payment.proofPath ?? null,
+          // Traçabilité : qui a enregistré et quand
+          recordedBy: payment.recordedBy || payment.acceptedBy, // Fallback sur acceptedBy si non fourni
+          recordedByName: payment.recordedByName || 'Admin', // Valeur par défaut si non fourni
+          recordedAt: payment.recordedAt || new Date(), // Date actuelle si non fourni
+        }
+        
+        // Nettoyer les valeurs null/undefined
+        Object.keys(paymentData).forEach(key => {
+          if (paymentData[key] === null || paymentData[key] === undefined) {
+            delete paymentData[key]
+          }
+        })
+        
         // Append atomiquement via arrayUnion (sans setter payments à undefined)
         await updateDoc(docRef, {
           isPaid: true,
           updatedBy: payment.acceptedBy,
-          payments: arrayUnion({
-            date: payment.date,
-            mode: payment.mode,
-            amount: payment.amount,
-            acceptedBy: payment.acceptedBy,
-            paymentType: payment.paymentType,
-            time: (payment as any).time || null,
-            withFees: (payment as any).withFees ?? null,
-          }),
+          payments: arrayUnion(paymentData),
           updatedAt: serverTimestamp(),
         })
         return true;

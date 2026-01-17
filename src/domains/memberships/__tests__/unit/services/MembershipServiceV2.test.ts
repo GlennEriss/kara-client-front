@@ -24,10 +24,12 @@ vi.mock('../../../utils/whatsappUrl')
 vi.mock('@/firebase/adminAuth')
 vi.mock('@/db/user.db')
 vi.mock('@/db/subscription.db')
+vi.mock('@/repositories/admins/AdminRepository')
 
 describe('MembershipServiceV2', () => {
   let service: MembershipServiceV2
   let mockRepository: any
+  let mockAdminRepository: any
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -39,12 +41,20 @@ describe('MembershipServiceV2', () => {
       markAsPaid: vi.fn(),
     }
     
-    // Utiliser le repository mocké directement
-    service = MembershipServiceV2.getInstance(mockRepository)
+    // Mock de AdminRepository
+    mockAdminRepository = {
+      getAdminById: vi.fn().mockResolvedValue({
+        id: 'admin-123',
+        firstName: 'Admin',
+        lastName: 'Test',
+        email: 'admin@test.com',
+      }),
+    }
     
+    // Utiliser le repository mocké directement
     // Réinitialiser l'instance pour les tests
     ;(MembershipServiceV2 as any).instance = undefined
-    service = MembershipServiceV2.getInstance(mockRepository)
+    service = MembershipServiceV2.getInstance(mockRepository, mockAdminRepository)
   })
 
   describe('approveMembershipRequest', () => {
@@ -64,7 +74,7 @@ describe('MembershipServiceV2', () => {
       ).rejects.toThrow('La demande doit être payée avant approbation')
     })
 
-    it('devrait throw si le statut n\'est pas "pending" ou "under_review"', async () => {
+    it('devrait throw si le statut n\'est pas "pending" ou "under_review" (approved)', async () => {
       // Arrange
       const approvedReq = approvedRequest()
       mockRepository.getById.mockResolvedValue(approvedReq)
@@ -73,6 +83,35 @@ describe('MembershipServiceV2', () => {
       await expect(
         service.approveMembershipRequest({
           requestId: approvedReq.id,
+          adminId: 'admin-123',
+        })
+      ).rejects.toThrow('Statut invalide pour approbation')
+    })
+
+    it('devrait throw si le statut n\'est pas "pending" ou "under_review" (rejected)', async () => {
+      // Arrange - Créer une demande rejetée mais payée pour tester la validation du statut
+      const rejectedReq = createMembershipRequestFixture({
+        status: 'rejected',
+        isPaid: true, // Payée pour passer la première validation
+        payments: [{
+          date: new Date(),
+          mode: 'cash',
+          amount: 25000,
+          acceptedBy: 'admin-123',
+          paymentType: 'Membership',
+          time: '10:30',
+          withFees: false,
+          recordedBy: 'admin-123',
+          recordedByName: 'Admin Test',
+          recordedAt: new Date(),
+        }],
+      })
+      mockRepository.getById.mockResolvedValue(rejectedReq)
+      
+      // Act & Assert
+      await expect(
+        service.approveMembershipRequest({
+          requestId: rejectedReq.id,
           adminId: 'admin-123',
         })
       ).rejects.toThrow('Statut invalide pour approbation')
@@ -108,6 +147,20 @@ describe('MembershipServiceV2', () => {
   })
 
   describe('rejectMembershipRequest', () => {
+    it('devrait throw si la demande n\'existe pas', async () => {
+      // Arrange
+      mockRepository.getById.mockResolvedValue(null)
+      
+      // Act & Assert
+      await expect(
+        service.rejectMembershipRequest({
+          requestId: 'non-existent-id',
+          adminId: 'admin-123',
+          reason: 'Documents incomplets et informations manquantes.',
+        })
+      ).rejects.toThrow('introuvable')
+    })
+
     it('devrait throw si pas de motif de rejet', async () => {
       // Arrange
       const request = pendingUnpaidRequest()
@@ -282,6 +335,49 @@ describe('MembershipServiceV2', () => {
         )
       }
     })
+
+    it('ne devrait pas générer l\'URL WhatsApp si sendWhatsApp est false', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.updateStatus.mockResolvedValue(undefined)
+      
+      // Act
+      const result = await service.requestCorrections({
+        requestId: request.id,
+        adminId: 'admin-123',
+        corrections: ['Veuillez mettre à jour votre photo.'],
+        sendWhatsApp: false,
+      })
+      
+      // Assert
+      expect(generateWhatsAppUrl).not.toHaveBeenCalled()
+      expect(result.whatsAppUrl).toBeUndefined()
+    })
+
+    it('ne devrait pas générer l\'URL WhatsApp si contacts est vide', async () => {
+      // Arrange
+      const request = createMembershipRequestFixture({
+        identity: {
+          ...pendingUnpaidRequest().identity,
+          contacts: [], // Pas de contacts
+        },
+      })
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.updateStatus.mockResolvedValue(undefined)
+      
+      // Act
+      const result = await service.requestCorrections({
+        requestId: request.id,
+        adminId: 'admin-123',
+        corrections: ['Veuillez mettre à jour votre photo.'],
+        sendWhatsApp: true,
+      })
+      
+      // Assert
+      expect(generateWhatsAppUrl).not.toHaveBeenCalled()
+      expect(result.whatsAppUrl).toBeUndefined()
+    })
   })
 
   describe('processPayment', () => {
@@ -297,8 +393,9 @@ describe('MembershipServiceV2', () => {
           adminId: 'admin-123',
           paymentInfo: {
             amount: 0,
-            mode: 'Cash',
+            mode: 'cash',
             date: new Date().toISOString(),
+            time: '14:30',
           },
         })
       ).rejects.toThrow()
@@ -318,6 +415,7 @@ describe('MembershipServiceV2', () => {
             amount: 25000,
             mode: 'InvalidMode' as any,
             date: new Date().toISOString(),
+            time: '14:30',
           },
         })
       ).rejects.toThrow()
@@ -335,8 +433,9 @@ describe('MembershipServiceV2', () => {
           adminId: 'admin-123',
           paymentInfo: {
             amount: 25000,
-            mode: 'Cash',
+            mode: 'cash',
             date: new Date().toISOString(),
+            time: '14:30',
           },
         })
       ).rejects.toThrow('déjà payé')
@@ -345,12 +444,12 @@ describe('MembershipServiceV2', () => {
     it('devrait valider les modes de paiement autorisés', async () => {
       // Arrange
       const request = pendingUnpaidRequest()
-      const validModes: Array<'AirtelMoney' | 'Mobicash' | 'Cash' | 'Virement' | 'Chèque'> = [
-        'AirtelMoney',
-        'Mobicash',
-        'Cash',
-        'Virement',
-        'Chèque',
+      const validModes: Array<'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'> = [
+        'airtel_money',
+        'mobicash',
+        'cash',
+        'bank_transfer',
+        'other',
       ]
       
       mockRepository.getById.mockResolvedValue(request)
@@ -358,14 +457,27 @@ describe('MembershipServiceV2', () => {
       
       // Act & Assert - chaque mode devrait être accepté
       for (const mode of validModes) {
+        const paymentInfo: any = {
+          amount: 25000,
+          mode,
+          date: new Date().toISOString(),
+          time: '14:30',
+        }
+        
+        // Ajouter withFees pour les modes mobile money
+        if (mode === 'airtel_money' || mode === 'mobicash') {
+          paymentInfo.withFees = false
+        }
+        
+        // Ajouter paymentMethodOther pour le mode 'other'
+        if (mode === 'other') {
+          paymentInfo.paymentMethodOther = 'Orange Money'
+        }
+        
         await service.processPayment({
           requestId: request.id,
           adminId: 'admin-123',
-          paymentInfo: {
-            amount: 25000,
-            mode,
-            date: new Date().toISOString(),
-          },
+          paymentInfo,
         })
       }
       
@@ -387,7 +499,7 @@ describe('MembershipServiceV2', () => {
         adminId: 'admin-123',
         paymentInfo: {
           amount: 25000,
-          mode: 'Cash',
+          mode: 'cash',
           date: paymentDate,
           time: paymentTime,
         },
@@ -399,6 +511,72 @@ describe('MembershipServiceV2', () => {
         expect.objectContaining({
           date: paymentDate,
           time: paymentTime,
+          recordedBy: 'admin-123',
+          recordedByName: 'Admin Test',
+          recordedAt: expect.any(Date),
+        })
+      )
+    })
+
+    it('devrait récupérer les informations de l\'admin et les inclure dans la traçabilité', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      const paymentDate = new Date().toISOString()
+      const paymentTime = '10:30'
+      
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.markAsPaid.mockResolvedValue(undefined)
+      
+      // Act
+      await service.processPayment({
+        requestId: request.id,
+        adminId: 'admin-123',
+        paymentInfo: {
+          amount: 25000,
+          mode: 'cash',
+          date: paymentDate,
+          time: paymentTime,
+        },
+      })
+      
+      // Assert
+      expect(mockAdminRepository.getAdminById).toHaveBeenCalledWith('admin-123')
+      expect(mockRepository.markAsPaid).toHaveBeenCalledWith(
+        request.id,
+        expect.objectContaining({
+          recordedBy: 'admin-123',
+          recordedByName: 'Admin Test',
+          recordedAt: expect.any(Date),
+        })
+      )
+    })
+
+    it('devrait utiliser "Admin inconnu" si l\'admin n\'est pas trouvé', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.markAsPaid.mockResolvedValue(undefined)
+      mockAdminRepository.getAdminById.mockResolvedValue(null) // Admin non trouvé
+      
+      // Act
+      await service.processPayment({
+        requestId: request.id,
+        adminId: 'admin-unknown',
+        paymentInfo: {
+          amount: 25000,
+          mode: 'cash',
+          date: new Date().toISOString(),
+          time: '10:30',
+        },
+      })
+      
+      // Assert
+      expect(mockRepository.markAsPaid).toHaveBeenCalledWith(
+        request.id,
+        expect.objectContaining({
+          recordedBy: 'admin-unknown',
+          recordedByName: 'Admin inconnu',
+          recordedAt: expect.any(Date),
         })
       )
     })

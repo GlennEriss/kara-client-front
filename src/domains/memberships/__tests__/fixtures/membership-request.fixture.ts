@@ -96,6 +96,9 @@ export function pendingPaidRequest(): MembershipRequest {
       paymentType: 'Membership',
       time: '10:30',
       withFees: false,
+      recordedBy: 'admin-123',
+      recordedByName: 'Admin Test',
+      recordedAt: new Date(),
     }],
   })
 }

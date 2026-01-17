@@ -94,6 +94,31 @@ export default defineConfig({
           branches: 80,
           statements: 80,
         },
+        // Seuils spécifiques pour le module memberships V2 (objectif: 80%)
+        'src/domains/memberships/repositories/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+        'src/domains/memberships/services/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+        'src/domains/memberships/hooks/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+        'src/domains/memberships/utils/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
       },
     },
   },

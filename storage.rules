@@ -102,6 +102,23 @@ service firebase.storage {
     }
     
     // ==========================================
+    // PREUVES DE PAIEMENT (PAYMENT-PROOFS)
+    // ==========================================
+    // Preuves de paiement uploadées par les admins
+    // DONNÉES SENSIBLES - Accès restreint
+    
+    match /payment-proofs/{fileName} {
+      // Lecture : Admins uniquement (données sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (image, max 5MB)
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
     // Refuser tout accès non explicitement autorisé

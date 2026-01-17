@@ -14,7 +14,8 @@ import type {
     PaginatedMembershipRequests,
     MembershipRequest, 
     TypePayment,
-    PaymentMode
+    PaymentMode,
+    Payment
 } from '@/types/types'
 
 /**
@@ -162,7 +163,7 @@ export function useRenewSecurityCode() {
 export function usePayMembershipRequest() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: { requestId: string; payment: { date: Date; mode: PaymentMode; amount: number; acceptedBy: string; paymentType: TypePayment; time?: string; withFees?: boolean } }) => {
+    mutationFn: async (params: { requestId: string; payment: Payment }) => {
       const ok = await updateMembershipPayment(params.requestId, params.payment)
       if (!ok) throw new Error('Erreur paiement')
       return ok

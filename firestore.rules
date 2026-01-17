@@ -18,11 +18,6 @@ service cloud.firestore {
              request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary'];
     }
     
-    // Vérifie si l'utilisateur est propriétaire
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
     // Vérifie si le code de sécurité est valide pour modification par le demandeur
     function hasValidSecurityCode(requestData) {
       return requestData.securityCode != null &&
@@ -206,6 +201,60 @@ service cloud.firestore {
     match /professions/{professionId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // COLLECTION CENTRALISÉE DES PAIEMENTS (PAYMENTS)
+    // ==========================================
+    // Historique centralisé de tous les versements
+    // DONNÉES SENSIBLES - Accès restreint
+    
+    match /payments/{paymentId} {
+      // LECTURE : Admins uniquement
+      allow read: if isAdmin();
+      
+      // CRÉATION : Admins uniquement avec validation des champs requis
+      allow create: if isAdmin() &&
+        // Champs obligatoires présents
+        request.resource.data.keys().hasAll([
+          'date',
+          'time',
+          'mode',
+          'amount',
+          'acceptedBy',
+          'paymentType',
+          'sourceType',
+          'sourceId',
+          'recordedBy',
+          'recordedByName',
+          'recordedAt',
+          'createdAt'
+        ]) &&
+        // Validation des types
+        request.resource.data.amount is number &&
+        request.resource.data.amount > 0 &&
+        request.resource.data.mode is string &&
+        request.resource.data.sourceType is string &&
+        request.resource.data.sourceId is string &&
+        request.resource.data.recordedBy is string &&
+        request.resource.data.recordedByName is string &&
+        // Date de versement doit être valide
+        request.resource.data.date is timestamp &&
+        // Date d'enregistrement doit être valide
+        request.resource.data.recordedAt is timestamp;
+      
+      // MISE À JOUR : Admins uniquement (pour corrections mineures)
+      allow update: if isAdmin() &&
+        // Ne peut pas modifier les champs critiques
+        request.resource.data.amount == resource.data.amount &&
+        request.resource.data.mode == resource.data.mode &&
+        request.resource.data.date == resource.data.date &&
+        request.resource.data.sourceType == resource.data.sourceType &&
+        request.resource.data.sourceId == resource.data.sourceId &&
+        request.resource.data.recordedBy == resource.data.recordedBy;
+      
+      // SUPPRESSION : Admins uniquement
+      allow delete: if isAdmin();
     }
     
     // ==========================================
