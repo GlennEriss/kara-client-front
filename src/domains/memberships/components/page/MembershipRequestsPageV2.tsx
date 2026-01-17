@@ -40,7 +40,8 @@ import {
   ApproveModalV2,
   RejectModalV2,
   CorrectionsModalV2,
-  PaymentModalV2
+  PaymentModalV2,
+  IdentityDocumentModalV2
 } from '../modals'
 
 // Hooks V2
@@ -56,6 +57,7 @@ import {
 } from '@/constantes/membership-requests'
 import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
+import MemberDetailsModal from '@/components/memberships/MemberDetailsModal'
 
 // Hook pour détecter le responsive
 function useIsMobile() {
@@ -170,6 +172,8 @@ export function MembershipRequestsPageV2() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [correctionsModalOpen, setCorrectionsModalOpen] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [membershipFormModalOpen, setMembershipFormModalOpen] = useState(false)
+  const [identityDocumentModalOpen, setIdentityDocumentModalOpen] = useState(false)
 
   // États de chargement des actions
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({})
@@ -276,14 +280,24 @@ export function MembershipRequestsPageV2() {
   }, [router])
 
   const handleViewMembershipForm = useCallback((requestId: string) => {
-    // TODO: Ouvrir modal fiche d'adhésion
-    toast.info('Fonctionnalité à venir', { description: 'Fiche d\'adhésion' })
-  }, [])
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (request) {
+      setSelectedRequest(request)
+      setMembershipFormModalOpen(true)
+    } else {
+      toast.error('Demande introuvable', { description: 'Impossible de trouver la demande d\'adhésion' })
+    }
+  }, [data?.items, filteredRequests])
 
   const handleViewIdentityDocument = useCallback((requestId: string) => {
-    // TODO: Ouvrir modal pièce d'identité
-    toast.info('Fonctionnalité à venir', { description: 'Pièce d\'identité' })
-  }, [])
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (request) {
+      setSelectedRequest(request)
+      setIdentityDocumentModalOpen(true)
+    } else {
+      toast.error('Demande introuvable', { description: 'Impossible de trouver la demande d\'adhésion' })
+    }
+  }, [data?.items, filteredRequests])
 
   const openApproveModal = useCallback((request: MembershipRequest) => {
     setSelectedRequest(request)
@@ -966,6 +980,30 @@ export function MembershipRequestsPageV2() {
           memberName={selectedMemberName}
           isLoading={loadingActions[`pay-${selectedRequest?.id}`]}
         />
+
+        {/* Modal Fiche d'adhésion */}
+        {selectedRequest && (
+          <MemberDetailsModal
+            isOpen={membershipFormModalOpen}
+            onClose={() => {
+              setMembershipFormModalOpen(false)
+              setSelectedRequest(null)
+            }}
+            request={selectedRequest}
+          />
+        )}
+
+        {/* Modal Pièce d'identité */}
+        {selectedRequest && (
+          <IdentityDocumentModalV2
+            isOpen={identityDocumentModalOpen}
+            onClose={() => {
+              setIdentityDocumentModalOpen(false)
+              setSelectedRequest(null)
+            }}
+            request={selectedRequest}
+          />
+        )}
       </div>
     </div>
   )

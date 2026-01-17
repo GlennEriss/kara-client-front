@@ -40,6 +40,7 @@ class MembershipRequest {
   + id: string
   + matricule: string
   + status: MembershipRequestStatus
+  + isPaid?: boolean
   + identity: IdentityData
   + address: AddressData
   + company: CompanyData
@@ -51,7 +52,6 @@ class MembershipRequest {
   + memberNumber?: string
   + reviewNote?: string
   + motifReject?: string
-  + isPaid?: boolean
   + payments?: Payment[]
   + securityCode?: string
   + securityCodeExpiry?: Date
@@ -248,7 +248,12 @@ User "1" --> "*" Document : has
 note right of MembershipRequest
   **Collection Firestore:** membership-requests
   Clé primaire: id
-  Index sur: status, createdAt, matricule
+  Index sur: status, createdAt, matricule, isPaid
+  
+  **Workflow métier:**
+  - isPaid: false par défaut (migration appliquée)
+  - Paiement requis avant approbation
+  - Filtrage par statut de paiement (Payées/Non payées)
 end note
 
 note right of User
