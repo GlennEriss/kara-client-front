@@ -89,6 +89,7 @@ function PayCommissionWrapper({
 
 export default function PlacementDetailsPage() {
   const params = useParams() as { id: string }
+  const router = useRouter()
   const id = params.id
   const { user } = useAuth()
 

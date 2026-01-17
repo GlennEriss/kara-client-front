@@ -149,6 +149,7 @@ export interface Payment {
   paymentMethodOther?: string // Si mode = 'other'
   proofUrl?: string // URL de la preuve de paiement
   proofPath?: string // Chemin Firebase Storage de la preuve
+  proofJustification?: string // Justification si pas de preuve
   recordedBy: string // ID de l'admin qui a enregistré le paiement
   recordedByName: string // Nom complet de l'admin (prénom + nom)
   recordedAt: Date // Date d'enregistrement (quand l'admin a enregistré)

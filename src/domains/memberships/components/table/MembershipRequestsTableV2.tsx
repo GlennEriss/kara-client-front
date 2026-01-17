@@ -47,6 +47,9 @@ interface MembershipRequestsTableV2Props {
   onPay?: (request: MembershipRequest) => void
   onViewMembershipForm?: (id: string) => void
   onViewIdentityDocument?: (id: string) => void
+  onViewPaymentDetails?: (id: string) => void
+  onExportPDF?: (id: string) => void
+  onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
   
   // États de chargement
@@ -156,6 +159,9 @@ export function MembershipRequestsTableV2({
   onPay,
   onViewMembershipForm,
   onViewIdentityDocument,
+  onViewPaymentDetails,
+  onExportPDF,
+  onExportExcel,
   onSendWhatsApp,
   loadingActions = {},
   hasActiveFilters = false,
@@ -242,6 +248,9 @@ export function MembershipRequestsTableV2({
                 onPay={onPay ? (id) => onPay(request) : undefined}
                 onViewMembershipForm={onViewMembershipForm}
                 onViewIdDocument={onViewIdentityDocument}
+                onViewPaymentDetails={onViewPaymentDetails}
+                onExportPDF={onExportPDF}
+                onExportExcel={onExportExcel}
                 onSendWhatsApp={onSendWhatsApp}
                 loadingActions={loadingActions}
               />

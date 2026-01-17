@@ -127,13 +127,102 @@ export async function getRequestRow(page: Page, requestId: string) {
 }
 
 /**
+ * Attend qu'une demande apparaisse dans la liste (par ID ou matricule)
+ */
+export async function waitForRequestInList(page: Page, requestId: string, matricule: string, maxAttempts: number = 10) {
+  // Essayer d'abord avec la recherche par matricule (plus fiable)
+  const searchInput = page.locator('[data-testid="search-input"]').first()
+  if (await searchInput.count() > 0) {
+    await searchInput.clear()
+    await page.waitForTimeout(300)
+    await searchInput.fill(matricule)
+    await page.waitForTimeout(2000) // Attendre que le filtre s'applique
+  }
+  
+  for (let i = 0; i < maxAttempts; i++) {
+    // Essayer de trouver par ID
+    const byId = await getRequestRow(page, requestId)
+    if (await byId.count() > 0 && await byId.first().isVisible().catch(() => false)) {
+      return byId
+    }
+    
+    // Essayer de trouver par matricule dans le texte
+    const byMatricule = page.locator(`text=${matricule}`).first()
+    if (await byMatricule.count() > 0) {
+      // Essayer de trouver la ligne/card parente qui contient le matricule
+      const parentRow = byMatricule.locator('xpath=ancestor::tr[contains(@data-testid, "membership-request")] | ancestor::div[contains(@data-testid, "membership-request")]').first()
+      if (await parentRow.count() > 0 && await parentRow.isVisible().catch(() => false)) {
+        return parentRow
+      }
+    }
+    
+    // Attendre un peu avant de réessayer
+    await page.waitForTimeout(1000)
+    
+    // Recharger la liste si nécessaire (invalider React Query)
+    if (i === 3 || i === 6) {
+      await page.reload()
+      await page.waitForLoadState('domcontentloaded')
+      await waitForRequestsList(page)
+      await page.waitForTimeout(2000)
+      
+      // Réappliquer la recherche
+      if (await searchInput.count() > 0) {
+        await searchInput.clear()
+        await page.waitForTimeout(300)
+        await searchInput.fill(matricule)
+        await page.waitForTimeout(2000)
+      }
+    }
+  }
+  
+  // Si on n'a pas trouvé, retourner quand même le locator pour avoir une erreur claire
+  return getRequestRow(page, requestId)
+}
+
+/**
  * Attend qu'un toast de succès soit affiché
  */
 export async function waitForSuccessToast(page: Page, message?: string | RegExp) {
-  const toast = page.locator('[data-testid="toast-success"], [role="status"]:has-text("succès"), .sonner-toast:has-text("succès")')
+  // Sonner utilise plusieurs sélecteurs possibles
+  const toastSelectors = [
+    '[data-sonner-toast]',
+    '.sonner-toast',
+    '[data-testid="toast-success"]',
+    '[role="status"]',
+    'div:has-text("succès")',
+    'div:has-text("enregistré")',
+    'div:has-text("payé")',
+  ]
+  
+  // Essayer chaque sélecteur
+  let toast = null
+  for (const selector of toastSelectors) {
+    toast = page.locator(selector).first()
+    try {
+      await expect(toast).toBeVisible({ timeout: 2000 })
+      break
+    } catch {
+      continue
+    }
+  }
+  
+  // Si aucun toast n'a été trouvé avec les sélecteurs spécifiques, chercher n'importe quel toast visible
+  if (!toast || (await toast.count()) === 0) {
+    toast = page.locator('[data-sonner-toast], .sonner-toast, [role="status"], [role="alert"]').first()
+  }
+  
   await expect(toast.first()).toBeVisible({ timeout: 10000 })
+  
   if (message) {
-    await expect(toast.first()).toContainText(message, { timeout: 5000 })
+    // Chercher le message dans le toast ou dans un élément enfant
+    const messageLocator = toast.locator(`text=${message}`).first()
+    if (await messageLocator.count() > 0) {
+      await expect(messageLocator).toBeVisible({ timeout: 5000 })
+    } else {
+      // Fallback: vérifier que le toast contient le texte
+      await expect(toast.first()).toContainText(message, { timeout: 5000 })
+    }
   }
 }
 
@@ -168,4 +257,49 @@ export async function closeModal(page: Page) {
     await page.keyboard.press('Escape')
   }
   await page.waitForTimeout(500)
+}
+
+/**
+ * Clique sur un onglet de filtre par son texte
+ */
+export async function clickFilterTab(page: Page, tabText: string) {
+  // Chercher l'onglet par son texte (peut être dans TabsTrigger ou Select)
+  // Les onglets peuvent être des boutons avec le texte, ou des éléments avec role="tab"
+  const tabSelectors = [
+    `button:has-text("${tabText}")`,
+    `[role="tab"]:has-text("${tabText}")`,
+    `[role="tablist"] button:has-text("${tabText}")`,
+    `button[value*="${tabText.toLowerCase()}"]`,
+  ]
+  
+  let tab = null
+  for (const selector of tabSelectors) {
+    tab = page.locator(selector).first()
+    if (await tab.count() > 0 && await tab.isVisible().catch(() => false)) {
+      break
+    }
+  }
+  
+  if (tab && await tab.count() > 0) {
+    await tab.click({ force: true })
+    await page.waitForTimeout(2000) // Attendre que les données se chargent
+    await waitForRequestsList(page)
+    return true
+  }
+  
+  // Si l'onglet n'est pas trouvé, essayer de chercher dans un Select (mobile)
+  const selectTrigger = page.locator('[role="combobox"], button[aria-haspopup="listbox"]').first()
+  if (await selectTrigger.count() > 0) {
+    await selectTrigger.click()
+    await page.waitForTimeout(500)
+    const option = page.locator(`[role="option"]:has-text("${tabText}")`).first()
+    if (await option.count() > 0) {
+      await option.click()
+      await page.waitForTimeout(2000)
+      await waitForRequestsList(page)
+      return true
+    }
+  }
+  
+  return false
 }

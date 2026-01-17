@@ -47,6 +47,9 @@ interface MembershipRequestActionsV2Props {
   onViewDetails?: () => void
   onViewMembershipForm?: () => void
   onViewIdDocument?: () => void
+  onViewPaymentDetails?: () => void // Nouvelle action pour voir les détails du paiement
+  onExportPDF?: () => void // Export PDF individuel
+  onExportExcel?: () => void // Export Excel individuel
   onSendWhatsApp?: () => void
   
   // États de chargement
@@ -69,6 +72,9 @@ export function MembershipRequestActionsV2({
   onViewDetails,
   onViewMembershipForm,
   onViewIdDocument,
+  onViewPaymentDetails,
+  onExportPDF,
+  onExportExcel,
   onSendWhatsApp,
   isApproving = false,
   isRejecting = false,
@@ -125,11 +131,14 @@ export function MembershipRequestActionsV2({
   const showMobileQuickActions = isMobile && !isRejected
 
   // Vérifier s'il y a des actions secondaires à afficher dans le menu
-  // En mobile, le menu contient uniquement les actions rares (fiche, pièce d'identité, WhatsApp)
+  // En mobile, le menu contient uniquement les actions rares (fiche, pièce d'identité, détails paiement, export, WhatsApp)
   // En desktop, le menu contient toutes les actions secondaires
   const hasMenuActions = 
     onViewMembershipForm ||
     onViewIdDocument ||
+    (onViewPaymentDetails && isPaid) || // Voir détails paiement si payé
+    onExportPDF ||
+    onExportExcel ||
     (onSendWhatsApp && !isRejected) ||
     (!isMobile && (
       !isRejected && (

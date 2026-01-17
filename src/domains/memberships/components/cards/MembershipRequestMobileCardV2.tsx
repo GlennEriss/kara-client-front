@@ -29,6 +29,9 @@ interface MembershipRequestMobileCardV2Props {
   onPay?: (id: string) => void
   onViewMembershipForm?: (id: string) => void
   onViewIdDocument?: (id: string) => void
+  onViewPaymentDetails?: (id: string) => void
+  onExportPDF?: (id: string) => void
+  onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
   
   // États de chargement
@@ -60,6 +63,9 @@ export function MembershipRequestMobileCardV2({
   onPay,
   onViewMembershipForm,
   onViewIdDocument,
+  onViewPaymentDetails,
+  onExportPDF,
+  onExportExcel,
   onSendWhatsApp,
   loadingActions = {},
   className,
@@ -86,6 +92,7 @@ export function MembershipRequestMobileCardV2({
         className
       )}
       data-testid="membership-request-mobile-card"
+      data-request-id={request.id}
     >
       <CardContent className="p-4 space-y-4">
         {/* Header : Photo + Nom */}
@@ -175,6 +182,9 @@ export function MembershipRequestMobileCardV2({
             onViewDetails={onViewDetails ? () => onViewDetails(id || '') : undefined}
             onViewMembershipForm={onViewMembershipForm ? () => onViewMembershipForm(id || '') : undefined}
             onViewIdDocument={onViewIdDocument ? () => onViewIdDocument(id || '') : undefined}
+            onViewPaymentDetails={onViewPaymentDetails ? () => onViewPaymentDetails(id || '') : undefined}
+            onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
+            onExportExcel={onExportExcel ? () => onExportExcel(id || '') : undefined}
             onSendWhatsApp={onSendWhatsApp ? () => onSendWhatsApp(id || '') : undefined}
             isApproving={loadingActions?.[`approve-${id}`]}
             isRejecting={loadingActions?.[`reject-${id}`]}

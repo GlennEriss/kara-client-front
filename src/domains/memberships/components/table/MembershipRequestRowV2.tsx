@@ -41,6 +41,9 @@ interface MembershipRequestRowV2Props {
   onPay?: (id: string) => void
   onViewMembershipForm?: (id: string) => void
   onViewIdDocument?: (id: string) => void
+  onViewPaymentDetails?: (id: string) => void
+  onExportPDF?: (id: string) => void
+  onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
   
   // États de chargement
@@ -58,6 +61,9 @@ export function MembershipRequestRowV2({
   onPay,
   onViewMembershipForm,
   onViewIdDocument,
+  onViewPaymentDetails,
+  onExportPDF,
+  onExportExcel,
   onSendWhatsApp,
   loadingActions = {},
   className,
@@ -83,6 +89,7 @@ export function MembershipRequestRowV2({
         className
       )}
       data-testid="membership-request-row"
+      data-request-id={request.id}
     >
       {/* Photo */}
       <td className="px-4 py-3">
@@ -158,6 +165,9 @@ export function MembershipRequestRowV2({
           onViewDetails={onViewDetails ? () => onViewDetails(id || '') : undefined}
           onViewMembershipForm={onViewMembershipForm ? () => onViewMembershipForm(id || '') : undefined}
           onViewIdDocument={onViewIdDocument ? () => onViewIdDocument(id || '') : undefined}
+          onViewPaymentDetails={onViewPaymentDetails ? () => onViewPaymentDetails(id || '') : undefined}
+          onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
+          onExportExcel={onExportExcel ? () => onExportExcel(id || '') : undefined}
           onSendWhatsApp={onSendWhatsApp ? () => onSendWhatsApp(id || '') : undefined}
           isApproving={loadingActions[`approve-${id}`]}
           isRejecting={loadingActions[`reject-${id}`]}

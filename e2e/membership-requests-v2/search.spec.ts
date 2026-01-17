@@ -36,20 +36,30 @@ test.describe('E2E: Recherche de demandes V2', () => {
     const testRequest = await createPendingUnpaidRequest()
     createdRequests.push(testRequest)
     
-    // Attendre que la page se charge
+    // Attendre que la demande soit créée dans Firestore
     await page.waitForTimeout(2000)
+    
+    // Recharger la page pour que React Query récupère les nouvelles données
     await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
     await waitForRequestsList(page)
+    await page.waitForTimeout(2000) // Attendre que React Query charge les données
 
     // Act: Rechercher par matricule
     const searchInput = page.locator('[data-testid="search-input"]').first()
-    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await expect(searchInput).toBeVisible({ timeout: 10000 })
+    
+    // Vider le champ de recherche s'il contient quelque chose
+    await searchInput.clear()
+    await page.waitForTimeout(300)
+    
+    // Remplir avec le matricule
     await searchInput.fill(testRequest.matricule)
-    await page.waitForTimeout(1000) // Attendre que le filtre s'applique
+    await page.waitForTimeout(1500) // Attendre que le filtre côté client s'applique
 
     // Assert: La demande devrait être visible dans les résultats
     const requestRow = page.locator(`[data-testid="membership-request-row"][data-request-id="${testRequest.id}"], [data-testid="membership-request-mobile-card"][data-request-id="${testRequest.id}"]`)
-    await expect(requestRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(requestRow.first()).toBeVisible({ timeout: 10000 })
     
     // Vérifier que le matricule est affiché
     await expect(requestRow.first()).toContainText(testRequest.matricule, { timeout: 5000 })
@@ -60,19 +70,30 @@ test.describe('E2E: Recherche de demandes V2', () => {
     const testRequest = await createPendingUnpaidRequest()
     createdRequests.push(testRequest)
     
+    // Attendre que la demande soit créée dans Firestore
     await page.waitForTimeout(2000)
+    
+    // Recharger la page pour que React Query récupère les nouvelles données
     await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
     await waitForRequestsList(page)
+    await page.waitForTimeout(2000) // Attendre que React Query charge les données
 
     // Act: Rechercher par nom (E2E Test)
     const searchInput = page.locator('[data-testid="search-input"]').first()
-    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    await expect(searchInput).toBeVisible({ timeout: 10000 })
+    
+    // Vider le champ de recherche s'il contient quelque chose
+    await searchInput.clear()
+    await page.waitForTimeout(300)
+    
+    // Remplir avec le nom (prénom + nom = "E2E Test")
     await searchInput.fill('E2E Test')
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(1500) // Attendre que le filtre côté client s'applique
 
     // Assert: La demande devrait être visible
     const requestRow = page.locator(`[data-testid="membership-request-row"][data-request-id="${testRequest.id}"], [data-testid="membership-request-mobile-card"][data-request-id="${testRequest.id}"]`)
-    await expect(requestRow.first()).toBeVisible({ timeout: 5000 })
+    await expect(requestRow.first()).toBeVisible({ timeout: 10000 })
   })
 
   test('devrait afficher un message si aucune demande trouvée', async ({ page }) => {

@@ -247,11 +247,11 @@ export async function createPendingUnpaidRequest(): Promise<CreateTestRequestRes
 export async function createPendingPaidRequest(): Promise<CreateTestRequestResult> {
   const payment: Payment = {
     date: new Date(),
+    time: '10:30',
     mode: 'cash' as PaymentMode,
     amount: 25000,
     acceptedBy: 'test-admin',
     paymentType: 'Membership',
-    time: '10:30',
     withFees: false,
     recordedBy: 'test-admin',
     recordedByName: 'Admin Test',
@@ -271,11 +271,11 @@ export async function createPendingPaidRequest(): Promise<CreateTestRequestResul
 export async function createApprovedRequest(): Promise<CreateTestRequestResult> {
   const payment: Payment = {
     date: new Date(),
+    time: '10:30',
     mode: 'cash' as PaymentMode,
     amount: 25000,
     acceptedBy: 'test-admin',
     paymentType: 'Membership',
-    time: '10:30',
     withFees: false,
     recordedBy: 'test-admin',
     recordedByName: 'Admin Test',

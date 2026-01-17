@@ -24,6 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Download,
   CreditCard,
   AlertCircle,
   Inbox,
@@ -41,7 +42,9 @@ import {
   RejectModalV2,
   CorrectionsModalV2,
   PaymentModalV2,
-  IdentityDocumentModalV2
+  PaymentDetailsModalV2,
+  IdentityDocumentModalV2,
+  ExportMembershipRequestsModalV2
 } from '../modals'
 
 // Hooks V2
@@ -58,6 +61,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
 import MemberDetailsModal from '@/components/memberships/MemberDetailsModal'
+import { generateRequestPDF, generateRequestExcel } from '../../utils/exportRequestUtils'
 
 // Hook pour détecter le responsive
 function useIsMobile() {
@@ -172,6 +176,8 @@ export function MembershipRequestsPageV2() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [correctionsModalOpen, setCorrectionsModalOpen] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [paymentDetailsModalOpen, setPaymentDetailsModalOpen] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
   const [membershipFormModalOpen, setMembershipFormModalOpen] = useState(false)
   const [identityDocumentModalOpen, setIdentityDocumentModalOpen] = useState(false)
 
@@ -318,6 +324,50 @@ export function MembershipRequestsPageV2() {
     setSelectedRequest(request)
     setPaymentModalOpen(true)
   }, [])
+
+  const handleViewPaymentDetails = useCallback((requestId: string) => {
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (request && request.isPaid && request.payments && request.payments.length > 0) {
+      setSelectedRequest(request)
+      setPaymentDetailsModalOpen(true)
+    } else {
+      toast.error('Paiement introuvable', { description: 'Aucun paiement enregistré pour cette demande' })
+    }
+  }, [data?.items, filteredRequests])
+
+  const handleExportPDF = useCallback(async (requestId: string) => {
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (!request) {
+      toast.error('Demande introuvable')
+      return
+    }
+    try {
+      await generateRequestPDF(request)
+      toast.success('PDF généré avec succès')
+    } catch (error: any) {
+      console.error('Erreur lors de la génération du PDF:', error)
+      toast.error('Erreur lors de la génération du PDF', {
+        description: error.message || 'Une erreur est survenue',
+      })
+    }
+  }, [data?.items, filteredRequests])
+
+  const handleExportExcel = useCallback(async (requestId: string) => {
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (!request) {
+      toast.error('Demande introuvable')
+      return
+    }
+    try {
+      await generateRequestExcel(request)
+      toast.success('Excel généré avec succès')
+    } catch (error: any) {
+      console.error('Erreur lors de la génération de l\'Excel:', error)
+      toast.error('Erreur lors de la génération de l\'Excel', {
+        description: error.message || 'Une erreur est survenue',
+      })
+    }
+  }, [data?.items, filteredRequests])
 
   // Handlers des modals
   const handleApprove = async (data: {
@@ -540,15 +590,27 @@ export function MembershipRequestsPageV2() {
                 Gérez les demandes d'inscription des membres KARA
               </p>
             </div>
-            <Button
-              onClick={() => refetch()}
-              size="sm"
-              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group shrink-0 self-start md:self-auto"
-            >
-              <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 group-hover:animate-spin" />
-              <span className="hidden sm:inline">Actualiser</span>
-              <span className="sm:hidden">Actualiser</span>
-            </Button>
+            <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+              <Button
+                onClick={() => setExportModalOpen(true)}
+                size="sm"
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group"
+                title="Exporter les demandes"
+              >
+                <Download className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
+                <span className="hidden sm:inline">Exporter</span>
+                <span className="sm:hidden">Export</span>
+              </Button>
+              <Button
+                onClick={() => refetch()}
+                size="sm"
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition-all duration-300 group"
+              >
+                <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2 group-hover:animate-spin" />
+                <span className="hidden sm:inline">Actualiser</span>
+                <span className="sm:hidden">Actualiser</span>
+              </Button>
+            </div>
           </div>
 
           {/* Stats Carousel avec drag/swipe - Responsive */}
@@ -840,6 +902,9 @@ export function MembershipRequestsPageV2() {
                         }}
                         onViewMembershipForm={handleViewMembershipForm}
                         onViewIdDocument={handleViewIdentityDocument}
+                        onViewPaymentDetails={handleViewPaymentDetails}
+                        onExportPDF={(id) => handleExportPDF(id)}
+                        onExportExcel={(id) => handleExportExcel(id)}
                         loadingActions={loadingActions}
                       />
                     ))
@@ -853,6 +918,9 @@ export function MembershipRequestsPageV2() {
                   onViewDetails={handleViewDetails}
                   onViewMembershipForm={handleViewMembershipForm}
                   onViewIdentityDocument={handleViewIdentityDocument}
+                  onViewPaymentDetails={handleViewPaymentDetails}
+                  onExportPDF={(id) => handleExportPDF(id)}
+                  onExportExcel={(id) => handleExportExcel(id)}
                   onApprove={openApproveModal}
                   onReject={openRejectModal}
                   onRequestCorrections={openCorrectionsModal}
@@ -1017,6 +1085,27 @@ export function MembershipRequestsPageV2() {
             request={selectedRequest}
           />
         )}
+
+        {/* Modal Détails du paiement */}
+        {selectedRequest && selectedRequest.isPaid && selectedRequest.payments && selectedRequest.payments.length > 0 && (
+          <PaymentDetailsModalV2
+            isOpen={paymentDetailsModalOpen}
+            onClose={() => {
+              setPaymentDetailsModalOpen(false)
+              setSelectedRequest(null)
+            }}
+            payment={selectedRequest.payments[selectedRequest.payments.length - 1]} // Dernier paiement
+            memberName={selectedMemberName}
+            requestId={selectedRequest.id}
+            matricule={selectedRequest.matricule}
+          />
+        )}
+
+        {/* Modal Export global */}
+        <ExportMembershipRequestsModalV2
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+        />
       </div>
     </div>
   )
