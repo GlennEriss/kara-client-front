@@ -15,56 +15,45 @@ export const uploadProfilePhoto = async (file: File, userId: string): Promise<{ 
   try {
     // Get storage instance (this ensures emulator connection)
     const storage = getStorageInstance();
-    
-    console.log('🔍 Storage instance details:');
-    console.log('  - App name:', storage.app.name);
-    console.log('  - Storage bucket:', storage.app.options.storageBucket);
-    console.log('  - Project ID:', storage.app.options.projectId);
-    
-    // Check if we're connected to emulator
-    const isEmulator = storage.app.options.storageBucket?.includes('localhost') || 
-                      storage.app.options.storageBucket?.includes('127.0.0.1') ||
-                      storage.app.options.storageBucket?.includes('emulator');
-    
-    console.log('🔍 Emulator check:', {
-      bucket: storage.app.options.storageBucket,
-      isEmulator,
-      nodeEnv: process.env.NODE_ENV
-    });
 
     const timestamp = Date.now();
     const fileName = `${timestamp}_profile-photo.jpg`;
     const filePath = `membership-photos/${fileName}`;
-    
-    console.log('📁 Uploading to path:', filePath);
-    console.log('📄 File details:', {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
 
     const storageRef = ref(storage, filePath);
     
-    console.log('🚀 Starting upload...');
-    console.log('🔗 Storage ref:', storageRef.fullPath);
-    
     // Upload the file
     const snapshot = await uploadBytes(storageRef, file);
-    
-    console.log('✅ Upload successful!');
-    console.log('📊 Upload completed');
 
     // Get download URL
     const downloadURL = await getDownloadURL(snapshot.ref);
-    
-    console.log('🔗 Download URL:', downloadURL);
     
     return {
       url: downloadURL,
       path: filePath
     };
   } catch (error: any) {
-    console.error('❌ Upload failed:', error);
+    console.error('❌ Upload de photo de profil échoué:');
+    console.error('   Type:', error?.constructor?.name);
+    console.error('   Code:', error?.code);
+    console.error('   Message:', error?.message);
+    console.error('   Stack:', error?.stack);
+    
+    // Vérifier les erreurs spécifiques
+    if (error?.code === 'storage/unauthorized' || error?.code === 'storage/permission-denied') {
+      console.error('   ⚠️ ERREUR DE PERMISSIONS STORAGE:');
+      console.error('      - Vérifiez que Firebase Storage est activé dans Firebase Console');
+      console.error('      - Vérifiez que les règles Storage sont déployées: firebase deploy --only storage');
+      console.error('      - Vérifiez que les règles autorisent l\'upload sur membership-photos/');
+    } else if (error?.code === 'storage/object-not-found' || error?.message?.includes('bucket')) {
+      console.error('   ⚠️ PROBLÈME DE CONFIGURATION STORAGE:');
+      console.error('      - Vérifiez que le Storage bucket est configuré dans Firebase Console');
+      console.error('      - Vérifiez la variable NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET');
+    } else if (error?.code === 'storage/quota-exceeded') {
+      console.error('   ⚠️ QUOTA STORAGE DÉPASSÉ');
+    }
+    
+    console.error('   Détails complets de l\'erreur:', error);
     console.error('🔍 Error details:', {
       code: error.code,
       message: error.message,
@@ -74,11 +63,8 @@ export const uploadProfilePhoto = async (file: File, userId: string): Promise<{ 
     
     // If it's an unauthorized error, try to force emulator connection
     if (error.code === 'storage/unauthorized') {
-      console.log('🔄 Unauthorized error detected, trying to force emulator connection...');
-      
       try {
         const storage = getStorageInstance();
-        console.log('🔧 Forced storage instance creation');
         
         // Try upload again without metadata
         const timestamp = Date.now();
@@ -86,11 +72,9 @@ export const uploadProfilePhoto = async (file: File, userId: string): Promise<{ 
         const filePath = `membership-photos/${fileName}`;
         const storageRef = ref(storage, filePath);
         
-        console.log('🔄 Retrying upload without metadata...');
         const snapshot = await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(snapshot.ref);
         
-        console.log('✅ Retry successful!');
         return {
           url: downloadURL,
           path: filePath
@@ -121,57 +105,47 @@ export const uploadDocumentPhoto = async (
     // Get storage instance
     const storage = getStorageInstance();
     
-    console.log(`🔍 Uploading ${documentType} document photo for user:`, userId);
-    console.log('  - Storage instance details:');
-    console.log('  - App name:', storage.app.name);
-    console.log('  - Storage bucket:', storage.app.options.storageBucket);
-    
     const timestamp = Date.now();
     const fileName = `${timestamp}_document-${documentType}.webp`;
     const filePath = `membership-documents/${userId}/${fileName}`;
-    
-    console.log('📁 Uploading to path:', filePath);
-    console.log('📄 File details:', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      documentType
-    });
 
     const storageRef = ref(storage, filePath);
     
-    console.log('🚀 Starting document upload...');
-    console.log('🔗 Storage ref:', storageRef.fullPath);
-    
     // Upload the file
     const snapshot = await uploadBytes(storageRef, file);
-    
-    console.log(`✅ ${documentType} document upload successful!`);
 
     // Get download URL
     const downloadURL = await getDownloadURL(snapshot.ref);
-    
-    console.log('🔗 Download URL:', downloadURL);
     
     return {
       url: downloadURL,
       path: filePath
     };
   } catch (error: any) {
-    console.error(`❌ ${documentType} document upload failed:`, error);
-    console.error('🔍 Error details:', {
-      code: error.code,
-      message: error.message,
-      documentType
-    });
+    console.error(`❌ Upload de document ${documentType} échoué:`);
+    console.error('   Type:', error?.constructor?.name);
+    console.error('   Code:', error?.code);
+    console.error('   Message:', error?.message);
+    console.error('   Stack:', error?.stack);
+    
+    // Vérifier les erreurs spécifiques
+    if (error?.code === 'storage/unauthorized' || error?.code === 'storage/permission-denied') {
+      console.error('   ⚠️ ERREUR DE PERMISSIONS STORAGE:');
+      console.error('      - Vérifiez que Firebase Storage est activé dans Firebase Console');
+      console.error('      - Vérifiez que les règles Storage sont déployées: firebase deploy --only storage');
+      console.error('      - Vérifiez que les règles autorisent l\'upload sur membership-documents/');
+    } else if (error?.code === 'storage/object-not-found' || error?.message?.includes('bucket')) {
+      console.error('   ⚠️ PROBLÈME DE CONFIGURATION STORAGE:');
+      console.error('      - Vérifiez que le Storage bucket est configuré dans Firebase Console');
+      console.error('      - Vérifiez la variable NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET');
+    }
+    
+    console.error(`   Détails complets de l'erreur (${documentType}):`, error);
     
     // If it's an unauthorized error, try to force emulator connection
     if (error.code === 'storage/unauthorized') {
-      console.log('🔄 Unauthorized error detected, trying to force emulator connection...');
-      
       try {
         const storage = getStorageInstance();
-        console.log('🔧 Forced storage instance creation');
         
         // Try upload again
         const timestamp = Date.now();
@@ -179,11 +153,9 @@ export const uploadDocumentPhoto = async (
         const filePath = `membership-documents/${userId}/${fileName}`;
         const storageRef = ref(storage, filePath);
         
-        console.log('🔄 Retrying document upload...');
         const snapshot = await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(snapshot.ref);
         
-        console.log(`✅ ${documentType} document retry successful!`);
         return {
           url: downloadURL,
           path: filePath

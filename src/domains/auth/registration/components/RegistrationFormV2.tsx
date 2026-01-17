@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -22,12 +23,20 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { registerSchema, defaultValues, type RegisterFormData } from '@/domains/auth/registration/schemas/registration.schema'
 
+// Services et repositories pour la soumission
+import { RegistrationService } from '@/domains/auth/registration/services/RegistrationService'
+import { RegistrationRepository } from '@/domains/auth/registration/repositories/RegistrationRepository'
+
 import StepIndicatorV2 from './StepIndicatorV2'
 import IdentityStepV2 from './steps/IdentityStepV2'
 import AddressStepV2 from './steps/AddressStepV2'
 import CompanyStepV2 from './steps/CompanyStepV2'
 import DocumentsStepV2 from './steps/DocumentsStepV2'
 import SuccessStepV2 from './steps/SuccessStepV2'
+
+// Instancier le service d'inscription
+const registrationRepository = new RegistrationRepository()
+const registrationService = new RegistrationService(registrationRepository)
 
 // Configuration des étapes
 const STEPS = [
@@ -42,6 +51,11 @@ export default function RegistrationFormV2() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
+  const [submittedUserData, setSubmittedUserData] = useState<{
+    firstName?: string
+    lastName?: string
+    civility?: string
+  } | null>(null)
 
   const totalSteps = STEPS.length
 
@@ -55,8 +69,33 @@ export default function RegistrationFormV2() {
 
   const { handleSubmit, trigger } = methods
 
-  // Charger les données du cache au montage (une seule fois)
+  // Vérifier si une demande a déjà été soumise avec succès au montage
   useEffect(() => {
+    try {
+      const submittedData = localStorage.getItem('kara-register-submitted')
+      if (submittedData) {
+        const { userData, timestamp } = JSON.parse(submittedData)
+        // Vérifier si le cache n'a pas expiré (7 jours)
+        const weekInMs = 7 * 24 * 60 * 60 * 1000
+        if (Date.now() - timestamp < weekInMs) {
+          setIsSubmitted(true)
+          setSubmittedUserData(userData || null)
+          return // Ne pas charger les données du formulaire si une demande a été soumise
+        } else {
+          // Supprimer les données expirées
+          localStorage.removeItem('kara-register-submitted')
+        }
+      }
+    } catch {
+      // Ignorer les erreurs de parsing
+    }
+  }, [])
+
+  // Charger les données du cache au montage (une seule fois) - seulement si pas de demande soumise
+  useEffect(() => {
+    // Ne pas charger le formulaire si une demande a déjà été soumise
+    if (isSubmitted) return
+
     let isMounted = true
     try {
       const cached = localStorage.getItem('kara-register-form-v2')
@@ -67,7 +106,7 @@ export default function RegistrationFormV2() {
         if (Date.now() - timestamp < weekInMs) {
           // Utiliser setTimeout pour s'assurer que le formulaire est prêt
           setTimeout(() => {
-            if (isMounted) {
+            if (isMounted && !isSubmitted) {
               methods.reset(data)
               setCurrentStep(step || 1)
               setCompletedSteps(new Set(completed || []))
@@ -81,7 +120,7 @@ export default function RegistrationFormV2() {
     return () => {
       isMounted = false
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isSubmitted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sauvegarder automatiquement dans le cache
   const saveToCache = useCallback(() => {
@@ -136,18 +175,36 @@ export default function RegistrationFormV2() {
     }
 
     const fieldsToValidate = stepKey as keyof RegisterFormData
-    const result = await trigger(fieldsToValidate)
+    
+    // Effacer d'abord les erreurs de l'étape pour éviter les erreurs "stale"
+    methods.clearErrors(fieldsToValidate)
+    
+    // Déclencher la validation de l'étape avec shouldFocus pour montrer les erreurs
+    const result = await trigger(fieldsToValidate, { shouldFocus: true })
+    
     return result
   }, [currentStep, methods, trigger])
 
   // Aller à l'étape suivante
-  const nextStep = useCallback(async () => {
+  const nextStep = useCallback(async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    // Empêcher la soumission du formulaire
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     const isValid = await validateCurrentStep()
     if (!isValid) return
+
+    // Vérifier explicitement qu'on n'est pas à la dernière étape
+    if (currentStep >= totalSteps) {
+      return // Ne rien faire si on est déjà à la dernière étape
+    }
 
     setCompletedSteps(prev => new Set([...prev, currentStep]))
     saveToCache()
 
+    // Passer à l'étape suivante uniquement si on n'est pas à la dernière
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -155,25 +212,63 @@ export default function RegistrationFormV2() {
   }, [currentStep, totalSteps, validateCurrentStep, saveToCache])
 
   // Aller à l'étape précédente
-  const prevStep = useCallback(() => {
+  const prevStep = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+    // Empêcher la soumission du formulaire
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [currentStep])
 
-  // Soumettre le formulaire
+  // Soumettre le formulaire via RegistrationService
   const onSubmit = async (data: RegisterFormData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Implémenter la soumission via RegistrationService
-      console.log('Form data:', data)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Appeler le service d'inscription pour créer le document dans Firestore
+      const membershipId = await registrationService.submitRegistration(data)
+      
+      // Préparer les données utilisateur pour la page de succès
+      const userData = {
+        firstName: data.identity.firstName,
+        lastName: data.identity.lastName,
+        civility: data.identity.civility,
+      }
+      
+      // Afficher un message de succès avec le matricule
+      toast.success('Inscription réussie !', {
+        description: `Votre demande a été enregistrée. Matricule: ${membershipId}`,
+        duration: 5000,
+      })
+      
+      // Sauvegarder l'état de soumission dans localStorage pour persister la page de succès
+      localStorage.setItem('kara-register-submitted', JSON.stringify({
+        userData,
+        membershipId,
+        timestamp: Date.now(),
+      }))
+      
+      // Nettoyer le cache du formulaire
+      localStorage.removeItem('kara-register-form-v2')
       
       setIsSubmitted(true)
-      localStorage.removeItem('kara-register-form-v2')
+      setSubmittedUserData(userData)
     } catch (error) {
-      console.error('Erreur lors de la soumission:', error)
+      console.error('[RegistrationFormV2] ❌ ERREUR lors de la soumission:', error)
+      
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur inattendue s\'est produite'
+      
+      toast.error('Échec de l\'inscription', {
+        description: errorMessage,
+        duration: 5000,
+      })
+      
+      // Re-lancer l'erreur pour que le test puisse la capturer
+      throw error
     } finally {
       setIsSubmitting(false)
     }
@@ -197,7 +292,13 @@ export default function RegistrationFormV2() {
 
   // Affichage de la page de succès
   if (isSubmitted) {
-    return <SuccessStepV2 userData={methods.getValues('identity')} />
+    // Utiliser les données sauvegardées ou celles du formulaire en dernier recours
+    const userDataToShow = submittedUserData || {
+      firstName: methods.getValues('identity.firstName'),
+      lastName: methods.getValues('identity.lastName'),
+      civility: methods.getValues('identity.civility'),
+    }
+    return <SuccessStepV2 userData={userDataToShow} />
   }
 
   return (
@@ -228,10 +329,10 @@ export default function RegistrationFormV2() {
           {/* Bouton retour accueil */}
           <div className="mt-4">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => window.location.href = '/'}
-              className="text-slate-500 hover:text-kara-primary-dark"
+              className="border-2 border-kara-primary-dark text-kara-primary-dark hover:bg-kara-primary-dark hover:text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300"
             >
               <Home className="w-4 h-4 mr-2" />
               Retour à l'accueil
@@ -267,7 +368,20 @@ export default function RegistrationFormV2() {
 
         {/* Formulaire */}
         <FormProvider {...methods}>
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form 
+            onSubmit={async (e) => {
+              // Ne soumettre que si on est vraiment à la dernière étape
+              if (currentStep !== totalSteps) {
+                e.preventDefault()
+                e.stopPropagation()
+                return false
+              }
+              
+              // Appeler handleSubmit qui va valider et appeler onSubmit
+              const result = await handleSubmit(onSubmit)(e)
+              return result
+            }}
+          >
             {/* Contenu de l'étape */}
             <div className="mt-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/50 overflow-hidden animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
               <div
@@ -299,7 +413,11 @@ export default function RegistrationFormV2() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={prevStep}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    prevStep(e)
+                  }}
                   disabled={currentStep === 1}
                   className={cn(
                     "flex-1 sm:flex-none border-slate-200",
@@ -313,7 +431,11 @@ export default function RegistrationFormV2() {
                 {currentStep < totalSteps ? (
                   <Button
                     type="button"
-                    onClick={nextStep}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      nextStep(e)
+                    }}
                     className="flex-1 sm:flex-none bg-linear-to-r from-kara-primary-dark to-kara-primary-dark/90 hover:from-kara-primary-dark/90 hover:to-kara-primary-dark/80 text-white shadow-lg shadow-kara-primary-dark/20"
                   >
                     Suivant

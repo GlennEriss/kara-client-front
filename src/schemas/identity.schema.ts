@@ -91,6 +91,13 @@ export const identitySchema = z.object({
             .max(50, 'La religion ne peut pas dépasser 50 caractères')
     ),
 
+    customReligion: z.preprocess(
+        (val) => (typeof val === 'string' ? val.trim() : val),
+        z.string()
+            .max(50, 'La religion personnalisée ne peut pas dépasser 50 caractères')
+            .optional()
+    ),
+
     contacts: z.array(z.string().optional())
         .superRefine((contacts: Array<string | undefined>, ctx) => {
             let numValid = 0
@@ -192,9 +199,7 @@ export const identitySchema = z.object({
     nationality: z.preprocess(
         (val) => (typeof val === 'string' ? val.trim() : val),
         z.string("La nationalité est requise")
-            .min(2, 'La nationalité doit contenir au moins 2 caractères')
-            .max(50, 'La nationalité ne peut pas dépasser 50 caractères')
-            .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'La nationalité ne peut contenir que des lettres, espaces, apostrophes et tirets')
+            .min(2, 'La nationalité est requise')
     ),
 
     maritalStatus: MaritalStatusEnum,
@@ -315,6 +320,17 @@ export const identitySchema = z.object({
             }
         )
 }).superRefine((data, ctx) => {
+    // Si la religion est "Autre", le champ customReligion devient obligatoire
+    if (data.religion === 'Autre') {
+        if (!data.customReligion || data.customReligion.trim().length < 2) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Veuillez préciser votre religion',
+                path: ['customReligion']
+            })
+        }
+    }
+
     // Si la situation matrimoniale indique un conjoint, les champs du conjoint deviennent obligatoires
     const marriedStatuses = ['Marié(e)', 'Concubinage']
 
@@ -371,9 +387,23 @@ export type IdentityFormData = z.infer<typeof identitySchema>
 // ================== VALEURS PAR DÉFAUT ==================
 export const identityDefaultValues: Partial<IdentityFormData> = {
     civility: 'Monsieur',
+    lastName: '',
+    firstName: '',
+    birthDate: '',
+    birthPlace: '',
+    birthCertificateNumber: '',
+    prayerPlace: '',
+    religion: '',
+    customReligion: '',
     contacts: [''],
+    email: '',
     gender: 'Homme',
     nationality: 'GA',
     maritalStatus: 'Célibataire',
+    spouseLastName: '',
+    spouseFirstName: '',
+    spousePhone: '',
+    intermediaryCode: '',
     hasCar: false,
+    photo: undefined,
 }

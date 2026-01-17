@@ -140,6 +140,19 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // COLLECTION ADMINS
+    // ==========================================
+    // Lecture publique pour permettre la vérification d'unicité du matricule
+    // Écriture réservée aux SuperAdmins
+    
+    match /admins/{adminId} {
+      // Lecture publique (nécessaire pour vérifier l'unicité du matricule)
+      allow read: if true;
+      // Écriture réservée aux SuperAdmins
+      allow write: if isAuthenticated() && request.auth.token.role == 'SuperAdmin';
+    }
+    
+    // ==========================================
     // ABONNEMENTS (SUBSCRIPTIONS)
     // ==========================================
     

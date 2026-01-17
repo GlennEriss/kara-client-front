@@ -28,12 +28,12 @@ import { cn } from '@/lib/utils'
 import type { RegisterFormData } from '@/schemas/schemas'
 import { GabonPhoneInputList } from '@/components/shared/GabonPhoneInput'
 import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
+import { SelectCountry } from '@/components/ui/select-country'
 
 const CIVILITIES = ['Monsieur', 'Madame', 'Mademoiselle'] as const
 const GENDERS = ['Homme', 'Femme'] as const
 const MARITAL_STATUS = ['Célibataire', 'Marié(e)', 'Veuf/Veuve', 'Divorcé(e)', 'Concubinage'] as const
 const RELIGIONS = ['Christianisme', 'Islam', 'Animisme', 'Sans religion', 'Autre'] as const
-const NATIONALITIES = ['Gabonaise', 'Française', 'Camerounaise', 'Congolaise', 'Équato-Guinéenne', 'Autre'] as const
 
 
 
@@ -76,7 +76,9 @@ export default function IdentityStepV2() {
   const hasCar = watch('identity.hasCar')
   const photo = watch('identity.photo')
   const birthDate = watch('identity.birthDate')
+  const religion = watch('identity.religion')
   const requiresSpouseInfo = ['Marié(e)', 'Concubinage'].includes(maritalStatus)
+  const isOtherReligion = religion === 'Autre'
 
   // Fonction helper pour parser et initialiser les dates
   const parseBirthDate = (date: string | undefined) => {
@@ -107,7 +109,12 @@ export default function IdentityStepV2() {
     
     // Toujours mettre à jour pour s'assurer que les états sont synchronisés
     // (important lors de la réinitialisation du formulaire)
-    if (parsed.day !== birthDay || parsed.month !== birthMonth || parsed.year !== birthYear) {
+    // Si birthDate est vide, réinitialiser tous les états
+    if (!currentBirthDate || currentBirthDate.trim() === '') {
+      setBirthYear('')
+      setBirthMonth('')
+      setBirthDay('')
+    } else if (parsed.day !== birthDay || parsed.month !== birthMonth || parsed.year !== birthYear) {
       setBirthYear(parsed.year)
       setBirthMonth(parsed.month)
       setBirthDay(parsed.day)
@@ -130,6 +137,9 @@ export default function IdentityStepV2() {
   useEffect(() => {
     if (typeof photo === 'string' && photo.startsWith('data:')) {
       setPhotoPreview(photo)
+    } else {
+      // Réinitialiser la prévisualisation si la photo est supprimée
+      setPhotoPreview(null)
     }
   }, [photo])
 
@@ -184,14 +194,18 @@ export default function IdentityStepV2() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-100">
         {/* Photo de profil - Card dédiée */}
         <div className="lg:col-span-4">
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200 h-full flex flex-col items-center justify-center">
+          <div className={cn(
+            "bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border h-full flex flex-col items-center justify-center",
+            errors.identity?.photo ? "border-red-300 bg-red-50/50" : "border-slate-200"
+          )}>
             <label className="group cursor-pointer">
               <div className={cn(
                 "relative w-32 h-32 rounded-full overflow-hidden transition-all duration-300",
                 "bg-gradient-to-br from-kara-primary-dark/20 to-kara-primary-light/20",
-                "border-4 border-dashed border-slate-300 group-hover:border-kara-primary-dark",
+                "border-4 border-dashed group-hover:border-kara-primary-dark",
                 "flex items-center justify-center",
-                photoPreview && "border-solid border-kara-primary-light"
+                photoPreview && "border-solid border-kara-primary-light",
+                !photoPreview && errors.identity?.photo ? "border-red-400" : "border-slate-300"
               )}>
                 {photoPreview ? (
                   <>
@@ -205,8 +219,16 @@ export default function IdentityStepV2() {
                   </>
                 ) : (
                   <div className="text-center">
-                    <Camera className="w-10 h-10 text-slate-400 group-hover:text-kara-primary-dark transition-colors mx-auto mb-2" />
-                    <span className="text-xs text-slate-400 group-hover:text-kara-primary-dark">Ajouter photo</span>
+                    <Camera className={cn(
+                      "w-10 h-10 transition-colors mx-auto mb-2",
+                      errors.identity?.photo ? "text-red-400" : "text-slate-400 group-hover:text-kara-primary-dark"
+                    )} />
+                    <span className={cn(
+                      "text-xs",
+                      errors.identity?.photo ? "text-red-500 font-medium" : "text-slate-400 group-hover:text-kara-primary-dark"
+                    )}>
+                      {errors.identity?.photo ? "Photo requise !" : "Ajouter photo"}
+                    </span>
                   </div>
                 )}
               </div>
@@ -217,9 +239,17 @@ export default function IdentityStepV2() {
                 onChange={handlePhotoUpload}
               />
             </label>
-            <p className="text-xs text-slate-400 mt-3 text-center">
-              Photo optionnelle<br />JPG, PNG (max 5MB)
+            <p className={cn(
+              "text-xs mt-3 text-center",
+              errors.identity?.photo ? "text-red-500" : "text-slate-400"
+            )}>
+              Photo obligatoire *<br />JPG, PNG, WebP (max 5MB)
             </p>
+            {errors.identity?.photo && (
+              <p className="text-xs text-red-500 mt-2 text-center font-medium animate-in fade-in-0 slide-in-from-top-2">
+                {errors.identity.photo.message as string}
+              </p>
+            )}
           </div>
         </div>
 
@@ -313,42 +343,60 @@ export default function IdentityStepV2() {
           {/* Date de naissance avec 3 selects */}
           <div className="space-y-2">
             <Label className="text-slate-700 font-semibold text-sm">Date de naissance *</Label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2 w-full">
               {/* Jour */}
-              <Select value={birthDay} onValueChange={setBirthDay}>
-                <SelectTrigger className="h-12 rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all flex-1 bg-white">
-                  <SelectValue placeholder="Jour" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DAYS.map((d) => (
-                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="min-w-0">
+                <Select value={birthDay} onValueChange={setBirthDay}>
+                  <SelectTrigger className="h-12 w-full rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all bg-white">
+                    <SelectValue placeholder="Jour" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAYS.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               
               {/* Mois */}
-              <Select value={birthMonth} onValueChange={setBirthMonth}>
-                <SelectTrigger className="h-12 rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all flex-[2] bg-white">
-                  <SelectValue placeholder="Mois" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="min-w-0">
+                <Select value={birthMonth} onValueChange={setBirthMonth}>
+                  <SelectTrigger className="h-12 w-full rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all bg-white">
+                    <SelectValue placeholder="Mois">
+                      {birthMonth ? (
+                        <>
+                          <span className="sm:hidden">{birthMonth}</span>
+                          <span className="hidden sm:inline truncate">{MONTHS.find(m => m.value === birthMonth)?.label || birthMonth}</span>
+                        </>
+                      ) : (
+                        'Mois'
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        <span className="sm:hidden">{m.value}</span>
+                        <span className="hidden sm:inline">{m.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               
               {/* Année */}
-              <Select value={birthYear} onValueChange={setBirthYear}>
-                <SelectTrigger className="h-12 rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all flex-1 bg-white">
-                  <SelectValue placeholder="Année" />
-                </SelectTrigger>
-                <SelectContent>
-                  {YEARS.map((y) => (
-                    <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="min-w-0">
+                <Select value={birthYear} onValueChange={setBirthYear}>
+                  <SelectTrigger className="h-12 w-full rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all bg-white">
+                    <SelectValue placeholder="Année" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {YEARS.map((y) => (
+                      <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             {errors.identity?.birthDate && (
               <p className="text-xs text-red-500">{errors.identity.birthDate.message}</p>
@@ -396,19 +444,15 @@ export default function IdentityStepV2() {
               <Globe className="w-4 h-4 text-amber-600" />
               Nationalité *
             </Label>
-            <Select onValueChange={(v) => setValue('identity.nationality', v)} value={watch('identity.nationality') || ''}>
-              <SelectTrigger className="h-12 rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all bg-white">
-                <SelectValue placeholder="Sélectionnez..." />
-              </SelectTrigger>
-              <SelectContent>
-                {NATIONALITIES.map((n) => (
-                  <SelectItem key={n} value={n}>{n}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.identity?.nationality && (
-              <p className="text-xs text-red-500">{errors.identity.nationality.message}</p>
-            )}
+            <SelectCountry
+              value={watch('identity.nationality') || ''}
+              onValueChange={(v) => setValue('identity.nationality', v)}
+              placeholder="Sélectionnez votre nationalité"
+              defaultValue="GA"
+              error={errors.identity?.nationality?.message}
+              showValidation={!!watch('identity.nationality')}
+              className="h-12 rounded-xl border-2 border-amber-200 hover:border-amber-400 focus:border-amber-500 transition-all bg-white"
+            />
           </div>
         </div>
       </div>
@@ -481,6 +525,28 @@ export default function IdentityStepV2() {
                 <p className="text-xs text-red-500">{errors.identity.religion.message}</p>
               )}
             </div>
+
+            {/* Champ personnalisé si "Autre" est sélectionné */}
+            {isOtherReligion && (
+              <div className="space-y-2 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+                <Label className="text-slate-700 font-semibold text-sm">Précisez votre religion *</Label>
+                <Input
+                  value={String((getValues().identity as any)?.customReligion || '')}
+                  onChange={(e) => {
+                    const currentIdentity = getValues().identity || {}
+                    setValue('identity', { ...currentIdentity, customReligion: e.target.value } as any, { shouldValidate: true })
+                  }}
+                  placeholder="Saisissez votre religion"
+                  className={cn(
+                    "h-12 rounded-xl border-2 border-purple-200 hover:border-purple-400 focus:border-purple-500 transition-all bg-white",
+                    (errors.identity as any)?.customReligion && "border-red-300"
+                  )}
+                />
+                {(errors.identity as any)?.customReligion && (
+                  <p className="text-xs text-red-500">{(errors.identity as any).customReligion.message}</p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-slate-700 font-semibold text-sm">Lieu de prière *</Label>
@@ -619,23 +685,23 @@ export default function IdentityStepV2() {
 
       {/* Question voiture */}
       <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-200 animate-in fade-in-0 slide-in-from-left-4 duration-500 delay-300">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={cn(
-              "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
+              "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0",
               hasCar 
                 ? "bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg shadow-emerald-500/30" 
                 : "bg-slate-200"
             )}>
               <Car className={cn("w-6 h-6 transition-colors", hasCar ? "text-white" : "text-slate-400")} />
             </div>
-            <div>
-              <h3 className="font-bold text-slate-800">Possédez-vous une voiture ?</h3>
+            <div className="min-w-0">
+              <h3 className="font-bold text-slate-800 text-sm sm:text-base">Possédez-vous une voiture ?</h3>
               <p className="text-xs text-slate-500">Cette information est importante pour nos services</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 shrink-0">
             <span className={cn(
               "text-sm font-semibold transition-colors",
               hasCar ? "text-slate-400" : "text-slate-700"
