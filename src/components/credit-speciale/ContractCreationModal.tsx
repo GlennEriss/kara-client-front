@@ -21,11 +21,9 @@ import {
   ArrowLeft,
   User,
   Users,
-  Phone,
   DollarSign,
   Percent,
   Calendar,
-  AlertTriangle,
   FileText
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -86,7 +84,7 @@ export default function ContractCreationModal({
   }, [guarantorIsMember])
 
   const currentStepIndex = steps.indexOf(currentStep)
-  const isLastStep = currentStepIndex === steps.length - 1
+  const _isLastStep = currentStepIndex === steps.length - 1
   const isFirstStep = currentStepIndex === 0
 
   // Réinitialiser les étapes quand le modal s'ouvre

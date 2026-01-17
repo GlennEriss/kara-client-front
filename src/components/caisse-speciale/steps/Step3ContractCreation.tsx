@@ -15,7 +15,6 @@ import {
   Calendar,
   DollarSign,
   Clock,
-  ArrowRight,
   ArrowLeft
 } from 'lucide-react'
 import { cn } from '@/lib/utils'

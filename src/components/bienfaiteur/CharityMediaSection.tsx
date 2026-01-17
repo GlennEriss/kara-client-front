@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +30,6 @@ export default function CharityMediaSection({ eventId }: CharityMediaSectionProp
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'photo' | 'video'>('all')
-  const [selectedMedia, setSelectedMedia] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [lightboxMedia, setLightboxMedia] = useState<CharityMedia | null>(null)
   const [lightboxIndex, setLightboxIndex] = useState(0)

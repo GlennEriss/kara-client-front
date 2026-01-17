@@ -24,7 +24,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
   contractData
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile] = useState(false)
   const [refunds, setRefunds] = useState<any[]>([])
 
   // Récupérer les informations du membre

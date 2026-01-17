@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
   Building, 
-  Search, 
   MapPin,
   Briefcase,
   Plus,
@@ -27,7 +26,7 @@ export default function CompanySuggestionsDropdown({
   suggestions,
   isLoading,
   onSelect,
-  onClose,
+  onClose: _onClose,
   query
 }: CompanySuggestionsDropdownProps) {
   
@@ -81,9 +80,9 @@ export default function CompanySuggestionsDropdown({
 
         {/* Liste des suggestions */}
         <div className="space-y-1">
-          {suggestions.map((suggestion, index) => (
+          {suggestions.map((suggestion, _index) => (
             <Button
-              key={`${suggestion.name}-${index}`}
+              key={`${suggestion.name}-${_index}`}
               variant="ghost"
               size="sm"
               className={cn(

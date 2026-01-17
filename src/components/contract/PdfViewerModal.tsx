@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Download, Loader2, Eye, FileText, Smartphone, Monitor, X } from 'lucide-react'
+import { Download, Loader2, Eye, FileText, Smartphone, Monitor } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -46,7 +46,7 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(true)
   const [pdfError, setPdfError] = useState(false)
-  const isMobile = useIsMobile()
+  const _isMobile = useIsMobile()
 
   // Ne pas afficher le modal si le document est null
   if (!document) {
@@ -78,8 +78,7 @@ const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
         duration: 3000,
       })
 
-    } catch (error) {
-      console.error('Erreur lors du téléchargement du PDF:', error)
+    } catch {
       toast.error('❌ Erreur de téléchargement', {
         description: 'Une erreur est survenue lors du téléchargement du PDF. Veuillez réessayer.',
         duration: 4000,

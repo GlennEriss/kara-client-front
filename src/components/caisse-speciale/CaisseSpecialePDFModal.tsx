@@ -23,7 +23,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
   contractData
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile] = useState(false)
 
   // Récupérer les informations du membre
   const { data: memberData, isLoading: memberLoading } = useMember(contractData?.memberId)

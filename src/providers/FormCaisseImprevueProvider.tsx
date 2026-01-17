@@ -9,7 +9,6 @@ import {
   caisseImprevueGlobalSchema,
   caisseImprevueStep1Schema,
   caisseImprevueStep2Schema,
-  caisseImprevueStep3Schema,
   defaultCaisseImprevueGlobalValues,
   type CaisseImprevueGlobalFormData,
 } from '@/schemas/caisse-imprevue.schema'

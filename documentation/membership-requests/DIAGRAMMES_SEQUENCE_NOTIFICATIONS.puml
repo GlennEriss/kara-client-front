@@ -1,0 +1,422 @@
+@startuml Diagrammes de Séquence - Notifications Membership Requests
+!theme plain
+skinparam participant {
+    BackgroundColor #FFFFFF
+    BorderColor #234D65
+    FontColor #000000
+}
+skinparam actor {
+    BackgroundColor #CBB171
+    BorderColor #234D65
+}
+skinparam note {
+    BackgroundColor #FFF8DC
+    BorderColor #CBB171
+}
+skinparam sequence {
+    ArrowColor #234D65
+    LifeLineBorderColor #234D65
+    LifeLineBackgroundColor #E8F4F8
+}
+
+' ==========================================
+' 1. SÉQUENCE NOTIFICATION APPROBATION
+' ==========================================
+@startuml SEQ_Notif_Approbation
+title Séquence : Notification d'Approbation
+
+actor "Admin" as Admin
+participant "MembershipApprovalModal" as Modal
+participant "useApproveMembershipRequest\n(Hook)" as Hook
+participant "MembershipApprovalService" as ApprovalService
+participant "NotificationService" as NotifService
+database "Firestore\n(notifications)" as Firestore
+database "Firestore\n(users)" as UsersDB
+participant "WhatsApp\n(Optional)" as WhatsApp
+
+Admin -> Modal: Confirmer approbation
+activate Modal
+
+Modal -> Hook: approveMutation.mutate(params)
+activate Hook
+
+Hook -> ApprovalService: approveRequest(params)
+activate ApprovalService
+
+ApprovalService -> ApprovalService: Créer utilisateur Firebase
+ApprovalService -> UsersDB: Créer document users
+ApprovalService -> ApprovalService: Mettre à jour statut = 'approved'
+
+ApprovalService -> NotifService: sendApprovalNotifications(\nrequestId, memberName, matricule,\nmembershipType, adminId, phoneNumber)
+activate NotifService
+
+par Notifications parallèles
+    NotifService -> Firestore: addDoc(notifications, {\n  module: 'memberships',\n  type: 'status_update',\n  title: 'Demande approuvée',\n  message: '...',\n  metadata: {...}\n})
+    activate Firestore
+    Firestore --> NotifService: notificationId (Admin)
+    deactivate Firestore
+    
+    alt Numéro téléphone disponible
+        NotifService -> NotifService: Construire message WhatsApp:\nAPPROVAL_MESSAGE(name, matricule)
+        NotifService -> NotifService: Générer URL WhatsApp:\nwa.me/{phone}?text={message}
+        
+        alt API WhatsApp Business disponible
+            NotifService -> WhatsApp: POST /api/whatsapp/send\n{phoneNumber, message}
+            activate WhatsApp
+            WhatsApp --> NotifService: {success: true}
+            deactivate WhatsApp
+        else Mode manuel
+            NotifService -> NotifService: Retourner URL pour ouverture\n(window.open)
+        end
+    end
+end
+
+NotifService --> ApprovalService: OK
+deactivate NotifService
+
+ApprovalService --> Hook: ApprovalResult
+deactivate ApprovalService
+
+Hook -> Hook: invalidateQueries(['notifications'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast "Demande approuvée"
+deactivate Modal
+
+@enduml
+
+' ==========================================
+' 2. SÉQUENCE NOTIFICATION REJET
+' ==========================================
+@startuml SEQ_Notif_Rejet
+title Séquence : Notification de Rejet
+
+actor "Admin" as Admin
+participant "MembershipRejectionModal" as Modal
+participant "useUpdateMembershipStatus\n(Hook)" as Hook
+participant "MembershipRejectionService" as RejectionService
+participant "NotificationService" as NotifService
+database "Firestore\n(notifications)" as Firestore
+participant "WhatsApp\n(Optional)" as WhatsApp
+
+Admin -> Modal: Confirmer rejet avec motif
+activate Modal
+
+Modal -> Hook: rejectMutation.mutate({requestId, motif})
+activate Hook
+
+Hook -> RejectionService: rejectRequest(requestId, adminId, motif)
+activate RejectionService
+
+RejectionService -> RejectionService: Mettre à jour statut = 'rejected'
+RejectionService -> RejectionService: Enregistrer motifReject
+
+RejectionService -> NotifService: sendRejectionNotifications(\nrequestId, memberName, reason,\nadminId, phoneNumber)
+activate NotifService
+
+par Notifications parallèles
+    NotifService -> Firestore: addDoc(notifications, {\n  module: 'memberships',\n  type: 'status_update',\n  title: 'Demande rejetée',\n  message: '...',\n  metadata: {...}\n})
+    activate Firestore
+    Firestore --> NotifService: notificationId (Admin)
+    deactivate Firestore
+    
+    alt Numéro téléphone disponible
+        NotifService -> NotifService: Construire message WhatsApp:\nREJECTION_MESSAGE(name, reason)
+        NotifService -> NotifService: Générer URL WhatsApp:\nwa.me/{phone}?text={message}
+        
+        alt API WhatsApp Business disponible
+            NotifService -> WhatsApp: POST /api/whatsapp/send
+            activate WhatsApp
+            WhatsApp --> NotifService: OK
+            deactivate WhatsApp
+        else Mode manuel
+            NotifService -> NotifService: Retourner URL pour ouverture
+        end
+    end
+end
+
+NotifService --> RejectionService: OK
+deactivate NotifService
+
+RejectionService --> Hook: {success: true}
+deactivate RejectionService
+
+Hook -> Hook: invalidateQueries(['notifications', 'membershipRequests'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast "Demande rejetée"
+deactivate Modal
+
+@enduml
+
+' ==========================================
+' 3. SÉQUENCE NOTIFICATION CORRECTIONS (PRIORITAIRE)
+' ==========================================
+@startuml SEQ_Notif_Corrections
+title Séquence : Notification de Corrections avec WhatsApp
+
+actor "Admin" as Admin
+participant "MembershipCorrectionModal" as Modal
+participant "useRequestCorrections\n(Hook)" as Hook
+participant "MembershipCorrectionService" as CorrectionService
+participant "NotificationService" as NotifService
+database "Firestore\n(notifications)" as Firestore
+participant "WhatsApp\n(OBLIGATOIRE)" as WhatsApp
+
+Admin -> Modal: Confirmer corrections avec liste
+activate Modal
+
+Modal -> Hook: correctionMutation.mutate({requestId, corrections})
+activate Hook
+
+Hook -> CorrectionService: requestCorrections(requestId, adminId, corrections)
+activate CorrectionService
+
+CorrectionService -> CorrectionService: generateSecurityCode()\n// crypto.randomInt(100000, 999999)
+CorrectionService -> CorrectionService: calculateExpiry()\n// Date + 48h
+CorrectionService -> CorrectionService: Générer correctionLink:\n/register?requestId={id}
+CorrectionService -> CorrectionService: Mettre à jour statut = 'under_review'
+
+CorrectionService -> NotifService: sendCorrectionRequestNotifications(\nrequestId, memberName, corrections,\ncorrectionLink, securityCode, adminId, phoneNumber)
+activate NotifService
+
+par Notifications parallèles
+    NotifService -> Firestore: addDoc(notifications, {\n  module: 'memberships',\n  type: 'status_update',\n  title: 'Corrections demandées',\n  message: '...',\n  metadata: {...}\n})
+    activate Firestore
+    Firestore --> NotifService: notificationId (Admin)
+    deactivate Firestore
+    
+    alt Numéro téléphone disponible
+        NotifService -> NotifService: Construire message WhatsApp:\nCORRECTION_MESSAGE(name, corrections, link, code)
+        
+        NotifService -> NotifService: Formater numéro téléphone:\n- Ajouter préfixe +241\n- Nettoyer caractères
+        
+        NotifService -> NotifService: Générer URL WhatsApp:\nwa.me/{phone}?text={encodedMessage}
+        
+        alt Admin clique "Envoyer via WhatsApp" dans modal
+            alt API WhatsApp Business disponible
+                NotifService -> WhatsApp: POST /api/whatsapp/send\n{phoneNumber, message}
+                activate WhatsApp
+                WhatsApp --> NotifService: {success: true, messageId}
+                deactivate WhatsApp
+                
+                NotifService -> NotifService: Enregistrer log d'envoi\n(pour traçabilité)
+                
+                NotifService --> Modal: {whatsappSent: true, messageId}
+                Modal --> Admin: Toast "Message envoyé via WhatsApp"
+            else Mode manuel (WhatsApp Web)
+                NotifService --> Modal: {whatsappUrl: url}
+                Modal -> Modal: window.open(whatsappUrl, '_blank')
+                Modal --> Admin: Toast "Ouvrir WhatsApp pour envoyer"
+            end
+        else Admin préfère envoyer manuellement
+            NotifService --> Modal: {whatsappUrl: url}
+            Modal --> Admin: Afficher URL dans modal\npour copier/coller
+        end
+    else Pas de numéro disponible
+        NotifService --> Modal: {error: 'NO_PHONE_NUMBER'}
+        Modal --> Admin: Toast "Numéro de téléphone requis"
+    end
+end
+
+NotifService --> CorrectionService: CorrectionResult\n{securityCode, correctionLink, whatsappUrl}
+deactivate NotifService
+
+CorrectionService --> Hook: CorrectionResult
+deactivate CorrectionService
+
+Hook -> Hook: invalidateQueries(['notifications', 'membershipRequests'])
+
+Hook --> Modal: CorrectionResult
+deactivate Hook
+
+Modal --> Admin: Afficher modal avec:\n- Code sécurité\n- Lien correction\n- Bouton "Envoyer via WhatsApp"\n- Bouton "Copier le lien"
+deactivate Modal
+
+@enduml
+
+' ==========================================
+' 4. SÉQUENCE NOTIFICATION PAIEMENT
+' ==========================================
+@startuml SEQ_Notif_Paiement
+title Séquence : Notification d'Enregistrement de Paiement
+
+actor "Admin" as Admin
+participant "MembershipPaymentModal" as Modal
+participant "usePayMembershipRequest\n(Hook)" as Hook
+participant "MembershipPaymentService" as PaymentService
+participant "NotificationService" as NotifService
+database "Firestore\n(notifications)" as Firestore
+database "Firestore\n(membership-requests)" as RequestsDB
+
+Admin -> Modal: Confirmer paiement
+activate Modal
+
+Modal -> Hook: payMutation.mutate(paymentData)
+activate Hook
+
+Hook -> PaymentService: registerPayment(requestId, paymentData, adminId)
+activate PaymentService
+
+PaymentService -> RequestsDB: updateDoc(membership-requests/{id}, {\n  isPaid: true,\n  payments: arrayUnion(payment),\n  paidAt: serverTimestamp(),\n  paidBy: adminId\n})
+activate RequestsDB
+RequestsDB --> PaymentService: OK
+deactivate RequestsDB
+
+PaymentService -> NotifService: sendPaymentNotifications(\nrequestId, memberName, amount,\ncurrency, paymentMode, adminId)
+activate NotifService
+
+NotifService -> Firestore: addDoc(notifications, {\n  module: 'memberships',\n  type: 'payment_received',\n  title: 'Paiement enregistré',\n  message: 'Un paiement de {amount} {currency}...',\n  metadata: {...}\n})
+activate Firestore
+Firestore --> NotifService: notificationId
+deactivate Firestore
+
+NotifService --> PaymentService: OK
+deactivate NotifService
+
+PaymentService --> Hook: {success: true}
+deactivate PaymentService
+
+Hook -> Hook: invalidateQueries(['notifications', 'membershipRequests'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast "Paiement enregistré"
+Modal -> Modal: Fermer modal
+deactivate Modal
+
+@enduml
+
+' ==========================================
+' 5. SÉQUENCE ENVOI WHATSAPP MANUEL
+' ==========================================
+@startuml SEQ_WhatsApp_Manuel
+title Séquence : Envoi WhatsApp Manuel depuis le Modal
+
+actor "Admin" as Admin
+participant "MembershipCorrectionModal" as Modal
+participant "NotificationService" as NotifService
+participant "WhatsApp Service\n(Utilitaire)" as WhatsAppUtil
+participant "WhatsApp Business API\n(Optionnel)" as WhatsAppAPI
+
+Admin -> Modal: Cliquer "Envoyer via WhatsApp"
+activate Modal
+
+Modal -> Modal: Récupérer numéro depuis\nrequest.identity.contacts[0]
+
+alt Numéro disponible
+    Modal -> NotifService: generateWhatsAppUrl(\nphoneNumber, messageType, context)
+    activate NotifService
+    
+    NotifService -> NotifService: Nettoyer numéro :\n- Enlever espaces, tirets\n- Normaliser préfixe (+241)
+    
+    NotifService -> NotifService: Construire message selon type:\n- Approbation: APPROVAL_MESSAGE\n- Rejet: REJECTION_MESSAGE\n- Corrections: CORRECTION_MESSAGE
+    
+    NotifService -> NotifService: encodeURIComponent(message)
+    
+    NotifService -> NotifService: Construire URL:\nwa.me/{phoneNumber}?text={encodedMessage}
+    
+    NotifService --> Modal: whatsappUrl
+    deactivate NotifService
+    
+    Modal -> Modal: Afficher options:
+    - "Envoyer automatiquement" (si API disponible)
+    - "Ouvrir WhatsApp Web"
+    
+    alt Admin choisit "Envoyer automatiquement"
+        alt API WhatsApp Business configurée
+            Modal -> WhatsAppUtil: sendWhatsAppMessage(phoneNumber, message)
+            activate WhatsAppUtil
+            
+            WhatsAppUtil -> WhatsAppAPI: POST /api/whatsapp/send\n{phoneNumber, message, templateId?}
+            activate WhatsAppAPI
+            
+            alt Réponse OK
+                WhatsAppAPI --> WhatsAppUtil: {success: true, messageId}
+                deactivate WhatsAppAPI
+                
+                WhatsAppUtil -> WhatsAppUtil: Enregistrer log d'envoi
+                
+                WhatsAppUtil --> Modal: {success: true, messageId}
+                deactivate WhatsAppUtil
+                
+                Modal --> Admin: Toast "Message envoyé via WhatsApp"
+            else Erreur API
+                WhatsAppAPI --> WhatsAppUtil: {error: '...'}
+                deactivate WhatsAppAPI
+                
+                WhatsAppUtil --> Modal: {error: 'API_ERROR', fallbackUrl: whatsappUrl}
+                deactivate WhatsAppUtil
+                
+                Modal --> Admin: Toast erreur +\nAfficher URL de fallback
+            end
+        else API non disponible
+            Modal --> Admin: Toast "API WhatsApp non configurée.\nOuvrir WhatsApp Web ?"
+            
+            Modal -> Modal: window.open(whatsappUrl, '_blank')
+            Modal --> Admin: Toast "Ouvrir WhatsApp pour envoyer"
+        end
+    else Admin choisit "Ouvrir WhatsApp Web"
+        Modal -> Modal: window.open(whatsappUrl, '_blank')
+        Modal --> Admin: Toast "Ouvrir WhatsApp pour envoyer"
+    end
+else Pas de numéro disponible
+    Modal --> Admin: Toast "Numéro de téléphone non disponible"
+end
+
+deactivate Modal
+
+@enduml
+
+' ==========================================
+' 6. SÉQUENCE GÉNÉRATION URL WHATSAPP
+' ==========================================
+@startuml SEQ_Gen_URL_WhatsApp
+title Séquence : Génération de l'URL WhatsApp (Fonction Utilitaire)
+
+participant "Appelant\n(Service/Modal)" as Caller
+participant "NotificationService" as NotifService
+participant "WhatsApp URL Generator\n(Utilitaire)" as URLGenerator
+
+Caller -> NotifService: generateWhatsAppUrl(\nphoneNumber, messageType, context)
+activate NotifService
+
+NotifService -> NotifService: Vérifier numéro non vide
+NotifService -> NotifService: Nettoyer numéro :\nreplace(/[\s\-\.]/g, '')
+
+alt Numéro invalide (vide ou < 8 caractères)
+    NotifService --> Caller: null
+    deactivate NotifService
+    stop
+end
+
+NotifService -> URLGenerator: normalizePhoneNumber(phoneNumber)
+activate URLGenerator
+
+URLGenerator -> URLGenerator: Vérifier format
+alt Commence par 0
+    URLGenerator -> URLGenerator: Remplacer 0 par +241
+else Commence par 241 (sans +)
+    URLGenerator -> URLGenerator: Ajouter + devant
+else Ne commence ni par + ni par 0 ni par 241
+    URLGenerator -> URLGenerator: Ajouter +241 devant
+end
+
+URLGenerator --> NotifService: normalizedPhone\n(ex: +241060123456)
+deactivate URLGenerator
+
+NotifService -> NotifService: Construire message selon type:\nif messageType === 'approval'\n  message = APPROVAL_MESSAGE(name, matricule)\nelse if messageType === 'rejection'\n  message = REJECTION_MESSAGE(name, reason)\nelse if messageType === 'correction'\n  message = CORRECTION_MESSAGE(name, corrections, link, code)
+
+NotifService -> NotifService: encodeURIComponent(message)
+
+NotifService -> NotifService: Construire URL:\n`${WA_BASE_URL}/${normalizedPhone}?text=${encodedMessage}`
+
+NotifService --> Caller: whatsappUrl\n(ex: wa.me/+241060123456?text=Bonjour...)
+deactivate NotifService
+
+@enduml

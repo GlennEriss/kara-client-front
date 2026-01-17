@@ -148,6 +148,7 @@ export async function createMembershipRequest(formData: RegisterFormData): Promi
             },
             state: 'IN_PROGRESS', // Convention du projet (sera ajouté par createModel)
             status: 'pending', // Statut métier spécifique aux adhésions
+            isPaid: false, // Par défaut, une nouvelle demande n'est pas payée
         };
         console.log('photo', typeof formData.identity.photo)
         

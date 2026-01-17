@@ -25,7 +25,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
   contractData
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile] = useState(false)
   const [refunds, setRefunds] = useState<any[]>([])
 
   // Récupérer les informations du membre si memberId est disponible

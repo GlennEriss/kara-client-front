@@ -87,7 +87,6 @@ export default function AddressStepV2() {
   const provinceName = watch('address.province')
   const cityName = watch('address.city')
   const arrondissementName = watch('address.arrondissement')
-  const districtName = watch('address.district')
 
   // Initialiser la province
   useEffect(() => {

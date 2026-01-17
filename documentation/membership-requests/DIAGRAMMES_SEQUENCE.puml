@@ -1,0 +1,1017 @@
+@startuml Diagrammes de Séquence - Module Membership Requests
+!theme plain
+skinparam participant {
+    BackgroundColor #FFFFFF
+    BorderColor #234D65
+    FontColor #000000
+}
+skinparam actor {
+    BackgroundColor #CBB171
+    BorderColor #234D65
+}
+skinparam note {
+    BackgroundColor #FFF8DC
+    BorderColor #CBB171
+}
+skinparam sequence {
+    ArrowColor #234D65
+    LifeLineBorderColor #234D65
+    LifeLineBackgroundColor #E8F4F8
+    GroupBackgroundColor #F5F5F5
+    GroupBorderColor #234D65
+}
+
+' ==========================================
+' PARTICIPANTS COMMUNS (Architecture Refactorisée)
+' ==========================================
+' Note: Ces participants sont définis pour chaque diagramme
+
+@enduml
+
+' ==========================================
+' 1. VOIR LES DÉTAILS D'UNE DEMANDE
+' ==========================================
+@startuml SEQ_Voir_Details
+title Séquence : Voir les Détails d'une Demande d'Adhésion
+
+actor "Admin" as Admin
+participant "MembershipRequestDetails\n(Page)" as Page
+participant "useMembershipRequest\n(Hook)" as Hook
+participant "MembershipService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore\n(membership-requests)" as Firestore
+
+Admin -> Page: Naviguer vers\n/membership-requests/[id]
+activate Page
+
+Page -> Hook: useMembershipRequest(requestId)
+activate Hook
+
+Hook -> Service: getMembershipRequestById(requestId)
+activate Service
+
+Service -> DB: getMembershipRequestById(requestId)
+activate DB
+
+DB -> Firestore: getDoc(doc(db, 'membership-requests', requestId))
+activate Firestore
+Firestore --> DB: DocumentSnapshot
+
+alt Document trouvé
+    DB --> DB: transformDBToMembershipRequest(data)
+    DB --> Service: MembershipRequest
+else Document non trouvé
+    DB --> Service: null
+end
+deactivate Firestore
+deactivate DB
+
+Service --> Hook: MembershipRequest | null
+deactivate Service
+
+Hook --> Page: { data, isLoading, error }
+deactivate Hook
+
+alt Demande trouvée
+    Page -> Page: Récupérer infos parrain\n(si intermediaryCode)
+    Page -> Page: Récupérer infos admin traiteur\n(si processedBy)
+    Page --> Admin: Afficher page de détails
+else Demande non trouvée
+    Page --> Admin: Afficher "Demande non trouvée"
+end
+
+deactivate Page
+
+@enduml
+
+' ==========================================
+' 2. GÉNÉRER/TÉLÉCHARGER LA FICHE D'ADHÉSION
+' ==========================================
+@startuml SEQ_Fiche_Adhesion
+title Séquence : Générer et Télécharger la Fiche d'Adhésion (PDF)
+
+actor "Admin" as Admin
+participant "MemberDetailsModal\n(Component)" as Modal
+participant "MutuelleKaraPDF\n(React-PDF)" as PDFComponent
+participant "pdf()\n(@react-pdf/renderer)" as PDFLib
+participant "Browser" as Browser
+
+Admin -> Modal: Cliquer sur "Fiche d'adhésion"
+activate Modal
+
+Modal --> Admin: Afficher modal avec prévisualisation
+
+Admin -> Modal: Cliquer sur "Télécharger PDF"
+activate Modal
+
+Modal -> Modal: setIsExporting(true)
+
+Modal -> PDFComponent: Générer composant PDF\navec données demande
+activate PDFComponent
+
+PDFComponent -> PDFComponent: Charger logo KARA
+PDFComponent -> PDFComponent: Charger photo demandeur\n(si photoURL)
+PDFComponent -> PDFComponent: Construire pages PDF:\n- Identité\n- Adresse\n- Entreprise\n- Véhicule\n- Parrain
+
+PDFComponent --> Modal: <Document> component
+deactivate PDFComponent
+
+Modal -> PDFLib: pdf(<MutuelleKaraPDF />).toBlob()
+activate PDFLib
+PDFLib --> Modal: Blob (PDF)
+deactivate PDFLib
+
+Modal -> Modal: Générer nom fichier:\n"NOM_PRENOM_ADHESION_MK_YYYY.pdf"
+
+Modal -> Browser: URL.createObjectURL(blob)
+activate Browser
+Browser --> Modal: blobUrl
+deactivate Browser
+
+Modal -> Browser: Créer <a href={blobUrl} download>
+Modal -> Browser: Déclencher click() automatique
+
+Browser --> Admin: Téléchargement du PDF
+
+Modal -> Browser: URL.revokeObjectURL(blobUrl)
+
+Modal -> Modal: setIsExporting(false)
+Modal --> Admin: Toast "PDF téléchargé avec succès"
+
+deactivate Modal
+deactivate Modal
+
+@enduml
+
+' ==========================================
+' 3. VOIR LA PIÈCE D'IDENTITÉ
+' ==========================================
+@startuml SEQ_Voir_Piece_Identite
+title Séquence : Voir la Pièce d'Identité (Recto/Verso)
+
+actor "Admin" as Admin
+participant "MemberIdentityModal\n(Component)" as Modal
+participant "Image\n(next/image)" as ImageComp
+database "Firebase Storage" as Storage
+
+Admin -> Modal: Cliquer sur "Voir pièce d'identité"
+activate Modal
+
+Modal -> Modal: setShowFront(true)
+
+Modal -> Modal: Vérifier existence:\n- identityDocumentFront\n- identityDocumentBack
+
+alt Photos existent
+    Modal -> ImageComp: Charger image recto
+    activate ImageComp
+    ImageComp -> Storage: GET identityDocumentFrontURL
+    Storage --> ImageComp: Image data
+    ImageComp --> Modal: Image rendue
+    deactivate ImageComp
+    
+    Modal --> Admin: Afficher recto + boutons toggle
+
+    opt Admin clique "Voir verso"
+        Admin -> Modal: Cliquer "Verso"
+        Modal -> Modal: setShowFront(false)
+        
+        Modal -> ImageComp: Charger image verso
+        activate ImageComp
+        ImageComp -> Storage: GET identityDocumentBackURL
+        Storage --> ImageComp: Image data
+        ImageComp --> Modal: Image rendue
+        deactivate ImageComp
+        
+        Modal --> Admin: Afficher verso
+    end
+    
+    opt Admin clique "Voir recto"
+        Admin -> Modal: Cliquer "Recto"
+        Modal -> Modal: setShowFront(true)
+        Modal --> Admin: Afficher recto
+    end
+else Photos absentes
+    Modal --> Admin: "Pièce d'identité non fournie"
+end
+
+Admin -> Modal: Fermer modal
+deactivate Modal
+
+@enduml
+
+' ==========================================
+' 4. STATISTIQUES (NOUVELLE ARCHITECTURE)
+' ==========================================
+@startuml SEQ_Statistiques
+title Séquence : Calcul et Affichage des Statistiques (Refactorisé)
+
+actor "Admin" as Admin
+participant "MembershipRequestsPage\n(Page)" as Page
+participant "MembershipRequestsStats\n(Component)" as StatsComponent
+participant "useMembershipRequestsStats\n(Hook)" as Hook
+participant "API Route\n(/api/membership-stats)" as API
+participant "MembershipStatsService" as Service
+database "Firestore\n(membership-requests)" as Firestore
+
+Admin -> Page: Accéder à /membership-requests
+activate Page
+
+Page -> StatsComponent: Render avec filtres
+activate StatsComponent
+
+StatsComponent -> Hook: useMembershipRequestsStats()
+activate Hook
+
+Hook -> API: GET /api/membership-stats
+activate API
+
+API -> API: Vérifier authentification\n& permissions admin
+
+API -> Service: calculateStats()
+activate Service
+
+group Requêtes parallèles (agrégation Firestore)
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'pending')))
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'approved')))
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'rejected')))
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'under_review')))
+    
+    Firestore --> Service: counts[]
+end
+
+Service -> Service: Calculer statistiques:\n- total\n- pendingCount\n- approvedCount\n- rejectedCount\n- underReviewCount\n- percentages[]
+
+Service --> API: MembershipStats
+deactivate Service
+
+API --> Hook: Response JSON
+deactivate API
+
+Hook -> Hook: Mettre en cache\n(staleTime: 1h)
+
+Hook --> StatsComponent: { data: stats, isLoading }
+deactivate Hook
+
+StatsComponent --> Admin: Afficher StatsCarousel\navec 5 cartes statistiques\net graphiques camembert
+
+deactivate StatsComponent
+deactivate Page
+
+@enduml
+
+' ==========================================
+' 5. APPROUVER UNE DEMANDE (NOUVELLE ARCHITECTURE)
+' ==========================================
+@startuml SEQ_Approuver
+title Séquence : Approuver une Demande d'Adhésion (Refactorisé avec Rollback)
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipApprovalModal\n(Component)" as Modal
+participant "useApproveMembershipRequest\n(Hook)" as Hook
+participant "MembershipApprovalService" as ApprovalService
+participant "API Route\n(/api/membership/approve)" as API
+database "Firebase Auth" as Auth
+database "Firestore" as Firestore
+database "Firebase Storage" as Storage
+participant "NotificationService" as Notif
+
+Admin -> Actions: Cliquer "Approuver"
+activate Actions
+
+Actions -> Actions: Vérifier isPaid === true
+
+Actions -> Modal: Ouvrir modal d'approbation
+activate Modal
+
+Modal --> Admin: Formulaire:\n- Type de membre\n- Entreprise\n- Profession\n- PDF (optionnel)
+
+Admin -> Modal: Remplir et confirmer
+Modal -> Hook: approveMutation.mutate(params)
+activate Hook
+
+Hook -> ApprovalService: approveRequest(params)
+activate ApprovalService
+
+note right of ApprovalService
+  Système de rollback:
+  const rollbackActions = []
+end note
+
+ApprovalService -> ApprovalService: validateRequest(requestId)
+
+alt PDF fourni
+    ApprovalService -> Storage: uploadBytes(adhesionPdf)
+    activate Storage
+    Storage --> ApprovalService: pdfUrl
+    deactivate Storage
+    ApprovalService -> ApprovalService: rollbackActions.push(\n() => deleteObject(pdfRef))
+end
+
+ApprovalService -> API: POST /api/membership/approve
+activate API
+
+API -> API: Vérifier permissions admin\n(getServerSession)
+
+API -> API: Valider données (Zod)
+
+API -> Auth: createUser(email, password)
+activate Auth
+Auth --> API: UserRecord (uid)
+deactivate Auth
+
+API -> API: rollbackActions.push(\n() => deleteUser(uid))
+
+API -> Firestore: setDoc(users/{matricule}, userData)
+API -> API: rollbackActions.push(\n() => deleteDoc(users/{matricule}))
+
+API -> Firestore: addDoc(subscriptions, subscriptionData)
+API -> API: rollbackActions.push(\n() => deleteDoc(subscription))
+
+API -> Firestore: updateDoc(membership-requests/{id},\n{ status: 'approved', ... })
+
+API --> ApprovalService: { success: true, matricule, email }
+deactivate API
+
+alt Document archivé
+    ApprovalService -> Firestore: addDoc(documents, {\n  type: 'ADHESION',\n  memberId: matricule,\n  url: pdfUrl\n})
+end
+
+ApprovalService -> Notif: sendApprovalNotification(\nmemberId, requestId)
+activate Notif
+Notif -> Firestore: addDoc(notifications, ...)
+Notif --> ApprovalService: OK
+deactivate Notif
+
+ApprovalService --> Hook: ApprovalResult
+deactivate ApprovalService
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast succès:\n"Membre créé: {matricule}"
+
+note right of Modal
+  ⚠️ Amélioration sécurité:
+  Mot de passe envoyé par email
+  au lieu d'être affiché
+end note
+
+deactivate Modal
+deactivate Actions
+
+group Rollback en cas d'erreur
+    note over ApprovalService, Auth
+      Si erreur à n'importe quelle étape:
+      1. Exécuter rollbackActions.reverse()
+      2. Supprimer User Firebase
+      3. Supprimer document users
+      4. Supprimer subscription
+      5. Supprimer PDF uploadé
+      6. Logger pour intervention manuelle
+    end note
+end
+
+@enduml
+
+' ==========================================
+' 6. REJETER UNE DEMANDE
+' ==========================================
+@startuml SEQ_Rejeter
+title Séquence : Rejeter une Demande d'Adhésion
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipRejectionModal\n(Component)" as Modal
+participant "useUpdateMembershipStatus\n(Hook)" as Hook
+participant "MembershipService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+participant "NotificationService" as Notif
+
+Admin -> Actions: Cliquer "Rejeter"
+activate Actions
+
+Actions -> Modal: Ouvrir modal de rejet
+activate Modal
+
+Modal --> Admin: Formulaire motif de rejet
+
+Admin -> Modal: Saisir motif + confirmer
+
+Modal -> Hook: rejectMutation.mutate(\n{ requestId, motif })
+activate Hook
+
+Hook -> Service: rejectMembershipRequest(\nrequestId, adminId, motif)
+activate Service
+
+Service -> DB: updateMembershipRequestStatus(\nrequestId, 'rejected', data)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  status: 'rejected',\n  processedBy: adminId,\n  processedAt: serverTimestamp(),\n  motifReject: motif\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service -> Notif: sendRejectionNotification(\nrequestId, motif)
+activate Notif
+Notif -> Firestore: addDoc(notifications, {\n  type: 'status_update',\n  module: 'memberships',\n  ...\n})
+Notif --> Service: OK
+deactivate Notif
+
+Service --> Hook: { success: true }
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast "Demande rejetée"
+Modal -> Modal: Fermer modal
+
+deactivate Modal
+deactivate Actions
+
+@enduml
+
+' ==========================================
+' 7. DEMANDER DES CORRECTIONS
+' ==========================================
+@startuml SEQ_Demander_Corrections
+title Séquence : Demander des Corrections (Mise en Examen)
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipCorrectionModal\n(Component)" as Modal
+participant "useRequestCorrections\n(Hook)" as Hook
+participant "MembershipCorrectionService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+participant "NotificationService" as Notif
+
+Admin -> Actions: Cliquer "Demander corrections"
+activate Actions
+
+Actions -> Modal: Ouvrir modal
+activate Modal
+
+Modal --> Admin: Formulaire liste corrections
+
+Admin -> Modal: Saisir corrections + confirmer
+
+Modal -> Hook: correctionMutation.mutate(\n{ requestId, corrections })
+activate Hook
+
+Hook -> Service: requestCorrections(\nrequestId, adminId, corrections)
+activate Service
+
+Service -> Service: generateSecurityCode()\n// crypto.randomInt(100000, 999999)
+
+Service -> Service: calculateExpiry()\n// Date.now() + 48 heures
+
+Service -> DB: updateMembershipRequestForCorrection(\nrequestId, data)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  status: 'under_review',\n  reviewNote: corrections,\n  securityCode: code,\n  securityCodeExpiry: expiry,\n  securityCodeUsed: false,\n  reviewedBy: adminId,\n  processedAt: serverTimestamp()\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service -> Notif: sendCorrectionRequestNotification(\nrequestId, corrections, code)
+activate Notif
+Notif --> Service: OK
+deactivate Notif
+
+Service --> Hook: {\n  success: true,\n  securityCode: code,\n  correctionLink: url\n}
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
+
+Hook --> Modal: CorrectionResult
+deactivate Hook
+
+Modal --> Admin: Afficher:\n- Lien de correction\n- Code de sécurité\n- Bouton "Copier le lien"\n- Bouton "Copier le code"
+
+Admin -> Modal: Copier informations
+
+deactivate Modal
+deactivate Actions
+
+' Workflow du demandeur (séparé)
+note right of Admin
+  **Côté Demandeur:**
+  1. Reçoit notification avec lien + code
+  2. Accède à /register?requestId={id}
+  3. Saisit code de sécurité
+  4. Code validé (non expiré, non utilisé)
+  5. Formulaire pré-rempli
+  6. Soumet corrections
+  7. securityCodeUsed = true
+end note
+
+@enduml
+
+' ==========================================
+' 8. RECHERCHE (NOUVELLE ARCHITECTURE)
+' ==========================================
+@startuml SEQ_Recherche
+title Séquence : Recherche de Demandes (Optimisée côté serveur)
+
+actor "Admin" as Admin
+participant "SearchInput\n(Component UI)" as SearchUI
+participant "MembershipRequestsFilters\n(Component)" as Filters
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "MembershipService" as Service
+participant "SearchService\n(Algolia/Firestore)" as SearchService
+database "Firestore" as Firestore
+
+Admin -> SearchUI: Saisir texte recherche
+activate SearchUI
+
+SearchUI -> SearchUI: Debounce 300ms
+
+SearchUI -> Filters: onChange(searchQuery)
+activate Filters
+
+Filters -> Filters: setFilters({ searchQuery, page: 1 })
+
+Filters -> Hook: Déclencher refetch
+activate Hook
+
+Hook -> Service: searchMembershipRequests(\n{ searchQuery, status, page, limit })
+activate Service
+
+alt Option A: Index Firestore (recherche exacte)
+    Service -> Firestore: query(\n  where('status', '==', status),\n  where('identity.email', '==', searchQuery)\n)
+    Firestore --> Service: QuerySnapshot
+else Option B: Full-text Search (Algolia)
+    Service -> SearchService: search(searchQuery, {\n  filters: `status:${status}`,\n  hitsPerPage: limit,\n  page: page - 1\n})
+    activate SearchService
+    SearchService --> Service: SearchResults (ids + metadata)
+    deactivate SearchService
+    
+    Service -> Firestore: getAll(ids)
+    Firestore --> Service: MembershipRequests[]
+end
+
+Service -> Service: transformResults()
+
+Service --> Hook: {\n  data: MembershipRequest[],\n  pagination: { total, pages }\n}
+deactivate Service
+
+Hook --> Filters: QueryResult
+deactivate Hook
+
+Filters --> SearchUI: Update UI
+deactivate Filters
+
+SearchUI --> Admin: Afficher résultats filtrés\n+ message "X résultats"
+
+deactivate SearchUI
+
+opt Admin efface recherche
+    Admin -> SearchUI: Clear search
+    SearchUI -> Filters: onChange('')
+    Filters -> Hook: Refetch sans filtre
+    Hook --> Filters: Tous les résultats
+    Filters --> Admin: Afficher toutes les demandes
+end
+
+@enduml
+
+' ==========================================
+' 9. FILTRES PAR STATUT
+' ==========================================
+@startuml SEQ_Filtres
+title Séquence : Application des Filtres par Statut
+
+actor "Admin" as Admin
+participant "FilterBar\n(Component UI)" as FilterUI
+participant "MembershipRequestsFilters\n(Component)" as Filters
+participant "Tabs\n(Component)" as Tabs
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> Filters: Accéder à la page
+activate Filters
+
+Filters -> Filters: Initialiser filtres:\n{ status: 'all', page: 1, limit: 10 }
+
+alt Sélection via onglets
+    Admin -> Tabs: Cliquer sur onglet\n(ex: "En attente")
+    activate Tabs
+    Tabs -> Filters: setActiveTab('pending')
+    Tabs -> Filters: setFilters({ status: 'pending', page: 1 })
+    deactivate Tabs
+else Sélection via Select
+    Admin -> FilterUI: Sélectionner statut\ndans dropdown
+    activate FilterUI
+    FilterUI -> Filters: onFilterChange('status', value)
+    deactivate FilterUI
+    Filters -> Filters: setFilters({ status: value, page: 1 })
+end
+
+Filters -> Hook: Déclencher refetch\navec nouveaux filtres
+activate Hook
+
+Hook -> DB: getMembershipRequestsPaginated(\n{ status, page, limit })
+activate DB
+
+DB -> Firestore: query(\n  collection('membership-requests'),\n  where('status', '==', status),\n  orderBy('createdAt', 'desc'),\n  limit(limit)\n)
+activate Firestore
+Firestore --> DB: QuerySnapshot
+deactivate Firestore
+
+DB -> DB: transformResults()
+
+DB --> Hook: PaginatedResult
+deactivate DB
+
+Hook --> Filters: { data, pagination, isLoading }
+deactivate Hook
+
+Filters --> Admin: Afficher résultats filtrés\n+ badges filtres actifs
+
+opt Réinitialiser filtres
+    Admin -> FilterUI: Cliquer "Réinitialiser"
+    FilterUI -> Filters: resetFilters()
+    Filters -> Hook: Refetch avec filtres par défaut
+    Hook --> Filters: Tous les résultats
+    Filters --> Admin: Afficher toutes les demandes
+end
+
+deactivate Filters
+
+@enduml
+
+' ==========================================
+' 10. PAGINATION
+' ==========================================
+@startuml SEQ_Pagination
+title Séquence : Navigation par Pagination (Cursor-based)
+
+actor "Admin" as Admin
+participant "Pagination\n(Component UI)" as PaginationUI
+participant "MembershipRequestsList\n(Component)" as List
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> List: Accéder à la page
+activate List
+
+List -> Hook: useMembershipRequests(\n{ page: 1, limit: 10 })
+activate Hook
+
+Hook -> DB: getMembershipRequestsPaginated(\n{ page: 1, limit: 10 })
+activate DB
+
+DB -> Firestore: getCountFromServer(\n  query(status filter)\n)
+Firestore --> DB: totalCount
+
+DB -> Firestore: query(\n  orderBy('createdAt', 'desc'),\n  limit(10)\n)
+Firestore --> DB: QuerySnapshot (10 docs)
+
+DB -> DB: Stocker lastDoc comme cursor
+
+DB --> Hook: {\n  data: [],\n  pagination: {\n    currentPage: 1,\n    totalPages: ceil(total/10),\n    totalItems: total,\n    hasNext: true,\n    hasPrev: false\n  },\n  cursor: lastDoc\n}
+deactivate DB
+
+Hook --> List: QueryResult
+deactivate Hook
+
+List -> PaginationUI: Render pagination
+PaginationUI --> Admin: Afficher contrôles:\n[Préc] [1] [2] ... [N] [Suiv]
+
+alt Cliquer "Suivant"
+    Admin -> PaginationUI: Cliquer "Suivant"
+    PaginationUI -> List: onPageChange(page + 1)
+    List -> Hook: Refetch avec page + 1
+    activate Hook
+    
+    Hook -> DB: getMembershipRequestsPaginated(\n{ page: 2, cursor: lastDoc })
+    activate DB
+    
+    DB -> Firestore: query(\n  orderBy('createdAt', 'desc'),\n  startAfter(cursor),\n  limit(10)\n)
+    Firestore --> DB: Next 10 docs
+    
+    DB --> Hook: Page 2 results
+    deactivate DB
+    
+    Hook --> List: Updated results
+    deactivate Hook
+    
+    List --> Admin: Afficher page 2
+    List -> List: Scroll to top
+else Cliquer numéro de page
+    Admin -> PaginationUI: Cliquer sur [5]
+    PaginationUI -> List: onPageChange(5)
+    List -> Hook: Refetch avec page: 5
+    note right of Hook
+      Pour pagination directe,
+      on doit soit:
+      1. Utiliser offset (pas optimal Firestore)
+      2. Maintenir un cache de cursors
+      3. Utiliser un index secondaire
+    end note
+    Hook --> List: Page 5 results
+    List --> Admin: Afficher page 5
+else Changer items par page
+    Admin -> PaginationUI: Sélectionner "25" items
+    PaginationUI -> List: onItemsPerPageChange(25)
+    List -> List: setFilters({ limit: 25, page: 1 })
+    List -> Hook: Refetch avec limit: 25
+    Hook --> List: 25 premiers résultats
+    List --> Admin: Afficher 25 items/page
+end
+
+deactivate List
+
+@enduml
+
+' ==========================================
+' 11. LISTE DES DOSSIERS (VUE COMPLÈTE)
+' ==========================================
+@startuml SEQ_Liste_Dossiers
+title Séquence : Chargement Initial de la Liste des Dossiers
+
+actor "Admin" as Admin
+participant "MembershipRequestsPage\n(Page)" as Page
+participant "DashboardPageLayout\n(Layout)" as Layout
+participant "MembershipRequestsStats\n(Component)" as Stats
+participant "MembershipRequestsFilters\n(Component)" as Filters
+participant "DataView\n(Component UI)" as DataView
+participant "MembershipRequestCard\n(Component)" as Card
+participant "Pagination\n(Component UI)" as PaginationUI
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "useMembershipRequestsStats\n(Hook)" as StatsHook
+
+Admin -> Page: Naviguer vers\n/membership-requests
+activate Page
+
+Page -> Layout: Render avec titre + description
+activate Layout
+
+par Chargement parallèle
+    Layout -> StatsHook: useMembershipRequestsStats()
+    activate StatsHook
+    StatsHook --> Stats: stats data
+    deactivate StatsHook
+    
+    Layout -> Hook: useMembershipRequests(\ninitialFilters)
+    activate Hook
+    Hook --> Filters: requests data
+    deactivate Hook
+end
+
+Layout -> Stats: Render statistiques
+activate Stats
+Stats --> Admin: Afficher 5 cartes stats\navec carousel
+deactivate Stats
+
+Layout -> Filters: Render filtres
+activate Filters
+Filters --> Admin: Afficher SearchInput\n+ FilterBar (tabs, select)
+deactivate Filters
+
+Layout -> DataView: Render data view
+activate DataView
+
+alt Chargement en cours
+    DataView --> Admin: Afficher skeletons\n(5 MembershipRequestSkeleton)
+else Erreur
+    DataView --> Admin: Afficher message erreur\navec icône FileX
+else Données disponibles
+    loop Pour chaque demande
+        DataView -> Card: Render card
+        activate Card
+        Card --> DataView: MembershipRequestCard\n- Photo\n- Infos identité\n- Badges statut/paiement\n- Menu actions
+        deactivate Card
+    end
+    DataView --> Admin: Afficher liste/grille
+end
+deactivate DataView
+
+Layout -> PaginationUI: Render pagination
+activate PaginationUI
+PaginationUI --> Admin: Contrôles pagination\n+ info "Page X sur Y"
+deactivate PaginationUI
+
+deactivate Layout
+deactivate Page
+
+@enduml
+
+' ==========================================
+' 12. ENREGISTRER UN PAIEMENT
+' ==========================================
+@startuml SEQ_Payer
+title Séquence : Enregistrer un Paiement pour une Demande
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipPaymentModal\n(Component)" as Modal
+participant "usePayMembershipRequest\n(Hook)" as Hook
+participant "MembershipPaymentService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> Actions: Cliquer "Payer"\n(visible si isPaid === false)
+activate Actions
+
+Actions -> Modal: Ouvrir modal paiement
+activate Modal
+
+Modal --> Admin: Formulaire:\n- Date\n- Heure\n- Mode de paiement\n- Montant\n- Type de paiement\n- Avec frais ?
+
+Admin -> Modal: Remplir formulaire\net cliquer "Valider"
+
+Modal -> Modal: Valider champs requis
+
+Modal -> Hook: payMutation.mutate(paymentData)
+activate Hook
+
+Hook -> Service: registerPayment(\nrequestId, paymentData, adminId)
+activate Service
+
+Service -> Service: Construire objet Payment:\n{\n  date,\n  time,\n  mode,\n  amount,\n  acceptedBy: adminId,\n  paymentType,\n  withFees,\n  createdAt: serverTimestamp()\n}
+
+Service -> DB: updateMembershipPayment(\nrequestId, payment)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  isPaid: true,\n  payments: arrayUnion(payment),\n  paidAt: serverTimestamp(),\n  paidBy: adminId\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service --> Hook: { success: true }
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast "Paiement enregistré"
+Modal -> Modal: Fermer modal
+
+deactivate Modal
+
+Actions --> Admin: Mise à jour UI:\n- Badge "Payé"\n- Bouton "Approuver" activé
+
+deactivate Actions
+
+note right of Admin
+  **Note:**
+  - Le statut reste 'pending'
+  - isPaid devient true
+  - Le bouton "Approuver"
+    devient actif
+  - Plusieurs paiements
+    peuvent être enregistrés
+end note
+
+@enduml
+
+' ==========================================
+' 13. RENOUVELER LE CODE DE SÉCURITÉ
+' ==========================================
+@startuml SEQ_Renouveler_Code
+title Séquence : Renouveler le Code de Sécurité
+
+actor "Admin" as Admin
+participant "MembershipRequestCard\n(Component)" as Card
+participant "useRenewSecurityCode\n(Hook)" as Hook
+participant "MembershipCorrectionService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> Card: Cliquer "Renouveler code"
+activate Card
+
+Card -> Hook: renewMutation.mutate(requestId)
+activate Hook
+
+Hook -> Service: renewSecurityCode(requestId)
+activate Service
+
+Service -> Service: generateSecurityCode()\n// crypto.randomInt(100000, 999999)
+
+Service -> Service: calculateExpiry()\n// Date.now() + 48 heures
+
+Service -> DB: updateSecurityCode(\nrequestId, newCode, newExpiry)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  securityCode: newCode,\n  securityCodeExpiry: newExpiry,\n  securityCodeUsed: false\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service --> Hook: {\n  success: true,\n  securityCode: newCode,\n  expiry: newExpiry\n}
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequest', requestId])
+
+Hook --> Card: RenewResult
+deactivate Hook
+
+Card --> Admin: Toast "Code renouvelé: {code}"\n+ Mise à jour affichage
+
+deactivate Card
+
+@enduml
+
+' ==========================================
+' LÉGENDE ET NOTES D'ARCHITECTURE
+' ==========================================
+@startuml Legende_Architecture
+title Légende - Architecture Refactorisée
+
+package "Couche Présentation (UI)" #E8F4F8 {
+    [Page Components] as Page
+    [Feature Components] as Feature
+    [UI Components\n(SearchInput, Pagination, etc.)] as UI
+    [Modals] as Modal
+}
+
+package "Couche Logique (Hooks)" #FFF8DC {
+    [React Query Hooks\n(useQuery, useMutation)] as Hooks
+}
+
+package "Couche Métier (Services)" #F0FFF0 {
+    [MembershipApprovalService] as ApprovalSvc
+    [MembershipPaymentService] as PaymentSvc
+    [MembershipCorrectionService] as CorrectionSvc
+    [MembershipStatsService] as StatsSvc
+}
+
+package "Couche Données (Repository)" #FFF0F5 {
+    [membership.db.ts] as DB
+    [DocumentRepository] as DocRepo
+}
+
+package "Infrastructure" #F5F5F5 {
+    database "Firestore" as Firestore
+    database "Firebase Auth" as Auth
+    database "Firebase Storage" as Storage
+    [API Routes\n(/api/membership/*)] as API
+    [NotificationService] as Notif
+}
+
+Page --> Feature
+Feature --> UI
+Feature --> Modal
+Feature --> Hooks
+Hooks --> ApprovalSvc
+Hooks --> PaymentSvc
+Hooks --> CorrectionSvc
+Hooks --> StatsSvc
+ApprovalSvc --> DB
+ApprovalSvc --> API
+PaymentSvc --> DB
+CorrectionSvc --> DB
+CorrectionSvc --> Notif
+StatsSvc --> DB
+DB --> Firestore
+API --> Auth
+API --> Firestore
+Notif --> Firestore
+
+note bottom of ApprovalSvc
+  Services = Logique métier pure
+  - Validation
+  - Rollback
+  - Orchestration
+end note
+
+note bottom of Hooks
+  Hooks = Data fetching
+  - Cache management
+  - Invalidation
+  - Loading states
+end note
+
+note bottom of UI
+  UI Components = Réutilisables
+  - Design KARA
+  - Animations
+  - Accessibilité
+end note
+
+@enduml

@@ -12,7 +12,6 @@ import {
   TrendingUp, 
   Info,
   AlertCircle,
-  CheckCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -264,7 +263,7 @@ export function Step3PaymentPlan() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {paymentSchedule.map((payment, index) => (
+              {paymentSchedule.map((payment, _index) => (
                 <div
                   key={payment.month}
                   className={cn(

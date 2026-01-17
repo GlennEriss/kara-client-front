@@ -3,20 +3,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function pour vérifier si l'utilisateur est authentifié
+    // ==========================================
+    // FONCTIONS UTILITAIRES
+    // ==========================================
+    
+    // Vérifie si l'utilisateur est authentifié
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Helper function pour vérifier si l'utilisateur est admin
+    // Vérifie si l'utilisateur est admin (Admin, SuperAdmin ou Secretary)
     function isAdmin() {
       return isAuthenticated() && 
-             request.auth.token.role in ['Admin', 'SuperAdmin'];
+             request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary'];
+    }
+    
+    // Vérifie si l'utilisateur est propriétaire
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Vérifie si le code de sécurité est valide pour modification par le demandeur
+    function hasValidSecurityCode(requestData) {
+      return requestData.securityCode != null &&
+             requestData.securityCodeExpiry != null &&
+             requestData.get('securityCodeUsed', false) == false &&
+             request.time < requestData.securityCodeExpiry;
     }
     
     // Note: Chaque environnement (dev, preprod, prod) utilise sa propre base de données Firebase,
     // donc les noms de collections sont identiques dans tous les environnements.
-    // Pas besoin de gérer des suffixes -dev, -preprod, etc.
     
     // ==========================================
     // COLLECTIONS GÉOGRAPHIQUES
@@ -24,99 +40,168 @@ service cloud.firestore {
     // Lecture publique pour permettre le remplissage du formulaire d'inscription
     // Écriture réservée aux admins
     
-    // Provinces
     match /provinces/{provinceId} {
-      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow read: if true;
       allow write: if isAdmin();
     }
     
-    // Départements
     match /departments/{departmentId} {
-      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow read: if true;
       allow write: if isAdmin();
     }
     
-    // Communes
     match /communes/{communeId} {
-      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow read: if true;
       allow write: if isAdmin();
     }
     
-    // Arrondissements
     match /districts/{districtId} {
-      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow read: if true;
       allow write: if isAdmin();
     }
     
-    // Quartiers
     match /quarters/{quarterId} {
-      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      allow read: if true;
       allow write: if isAdmin();
     }
     
     // ==========================================
-    // COLLECTIONS UTILISATEURS
+    // UTILISATEURS (USERS)
     // ==========================================
     
-    // Utilisateurs
     match /users/{userId} {
-      // Permettre la lecture pour vérifier l'existence lors de la connexion
-      // et pour les utilisateurs authentifiés
-      allow read: if true; // Permettre la lecture publique pour la connexion
+      // Lecture : Publique (nécessaire pour la connexion)
+      allow read: if true;
+      // Écriture : Admin uniquement (création lors de l'approbation)
       allow write: if isAdmin();
     }
     
-    // Membres
+    // ==========================================
+    // MEMBRES (MEMBERS)
+    // ==========================================
+    
     match /members/{memberId} {
+      // Lecture : Authentifié (pour afficher les informations des membres)
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    
-    // Notifications
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    
-    // ==========================================
-    // COLLECTIONS RÉFÉRENTIELS (MÉTIERS)
-    // ==========================================
-    // Lecture publique pour permettre le remplissage du formulaire d'inscription
-    // Écriture réservée aux admins
-    
-    // Entreprises
-    match /companies/{companyId} {
-      allow read: if true; // Lecture publique pour le formulaire d'inscription
-      allow write: if isAdmin();
-    }
-    
-    // Métiers / Professions
-    match /professions/{professionId} {
-      allow read: if true; // Lecture publique pour le formulaire d'inscription
+      // Écriture : Admin uniquement
       allow write: if isAdmin();
     }
     
     // ==========================================
     // DEMANDES D'ADHÉSION (MEMBERSHIP REQUESTS)
     // ==========================================
-    // Permettre la création par des utilisateurs non authentifiés pour l'inscription
-    // Lecture et modification réservées aux admins
     
     match /membership-requests/{requestId} {
-      // Permettre la création par n'importe qui (pour l'inscription)
-      allow create: if true;
-      // Lecture et modification réservées aux admins
-      allow read, update, delete: if isAdmin();
+      
+      // LECTURE : Admins ou propriétaire (via email)
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && resource.data.identity.email == request.auth.token.email);
+      
+      // CRÉATION : Publique avec validation des champs requis
+      allow create: if 
+        // Champs obligatoires présents
+        request.resource.data.keys().hasAll([
+          'matricule', 
+          'status', 
+          'identity', 
+          'address', 
+          'documents',
+          'createdAt'
+        ]) &&
+        // Statut initial doit être 'pending'
+        request.resource.data.status == 'pending' &&
+        // Identity doit avoir les champs requis
+        request.resource.data.identity.keys().hasAll([
+          'firstName', 
+          'lastName', 
+          'birthDate',
+          'nationality'
+        ]) &&
+        // Pas de tentative de se définir comme payé ou approuvé
+        request.resource.data.get('isPaid', false) == false &&
+        request.resource.data.get('processedBy', null) == null;
+      
+      // MISE À JOUR : Admin ou demandeur avec code de sécurité valide
+      allow update: if isAdmin() || (
+        // Demandeur avec email correspondant et code de sécurité valide
+        isAuthenticated() &&
+        resource.data.identity.email == request.auth.token.email &&
+        hasValidSecurityCode(resource.data) &&
+        // Ne peut pas modifier ces champs protégés
+        request.resource.data.matricule == resource.data.matricule &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.get('isPaid', false) == resource.data.get('isPaid', false) &&
+        // Doit marquer le code comme utilisé
+        request.resource.data.securityCodeUsed == true
+      );
+      
+      // SUPPRESSION : Admin uniquement
+      allow delete: if isAdmin();
     }
     
     // ==========================================
-    // AUTRES COLLECTIONS (ajoutez selon vos besoins)
+    // ABONNEMENTS (SUBSCRIPTIONS)
     // ==========================================
     
-    // Pour le développement : Autoriser tout si l'utilisateur est authentifié
-    // ATTENTION: À adapter selon vos besoins de sécurité en production
+    match /subscriptions/{subscriptionId} {
+      // Lecture : Admin ou propriétaire
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && resource.data.userId == request.auth.uid);
+      // Écriture : Admin uniquement
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // DOCUMENTS ARCHIVÉS
+    // ==========================================
+    
+    match /documents/{documentId} {
+      // Lecture : Admin ou propriétaire (via memberId)
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && resource.data.memberId == request.auth.uid);
+      // Écriture : Admin uniquement
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // NOTIFICATIONS
+    // ==========================================
+    
+    match /notifications/{notificationId} {
+      // Lecture : Authentifié
+      allow read: if isAuthenticated();
+      // Création : Admin uniquement
+      allow create: if isAdmin();
+      // Mise à jour : Admin ou propriétaire (pour marquer comme lu uniquement)
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt'])
+      );
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // ENTREPRISES & PROFESSIONS (RÉFÉRENTIELS)
+    // ==========================================
+    
+    match /companies/{companyId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /professions/{professionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // RÈGLE PAR DÉFAUT
+    // ==========================================
+    // Refuser tout accès non explicitement autorisé
+    
     match /{document=**} {
-      allow read, write: if false; // Par défaut, refuser tout accès non explicitement autorisé
+      allow read, write: if false;
     }
   }
 }

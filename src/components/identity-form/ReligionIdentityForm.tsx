@@ -10,7 +10,7 @@ export default function ReligionIdentityForm() {
     <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-700 w-full min-w-0">
       <FormField
         name="identity.religion"
-        render={({ field, fieldState }) => (
+        render={({ field }) => (
           <FormItem>
             <FormLabel className="text-xs sm:text-sm font-medium text-[#224D62]">
               Religion <span className="text-red-500">*</span>

@@ -1,6 +1,5 @@
 import { IService } from '../interfaces/IService'
 import { Filleul } from '@/types/types'
-import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 
 /**
  * Interface pour le service de gestion des filleuls

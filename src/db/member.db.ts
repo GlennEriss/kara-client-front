@@ -198,9 +198,9 @@ export async function getMembers(
     let hasNextPage = false
 
     // Traitement séquentiel pour éviter de surcharger Firebase
-    for (let index = 0; index < querySnapshot.docs.length; index++) {
-      if (index < itemsPerPage) {
-        const doc = querySnapshot.docs[index]
+    for (let _index = 0; _index < querySnapshot.docs.length; _index++) {
+      if (_index < itemsPerPage) {
+        const doc = querySnapshot.docs[_index]
 
         // Récupérer chaque membre avec ses subscriptions
         const memberWithSubscription = await getMemberWithSubscription(doc.id)

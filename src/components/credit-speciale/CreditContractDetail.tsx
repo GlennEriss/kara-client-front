@@ -18,7 +18,6 @@ import {
   AlertCircle,
   FileSignature,
   Download,
-  RefreshCw,
   TrendingUp,
   ChevronLeft,
   ChevronRight,
@@ -34,7 +33,7 @@ import {
   Link2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CreditContract, CreditPayment, CreditPenalty, CreditInstallment, CreditContractStatus } from '@/types/types'
+import { CreditContract, CreditPayment, CreditPenalty, CreditContractStatus } from '@/types/types'
 import routes from '@/constantes/routes'
 import { toast } from 'sonner'
 import { useCreditPaymentsByCreditId, useCreditPenaltiesByCreditId, useCreditInstallmentsByCreditId, useCreditContractMutations, useGuarantorRemunerationsByCreditId, useChildContract, useParentContract } from '@/hooks/useCreditSpeciale'
@@ -178,7 +177,7 @@ const useCarouselStats = (itemCount: number, itemsPerView: number = 1) => {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -278,7 +277,6 @@ const ContractStatsCarousel = ({ contract, penalties = [], realRemainingAmount, 
   ]
 
   const { 
-    currentIndex, 
     goNext, 
     goPrev, 
     canGoPrev, 
@@ -371,7 +369,7 @@ const getStatusConfig = (status: CreditContractStatus) => {
 
 export default function CreditContractDetail({ contract }: CreditContractDetailProps) {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user: _user } = useAuth()
   const [activeTab, setActiveTab] = useState<'payments' | 'simulations' | 'guarantor'>('payments')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
@@ -383,9 +381,9 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(false)
   const [showUploadContractModal, setShowUploadContractModal] = useState(false)
   const [contractFile, setContractFile] = useState<File | undefined>()
-  const [isCompressing, setIsCompressing] = useState(false)
+  const [isCompressing] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
-  const { generateContractPDF, uploadSignedContract } = useCreditContractMutations()
+  const { uploadSignedContract } = useCreditContractMutations()
   
   // États pour les modals
   const [showContractPDFModal, setShowContractPDFModal] = useState(false)
@@ -396,7 +394,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
 
   // Récupérer les paiements, pénalités, échéances et rémunérations du garant
   const { data: payments = [], isLoading: isLoadingPayments } = useCreditPaymentsByCreditId(contract.id)
-  const { data: penalties = [], isLoading: isLoadingPenalties } = useCreditPenaltiesByCreditId(contract.id)
+  const { data: penalties = [] } = useCreditPenaltiesByCreditId(contract.id)
   const { data: installments = [], isLoading: isLoadingInstallments } = useCreditInstallmentsByCreditId(contract.id)
   const { data: guarantorRemunerations = [], isLoading: isLoadingRemunerations } = useGuarantorRemunerationsByCreditId(contract.id)
   const queryClient = useQueryClient()

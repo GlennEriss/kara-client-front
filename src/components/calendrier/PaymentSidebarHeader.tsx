@@ -1,6 +1,6 @@
 "use client"
 
-import { X, Phone, Calendar, Wallet, Clock, TrendingUp, FileText } from "lucide-react"
+import { X, Phone, Calendar, Wallet, Clock, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { translateContractStatus } from "@/utils/contract-status"

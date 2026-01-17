@@ -83,11 +83,11 @@ export function useRegistration({
       try {
         // 1. Vérifier s'il y a un requestId dans l'URL (corrections)
         const urlParams = new URLSearchParams(window.location.search)
-        const requestId = urlParams.get('requestId')
+        const _requestId = urlParams.get('requestId')
 
-        if (requestId) {
+        if (_requestId) {
           try {
-            const request = await getMembershipRequestById(requestId)
+            const request = await getMembershipRequestById(_requestId)
             if (request?.reviewNote && request?.securityCode) {
               if (request.securityCodeUsed) {
                 toast.error('Code déjà utilisé', {

@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
@@ -10,8 +9,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useMember } from '@/hooks/useMembers'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund } from '@/services/caisse/mutations'
 import { toast } from 'sonner'
-import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
-import FileInput from '@/components/ui/file-input'
 import type { PaymentMode } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
 
@@ -36,12 +33,8 @@ import {
   X,
   Smartphone,
   Banknote,
-  Receipt,
   TrendingUp,
-  ArrowRight,
   FileText,
-  User,
-  Shield,
   Building2,
   Trash2,
   CalendarDays,
@@ -60,7 +53,7 @@ import TestPaymentTools from './TestPaymentTools'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
+import { getContractStatusConfig } from '@/utils/contract-status'
 
 type Props = { id: string }
 
@@ -109,6 +102,7 @@ export default function FreeContract({ id }: Props) {
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
+  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
@@ -118,7 +112,6 @@ export default function FreeContract({ id }: Props) {
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
-  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
 
   // Fonction pour recharger les remboursements
   const reloadRefunds = React.useCallback(async () => {
@@ -126,8 +119,8 @@ export default function FreeContract({ id }: Props) {
       try {
         const refundsData = await listRefunds(id)
         setRefunds(refundsData)
-      } catch (error) {
-        console.error('Error loading refunds:', error)
+      } catch {
+        // Error loading refunds - silently fail
       }
     }
   }, [id])
@@ -273,7 +266,7 @@ export default function FreeContract({ id }: Props) {
     }
   }
 
-  const getPaymentModeIcon = (mode: PaymentMode) => {
+  const _getPaymentModeIcon = (mode: PaymentMode) => {
     switch (mode) {
       case 'airtel_money':
         return <Smartphone className="h-4 w-4" />
@@ -321,7 +314,7 @@ export default function FreeContract({ id }: Props) {
     return ''
   }, [data])
 
-  const handleDeleteDocument = async (refundId: string) => {
+  const _handleDeleteDocument = async (refundId: string) => {
     try {
       const { updateRefund } = await import('@/db/caisse/refunds.db')
 
@@ -1110,7 +1103,7 @@ export default function FreeContract({ id }: Props) {
                   </button>
                   <button 
                     className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 font-medium"
-                    onClick={() => handleDeleteDocument(confirmDeleteDocumentId)}
+                    onClick={() => _handleDeleteDocument(confirmDeleteDocumentId!)}
                   >
                     Supprimer
                   </button>

@@ -1,4 +1,4 @@
-import { CaisseContract, CaissePayment, CaisseSettings } from './types'
+import { CaisseContract, CaisseSettings } from './types'
 
 export function daysBetween(a: Date, b: Date): number {
   const ms = new Date(b).getTime() - new Date(a).getTime()

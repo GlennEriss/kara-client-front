@@ -18,10 +18,8 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import type { Company } from '@/domains/infrastructure/references/entities/company.types'
 
 interface CompanyComboboxProps {
   form: UseFormReturn<RegisterFormData>

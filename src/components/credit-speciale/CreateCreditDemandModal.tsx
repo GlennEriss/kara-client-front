@@ -16,7 +16,6 @@ import { useAllMembers } from '@/hooks/useMembers'
 import { toast } from 'sonner'
 import { Loader2, User, Search, CheckCircle, Calendar } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import SelectApp from '@/components/forms/SelectApp'
 import { RELATIONSHIP_OPTIONS } from '@/constantes/relationship-types'
 
@@ -113,7 +112,7 @@ export default function CreateCreditDemandModal({
       setSelectedClientId(undefined)
       setSelectedGuarantorId(undefined)
       onClose()
-    } catch (error) {
+    } catch {
       // L'erreur est gérée par le hook de mutation
     }
   }

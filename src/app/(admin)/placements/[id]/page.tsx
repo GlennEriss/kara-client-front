@@ -89,7 +89,6 @@ function PayCommissionWrapper({
 
 export default function PlacementDetailsPage() {
   const params = useParams() as { id: string }
-  const router = useRouter()
   const id = params.id
   const { user } = useAuth()
 
@@ -110,7 +109,6 @@ const [finalQuittanceId, setFinalQuittanceId] = useState<string | null>(null)
 const [earlyExitAddendumId, setEarlyExitAddendumId] = useState<string | null>(null)
 const [earlyExitQuittanceId, setEarlyExitQuittanceId] = useState<string | null>(null)
 const [showAddendumUpload, setShowAddendumUpload] = useState(false)
-const [isGeneratingAddendum, setIsGeneratingAddendum] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
 const [showCloseModal, setShowCloseModal] = useState(false)
 const [closeFile, setCloseFile] = useState<File | null>(null)

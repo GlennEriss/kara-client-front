@@ -3,7 +3,7 @@
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { Calendar, CreditCard, Clock, AlertTriangle, CheckCircle2, TrendingUp, PiggyBank, AlertCircle, ChevronRight } from "lucide-react"
+import { Calendar, CreditCard, Clock, CheckCircle2, PiggyBank } from "lucide-react"
 import type { CalendarPaymentItem } from "@/hooks/useCalendarCaisseSpeciale"
 import { useContractPayments } from "@/hooks/useContractPayments"
 
@@ -54,7 +54,7 @@ export function PaymentSidebarContent({
     .sort((a, b) => a.dueMonthIndex - b.dueMonthIndex)
     .slice(0, 3)
 
-  const colorConfig = COLOR_CONFIG[payment.color]
+  const _colorConfig = COLOR_CONFIG[payment.color]
   const isPaid = payment.status === "PAID"
 
   // Calcul du progrès

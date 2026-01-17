@@ -96,9 +96,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                     memberLastName: data.memberLastName,
                 },
             })
-        } catch (error) {
+        } catch {
             // Ne pas faire échouer la création du contrat si la notification échoue
-            console.error('Erreur lors de la création de la notification:', error)
         }
         
         return contract
@@ -410,8 +409,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                         documentId: document.id,
                     },
                 });
-            } catch (error) {
-                console.error('Erreur lors de la création de la notification de support:', error);
+            } catch {
+                // Erreur lors de la création de la notification de support - continue sans
             }
 
             return support
@@ -518,8 +517,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                             },
                         });
                     }
-                } catch (error) {
-                    console.error('Erreur lors de la création de la notification de remboursement complet:', error);
+                } catch {
+                    // Erreur lors de la création de la notification de remboursement complet - continue sans
                 }
             }
         } catch (error) {
@@ -735,8 +734,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                             reason: 'Retrait anticipé',
                         },
                     })
-                } catch (error) {
-                    console.error('Erreur lors de la création de la notification:', error)
+                } catch {
+                    // Erreur lors de la création de la notification - continue sans
                 }
             }
 
@@ -884,8 +883,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                             reason: 'Remboursement final',
                         },
                     })
-                } catch (error) {
-                    console.error('Erreur lors de la création de la notification:', error)
+                } catch {
+                    // Erreur lors de la création de la notification - continue sans
                 }
             }
 
@@ -953,8 +952,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                     createdBy: adminId,
                 },
             });
-        } catch (error) {
-            console.error('Erreur lors de la création de la notification:', error);
+        } catch {
+            // Erreur lors de la création de la notification - continue sans
         }
         
         return demand;

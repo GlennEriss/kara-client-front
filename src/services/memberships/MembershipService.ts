@@ -31,9 +31,8 @@ export class MembershipService {
         `${formData.identity.firstName} ${formData.identity.lastName}`,
         undefined
       )
-    } catch (error) {
+    } catch {
       // Ne pas faire échouer la création de la demande si la notification échoue
-      console.error('Erreur lors de la création de la notification:', error)
     }
 
     return requestId
@@ -81,9 +80,8 @@ export class MembershipService {
           statusLabel
         )
       }
-    } catch (error) {
+    } catch {
       // Ne pas faire échouer la mise à jour si la notification échoue
-      console.error('Erreur lors de la création de la notification:', error)
     }
 
     return success

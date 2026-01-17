@@ -53,7 +53,6 @@ export default function MemberGroupSearch({
   }, [groups, searchQuery])
 
   const isLoading = isLoadingMembers || (isLoadingGroups && participantType === 'group')
-  const hasResults = (participantType === 'member' ? (members?.length || 0) : filteredGroups.length) > 0
 
   // Fermer le dropdown si on clique en dehors
   useEffect(() => {
@@ -102,7 +101,7 @@ export default function MemberGroupSearch({
         setSearchQuery(displayName)
       }
     }
-  }, [selectedId])
+  }, [selectedId, searchQuery, getSelectedDisplayName])
 
   return (
     <div className="space-y-2 relative" ref={containerRef}>

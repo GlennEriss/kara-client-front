@@ -88,8 +88,7 @@ export default function PdfDocumentModal({
         try {
           await deleteContractDocument(existingDocument.path)
           console.log('✅ Old document deleted successfully')
-        } catch (error) {
-          console.warn('⚠️ Failed to delete old document:', error)
+        } catch {
           // Continue with upload even if deletion fails
         }
       }
@@ -167,7 +166,7 @@ export default function PdfDocumentModal({
     }
   }
 
-  const handleDownload = () => {
+  const _handleDownload = () => {
     // Simuler le téléchargement du document PDF
     toast.info('Téléchargement du document PDF...')
     // Ici vous pouvez ajouter la logique de téléchargement réelle

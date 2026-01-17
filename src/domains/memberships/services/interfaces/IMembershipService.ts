@@ -1,0 +1,61 @@
+/**
+ * Interface du Service métier pour Membership Requests V2
+ */
+
+import type { MembershipRequest } from '../../entities/MembershipRequest'
+import type { PaymentInfo } from '../../entities/MembershipRequest'
+
+export interface ApproveMembershipRequestParams {
+  requestId: string
+  adminId: string
+  membershipType?: 'adherant' | 'bienfaiteur' | 'sympathisant'
+  companyName?: string
+  professionName?: string
+}
+
+export interface RejectMembershipRequestParams {
+  requestId: string
+  adminId: string
+  reason?: string
+  motifReject?: string
+}
+
+export interface RequestCorrectionsParams {
+  requestId: string
+  adminId: string
+  corrections: string[]
+  sendWhatsApp?: boolean
+}
+
+export interface ProcessPaymentParams {
+  requestId: string
+  adminId: string
+  paymentInfo: PaymentInfo
+}
+
+export interface IMembershipService {
+  /**
+   * Approuve une demande d'adhésion
+   * Crée un compte utilisateur, un membre, un abonnement et génère le PDF
+   */
+  approveMembershipRequest(params: ApproveMembershipRequestParams): Promise<void>
+
+  /**
+   * Rejette une demande d'adhésion
+   */
+  rejectMembershipRequest(params: RejectMembershipRequestParams): Promise<void>
+
+  /**
+   * Demande des corrections à un demandeur
+   * Génère un code de sécurité et envoie une notification (optionnel WhatsApp)
+   */
+  requestCorrections(params: RequestCorrectionsParams): Promise<{
+    securityCode: string
+    whatsAppUrl?: string
+  }>
+
+  /**
+   * Traite un paiement pour une demande d'adhésion
+   */
+  processPayment(params: ProcessPaymentParams): Promise<void>
+}

@@ -198,7 +198,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
 
     const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
     const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt']
-    const hundreds = ['', 'cent', 'deux cents', 'trois cents', 'quatre cents', 'cinq cents', 'six cents', 'sept cents', 'huit cents', 'neuf cents']
+    const _hundreds = ['', 'cent', 'deux cents', 'trois cents', 'quatre cents', 'cinq cents', 'six cents', 'sept cents', 'huit cents', 'neuf cents']
 
     const convertHundreds = (n: number) => {
       let result = ''
@@ -295,7 +295,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
   }
 
 
-  const getContractTypeLabel = (type: string) => {
+  const _getContractTypeLabel = (type: string) => {
     switch (type) {
       case 'STANDARD': return 'Standard'
       case 'JOURNALIERE': return 'Journalière'
@@ -304,7 +304,7 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
     }
   }
 
-  const getContractStatusLabel = (status: string) => {
+  const _getContractStatusLabel = (status: string) => {
     const labels = {
       DRAFT: 'En cours',
       ACTIVE: 'Actif',

@@ -1,4 +1,4 @@
-import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementStatus, CommissionStatus, PlacementDocumentType, User, PlacementDemand, PlacementDemandFilters, PlacementDemandStats } from '@/types/types'
+import type { Placement, CommissionPaymentPlacement, EarlyExitPlacement, PayoutMode, PlacementDocumentType, User, PlacementDemand, PlacementDemandFilters, PlacementDemandStats } from '@/types/types'
 import { PlacementRepository } from '@/repositories/placement/PlacementRepository'
 import { IMemberRepository } from '@/repositories/members/IMemberRepository'
 import { DocumentService } from '@/domains/infrastructure/documents/services/DocumentService'
@@ -71,8 +71,8 @@ export class PlacementService {
         const phone = Array.isArray(member.contacts) && member.contacts.length > 0 ? member.contacts[0] : undefined
         return { benefactorName: name || undefined, benefactorPhone: phone }
       }
-    } catch (error) {
-      console.warn('Impossible de récupérer les infos du membre', error)
+    } catch {
+      // Impossible de récupérer les infos du membre - continue sans
     }
     return { benefactorName: undefined, benefactorPhone: undefined }
   }
@@ -132,8 +132,8 @@ export class PlacementService {
           await this.memberRepository.updateMemberRoles(member.id as string, [...roles, 'Bienfaiteur'], adminId)
         }
       }
-    } catch (error) {
-      console.warn("Impossible de mettre à jour les rôles du membre pour le placement:", error)
+    } catch {
+      // Impossible de mettre à jour les rôles du membre pour le placement - continue sans
     }
 
     return placement
@@ -398,7 +398,6 @@ export class PlacementService {
     // 1. Upload du fichier vers Firebase Storage avec chemin spécifique aux placements
     const timestamp = Date.now()
     const fileName = `${timestamp}_${documentType}_${file.name}`
-    const filePath = `placements/${placementId}/${fileName}`
     
     // Utiliser uploadDocumentFile mais adapter le chemin après
     const { url, path, size } = await this.documentRepository.uploadDocumentFile(file, benefactorId, documentType)
@@ -926,8 +925,8 @@ export class PlacementService {
             stats.paidCommissionsAmount += Number((commission as any).amount) || 0
           }
         }
-      } catch (error) {
-        console.warn(`Erreur lors du calcul des commissions pour le placement ${placement.id}:`, error)
+      } catch {
+        // Erreur lors du calcul des commissions - continue sans
       }
     }
 
@@ -992,8 +991,8 @@ export class PlacementService {
           payoutMode: placement.payoutMode,
         },
       })
-    } catch (error) {
-      console.error('Erreur lors de la création de la notification d\'activation:', error)
+    } catch {
+      // Erreur lors de la création de la notification d'activation - continue sans
     }
   }
 
@@ -1056,8 +1055,8 @@ export class PlacementService {
           })
         }
       }
-    } catch (error) {
-      console.error('Erreur lors de la planification des rappels de commission:', error)
+    } catch {
+      // Erreur lors de la planification des rappels de commission - continue sans
     }
   }
 
@@ -1093,8 +1092,8 @@ export class PlacementService {
           requestedAt: earlyExit.requestedAt.toISOString(),
         },
       })
-    } catch (error) {
-      console.error('Erreur lors de la création de la notification de retrait anticipé:', error)
+    } catch {
+      // Erreur lors de la création de la notification de retrait anticipé - continue sans
     }
   }
 
@@ -1121,8 +1120,8 @@ export class PlacementService {
           completedAt: new Date().toISOString(),
         },
       })
-    } catch (error) {
-      console.error('Erreur lors de la création de la notification de complétion:', error)
+    } catch {
+      // Erreur lors de la création de la notification de complétion - continue sans
     }
   }
 
@@ -1191,8 +1190,8 @@ export class PlacementService {
           createdBy: adminId,
         },
       });
-    } catch (error) {
-      console.error('Erreur lors de la création de la notification:', error);
+    } catch {
+      // Erreur lors de la création de la notification - continue sans
     }
     
     return demand;
@@ -1268,8 +1267,8 @@ export class PlacementService {
             },
           });
         }
-      } catch (error) {
-        console.error('Erreur lors de la création de la notification:', error);
+      } catch {
+        // Erreur lors de la création de la notification - continue sans
       }
     }
 
@@ -1334,8 +1333,8 @@ export class PlacementService {
             },
           });
         }
-      } catch (error) {
-        console.error('Erreur lors de la création de la notification:', error);
+      } catch {
+        // Erreur lors de la création de la notification - continue sans
       }
     }
 
@@ -1410,8 +1409,8 @@ export class PlacementService {
             benefactorId: demand.benefactorId,
           },
         });
-      } catch (error) {
-        console.error('Erreur lors de la création de la notification:', error);
+      } catch {
+        // Erreur lors de la création de la notification - continue sans
       }
     }
 
@@ -1489,8 +1488,8 @@ export class PlacementService {
             convertedBy: adminId,
           },
         });
-      } catch (error) {
-        console.error('Erreur lors de la création de la notification:', error);
+      } catch {
+        // Erreur lors de la création de la notification - continue sans
       }
     }
 

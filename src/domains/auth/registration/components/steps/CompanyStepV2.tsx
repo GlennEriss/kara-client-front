@@ -134,19 +134,14 @@ export default function CompanyStepV2() {
   const sortedCompanyProvinces = useMemo(() => {
     return [...companyProvinces]
       .filter(p => !p.name.toLowerCase().includes('test e2e') && !p.name.toLowerCase().includes('test'))
-      .sort((a, b) => 
-        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
   }, [companyProvinces])
   
   // Charger les départements de la province sélectionnée
-  const { data: companyDepartments = [], isLoading: isLoadingCompanyDepartments } = useDepartments(
-    selectedCompanyProvinceId || undefined
-  )
+  const { data: companyDepartments = [], isLoading: isLoadingCompanyDepartments } = useDepartments(selectedCompanyProvinceId || undefined)
   
   // Charger toutes les communes de tous les départements
-  const companyCommuneQueries = useQueries({
-    queries: companyDepartments.length > 0 
+  const companyCommuneQueries = useQueries({ queries: companyDepartments.length > 0 
       ? companyDepartments.map(dept => ({
           queryKey: ['communes', dept.id, 'company'],
           queryFn: async () => {
@@ -171,9 +166,7 @@ export default function CompanyStepV2() {
     )
     return uniqueCommunes
       .filter(c => !c.name.toLowerCase().includes('test e2e') && !c.name.toLowerCase().includes('test'))
-      .sort((a, b) => 
-        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
   }, [companyCommuneQueries])
   
   const isLoadingCompanyCommunes = companyCommuneQueries.some(query => query.isLoading)
@@ -186,9 +179,7 @@ export default function CompanyStepV2() {
   const sortedCompanyDistricts = useMemo(() => {
     return [...companyDistricts]
       .filter(d => !d.name.toLowerCase().includes('test e2e') && !d.name.toLowerCase().includes('test'))
-      .sort((a, b) => 
-        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
   }, [companyDistricts])
   
   // Charger les quartiers (quarters)
@@ -199,9 +190,7 @@ export default function CompanyStepV2() {
   const sortedCompanyQuarters = useMemo(() => {
     return [...companyQuarters]
       .filter(q => !q.name.toLowerCase().includes('test e2e') && !q.name.toLowerCase().includes('test'))
-      .sort((a, b) => 
-        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-      )
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
   }, [companyQuarters])
   
   // Trouver les objets complets pour remplir les champs texte
@@ -435,8 +424,7 @@ export default function CompanyStepV2() {
         const data = await response.json()
         const cityResults = data.features.filter((result: PhotonResult) => 
           (result.properties.country === 'Gabon' || result.properties.country === 'GA') &&
-          (result.properties.osm_key === 'place' && 
-           ['city', 'town', 'municipality'].includes(result.properties.osm_value))
+          (result.properties.osm_key === 'place' && ['city', 'town', 'municipality'].includes(result.properties.osm_value))
         )
         setCompanyCitySearchResults(cityResults)
       }
