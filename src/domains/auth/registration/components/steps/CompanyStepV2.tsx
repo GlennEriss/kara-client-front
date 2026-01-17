@@ -311,28 +311,28 @@ export default function CompanyStepV2() {
   
   // Handlers de changement cascade (BD) - stockent les IDs dans le formulaire
   const handleCompanyProvinceChange = (provinceId: string) => {
-    (setValue as any)('company.companyAddress.provinceId', provinceId, { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.provinceId', provinceId, { shouldValidate: true })
     // Réinitialiser les niveaux inférieurs
-    (setValue as any)('company.companyAddress.communeId', '', { shouldValidate: true })
-    (setValue as any)('company.companyAddress.districtId', '', { shouldValidate: true })
-    (setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.communeId', '', { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.districtId', '', { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
   }
   
   const handleCompanyCommuneChange = (communeId: string) => {
-    (setValue as any)('company.companyAddress.communeId', communeId, { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.communeId', communeId, { shouldValidate: true })
     // Réinitialiser les niveaux inférieurs
-    (setValue as any)('company.companyAddress.districtId', '', { shouldValidate: true })
-    (setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.districtId', '', { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
   }
   
   const handleCompanyDistrictChange = (districtId: string) => {
-    (setValue as any)('company.companyAddress.districtId', districtId, { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.districtId', districtId, { shouldValidate: true })
     // Réinitialiser le quartier
-    (setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })
   }
   
   const handleCompanyQuarterChange = (quarterId: string) => {
-    (setValue as any)('company.companyAddress.quarterId', quarterId, { shouldValidate: true })
+    ;(setValue as any)('company.companyAddress.quarterId', quarterId, { shouldValidate: true })
   }
   
   // Réhydrater les données Photon depuis le formulaire au montage ou quand on revient sur l'onglet Photon
@@ -393,7 +393,7 @@ export default function CompanyStepV2() {
   // Nettoyer les données BD quand on passe à l'onglet Photon
   useEffect(() => {
     if (addressTab === 'photon' && setValue && typeof setValue === 'function') {
-      (setValue as any)('company.companyAddress.provinceId', '', { shouldValidate: true })
+      ;(setValue as any)('company.companyAddress.provinceId', '', { shouldValidate: true })
       ;(setValue as any)('company.companyAddress.communeId', '', { shouldValidate: true })
       ;(setValue as any)('company.companyAddress.districtId', '', { shouldValidate: true })
       ;(setValue as any)('company.companyAddress.quarterId', '', { shouldValidate: true })

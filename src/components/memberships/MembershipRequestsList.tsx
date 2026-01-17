@@ -1095,6 +1095,7 @@ const MembershipRequestCard = ({
                 }
                 try {
                   setIsPaying(true)
+                  const now = new Date()
                   await payMutation.mutateAsync({
                     requestId: request.id!,
                     payment: {
@@ -1105,6 +1106,9 @@ const MembershipRequestCard = ({
                       paymentType,
                       time: paymentTime,
                       withFees: withFees === 'yes',
+                      recordedBy: user?.uid || 'unknown-admin',
+                      recordedByName: user?.displayName || user?.email || 'Admin',
+                      recordedAt: now,
                     },
                   })
                   toast.success('Paiement enregistré')

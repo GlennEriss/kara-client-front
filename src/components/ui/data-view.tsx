@@ -110,35 +110,35 @@ export function DataView<T>({
 }: DataViewProps<T>) {
   const styles = variantStyles[variant]
 
-  // Skeleton par défaut
-  const DefaultSkeleton = () => (
-    <div className={cn(
-      viewMode === 'cards' 
-        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' 
-        : 'space-y-3'
-    )}>
-      {Array.from({ length: skeletonCount }).map((_, i) => (
-        <div 
-          key={i} 
-          className={cn(
-            'animate-pulse',
-            viewMode === 'cards' ? 'h-48' : 'h-20'
-          )}
-          style={{ animationDelay: `${i * 100}ms` }}
-        >
-          <Skeleton className={cn(
-            'w-full h-full rounded-xl',
-            variant === 'kara' && 'bg-gradient-to-r from-kara-neutral-100 to-kara-neutral-200'
-          )} />
-        </div>
-      ))}
-    </div>
-  )
-
   if (loading) {
+    // Skeleton par défaut (défini inline pour éviter l'erreur de composant créé pendant le render)
+    const defaultSkeletonContent = (
+      <div className={cn(
+        viewMode === 'cards' 
+          ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' 
+          : 'space-y-3'
+      )}>
+        {Array.from({ length: skeletonCount }).map((_, i) => (
+          <div 
+            key={i} 
+            className={cn(
+              'animate-pulse',
+              viewMode === 'cards' ? 'h-48' : 'h-20'
+            )}
+            style={{ animationDelay: `${i * 100}ms` }}
+          >
+            <Skeleton className={cn(
+              'w-full h-full rounded-xl',
+              variant === 'kara' && 'bg-gradient-to-r from-kara-neutral-100 to-kara-neutral-200'
+            )} />
+          </div>
+        ))}
+      </div>
+    )
+
     return (
       <div className={cn('animate-in fade-in-0 duration-300', className)}>
-        {loadingSkeleton || <DefaultSkeleton />}
+        {loadingSkeleton || defaultSkeletonContent}
       </div>
     )
   }

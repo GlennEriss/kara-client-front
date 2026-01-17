@@ -403,7 +403,7 @@ export default function StatisticsCI({ paymentFrequency }: StatisticsCIProps = {
                       <div className="flex items-center gap-3">
                         <span 
                           className="inline-block h-2 w-2 rounded-full" 
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }} 
+                          style={{ backgroundColor: COLORS[_index % COLORS.length] }} 
                         />
                         <span className="font-medium text-gray-700">{entry.label}</span>
                       </div>

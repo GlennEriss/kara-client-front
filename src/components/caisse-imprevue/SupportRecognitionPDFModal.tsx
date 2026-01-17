@@ -30,7 +30,7 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
   support
 }) => {
   const [isExporting, setIsExporting] = useState(false)
-  const [isMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   // Détecter si on est sur mobile
   React.useEffect(() => {

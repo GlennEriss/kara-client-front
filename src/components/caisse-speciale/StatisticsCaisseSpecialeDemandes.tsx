@@ -268,7 +268,7 @@ export default function StatisticsCaisseSpecialeDemandes(_props: StatisticsCaiss
         >
           {statsData.map((stat, _index) => (
             <div 
-              key={index} 
+              key={_index} 
               className="flex-shrink-0" 
               style={{ width: `calc(${100 / itemsPerView}% - ${(4 * (itemsPerView - 1)) / itemsPerView}rem)` }}
             >

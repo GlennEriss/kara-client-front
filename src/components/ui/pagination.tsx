@@ -146,35 +146,6 @@ export function Pagination({
 
   if (totalPages === 0 && totalItems === 0) return null
 
-  const NavigationButton = ({ 
-    onClick, 
-    disabled, 
-    children, 
-    ariaLabel,
-    isActive = false,
-  }: { 
-    onClick: () => void
-    disabled: boolean
-    children: React.ReactNode
-    ariaLabel: string
-    isActive?: boolean
-  }) => (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={onClick}
-      disabled={disabled || isLoading}
-      className={cn(
-        'h-9 w-9 p-0',
-        isActive ? styles.buttonActive : styles.button,
-        disabled && styles.buttonDisabled
-      )}
-      aria-label={ariaLabel}
-    >
-      {children}
-    </Button>
-  )
-
   return (
     <div
       className={cn(
@@ -235,21 +206,27 @@ export function Pagination({
         {/* Navigation */}
         {totalPages > 1 && (
           <div className="flex items-center space-x-1">
-            <NavigationButton
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => onPageChange(1)}
-              disabled={!hasPrevPage}
-              ariaLabel="Première page"
+              disabled={!hasPrevPage || isLoading}
+              className={cn('h-9 w-9 p-0', styles.button, !hasPrevPage && styles.buttonDisabled)}
+              aria-label="Première page"
             >
               <ChevronsLeft className="h-4 w-4" />
-            </NavigationButton>
+            </Button>
 
-            <NavigationButton
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => onPageChange(currentPage - 1)}
-              disabled={!hasPrevPage}
-              ariaLabel="Page précédente"
+              disabled={!hasPrevPage || isLoading}
+              className={cn('h-9 w-9 p-0', styles.button, !hasPrevPage && styles.buttonDisabled)}
+              aria-label="Page précédente"
             >
               <ChevronLeft className="h-4 w-4" />
-            </NavigationButton>
+            </Button>
 
             {/* Numéros de page */}
             <div className="flex items-center space-x-1">
@@ -289,21 +266,27 @@ export function Pagination({
               })}
             </div>
 
-            <NavigationButton
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => onPageChange(currentPage + 1)}
-              disabled={!hasNextPage}
-              ariaLabel="Page suivante"
+              disabled={!hasNextPage || isLoading}
+              className={cn('h-9 w-9 p-0', styles.button, !hasNextPage && styles.buttonDisabled)}
+              aria-label="Page suivante"
             >
               <ChevronRight className="h-4 w-4" />
-            </NavigationButton>
+            </Button>
 
-            <NavigationButton
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => onPageChange(totalPages)}
-              disabled={!hasNextPage}
-              ariaLabel="Dernière page"
+              disabled={!hasNextPage || isLoading}
+              className={cn('h-9 w-9 p-0', styles.button, !hasNextPage && styles.buttonDisabled)}
+              aria-label="Dernière page"
             >
               <ChevronsRight className="h-4 w-4" />
-            </NavigationButton>
+            </Button>
           </div>
         )}
       </div>

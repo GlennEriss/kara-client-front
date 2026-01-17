@@ -268,7 +268,7 @@ export function Step3PaymentPlan() {
                   key={payment.month}
                   className={cn(
                     "flex items-center justify-between p-3 rounded-lg border transition-all duration-200",
-                    index === 0
+                    _index === 0
                       ? "bg-[#234D65]/5 border-[#234D65]/20"
                       : "bg-gray-50 border-gray-200 hover:bg-gray-100"
                   )}
@@ -276,7 +276,7 @@ export function Step3PaymentPlan() {
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold",
-                      index === 0
+                      _index === 0
                         ? "bg-[#234D65] text-white"
                         : "bg-gray-200 text-gray-700"
                     )}>
@@ -297,12 +297,12 @@ export function Step3PaymentPlan() {
                       {payment.amount.toLocaleString()} FCFA
                     </span>
                     <Badge
-                      variant={index === 0 ? 'default' : 'secondary'}
+                      variant={_index === 0 ? 'default' : 'secondary'}
                       className={cn(
-                        index === 0 && "bg-[#234D65] text-white"
+                        _index === 0 && "bg-[#234D65] text-white"
                       )}
                     >
-                      {index === 0 ? 'Premier versement' : 'En attente'}
+                      {_index === 0 ? 'Premier versement' : 'En attente'}
                     </Badge>
                   </div>
                 </div>

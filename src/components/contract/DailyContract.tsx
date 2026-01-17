@@ -98,7 +98,10 @@ export default function DailyContract({ id }: Props) {
     defaultValues: earlyRefundDefaultValues
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
+  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
+  const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [showPdfModal, setShowPdfModal] = useState(false)
+  const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
   const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)

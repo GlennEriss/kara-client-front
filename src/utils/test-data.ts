@@ -408,7 +408,10 @@ export async function createTestMembershipRequestPending() {
         acceptedBy: 'admin_test',
         paymentType: 'Membership',
         time: '14:30',
-        withFees: false
+        withFees: false,
+        recordedBy: 'admin_test',
+        recordedByName: 'Admin Test',
+        recordedAt: new Date()
       }],
       priorityScore: 85
     }
@@ -511,7 +514,10 @@ export async function createTestMembershipRequestUnderReview() {
         acceptedBy: 'admin_test',
         paymentType: 'Membership',
         time: '10:15',
-        withFees: true
+        withFees: true,
+        recordedBy: 'admin_test',
+        recordedByName: 'Admin Test',
+        recordedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       }],
       priorityScore: 72
     }
@@ -693,7 +699,10 @@ export async function createTestMembershipRequestApproved() {
         acceptedBy: 'admin_test',
         paymentType: 'Membership',
         time: '16:45',
-        withFees: false
+        withFees: false,
+        recordedBy: 'admin_test',
+        recordedByName: 'Admin Test',
+        recordedAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000)
       }],
       priorityScore: 95
     }

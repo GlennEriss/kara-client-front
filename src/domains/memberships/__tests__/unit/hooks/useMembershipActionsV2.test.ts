@@ -20,8 +20,10 @@ describe('useMembershipActionsV2', () => {
   let sharedQueryClient: QueryClient
 
   function createWrapper() {
-    return ({ children }: { children: React.ReactNode }) =>
+    const Wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: sharedQueryClient }, children)
+    Wrapper.displayName = 'TestWrapper'
+    return Wrapper
   }
 
   beforeEach(() => {

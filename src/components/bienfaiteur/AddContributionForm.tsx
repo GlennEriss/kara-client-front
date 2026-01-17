@@ -156,12 +156,17 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
       console.log('📦 Payload contribution:', contributionPayload)
 
       if (data.contributionType === 'money') {
+        const now = new Date()
         contributionPayload.payment = {
           amount: Number(data.amount),
           mode: data.paymentMethod as PaymentMode,
           paymentType: 'Charity',
           date: contributionDate,
+          time: now.toTimeString().slice(0, 5), // Format HH:mm
           acceptedBy: user?.uid || 'system',
+          recordedBy: user?.uid || 'system',
+          recordedByName: user?.displayName || user?.email || 'Admin',
+          recordedAt: now,
         }
       } else {
         contributionPayload.inKindDescription = data.inKindDescription || ''
