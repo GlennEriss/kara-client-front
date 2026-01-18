@@ -2,11 +2,13 @@
 
 ## 📋 Vue d'ensemble
 
-Ce document liste tous les cas de tests d'intégration pour la fonctionnalité de correction, testant l'interaction entre composants, services et repositories.
+Ce document liste tous les cas de tests d'intégration pour la fonctionnalité de correction, testant l'interaction entre composants, services, repositories et **Cloud Functions**.
 
 **Objectif de couverture : 80% minimum**
 
 **✅ Tous les flows du feedback P0 sont couverts**
+
+**⚠️ IMPORTANT :** Les tests doivent maintenant mocker les appels aux Cloud Functions (`verifySecurityCode` et `submitCorrections`) au lieu d'appeler directement les repositories.
 
 ---
 
@@ -158,7 +160,7 @@ describe('Integration: Verify Security Code Flow', () => {
     await deleteTestMembershipRequest(request.id)
   })
 
-  it('should reject expired code', async () => {
+  it('should reject expired code (via Cloud Function)', async () => {
     const request = await createTestMembershipRequest({
       status: 'under_review',
       securityCode: '123456',
@@ -166,13 +168,15 @@ describe('Integration: Verify Security Code Flow', () => {
       securityCodeUsed: false,
     })
     
+    // Note: verifySecurityCode() appelle la Cloud Function qui vérifie l'expiration
     const isValid = await service.verifySecurityCode(request.id, '123456')
     expect(isValid).toBe(false)
+    // Note: La Cloud Function retourne { isValid: false, reason: 'CODE_EXPIRED' }
     
     await deleteTestMembershipRequest(request.id)
   })
 
-  it('should reject used code', async () => {
+  it('should reject used code (via Cloud Function)', async () => {
     const request = await createTestMembershipRequest({
       status: 'under_review',
       securityCode: '123456',
@@ -180,8 +184,10 @@ describe('Integration: Verify Security Code Flow', () => {
       securityCodeUsed: true, // Déjà utilisé
     })
     
+    // Note: verifySecurityCode() appelle la Cloud Function qui vérifie l'usage
     const isValid = await service.verifySecurityCode(request.id, '123456')
     expect(isValid).toBe(false)
+    // Note: La Cloud Function retourne { isValid: false, reason: 'CODE_ALREADY_USED' }
     
     await deleteTestMembershipRequest(request.id)
   })

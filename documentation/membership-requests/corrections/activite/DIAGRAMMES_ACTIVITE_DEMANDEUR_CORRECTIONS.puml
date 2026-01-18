@@ -116,41 +116,33 @@ partition "Phase 2 : Vérification du Code de Sécurité" {
   :Appel RegistrationService.verifySecurityCode()
   avec requestId et code;
   
-  :Appel RegistrationRepository.verifySecurityCode();
+  :Appel Cloud Function verifySecurityCode()
+  via httpsCallable('verifySecurityCode');
   
-  :Récupérer demande depuis Firestore;
+  note right
+    **Cloud Function (Transaction atomique) :**
+    - Vérifie code correspond
+    - Vérifie code non utilisé
+    - Vérifie code non expiré
+    - Vérifie statut = 'under_review'
+    - Marque comme vérifié (securityCodeVerifiedAt)
+    - Retourne isValid + requestData
+  end note
   
-  if (Demande trouvée ?) then (non)
-    :Retourner false;
-    :Afficher erreur "Demande introuvable";
+  if (Résultat Cloud Function : isValid === false ?) then (oui)
+    alt reason === 'CODE_INCORRECT'
+      :Afficher erreur "Code incorrect";
+    else reason === 'CODE_EXPIRED'
+      :Afficher erreur "Code expiré";
+    else reason === 'CODE_ALREADY_USED'
+      :Afficher erreur "Code déjà utilisé";
+    else reason === 'REQUEST_NOT_FOUND'
+      :Afficher erreur "Demande introuvable";
+    end
     stop
   endif
   
-  :VALIDATION 4 : Code correspond
-  if (securityCode === code saisi ?) then (non)
-    :Retourner false;
-    :Afficher erreur "Code incorrect";
-    stop
-  endif
-  
-  :VALIDATION 5 : Code non utilisé
-  if (securityCodeUsed === true ?) then (oui)
-    :Retourner false;
-    :Afficher erreur "Code déjà utilisé";
-    stop
-  endif
-  
-  :VALIDATION 6 : Code non expiré
-  :expiry = securityCodeExpiry.toDate()
-  :isExpired = expiry < Date.now();
-  
-  if (Code expiré ?) then (oui)
-    :Retourner false;
-    :Afficher erreur "Code expiré";
-    stop
-  endif
-  
-  :Code valide : Retourner true;
+  :Code valide : isValid === true;
 }
 
 partition "Phase 3 : Chargement des Données" {
@@ -228,14 +220,48 @@ partition "Phase 5 : Soumission des Corrections" {
   :Appel RegistrationService.updateRegistration()
   avec requestId et formData;
   
-  :Appel RegistrationRepository.update();
+  :Appel Cloud Function submitCorrections()
+  via httpsCallable('submitCorrections');
   
-  partition "Repository - Mise à Jour Firestore" {
+  note right
+    **Cloud Function (Transaction atomique) :**
+    - Vérifie code correspond
+    - Vérifie code non utilisé
+    - Vérifie code non expiré
+    - Vérifie statut = 'under_review'
+    - Fusionne données (existing + formData)
+    - Marque code comme utilisé (securityCodeUsed = true)
+    - Met à jour statut = 'pending'
+    - Nettoie champs correction (securityCode, reviewNote, etc.)
+    - Garantit atomicité (tout ou rien)
+  end note
+  
+  partition "Cloud Function - Transaction Atomique" {
+    :Transaction Firestore.runTransaction();
+    
     :Récupérer données existantes :
-    existing = await getById(requestId);
+    existing = await transaction.get(docRef);
     
     if (existing === null ?) then (oui)
       :Throw Error "Demande introuvable";
+      stop
+    endif
+    
+    :VALIDATION : Code correspond
+    if (existing.securityCode !== code ?) then (oui)
+      :Throw Error "CODE_INCORRECT";
+      stop
+    endif
+    
+    :VALIDATION : Code non utilisé
+    if (existing.securityCodeUsed === true ?) then (oui)
+      :Throw Error "CODE_ALREADY_USED";
+      stop
+    endif
+    
+    :VALIDATION : Code non expiré
+    if (existing.securityCodeExpiry < now ?) then (oui)
+      :Throw Error "CODE_EXPIRED";
       stop
     endif
     
@@ -247,16 +273,16 @@ partition "Phase 5 : Soumission des Corrections" {
       documents: { ...existing.documents, ...formData.documents }
     };
     
-    :Mise à jour Firestore :
-    updateDoc(docRef, {
+    :Mise à jour atomique :
+    transaction.update(docRef, {
       ...updatedData,
       securityCodeUsed: true,
       status: 'pending',
+      securityCode: null,
+      securityCodeExpiry: null,
+      reviewNote: null,
       updatedAt: serverTimestamp()
     });
-    
-    :Marquer code comme utilisé :
-    await markSecurityCodeAsUsed(requestId);
   }
   
   if (Mise à jour réussie ?) then (oui)

@@ -27,6 +27,8 @@ participant "Register\n(Page)" as RegisterPage
 participant "useRegistration\n(Hook)" as RegHook
 participant "RegistrationService" as Service
 participant "RegistrationRepository" as Repository
+participant "Cloud Function\nverifySecurityCode" as CloudFunction
+participant "Cloud Function\nsubmitCorrections" as CloudFunction2
 database "Firestore\n(membership-requests)" as Firestore
 
 == Phase 1 : Accès via URL ==
@@ -106,21 +108,32 @@ else Format valide
   RegHook -> Service: verifySecurityCode(requestId, code)
   activate Service
 
-  Service -> Repository: verifySecurityCode(requestId, code)
-  activate Repository
+  Service -> Service: Appel Cloud Function\nverifySecurityCode(requestId, code)
+  activate Service
 
-  Repository -> Firestore: getDoc(membership-requests, requestId)
+  Service -> CloudFunction: httpsCallable('verifySecurityCode')\n{ requestId, code }
+  activate CloudFunction
+
+  note right of CloudFunction
+    **Cloud Function :**
+    - Transaction atomique Firestore
+    - Vérifie code, expiration, usage
+    - Marque comme vérifié (securityCodeVerifiedAt)
+    - Retourne isValid + requestData
+  end note
+
+  CloudFunction -> Firestore: runTransaction()\nVérification atomique
   activate Firestore
-  Firestore --> Repository: DocumentSnapshot
+  Firestore --> CloudFunction: { isValid, requestData? }
   deactivate Firestore
 
-  Repository --> Service: boolean
-  deactivate Repository
+  CloudFunction --> Service: { isValid: boolean, reason?: string, requestData?: {...} }
+  deactivate CloudFunction
 
-  Service --> RegHook: boolean
+  Service --> RegHook: { isValid, reason?, requestData? }
   deactivate Service
 
-  alt Code valide
+  alt Code valide (isValid === true)
     RegHook -> Service: loadRegistrationForCorrection(requestId)
     activate Service
 
@@ -141,8 +154,18 @@ else Format valide
     RegHook -> RegHook: isVerified=true + reset(formData) + resetSteps()
     RegHook -> RegisterPage: Afficher formulaire pré-rempli
     RegHook -> RegisterPage: Masquer formulaire code + afficher toast succès
-  else Code invalide
-    RegHook -> RegisterPage: Afficher erreur (incorrect / expiré / déjà utilisé)
+  else Code invalide (isValid === false)
+    alt reason === 'CODE_INCORRECT'
+      RegHook -> RegisterPage: Afficher erreur "Code incorrect"
+    else reason === 'CODE_EXPIRED'
+      RegHook -> RegisterPage: Afficher erreur "Code expiré"
+    else reason === 'CODE_ALREADY_USED'
+      RegHook -> RegisterPage: Afficher erreur "Code déjà utilisé"
+    else reason === 'REQUEST_NOT_FOUND'
+      RegHook -> RegisterPage: Afficher erreur "Demande introuvable"
+    else
+      RegHook -> RegisterPage: Afficher erreur "Code invalide"
+    end
   end
 
   deactivate RegHook
@@ -168,36 +191,64 @@ activate RegisterPage
 RegisterPage -> RegHook: submitForm()
 activate RegHook
 
-RegHook -> Service: updateRegistration(requestId, formData)
+RegHook -> Service: updateRegistration(requestId, formData, code)
 activate Service
 
-Service -> Repository: update(requestId, formData)
-activate Repository
+Service -> Service: Appel Cloud Function\nsubmitCorrections(requestId, code, formData)
+activate Service
 
-Repository -> Firestore: getDoc(membership-requests, requestId)
+Service -> CloudFunction: httpsCallable('submitCorrections')\n{ requestId, code, formData }
+activate CloudFunction
+
+note right of CloudFunction
+  **Cloud Function :**
+  - Transaction atomique Firestore
+  - Vérifie code, expiration, usage
+  - Marque code comme utilisé (securityCodeUsed = true)
+  - Met à jour données + statut = 'pending'
+  - Nettoie champs correction (securityCode, reviewNote, etc.)
+  - Garantit atomicité (tout ou rien)
+end note
+
+CloudFunction -> Firestore: runTransaction()\nMise à jour atomique
 activate Firestore
-Firestore --> Repository: MembershipRequest existant
+Firestore --> CloudFunction: { success: boolean }
 deactivate Firestore
 
-Repository -> Firestore: updateDoc(membership-requests, requestId)\nstatus='pending', securityCodeUsed=true
-activate Firestore
-Firestore --> Repository: OK
-deactivate Firestore
+CloudFunction --> Service: { success: boolean, error?: string }
+deactivate CloudFunction
 
-Repository --> Service: true
-deactivate Repository
-
-Service --> RegHook: true
+Service --> RegHook: { success: boolean, error?: string }
 deactivate Service
 
-RegHook -> RegisterPage: Toast succès + page confirmation
+alt Succès (success === true)
+  RegHook -> RegisterPage: Toast succès + page confirmation
+else Erreur (success === false)
+  alt error === 'CODE_INCORRECT'
+    RegHook -> RegisterPage: Afficher erreur "Code incorrect"
+  else error === 'CODE_EXPIRED'
+    RegHook -> RegisterPage: Afficher erreur "Code expiré"
+  else error === 'CODE_ALREADY_USED'
+    RegHook -> RegisterPage: Afficher erreur "Code déjà utilisé"
+  else error === 'REQUEST_NOT_FOUND'
+    RegHook -> RegisterPage: Afficher erreur "Demande introuvable"
+  else
+    RegHook -> RegisterPage: Afficher erreur "Erreur lors de la soumission"
+  end
+end
+
 deactivate RegHook
 deactivate RegisterPage
 
 note over Firestore
-  Statut = 'pending'
-  securityCodeUsed = true
-  Données mises à jour
+  **Transaction atomique garantit :**
+  - Statut = 'pending'
+  - securityCodeUsed = true
+  - securityCode = null (nettoyé)
+  - reviewNote = null (nettoyé)
+  - securityCodeExpiry = null (nettoyé)
+  - Données mises à jour
+  - Pas de race condition possible
 end note
 
 @enduml
