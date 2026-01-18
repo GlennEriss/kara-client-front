@@ -9,11 +9,19 @@ const hasValidCredentials =
 
 export const adminApp = hasValidCredentials
   ? (admin.apps.length === 0
-      ? admin.initializeApp({
-          credential: admin.credential.cert(
-            firebaseAdminConfig as admin.ServiceAccount
-          ),
-        })
+      ? (() => {
+          try {
+            return admin.initializeApp({
+              credential: admin.credential.cert(
+                firebaseAdminConfig as admin.ServiceAccount
+              ),
+              projectId: firebaseAdminConfig.projectId,
+            });
+          } catch (error) {
+            console.error('[admin.ts] Erreur lors de l\'initialisation Firebase Admin:', error);
+            throw error;
+          }
+        })()
       : admin.apps[0])
   : null;
 
