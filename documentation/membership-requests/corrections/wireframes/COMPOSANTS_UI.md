@@ -362,6 +362,7 @@ const handleVerifyCode = async (code: string) => {
   setVerificationError(null)
   
   try {
+    // Appel Cloud Function verifySecurityCode (transaction atomique)
     const isValid = await registrationService.verifySecurityCode(
       correctionRequest.requestId,
       code

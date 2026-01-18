@@ -296,35 +296,88 @@ describe('UserRepository', () => {
   });
 
   describe('userExists', () => {
+    beforeEach(() => {
+      // Mock global fetch pour les tests
+      global.fetch = vi.fn() as any;
+    });
+
     it('devrait retourner true si l\'utilisateur existe', async () => {
-      const mockDoc = {
-        exists: () => true,
-        id: '0001.MK.110126',
-        data: () => ({
-          createdAt: { toDate: () => new Date() },
-          updatedAt: { toDate: () => new Date() },
+      // Mock de la réponse de l'API route /api/auth/check-user
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({
+          found: true,
+          inAuth: true,
+          inUsers: false,
+          inAdmins: false,
         }),
       };
 
-      const { getDoc, doc } = await import('@/firebase/firestore');
-      vi.mocked(getDoc).mockResolvedValueOnce(mockDoc as any);
-      vi.mocked(doc).mockReturnValueOnce({} as any);
+      (global.fetch as any).mockResolvedValueOnce(mockResponse);
 
       const result = await repository.userExists('0001.MK.110126');
 
       expect(result).toBe(true);
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/auth/check-user',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: '0001.MK.110126' }),
+        })
+      );
     });
 
     it('devrait retourner false si l\'utilisateur n\'existe pas', async () => {
-      const mockDoc = {
-        exists: () => false,
+      // Mock de la réponse de l'API route /api/auth/check-user
+      const mockResponse = {
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({
+          found: false,
+          inAuth: false,
+          inUsers: false,
+          inAdmins: false,
+        }),
       };
 
-      const { getDoc, doc } = await import('@/firebase/firestore');
-      vi.mocked(getDoc).mockResolvedValueOnce(mockDoc as any);
-      vi.mocked(doc).mockReturnValueOnce({} as any);
+      (global.fetch as any).mockResolvedValueOnce(mockResponse);
 
       const result = await repository.userExists('non-existent');
+
+      expect(result).toBe(false);
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/auth/check-user',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid: 'non-existent' }),
+        })
+      );
+    });
+
+    it('devrait retourner false si l\'API route retourne une erreur', async () => {
+      // Mock d'une réponse d'erreur
+      const mockResponse = {
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        json: vi.fn().mockResolvedValue({ error: 'Erreur serveur' }),
+      };
+
+      (global.fetch as any).mockResolvedValueOnce(mockResponse);
+
+      const result = await repository.userExists('test-uid');
+
+      expect(result).toBe(false);
+    });
+
+    it('devrait retourner false si l\'appel fetch échoue', async () => {
+      // Mock d'une erreur réseau
+      (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await repository.userExists('test-uid');
 
       expect(result).toBe(false);
     });

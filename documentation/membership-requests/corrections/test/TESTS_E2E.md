@@ -4,6 +4,8 @@
 
 Ce document liste tous les cas de tests E2E pour la fonctionnalité de correction, avec les `data-testid` nécessaires.
 
+**⚠️ IMPORTANT :** Les tests E2E doivent utiliser les **Cloud Functions** déployées en production ou les émulateurs Firebase. Les appels aux Cloud Functions (`verifySecurityCode` et `submitCorrections`) sont testés de bout en bout.
+
 ---
 
 ## 🎭 1. Tests E2E Admin
@@ -499,6 +501,8 @@ test('P0-CORR-04: devrait copier le lien de correction dans le presse-papier', a
 
 ## 🎭 2. Tests E2E Demandeur
 
+**⚠️ IMPORTANT :** Ces tests utilisent les **Cloud Functions** pour la vérification du code et la soumission des corrections. Les appels sont testés de bout en bout avec les transactions atomiques.
+
 ### 2.1 Accéder aux corrections via URL
 
 **Fichier :** `e2e/registration/corrections.spec.ts`
@@ -570,7 +574,7 @@ test.describe('E2E: Corrections (Demandeur)', () => {
 
 **Tests :**
 ```typescript
-test('P0-CORR-10: devrait vérifier le code et charger le formulaire', async ({ page }) => {
+  test('P0-CORR-10: devrait vérifier le code via Cloud Function et charger le formulaire', async ({ page }) => {
   const request = await createRequestWithCorrections({
     securityCode: '123456',
   })

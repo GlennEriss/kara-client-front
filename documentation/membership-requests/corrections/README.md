@@ -92,6 +92,7 @@ Ce fichier contient :
 
 ### 5. Cloud Functions
 - **Functions** : `functions/README.md` ⭐ — Cas obligatoires nécessitant des Cloud Functions (sécurité critique)
+- **Changelog** : `CHANGELOG_CLOUD_FUNCTIONS.md` ⭐ — Liste des modifications suite à l'intégration Cloud Functions
 
 ### 6. Design Patterns
 - **Application** : `DESIGN_PATTERNS_APPLICATION.md` ⭐ — Identifie les cas nécessitant des patterns dans le code

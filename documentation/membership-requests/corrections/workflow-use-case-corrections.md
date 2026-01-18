@@ -274,19 +274,21 @@ git checkout -b feat/membership-request-corrections
 **Checklist RegistrationService** :
 - [ ] `verifySecurityCode(requestId, code)` :
   - [ ] Valide format code (6 chiffres)
-  - [ ] Vérifie code non utilisé
-  - [ ] Vérifie code non expiré
-  - [ ] Retourne `boolean`
+  - [ ] **Appelle Cloud Function `verifySecurityCode`** (transaction atomique)
+  - [ ] Retourne `{ isValid: boolean, reason?: string, requestData?: {...} }`
 - [ ] `loadRegistrationForCorrection(requestId)` :
   - [ ] Charge demande via repository
   - [ ] Vérifie statut 'under_review'
   - [ ] Convertit en `RegisterFormData`
   - [ ] Retourne données pré-remplies
-- [ ] `updateRegistration(requestId, data)` :
-  - [ ] Met à jour données dans Firestore
-  - [ ] Marque `securityCodeUsed = true`
-  - [ ] Remet statut à 'pending'
-  - [ ] Nettoie champs corrections (reviewNote, securityCode, securityCodeExpiry)
+- [ ] `updateRegistration(requestId, data, code)` :
+  - [ ] **Appelle Cloud Function `submitCorrections`** (transaction atomique)
+  - [ ] Cloud Function gère :
+    - [ ] Vérification code (correspond, non utilisé, non expiré)
+    - [ ] Mise à jour données dans Firestore
+    - [ ] Marque `securityCodeUsed = true`
+    - [ ] Remet statut à 'pending'
+    - [ ] Nettoie champs corrections (reviewNote, securityCode, securityCodeExpiry)
 
 **Tests** :
 - [ ] Écrire les tests unitaires (voir `TESTS_UNITAIRES.md` §3)
@@ -321,15 +323,14 @@ git checkout -b feat/membership-request-corrections
 
 **Checklist RegistrationRepository** :
 - [ ] `verifySecurityCode(requestId, code)` :
-  - [ ] Récupère demande
-  - [ ] Vérifie code, expiration, utilisé
-  - [ ] Retourne `boolean`
+  - [ ] ⚠️ **DÉPRÉCIÉ** : Utiliser Cloud Function `verifySecurityCode` à la place
+  - [ ] (Méthode peut rester pour compatibilité mais ne sera plus utilisée)
 - [ ] `markSecurityCodeAsUsed(requestId)` :
-  - [ ] Marque `securityCodeUsed = true`
+  - [ ] ⚠️ **DÉPRÉCIÉ** : Géré par Cloud Function `submitCorrections`
+  - [ ] (Méthode peut rester pour compatibilité mais ne sera plus utilisée)
 - [ ] `update(id, data)` :
-  - [ ] Met à jour données
-  - [ ] Remet statut à 'pending'
-  - [ ] Nettoie champs corrections
+  - [ ] ⚠️ **DÉPRÉCIÉ pour corrections** : Utiliser Cloud Function `submitCorrections` à la place
+  - [ ] (Méthode reste pour autres cas d'usage non liés aux corrections)
 
 **Tests** :
 - [ ] Écrire les tests unitaires (mocks Firestore)

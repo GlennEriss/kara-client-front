@@ -570,11 +570,13 @@ Validation format (6 chiffres)
   ↓
 Si valide:
   ↓
-Appel API verifySecurityCode()
+Appel Cloud Function verifySecurityCode()
+(via httpsCallable - transaction atomique)
   ↓
 Si code correct ET non utilisé ET non expiré:
   ↓
 Appel API loadRegistrationForCorrection()
+(Repository.getById - lecture simple)
   ↓
 Chargement des données
   ↓
@@ -612,11 +614,16 @@ Demandeur clique
   ↓
 Bouton passe en loading
   ↓
-Appel API updateRegistration()
+Appel Cloud Function submitCorrections()
+(via httpsCallable - transaction atomique)
   ↓
-Mise à jour Firestore:
+Transaction atomique Firestore:
+  - Vérifie code (correspond, non utilisé, non expiré)
   - status → 'pending'
   - securityCodeUsed → true
+  - securityCode → null (nettoyé)
+  - reviewNote → null (nettoyé)
+  - Données mises à jour
   - Données mises à jour
   ↓
 Toast: "Corrections soumises !"
