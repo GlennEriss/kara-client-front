@@ -1098,6 +1098,8 @@ export function MembershipRequestsPageV2() {
             memberName={selectedMemberName}
             requestId={selectedRequest.id}
             matricule={selectedRequest.matricule}
+            memberEmail={selectedRequest.identity.email}
+            memberPhone={selectedRequest.identity.contacts?.[0]}
           />
         )}
 

@@ -1,0 +1,72 @@
+@startuml Fiche_Adhesion
+title Workflow : Générer et Télécharger la Fiche d'Adhésion
+
+note right
+  **Qu'est-ce que la Fiche d'Adhésion ?**
+  
+  La Fiche d'Adhésion est un document PDF
+  officiel qui contient :
+  - Logo KARA
+  - Photo du demandeur
+  - Type de membre (Adhérent/Sympathisant/Bienfaiteur)
+  - Informations personnelles complètes
+  - Adresse complète
+  - Informations entreprise/profession
+  - Véhicule (si applicable)
+  - Parrain (si applicable)
+  
+  C'est un document contractuel généré
+  avec react-pdf (@react-pdf/renderer)
+end note
+
+start
+
+:Admin clique sur "Fiche d'adhésion" 
+(dans dropdown menu "..." de la carte);
+
+:Afficher modal MemberDetailsModal;
+
+:Initialiser état isExporting = false;
+
+if (Admin clique sur "Télécharger PDF" ?) then (oui)
+  :isExporting = true;
+  
+  :Générer PDF avec react-pdf 
+  composant MutuelleKaraPDF;
+  
+  :Récupérer données de la demande :
+  - Identité complète
+  - Adresse
+  - Entreprise/Profession
+  - Photo (si existe)
+  - Parrain;
+  
+  :Créer blob PDF avec pdf().toBlob();
+  
+  :Générer nom de fichier :
+  format "NOM_PRENOM_ADHESION_MK_YYYY.pdf";
+  
+  :Créer lien de téléchargement;
+  
+  :Déclencher téléchargement automatique;
+  
+  :Libérer l'URL du blob;
+  
+  :Afficher toast "PDF téléchargé avec succès";
+  
+  :isExporting = false;
+else (non)
+  :Afficher prévisualisation dans modal 
+  (si disponible);
+endif
+
+if (Erreur lors génération ?) then (oui)
+  :Afficher toast erreur "Erreur de téléchargement";
+  :isExporting = false;
+  stop
+endif
+
+:Admin peut fermer la modal;
+
+stop
+@enduml

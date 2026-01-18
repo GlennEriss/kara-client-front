@@ -1,0 +1,60 @@
+@startuml SEQ_Rejeter
+title Séquence : Rejeter une Demande d'Adhésion
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipRejectionModal\n(Component)" as Modal
+participant "useUpdateMembershipStatus\n(Hook)" as Hook
+participant "MembershipService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+participant "NotificationService" as Notif
+
+Admin -> Actions: Cliquer "Rejeter"
+activate Actions
+
+Actions -> Modal: Ouvrir modal de rejet
+activate Modal
+
+Modal --> Admin: Formulaire motif de rejet
+
+Admin -> Modal: Saisir motif + confirmer
+
+Modal -> Hook: rejectMutation.mutate(\n{ requestId, motif })
+activate Hook
+
+Hook -> Service: rejectMembershipRequest(\nrequestId, adminId, motif)
+activate Service
+
+Service -> DB: updateMembershipRequestStatus(\nrequestId, 'rejected', data)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  status: 'rejected',\n  processedBy: adminId,\n  processedAt: serverTimestamp(),\n  motifReject: motif\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service -> Notif: sendRejectionNotification(\nrequestId, motif)
+activate Notif
+Notif -> Firestore: addDoc(notifications, {\n  type: 'status_update',\n  module: 'memberships',\n  ...\n})
+Notif --> Service: OK
+deactivate Notif
+
+Service --> Hook: { success: true }
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast "Demande rejetée"
+Modal -> Modal: Fermer modal
+
+deactivate Modal
+deactivate Actions
+
+@enduml

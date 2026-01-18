@@ -1,0 +1,40 @@
+@startuml Voir_Piece_Identite
+title Workflow : Voir la Pièce d'Identité (Recto/Verso)
+
+start
+
+:Admin clique sur "Voir la pièce d'identité" 
+(dans dropdown menu "..." de la carte);
+
+:Afficher modal MemberIdentityModal;
+
+:Initialiser vue à "recto" (showFront = true);
+
+:Vérifier si photos existent :
+- identity.identityDocumentFront
+- identity.identityDocumentBack;
+
+if (Photos existent ?) then (oui)
+  :Afficher image recto par défaut;
+  
+  if (Admin clique sur "Voir verso" ?) then (oui)
+    :showFront = false;
+    :Afficher image verso;
+  endif
+  
+  if (Admin clique sur "Voir recto" ?) then (oui)
+    :showFront = true;
+    :Afficher image recto;
+  endif
+  
+  :Afficher boutons toggle "Recto" / "Verso";
+else (non)
+  :Afficher message "Pièce d'identité non fournie";
+endif
+
+:Admin peut zoomer sur l'image (si supporté);
+
+:Admin peut fermer la modal;
+
+stop
+@enduml

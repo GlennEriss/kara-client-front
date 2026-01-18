@@ -233,9 +233,18 @@ export class MembershipServiceV2 implements IMembershipService {
     
     // Récupérer les informations de l'admin pour la traçabilité
     const admin = await this.adminRepository.getAdminById(adminId)
-    const adminName = admin 
-      ? `${admin.firstName} ${admin.lastName}`.trim() || 'Admin inconnu'
-      : 'Admin inconnu'
+    
+    // VALIDATION DE SÉCURITÉ : L'admin doit exister et être valide
+    if (!admin) {
+      throw new Error(`SÉCURITÉ : L'administrateur avec l'ID "${adminId}" n'existe pas dans la base de données. Enregistrement du paiement refusé.`)
+    }
+    
+    const adminName = `${admin.firstName} ${admin.lastName}`.trim()
+    
+    // VALIDATION DE SÉCURITÉ : Le nom de l'admin ne doit pas être vide ou "Admin inconnu"
+    if (!adminName || adminName === '' || adminName === 'Admin inconnu') {
+      throw new Error(`SÉCURITÉ : Impossible de déterminer l'identité de l'administrateur (ID: ${adminId}). Enregistrement du paiement refusé pour des raisons de sécurité.`)
+    }
     
     // Date d'enregistrement (maintenant)
     const recordedAt = new Date()

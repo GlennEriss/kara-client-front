@@ -1,0 +1,106 @@
+@startuml Payer
+title Workflow : Enregistrer un Paiement pour une Demande
+
+start
+
+:Admin clique sur "Payer" 
+(dans dropdown menu "..." de la carte,
+visible si status = 'pending' ET isPaid = false);
+
+:Afficher modal de paiement (Dialog);
+
+:Initialiser état isPaying = false;
+
+:Demander informations paiement :
+- Date (Input type="date")
+- Heure (Input type="time")
+- Mode de paiement (Select) :
+  * Espèce
+  * Mobile Money
+  * Virement
+  * Chèque
+  * Carte bancaire
+- Montant (Input type="number")
+- Type de paiement (Select) :
+  * Membership
+  * Autre
+- Avec frais ? (Select : Oui/Non);
+
+:Admin renseigne tous les champs;
+
+:Admin clique "Valider";
+
+if (Tous les champs remplis ?) then (non)
+  :Afficher toast erreur 
+  "Champs requis";
+  stop
+endif
+
+:isPaying = true;
+
+:Appel mutation usePayMembershipRequest 
+avec :
+- requestId
+- payment: {
+    date: Date (date + time)
+    mode: PaymentMode
+    amount: Number
+    acceptedBy: admin.uid
+    paymentType: TypePayment
+    time: string
+    withFees: boolean
+  };
+
+:Appel updateMembershipPayment 
+dans membership.db.ts;
+
+:Mise à jour document Firestore :
+- isPaid = true
+- payments[] = ajouter nouveau paiement :
+  {
+    date: Date
+    mode: PaymentMode
+    amount: number
+    acceptedBy: string
+    paymentType: TypePayment
+    time?: string
+    withFees?: boolean
+    createdAt: serverTimestamp()
+  }
+- paidAt = serverTimestamp()
+- paidBy = admin.uid;
+
+if (Mise à jour réussie ?) then (oui)
+  :Invalider cache React Query 
+  (membershipRequests);
+  
+  :Fermer modal de paiement;
+  
+  :Afficher toast succès "Paiement enregistré";
+  
+  :Badge "Non payé" change en "Payé" 
+  (mise à jour automatique);
+  
+  :Bouton "Approuver" devient actif 
+  (si status = 'pending');
+else (erreur)
+  :Afficher toast erreur "Erreur de paiement";
+endif
+
+:isPaying = false;
+
+stop
+
+note right
+  **Note :**
+  
+  Le paiement ne change pas le statut de la demande,
+  seulement isPaid = true.
+  
+  Le statut reste 'pending' jusqu'à approbation.
+  
+  Plusieurs paiements peuvent être enregistrés
+  (tableau payments[]).
+end note
+
+@enduml

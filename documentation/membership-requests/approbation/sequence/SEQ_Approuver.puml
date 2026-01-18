@@ -1,0 +1,113 @@
+@startuml SEQ_Approuver
+title Séquence : Approuver une Demande d'Adhésion (Refactorisé avec Rollback)
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipApprovalModal\n(Component)" as Modal
+participant "useApproveMembershipRequest\n(Hook)" as Hook
+participant "MembershipApprovalService" as ApprovalService
+participant "API Route\n(/api/membership/approve)" as API
+database "Firebase Auth" as Auth
+database "Firestore" as Firestore
+database "Firebase Storage" as Storage
+participant "NotificationService" as Notif
+
+Admin -> Actions: Cliquer "Approuver"
+activate Actions
+
+Actions -> Actions: Vérifier isPaid === true
+
+Actions -> Modal: Ouvrir modal d'approbation
+activate Modal
+
+Modal --> Admin: Formulaire:\n- Type de membre\n- Entreprise\n- Profession\n- PDF (optionnel)
+
+Admin -> Modal: Remplir et confirmer
+Modal -> Hook: approveMutation.mutate(params)
+activate Hook
+
+Hook -> ApprovalService: approveRequest(params)
+activate ApprovalService
+
+note right of ApprovalService
+  Système de rollback:
+  const rollbackActions = []
+end note
+
+ApprovalService -> ApprovalService: validateRequest(requestId)
+
+alt PDF fourni
+    ApprovalService -> Storage: uploadBytes(adhesionPdf)
+    activate Storage
+    Storage --> ApprovalService: pdfUrl
+    deactivate Storage
+    ApprovalService -> ApprovalService: rollbackActions.push(\n() => deleteObject(pdfRef))
+end
+
+ApprovalService -> API: POST /api/membership/approve
+activate API
+
+API -> API: Vérifier permissions admin\n(getServerSession)
+
+API -> API: Valider données (Zod)
+
+API -> Auth: createUser(email, password)
+activate Auth
+Auth --> API: UserRecord (uid)
+deactivate Auth
+
+API -> API: rollbackActions.push(\n() => deleteUser(uid))
+
+API -> Firestore: setDoc(users/{matricule}, userData)
+API -> API: rollbackActions.push(\n() => deleteDoc(users/{matricule}))
+
+API -> Firestore: addDoc(subscriptions, subscriptionData)
+API -> API: rollbackActions.push(\n() => deleteDoc(subscription))
+
+API -> Firestore: updateDoc(membership-requests/{id},\n{ status: 'approved', ... })
+
+API --> ApprovalService: { success: true, matricule, email }
+deactivate API
+
+alt Document archivé
+    ApprovalService -> Firestore: addDoc(documents, {\n  type: 'ADHESION',\n  memberId: matricule,\n  url: pdfUrl\n})
+end
+
+ApprovalService -> Notif: sendApprovalNotification(\nmemberId, requestId)
+activate Notif
+Notif -> Firestore: addDoc(notifications, ...)
+Notif --> ApprovalService: OK
+deactivate Notif
+
+ApprovalService --> Hook: ApprovalResult
+deactivate ApprovalService
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast succès:\n"Membre créé: {matricule}"
+
+note right of Modal
+  ⚠️ Amélioration sécurité:
+  Mot de passe envoyé par email
+  au lieu d'être affiché
+end note
+
+deactivate Modal
+deactivate Actions
+
+group Rollback en cas d'erreur
+    note over ApprovalService, Auth
+      Si erreur à n'importe quelle étape:
+      1. Exécuter rollbackActions.reverse()
+      2. Supprimer User Firebase
+      3. Supprimer document users
+      4. Supprimer subscription
+      5. Supprimer PDF uploadé
+      6. Logger pour intervention manuelle
+    end note
+end
+
+@enduml

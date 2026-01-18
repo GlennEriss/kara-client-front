@@ -1,0 +1,75 @@
+@startuml Legende_Architecture
+title Légende - Architecture Refactorisée
+
+package "Couche Présentation (UI)" #E8F4F8 {
+    [Page Components] as Page
+    [Feature Components] as Feature
+    [UI Components\n(SearchInput, Pagination, etc.)] as UI
+    [Modals] as Modal
+}
+
+package "Couche Logique (Hooks)" #FFF8DC {
+    [React Query Hooks\n(useQuery, useMutation)] as Hooks
+}
+
+package "Couche Métier (Services)" #F0FFF0 {
+    [MembershipApprovalService] as ApprovalSvc
+    [MembershipPaymentService] as PaymentSvc
+    [MembershipCorrectionService] as CorrectionSvc
+    [MembershipStatsService] as StatsSvc
+}
+
+package "Couche Données (Repository)" #FFF0F5 {
+    [membership.db.ts] as DB
+    [DocumentRepository] as DocRepo
+}
+
+package "Infrastructure" #F5F5F5 {
+    database "Firestore" as Firestore
+    database "Firebase Auth" as Auth
+    database "Firebase Storage" as Storage
+    [API Routes\n(/api/membership/*)] as API
+    [NotificationService] as Notif
+}
+
+Page --> Feature
+Feature --> UI
+Feature --> Modal
+Feature --> Hooks
+Hooks --> ApprovalSvc
+Hooks --> PaymentSvc
+Hooks --> CorrectionSvc
+Hooks --> StatsSvc
+ApprovalSvc --> DB
+ApprovalSvc --> API
+PaymentSvc --> DB
+CorrectionSvc --> DB
+CorrectionSvc --> Notif
+StatsSvc --> DB
+DB --> Firestore
+API --> Auth
+API --> Firestore
+Notif --> Firestore
+
+note bottom of ApprovalSvc
+  Services = Logique métier pure
+  - Validation
+  - Rollback
+  - Orchestration
+end note
+
+note bottom of Hooks
+  Hooks = Data fetching
+  - Cache management
+  - Invalidation
+  - Loading states
+end note
+
+note bottom of UI
+  UI Components = Réutilisables
+  - Design KARA
+  - Animations
+  - Accessibilité
+end note
+
+@enduml

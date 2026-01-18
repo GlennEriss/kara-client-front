@@ -405,6 +405,16 @@ export function MembershipRequestActionsV2({
               </DropdownMenuItem>
             )}
 
+            {onViewPaymentDetails && isPaid && (
+              <DropdownMenuItem
+                onClick={onViewPaymentDetails}
+                data-testid="action-view-payment-details-menu"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Voir les détails du paiement
+              </DropdownMenuItem>
+            )}
+
             {onSendWhatsApp && (
               <>
                 <DropdownMenuSeparator />

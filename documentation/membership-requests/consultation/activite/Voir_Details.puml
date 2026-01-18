@@ -1,0 +1,37 @@
+@startuml Voir_Details
+title Workflow : Voir les Détails d'une Demande d'Adhésion
+
+start
+
+:Admin clique sur "Voir les détails" 
+(dans dropdown menu "..." ou lien);
+
+:Navigation vers page de détails 
+/routes/admin/membership-requests/[id];
+
+:Chargement de la demande via 
+useMembershipRequest(requestId);
+
+if (Demande trouvée ?) then (oui)
+  :Récupérer informations parrain 
+  (si intermediaryCode existe);
+  
+  :Récupérer informations admin traiteur 
+  (si processedBy existe);
+  
+  :Afficher page de détails avec :
+  - Informations identité complètes
+  - Adresse
+  - Entreprise/Profession
+  - Statut et historique
+  - Parrain (si existe)
+  - Actions disponibles;
+else (non)
+  :Afficher erreur "Demande non trouvée";
+  stop
+endif
+
+:Afficher skeleton pendant chargement;
+
+stop
+@enduml

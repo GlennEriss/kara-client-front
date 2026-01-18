@@ -1,0 +1,91 @@
+@startuml Flux_Complet_Corrections_V2
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #234D65
+  FontColor #000000
+}
+skinparam activityDiamond {
+  BackgroundColor #CBB171
+  BorderColor #234D65
+}
+skinparam start {
+  BackgroundColor #10b981
+  BorderColor #234D65
+}
+skinparam stop {
+  BackgroundColor #ef4444
+  BorderColor #234D65
+}
+
+title Workflow Complet : Cycle de Corrections (Architecture V2)
+
+start
+
+partition "Phase 1 : Admin demande corrections" {
+  :Admin ouvre CorrectionsModalV2;
+  :Saisit corrections (une par ligne);
+  if (Plusieurs numéros disponibles ?) then (oui)
+    :Admin sélectionne numéro WhatsApp\n(par défaut: premier numéro);
+  endif
+  :Service génère code sécurité (6 chiffres);
+  :Service calcule expiration (48h);
+  :Repository met à jour statut 'under_review';
+  if (Numéro de téléphone disponible ?) then (oui)
+    :Service génère URL WhatsApp\navec numéro sélectionné;
+    :Ouvrir WhatsApp avec message pré-rempli;
+  endif
+  :Admin reçoit code de sécurité;
+}
+
+partition "Phase 2 : Communication" {
+  if (WhatsApp disponible ?) then (oui)
+    :Demandeur reçoit message WhatsApp avec code;
+  else (non)
+    :Admin communique code manuellement;
+  endif
+}
+
+partition "Phase 3 : Demandeur accède corrections" {
+  :Demandeur accède /register?requestId=XXX;
+  :Système détecte correctionRequest depuis URL;
+  :Vérification préliminaire :\n- Code non utilisé ?\n- Code non expiré ?;
+  :Afficher formulaire code de sécurité;
+  :Demandeur saisit code;
+  :Vérification code (correct, non expiré, non utilisé);
+  :Chargement données demande;
+  :Afficher formulaire pré-rempli;
+}
+
+partition "Phase 4 : Demandeur corrige" {
+  :Demandeur modifie champs nécessaires;
+  :Demandeur soumet formulaire;
+  :Repository met à jour demande;
+  :Marquer code comme utilisé;
+  :Statut repasse à 'pending';
+  :Afficher confirmation;
+}
+
+partition "Phase 5 : Admin vérifie" {
+  :Admin voit demande repasser en 'pending';
+  :Admin peut réapprouver ou rejeter;
+}
+
+stop
+
+note right
+  **Cycle complet :**
+  pending -> (Admin demande corrections) -> under_review
+  -> (Demandeur corrige) -> pending -> (Admin approuve) -> approved
+
+  Le code de sécurité est à usage unique.
+  Après utilisation, le demandeur ne peut plus
+  accéder aux corrections avec le même code.
+
+  **Sécurité renforcée :**
+  - Double vérification (URL + Code)
+  - Expiration 48h
+  - Usage unique
+  - Validation stricte à chaque étape
+end note
+
+@enduml
