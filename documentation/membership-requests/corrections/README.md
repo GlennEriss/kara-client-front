@@ -47,22 +47,52 @@ corrections/
 │   ├── FIRESTORE_INDEXES.md
 │   └── firestore.indexes.json
 │
-└── functions/                          # Cloud Functions (cas obligatoires)
-    └── README.md                       # Documentation des Cloud Functions
+├── functions/                          # Cloud Functions (cas obligatoires)
+│   └── README.md                       # Documentation des Cloud Functions
+│
+└── notification/                       # Notifications (cas identifiés)
+    └── README.md                       # Documentation des notifications
 ```
 
 ---
 
-## 🚀 Pour Commencer
+## 🚀 Pour Commencer l'Implémentation
 
-**⭐ Commencez par lire** : `workflow-use-case-corrections.md`
+### ⭐ **1. Lire en PREMIER : `workflow-use-case-corrections.md`**
 
-Ce fichier contient :
-- ✅ Toutes les références aux documents de documentation
-- ✅ Workflow d'implémentation étape par étape
-- ✅ Checklist complète pour chaque phase
-- ✅ Références à l'architecture V2 (domains)
-- ✅ Ordre d'implémentation recommandé
+**Pourquoi ce fichier en premier ?**
+- ✅ **Point d'entrée principal** : Orchestre toute l'implémentation
+- ✅ **Checklist complète** : Toutes les étapes avec checkboxes
+- ✅ **Références complètes** : Pointe vers TOUS les documents nécessaires à chaque étape
+- ✅ **Ordre d'implémentation** : Décrit l'ordre exact à suivre (10 étapes)
+- ✅ **Architecture V2** : Explique la structure des domaines
+- ✅ **Détails techniques** : Méthodes, signatures, validations
+
+**Ce fichier contient** :
+- Vue d'ensemble et scope
+- **Section "Documentation de Référence"** : Tous les liens vers les autres docs
+- Architecture V2 (structure des domaines)
+- Étapes 1-15 détaillées avec checklists
+- Checklist globale par phase
+- Ordre d'implémentation recommandé
+- Points d'attention (sécurité, performance, UX)
+
+### 📚 **2. Lire en SECOND : Ce `README.md`**
+
+**Pourquoi ce fichier en second ?**
+- ✅ **Vue d'ensemble** : Vision générale de toute la documentation
+- ✅ **Navigation** : Aide à comprendre la structure des dossiers
+- ✅ **Quick Start** : Indique quel fichier lire pour chaque objectif
+- ✅ **Checklist globale** : Vue d'ensemble de l'état de la documentation
+
+**Quand l'utiliser** :
+- Pour naviguer entre les documents
+- Pour trouver rapidement un type de documentation (UML, tests, Firebase, etc.)
+- Pour comprendre la structure globale
+
+### 🔍 **3. Consulter selon les besoins (pendant l'implémentation)**
+
+Consultez les documents spécifiques selon la phase d'implémentation (voir section "Documentation par Type" ci-dessous).
 
 ---
 
@@ -94,7 +124,10 @@ Ce fichier contient :
 - **Functions** : `functions/README.md` ⭐ — Cas obligatoires nécessitant des Cloud Functions (sécurité critique)
 - **Changelog** : `CHANGELOG_CLOUD_FUNCTIONS.md` ⭐ — Liste des modifications suite à l'intégration Cloud Functions
 
-### 6. Design Patterns
+### 6. Notifications
+- **Notifications** : `notification/README.md` ⭐ — 5 types de notifications identifiés pour les corrections
+
+### 7. Design Patterns
 - **Application** : `DESIGN_PATTERNS_APPLICATION.md` ⭐ — Identifie les cas nécessitant des patterns dans le code
 
 ---
@@ -127,6 +160,7 @@ Ce fichier contient :
 - [x] Documentation tests complète (96 unitaires + ~20 intégration + 17 E2E)
 - [x] Documentation Firebase (rules + indexes + patterns)
 - [x] Cloud Functions identifiées (2 obligatoires + 1 recommandée)
+- [x] Notifications identifiées (5 types de notifications)
 - [x] Workflow d'implémentation créé
 - [x] Design patterns identifiés (7 cas avec patterns recommandés)
 
