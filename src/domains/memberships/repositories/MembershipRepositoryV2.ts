@@ -96,33 +96,8 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       // Construire la requête
       const q = query(collectionRef, ...constraints)
       
-      // Debug: Log de la requête pour vérification (uniquement en développement)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Repository.getAll - Filtres:', filters)
-        try {
-          const constraintsInfo = constraints.map(c => {
-            // Vérifier si l'objet a les propriétés attendues avant d'y accéder
-            if (c && typeof c === 'object') {
-              if ('type' in c) return String(c.type)
-              if ('_field' in c || 'field' in c) return 'where'
-              if ('_direction' in c || 'direction' in c) return 'orderBy'
-              return 'unknown'
-            }
-            return 'unknown'
-          }).join(', ')
-          console.log('🔍 Repository.getAll - Constraints:', constraintsInfo)
-        } catch (error) {
-          // Ignorer les erreurs de debug
-        }
-      }
-      
       // Exécuter la requête
       const querySnapshot = await getDocs(q)
-      
-      // Debug: Log des résultats (uniquement en développement)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 Repository.getAll - Résultats trouvés:', querySnapshot.size, 'documents')
-      }
       
       // Transformer les documents
       const items: MembershipRequest[] = []
@@ -173,7 +148,6 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
         pagination,
       }
     } catch (error) {
-      console.error('❌ Erreur Repository.getAll:', error)
       throw error
     }
   }
@@ -193,7 +167,6 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       
       return this.transformDocument(docSnap.id, docSnap.data())
     } catch (error) {
-      console.error('❌ Erreur Repository.getById:', error)
       throw error
     }
   }
@@ -219,7 +192,6 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       
       await updateDoc(docRef, updateData)
     } catch (error) {
-      console.error('❌ Erreur Repository.updateStatus:', error)
       throw error
     }
   }
@@ -309,13 +281,11 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
           beneficiaryName: `${existing.identity.firstName} ${existing.identity.lastName}`.trim(),
         })
       } catch (paymentError) {
-        // Log l'erreur mais ne bloque pas la mise à jour du membership-request
+        // Ignorer l'erreur pour ne pas bloquer la mise à jour du membership-request
         // (pour éviter de casser le flux si la collection centralisée a un problème)
-        console.error('⚠️ Erreur lors de l\'enregistrement dans la collection centralisée:', paymentError)
         // On continue quand même car le paiement est déjà enregistré dans membership-request
       }
     } catch (error) {
-      console.error('❌ Erreur Repository.markAsPaid:', error)
       throw error
     }
   }
@@ -380,7 +350,6 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
         percentages,
       }
     } catch (error) {
-      console.error('❌ Erreur Repository.getStatistics:', error)
       throw error
     }
   }

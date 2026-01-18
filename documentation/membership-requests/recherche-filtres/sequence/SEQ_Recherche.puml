@@ -1,0 +1,64 @@
+@startuml SEQ_Recherche
+title Séquence : Recherche de Demandes (Optimisée côté serveur)
+
+actor "Admin" as Admin
+participant "SearchInput\n(Component UI)" as SearchUI
+participant "MembershipRequestsFilters\n(Component)" as Filters
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "MembershipService" as Service
+participant "SearchService\n(Algolia/Firestore)" as SearchService
+database "Firestore" as Firestore
+
+Admin -> SearchUI: Saisir texte recherche
+activate SearchUI
+
+SearchUI -> SearchUI: Debounce 300ms
+
+SearchUI -> Filters: onChange(searchQuery)
+activate Filters
+
+Filters -> Filters: setFilters({ searchQuery, page: 1 })
+
+Filters -> Hook: Déclencher refetch
+activate Hook
+
+Hook -> Service: searchMembershipRequests(\n{ searchQuery, status, page, limit })
+activate Service
+
+alt Option A: Index Firestore (recherche exacte)
+    Service -> Firestore: query(\n  where('status', '==', status),\n  where('identity.email', '==', searchQuery)\n)
+    Firestore --> Service: QuerySnapshot
+else Option B: Full-text Search (Algolia)
+    Service -> SearchService: search(searchQuery, {\n  filters: `status:${status}`,\n  hitsPerPage: limit,\n  page: page - 1\n})
+    activate SearchService
+    SearchService --> Service: SearchResults (ids + metadata)
+    deactivate SearchService
+    
+    Service -> Firestore: getAll(ids)
+    Firestore --> Service: MembershipRequests[]
+end
+
+Service -> Service: transformResults()
+
+Service --> Hook: {\n  data: MembershipRequest[],\n  pagination: { total, pages }\n}
+deactivate Service
+
+Hook --> Filters: QueryResult
+deactivate Hook
+
+Filters --> SearchUI: Update UI
+deactivate Filters
+
+SearchUI --> Admin: Afficher résultats filtrés\n+ message "X résultats"
+
+deactivate SearchUI
+
+opt Admin efface recherche
+    Admin -> SearchUI: Clear search
+    SearchUI -> Filters: onChange('')
+    Filters -> Hook: Refetch sans filtre
+    Hook --> Filters: Tous les résultats
+    Filters --> Admin: Afficher toutes les demandes
+end
+
+@enduml

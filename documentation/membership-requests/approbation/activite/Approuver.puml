@@ -1,0 +1,107 @@
+@startuml Approuver
+title Workflow : Approuver une Demande d'Adhésion
+
+start
+
+:Admin clique sur "Approuver" 
+(bouton visible si status = 'pending');
+
+if (Demande est payée ?) then (non)
+  :Bouton désactivé;
+  :Afficher message "Paiement requis";
+  stop
+endif
+
+:Afficher modal de confirmation;
+
+:Demander type de membre :
+- Adhérent
+- Sympathisant  
+- Bienfaiteur;
+
+if (Type de membre sélectionné ?) then (non)
+  :Afficher erreur "Type de membre requis";
+  stop
+endif
+
+:Vérifier existence entreprise/profession 
+dans Firestore (si renseignées);
+
+:Demander nom entreprise (si vide);
+
+:Demander nom profession (si vide);
+
+:Demander upload PDF d'adhésion (optionnel);
+
+:Admin confirme l'approbation;
+
+:isApproving = true;
+
+fork
+  if (PDF fourni ?) then (oui)
+    :Upload PDF vers Firebase Storage
+    (chemin: membership-adhesion-pdfs/);
+    
+    :Générer nom de fichier :
+    format "firstName_lastName_YYYY-YYYY.pdf";
+    
+    :Récupérer URL et métadonnées du PDF;
+  else (non)
+    :adhesionPdfURL = undefined;
+  endif
+fork again
+  :Appel API POST /api/create-firebase-user-email-pwd
+  avec :
+  - requestId
+  - adminId
+  - membershipType
+  - companyName
+  - professionName
+  - adhesionPdfURL;
+end fork
+
+if (API répond OK ?) then (oui)
+  :Récupérer matricule, email, mot de passe;
+  
+  if (PDF uploadé avec succès ?) then (oui)
+    :Créer document dans DocumentRepository :
+    - type: 'ADHESION'
+    - format: 'pdf'
+    - libelle: 'Fiche d'adhésion - {matricule}'
+    - memberId: matricule
+    - path, url, size;
+    
+    if (Document créé ?) then (non)
+      :Afficher warning "Document non archivé";
+    endif
+  endif
+  
+  :Mise à jour statut demande = 'approved'
+  (via API create-firebase-user);
+  
+  :Invalider cache React Query 
+  (membershipRequests, stats);
+  
+  :Afficher toast succès avec :
+  - Matricule
+  - Email
+  - Mot de passe (⚠️ problème sécurité);
+else (non)
+  :Afficher toast erreur 
+  avec message d'erreur de l'API;
+endif
+
+:isApproving = false;
+
+stop
+
+note right
+  **⚠️ Problèmes identifiés :**
+  
+  1. Pas de rollback si erreur après création utilisateur
+  2. Mot de passe exposé dans le toast (sécurité)
+  3. Logique métier complexe dans le composant React
+  4. Pas de transaction Firestore
+end note
+
+@enduml

@@ -1,0 +1,83 @@
+@startuml Liste_Dossiers
+title Workflow : Chargement et Affichage de la Liste des Dossiers
+
+start
+
+:Admin accède à /membership-requests;
+
+:Initialisation composant MembershipRequestsList;
+
+:Initialisation états :
+- filters = { status: 'all', searchQuery: '', page: 1, limit: 10 }
+- activeTab = 'all';
+
+:Appel useMembershipRequests 
+avec filtres initiaux;
+
+if (Chargement en cours ?) then (oui)
+  :Afficher skeletons (5 MembershipRequestSkeleton);
+elseif (Erreur ?) then (erreur)
+  :Afficher message d'erreur 
+  avec icône FileX;
+  stop
+else (données disponibles)
+  :Récupérer membershipData :
+  - data: MembershipRequest[]
+  - pagination: { currentPage, totalPages, totalItems, ... };
+  
+  :Calculer statistiques (⚠️ sur 10 items seulement);
+  
+  :Filtrer données selon activeTab :
+  if (activeTab === 'paid')
+    filtrer isPaid === true
+  else if (activeTab === 'unpaid')
+    filtrer isPaid === false
+  else
+    afficher toutes les données;
+  
+  :Afficher en-tête :
+  - Titre "Demandes d'Adhésion"
+  - Description;
+  
+  :Afficher onglets (7 onglets) :
+  - Toutes
+  - En attente
+  - En cours d'examen
+  - Approuvées
+  - Refusées
+  - Payées
+  - Non payées;
+  
+  :Afficher StatsCarousel 
+  (statistiques avec carousel);
+  
+  :Afficher barre de recherche et filtres 
+  (dans une Card);
+  
+  :Afficher liste des demandes :
+  for each request in displayedRequests
+    Afficher MembershipRequestCard
+    avec :
+    - Photo
+    - Nom complet
+    - Informations (email, téléphone, adresse, date, âge, véhicule)
+    - Badge statut
+    - Badge paiement
+    - Dropdown menu actions
+    - Boutons actions (si status = 'pending')
+  end;
+  
+  :Afficher pagination 
+  (si totalPages > 1);
+endif
+
+:Admin peut interagir avec :
+- Onglets (changement de filtre)
+- Recherche (filtrage texte)
+- Filtres statut (Select)
+- Pagination (navigation pages)
+- Actions sur les cartes;
+
+stop
+
+@enduml

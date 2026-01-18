@@ -170,42 +170,57 @@ Utiliser `useMembershipRequestsStats()` hook qui fait des requêtes dédiées po
 ### 7. Demander Corrections
 **Workflow :** Mettre une demande en examen et demander des corrections
 
-**Flux :**
-1. Admin clique "Demander corrections" (`pending` seulement)
-2. Modal confirmation
-3. Saisie liste corrections (optionnel)
-4. **Si corrections fournies :**
-   - Génération code sécurité (6 chiffres)
-   - Date expiration (48h)
-   - Mise à jour Firestore avec code
-5. **Sinon :**
-   - Simple mise à jour statut = 'under_review'
-6. Notification automatique
-7. Affichage dans carte :
-   - Lien correction : `/register?requestId={id}`
-   - Code sécurité (si généré)
-   - Boutons copier lien/code
-   - Bouton renouveler code
-8. **Renouvellement code** (si demandé) :
-   - Nouveau code 6 chiffres
-   - Nouvelle expiration 48h
-   - Toast "Code renouvelé"
+> **📌 Note :** Ce workflow a été refactorisé dans l'architecture V2. Voir le fichier **`DIAGRAMMES_ACTIVITE_CORRECTIONS.puml`** pour les diagrammes détaillés de l'architecture V2.
 
-**Workflow côté demandeur :**
-1. Reçoit lien + code
-2. Accède `/register?requestId={id}`
-3. Saisit code sécurité
-4. Code vérifié (non expiré, non utilisé)
-5. Formulaire pré-rempli
-6. Modifie données
-7. Soumet nouvelle demande
-8. Code marqué utilisé (`securityCodeUsed = true`)
+**Fichier dédié :** `DIAGRAMMES_ACTIVITE_CORRECTIONS.puml`
 
-**Points clés :**
-- Code 6 chiffres (sécurité faible : 1M combinaisons)
+Ce fichier contient **3 diagrammes d'activité** adaptés à l'architecture V2 :
+
+1. **Admin_Demander_Corrections** - Flux complet admin (CorrectionsModalV2 → MembershipServiceV2 → Repository)
+2. **Demandeur_Acceder_Corrections** - Flux complet demandeur (formulaire → vérification code → corrections)
+3. **Flux_Complet_Corrections** - Vue d'ensemble du cycle complet
+
+**Architecture V2 :**
+- **Composant :** `CorrectionsModalV2` (modal dédiée)
+- **Service :** `MembershipServiceV2.requestCorrections()`
+- **Repository :** `MembershipRepositoryV2.updateStatus()`
+- **Utilitaires :** 
+  - `generateSecurityCode()` → code 6 chiffres
+  - `calculateCodeExpiry(48)` → expiration 48h
+  - `generateWhatsAppUrl()` → URL WhatsApp optionnelle
+
+**Flux V2 (Admin) :**
+1. Admin clique "Demander corrections" (dans MembershipRequestActionsV2)
+2. Modal `CorrectionsModalV2` s'ouvre
+3. Admin saisit corrections (une par ligne)
+4. Option WhatsApp (si téléphone disponible)
+5. Service génère code sécurité (6 chiffres)
+6. Service calcule expiration (48h)
+7. Repository met à jour statut 'under_review' avec code
+8. Service génère URL WhatsApp (optionnel)
+9. Admin reçoit code + URL WhatsApp
+10. WhatsApp s'ouvre automatiquement (si sélectionné)
+
+**Flux V2 (Demandeur) :**
+1. Demandeur accède `/register?requestId=XXX`
+2. Système détecte `correctionRequest` depuis URL
+3. Afficher formulaire code de sécurité
+4. Demandeur saisit code
+5. Vérification code (correct, non expiré, non utilisé)
+6. Chargement données demande
+7. Afficher formulaire pré-rempli
+8. Demandeur apporte corrections
+9. Soumission → mise à jour demande
+10. Code marqué utilisé (`securityCodeUsed = true`)
+11. Statut repasse à 'pending'
+
+**Points clés V2 :**
+- Code 6 chiffres (sécurité)
 - Expiration 48h
-- Code à usage unique (marqué utilisé après utilisation)
-- Renouvellement possible
+- Code à usage unique
+- Support WhatsApp optionnel
+- Séparation claire Service/Repository
+- Architecture modulaire et testable
 
 ---
 

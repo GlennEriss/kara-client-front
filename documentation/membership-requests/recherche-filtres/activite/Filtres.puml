@@ -1,0 +1,67 @@
+@startuml Filtres
+title Workflow : Application des Filtres
+
+start
+
+:Admin ouvre la page membership-requests;
+
+:Initialisation filtres par défaut :
+- status: 'all'
+- searchQuery: ''
+- page: 1
+- limit: 10;
+
+if (Admin sélectionne un onglet ?) then (oui)
+  :activeTab = onglet sélectionné;
+  
+  if (Onglet = 'pending' | 'approved' | 'rejected' | 'under_review' ?) then (oui)
+    :filters.status = valeur onglet;
+  else (on est sur 'all' | 'paid' | 'unpaid')
+    :filters.status = 'all';
+  endif
+  
+  :filters.page = 1 (reset pagination);
+endif
+
+if (Admin change filtre statut (Select) ?) then (oui)
+  :filters.status = valeur sélectionnée;
+  
+  :filters.page = 1 (reset pagination);
+endif
+
+if (Admin active filtre "Payé" / "Non payé" ?) then (oui)
+  :Filtrage côté CLIENT 
+  sur membershipData.data;
+  
+  :Filtre appliqué après récupération
+  (pas côté serveur);
+endif
+
+:Appel useMembershipRequests 
+avec filtres mis à jour;
+
+:Afficher indicateur de chargement;
+
+:Récupérer données filtrées depuis Firestore;
+
+:Afficher résultats filtrés;
+
+:Afficher badges de filtres actifs 
+(en haut de la liste);
+
+if (Admin clique "Réinitialiser" ?) then (oui)
+  :filters = {
+    status: 'all',
+    searchQuery: '',
+    page: 1,
+    limit: 10
+  };
+  
+  :activeTab = 'all';
+  
+  :Recharger toutes les demandes;
+endif
+
+stop
+
+@enduml

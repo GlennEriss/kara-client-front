@@ -114,6 +114,33 @@ Ce dossier contient l'analyse complète du module de gestion des demandes d'insc
 
 ---
 
+### 4b. [DIAGRAMMES_ACTIVITE_CORRECTIONS.puml](./DIAGRAMMES_ACTIVITE_CORRECTIONS.puml) ✅ **NOUVEAU - Architecture V2**
+
+**Contenu :** 3 diagrammes d'activité UML décrivant le workflow complet de "Demander des corrections" adapté à l'architecture V2.
+
+**Diagrammes inclus :**
+| # | Diagramme | Description |
+|---|-----------|-------------|
+| 1 | `Admin_Demander_Corrections` | Flux complet admin (CorrectionsModalV2 → MembershipServiceV2 → Repository) |
+| 2 | `Demandeur_Acceder_Corrections` | Flux complet demandeur (formulaire → vérification code → corrections) |
+| 3 | `Flux_Complet_Corrections` | Vue d'ensemble du cycle complet (Admin → Communication → Demandeur → Corrections → Vérification) |
+
+**Architecture V2 :**
+- **Composant :** `CorrectionsModalV2` (modal dédiée)
+- **Service :** `MembershipServiceV2.requestCorrections()`
+- **Repository :** `MembershipRepositoryV2.updateStatus()`
+- **Utilitaires :** `generateSecurityCode()`, `calculateCodeExpiry()`, `generateWhatsAppUrl()`
+
+**Différences avec ancien système :**
+- Code de sécurité 6 chiffres avec expiration 48h
+- Support WhatsApp optionnel
+- Séparation claire Service/Repository
+- Architecture modulaire et testable
+
+**Utilisation :** Comprendre le workflow complet de corrections dans l'architecture V2 refactorisée.
+
+---
+
 ### 5. [DIAGRAMMES_SEQUENCE.puml](./DIAGRAMMES_SEQUENCE.puml) + [README](./DIAGRAMMES_SEQUENCE_README.md)
 
 **Contenu :** 13 diagrammes de séquence UML basés sur la **nouvelle architecture refactorisée**.
@@ -254,6 +281,31 @@ Ce dossier contient l'analyse complète du module de gestion des demandes d'insc
 6. **Planning d'Implémentation** - 8 semaines
 
 **Métriques cibles :** Couverture unitaire ≥ 80%, Tests E2E 100%
+
+---
+
+### 13. [EXPORT_PLAN_TESTS_E2E.md](./EXPORT_PLAN_TESTS_E2E.md) ✅ **NOUVEAU**
+
+**Contenu :** Plan de test E2E complet pour la fonctionnalité d'export des demandes d'adhésion (PDF + Excel).
+
+**Sections principales :**
+- **Vue d'ensemble** - Fonctionnalité, page, modal, objectifs
+- **Stratégie de test** - Environnements (Desktop/Tablette/Mobile), jeux de données, gestion téléchargements
+- **Matrice de couverture** - 33 cas de test priorisés (P0/P1/P2/Robustesse)
+- **Implémentation recommandée** - Phases d'implémentation et ordre de priorité
+- **Métriques de couverture** - Fonctionnelle et par plateforme
+- **Notes & Recommandations** - Cas non testables automatiquement, recommandations QA
+- **Maintenance** - Fréquence de mise à jour, critères de succès
+
+**Matrice de couverture :**
+- **P0 - Bloquant:** 8 cas (téléchargement & cohérence)
+- **P1 - Fortement recommandé:** 13 cas (validations & UX)
+- **P2 - Amélioration UX:** 9 cas (accessibilité & mobile)
+- **Robustesse:** 6 cas (erreurs, volumineux, vide)
+
+**Statut :** 27 tests implémentés sur 33 prévus (82%)
+
+**Utilisation :** Référence pour les tests E2E de la fonctionnalité d'export. Voir aussi `e2e/membership-requests-v2/export.spec.ts` pour l'implémentation des tests.
 
 ---
 

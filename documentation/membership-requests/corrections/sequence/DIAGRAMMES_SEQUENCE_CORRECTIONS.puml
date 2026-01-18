@@ -1,0 +1,309 @@
+@startuml SEQ_Demandeur_Acceder_Corrections
+skinparam participant {
+  BackgroundColor #FFFFFF
+  BorderColor #234D65
+  FontColor #000000
+}
+skinparam actor {
+  BackgroundColor #CBB171
+  BorderColor #234D65
+}
+skinparam note {
+  BackgroundColor #FFF8DC
+  BorderColor #CBB171
+}
+skinparam sequence {
+  ArrowColor #234D65
+  LifeLineBorderColor #234D65
+  LifeLineBackgroundColor #E8F4F8
+  GroupBackgroundColor #F5F5F5
+  GroupBorderColor #234D65
+}
+
+title Séquence : Demandeur - Accéder et Modifier les Corrections
+
+actor "Demandeur" as Demandeur
+participant "Register\n(Page)" as RegisterPage
+participant "useRegistration\n(Hook)" as RegHook
+participant "RegistrationService" as Service
+participant "RegistrationRepository" as Repository
+database "Firestore\n(membership-requests)" as Firestore
+
+== Phase 1 : Accès via URL ==
+
+Demandeur -> RegisterPage: Accéder à /register?requestId=XXX
+activate RegisterPage
+
+RegisterPage -> RegHook: useRegistration() initialisé
+activate RegHook
+
+RegHook -> RegHook: Extraire requestId depuis URL
+
+alt requestId présent
+  RegHook -> Repository: getById(requestId)
+  activate Repository
+
+  Repository -> Firestore: getDoc(membership-requests, requestId)
+  activate Firestore
+  Firestore --> Repository: DocumentSnapshot
+  deactivate Firestore
+
+  alt Demande OK (under_review + securityCode)
+    Repository --> RegHook: MembershipRequest
+    deactivate Repository
+
+    RegHook -> RegHook: Vérifier securityCodeUsed
+    alt Code déjà utilisé
+      RegHook -> RegisterPage: Afficher erreur "Code déjà utilisé"
+      RegHook -> RegisterPage: setIsCacheLoaded(true)
+      deactivate RegHook
+      deactivate RegisterPage
+    else Code non utilisé
+      RegHook -> RegHook: Vérifier expiration (expiry < now)
+      alt Code expiré
+        RegHook -> RegisterPage: Afficher erreur "Code expiré"
+        RegHook -> RegisterPage: setIsCacheLoaded(true)
+        deactivate RegHook
+        deactivate RegisterPage
+      else Code valide
+        RegHook -> RegHook: Créer correctionRequest (isVerified=false)
+        RegHook -> RegisterPage: setCorrectionRequest(correctionRequest)
+        RegHook -> RegisterPage: setIsCacheLoaded(true)
+        RegisterPage -> RegisterPage: Afficher banner + formulaire code
+      end
+    end
+
+  else Demande invalide / sans corrections
+    Repository --> RegHook: null
+    deactivate Repository
+    RegHook -> RegisterPage: Afficher formulaire normal
+    RegHook -> RegisterPage: setIsCacheLoaded(true)
+  end
+
+else Pas de requestId
+  RegHook -> RegisterPage: Afficher formulaire normal
+  RegHook -> RegisterPage: setIsCacheLoaded(true)
+end
+
+deactivate RegHook
+
+== Phase 2 : Vérification du Code de Sécurité ==
+
+Demandeur -> RegisterPage: Saisir code (6 chiffres)
+Demandeur -> RegisterPage: Cliquer "Vérifier le code"
+activate RegisterPage
+
+RegisterPage -> RegHook: verifySecurityCode()
+activate RegHook
+
+RegHook -> RegHook: Valider format (6 chiffres)
+
+alt Format invalide
+  RegHook -> RegisterPage: Afficher erreur "Code invalide"
+  deactivate RegHook
+  deactivate RegisterPage
+else Format valide
+  RegHook -> Service: verifySecurityCode(requestId, code)
+  activate Service
+
+  Service -> Repository: verifySecurityCode(requestId, code)
+  activate Repository
+
+  Repository -> Firestore: getDoc(membership-requests, requestId)
+  activate Firestore
+  Firestore --> Repository: DocumentSnapshot
+  deactivate Firestore
+
+  Repository --> Service: boolean
+  deactivate Repository
+
+  Service --> RegHook: boolean
+  deactivate Service
+
+  alt Code valide
+    RegHook -> Service: loadRegistrationForCorrection(requestId)
+    activate Service
+
+    Service -> Repository: getById(requestId)
+    activate Repository
+
+    Repository -> Firestore: getDoc(membership-requests, requestId)
+    activate Firestore
+    Firestore --> Repository: MembershipRequest
+    deactivate Firestore
+
+    Repository --> Service: MembershipRequest
+    deactivate Repository
+
+    Service --> RegHook: RegisterFormData
+    deactivate Service
+
+    RegHook -> RegHook: isVerified=true + reset(formData) + resetSteps()
+    RegHook -> RegisterPage: Afficher formulaire pré-rempli
+    RegHook -> RegisterPage: Masquer formulaire code + afficher toast succès
+  else Code invalide
+    RegHook -> RegisterPage: Afficher erreur (incorrect / expiré / déjà utilisé)
+  end
+
+  deactivate RegHook
+  deactivate RegisterPage
+end
+
+== Phase 3 : Modification des Données ==
+
+Demandeur -> RegisterPage: Modifier champs selon reviewNote
+loop Pour chaque étape du formulaire
+  Demandeur -> RegisterPage: Valider étape
+  RegisterPage -> Service: validateStep(step, formData)
+  activate Service
+  Service --> RegisterPage: StepValidationResult
+  deactivate Service
+end
+
+== Phase 4 : Soumission des Corrections ==
+
+Demandeur -> RegisterPage: Soumettre formulaire
+activate RegisterPage
+
+RegisterPage -> RegHook: submitForm()
+activate RegHook
+
+RegHook -> Service: updateRegistration(requestId, formData)
+activate Service
+
+Service -> Repository: update(requestId, formData)
+activate Repository
+
+Repository -> Firestore: getDoc(membership-requests, requestId)
+activate Firestore
+Firestore --> Repository: MembershipRequest existant
+deactivate Firestore
+
+Repository -> Firestore: updateDoc(membership-requests, requestId)\nstatus='pending', securityCodeUsed=true
+activate Firestore
+Firestore --> Repository: OK
+deactivate Firestore
+
+Repository --> Service: true
+deactivate Repository
+
+Service --> RegHook: true
+deactivate Service
+
+RegHook -> RegisterPage: Toast succès + page confirmation
+deactivate RegHook
+deactivate RegisterPage
+
+note over Firestore
+  Statut = 'pending'
+  securityCodeUsed = true
+  Données mises à jour
+end note
+
+@enduml
+
+
+@startuml SEQ_Admin_Generer_Lien_Correction
+!theme plain
+skinparam participant {
+  BackgroundColor #FFFFFF
+  BorderColor #234D65
+  FontColor #000000
+}
+skinparam actor {
+  BackgroundColor #CBB171
+  BorderColor #234D65
+}
+skinparam note {
+  BackgroundColor #FFF8DC
+  BorderColor #CBB171
+}
+skinparam sequence {
+  ArrowColor #234D65
+  LifeLineBorderColor #234D65
+  LifeLineBackgroundColor #E8F4F8
+  GroupBackgroundColor #F5F5F5
+  GroupBorderColor #234D65
+}
+
+title Séquence : Admin - Générer Lien de Correction avec Code
+
+actor "Admin" as Admin
+participant "CorrectionsModalV2" as Modal
+participant "useMembershipActionsV2\n(Hook)" as MemHook
+participant "MembershipServiceV2" as Service
+participant "MembershipRepositoryV2" as Repository
+database "Firestore\n(membership-requests)" as Firestore
+participant "generateWhatsAppUrl\n(Utils)" as WhatsAppUtils
+
+Admin -> Modal: Cliquer "Demander corrections"
+activate Modal
+
+Modal -> Modal: Saisir corrections
+
+alt Plusieurs numéros disponibles
+  Modal -> Modal: Sélectionner numéro WhatsApp
+end
+
+Admin -> Modal: Cliquer "Demander les corrections"
+
+Modal -> MemHook: mutateAsync(requestId, corrections, selectedPhoneIndex)
+activate MemHook
+
+MemHook -> Service: requestCorrections(requestId, adminId, corrections, selectedPhoneIndex)
+activate Service
+
+Service -> Repository: getById(requestId)
+activate Repository
+
+Repository -> Firestore: getDoc(membership-requests, requestId)
+activate Firestore
+Firestore --> Repository: MembershipRequest
+deactivate Firestore
+
+Repository --> Service: MembershipRequest
+deactivate Repository
+
+Service -> Service: Générer securityCode (6 chiffres)
+Service -> Service: Calculer expiryDate (+48h)
+Service -> Service: Construire correctionsText
+
+Service -> Repository: updateStatus(requestId, 'under_review', payload)
+activate Repository
+
+Repository -> Firestore: updateDoc(membership-requests, requestId)\nstatus='under_review' + reviewNote + code + expiry
+activate Firestore
+Firestore --> Repository: OK
+deactivate Firestore
+
+Repository --> Service: OK
+deactivate Repository
+
+alt Numéro disponible
+  Service -> WhatsAppUtils: generateWhatsAppUrl(phoneNumber, message)
+  activate WhatsAppUtils
+  WhatsAppUtils --> Service: whatsAppUrl
+  deactivate WhatsAppUtils
+
+  Service --> MemHook: { securityCode, whatsAppUrl }
+  deactivate Service
+
+  MemHook --> Modal: Résultat
+  deactivate MemHook
+
+  Modal -> Modal: window.open(whatsAppUrl)
+else Pas de numéro
+  Service --> MemHook: { securityCode, whatsAppUrl = undefined }
+  deactivate Service
+  deactivate MemHook
+end
+
+Modal -> Modal: Toast succès + fermer modal
+deactivate Modal
+
+note over Admin, Firestore
+  Lien: /register?requestId={requestId}
+  Code envoyé via WhatsApp si disponible
+end note
+
+@enduml

@@ -1,0 +1,81 @@
+@startuml SEQ_Pagination
+title Séquence : Navigation par Pagination (Cursor-based)
+
+actor "Admin" as Admin
+participant "Pagination\n(Component UI)" as PaginationUI
+participant "MembershipRequestsList\n(Component)" as List
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> List: Accéder à la page
+activate List
+
+List -> Hook: useMembershipRequests(\n{ page: 1, limit: 10 })
+activate Hook
+
+Hook -> DB: getMembershipRequestsPaginated(\n{ page: 1, limit: 10 })
+activate DB
+
+DB -> Firestore: getCountFromServer(\n  query(status filter)\n)
+Firestore --> DB: totalCount
+
+DB -> Firestore: query(\n  orderBy('createdAt', 'desc'),\n  limit(10)\n)
+Firestore --> DB: QuerySnapshot (10 docs)
+
+DB -> DB: Stocker lastDoc comme cursor
+
+DB --> Hook: {\n  data: [],\n  pagination: {\n    currentPage: 1,\n    totalPages: ceil(total/10),\n    totalItems: total,\n    hasNext: true,\n    hasPrev: false\n  },\n  cursor: lastDoc\n}
+deactivate DB
+
+Hook --> List: QueryResult
+deactivate Hook
+
+List -> PaginationUI: Render pagination
+PaginationUI --> Admin: Afficher contrôles:\n[Préc] [1] [2] ... [N] [Suiv]
+
+alt Cliquer "Suivant"
+    Admin -> PaginationUI: Cliquer "Suivant"
+    PaginationUI -> List: onPageChange(page + 1)
+    List -> Hook: Refetch avec page + 1
+    activate Hook
+    
+    Hook -> DB: getMembershipRequestsPaginated(\n{ page: 2, cursor: lastDoc })
+    activate DB
+    
+    DB -> Firestore: query(\n  orderBy('createdAt', 'desc'),\n  startAfter(cursor),\n  limit(10)\n)
+    Firestore --> DB: Next 10 docs
+    
+    DB --> Hook: Page 2 results
+    deactivate DB
+    
+    Hook --> List: Updated results
+    deactivate Hook
+    
+    List --> Admin: Afficher page 2
+    List -> List: Scroll to top
+else Cliquer numéro de page
+    Admin -> PaginationUI: Cliquer sur [5]
+    PaginationUI -> List: onPageChange(5)
+    List -> Hook: Refetch avec page: 5
+    note right of Hook
+      Pour pagination directe,
+      on doit soit:
+      1. Utiliser offset (pas optimal Firestore)
+      2. Maintenir un cache de cursors
+      3. Utiliser un index secondaire
+    end note
+    Hook --> List: Page 5 results
+    List --> Admin: Afficher page 5
+else Changer items par page
+    Admin -> PaginationUI: Sélectionner "25" items
+    PaginationUI -> List: onItemsPerPageChange(25)
+    List -> List: setFilters({ limit: 25, page: 1 })
+    List -> Hook: Refetch avec limit: 25
+    Hook --> List: 25 premiers résultats
+    List --> Admin: Afficher 25 items/page
+end
+
+deactivate List
+
+@enduml

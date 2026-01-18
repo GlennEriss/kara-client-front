@@ -1,0 +1,76 @@
+@startuml SEQ_Demander_Corrections
+title Séquence : Demander des Corrections (Mise en Examen)
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipCorrectionModal\n(Component)" as Modal
+participant "useRequestCorrections\n(Hook)" as Hook
+participant "MembershipCorrectionService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+participant "NotificationService" as Notif
+
+Admin -> Actions: Cliquer "Demander corrections"
+activate Actions
+
+Actions -> Modal: Ouvrir modal
+activate Modal
+
+Modal --> Admin: Formulaire liste corrections
+
+Admin -> Modal: Saisir corrections + confirmer
+
+Modal -> Hook: correctionMutation.mutate(\n{ requestId, corrections })
+activate Hook
+
+Hook -> Service: requestCorrections(\nrequestId, adminId, corrections)
+activate Service
+
+Service -> Service: generateSecurityCode()\n// crypto.randomInt(100000, 999999)
+
+Service -> Service: calculateExpiry()\n// Date.now() + 48 heures
+
+Service -> DB: updateMembershipRequestForCorrection(\nrequestId, data)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  status: 'under_review',\n  reviewNote: corrections,\n  securityCode: code,\n  securityCodeExpiry: expiry,\n  securityCodeUsed: false,\n  reviewedBy: adminId,\n  processedAt: serverTimestamp()\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service -> Notif: sendCorrectionRequestNotification(\nrequestId, corrections, code)
+activate Notif
+Notif --> Service: OK
+deactivate Notif
+
+Service --> Hook: {\n  success: true,\n  securityCode: code,\n  correctionLink: url\n}
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
+
+Hook --> Modal: CorrectionResult
+deactivate Hook
+
+Modal --> Admin: Afficher:\n- Lien de correction\n- Code de sécurité\n- Bouton "Copier le lien"\n- Bouton "Copier le code"
+
+Admin -> Modal: Copier informations
+
+deactivate Modal
+deactivate Actions
+
+' Workflow du demandeur (séparé)
+note right of Admin
+  **Côté Demandeur:**
+  1. Reçoit notification avec lien + code
+  2. Accède à /register?requestId={id}
+  3. Saisit code de sécurité
+  4. Code validé (non expiré, non utilisé)
+  5. Formulaire pré-rempli
+  6. Soumet corrections
+  7. securityCodeUsed = true
+end note
+
+@enduml

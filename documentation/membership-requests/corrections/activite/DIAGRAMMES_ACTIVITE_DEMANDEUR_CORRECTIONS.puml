@@ -1,0 +1,305 @@
+@startuml Diagrammes d'Activité - Demandeur Corrections (Architecture V2)
+!theme plain
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #234D65
+    FontColor #000000
+}
+skinparam activityDiamond {
+    BackgroundColor #CBB171
+    BorderColor #234D65
+}
+skinparam start {
+    BackgroundColor #10b981
+    BorderColor #234D65
+}
+skinparam stop {
+    BackgroundColor #ef4444
+    BorderColor #234D65
+}
+
+' ==========================================
+' DEMANDEUR - ACCÉDER ET MODIFIER CORRECTIONS (DÉTAILLÉ)
+' ==========================================
+@startuml Demandeur_Modifier_Corrections_Detaille
+title Workflow Détaillé : Demandeur - Accéder et Modifier les Corrections (Architecture V2)
+
+note right
+  **Architecture V2 :**
+  - Composant : Register (formulaire multi-étapes)
+  - Hook : useRegistration()
+  - Service : RegistrationService
+  - Repository : RegistrationRepository
+  - Détection : correctionRequest depuis URL (?requestId=...)
+  - Validation : Schémas Zod par étape
+end note
+
+start
+
+:Demandeur accède à /register?requestId=XXX
+(via lien WhatsApp ou autre);
+
+partition "Phase 1 : Détection et Validation Initiale" {
+  :Chargement initial du formulaire Register;
+  
+  :useRegistration() hook initialisé;
+  
+  :Extraire requestId depuis URL :
+  requestId = new URLSearchParams(location.search)
+    .get('requestId');
+  
+  if (requestId présent dans URL ?) then (oui)
+    :Appel RegistrationRepository.getById(requestId);
+    
+    :Récupérer demande depuis Firestore;
+    
+    if (Demande trouvée ET 
+        status = 'under_review' ET
+        securityCode existe ?) then (oui)
+      
+      :VALIDATION 1 : Code déjà utilisé
+      if (securityCodeUsed === true ?) then (oui)
+        :Afficher erreur "Code déjà utilisé";
+        :Afficher message "Contactez l'administrateur pour un nouveau code";
+        stop
+      endif
+      
+      :VALIDATION 2 : Expiration du code
+      :expiry = securityCodeExpiry.toDate()
+      :isExpired = expiry < Date.now();
+      
+      if (Code expiré ?) then (oui)
+        :Afficher erreur "Code expiré";
+        :Afficher message "Le code a expiré. Contactez l'administrateur";
+        stop
+      endif
+      
+      :Créer correctionRequest :
+      {
+        requestId: string
+        reviewNote: string
+        securityCode: string
+        isVerified: false
+      };
+      
+      :Nettoyer cache soumission
+      (cacheService.clearSubmissionData());
+      
+      :Afficher CorrectionBannerV2
+      avec message "Corrections requises";
+      
+      :Afficher formulaire code de sécurité
+      (au lieu du formulaire d'inscription);
+    else (non)
+      :Pas de correctionRequest;
+      :Afficher formulaire normal (nouvelle demande);
+      stop
+    endif
+  else (non)
+    :Pas de requestId dans URL;
+    :Afficher formulaire normal (nouvelle demande);
+    stop
+  endif
+}
+
+partition "Phase 2 : Vérification du Code de Sécurité" {
+  :Demandeur saisit code de sécurité (6 chiffres);
+  
+  :Demandeur clique "Vérifier le code";
+  
+  :VALIDATION 3 : Format du code
+  if (code.match(/^\d{6}$/) === null ?) then (oui)
+    :Afficher erreur "Le code doit contenir 6 chiffres";
+    stop
+  endif
+  
+  :Appel RegistrationService.verifySecurityCode()
+  avec requestId et code;
+  
+  :Appel RegistrationRepository.verifySecurityCode();
+  
+  :Récupérer demande depuis Firestore;
+  
+  if (Demande trouvée ?) then (non)
+    :Retourner false;
+    :Afficher erreur "Demande introuvable";
+    stop
+  endif
+  
+  :VALIDATION 4 : Code correspond
+  if (securityCode === code saisi ?) then (non)
+    :Retourner false;
+    :Afficher erreur "Code incorrect";
+    stop
+  endif
+  
+  :VALIDATION 5 : Code non utilisé
+  if (securityCodeUsed === true ?) then (oui)
+    :Retourner false;
+    :Afficher erreur "Code déjà utilisé";
+    stop
+  endif
+  
+  :VALIDATION 6 : Code non expiré
+  :expiry = securityCodeExpiry.toDate()
+  :isExpired = expiry < Date.now();
+  
+  if (Code expiré ?) then (oui)
+    :Retourner false;
+    :Afficher erreur "Code expiré";
+    stop
+  endif
+  
+  :Code valide : Retourner true;
+}
+
+partition "Phase 3 : Chargement des Données" {
+  :Appel RegistrationService.loadRegistrationForCorrection()
+  avec requestId;
+  
+  :Appel RegistrationRepository.getById(requestId);
+  
+  :Récupérer données demande depuis Firestore;
+  
+  :Transformer MembershipRequest → RegisterFormData :
+  - identity (civility, lastName, firstName, etc.)
+  - address (province, city, arrondissement, etc.)
+  - company (companyName, profession, etc.)
+  - documents (identityDocument, photos, etc.);
+  
+  :Retourner RegisterFormData;
+  
+  :Marquer correctionRequest.isVerified = true;
+  
+  :Réinitialiser formulaire avec données chargées :
+  reset(formData);
+  
+  :Réinitialiser étapes :
+  resetSteps();
+  
+  :Masquer bannière code de sécurité;
+  
+  :Afficher formulaire d'inscription pré-rempli
+  avec toutes les données existantes;
+  
+  :Afficher toast succès 
+  "Code vérifié ! Données chargées";
+  
+  :Afficher reviewNote (corrections demandées)
+  pour guider le demandeur;
+}
+
+partition "Phase 4 : Modification des Données" {
+  :Demandeur consulte reviewNote
+  (liste des corrections à apporter);
+  
+  :Demandeur modifie les champs nécessaires
+  selon les corrections demandées;
+  
+  loop Pour chaque étape du formulaire (1 à 5)
+    :Demandeur valide étape courante;
+    
+    :Appel RegistrationService.validateStep()
+    avec step et formData;
+    
+    :Valider avec schéma Zod correspondant
+    (stepSchemas[step]);
+    
+    if (Validation échoue ?) then (oui)
+      :Afficher erreurs de validation;
+      :Empêcher passage à l'étape suivante;
+    else (valide)
+      :Autoriser passage à l'étape suivante;
+    endif
+  end
+  
+  :Demandeur peut naviguer entre les étapes
+  pour modifier différents champs;
+}
+
+partition "Phase 5 : Soumission des Corrections" {
+  :Demandeur soumet le formulaire final;
+  
+  :Détecter correctionRequest.isVerified === true;
+  
+  :Récupérer données formulaire :
+  formData = getValues();
+  
+  :Appel RegistrationService.updateRegistration()
+  avec requestId et formData;
+  
+  :Appel RegistrationRepository.update();
+  
+  partition "Repository - Mise à Jour Firestore" {
+    :Récupérer données existantes :
+    existing = await getById(requestId);
+    
+    if (existing === null ?) then (oui)
+      :Throw Error "Demande introuvable";
+      stop
+    endif
+    
+    :Fusionner données :
+    updatedData = {
+      identity: { ...existing.identity, ...formData.identity },
+      address: { ...existing.address, ...formData.address },
+      company: { ...existing.company, ...formData.company },
+      documents: { ...existing.documents, ...formData.documents }
+    };
+    
+    :Mise à jour Firestore :
+    updateDoc(docRef, {
+      ...updatedData,
+      securityCodeUsed: true,
+      status: 'pending',
+      updatedAt: serverTimestamp()
+    });
+    
+    :Marquer code comme utilisé :
+    await markSecurityCodeAsUsed(requestId);
+  }
+  
+  if (Mise à jour réussie ?) then (oui)
+    :Nettoyer correctionRequest :
+    setCorrectionRequest(null);
+    
+    :Nettoyer cache formulaire :
+    cacheService.clearFormDataOnly();
+    
+    :Sauvegarder données soumission :
+    cacheService.saveSubmissionData(requestId, {
+      firstName: formData.identity.firstName,
+      lastName: formData.identity.lastName,
+      civility: formData.identity.civility
+    });
+    
+    :Afficher toast succès 
+    "Corrections soumises !";
+    
+    :Afficher page de confirmation;
+  else (erreur)
+    :Afficher toast erreur 
+    "Erreur lors de la soumission";
+    :Garder formulaire ouvert pour retry;
+  endif
+}
+
+stop
+
+note right
+  **Résultat Final :**
+  
+  - Statut demande : 'pending' (retour en attente)
+  - securityCodeUsed : true (code marqué comme utilisé)
+  - Données mises à jour avec les corrections
+  - Admin peut voir la demande repasser en attente
+  - Admin peut réapprouver ou rejeter après vérification
+  
+  **Sécurité :**
+  - Code à usage unique (ne peut plus être réutilisé)
+  - Expiration 48h respectée
+  - Double vérification (URL + Code)
+  - Validation stricte à chaque étape
+end note
+
+@enduml

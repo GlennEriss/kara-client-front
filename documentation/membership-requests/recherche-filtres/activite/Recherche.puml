@@ -1,0 +1,48 @@
+@startuml Recherche
+title Workflow : Recherche de Demandes d'Adhésion
+
+start
+
+:Admin tape dans la barre de recherche;
+
+:Valeur stockée dans filters.searchQuery;
+
+if (Debounce actif ? (300ms)) then (oui)
+  :Attendre 300ms avant action;
+endif
+
+:Appel useMembershipRequests 
+avec searchQuery;
+
+:Appel getMembershipRequestsPaginated 
+avec searchQuery;
+
+note right
+  **⚠️ Problème actuel :**
+  
+  La recherche est effectuée côté CLIENT
+  après récupération des données Firestore !
+  
+  Le filtrage se fait sur les 10 items
+  de la page seulement, pas sur toute la collection.
+end note
+
+:Afficher indicateur de chargement (skeleton);
+
+if (Résultats trouvés ?) then (oui)
+  :Afficher demandes filtrées dans la liste;
+  
+  :Afficher message "X résultats trouvés";
+else (non)
+  :Afficher message "Aucune demande trouvée";
+endif
+
+if (Admin efface la recherche ?) then (oui)
+  :searchQuery = '';
+  :Recharger toutes les demandes 
+  (sans filtre de recherche);
+endif
+
+stop
+
+@enduml

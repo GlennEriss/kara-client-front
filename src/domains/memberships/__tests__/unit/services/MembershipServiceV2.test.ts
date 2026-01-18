@@ -555,11 +555,11 @@ describe('MembershipServiceV2', () => {
       // Arrange
       const request = pendingUnpaidRequest()
       mockRepository.getById.mockResolvedValue(request)
-      mockRepository.markAsPaid.mockResolvedValue(undefined)
       mockAdminRepository.getAdminById.mockResolvedValue(null) // Admin non trouvé
       
-      // Act
-      await service.processPayment({
+      // Act & Assert - Doit rejeter avec une erreur de sécurité
+      await expect(
+        service.processPayment({
         requestId: request.id,
         adminId: 'admin-unknown',
         paymentInfo: {
@@ -568,17 +568,215 @@ describe('MembershipServiceV2', () => {
           date: new Date().toISOString(),
           time: '10:30',
         },
+        })
+      ).rejects.toThrow('SÉCURITÉ : L\'administrateur avec l\'ID "admin-unknown" n\'existe pas dans la base de données')
+      
+      // Le paiement ne doit PAS être enregistré
+      expect(mockRepository.markAsPaid).not.toHaveBeenCalled()
+    })
+
+    it('devrait rejeter le paiement si l\'admin existe mais n\'a pas de nom valide', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      // Admin sans nom (firstName et lastName vides)
+      mockAdminRepository.getAdminById.mockResolvedValue({
+        id: 'admin-123',
+        firstName: '',
+        lastName: '',
+        email: 'admin@test.com',
+      })
+      
+      // Act & Assert - Doit rejeter avec une erreur de sécurité
+      await expect(
+        service.processPayment({
+          requestId: request.id,
+          adminId: 'admin-123',
+          paymentInfo: {
+            amount: 25000,
+            mode: 'cash',
+            date: new Date().toISOString(),
+            time: '10:30',
+          },
+        })
+      ).rejects.toThrow('SÉCURITÉ : Impossible de déterminer l\'identité de l\'administrateur')
+      
+      // Le paiement ne doit PAS être enregistré
+      expect(mockRepository.markAsPaid).not.toHaveBeenCalled()
+    })
+
+    it('devrait throw si heure de versement manquante', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      
+      // Act & Assert
+      await expect(
+        service.processPayment({
+          requestId: request.id,
+          adminId: 'admin-123',
+          paymentInfo: {
+            amount: 25000,
+            mode: 'cash',
+            date: new Date().toISOString(),
+            time: '',
+          },
+        })
+      ).rejects.toThrow('heure')
+    })
+
+    it('devrait throw si mode "other" sans précision', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      
+      // Act & Assert
+      await expect(
+        service.processPayment({
+          requestId: request.id,
+          adminId: 'admin-123',
+          paymentInfo: {
+            amount: 25000,
+            mode: 'other',
+            date: new Date().toISOString(),
+            time: '14:30',
+            paymentMethodOther: '',
+          },
+        })
+      ).rejects.toThrow('préciser')
+    })
+
+    it('devrait throw si mobile money sans withFees', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      
+      // Act & Assert
+      await expect(
+        service.processPayment({
+          requestId: request.id,
+          adminId: 'admin-123',
+          paymentInfo: {
+            amount: 25000,
+            mode: 'airtel_money',
+            date: new Date().toISOString(),
+            time: '14:30',
+            // withFees manquant
+          },
+        })
+      ).rejects.toThrow('frais')
+    })
+
+    it('devrait throw si demande introuvable', async () => {
+      // Arrange
+      mockRepository.getById.mockResolvedValue(null)
+      
+      // Act & Assert
+      await expect(
+        service.processPayment({
+          requestId: 'non-existent',
+          adminId: 'admin-123',
+          paymentInfo: {
+            amount: 25000,
+            mode: 'cash',
+            date: new Date().toISOString(),
+            time: '14:30',
+          },
+        })
+      ).rejects.toThrow('introuvable')
+    })
+
+    it('devrait utiliser la date actuelle si date non fournie', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.markAsPaid.mockResolvedValue(undefined)
+      
+      // Act
+      await service.processPayment({
+        requestId: request.id,
+        adminId: 'admin-123',
+        paymentInfo: {
+          amount: 25000,
+          mode: 'cash',
+          time: '14:30',
+          // date non fournie
+        } as any,
       })
       
       // Assert
       expect(mockRepository.markAsPaid).toHaveBeenCalledWith(
         request.id,
         expect.objectContaining({
-          recordedBy: 'admin-unknown',
-          recordedByName: 'Admin inconnu',
-          recordedAt: expect.any(Date),
+          date: expect.any(String),
         })
       )
+    })
+
+  })
+
+  describe('approveMembershipRequest - branches supplémentaires', () => {
+    it('devrait throw si demande introuvable', async () => {
+      // Arrange
+      mockRepository.getById.mockResolvedValue(null)
+      
+      // Act & Assert
+      await expect(
+        service.approveMembershipRequest({
+          requestId: 'non-existent',
+          adminId: 'admin-123',
+        })
+      ).rejects.toThrow('introuvable')
+    })
+  })
+
+  describe('rejectMembershipRequest - branches supplémentaires', () => {
+    it('devrait throw si motif trop long', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      
+      const longReason = 'A'.repeat(2001) // > 2000 caractères
+      
+      // Act & Assert
+      await expect(
+        service.rejectMembershipRequest({
+          requestId: request.id,
+          adminId: 'admin-123',
+          reason: longReason,
+        })
+      ).rejects.toThrow('dépasser')
+    })
+  })
+
+  describe('requestCorrections - branches supplémentaires', () => {
+    it('devrait throw si une correction est vide', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      
+      // Act & Assert
+      await expect(
+        service.requestCorrections({
+          requestId: request.id,
+          adminId: 'admin-123',
+          corrections: ['Correction valide', '   '], // Une correction vide
+        })
+      ).rejects.toThrow('caractère')
+    })
+
+    it('devrait throw si demande introuvable', async () => {
+      // Arrange
+      mockRepository.getById.mockResolvedValue(null)
+      
+      // Act & Assert
+      await expect(
+        service.requestCorrections({
+          requestId: 'non-existent',
+          adminId: 'admin-123',
+          corrections: ['Correction'],
+        })
+      ).rejects.toThrow('introuvable')
     })
   })
 })

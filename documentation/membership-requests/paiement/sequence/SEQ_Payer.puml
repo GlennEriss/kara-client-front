@@ -1,0 +1,70 @@
+@startuml SEQ_Payer
+title Séquence : Enregistrer un Paiement pour une Demande
+
+actor "Admin" as Admin
+participant "MembershipRequestActions\n(Component)" as Actions
+participant "MembershipPaymentModal\n(Component)" as Modal
+participant "usePayMembershipRequest\n(Hook)" as Hook
+participant "MembershipPaymentService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> Actions: Cliquer "Payer"\n(visible si isPaid === false)
+activate Actions
+
+Actions -> Modal: Ouvrir modal paiement
+activate Modal
+
+Modal --> Admin: Formulaire:\n- Date\n- Heure\n- Mode de paiement\n- Montant\n- Type de paiement\n- Avec frais ?
+
+Admin -> Modal: Remplir formulaire\net cliquer "Valider"
+
+Modal -> Modal: Valider champs requis
+
+Modal -> Hook: payMutation.mutate(paymentData)
+activate Hook
+
+Hook -> Service: registerPayment(\nrequestId, paymentData, adminId)
+activate Service
+
+Service -> Service: Construire objet Payment:\n{\n  date,\n  time,\n  mode,\n  amount,\n  acceptedBy: adminId,\n  paymentType,\n  withFees,\n  createdAt: serverTimestamp()\n}
+
+Service -> DB: updateMembershipPayment(\nrequestId, payment)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  isPaid: true,\n  payments: arrayUnion(payment),\n  paidAt: serverTimestamp(),\n  paidBy: adminId\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service --> Hook: { success: true }
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequests'])
+
+Hook --> Modal: success
+deactivate Hook
+
+Modal --> Admin: Toast "Paiement enregistré"
+Modal -> Modal: Fermer modal
+
+deactivate Modal
+
+Actions --> Admin: Mise à jour UI:\n- Badge "Payé"\n- Bouton "Approuver" activé
+
+deactivate Actions
+
+note right of Admin
+  **Note:**
+  - Le statut reste 'pending'
+  - isPaid devient true
+  - Le bouton "Approuver"
+    devient actif
+  - Plusieurs paiements
+    peuvent être enregistrés
+end note
+
+@enduml

@@ -1,0 +1,47 @@
+@startuml SEQ_Renouveler_Code
+title Séquence : Renouveler le Code de Sécurité
+
+actor "Admin" as Admin
+participant "MembershipRequestCard\n(Component)" as Card
+participant "useRenewSecurityCode\n(Hook)" as Hook
+participant "MembershipCorrectionService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> Card: Cliquer "Renouveler code"
+activate Card
+
+Card -> Hook: renewMutation.mutate(requestId)
+activate Hook
+
+Hook -> Service: renewSecurityCode(requestId)
+activate Service
+
+Service -> Service: generateSecurityCode()\n// crypto.randomInt(100000, 999999)
+
+Service -> Service: calculateExpiry()\n// Date.now() + 48 heures
+
+Service -> DB: updateSecurityCode(\nrequestId, newCode, newExpiry)
+activate DB
+
+DB -> Firestore: updateDoc(membership-requests/{id}, {\n  securityCode: newCode,\n  securityCodeExpiry: newExpiry,\n  securityCodeUsed: false\n})
+activate Firestore
+Firestore --> DB: OK
+deactivate Firestore
+
+DB --> Service: OK
+deactivate DB
+
+Service --> Hook: {\n  success: true,\n  securityCode: newCode,\n  expiry: newExpiry\n}
+deactivate Service
+
+Hook -> Hook: invalidateQueries(\n['membershipRequest', requestId])
+
+Hook --> Card: RenewResult
+deactivate Hook
+
+Card --> Admin: Toast "Code renouvelé: {code}"\n+ Mise à jour affichage
+
+deactivate Card
+
+@enduml

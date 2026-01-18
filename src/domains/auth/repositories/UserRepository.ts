@@ -106,32 +106,52 @@ export class UserRepository implements IUserRepository {
   /**
    * Vérifie si un utilisateur existe par son UID
    * 
+   * Pour la compatibilité avec l'ancienne version, vérifie d'abord dans la collection 'users',
+   * puis dans la collection 'admins' si non trouvé.
+   * 
    * @param uid - L'UID de l'utilisateur
-   * @returns true si l'utilisateur existe, false sinon
+   * @returns true si l'utilisateur existe (dans users ou admins), false sinon
    */
   async userExists(uid: string): Promise<boolean> {
     try {
       const { doc, getDoc, db } = await getFirestore();
-      const collectionName = firebaseCollectionNames.users || 'users';
+      const usersCollectionName = firebaseCollectionNames.users || 'users';
+      const adminsCollectionName = firebaseCollectionNames.admins || 'admins';
       
       // Log pour déboguer
       if (typeof window !== 'undefined') {
         console.log('[UserRepository.userExists] Vérification:', {
           uid: uid.trim(),
-          collection: collectionName,
+          collections: [usersCollectionName, adminsCollectionName],
         });
       }
       
-      const userDocRef = doc(db, collectionName, uid.trim());
+      // 1) Vérifier d'abord dans la collection 'users'
+      const userDocRef = doc(db, usersCollectionName, uid.trim());
       const userDoc = await getDoc(userDocRef);
       
-      const exists = userDoc.exists();
+      if (userDoc.exists()) {
+        if (typeof window !== 'undefined') {
+          console.log('[UserRepository.userExists] Utilisateur trouvé dans users:', {
+            uid: uid.trim(),
+            collection: usersCollectionName,
+          });
+        }
+        return true;
+      }
+      
+      // 2) Si non trouvé dans 'users', vérifier dans 'admins' (compatibilité ancienne version)
+      const adminDocRef = doc(db, adminsCollectionName, uid.trim());
+      const adminDoc = await getDoc(adminDocRef);
+      
+      const exists = adminDoc.exists();
       
       if (typeof window !== 'undefined') {
         console.log('[UserRepository.userExists] Résultat:', {
           uid: uid.trim(),
-          collection: collectionName,
-          exists,
+          foundInUsers: false,
+          foundInAdmins: exists,
+          collection: exists ? adminsCollectionName : 'aucune',
         });
       }
       
