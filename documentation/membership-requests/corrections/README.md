@@ -15,6 +15,7 @@ corrections/
 ├── README.md                           # Ce fichier
 │
 ├── workflow-use-case-corrections.md    # ⭐ Workflow d'implémentation complet
+├── DESIGN_PATTERNS_APPLICATION.md     # ⭐ Design patterns à appliquer dans le code
 │
 ├── activite/                           # Diagrammes d'activité
 │   ├── DIAGRAMMES_ACTIVITE_CORRECTIONS.puml
@@ -40,11 +41,14 @@ corrections/
 │   ├── TESTS_E2E.md                   # 17 tests E2E
 │   └── ...
 │
-└── firebase/                           # Configuration Firebase
-    ├── FIRESTORE_RULES.md
-    ├── STORAGE_RULES.md
-    ├── FIRESTORE_INDEXES.md
-    └── firestore.indexes.json
+├── firebase/                           # Configuration Firebase
+│   ├── FIRESTORE_RULES.md
+│   ├── STORAGE_RULES.md
+│   ├── FIRESTORE_INDEXES.md
+│   └── firestore.indexes.json
+│
+└── functions/                          # Cloud Functions (cas obligatoires)
+    └── README.md                       # Documentation des Cloud Functions
 ```
 
 ---
@@ -84,6 +88,14 @@ Ce fichier contient :
 ### 4. Firebase
 - **Rules** : `firebase/FIRESTORE_RULES.md`, `STORAGE_RULES.md`
 - **Indexes** : `firebase/FIRESTORE_INDEXES.md`, `firestore.indexes.json`
+- **Patterns** : `firebase/FIRESTORE_RULES_PATTERNS.md` (design patterns pour règles)
+
+### 5. Cloud Functions
+- **Functions** : `functions/README.md` ⭐ — Cas obligatoires nécessitant des Cloud Functions (sécurité critique)
+- **Changelog** : `CHANGELOG_CLOUD_FUNCTIONS.md` ⭐ — Liste des modifications suite à l'intégration Cloud Functions
+
+### 6. Design Patterns
+- **Application** : `DESIGN_PATTERNS_APPLICATION.md` ⭐ — Identifie les cas nécessitant des patterns dans le code
 
 ---
 
@@ -113,8 +125,10 @@ Ce fichier contient :
 - [x] Diagrammes de séquence créés
 - [x] Wireframes créés (admin + demandeur)
 - [x] Documentation tests complète (96 unitaires + ~20 intégration + 17 E2E)
-- [x] Documentation Firebase (rules + indexes)
+- [x] Documentation Firebase (rules + indexes + patterns)
+- [x] Cloud Functions identifiées (2 obligatoires + 1 recommandée)
 - [x] Workflow d'implémentation créé
+- [x] Design patterns identifiés (7 cas avec patterns recommandés)
 
 ### Implémentation (à faire)
 - [ ] Suivre `workflow-use-case-corrections.md`

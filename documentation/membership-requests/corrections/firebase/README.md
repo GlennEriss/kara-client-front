@@ -11,7 +11,17 @@ Règles de sécurité Firestore pour :
 - Admin : Demander des corrections, renouveler le code
 - Demandeur : Lire sa demande, soumettre les corrections
 
-### 2. [STORAGE_RULES.md](./STORAGE_RULES.md)
+### 2. [FIRESTORE_RULES_PATTERNS.md](./FIRESTORE_RULES_PATTERNS.md) ⭐ **NOUVEAU**
+Version réorganisée des règles Firestore utilisant des **design patterns** professionnels :
+- **Helper Functions Pattern** : Fonctions utilitaires réutilisables
+- **Builder Pattern** : Construction de règles complexes
+- **Strategy Pattern** : Stratégies de validation
+- **Composition Pattern** : Composition de règles multiples
+- Comparaison avant/après (code de débutant vs code professionnel)
+
+**Recommandé** : Utiliser cette version pour une meilleure maintenabilité et lisibilité.
+
+### 3. [STORAGE_RULES.md](./STORAGE_RULES.md)
 Règles de sécurité Firebase Storage pour :
 - Upload de photos (profil, pièce d'identité)
 - Upload de documents

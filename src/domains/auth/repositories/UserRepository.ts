@@ -106,56 +106,46 @@ export class UserRepository implements IUserRepository {
   /**
    * Vérifie si un utilisateur existe par son UID
    * 
-   * Pour la compatibilité avec l'ancienne version, vérifie d'abord dans la collection 'users',
-   * puis dans la collection 'admins' si non trouvé.
+   * Utilise l'API route pour vérifier dans Firebase Auth et Firestore
+   * (users + admins) pour éviter les problèmes de permissions côté client.
+   * 
+   * Pour la compatibilité avec l'ancienne version, vérifie dans :
+   * 1. Firebase Auth (par UID/matricule)
+   * 2. Firestore collection 'users' (par UID/matricule)
+   * 3. Firestore collection 'admins' (par UID/matricule)
    * 
    * @param uid - L'UID de l'utilisateur
-   * @returns true si l'utilisateur existe (dans users ou admins), false sinon
+   * @returns true si l'utilisateur existe (dans Auth, users ou admins), false sinon
    */
   async userExists(uid: string): Promise<boolean> {
     try {
-      const { doc, getDoc, db } = await getFirestore();
-      const usersCollectionName = firebaseCollectionNames.users || 'users';
-      const adminsCollectionName = firebaseCollectionNames.admins || 'admins';
+      // Utiliser l'API route pour éviter les problèmes de permissions Firestore
+      // L'API route utilise Admin SDK côté serveur (pas de restrictions)
+      const response = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: uid.trim() }),
+      });
+
+      if (!response.ok) {
+        console.error('[UserRepository.userExists] Erreur API:', response.status, response.statusText);
+        return false;
+      }
+
+      const result = await response.json();
       
       // Log pour déboguer
       if (typeof window !== 'undefined') {
-        console.log('[UserRepository.userExists] Vérification:', {
-          uid: uid.trim(),
-          collections: [usersCollectionName, adminsCollectionName],
-        });
-      }
-      
-      // 1) Vérifier d'abord dans la collection 'users'
-      const userDocRef = doc(db, usersCollectionName, uid.trim());
-      const userDoc = await getDoc(userDocRef);
-      
-      if (userDoc.exists()) {
-        if (typeof window !== 'undefined') {
-          console.log('[UserRepository.userExists] Utilisateur trouvé dans users:', {
-            uid: uid.trim(),
-            collection: usersCollectionName,
-          });
-        }
-        return true;
-      }
-      
-      // 2) Si non trouvé dans 'users', vérifier dans 'admins' (compatibilité ancienne version)
-      const adminDocRef = doc(db, adminsCollectionName, uid.trim());
-      const adminDoc = await getDoc(adminDocRef);
-      
-      const exists = adminDoc.exists();
-      
-      if (typeof window !== 'undefined') {
         console.log('[UserRepository.userExists] Résultat:', {
           uid: uid.trim(),
-          foundInUsers: false,
-          foundInAdmins: exists,
-          collection: exists ? adminsCollectionName : 'aucune',
+          found: result.found,
+          inAuth: result.inAuth,
+          inUsers: result.inUsers,
+          inAdmins: result.inAdmins,
         });
       }
-      
-      return exists;
+
+      return result.found === true;
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'existence de l\'utilisateur:', error);
       return false;
