@@ -119,32 +119,21 @@ export class UserRepository implements IUserRepository {
    */
   async userExists(uid: string): Promise<boolean> {
     try {
+      const trimmedUid = uid.trim();
+      
       // Utiliser l'API route pour éviter les problèmes de permissions Firestore
       // L'API route utilise Admin SDK côté serveur (pas de restrictions)
       const response = await fetch('/api/auth/check-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid: uid.trim() }),
+        body: JSON.stringify({ uid: trimmedUid }),
       });
 
       if (!response.ok) {
-        console.error('[UserRepository.userExists] Erreur API:', response.status, response.statusText);
         return false;
       }
 
       const result = await response.json();
-      
-      // Log pour déboguer
-      if (typeof window !== 'undefined') {
-        console.log('[UserRepository.userExists] Résultat:', {
-          uid: uid.trim(),
-          found: result.found,
-          inAuth: result.inAuth,
-          inUsers: result.inUsers,
-          inAdmins: result.inAdmins,
-        });
-      }
-
       return result.found === true;
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'existence de l\'utilisateur:', error);
