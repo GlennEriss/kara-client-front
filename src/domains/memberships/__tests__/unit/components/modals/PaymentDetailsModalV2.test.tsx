@@ -21,7 +21,7 @@ vi.mock('../../../../utils/paymentPDFUtils', () => ({
 // Mock de next/image
 vi.mock('next/image', () => ({
   default: ({ src, alt, ...props }: any) => {
-    // eslint-disable-next-line @next/next/no-img-element
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return <img src={src} alt={alt} {...props} />
   },
 }))
