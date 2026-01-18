@@ -197,6 +197,11 @@ enum NotificationType {
   commission_due_reminder
   commission_overdue
   placement_activated
+  corrections_requested
+  corrections_submitted
+  security_code_expired
+  security_code_expiring_soon
+  security_code_renewed
   ...
 }
 
