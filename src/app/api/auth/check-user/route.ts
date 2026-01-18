@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/firebase/adminAuth";
 import { adminFirestore } from "@/firebase/adminFirestore";
+import { adminApp } from "@/firebase/admin";
 
 /**
  * API Route pour vérifier l'existence d'un utilisateur
@@ -22,7 +23,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { uid } = await req.json();
+    const body = await req.json();
+    const { uid } = body;
     if (!uid || typeof uid !== "string") {
       return NextResponse.json({ error: "uid requis" }, { status: 400 });
     }
@@ -37,13 +39,11 @@ export async function POST(req: NextRequest) {
 
     // 1) Vérifier dans Firebase Auth
     try {
-      const userRecord = await adminAuth.getUser(trimmedUid);
+      await adminAuth.getUser(trimmedUid);
       results.inAuth = true;
       results.found = true;
     } catch (err: any) {
-      if (err?.code !== "auth/user-not-found") {
-        console.error("[check-user] Erreur Firebase Auth:", err);
-      }
+      // Ignorer auth/user-not-found, continuer la vérification
     }
 
     // 2) Vérifier dans Firestore collection 'users'
@@ -54,27 +54,27 @@ export async function POST(req: NextRequest) {
         results.found = true;
       }
     } catch (err: any) {
-      console.error("[check-user] Erreur Firestore users:", err);
+      // Ignorer les erreurs, continuer la vérification
     }
 
     // 3) Vérifier dans Firestore collection 'admins' (compatibilité)
-    if (!results.found) {
-      try {
-        const adminDoc = await adminFirestore.collection('admins').doc(trimmedUid).get();
-        if (adminDoc.exists) {
-          results.inAdmins = true;
-          results.found = true;
-        }
-      } catch (err: any) {
-        console.error("[check-user] Erreur Firestore admins:", err);
+    // IMPORTANT: Toujours vérifier dans 'admins' même si trouvé dans Auth
+    // car l'utilisateur peut exister dans Auth mais pas dans Firestore 'users'
+    try {
+      const adminDoc = await adminFirestore.collection('admins').doc(trimmedUid).get();
+      if (adminDoc.exists) {
+        results.inAdmins = true;
+        results.found = true;
       }
+    } catch (err: any) {
+      // Ignorer les erreurs, continuer
     }
 
     return NextResponse.json(results, { status: 200 });
   } catch (error: any) {
-    console.error("[check-user] Erreur inattendue:", error);
+    console.error("[check-user] Erreur:", error?.message);
     return NextResponse.json(
-      { error: "Erreur lors de la vérification", details: error?.message },
+      { error: "Erreur lors de la vérification" },
       { status: 500 }
     );
   }
