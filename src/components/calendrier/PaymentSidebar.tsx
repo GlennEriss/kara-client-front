@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { PaymentSidebarHeader } from "./PaymentSidebarHeader"
 import { PaymentSidebarContent } from "./PaymentSidebarContent"
 import { PaymentSidebarActions } from "./PaymentSidebarActions"
@@ -51,8 +50,8 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
               contacts: member.contacts || [],
             })
           }
-        } catch (error) {
-          console.error("Erreur lors du chargement du membre:", error)
+        } catch {
+          // Error loading member - silently fail
         }
       } else if (contract.contractType === "GROUP" && contract.groupeId) {
         try {
@@ -62,8 +61,8 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
               name: group.name,
             })
           }
-        } catch (error) {
-          console.error("Erreur lors du chargement du groupe:", error)
+        } catch {
+          // Error loading group - silently fail
         }
       }
     }
@@ -115,7 +114,7 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
     try {
       await generateReceipt()
       setShowReceipt(true)
-    } catch (error) {
+    } catch {
       toast.error("Impossible de générer le reçu")
     }
   }
@@ -123,7 +122,7 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
   const handleDownloadReceiptClick = async () => {
     try {
       await downloadReceipt()
-    } catch (error) {
+    } catch {
       toast.error("Impossible de télécharger le reçu")
     }
   }

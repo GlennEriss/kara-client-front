@@ -1,0 +1,137 @@
+@startuml Admin_Demander_Corrections_V2
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #234D65
+  FontColor #000000
+}
+skinparam activityDiamond {
+  BackgroundColor #CBB171
+  BorderColor #234D65
+}
+skinparam start {
+  BackgroundColor #10b981
+  BorderColor #234D65
+}
+skinparam stop {
+  BackgroundColor #ef4444
+  BorderColor #234D65
+}
+
+title Workflow : Admin - Demander des Corrections (Architecture V2)
+
+note right
+  **Architecture V2 :**
+  - Composant : CorrectionsModalV2
+  - Service : MembershipServiceV2.requestCorrections()
+  - Repository : MembershipRepositoryV2.updateStatus()
+  - Utilitaires :
+    * generateSecurityCode() -> code 6 chiffres
+    * calculateCodeExpiry(48) -> expiration 48h
+    * generateWhatsAppUrl() -> URL WhatsApp
+end note
+
+start
+
+:Admin clique sur "Demander corrections"\n(dans MembershipRequestActionsV2,\nvisible si status = 'pending');
+
+:Afficher modal CorrectionsModalV2;
+
+:Initialiser état :\n- correctionsText = ''\n- isLoading = false\n- selectedPhoneIndex = 0;
+
+:Récupérer liste des numéros :\nphoneNumbers = request.identity.contacts\n  .filter(contact => contact && contact.trim().length > 0);
+
+:Admin saisit les corrections\n(une par ligne dans Textarea);
+
+:Parser corrections :\ncorrections = correctionsText\n  .split('\\n')\n  .map(line => line.trim())\n  .filter(line => line.length > 0);
+
+if (corrections.length > 0 ?) then (non)
+  :Afficher message "Au moins une correction requise";
+  :Bouton "Demander les corrections" désactivé;
+  stop
+endif
+
+if (phoneNumbers.length > 0 ?) then (oui)
+  :Afficher sélecteur de numéro WhatsApp\n(par défaut: premier numéro, index 0);
+  
+  if (phoneNumbers.length > 1 ?) then (oui)
+    :Afficher dropdown/select avec tous les numéros;
+    :Admin peut choisir un autre numéro\nsi le premier n'a pas WhatsApp;
+  endif
+  
+  :selectedPhoneIndex = index du numéro choisi\n(par défaut: 0);
+else (non)
+  :Afficher message "Aucun numéro disponible";
+endif
+
+:Admin clique sur "Demander les corrections";
+
+:isLoading = true;
+
+:Appel MembershipServiceV2.requestCorrections()\navec :\n- requestId\n- adminId (depuis useAuth())\n- corrections: string[]\n- selectedPhoneIndex: number;
+
+partition "Service Layer - Validations" {
+  :VALIDATIONS :\n- Vérifier corrections non vide\n- Vérifier chaque correction non vide\n- Récupérer demande via repository.getById();
+
+  if (Demande trouvée ?) then (non)
+    :Throw Error "Demande introuvable";
+    stop
+  endif
+}
+
+partition "Service Layer - Génération" {
+  :Générer code de sécurité :\nsecurityCode = generateSecurityCode()\n(6 chiffres aléatoires);
+
+  :Calculer expiration :\nexpiryDate = calculateCodeExpiry(48)\n(Date.now() + 48h);
+
+  :Joindre corrections :\ncorrectionsText = corrections.join('\\n');
+}
+
+partition "Repository Layer" {
+  :Appel MembershipRepositoryV2.updateStatus()\navec :\n- id: requestId\n- status: 'under_review'\n- data: {\n    reviewNote: correctionsText\n    securityCode: securityCode\n    securityCodeExpiry: expiryDate\n    securityCodeUsed: false\n    processedBy: adminId\n  };
+
+  :Mise à jour Firestore :\nupdateDoc(docRef, {\n  status: 'under_review',\n  reviewNote: correctionsText,\n  securityCode: securityCode,\n  securityCodeExpiry: expiryDate,\n  securityCodeUsed: false,\n  processedBy: adminId,\n  updatedAt: serverTimestamp()\n});
+}
+
+partition "Service Layer - WhatsApp" {
+  if (phoneNumbers.length > 0 ?) then (oui)
+    :Récupérer numéro sélectionné :\nphoneNumber = request.identity.contacts[selectedPhoneIndex];
+    
+    :Générer URL WhatsApp :\nmessage = "Bonjour {firstName}\\n\\nVotre demande nécessite des corrections:\\n\\n{correctionsText}\\n\\nCode de sécurité: {securityCode}"\nwhatsAppUrl = generateWhatsAppUrl(phoneNumber, message);
+    
+    :Ouvrir WhatsApp dans nouvel onglet\nwindow.open(whatsAppUrl, '_blank');
+  else (non)
+    :Aucun numéro disponible\npour l'envoi WhatsApp;
+  endif
+
+  :Retourner :\n{ securityCode: string,\n  whatsAppUrl?: string };
+}
+
+:Fermer modal CorrectionsModalV2;
+
+:Afficher toast succès\n"Corrections demandées";
+
+:Invalider cache React Query\n(membershipRequests);
+
+:Badge statut change en "En cours d'examen";
+
+:isLoading = false;
+
+stop
+
+note right
+  **Différences avec ancien système :**
+  Ancien (MembershipRequestsList.tsx) :
+  - Pas de code de sécurité
+  - Pas d'expiration
+  - Pas de WhatsApp
+  - Simple updateStatus avec reviewNote
+
+  Nouveau (V2) :
+  - Code de sécurité 6 chiffres
+  - Expiration 48h
+  - Sélection du numéro WhatsApp parmi plusieurs numéros disponibles
+  - Envoi WhatsApp automatique avec numéro sélectionné
+  - Séparation claire Service/Repository
+end note
+
+@enduml

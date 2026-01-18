@@ -31,6 +31,9 @@ export const mockTimestamp = {
 // Mock de la base de données
 export const mockDb = {}
 
+// Mock serverTimestamp
+export const mockServerTimestamp = vi.fn(() => ({ toMillis: () => Date.now() }))
+
 // Module complet à exporter pour vi.mock()
 export const mockFirestoreModule = {
   db: mockDb,
@@ -49,6 +52,7 @@ export const mockFirestoreModule = {
   getCountFromServer: mockGetCountFromServer,
   onSnapshot: mockOnSnapshot,
   Timestamp: mockTimestamp,
+  serverTimestamp: mockServerTimestamp,
 }
 
 /**

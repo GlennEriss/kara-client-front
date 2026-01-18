@@ -178,14 +178,14 @@ const ContractPdfUploadModal: React.FC<ContractPdfUploadModalProps> = ({
               <FormField
                 control={form.control}
                 name="contractPdf.file"
-                render={({ field, formState: { isSubmitting } }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Fichier PDF</FormLabel>
                     <FormControl>
                       <FileInput
                         accept=".pdf"
                         onFileSelect={handleFileChange}
-                        disabled={isSubmitting}
+                        disabled={form.formState.isSubmitting}
                         className="w-full"
                         maxSize={10}
                       />

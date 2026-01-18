@@ -1,0 +1,69 @@
+@startuml SEQ_Liste_Dossiers
+title Séquence : Chargement Initial de la Liste des Dossiers
+
+actor "Admin" as Admin
+participant "MembershipRequestsPage\n(Page)" as Page
+participant "DashboardPageLayout\n(Layout)" as Layout
+participant "MembershipRequestsStats\n(Component)" as Stats
+participant "MembershipRequestsFilters\n(Component)" as Filters
+participant "DataView\n(Component UI)" as DataView
+participant "MembershipRequestCard\n(Component)" as Card
+participant "Pagination\n(Component UI)" as PaginationUI
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "useMembershipRequestsStats\n(Hook)" as StatsHook
+
+Admin -> Page: Naviguer vers\n/membership-requests
+activate Page
+
+Page -> Layout: Render avec titre + description
+activate Layout
+
+par Chargement parallèle
+    Layout -> StatsHook: useMembershipRequestsStats()
+    activate StatsHook
+    StatsHook --> Stats: stats data
+    deactivate StatsHook
+    
+    Layout -> Hook: useMembershipRequests(\ninitialFilters)
+    activate Hook
+    Hook --> Filters: requests data
+    deactivate Hook
+end
+
+Layout -> Stats: Render statistiques
+activate Stats
+Stats --> Admin: Afficher 5 cartes stats\navec carousel
+deactivate Stats
+
+Layout -> Filters: Render filtres
+activate Filters
+Filters --> Admin: Afficher SearchInput\n+ FilterBar (tabs, select)
+deactivate Filters
+
+Layout -> DataView: Render data view
+activate DataView
+
+alt Chargement en cours
+    DataView --> Admin: Afficher skeletons\n(5 MembershipRequestSkeleton)
+else Erreur
+    DataView --> Admin: Afficher message erreur\navec icône FileX
+else Données disponibles
+    loop Pour chaque demande
+        DataView -> Card: Render card
+        activate Card
+        Card --> DataView: MembershipRequestCard\n- Photo\n- Infos identité\n- Badges statut/paiement\n- Menu actions
+        deactivate Card
+    end
+    DataView --> Admin: Afficher liste/grille
+end
+deactivate DataView
+
+Layout -> PaginationUI: Render pagination
+activate PaginationUI
+PaginationUI --> Admin: Contrôles pagination\n+ info "Page X sur Y"
+deactivate PaginationUI
+
+deactivate Layout
+deactivate Page
+
+@enduml

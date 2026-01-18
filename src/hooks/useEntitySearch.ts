@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { EntitySearchResult, EntitySearchFilters } from '@/types/types'
+import { EntitySearchResult } from '@/types/types'
 import { useDebounce } from './useDebounce'
 import { searchUsers } from '@/db/user.db'
 import { searchGroups } from '@/db/group.db'

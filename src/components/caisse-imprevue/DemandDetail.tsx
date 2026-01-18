@@ -14,7 +14,6 @@ import {
   Clock,
   FileText,
   User,
-  DollarSign,
   AlertCircle,
   RotateCcw,
   CreditCard,

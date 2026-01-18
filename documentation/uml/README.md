@@ -24,8 +24,8 @@ documentation/uml/
 │   ├── CLASSES_GEOGRAPHIE.puml
 │   └── CLASSES_SHARED.puml      # Classes partagées (User, Document, etc.)
 │
-└── sequences/                   # Diagrammes de séquence (optionnel)
-    └── ...
+└── sequences/                   # Diagrammes de séquence
+    └── SEQUENCES_MEMBERSHIP.puml  # Séquences module Membership Requests
 ```
 
 ---
@@ -34,8 +34,16 @@ documentation/uml/
 
 ### 1. Membership (Gestion des Membres)
 - **Diagramme de classes** : `classes/CLASSES_MEMBERSHIP.puml`
+- **Diagrammes de séquence** : `sequences/SEQUENCES_MEMBERSHIP.puml`
+- **Documentation complète** : `../membership-requests/` (analyse, critique, refactoring)
 - **Use cases** : Inscription, validation des demandes, gestion des membres
 - **Collections Firestore** : `members`, `membership-requests`, `groups`, `users`
+
+**Diagrammes de séquence disponibles (13) :**
+- Consultation : Voir détails, Fiche adhésion, Pièce identité, Liste dossiers
+- Actions admin : Approuver, Rejeter, Corrections, Payer, Renouveler code
+- Navigation : Recherche, Filtres, Pagination
+- Statistiques : Calcul optimisé serveur
 
 ### 2. Financial — Caisse Spéciale
 - **Diagramme de classes** : `classes/CLASSES_CAISSE_SPECIALE.puml`
@@ -157,18 +165,27 @@ plantuml documentation/uml/classes/CLASSES_*.puml
 
 ## État Actuel
 
-### ✅ À Faire
+### ✅ Créé
+
+- [x] `classes/CLASSES_MEMBERSHIP.puml` - Diagramme de classes Membership
+- [x] `classes/CLASSES_SHARED.puml` - Classes partagées (User, Document, etc.)
+- [x] `classes/CLASSES_CAISSE_SPECIALE.puml` - Classes Caisse Spéciale
+- [x] `classes/CLASSES_CAISSE_IMPREVUE.puml` - Classes Caisse Imprévue
+- [x] `classes/CLASSES_CREDIT_SPECIALE.puml` - Classes Crédit Spéciale
+- [x] `classes/CLASSES_PLACEMENT.puml` - Classes Placement
+- [x] `classes/CLASSES_BIENFAITEUR.puml` - Classes Bienfaiteur
+- [x] `classes/CLASSES_VEHICULE.puml` - Classes Véhicule
+- [x] `classes/CLASSES_GEOGRAPHIE.puml` - Classes Géographie
+- [x] `classes/CLASSES_AUTH.puml` - Classes Authentification
+- [x] `sequences/SEQUENCES_MEMBERSHIP.puml` - Séquences Membership Requests (13 diagrammes)
+
+### 📋 À Faire
 
 - [ ] Créer `use-cases/USE_CASES_COMPLETS.puml` (tous les use cases consolidés)
-- [ ] Créer `classes/CLASSES_MEMBERSHIP.puml`
-- [ ] Créer `classes/CLASSES_CAISSE_SPECIALE.puml`
-- [ ] Créer `classes/CLASSES_CAISSE_IMPREVUE.puml`
-- [ ] Créer `classes/CLASSES_CREDIT_SPECIALE.puml`
-- [ ] Créer `classes/CLASSES_PLACEMENT.puml`
-- [ ] Créer `classes/CLASSES_BIENFAITEUR.puml`
-- [ ] Créer `classes/CLASSES_VEHICULE.puml`
-- [ ] Créer `classes/CLASSES_GEOGRAPHIE.puml`
-- [ ] Créer `classes/CLASSES_SHARED.puml`
+- [ ] Créer `sequences/SEQUENCES_CAISSE_SPECIALE.puml`
+- [ ] Créer `sequences/SEQUENCES_CAISSE_IMPREVUE.puml`
+- [ ] Créer `sequences/SEQUENCES_CREDIT_SPECIALE.puml`
+- [ ] Créer `sequences/SEQUENCES_PLACEMENT.puml`
 
 ### 📝 Notes
 

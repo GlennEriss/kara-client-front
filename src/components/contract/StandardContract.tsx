@@ -15,7 +15,6 @@ import {
   pay,
 } from "@/services/caisse/mutations"
 import { toast } from "sonner"
-import { compressImage, IMAGE_COMPRESSION_PRESETS } from "@/lib/utils"
 import { listRefunds } from "@/db/caisse/refunds.db"
 import {
   Clock,
@@ -41,7 +40,6 @@ import PdfViewerModal from "./PdfViewerModal"
 import RemboursementNormalPDFModal from "./RemboursementNormalPDFModal"
 import PaymentCSModal, { PaymentCSFormData } from "./PaymentCSModal"
 import PaymentInvoiceModal from "./standard/PaymentInvoiceModal"
-import StandardEchanceForm from "./standard/StandardEchanceForm"
 import type { RefundDocument } from "@/types/types"
 import TestPaymentTools from "./TestPaymentTools"
 import EmergencyContact from "./standard/EmergencyContact"
@@ -49,7 +47,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import routes from "@/constantes/routes"
-import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
+import { getContractStatusConfig } from '@/utils/contract-status'
 
 // Helper pour formater les montants correctement
 const formatAmount = (amount: number): string => {
@@ -87,9 +85,6 @@ function StatCard({ icon: Icon, label, value, accent = "slate" }: any) {
   )
 }
 
-function SectionTitle({ children }: React.PropsWithChildren) {
-  return <h2 className="text-base font-semibold text-slate-900">{children}</h2>
-}
 
 function classNames(...cls: (string | false | undefined)[]) {
   return cls.filter(Boolean).join(" ")
@@ -107,7 +102,6 @@ export default function StandardContract({ id }: Props) {
   const { user } = useAuth()
   const { data: member } = useMember((data as any)?.memberId)
 
-  const [isRecomputing, setIsRecomputing] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
@@ -141,8 +135,8 @@ export default function StandardContract({ id }: Props) {
       try {
         const refundsData = await listRefunds(id)
         setRefunds(refundsData)
-      } catch (error) {
-        console.error('Error loading refunds:', error)
+      } catch {
+        // Error loading refunds - silently fail
       }
     }
   }, [id])
@@ -152,11 +146,11 @@ export default function StandardContract({ id }: Props) {
     reloadRefunds()
   }, [reloadRefunds])
 
-  function paymentStatusLabel(s: string): string {
+  function _paymentStatusLabel(s: string): string {
     const map: Record<string, string> = { DUE: "À payer", PAID: "Payé", REFUSED: "Refusé" }
     return map[s] || s
   }
-  function refundStatusLabel(s: string): string {
+  function _refundStatusLabel(s: string): string {
     const map: Record<string, string> = {
       PENDING: "En attente",
       APPROVED: "Approuvé",
@@ -165,7 +159,7 @@ export default function StandardContract({ id }: Props) {
     }
     return map[s] || s
   }
-  function refundTypeLabel(t: string): string {
+  function _refundTypeLabel(t: string): string {
     const map: Record<string, string> = { FINAL: "Final", EARLY: "Anticipé", DEFAULT: "Défaut" }
     return map[t] || t
   }
@@ -201,7 +195,7 @@ export default function StandardContract({ id }: Props) {
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
   const isGroupContract = data.contractType === 'GROUP' || !!groupeId
-  const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
+  const { data: groupMembers } = useGroupMembers(groupeId, isGroupContract)
 
   const payments = data.payments || []
   const paidCount = payments.filter((x: any) => x.status === 'PAID').length
@@ -209,7 +203,7 @@ export default function StandardContract({ id }: Props) {
   const progress = totalMonths > 0 ? (paidCount / totalMonths) * 100 : 0
 
   // Récupérer les paramètres de caisse
-  const settings = useActiveCaisseSettingsByType((data as any).caisseType)
+  const _settings = useActiveCaisseSettingsByType((data as any).caisseType)
 
   // Le bonus accumulé est déjà calculé et stocké dans bonusAccrued lors des paiements
   const currentBonus = data.bonusAccrued || 0

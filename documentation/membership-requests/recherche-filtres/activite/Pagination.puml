@@ -1,0 +1,87 @@
+@startuml Pagination
+title Workflow : Navigation par Pagination
+
+start
+
+:Page membership-requests se charge;
+
+:Initialisation :
+- filters.page = 1
+- filters.limit = 10;
+
+:Appel useMembershipRequests 
+avec page=1, limit=10;
+
+:Récupération données Firestore :
+- Utilise startAfter pour pagination cursor
+- Récupère 10 documents
+- Total calculé avec getCountFromServer;
+
+:Afficher liste des 10 premières demandes;
+
+:Afficher contrôles de pagination :
+- "Précédent" (désactivé si page 1)
+- Numéros de pages avec ellipses
+- "Suivant" (désactivé si dernière page)
+- Info "Page X sur Y • Z résultats";
+
+if (Admin clique "Précédent" ?) then (oui)
+  :filters.page = filters.page - 1;
+  
+  :Appel useMembershipRequests 
+  avec nouvelle page;
+  
+  :Récupération données Firestore 
+  avec cursor de la page précédente;
+  
+  :Scroll en haut de la page;
+elseif (Admin clique "Suivant" ?) then (oui)
+  :filters.page = filters.page + 1;
+  
+  :Appel useMembershipRequests 
+  avec nouvelle page;
+  
+  :Récupération données Firestore 
+  avec cursor de la page suivante;
+  
+  :Scroll en haut de la page;
+elseif (Admin clique numéro de page ?) then (oui)
+  :filters.page = numéro cliqué;
+  
+  :Appel useMembershipRequests 
+  avec page cible;
+  
+  :Récupération données Firestore 
+  avec cursor calculé;
+  
+  :Scroll en haut de la page;
+elseif (Admin change "items par page" ?) then (oui)
+  :filters.limit = nouvelle valeur 
+  (10, 25, 50, 100);
+  
+  :filters.page = 1 (reset);
+  
+  :Appel useMembershipRequests 
+  avec nouveau limit;
+  
+  :Recalcul pagination avec nouveau limit;
+endif
+
+:Afficher données de la page;
+
+stop
+
+note right
+  **Implémentation actuelle :**
+  
+  - Pagination côté serveur (Firestore)
+  - Utilise les curseurs (startAfter)
+  - Total calculé avec getCountFromServer
+  - Limite configurable (10, 25, 50, 100)
+  
+  **Limitations :**
+  - Pas de tri multi-critères
+  - Pas de navigation directe à la dernière page
+end note
+
+@enduml

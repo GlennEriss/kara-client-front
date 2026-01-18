@@ -1,0 +1,62 @@
+@startuml SEQ_Filtres
+title Séquence : Application des Filtres par Statut
+
+actor "Admin" as Admin
+participant "FilterBar\n(Component UI)" as FilterUI
+participant "MembershipRequestsFilters\n(Component)" as Filters
+participant "Tabs\n(Component)" as Tabs
+participant "useMembershipRequests\n(Hook)" as Hook
+participant "membership.db\n(Repository)" as DB
+database "Firestore" as Firestore
+
+Admin -> Filters: Accéder à la page
+activate Filters
+
+Filters -> Filters: Initialiser filtres:\n{ status: 'all', page: 1, limit: 10 }
+
+alt Sélection via onglets
+    Admin -> Tabs: Cliquer sur onglet\n(ex: "En attente")
+    activate Tabs
+    Tabs -> Filters: setActiveTab('pending')
+    Tabs -> Filters: setFilters({ status: 'pending', page: 1 })
+    deactivate Tabs
+else Sélection via Select
+    Admin -> FilterUI: Sélectionner statut\ndans dropdown
+    activate FilterUI
+    FilterUI -> Filters: onFilterChange('status', value)
+    deactivate FilterUI
+    Filters -> Filters: setFilters({ status: value, page: 1 })
+end
+
+Filters -> Hook: Déclencher refetch\navec nouveaux filtres
+activate Hook
+
+Hook -> DB: getMembershipRequestsPaginated(\n{ status, page, limit })
+activate DB
+
+DB -> Firestore: query(\n  collection('membership-requests'),\n  where('status', '==', status),\n  orderBy('createdAt', 'desc'),\n  limit(limit)\n)
+activate Firestore
+Firestore --> DB: QuerySnapshot
+deactivate Firestore
+
+DB -> DB: transformResults()
+
+DB --> Hook: PaginatedResult
+deactivate DB
+
+Hook --> Filters: { data, pagination, isLoading }
+deactivate Hook
+
+Filters --> Admin: Afficher résultats filtrés\n+ badges filtres actifs
+
+opt Réinitialiser filtres
+    Admin -> FilterUI: Cliquer "Réinitialiser"
+    FilterUI -> Filters: resetFilters()
+    Filters -> Hook: Refetch avec filtres par défaut
+    Hook --> Filters: Tous les résultats
+    Filters --> Admin: Afficher toutes les demandes
+end
+
+deactivate Filters
+
+@enduml

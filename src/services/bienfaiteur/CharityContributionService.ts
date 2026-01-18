@@ -49,8 +49,8 @@ export class CharityContributionService {
                 photoURL: userData.photoURL
               }
             }
-          } catch (error) {
-            console.error('Error fetching member:', error)
+          } catch {
+            // Error fetching member - continue sans
           }
         } else if (participant.participantType === 'group' && participant.groupId) {
           try {
@@ -63,8 +63,8 @@ export class CharityContributionService {
                 photoURL: groupData.photoURL
               }
             }
-          } catch (error) {
-            console.error('Error fetching group:', error)
+          } catch {
+            // Error fetching group - continue sans
           }
         }
 

@@ -71,7 +71,7 @@ export default function CreateDemandModal({
       setSelectedEntity(null)
       resetSearch()
       onClose()
-    } catch (error) {
+    } catch {
       // L'erreur est gérée par le hook de mutation
     }
   }

@@ -20,7 +20,6 @@ import {
   CheckCircle,
   InfoIcon,
   FileText,
-  Upload,
 } from 'lucide-react'
 import { ContractCI } from '@/types/types'
 import { useRequestSupport } from '@/hooks/caisse-imprevue'

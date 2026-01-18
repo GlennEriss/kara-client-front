@@ -1,0 +1,42 @@
+@startuml Rejeter
+title Workflow : Rejeter une Demande d'Adhésion
+
+start
+
+:Admin clique sur "Rejeter" 
+(bouton visible si status = 'pending' ou 'under_review');
+
+:Afficher modal de confirmation;
+
+:Demander motif de rejet (optionnel mais recommandé);
+
+:Admin renseigne motif de rejet (texte libre);
+
+:Admin confirme le rejet;
+
+:Appel mutation useUpdateMembershipRequestStatus 
+avec :
+- requestId
+- newStatus: 'rejected'
+- reviewedBy: admin.uid
+- motifReject: motif renseigné;
+
+:Appel MembershipService.updateMembershipRequestStatus;
+
+:Mise à jour document Firestore :
+- status = 'rejected'
+- processedBy = adminId
+- processedAt = serverTimestamp()
+- motifReject = motif;
+
+:Notification automatique envoyée au demandeur
+(via NotificationService);
+
+:Invalider cache React Query 
+(membershipRequests, stats, notifications);
+
+:Afficher toast "Demande rejetée avec succès";
+
+stop
+
+@enduml

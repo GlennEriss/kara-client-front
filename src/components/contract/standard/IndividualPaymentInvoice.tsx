@@ -11,12 +11,6 @@ import { useAuth } from "@/hooks/useAuth"
 // ————————————————————————————————————————————————————————————
 // Helpers UI
 // ————————————————————————————————————————————————————————————
-const brand = {
-  bg: "bg-[#234D65]",
-  bgSoft: "bg-[#234D65]/10",
-  text: "text-[#234D65]",
-}
-
 function classNames(...cls: (string | false | undefined)[]) {
   return cls.filter(Boolean).join(" ")
 }
@@ -203,8 +197,8 @@ export default function IndividualPaymentInvoice({
                 <div className="flex justify-between">
                   <span className="text-slate-600">Rôles :</span>
                   <div className="flex gap-1">
-                    {adminInfo.roles.map((role, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
+                    {adminInfo.roles.map((role, _index) => (
+                      <Badge key={_index} variant="outline" className="text-xs">
                         {role}
                       </Badge>
                     ))}

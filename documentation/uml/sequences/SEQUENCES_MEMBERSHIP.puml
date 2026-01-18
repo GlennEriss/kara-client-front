@@ -1,0 +1,83 @@
+@startuml SEQUENCES_MEMBERSHIP_INDEX
+title Index des Diagrammes de Séquence - Module Membership
+
+!define PRIMARY_COLOR #234D65
+!define SECONDARY_COLOR #CBB171
+!define BG_COLOR #FFFFFF
+
+skinparam package {
+    BackgroundColor BG_COLOR
+    BorderColor PRIMARY_COLOR
+    FontColor PRIMARY_COLOR
+}
+
+skinparam note {
+    BackgroundColor #FFF8DC
+    BorderColor SECONDARY_COLOR
+}
+
+package "Module Membership Requests" {
+    
+    package "Consultation" {
+        [SEQ_Voir_Details] as VD
+        [SEQ_Fiche_Adhesion] as FA
+        [SEQ_Voir_Piece_Identite] as PI
+        [SEQ_Liste_Dossiers] as LD
+    }
+    
+    package "Actions Admin" {
+        [SEQ_Approuver] as AP
+        [SEQ_Rejeter] as RJ
+        [SEQ_Demander_Corrections] as DC
+        [SEQ_Payer] as PA
+        [SEQ_Renouveler_Code] as RC
+    }
+    
+    package "Filtrage & Navigation" {
+        [SEQ_Recherche] as RE
+        [SEQ_Filtres] as FI
+        [SEQ_Pagination] as PG
+    }
+    
+    package "Statistiques" {
+        [SEQ_Statistiques] as ST
+    }
+}
+
+note right of "Module Membership Requests"
+  **Fichier source complet:**
+  documentation/membership-requests/DIAGRAMMES_SEQUENCE.puml
+  
+  **Documentation:**
+  documentation/membership-requests/DIAGRAMMES_SEQUENCE_README.md
+  
+  **Architecture:**
+  - UI Components → Hooks → Services → Repository → Firestore
+  - Système de rollback pour l'approbation
+  - Recherche optimisée côté serveur
+  - Statistiques avec agrégations Firestore
+end note
+
+@enduml
+
+' ============================================
+' RÉFÉRENCE VERS LE FICHIER COMPLET
+' ============================================
+' Les diagrammes de séquence complets sont dans:
+' /documentation/membership-requests/DIAGRAMMES_SEQUENCE.puml
+'
+' Liste des 13 diagrammes:
+' 1.  SEQ_Voir_Details         - Affichage détails demande
+' 2.  SEQ_Fiche_Adhesion       - Génération PDF adhésion
+' 3.  SEQ_Voir_Piece_Identite  - Visualisation pièce identité
+' 4.  SEQ_Statistiques         - Calcul stats optimisé
+' 5.  SEQ_Approuver            - Approbation avec rollback
+' 6.  SEQ_Rejeter              - Rejet avec motif
+' 7.  SEQ_Demander_Corrections - Mise en examen
+' 8.  SEQ_Recherche            - Recherche optimisée
+' 9.  SEQ_Filtres              - Filtrage par statut
+' 10. SEQ_Pagination           - Navigation cursor-based
+' 11. SEQ_Liste_Dossiers       - Chargement page
+' 12. SEQ_Payer                - Enregistrement paiement
+' 13. SEQ_Renouveler_Code      - Renouvellement code sécurité
+' ============================================

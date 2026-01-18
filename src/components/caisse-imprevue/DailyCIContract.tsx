@@ -24,8 +24,8 @@ import {
   Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ContractCI, CONTRACT_CI_STATUS_LABELS, PaymentCI } from '@/types/types'
-import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
+import { ContractCI, PaymentCI } from '@/types/types'
+import { getContractStatusConfig } from '@/utils/contract-status'
 import routes from '@/constantes/routes'
 import PaymentCIModal, { PaymentFormData } from './PaymentCIModal'
 import PaymentReceiptCIModal from './PaymentReceiptCIModal'
@@ -37,7 +37,7 @@ import FinalRefundCIModal from './FinalRefundCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
-import { calculateMonthIndex, isDateInMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
+import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
@@ -52,8 +52,8 @@ const formatAmount = (amount: number): string => {
 
 interface DailyCIContractProps {
   contract: ContractCI
-  document: any | null
-  isLoadingDocument: boolean
+  document?: any | null
+  isLoadingDocument?: boolean
 }
 
 // Hook personnalisé pour le carousel avec drag/swipe
@@ -119,7 +119,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
       document.removeEventListener('mousemove', handleGlobalMouseMove)
       document.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, startPos, currentIndex, itemsPerView, translateX])
+  }, [isDragging, startPos, currentIndex, itemsPerView, translateX, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -252,7 +252,7 @@ const PaymentStatsCarousel = ({ contract, paymentStats }: { contract: ContractCI
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const { currentIndex, goTo, goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
+  const { goNext, goPrev, canGoPrev, canGoNext, translateX, containerRef, handleMouseDown, handleTouchStart, handleTouchMove, handleTouchEnd, isDragging } = useCarousel(statsData.length, itemsPerView)
 
   return (
     <div className="relative">
@@ -279,7 +279,7 @@ const PaymentStatsCarousel = ({ contract, paymentStats }: { contract: ContractCI
   )
 }
 
-export default function DailyCIContract({ contract, document, isLoadingDocument }: DailyCIContractProps) {
+export default function DailyCIContract({ contract, document: _document, isLoadingDocument: _isLoadingDocument }: DailyCIContractProps) {
   const router = useRouter()
   const { user } = useAuth()
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -301,13 +301,13 @@ export default function DailyCIContract({ contract, document, isLoadingDocument 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
   // Récupérer les paiements depuis Firestore
-  const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsCI(contract.id)
+  const { data: payments = [] } = usePaymentsCI(contract.id)
   const createVersementMutation = useCreateVersement()
 
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
   const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
-  const { data: supportsHistory = [] } = useSupportHistory(contract.id)
+  useSupportHistory(contract.id)
   
   // Récupérer les statistiques de paiement
   const { data: paymentStats } = useContractPaymentStats(contract.id)

@@ -1,0 +1,56 @@
+@startuml SEQ_Statistiques
+title Séquence : Calcul et Affichage des Statistiques (Refactorisé)
+
+actor "Admin" as Admin
+participant "MembershipRequestsPage\n(Page)" as Page
+participant "MembershipRequestsStats\n(Component)" as StatsComponent
+participant "useMembershipRequestsStats\n(Hook)" as Hook
+participant "API Route\n(/api/membership-stats)" as API
+participant "MembershipStatsService" as Service
+database "Firestore\n(membership-requests)" as Firestore
+
+Admin -> Page: Accéder à /membership-requests
+activate Page
+
+Page -> StatsComponent: Render avec filtres
+activate StatsComponent
+
+StatsComponent -> Hook: useMembershipRequestsStats()
+activate Hook
+
+Hook -> API: GET /api/membership-stats
+activate API
+
+API -> API: Vérifier authentification\n& permissions admin
+
+API -> Service: calculateStats()
+activate Service
+
+group Requêtes parallèles (agrégation Firestore)
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'pending')))
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'approved')))
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'rejected')))
+    Service -> Firestore: getCountFromServer(\nquery(where('status', '==', 'under_review')))
+    
+    Firestore --> Service: counts[]
+end
+
+Service -> Service: Calculer statistiques:\n- total\n- pendingCount\n- approvedCount\n- rejectedCount\n- underReviewCount\n- percentages[]
+
+Service --> API: MembershipStats
+deactivate Service
+
+API --> Hook: Response JSON
+deactivate API
+
+Hook -> Hook: Mettre en cache\n(staleTime: 1h)
+
+Hook --> StatsComponent: { data: stats, isLoading }
+deactivate Hook
+
+StatsComponent --> Admin: Afficher StatsCarousel\navec 5 cartes statistiques\net graphiques camembert
+
+deactivate StatsComponent
+deactivate Page
+
+@enduml

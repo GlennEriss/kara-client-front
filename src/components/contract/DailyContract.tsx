@@ -4,19 +4,16 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import routes from '@/constantes/routes'
 import { useCaisseContract } from '@/hooks/useCaisseContracts'
 import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { useGroupMembers, useMember } from '@/hooks/useMembers'
 import { useAuth } from '@/hooks/useAuth'
 import { pay, requestFinalRefund, requestEarlyRefund, approveRefund, markRefundPaid, cancelEarlyRefund, updatePaymentContribution } from '@/services/caisse/mutations'
-import { getPaymentByDate } from '@/db/caisse/payments.db'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Plus, DollarSign, TrendingUp, FileText, CheckCircle, CheckCircle2, XCircle, AlertCircle, Building2, Eye, Download, X, Trash2, ArrowLeft, History, RefreshCw, Clock, Smartphone, Banknote, Upload, Loader2, AlertTriangle, CreditCard } from 'lucide-react'
 import PdfDocumentModal from './PdfDocumentModal'
 import PdfViewerModal from './PdfViewerModal'
-import RemboursementNormalPDFModal from './RemboursementNormalPDFModal'
 import EmergencyContact from './standard/EmergencyContact'
 import type { RefundDocument } from '@/types/types'
 import { listRefunds } from '@/db/caisse/refunds.db'
@@ -24,12 +21,11 @@ import TestPaymentTools from './TestPaymentTools'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { translateContractStatus, getContractStatusConfig } from '@/utils/contract-status'
+import { getContractStatusConfig } from '@/utils/contract-status'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData } from '@/schemas/schemas'
@@ -102,17 +98,17 @@ export default function DailyContract({ id }: Props) {
     defaultValues: earlyRefundDefaultValues
   })
   const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null)
+  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
   const [confirmPaidId, setConfirmPaidId] = useState<string | null>(null)
   const [showPdfModal, setShowPdfModal] = useState(false)
-  const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [showRemboursementPdf, setShowRemboursementPdf] = useState(false)
+  const [showPdfViewer, setShowPdfViewer] = useState(false)
   const [currentRefundId, setCurrentRefundId] = useState<string | null>(null)
   const [currentDocument, setCurrentDocument] = useState<RefundDocument | null>(null)
   const [refunds, setRefunds] = useState<any[]>([])
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [refundType, setRefundType] = useState<'FINAL' | 'EARLY' | null>(null)
   const [refundReasonInput, setRefundReasonInput] = useState('')
-  const [confirmDeleteDocumentId, setConfirmDeleteDocumentId] = useState<string | null>(null)
   const [refundFile, setRefundFile] = useState<File | undefined>()
   const [refundDate, setRefundDate] = useState(() => {
     return new Date().toISOString().split('T')[0]
@@ -270,7 +266,7 @@ export default function DailyContract({ id }: Props) {
   // Récupérer les membres du groupe si c'est un contrat de groupe
   const groupeId = (data as any).groupeId || ((data as any).memberId && (data as any).memberId.length > 20 ? (data as any).memberId : null)
   const isGroupContract = data.contractType === 'GROUP' || !!groupeId
-  const { data: groupMembers, isLoading: isLoadingGroupMembers } = useGroupMembers(groupeId, isGroupContract)
+    const { data: groupMembers } = useGroupMembers(groupeId, isGroupContract)
 
   // Calculer la progression des mois payés
   const payments = data?.payments || []
@@ -382,7 +378,7 @@ export default function DailyContract({ id }: Props) {
     return hasContributionOnDate ? payment : null
   }
 
-  const getPaymentDetailsForDate = (date: Date) => {
+  const _getPaymentDetailsForDate = (date: Date) => {
     if (!data.payments) return null
 
     const monthIndex = getMonthIndexFromStart(date)
@@ -473,7 +469,7 @@ export default function DailyContract({ id }: Props) {
       const contractStartMonth = data.contractStartAt ? new Date(data.contractStartAt).getMonth() : new Date().getMonth()
       const targetMonth = contractStartMonth + monthIndex
       const year = data.contractStartAt ? new Date(data.contractStartAt).getFullYear() : new Date().getFullYear()
-      const daysInMonth = new Date(year, targetMonth + 1, 0).getDate()
+      const _daysInMonth = new Date(year, targetMonth + 1, 0).getDate()
 
       // Vérifier si le nombre de contributions correspond au nombre de jours
       // (ou si le montant total atteint l'objectif mensuel)
@@ -516,7 +512,7 @@ export default function DailyContract({ id }: Props) {
     setShowPdfModal(true)
   }
 
-  const handleDeleteDocument = async (refundId: string) => {
+  const _handleDeleteDocument = async (refundId: string) => {
     try {
       const { updateRefund } = await import('@/db/caisse/refunds.db')
 

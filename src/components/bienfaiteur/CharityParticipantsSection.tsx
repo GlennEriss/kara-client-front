@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -35,7 +35,7 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
   const members = membersData?.data || []
 
   // Filtrage
-  const filtered = participants?.filter(participant => {
+  const filtered = participants?.filter(_participant => {
     if (searchQuery) {
       // TODO: Recherche par nom
     }

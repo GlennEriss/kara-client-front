@@ -64,8 +64,7 @@ function normalizeDateToISOString(dateValue: any): string | null {
     }
     
     return date.toISOString().split('T')[0]
-  } catch (error) {
-    console.error('Erreur lors de la conversion de date:', error)
+  } catch {
     return null
   }
 }
@@ -100,8 +99,8 @@ export async function subscribe(input: {
       const { getMemberWithSubscription } = await import('@/db/member.db')
       const member = await getMemberWithSubscription(input.memberId)
       memberMatricule = member?.matricule || '0000'
-    } catch (error) {
-      console.warn('⚠️ Impossible de récupérer le matricule du membre:', error)
+    } catch {
+      // Impossible de récupérer le matricule du membre - continue sans
     }
   } else if (input.groupeId) {
     // Pour les contrats de groupe, utiliser un matricule générique
@@ -152,8 +151,7 @@ export async function subscribe(input: {
       })
       
       console.log('✅ Contrat PDF téléversé et enregistré avec succès')
-    } catch (error: any) {
-      console.error('❌ Erreur lors du téléversement du PDF:', error)
+    } catch {
       // Ne pas faire échouer la création du contrat si le PDF échoue
       console.warn('⚠️ Le contrat a été créé mais le PDF n\'a pas pu être téléversé')
     }
@@ -683,8 +681,7 @@ export async function updatePaymentContribution(input: {
           }
           
           return null
-        } catch (error) {
-          console.error('Erreur lors de l\'extraction du chemin:', error)
+        } catch {
           return null
         }
       }
@@ -697,8 +694,7 @@ export async function updatePaymentContribution(input: {
       } else {
         console.warn('⚠️ Impossible d\'extraire le chemin du fichier depuis l\'URL:', oldProofUrl)
       }
-    } catch (error) {
-      console.error('⚠️ Erreur lors de la suppression de l\'ancienne image:', error)
+    } catch {
       // Ne pas faire échouer la modification si la suppression échoue
     }
   }

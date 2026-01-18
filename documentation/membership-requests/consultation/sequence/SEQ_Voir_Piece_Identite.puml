@@ -1,0 +1,52 @@
+@startuml SEQ_Voir_Piece_Identite
+title Séquence : Voir la Pièce d'Identité (Recto/Verso)
+
+actor "Admin" as Admin
+participant "MemberIdentityModal\n(Component)" as Modal
+participant "Image\n(next/image)" as ImageComp
+database "Firebase Storage" as Storage
+
+Admin -> Modal: Cliquer sur "Voir pièce d'identité"
+activate Modal
+
+Modal -> Modal: setShowFront(true)
+
+Modal -> Modal: Vérifier existence:\n- identityDocumentFront\n- identityDocumentBack
+
+alt Photos existent
+    Modal -> ImageComp: Charger image recto
+    activate ImageComp
+    ImageComp -> Storage: GET identityDocumentFrontURL
+    Storage --> ImageComp: Image data
+    ImageComp --> Modal: Image rendue
+    deactivate ImageComp
+    
+    Modal --> Admin: Afficher recto + boutons toggle
+
+    opt Admin clique "Voir verso"
+        Admin -> Modal: Cliquer "Verso"
+        Modal -> Modal: setShowFront(false)
+        
+        Modal -> ImageComp: Charger image verso
+        activate ImageComp
+        ImageComp -> Storage: GET identityDocumentBackURL
+        Storage --> ImageComp: Image data
+        ImageComp --> Modal: Image rendue
+        deactivate ImageComp
+        
+        Modal --> Admin: Afficher verso
+    end
+    
+    opt Admin clique "Voir recto"
+        Admin -> Modal: Cliquer "Recto"
+        Modal -> Modal: setShowFront(true)
+        Modal --> Admin: Afficher recto
+    end
+else Photos absentes
+    Modal --> Admin: "Pièce d'identité non fournie"
+end
+
+Admin -> Modal: Fermer modal
+deactivate Modal
+
+@enduml

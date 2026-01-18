@@ -15,7 +15,6 @@ import {
   FileText,
   User,
   Users,
-  DollarSign,
   AlertCircle,
   RotateCcw,
 } from 'lucide-react'

@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { 
   Target, 
   Calendar, 
@@ -174,8 +173,8 @@ export function Step2CaisseConfig() {
                   <h4 className="font-semibold text-gray-900 mb-2">{caisseInfo.title}</h4>
                   <p className="text-sm text-gray-600 mb-3">{caisseInfo.description}</p>
                   <div className="space-y-1">
-                    {caisseInfo.features.map((feature, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm text-gray-700">
+                    {caisseInfo.features.map((feature, _index) => (
+                      <div key={_index} className="flex items-center gap-2 text-sm text-gray-700">
                         <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                         {feature}
                       </div>

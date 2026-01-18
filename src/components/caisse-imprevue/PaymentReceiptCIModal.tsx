@@ -77,7 +77,7 @@ export default function PaymentReceiptCIModal({
     }
   }
 
-  const loadImageAsBase64 = async (url: string): Promise<string> => {
+  const _loadImageAsBase64 = async (url: string): Promise<string> => {
     try {
       const response = await fetch(url)
       const blob = await response.blob()

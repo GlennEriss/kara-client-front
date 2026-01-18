@@ -1,0 +1,79 @@
+@startuml Demander_Corrections
+title Workflow : Demander des Corrections (Mise en Examen)
+
+start
+
+:Admin clique sur "Demander corrections" 
+(bouton visible si status = 'pending');
+
+:Afficher modal de confirmation;
+
+:Demander liste des corrections 
+(texte libre, optionnel);
+
+if (Liste de corrections fournie ?) then (oui)
+  :Générer code de sécurité à 6 chiffres
+  (100000 - 999999);
+  
+  :Générer date d'expiration 
+  (48 heures après génération);
+  
+  :Mettre à jour document Firestore :
+  - status = 'under_review'
+  - reviewNote = liste corrections
+  - securityCode = code généré
+  - securityCodeExpiry = date expiration
+  - securityCodeUsed = false
+  - reviewedBy = adminId
+  - processedAt = serverTimestamp();
+else (non)
+  :Mettre à jour document Firestore :
+  - status = 'under_review'
+  - reviewedBy = adminId
+  - processedAt = serverTimestamp();
+endif
+
+:Notification automatique envoyée au demandeur;
+
+:Invalider cache React Query;
+
+:Afficher toast "Corrections demandées";
+
+:Afficher dans la carte de la demande :
+- Message "Corrections demandées"
+- Lien de correction (format : /register?requestId={id})
+- Code de sécurité (si généré)
+- Date d'expiration du code
+- Bouton "Copier le lien"
+- Bouton "Copier le code"
+- Bouton "Renouveler le code";
+
+if (Admin clique "Renouveler code" ?) then (oui)
+  :Appel useRenewSecurityCode(requestId);
+  
+  :Générer nouveau code à 6 chiffres;
+  
+  :Nouvelle date d'expiration (48h);
+  
+  :Mettre à jour securityCode et securityCodeExpiry;
+  
+  :Afficher toast "Code renouvelé" 
+  avec nouveau code;
+endif
+
+stop
+
+note right
+  **Workflow de correction côté demandeur :**
+  
+  1. Demandeur reçoit lien + code
+  2. Accède à /register?requestId={id}
+  3. Saisit code de sécurité
+  4. Code vérifié (non expiré, non utilisé)
+  5. Formulaire pré-rempli avec données actuelles
+  6. Demandeur modifie les données
+  7. Soumet nouvelle demande
+  8. Code marqué comme utilisé (securityCodeUsed = true)
+end note
+
+@enduml

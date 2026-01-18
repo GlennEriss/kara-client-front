@@ -3,7 +3,7 @@ import { CreditDemand, CreditContract, CreditPayment, CreditPenalty, CreditInsta
 import { ICreditDemandRepository, CreditDemandFilters, CreditDemandStats } from "@/repositories/credit-speciale/ICreditDemandRepository";
 import { ICreditContractRepository, CreditContractFilters, CreditContractStats } from "@/repositories/credit-speciale/ICreditContractRepository";
 import { ICreditPaymentRepository, CreditPaymentFilters } from "@/repositories/credit-speciale/ICreditPaymentRepository";
-import { ICreditPenaltyRepository, CreditPenaltyFilters } from "@/repositories/credit-speciale/ICreditPenaltyRepository";
+import { ICreditPenaltyRepository } from "@/repositories/credit-speciale/ICreditPenaltyRepository";
 import { ICreditInstallmentRepository } from "@/repositories/credit-speciale/ICreditInstallmentRepository";
 import { IGuarantorRemunerationRepository, GuarantorRemunerationFilters } from "@/repositories/credit-speciale/IGuarantorRemunerationRepository";
 import { IContractCIRepository } from "@/repositories/caisse-imprevu/IContractCIRepository";
@@ -94,8 +94,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     clientId: data.clientId,
                 },
             });
-        } catch (error) {
-            console.error('Erreur lors de la création de la notification:', error);
+        } catch {
+            // Erreur lors de la création de la notification - continue sans
         }
         
         return demand;
@@ -150,8 +150,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         clientId: demand.clientId,
                     },
                 });
-            } catch (error) {
-                console.error('Erreur lors de la création de la notification:', error);
+            } catch {
+                // Erreur lors de la création de la notification - continue sans
             }
         }
 
@@ -192,8 +192,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     const filleuls = await this.memberRepository.getFilleulsByIntermediaryCode(guarantor.matricule);
                     guarantorIsParrain = filleuls.length > 0;
                 }
-            } catch (error) {
-                console.error('Erreur lors de la vérification du parrain:', error);
+            } catch {
+                // Erreur lors de la vérification du parrain - continue sans
             }
         }
 
@@ -285,8 +285,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     clientId: createdContract.clientId,
                 },
             });
-        } catch (error) {
-            console.error('Erreur lors de la création de la notification:', error);
+        } catch {
+            // Erreur lors de la création de la notification - continue sans
         }
 
         return createdContract;
@@ -329,8 +329,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         status,
                     },
                 });
-            } catch (error) {
-                console.error('Erreur lors de la création de la notification de changement de statut:', error);
+            } catch {
+                // Erreur lors de la création de la notification de changement de statut - continue sans
             }
         }
 
@@ -958,8 +958,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                             paymentDate: payment.paymentDate.toISOString(),
                         },
                     });
-                } catch (error) {
-                    console.error('Erreur lors de la création de la notification d\'alerte score:', error);
+                } catch {
+                    // Erreur lors de la création de la notification d'alerte score - continue sans
                 }
             }
 
@@ -979,8 +979,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                             totalAmount: contract.totalAmount,
                         },
                     });
-                } catch (error) {
-                    console.error('Erreur lors de la création de la notification de contrat terminé:', error);
+                } catch {
+                    // Erreur lors de la création de la notification de contrat terminé - continue sans
                 }
             }
 
@@ -1070,8 +1070,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                                         notificationType: 'guarantor_remuneration', // Type spécifique dans metadata
                                     },
                                 });
-                            } catch (error) {
-                                console.error('Erreur lors de la création de la notification de rémunération:', error);
+                            } catch {
+                                // Erreur lors de la création de la notification de rémunération - continue sans
                             }
                         }
                     }
@@ -1087,8 +1087,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     receiptUrl,
                 });
             }
-        } catch (error) {
-            console.error('Erreur lors de la génération du reçu PDF:', error);
+        } catch {
             // Ne pas faire échouer la création du paiement si le reçu échoue
         }
 
@@ -1308,8 +1307,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
             // Appliquer les bornes (0-10) et arrondir à 1 décimale
             const initialScore = Math.max(0, Math.min(10, averageScore));
             return Math.round(initialScore * 10) / 10;
-        } catch (error) {
-            console.error('Erreur lors du calcul du score initial basé sur l\'historique:', error);
+        } catch {
             // En cas d'erreur, retourner le score de base
             return 5;
         }
@@ -1597,8 +1595,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                                 month: monthNumber,
                                 },
                             });
-                        } catch (error) {
-                            console.error('Erreur lors de la création de la notification de pénalité:', error);
+                        } catch {
+                            // Erreur lors de la création de la notification de pénalité - continue sans
                         }
                     } else {
                         console.log('[checkAndCreatePenalties] Pénalité déjà existante, non créée');
@@ -1682,8 +1680,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     await this.creditPenaltyRepository.deletePenalty(penalty.id);
                     deletedCount++;
                     console.log(`[checkAndCreateMissingPenalties] Pénalité rétroactive supprimée: ${penalty.id} (${penalty.amount} FCFA pour l'échéance du ${penaltyDueDate.toLocaleDateString('fr-FR')})`);
-                } catch (error) {
-                    console.error(`[checkAndCreateMissingPenalties] Erreur lors de la suppression de la pénalité rétroactive ${penalty.id}:`, error);
+                } catch {
+                    // Erreur lors de la suppression de la pénalité rétroactive - continue sans
                 }
             }
         }
@@ -1855,8 +1853,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                                     daysLate: penalty.daysLate,
                                     dueDate: penalty.dueDate.toISOString()
                                 });
-                            } catch (error) {
-                                console.error(`[checkAndCreateMissingPenalties] Erreur lors de la création de la pénalité pour l'échéance du ${dueDate.toLocaleDateString('fr-FR')}:`, error);
+                            } catch {
+                                // Erreur lors de la création de la pénalité - continue sans
                             }
                         } else {
                             console.log('[checkAndCreateMissingPenalties] Montant de pénalité <= 0, non créée');
@@ -1962,8 +1960,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         }
                     }
                 }
-            } catch (error) {
-                console.error('Erreur lors de la vérification des paiements CI:', error);
+            } catch {
+                // Erreur lors de la vérification des paiements CI - continue sans
             }
         }
 
@@ -2126,8 +2124,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                     clientId: contract.clientId,
                 },
             });
-        } catch (error) {
-            console.error('Erreur lors de la création de la notification:', error);
+        } catch {
+            // Erreur lors de la création de la notification - continue sans
         }
 
         return updatedContract;
@@ -2503,8 +2501,8 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                         clientId: parentContract.clientId,
                     },
                 });
-            } catch (error) {
-                console.error('Erreur lors de la création des notifications:', error);
+            } catch {
+                // Erreur lors de la création des notifications - continue sans
             }
 
             return {
@@ -2525,8 +2523,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         try {
             const contracts = await this.creditContractRepository.getContractsWithFilters({});
             return contracts.find(c => c.parentContractId === parentContractId) || null;
-        } catch (error) {
-            console.error('Erreur lors de la récupération du contrat enfant:', error);
+        } catch {
             return null;
         }
     }
@@ -2541,8 +2538,7 @@ export class CreditSpecialeService implements ICreditSpecialeService {
                 return null;
             }
             return await this.creditContractRepository.getContractById(contract.parentContractId);
-        } catch (error) {
-            console.error('Erreur lors de la récupération du contrat parent:', error);
+        } catch {
             return null;
         }
     }

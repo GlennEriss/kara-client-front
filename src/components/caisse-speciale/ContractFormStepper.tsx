@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useContractForm } from '@/providers/ContractFormProvider'
-import { Check, Circle } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function ContractFormStepper() {
@@ -12,10 +12,10 @@ export function ContractFormStepper() {
   return (
     <div className="w-full">
       <div className="flex items-center justify-between">
-        {steps.map((step, index) => {
+        {steps.map((step, _index) => {
           const isActive = step.isActive
           const isCompleted = step.isCompleted
-          const isClickable = isCompleted || index === 0
+          const isClickable = isCompleted || _index === 0
 
           return (
             <React.Fragment key={step.id}>
@@ -70,7 +70,7 @@ export function ContractFormStepper() {
               </div>
 
               {/* Ligne de connexion entre les étapes */}
-              {index < steps.length - 1 && (
+              {_index < steps.length - 1 && (
                 <div className="flex-1 mx-4">
                   <div className={cn(
                     "h-0.5 transition-all duration-300",

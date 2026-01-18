@@ -22,7 +22,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Upload, FileText, Loader2, CheckCircle, XCircle, Zap } from 'lucide-react'
 import { ContractCI } from '@/types/types'
-import { toast } from 'sonner'
 import { useUploadContractDocument } from '@/hooks/caisse-imprevue/useUploadContractDocument'
 import { useAuth } from '@/hooks/useAuth'
 

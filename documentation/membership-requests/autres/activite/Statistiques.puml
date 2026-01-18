@@ -1,0 +1,80 @@
+@startuml Statistiques
+title Workflow : Calcul et Affichage des Statistiques
+
+note right
+  **Statistiques Actuelles :**
+  
+  1. **Total** : Nombre total de demandes
+  2. **En attente** : Demandes avec status = 'pending'
+  3. **Approuvées** : Demandes avec status = 'approved'
+  4. **Rejetées** : Demandes avec status = 'rejected'
+  5. **En cours d'examen** : Demandes avec status = 'under_review'
+  
+  **Problème identifié :**
+  Les statistiques sont calculées sur les 10 items
+  de la page actuelle, pas sur le total réel !
+  
+  **Solution à implémenter :**
+  - Utiliser useMembershipRequestsStats() hook
+  - Requêtes parallèles pour chaque statut
+  - Calcul correct des pourcentages
+end note
+
+start
+
+:Page membership-requests se charge;
+
+:useMembershipRequestsStats() hook appelé;
+
+fork
+  :Requête 1 : getMembershipRequestsPaginated 
+  ({ status: 'pending', limit: 1000 });
+fork again
+  :Requête 2 : getMembershipRequestsPaginated 
+  ({ status: 'approved', limit: 1000 });
+fork again
+  :Requête 3 : getMembershipRequestsPaginated 
+  ({ status: 'rejected', limit: 1000 });
+fork again
+  :Requête 4 : getMembershipRequestsPaginated 
+  ({ status: 'under_review', limit: 1000 });
+end fork
+
+:Attendre toutes les requêtes (Promise.all);
+
+:Calculer statistiques :
+- total = somme de tous les statuts
+- pending = pending.pagination.totalItems
+- approved = approved.pagination.totalItems
+- rejected = rejected.pagination.totalItems
+- underReview = underReview.pagination.totalItems;
+
+:Calculer pourcentages :
+- pendingPercentage = (pending / total) * 100
+- approvedPercentage = (approved / total) * 100
+- rejectedPercentage = (rejected / total) * 100
+- underReviewPercentage = (underReview / total) * 100;
+
+:Afficher StatsCarousel avec :
+- 5 cartes de statistiques
+- Graphiques en camembert (PieChart)
+- Couleurs différenciées par statut;
+
+:Admin peut faire défiler les stats (carousel);
+
+stop
+
+note right
+  **⚠️ Problème Actuel :**
+  
+  Dans MembershipRequestsList.tsx ligne 1477-1497,
+  les stats sont calculées sur membershipData.data
+  (10 items seulement) au lieu du total réel !
+  
+  **Code problématique :**
+  const pending = membershipData.data.filter(
+    r => r.status === 'pending'
+  ).length
+end note
+
+@enduml

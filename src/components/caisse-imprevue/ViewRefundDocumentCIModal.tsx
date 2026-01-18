@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Download, Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
+import { Loader2, Eye, FileText, Smartphone, Monitor, AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -47,7 +47,7 @@ export default function ViewRefundDocumentCIModal({
   contract,
   refundType
 }: ViewRefundDocumentCIModalProps) {
-  const isMobile = useIsMobile()
+  const _isMobile = useIsMobile()
   
   // Déterminer quel documentId utiliser selon le type
   const documentId = refundType === 'FINAL' 
@@ -62,7 +62,7 @@ export default function ViewRefundDocumentCIModal({
     ? '📋 Contrat de Remboursement Final' 
     : '📋 Contrat de Retrait Anticipé'
   
-  const description = refundType === 'FINAL'
+  const _description = refundType === 'FINAL'
     ? 'Document de remboursement final téléversé'
     : 'Document de retrait anticipé téléversé'
 

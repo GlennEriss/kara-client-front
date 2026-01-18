@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { 
   MapPin, 
@@ -28,10 +28,14 @@ import type { Commune } from '@/domains/infrastructure/geography/entities/geogra
 export default function AddressStepV2() {
   const { register, watch, setValue, formState: { errors, isSubmitted, touchedFields } } = useFormContext<RegisterFormData>()
 
-  // Valeurs sélectionnées (états locaux pour la cascade)
-  const [selectedProvinceId, setSelectedProvinceId] = useState('')
-  const [selectedCommuneId, setSelectedCommuneId] = useState('')
-  const [selectedDistrictId, setSelectedDistrictId] = useState('')
+
+  // Surveiller les IDs sélectionnés depuis le formulaire (comme l'ancien composant)
+  // Ceci permet de conserver les valeurs lors de la navigation entre les étapes
+  // Note: Utilisation de 'as any' car les nouveaux champs sont ajoutés au schéma mais le type n'est pas encore régénéré
+  const selectedProvinceId = (watch as any)('address.provinceId') || ''
+  const selectedCommuneId = (watch as any)('address.communeId') || ''
+  const selectedDistrictId = (watch as any)('address.districtId') || ''
+  const selectedQuarterId = (watch as any)('address.quarterId') || ''
 
   // Chargement des données géographiques
   const { data: provinces = [], isLoading: loadingProvinces } = useProvinces()
@@ -41,15 +45,17 @@ export default function AddressStepV2() {
 
   // Charger les communes de tous les départements
   const communeQueries = useQueries({
-    queries: departments.map(dept => ({
-      queryKey: ['communes', dept.id],
-      queryFn: async () => {
-        const service = ServiceFactory.getGeographieService()
-        return service.getCommunesByDepartmentId(dept.id)
-      },
-      enabled: !!selectedProvinceId && departments.length > 0,
-      staleTime: 5 * 60 * 1000,
-    }))
+    queries: departments.length > 0 
+      ? departments.map(dept => ({
+          queryKey: ['communes', dept.id],
+          queryFn: async () => {
+            const service = ServiceFactory.getGeographieService()
+            return service.getCommunesByDepartmentId(dept.id)
+          },
+          enabled: !!selectedProvinceId && departments.length > 0,
+          staleTime: 5 * 60 * 1000,
+        }))
+      : []
   })
 
   const communes = useMemo(() => {
@@ -83,76 +89,73 @@ export default function AddressStepV2() {
     [communes]
   )
 
-  // Initialiser les états depuis les valeurs du formulaire au montage et quand les données sont chargées
-  const provinceName = watch('address.province')
-  const cityName = watch('address.city')
-  const arrondissementName = watch('address.arrondissement')
-  const districtName = watch('address.district')
+  // Trouver les objets complets à partir des IDs pour remplir les champs texte
+  const selectedProvince = sortedProvinces.find(p => p.id === selectedProvinceId)
+  const selectedCommune = filteredCommunes.find(c => c.id === selectedCommuneId)
+  const selectedDistrict = sortedDistricts.find(d => d.id === selectedDistrictId)
+  const selectedQuarter = sortedQuarters.find(q => q.id === selectedQuarterId)
 
-  // Initialiser la province
+  // Mettre à jour les champs texte quand les sélections changent
   useEffect(() => {
-    if (provinceName && sortedProvinces.length > 0) {
-      const province = sortedProvinces.find(p => p.name === provinceName)
-      if (province && province.id !== selectedProvinceId) {
-        setSelectedProvinceId(province.id)
-      }
+    if (selectedProvince) {
+      setValue('address.province', selectedProvince.name, { shouldValidate: true })
+    } else if (!selectedProvinceId) {
+      setValue('address.province', '', { shouldValidate: true })
     }
-  }, [provinceName, sortedProvinces, selectedProvinceId])
+  }, [selectedProvince, selectedProvinceId, setValue])
 
-  // Initialiser la commune (nécessite que les communes soient chargées après la province)
   useEffect(() => {
-    if (cityName && filteredCommunes.length > 0 && selectedProvinceId) {
-      const commune = filteredCommunes.find(c => c.name === cityName)
-      if (commune && commune.id !== selectedCommuneId) {
-        setSelectedCommuneId(commune.id)
-      }
+    if (selectedCommune) {
+      setValue('address.city', selectedCommune.name, { shouldValidate: true })
+    } else if (!selectedCommuneId) {
+      setValue('address.city', '', { shouldValidate: true })
+      setValue('address.arrondissement', '', { shouldValidate: true })
+      setValue('address.district', '', { shouldValidate: true })
     }
-  }, [cityName, filteredCommunes, selectedProvinceId, selectedCommuneId])
+  }, [selectedCommune, selectedCommuneId, setValue])
 
-  // Initialiser le district (nécessite que les districts soient chargés après la commune)
   useEffect(() => {
-    if (arrondissementName && sortedDistricts.length > 0 && selectedCommuneId) {
-      const district = sortedDistricts.find(d => d.name === arrondissementName)
-      if (district && district.id !== selectedDistrictId) {
-        setSelectedDistrictId(district.id)
-      }
+    if (selectedDistrict) {
+      setValue('address.arrondissement', selectedDistrict.name, { shouldValidate: true })
+    } else if (!selectedDistrictId) {
+      setValue('address.arrondissement', '', { shouldValidate: true })
+      setValue('address.district', '', { shouldValidate: true })
     }
-  }, [arrondissementName, sortedDistricts, selectedCommuneId, selectedDistrictId])
+  }, [selectedDistrict, selectedDistrictId, setValue])
 
-  // Note: Le quartier n'a pas besoin d'initialisation d'état car le Select trouve automatiquement
-  // le quartier par son nom via sortedQuarters.find(q => q.name === watch('address.district'))?.id
+  useEffect(() => {
+    if (selectedQuarter) {
+      setValue('address.district', selectedQuarter.name, { shouldValidate: true })
+    } else if (!selectedQuarterId) {
+      setValue('address.district', '', { shouldValidate: true })
+    }
+  }, [selectedQuarter, selectedQuarterId, setValue])
 
-  // Handlers de changement cascade
+  // Handlers de changement cascade - stockent les IDs dans le formulaire
+  // Note: Utilisation de 'as any' car les nouveaux champs sont ajoutés au schéma mais le type n'est pas encore régénéré
   const handleProvinceChange = (provinceId: string) => {
-    setSelectedProvinceId(provinceId)
-    const province = sortedProvinces.find(p => p.id === provinceId)
-    setValue('address.province', province?.name || '')
-    setValue('address.city', '')
-    setValue('address.arrondissement', '')
-    setValue('address.district', '')
-    setSelectedCommuneId('')
-    setSelectedDistrictId('')
+    ;(setValue as any)('address.provinceId', provinceId, { shouldValidate: true })
+    // Réinitialiser les niveaux inférieurs
+    ;(setValue as any)('address.communeId', '', { shouldValidate: true })
+    ;(setValue as any)('address.districtId', '', { shouldValidate: true })
+    ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
   }
 
   const handleCommuneChange = (communeId: string) => {
-    setSelectedCommuneId(communeId)
-    const commune = filteredCommunes.find(c => c.id === communeId)
-    setValue('address.city', commune?.name || '')
-    setValue('address.arrondissement', '')
-    setValue('address.district', '')
-    setSelectedDistrictId('')
+    ;(setValue as any)('address.communeId', communeId, { shouldValidate: true })
+    // Réinitialiser les niveaux inférieurs
+    ;(setValue as any)('address.districtId', '', { shouldValidate: true })
+    ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
   }
 
   const handleDistrictChange = (districtId: string) => {
-    setSelectedDistrictId(districtId)
-    const district = sortedDistricts.find(d => d.id === districtId)
-    setValue('address.arrondissement', district?.name || '')
-    setValue('address.district', '')
+    ;(setValue as any)('address.districtId', districtId, { shouldValidate: true })
+    // Réinitialiser le quartier
+    ;(setValue as any)('address.quarterId', '', { shouldValidate: true })
   }
 
   const handleQuarterChange = (quarterId: string) => {
-    const quarter = sortedQuarters.find(q => q.id === quarterId)
-    setValue('address.district', quarter?.name || '')
+    ;(setValue as any)('address.quarterId', quarterId, { shouldValidate: true })
   }
 
   // Calculer la progression
@@ -160,7 +163,7 @@ export default function AddressStepV2() {
     !!selectedProvinceId,
     !!selectedCommuneId,
     !!selectedDistrictId,
-    !!watch('address.district')
+    !!selectedQuarterId
   ].filter(Boolean).length
 
   return (
@@ -262,7 +265,11 @@ export default function AddressStepV2() {
             </div>
           </div>
           
-          <Select value={selectedProvinceId} onValueChange={handleProvinceChange} disabled={loadingProvinces}>
+          <Select 
+            value={selectedProvinceId} 
+            onValueChange={handleProvinceChange} 
+            disabled={loadingProvinces}
+          >
             <SelectTrigger className={cn(
               "h-12 rounded-xl border-2 transition-all bg-white",
               selectedProvinceId ? "border-emerald-300" : "border-emerald-200 hover:border-emerald-400 focus:border-emerald-500",
@@ -345,7 +352,7 @@ export default function AddressStepV2() {
               )}
             </SelectTrigger>
             <SelectContent>
-              {communes.map(c => (
+              {filteredCommunes.map(c => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
@@ -425,7 +432,7 @@ export default function AddressStepV2() {
         {/* Quartier */}
         <div className={cn(
           "relative p-5 rounded-2xl border-2 transition-all duration-300",
-          watch('address.district') 
+          selectedQuarterId 
             ? "border-blue-400 bg-blue-50/50" 
             : !selectedDistrictId
               ? "border-slate-200 bg-slate-50 opacity-60"
@@ -434,19 +441,19 @@ export default function AddressStepV2() {
           <div className="flex items-center gap-3 mb-3">
             <div className={cn(
               "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-              watch('address.district')
+              selectedQuarterId
                 ? "bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30"
                 : !selectedDistrictId
                   ? "bg-slate-200"
                   : "bg-blue-100"
             )}>
-              <TreePine className={cn("w-5 h-5", watch('address.district') ? "text-white" : !selectedDistrictId ? "text-slate-400" : "text-blue-600")} />
+              <TreePine className={cn("w-5 h-5", selectedQuarterId ? "text-white" : !selectedDistrictId ? "text-slate-400" : "text-blue-600")} />
             </div>
             <div className="flex-1">
-              <Label className={cn("font-semibold text-sm", watch('address.district') ? "text-blue-700" : !selectedDistrictId ? "text-slate-400" : "text-slate-700")}>
+              <Label className={cn("font-semibold text-sm", selectedQuarterId ? "text-blue-700" : !selectedDistrictId ? "text-slate-400" : "text-slate-700")}>
                 Quartier *
               </Label>
-              {watch('address.district') && (
+              {selectedQuarterId && (
                 <div className="flex items-center gap-1 mt-0.5">
                   <CheckCircle2 className="w-3 h-3 text-blue-500" />
                   <span className="text-xs text-blue-600">Sélectionné</span>
@@ -456,13 +463,13 @@ export default function AddressStepV2() {
           </div>
           
           <Select 
-            value={sortedQuarters.find(q => q.name === watch('address.district'))?.id || ''}
+            value={selectedQuarterId}
             onValueChange={handleQuarterChange}
             disabled={!selectedDistrictId || loadingQuarters}
           >
             <SelectTrigger className={cn(
               "h-12 rounded-xl border-2 transition-all",
-              watch('address.district') 
+              selectedQuarterId 
                 ? "border-blue-300 bg-white" 
                 : !selectedDistrictId
                   ? "border-slate-200 bg-slate-100"
@@ -484,7 +491,7 @@ export default function AddressStepV2() {
               ))}
             </SelectContent>
           </Select>
-          {errors.address?.district && (isSubmitted || touchedFields.address?.district || watch('address.district')) && (
+          {errors.address?.district && (isSubmitted || touchedFields.address?.district || selectedQuarterId) && (
             <p className="text-xs text-red-500 mt-2">{errors.address.district.message}</p>
           )}
         </div>

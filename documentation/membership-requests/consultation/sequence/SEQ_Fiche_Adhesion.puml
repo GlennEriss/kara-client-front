@@ -1,0 +1,55 @@
+@startuml SEQ_Fiche_Adhesion
+title Séquence : Générer et Télécharger la Fiche d'Adhésion (PDF)
+
+actor "Admin" as Admin
+participant "MemberDetailsModal\n(Component)" as Modal
+participant "MutuelleKaraPDF\n(React-PDF)" as PDFComponent
+participant "pdf()\n(@react-pdf/renderer)" as PDFLib
+participant "Browser" as Browser
+
+Admin -> Modal: Cliquer sur "Fiche d'adhésion"
+activate Modal
+
+Modal --> Admin: Afficher modal avec prévisualisation
+
+Admin -> Modal: Cliquer sur "Télécharger PDF"
+activate Modal
+
+Modal -> Modal: setIsExporting(true)
+
+Modal -> PDFComponent: Générer composant PDF\navec données demande
+activate PDFComponent
+
+PDFComponent -> PDFComponent: Charger logo KARA
+PDFComponent -> PDFComponent: Charger photo demandeur\n(si photoURL)
+PDFComponent -> PDFComponent: Construire pages PDF:\n- Identité\n- Adresse\n- Entreprise\n- Véhicule\n- Parrain
+
+PDFComponent --> Modal: <Document> component
+deactivate PDFComponent
+
+Modal -> PDFLib: pdf(<MutuelleKaraPDF />).toBlob()
+activate PDFLib
+PDFLib --> Modal: Blob (PDF)
+deactivate PDFLib
+
+Modal -> Modal: Générer nom fichier:\n"NOM_PRENOM_ADHESION_MK_YYYY.pdf"
+
+Modal -> Browser: URL.createObjectURL(blob)
+activate Browser
+Browser --> Modal: blobUrl
+deactivate Browser
+
+Modal -> Browser: Créer <a href={blobUrl} download>
+Modal -> Browser: Déclencher click() automatique
+
+Browser --> Admin: Téléchargement du PDF
+
+Modal -> Browser: URL.revokeObjectURL(blobUrl)
+
+Modal -> Modal: setIsExporting(false)
+Modal --> Admin: Toast "PDF téléchargé avec succès"
+
+deactivate Modal
+deactivate Modal
+
+@enduml

@@ -37,7 +37,7 @@ import routes from '@/constantes/routes'
 
 type ViewMode = 'grid' | 'list'
 
-const ModernSkeleton = ({ viewMode }: { viewMode: ViewMode }) => (
+const ModernSkeleton = ({ viewMode: _viewMode }: { viewMode: ViewMode }) => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
     <CardContent className="p-6">
       <div className="flex items-center space-x-4">
@@ -64,7 +64,7 @@ const ListDemandes = () => {
     (searchParams.get('tab') as any) || 'all'
   )
   const [currentPage, setCurrentPage] = useState(Number(searchParams.get('page')) || 1)
-  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
+  const [itemsPerPage] = useState(Number(searchParams.get('limit')) || 12)
   const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'grid')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [acceptModalState, setAcceptModalState] = useState<{

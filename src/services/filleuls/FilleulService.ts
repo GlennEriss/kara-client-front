@@ -36,8 +36,7 @@ export class FilleulService implements IFilleulService {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )      
       return sortedFilleuls
-    } catch (error) {
-      console.error('Erreur lors de la récupération des filleuls:', error)
+    } catch {
       return []
     }
   }
@@ -118,8 +117,7 @@ export class FilleulService implements IFilleulService {
         thisYear,
         thisMonth
       }
-    } catch (error) {
-      console.error('Erreur lors du calcul des statistiques:', error)
+    } catch {
       return { total: 0, thisYear: 0, thisMonth: 0 }
     }
   }

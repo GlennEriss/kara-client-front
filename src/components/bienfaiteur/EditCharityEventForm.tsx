@@ -32,8 +32,7 @@ export default function EditCharityEventForm({ event }: EditCharityEventFormProp
     register,
     handleSubmit,
     formState: { errors },
-    setValue,
-    watch
+    setValue
   } = useForm<CharityEventFormData>({
     resolver: zodResolver(charityEventSchema) as any,
     defaultValues: {

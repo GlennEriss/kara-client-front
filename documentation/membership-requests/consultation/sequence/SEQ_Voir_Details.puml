@@ -1,0 +1,52 @@
+@startuml SEQ_Voir_Details
+title Séquence : Voir les Détails d'une Demande d'Adhésion
+
+actor "Admin" as Admin
+participant "MembershipRequestDetails\n(Page)" as Page
+participant "useMembershipRequest\n(Hook)" as Hook
+participant "MembershipService" as Service
+participant "membership.db\n(Repository)" as DB
+database "Firestore\n(membership-requests)" as Firestore
+
+Admin -> Page: Naviguer vers\n/membership-requests/[id]
+activate Page
+
+Page -> Hook: useMembershipRequest(requestId)
+activate Hook
+
+Hook -> Service: getMembershipRequestById(requestId)
+activate Service
+
+Service -> DB: getMembershipRequestById(requestId)
+activate DB
+
+DB -> Firestore: getDoc(doc(db, 'membership-requests', requestId))
+activate Firestore
+Firestore --> DB: DocumentSnapshot
+
+alt Document trouvé
+    DB --> DB: transformDBToMembershipRequest(data)
+    DB --> Service: MembershipRequest
+else Document non trouvé
+    DB --> Service: null
+end
+deactivate Firestore
+deactivate DB
+
+Service --> Hook: MembershipRequest | null
+deactivate Service
+
+Hook --> Page: { data, isLoading, error }
+deactivate Hook
+
+alt Demande trouvée
+    Page -> Page: Récupérer infos parrain\n(si intermediaryCode)
+    Page -> Page: Récupérer infos admin traiteur\n(si processedBy)
+    Page --> Admin: Afficher page de détails
+else Demande non trouvée
+    Page --> Admin: Afficher "Demande non trouvée"
+end
+
+deactivate Page
+
+@enduml

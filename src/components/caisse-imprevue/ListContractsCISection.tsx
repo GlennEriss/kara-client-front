@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,16 +19,14 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
-  FileSpreadsheet,
-  Download
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS, CaisseImprevuePaymentFrequency } from '@/types/types'
+import { ContractCI, ContractCIStatus, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
 import { useContractsCI, ContractsCIFilters } from '@/hooks/caisse-imprevue/useContractsCI'
 import StatisticsCI from './StatisticsCI'
 import FiltersCI from './FiltersCI'
 import routes from '@/constantes/routes'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import ViewContractCIModal from './ViewContractCIModal'
 import UploadContractCIModal from './UploadContractCIModal'
@@ -277,7 +275,7 @@ export default function ListContractsCISection() {
     })
   }
 
-  const handleExportExcel = async () => {
+  const _handleExportExcel = async () => {
     if (!contracts || contracts.length === 0) {
       toast.error('Aucun contrat à exporter')
       return
@@ -334,7 +332,7 @@ export default function ListContractsCISection() {
     }
   }
 
-  const handleExportPDF = async () => {
+  const _handleExportPDF = async () => {
     if (!contracts || contracts.length === 0) {
       toast.error('Aucun contrat à exporter')
       return

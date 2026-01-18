@@ -3,7 +3,7 @@
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { Calendar, CreditCard, Clock, CheckCircle2, PiggyBank, AlertTriangle, Receipt } from "lucide-react"
+import { Calendar, CreditCard, Clock, CheckCircle2, PiggyBank, Receipt } from "lucide-react"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
 import { usePaymentsCI } from "@/hooks/caisse-imprevue/usePaymentsCI"
 

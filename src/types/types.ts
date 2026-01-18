@@ -39,6 +39,12 @@ export interface RegisterFormData {
     photoPath?: string | null;
   };
   address: {
+    // IDs pour la persistence lors de la navigation entre étapes
+    provinceId?: string;
+    communeId?: string;
+    districtId?: string;
+    quarterId?: string;
+    // Noms pour l'affichage et la validation
     province: string;
     city: string;
     district: string;
@@ -133,14 +139,20 @@ export interface MembershipRequest extends RegisterFormData {
 
 export type PaymentMode = 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer' | 'other'
 export interface Payment {
-  date: Date
+  date: Date // Date de versement (quand le client a payé)
+  time: string // Heure de versement (HH:mm)
   mode: PaymentMode
   amount: number
-  acceptedBy: string
+  acceptedBy: string // ID de l'admin qui a enregistré
   paymentType: TypePayment
-  // Nouveaux champs
-  time?: string // HH:mm
   withFees?: boolean
+  paymentMethodOther?: string // Si mode = 'other'
+  proofUrl?: string // URL de la preuve de paiement
+  proofPath?: string // Chemin Firebase Storage de la preuve
+  proofJustification?: string // Justification si pas de preuve
+  recordedBy: string // ID de l'admin qui a enregistré le paiement
+  recordedByName: string // Nom complet de l'admin (prénom + nom)
+  recordedAt: Date // Date d'enregistrement (quand l'admin a enregistré)
 }
 
 export type TypePayment = 'Membership' | 'Subscription' | 'Tontine' | 'Charity'

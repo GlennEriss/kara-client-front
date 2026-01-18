@@ -17,8 +17,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCaisseImprevueDemandsStats } from '@/hooks/caisse-imprevue/useCaisseImprevueDemands'
-import { CaisseImprevueDemandStatus } from '@/types/types'
-import type { CaisseImprevueDemandFilters } from '@/types/types'
 
 // Composant pour les statistiques modernes
 const StatsCard = ({
@@ -123,7 +121,7 @@ const useCarousel = (itemCount: number, itemsPerView: number = 1) => {
       window.removeEventListener('touchmove', handleTouchMove)
       window.removeEventListener('touchend', handleTouchEnd)
     }
-  }, [isDragging, translateX, currentIndex])
+  }, [isDragging, translateX, currentIndex, handleEnd, handleMove])
 
   return {
     currentIndex,
@@ -317,13 +315,13 @@ const StatisticsCaisseImprevueDemandes = () => {
       </div>
 
       <div className="flex justify-center gap-1 mt-4">
-        {Array.from({ length: carousel.maxIndex + 1 }).map((_, index) => (
+        {Array.from({ length: carousel.maxIndex + 1 }).map((_, _index) => (
           <button
-            key={index}
-            onClick={() => carousel.goTo(index)}
+            key={_index}
+            onClick={() => carousel.goTo(_index)}
             className={cn(
               'h-2 rounded-full transition-all duration-300',
-              index === carousel.currentIndex
+              _index === carousel.currentIndex
                 ? 'w-8 bg-[#234D65]'
                 : 'w-2 bg-gray-300 hover:bg-gray-400'
             )}

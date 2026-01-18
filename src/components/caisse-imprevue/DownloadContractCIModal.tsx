@@ -9,14 +9,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { FileText, Download, Loader2, User, DollarSign, Phone } from 'lucide-react'
-import { ContractCI, CONTRACT_CI_STATUS_LABELS } from '@/types/types'
+import { FileText, Download, Loader2 } from 'lucide-react'
+import { ContractCI } from '@/types/types'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import ContractCIView from './ContractCIView'
 import { getNationalityName } from '@/constantes/nationality'
 import { getDocumentTypeLabel } from '@/domains/infrastructure/documents/constants/document-types'
-import { Badge } from '@/components/ui/badge'
 
 interface DownloadContractCIModalProps {
   isOpen: boolean

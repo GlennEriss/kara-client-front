@@ -2,32 +2,129 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // ==========================================
-    // PHOTOS ET DOCUMENTS D'INSCRIPTION
-    // ==========================================
-    // Permettre l'upload de photos et documents par des utilisateurs non authentifiés
-    // pour le formulaire d'inscription
     
-    // Photos de profil pour les demandes d'adhésion
+    // ==========================================
+    // FONCTIONS UTILITAIRES
+    // ==========================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary'];
+    }
+    
+    // Vérifie si le fichier est une image
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Vérifie si le fichier est un PDF
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf';
+    }
+    
+    // Limite de taille : 5 MB pour les images
+    function isImageSizeValid() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    // Limite de taille : 10 MB pour les PDFs
+    function isPDFSizeValid() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // ==========================================
+    // PHOTOS DE PROFIL (MEMBERSHIP-PHOTOS)
+    // ==========================================
+    // Photos uploadées lors de l'inscription
+    
     match /membership-photos/{fileName} {
-      allow read: if true; // Lecture publique pour afficher les photos
-      allow write: if true; // Upload autorisé pour l'inscription
-    }
-    
-    // Documents (recto/verso) pour les demandes d'adhésion
-    match /membership-documents/{userId}/{fileName} {
-      allow read: if true; // Lecture publique pour afficher les documents
-      allow write: if true; // Upload autorisé pour l'inscription
+      // Lecture : Publique (affichage dans le formulaire et admin)
+      allow read: if true;
+      
+      // Écriture : Publique avec validation (image, max 5MB)
+      allow write: if isImage() && isImageSizeValid();
+      
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
     }
     
     // ==========================================
-    // AUTRES FICHIERS
+    // DOCUMENTS D'IDENTITÉ (MEMBERSHIP-DOCUMENTS)
     // ==========================================
-    // Par défaut, refuser l'accès aux autres chemins
-    // (les autres règles peuvent être ajoutées ici selon les besoins)
+    // Pièces d'identité recto/verso - DONNÉES SENSIBLES
+    
+    match /membership-documents/{requestId}/{fileName} {
+      // Lecture : Admins uniquement (données sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Publique avec validation (image, max 5MB)
+      // Permet l'upload lors de l'inscription
+      allow write: if isImage() && isImageSizeValid();
+      
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // PDFs D'ADHÉSION (MEMBERSHIP-ADHESION-PDFS)
+    // ==========================================
+    // PDFs générés lors de l'approbation - CONFIDENTIELS
+    
+    match /membership-adhesion-pdfs/{fileName} {
+      // Lecture : Admins uniquement
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (PDF, max 10MB)
+      allow write: if isAdmin() && isPDF() && isPDFSizeValid();
+      
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // DOCUMENTS GÉNÉRIQUES PAR MODULE
+    // ==========================================
+    // Chemin pour les documents archivés de chaque module
+    
+    match /documents/{module}/{memberId}/{fileName} {
+      // Lecture : Admin ou propriétaire
+      allow read: if isAdmin() || request.auth.uid == memberId;
+      
+      // Écriture : Admin uniquement
+      allow write: if isAdmin();
+      
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // PREUVES DE PAIEMENT (PAYMENT-PROOFS)
+    // ==========================================
+    // Preuves de paiement uploadées par les admins
+    // DONNÉES SENSIBLES - Accès restreint
+    
+    match /payment-proofs/{fileName} {
+      // Lecture : Admins uniquement (données sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (image, max 5MB)
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      
+      // Suppression : Admin uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // RÈGLE PAR DÉFAUT
+    // ==========================================
+    // Refuser tout accès non explicitement autorisé
     
     match /{allPaths=**} {
-      allow read, write: if false; // Refuser par défaut
+      allow read, write: if false;
     }
   }
 }

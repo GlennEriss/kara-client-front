@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
-import { Notification, NotificationFilters } from '@/types/types'
+import { NotificationFilters } from '@/types/types'
 
 /**
  * Hook pour récupérer les notifications avec filtres

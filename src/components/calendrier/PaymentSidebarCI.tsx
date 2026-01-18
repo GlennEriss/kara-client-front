@@ -66,10 +66,9 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
 
       // Fermer la sidebar pour voir les changements dans le calendrier
       onClose()
-    } catch (error) {
-      console.error("Erreur lors de l'enregistrement du versement:", error)
+    } catch {
       toast.error("Erreur lors de l'enregistrement du versement")
-      throw error
+      throw new Error("Erreur lors de l'enregistrement du versement")
     }
   }
 
@@ -77,7 +76,7 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
     try {
       await generateReceipt()
       setShowReceipt(true)
-    } catch (error) {
+    } catch {
       toast.error("Impossible d'afficher le reçu")
     }
   }
@@ -85,7 +84,7 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
   const handleDownloadReceiptClick = async () => {
     try {
       await downloadReceipt()
-    } catch (error) {
+    } catch {
       toast.error("Impossible de télécharger le reçu")
     }
   }

@@ -1,14 +1,9 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useContractsByMember } from './useCaisseContracts'
-import { useMemberContractsCI } from './caisse-imprevue/useMemberContractsCI'
-import { useCharityEventsList } from './bienfaiteur/useCharityEvents'
-import { usePlacements } from './usePlacements'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { listPayments } from '@/db/caisse/payments.db'
 import { getContractWithComputedState } from '@/services/caisse/readers'
-import { format } from 'date-fns'
 
 export interface ContractSummary {
   id: string
@@ -179,8 +174,7 @@ async function fetchCaisseSpecialeContracts(memberId: string): Promise<ContractS
     }
     
     return summaries
-  } catch (error) {
-    console.error('Erreur lors de la récupération des contrats Caisse Spéciale:', error)
+  } catch {
     return []
   }
 }
@@ -268,14 +262,13 @@ async function fetchCaisseImprevueContracts(memberId: string): Promise<ContractS
           isEligibleForSupport: contract.isEligibleForSupport,
           subscriptionCICode: contract.subscriptionCICode,
         })
-      } catch (error) {
-        console.error(`Erreur lors du traitement du contrat CI ${contract.id}:`, error)
+      } catch {
+        // Erreur lors du traitement du contrat CI - continue sans
       }
     }
     
     return summaries
-  } catch (error) {
-    console.error('Erreur lors de la récupération des contrats Caisse Imprévue:', error)
+  } catch {
     return []
   }
 }
@@ -338,8 +331,8 @@ async function fetchCharities(memberId: string, currentYear: number, previousYea
             charityLink: `/bienfaiteur/charities/${event.id}`,
           })
         }
-      } catch (error) {
-        console.error(`Erreur lors du traitement de la charité ${event.id}:`, error)
+      } catch {
+        // Erreur lors du traitement de la charité - continue sans
       }
     }
     

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React from 'react'
 import { ContractFormProvider, useContractForm } from '@/providers/ContractFormProvider'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,9 +25,7 @@ function ContractCreationContent() {
     nextStep, 
     prevStep, 
     canGoNext, 
-    canGoPrev, 
-    canSubmit,
-    goToStep 
+    canGoPrev 
   } = useContractForm()
   
   const { currentStep, steps } = state
@@ -75,7 +73,7 @@ function ContractCreationContent() {
           {/* Indicateur de progression */}
           <div className="flex justify-center mb-8">
             <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-center sm:space-x-4">
-              {steps.map((step, index) => (
+              {steps.map((step, _index) => (
                 <React.Fragment key={step.id}>
                   <div className="flex flex-col items-center">
                     <div className={cn(
@@ -102,7 +100,7 @@ function ContractCreationContent() {
                       {step.title}
                     </span>
                   </div>
-                  {index < steps.length - 1 && (
+                  {_index < steps.length - 1 && (
                     <>
                       <div className={cn(
                         "sm:hidden w-0.5 h-6 mx-auto rounded-full transition-all duration-500",

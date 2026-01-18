@@ -12,10 +12,9 @@ export class ProvinceRepository implements IRepository {
    */
   async create(data: Omit<Province, 'id' | 'createdAt' | 'updatedAt'>): Promise<Province> {
     try {
-      const { collection, addDoc, db, Timestamp, serverTimestamp } = await getFirestore()
+      const { collection, addDoc, db   , serverTimestamp } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.provinces || 'provinces')
 
-      const now = new Date()
       const docData: any = {
         ...data,
         createdAt: serverTimestamp(),
@@ -158,7 +157,7 @@ export class ProvinceRepository implements IRepository {
    */
   async searchByName(searchTerm: string): Promise<Province[]> {
     try {
-      const { collection, query, where, orderBy, getDocs, db } = await getFirestore()
+      const { collection, query, orderBy, getDocs, db } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.provinces || 'provinces')
 
       // Recherche insensible à la casse (Firestore ne supporte pas directement, on filtre côté client)
