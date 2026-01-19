@@ -4,7 +4,7 @@
  * Approche TDD : Tests écrits selon la documentation
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   formatSecurityCode,
   getTimeRemaining,
@@ -139,13 +139,23 @@ describe('Correction Utils', () => {
     })
 
     it('devrait inclure le temps restant dans le message', () => {
-      const expiryDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 13 * 60 * 60 * 1000) // +2j 13h
+      // Utiliser un timer factice pour contrôler le temps
+      const now = new Date('2024-01-20T09:00:00Z')
+      vi.useFakeTimers()
+      vi.setSystemTime(now)
+      
+      // Créer une date d'expiration exactement 2 jours et 13 heures plus tard
+      const expiryDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000 + 13 * 60 * 60 * 1000) // +2j 13h
+      
       const message = generateWhatsAppMessage({
         ...baseParams,
         expiryDate,
       })
       
       expect(message).toContain('dans 2j 13h')
+      
+      // Restaurer le timer réel
+      vi.useRealTimers()
     })
 
     it('devrait utiliser baseUrl si fourni pour générer le lien complet', () => {

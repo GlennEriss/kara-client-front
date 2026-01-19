@@ -188,3 +188,6 @@ export { submitCorrections }
 
 // Cloud Function pour régénérer le code de sécurité (transaction atomique)
 export { renewSecurityCode }
+
+// Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
+export { syncToAlgolia } from './membership-requests/syncToAlgolia'

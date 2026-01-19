@@ -1,0 +1,2681 @@
+
+> kara@0.1.0 test /Users/glenneriss/Documents/projets/kara-client-front
+> vitest --run
+
+
+ RUN  v2.1.9 /Users/glenneriss/Documents/projets/kara-client-front
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > findByName > devrait gérer les erreurs et retourner un résultat vide
+Erreur lors de la recherche de profession: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:147:37
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > create > devrait lancer une erreur si getById retourne null après création
+Erreur lors de la création de la profession: Error: Erreur lors de la récupération de la profession créée
+    at ProfessionRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/repositories/ProfessionRepository.ts:128:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:251:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > create > devrait propager les erreurs lors de la création
+Erreur lors de la création de la profession: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:262:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > getById > devrait retourner null en cas d'erreur
+Erreur lors de la récupération de la profession: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:302:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > getAll > devrait retourner un tableau vide en cas d'erreur
+Erreur lors de la récupération des professions: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:384:37
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > getPaginated > devrait retourner un résultat vide en cas d'erreur
+Erreur lors de la récupération paginée des professions: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:534:37
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > update > devrait propager les erreurs lors de la mise à jour
+Erreur updateProfession: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:720:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > delete > devrait propager les erreurs lors de la suppression
+Erreur deleteProfession: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:738:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts > ProfessionRepository > findOrCreate > devrait propager les erreurs lors de la création
+Erreur lors de la création de la profession: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:844:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+Erreur lors de la recherche ou création de profession: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts:844:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+ ✓ src/domains/infrastructure/references/__tests__/repositories/ProfessionRepository.test.ts (33 tests) 35ms
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > findByName > devrait gérer les erreurs et retourner un résultat vide
+Erreur lors de la recherche d'entreprise: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:147:37
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > create > devrait lancer une erreur si getById retourne null après création
+Erreur lors de la création de l'entreprise: Error: Erreur lors de la récupération de l'entreprise créée
+    at CompanyRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/repositories/CompanyRepository.ts:132:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:254:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > create > devrait propager les erreurs lors de la création
+Erreur lors de la création de l'entreprise: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:265:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > getById > devrait retourner null en cas d'erreur
+Erreur lors de la récupération de l'entreprise: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:305:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > getAll > devrait retourner un tableau vide en cas d'erreur
+Erreur lors de la récupération des entreprises: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:387:37
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > getPaginated > devrait retourner un résultat vide en cas d'erreur
+Erreur lors de la récupération paginée des entreprises: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:540:37
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > update > devrait propager les erreurs lors de la mise à jour
+Erreur updateCompany: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:726:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > delete > devrait propager les erreurs lors de la suppression
+Erreur deleteCompany: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:744:39
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts > CompanyRepository > findOrCreate > devrait propager les erreurs lors de la création
+Erreur lors de la création de l'entreprise: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:852:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+Erreur lors de la recherche ou création d'entreprise: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts:852:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+ ✓ src/domains/infrastructure/references/__tests__/repositories/CompanyRepository.test.ts (33 tests) 63ms
+ ✓ src/domains/memberships/__tests__/unit/repositories/MembershipRepositoryV2.test.ts (49 tests) 111ms
+stderr | src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts > MembershipServiceV2 > requestCorrections > devrait générer un code de sécurité à 6 chiffres
+[MembershipServiceV2] Erreur lors de la création de la notification: TypeError: Cannot read properties of undefined (reading 'toISOString')
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:198:34)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:247:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stderr | src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts > MembershipServiceV2 > requestCorrections > devrait définir une expiration de 48h pour le code
+Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:270:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+[MembershipServiceV2] Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:270:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+
+stderr | src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts > MembershipServiceV2 > requestCorrections > devrait mettre à jour le statut en "under_review"
+Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:298:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+[MembershipServiceV2] Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:298:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+
+stderr | src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts > MembershipServiceV2 > requestCorrections > devrait générer l'URL WhatsApp correctement
+Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:322:22
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+[MembershipServiceV2] Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:322:22
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+
+stderr | src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts > MembershipServiceV2 > requestCorrections > ne devrait pas générer l'URL WhatsApp si sendWhatsApp est false
+Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:346:22
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+[MembershipServiceV2] Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:346:22
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+
+stderr | src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts > MembershipServiceV2 > requestCorrections > ne devrait pas générer l'URL WhatsApp si contacts est vide
+Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:370:22
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+[MembershipServiceV2] Erreur lors de la création de la notification: Error: [vitest] No "collection" export is defined on the "@/firebase/firestore" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:321:19)
+    at Object.get (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/execute.2pr0rHgK.js:389:22)
+    at NotificationRepository.create (/Users/glenneriss/Documents/projets/kara-client-front/src/repositories/notifications/NotificationRepository.ts:75:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at MembershipServiceV2.requestCorrections (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/services/MembershipServiceV2.ts:186:7)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts:370:22
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15) {
+  codeFrame: 'vi.mock(import("@/firebase/firestore"), async (importOriginal) => {\n' +
+    '  const actual = await importOriginal()\n' +
+    '  return {\n' +
+    '    ...actual,\n' +
+    '    // your mocked methods\n' +
+    '  }\n' +
+    '})'
+}
+
+ ✓ src/domains/memberships/__tests__/unit/services/MembershipServiceV2.test.ts (32 tests) 30ms
+stderr | src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts > PaymentRepositoryV2 > createPayment > devrait throw si le paiement créé est introuvable
+❌ Erreur PaymentRepository.createPayment: Error: Erreur lors de la récupération du paiement créé
+    at PaymentRepositoryV2.createPayment (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/repositories/PaymentRepositoryV2.ts:79:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts:240:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stderr | src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts > PaymentRepositoryV2 > createPayment > devrait throw en cas d'erreur Firestore
+❌ Erreur PaymentRepository.createPayment: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts:258:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts > PaymentRepositoryV2 > getPaymentById > devrait throw en cas d'erreur Firestore
+❌ Erreur PaymentRepository.getPaymentById: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts:285:36
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts > PaymentRepositoryV2 > getPayments > devrait throw en cas d'erreur Firestore
+❌ Erreur PaymentRepository.getPayments: Error: Firestore error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts:448:37
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+ ✓ src/domains/memberships/__tests__/unit/repositories/PaymentRepositoryV2.test.ts (24 tests) 56ms
+ ✓ src/domains/auth/registration/__tests__/unit/components/SecurityCodeFormV2.test.tsx (28 tests) 405ms
+stderr | src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx > Registration Integration Tests > Flux complet : Soumission formulaire > devrait gérer les erreurs de soumission en cascade
+[RegistrationService] Erreur lors de la soumission: Error: Erreur réseau
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx:206:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ✓ src/domains/auth/registration/__tests__/hooks/useRegistration.test.tsx (19 tests) 889ms
+ ✓ src/domains/infrastructure/geography/__tests__/hooks/useGeographieV2.test.tsx (27 tests) 1873ms
+   ✓ useProvincesV2 - Pagination > devrait rechercher avec debounce 369ms
+stderr | src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx > Registration Integration Tests > Cache Service + Registration Service > devrait gérer la version du cache
+[RegistrationCacheService] Version du cache obsolète, nettoyage en cours...
+
+stderr | src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx > Registration Integration Tests > useRegistration + RegistrationService > devrait bloquer la navigation si l'étape est invalide
+[useRegistrationValidation] Erreur de validation step 1: ZodError: [
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^[a-zA-ZÀ-ÿ\\s'-]+$/",
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthDate"
+    ],
+    "message": "La date de naissance est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "birthDate"
+    ],
+    "message": "Vous devez avoir au moins 18 ans"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "birthPlace"
+    ],
+    "message": "Le lieu de naissance doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthCertificateNumber"
+    ],
+    "message": "Le numéro d'acte de naissance est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "prayerPlace"
+    ],
+    "message": "Le lieu de prière doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "religion"
+    ],
+    "message": "La religion est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "contacts"
+    ],
+    "message": "Au moins un numéro de téléphone valide est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^\\d+\\.MK\\.\\d+$/",
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Format requis: [Numéro].MK.[Numéro] (ex: 1228.MK.0058)"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "photo"
+    ],
+    "message": "Mettre une photo est obligatoire (formats acceptés : JPEG, PNG ou WebP, max 5MB)"
+  }
+]
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22
+    at Object.nextStep (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistration.ts:277:21)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx:401:22
+
+stderr | src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx > Registration Integration Tests > Validation croisée > devrait valider les dépendances entre étapes
+[useRegistrationValidation] Erreur de validation step 3: ZodError: [
+  {
+    "code": "custom",
+    "message": "Le nom de l'entreprise est requis et doit contenir entre 2 et 100 caractères",
+    "path": [
+      "companyName"
+    ]
+  },
+  {
+    "code": "custom",
+    "message": "L'adresse de l'entreprise est requise",
+    "path": [
+      "companyAddress"
+    ]
+  },
+  {
+    "code": "custom",
+    "message": "La profession est requise et doit contenir entre 2 et 100 caractères",
+    "path": [
+      "profession"
+    ]
+  },
+  {
+    "code": "custom",
+    "message": "L'ancienneté est requise et doit contenir entre 1 et 50 caractères",
+    "path": [
+      "seniority"
+    ]
+  }
+]
+    at Object.validateStep (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx:642:19
+
+stderr | src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx > Registration Integration Tests > Validation croisée > devrait valider les informations du conjoint si marié
+[useRegistrationValidation] Erreur de validation step 1: ZodError: [
+  {
+    "code": "custom",
+    "message": "Le nom du conjoint(e) est requis",
+    "path": [
+      "spouseLastName"
+    ]
+  },
+  {
+    "code": "custom",
+    "message": "Le prénom du conjoint(e) est requis",
+    "path": [
+      "spouseFirstName"
+    ]
+  },
+  {
+    "code": "custom",
+    "message": "Le numéro de téléphone du conjoint(e) est requis",
+    "path": [
+      "spousePhone"
+    ]
+  }
+]
+    at Object.validateStep (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx:676:19
+
+stderr | src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx > Registration Integration Tests > Gestion des erreurs en cascade > devrait propager les erreurs Repository → Service → Hook
+[RegistrationService] Erreur lors de la soumission: Error: Erreur Firestore
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx:689:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stderr | src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx > Registration Integration Tests > Gestion des erreurs en cascade > devrait permettre un retry après une erreur
+[RegistrationService] Erreur lors de la soumission: Error: Erreur réseau
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx:726:32
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ✓ src/domains/memberships/__tests__/unit/utils/exportRequestUtils.test.ts (42 tests) 46ms
+stderr | src/domains/auth/registration/__tests__/services/RegistrationCacheService.test.ts > RegistrationCacheService > saveFormData et loadFormData > devrait nettoyer les données obsolètes (insurance)
+[RegistrationCacheService] Suppression de la section insurance obsolète du cache
+
+stderr | src/domains/auth/registration/__tests__/services/RegistrationCacheService.test.ts > RegistrationCacheService > saveFormData et loadFormData > devrait nettoyer le cache si la version est obsolète
+[RegistrationCacheService] Version du cache obsolète, nettoyage en cours...
+
+ ✓ src/domains/auth/registration/__tests__/integration/registration.integration.test.tsx (17 tests) 3037ms
+   ✓ Registration Integration Tests > Flux complet : Soumission formulaire > devrait intégrer correctement le flux complet : remplissage → cache → soumission 644ms
+   ✓ Registration Integration Tests > Flux complet : Soumission formulaire > devrait gérer les erreurs de soumission en cascade 618ms
+   ✓ Registration Integration Tests > Cache Service + Registration Service > devrait sauvegarder automatiquement lors de la navigation 606ms
+   ✓ Registration Integration Tests > Réinitialisation du formulaire > devrait réinitialiser complètement le formulaire et le cache 663ms
+ ✓ src/domains/infrastructure/geography/__tests__/integration/geographie.integration.test.tsx (8 tests) 250ms
+ ✓ src/domains/auth/registration/__tests__/services/RegistrationCacheService.test.ts (24 tests) 1122ms
+   ✓ RegistrationCacheService > Configuration personnalisée > devrait utiliser la configuration personnalisée 1104ms
+ ✓ src/domains/memberships/__tests__/integration/export.integration.test.ts (35 tests) 14ms
+stdout | src/domains/auth/__tests__/repositories/UserRepository.test.ts > UserRepository > getUserByUid > devrait gérer les erreurs lors de la récupération
+[UserRepository.getUserByUid] Recherche: {
+  uid: '0001.MK.110126',
+  collection: 'users',
+  env: 'non défini (défaut: development)'
+}
+
+stdout | src/domains/auth/__tests__/repositories/UserRepository.test.ts > UserRepository > getUserByUid > devrait gérer les timestamps Firestore manquants
+[UserRepository.getUserByUid] Recherche: {
+  uid: '0001.MK.110126',
+  collection: 'users',
+  env: 'non défini (défaut: development)'
+}
+
+stdout | src/domains/auth/__tests__/repositories/UserRepository.test.ts > UserRepository > getUserByUid > devrait retourner un utilisateur existant
+[UserRepository.getUserByUid] Recherche: {
+  uid: '0001.MK.110126',
+  collection: 'users',
+  env: 'non défini (défaut: development)'
+}
+
+stdout | src/domains/auth/__tests__/repositories/UserRepository.test.ts > UserRepository > getUserByUid > devrait retourner null si l'utilisateur n'existe pas
+[UserRepository.getUserByUid] Recherche: {
+  uid: 'non-existent',
+  collection: 'users',
+  env: 'non défini (défaut: development)'
+}
+
+stderr | src/domains/auth/__tests__/repositories/UserRepository.test.ts > UserRepository > getUserByUid > devrait retourner null si l'utilisateur n'existe pas
+[UserRepository] Utilisateur non trouvé: {
+  uid: 'non-existent',
+  collection: 'users',
+  env: 'non défini (défaut: development)'
+}
+
+ ✓ src/domains/auth/__tests__/repositories/UserRepository.test.ts (12 tests) 12ms
+stderr | src/domains/auth/__tests__/repositories/UserRepository.test.ts > UserRepository > userExists > devrait retourner false si l'appel fetch échoue
+Erreur lors de la vérification de l'existence de l'utilisateur: Error: Network error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/__tests__/repositories/UserRepository.test.ts:378:51
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/memberships/__tests__/unit/utils/paymentPDFUtils.test.ts > paymentPDFUtils > generatePaymentPDF > devrait throw une erreur si jsPDF échoue
+Erreur lors de la génération du PDF: Error: jsPDF error
+    at t.<anonymous> (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/utils/paymentPDFUtils.test.ts:475:15)
+    at new mockCall (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at new spy (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:34)
+    at Module.generatePaymentPDF (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/utils/paymentPDFUtils.ts:78:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/memberships/__tests__/unit/utils/paymentPDFUtils.test.ts:480:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/domains/memberships/__tests__/unit/utils/paymentPDFUtils.test.ts (41 tests) 39ms
+ ✓ src/domains/memberships/__tests__/unit/components/shared/CorrectionsBlockV2.test.tsx (27 tests) 311ms
+ ✓ src/domains/memberships/__tests__/unit/hooks/useMembershipRequestsV2.test.ts (11 tests) 651ms
+stderr | src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts > BaseGeographyRepository > getCount - Gestion d'erreur > devrait retourner 0 en cas d'erreur sans cache
+Erreur lors du comptage de TestRepository: Error: Erreur Firestore
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts:336:58
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts > BaseGeographyRepository > getCount - Gestion d'erreur > devrait retourner le cache même expiré en cas d'erreur
+Erreur lors du comptage de TestRepository: Error: Erreur Firestore
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts:349:58
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/memberships/__tests__/unit/components/modals/PaymentDetailsModalV2.test.tsx > PaymentDetailsModalV2 > Rendu initial > devrait afficher le modal quand isOpen est true et payment est fourni
+Received `true` for a non-boolean attribute `fill`.
+
+If you want to write it to the DOM, pass a string instead: fill="true" or fill={value.toString()}.
+
+ ✓ src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts (16 tests) 11ms
+stderr | src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts > BaseGeographyRepository > getPaginated - Gestion d'erreur > devrait propager l'erreur en cas d'échec
+Erreur lors de la récupération paginée de TestRepository: Error: Erreur Firestore
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts:361:15
+    at mockCall (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at spy (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80)
+    at TestRepository.getPaginated (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/geography/repositories/BaseGeographyRepository.ts:93:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/infrastructure/geography/__tests__/repositories/BaseGeographyRepository.test.ts:364:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stderr | src/domains/memberships/__tests__/unit/components/modals/PaymentDetailsModalV2.test.tsx > PaymentDetailsModalV2 > Boutons d'action > devrait désactiver le bouton PDF pendant la génération
+An update to PaymentDetailsModalV2 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/memberships/__tests__/unit/components/modals/PaymentDetailsModalV2.test.tsx (37 tests) 867ms
+stderr | src/domains/auth/registration/__tests__/services/RegistrationService.test.ts > RegistrationService > submitRegistration > devrait lancer une erreur si la création échoue
+[RegistrationService] Erreur lors de la soumission: Error: Erreur de création
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/services/RegistrationService.test.ts:98:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/auth/registration/__tests__/services/RegistrationService.test.ts > RegistrationService > submitRegistration > devrait lancer une erreur générique si l'erreur n'est pas une Error
+[RegistrationService] Erreur lors de la soumission: Erreur inconnue
+
+stderr | src/domains/auth/registration/__tests__/services/RegistrationService.test.ts > RegistrationService > updateRegistration > devrait lancer une erreur si la mise à jour échoue
+[RegistrationService] Erreur lors de la mise à jour: Error: Erreur de mise à jour
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/services/RegistrationService.test.ts:124:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/auth/registration/__tests__/services/RegistrationService.test.ts > RegistrationService > verifySecurityCode > devrait retourner isValid: false en cas d'erreur de la Cloud Function
+[RegistrationService] Erreur lors de la vérification du code: Error: Erreur Cloud Function
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/services/RegistrationService.test.ts:260:54
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/auth/registration/__tests__/services/RegistrationService.test.ts > RegistrationService > loadRegistrationForCorrection > devrait retourner null en cas d'erreur
+[RegistrationService] Erreur lors du chargement pour correction: Error: Erreur
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/services/RegistrationService.test.ts:310:59
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+ ✓ src/domains/auth/registration/__tests__/services/RegistrationService.test.ts (18 tests) 38ms
+stderr | src/domains/memberships/__tests__/integration/payment-details.integration.test.tsx > PaymentDetailsModalV2 - Intégration > Intégration avec paymentPDFUtils > devrait appeler generatePaymentPDF avec toutes les données nécessaires
+Received `true` for a non-boolean attribute `fill`.
+
+If you want to write it to the DOM, pass a string instead: fill="true" or fill={value.toString()}.
+
+ ✓ src/domains/infrastructure/geography/__tests__/services/GeographieService.test.ts (12 tests) 26ms
+stderr | src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx > useRegistrationValidation > validateStep > devrait valider une étape avec des données valides
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+[useRegistrationValidation] Erreur de validation step 1: ZodError: [
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^[a-zA-ZÀ-ÿ\\s'-]+$/",
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthDate"
+    ],
+    "message": "La date de naissance est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "birthDate"
+    ],
+    "message": "Vous devez avoir au moins 18 ans"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "birthPlace"
+    ],
+    "message": "Le lieu de naissance doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthCertificateNumber"
+    ],
+    "message": "Le numéro d'acte de naissance est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "prayerPlace"
+    ],
+    "message": "Le lieu de prière doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "religion"
+    ],
+    "message": "La religion est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "contacts"
+    ],
+    "message": "Au moins un numéro de téléphone valide est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^\\d+\\.MK\\.\\d+$/",
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Format requis: [Numéro].MK.[Numéro] (ex: 1228.MK.0058)"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "photo"
+    ],
+    "message": "Mettre une photo est obligatoire (formats acceptés : JPEG, PNG ou WebP, max 5MB)"
+  }
+]
+    at Object.validateStep (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx:62:23
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx > useRegistrationValidation > validateStep > devrait retourner false pour des données invalides
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+[useRegistrationValidation] Erreur de validation step 1: ZodError: [
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^[a-zA-ZÀ-ÿ\\s'-]+$/",
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthDate"
+    ],
+    "message": "La date de naissance est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "birthDate"
+    ],
+    "message": "Vous devez avoir au moins 18 ans"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "birthPlace"
+    ],
+    "message": "Le lieu de naissance doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthCertificateNumber"
+    ],
+    "message": "Le numéro d'acte de naissance est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "prayerPlace"
+    ],
+    "message": "Le lieu de prière doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "religion"
+    ],
+    "message": "La religion est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "contacts"
+    ],
+    "message": "Au moins un numéro de téléphone valide est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^\\d+\\.MK\\.\\d+$/",
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Format requis: [Numéro].MK.[Numéro] (ex: 1228.MK.0058)"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "photo"
+    ],
+    "message": "Mettre une photo est obligatoire (formats acceptés : JPEG, PNG ou WebP, max 5MB)"
+  }
+]
+    at Object.validateStep (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx:111:23
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx > useRegistrationValidation > validateStep > devrait retourner false pour une étape invalide
+[useRegistrationValidation] Étape 99 invalide
+
+stderr | src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx > useRegistrationValidation > validateStep > devrait appliquer les erreurs Zod au formulaire
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+[useRegistrationValidation] Erreur de validation step 1: ZodError: [
+  {
+    "code": "invalid_value",
+    "values": [
+      "Monsieur",
+      "Madame",
+      "Mademoiselle"
+    ],
+    "path": [
+      "civility"
+    ],
+    "message": "Invalid option: expected one of \"Monsieur\"|\"Madame\"|\"Mademoiselle\""
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^[a-zA-ZÀ-ÿ\\s'-]+$/",
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthDate"
+    ],
+    "message": "La date de naissance est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "birthDate"
+    ],
+    "message": "Vous devez avoir au moins 18 ans"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "birthPlace"
+    ],
+    "message": "Le lieu de naissance doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthCertificateNumber"
+    ],
+    "message": "Le numéro d'acte de naissance est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "prayerPlace"
+    ],
+    "message": "Le lieu de prière doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "religion"
+    ],
+    "message": "La religion est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "contacts"
+    ],
+    "message": "Au moins un numéro de téléphone valide est requis"
+  },
+  {
+    "code": "invalid_value",
+    "values": [
+      "Homme",
+      "Femme"
+    ],
+    "path": [
+      "gender"
+    ],
+    "message": "Invalid option: expected one of \"Homme\"|\"Femme\""
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "nationality"
+    ],
+    "message": "La nationalité est requise"
+  },
+  {
+    "code": "invalid_value",
+    "values": [
+      "Célibataire",
+      "Veuf/Veuve",
+      "Marié(e)",
+      "Concubinage"
+    ],
+    "path": [
+      "maritalStatus"
+    ],
+    "message": "Invalid option: expected one of \"Célibataire\"|\"Veuf/Veuve\"|\"Marié(e)\"|\"Concubinage\""
+  },
+  {
+    "expected": "string",
+    "code": "invalid_type",
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Le code entremetteur est requis"
+  }
+]
+    at Object.validateStep (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx:209:23
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx > useRegistrationValidation > validateCurrentStep > devrait valider l'étape actuelle
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+[useRegistrationValidation] Erreur de validation step 1: ZodError: [
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^[a-zA-ZÀ-ÿ\\s'-]+$/",
+    "path": [
+      "lastName"
+    ],
+    "message": "Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthDate"
+    ],
+    "message": "La date de naissance est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "birthDate"
+    ],
+    "message": "Vous devez avoir au moins 18 ans"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "birthPlace"
+    ],
+    "message": "Le lieu de naissance doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "birthCertificateNumber"
+    ],
+    "message": "Le numéro d'acte de naissance est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "prayerPlace"
+    ],
+    "message": "Le lieu de prière doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+      "religion"
+    ],
+    "message": "La religion est requise"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "contacts"
+    ],
+    "message": "Au moins un numéro de téléphone valide est requis"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Le nom doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "regex",
+    "pattern": "/^\\d+\\.MK\\.\\d+$/",
+    "path": [
+      "intermediaryCode"
+    ],
+    "message": "Format requis: [Numéro].MK.[Numéro] (ex: 1228.MK.0058)"
+  },
+  {
+    "code": "custom",
+    "path": [
+      "photo"
+    ],
+    "message": "Mettre une photo est obligatoire (formats acceptés : JPEG, PNG ou WebP, max 5MB)"
+  }
+]
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx:262:23
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx > useRegistrationValidation > validateCurrentStep > devrait appeler validateStep avec l'étape actuelle
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+[useRegistrationValidation] Erreur de validation step 2: ZodError: [
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "province"
+    ],
+    "message": "La province doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "city"
+    ],
+    "message": "La ville doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "district"
+    ],
+    "message": "Le quartier doit contenir au moins 2 caractères"
+  },
+  {
+    "origin": "string",
+    "code": "too_small",
+    "minimum": 2,
+    "inclusive": true,
+    "path": [
+      "arrondissement"
+    ],
+    "message": "L'arrondissement doit contenir au moins 2 caractères"
+  }
+]
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/hooks/useRegistrationValidation.ts:38:22
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx:291:23
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/auth/registration/__tests__/hooks/useRegistrationValidation.test.tsx (6 tests) 76ms
+ ✓ src/domains/memberships/__tests__/integration/payment-details.integration.test.tsx (21 tests) 925ms
+ ✓ src/domains/memberships/__tests__/unit/components/modals/RenewSecurityCodeModalV2.test.tsx (28 tests) 638ms
+stderr | src/domains/auth/__tests__/hooks/useLogin.test.tsx > useLogin > devrait gérer l'erreur USER_NOT_FOUND
+Erreur de connexion: { message: 'USER_NOT_FOUND' }
+
+stderr | src/domains/auth/__tests__/hooks/useLogin.test.tsx > useLogin > devrait gérer l'erreur WRONG_PASSWORD
+Erreur de connexion: { message: 'WRONG_PASSWORD' }
+
+stderr | src/domains/auth/__tests__/hooks/useLogin.test.tsx > useLogin > devrait gérer l'erreur MATRICULE_EMAIL_MISMATCH
+Erreur de connexion: { message: 'MATRICULE_EMAIL_MISMATCH' }
+
+stderr | src/domains/auth/__tests__/hooks/useLogin.test.tsx > useLogin > devrait gérer les erreurs Firebase (auth/user-not-found)
+Erreur de connexion: { code: 'auth/user-not-found' }
+
+ ✓ src/domains/auth/__tests__/hooks/useLogin.test.tsx (8 tests) 50ms
+ ✓ src/domains/memberships/__tests__/unit/components/modals/CorrectionsModalV2.test.tsx (23 tests) 410ms
+ ✓ src/domains/infrastructure/references/__tests__/hooks/useProfessions.test.tsx (18 tests) 531ms
+ ✓ src/domains/auth/registration/__tests__/hooks/useRegistrationSteps.test.tsx (23 tests) 24ms
+ ✓ src/domains/memberships/__tests__/unit/utils/correctionUtils.test.ts (27 tests) 23ms
+ ✓ src/domains/infrastructure/references/__tests__/integration/references.integration.test.ts (5 tests) 3ms
+stderr | src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts > RegistrationRepository > create > devrait lancer une erreur si la création échoue
+[RegistrationRepository] Erreur lors de la création: Error: Erreur de création
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts:88:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts > RegistrationRepository > create > devrait lancer une erreur générique si l'erreur n'est pas une Error
+[RegistrationRepository] Erreur lors de la création: Erreur inconnue
+
+stderr | src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts > RegistrationRepository > getById > devrait retourner null en cas d'erreur
+[RegistrationRepository] Erreur lors de la récupération: Error: Erreur
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts:122:54
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+stderr | src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts > RegistrationRepository > update > devrait lancer une erreur si la demande n'existe pas
+[RegistrationRepository] Erreur lors de la mise à jour: Error: Demande d'inscription non-existent-id introuvable
+    at RegistrationRepository.update (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/repositories/RegistrationRepository.ts:60:15)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts:156:7
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+stderr | src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts > RegistrationRepository > update > devrait lancer une erreur si la mise à jour échoue
+[RegistrationRepository] Erreur lors de la mise à jour: Error: Erreur de mise à jour
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts:162:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+ ✓ src/domains/auth/registration/__tests__/repositories/RegistrationRepository.test.ts (10 tests) 13ms
+ ✓ src/domains/infrastructure/references/__tests__/hooks/useCompanies.test.tsx (16 tests) 495ms
+ ✓ src/domains/memberships/__tests__/unit/components/modals/SendWhatsAppModalV2.test.tsx (20 tests) 1179ms
+   ✓ SendWhatsAppModalV2 > Envoi WhatsApp > devrait fermer le modal après l'envoi 563ms
+ ✓ src/domains/memberships/__tests__/unit/hooks/useMembershipActionsV2.test.ts (6 tests) 31ms
+ ✓ src/domains/auth/__tests__/services/LoginService.test.ts (10 tests) 4ms
+ ✓ src/domains/infrastructure/geography/__tests__/hooks/useGeographie.test.tsx (4 tests) 174ms
+ ✓ src/domains/infrastructure/geography/__tests__/schemas/geographie.schema.test.ts (23 tests) 5ms
+ ✓ src/domains/infrastructure/references/__tests__/hooks/useCompanySuggestions.test.tsx (10 tests) 431ms
+ ✓ src/utils/__tests__/searchableText.test.ts (11 tests) 3ms
+stderr | src/domains/auth/__tests__/integration/auth.integration.test.tsx > Intégration: Auth Module (Repository → Service → Hook) > Flux complet : Connexion utilisateur > devrait gérer l'erreur si l'utilisateur n'existe pas
+Erreur de connexion: Error: USER_NOT_FOUND
+    at LoginService.signIn (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/services/LoginService.ts:34:13)
+    at onSubmit (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/hooks/useLogin.ts:45:23)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/react-hook-form@7.71.0_react@19.1.0/node_modules/react-hook-form/src/logic/createFormControl.ts:1300:11
+
+ ✓ src/domains/auth/__tests__/integration/auth.integration.test.tsx (2 tests) 125ms
+stderr | src/domains/auth/__tests__/hooks/useLogout.test.tsx > useLogout > devrait appeler logout du service et rediriger vers login avec rechargement complet
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/hooks/useLogout.test.tsx > useLogout > devrait gérer isLoading correctement pendant la déconnexion
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/services/search/__tests__/AlgoliaSearchService.test.ts (4 tests) 4ms
+stderr | src/domains/auth/__tests__/hooks/useLogout.test.tsx > useLogout > devrait gérer isLoading correctement pendant la déconnexion
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/hooks/useLogout.test.tsx > useLogout > devrait gérer les erreurs lors de la déconnexion
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+Erreur lors de la déconnexion: Error: LOGOUT_FAILED
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/__tests__/hooks/useLogout.test.tsx:137:19
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/integration/logout.integration.test.tsx > Logout Integration > LogoutService + useLogout > devrait intégrer correctement LogoutService avec useLogout
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/integration/logout.integration.test.tsx > Logout Integration > LogoutService + useLogout > devrait gérer les erreurs de manière cohérente entre le service et le hook
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+Erreur lors de la déconnexion: Error: Firebase error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/__tests__/integration/logout.integration.test.tsx:142:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processTimers (node:internal/timers:540:9)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+Erreur lors de la déconnexion: Error: LOGOUT_FAILED
+    at LogoutService.logout (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/services/LogoutService.ts:33:13)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processTimers (node:internal/timers:540:9)
+    at Object.logout (/Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/hooks/useLogout.ts:20:7)
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/integration/logout.integration.test.tsx > Logout Integration > LogoutService + useLogout > devrait utiliser le service depuis ServiceFactory
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/auth/__tests__/integration/logout.integration.test.tsx (5 tests) 33ms
+ ✓ src/domains/memberships/hooks/__tests__/useMembershipSearch.test.tsx (5 tests) 260ms
+stderr | src/domains/auth/__tests__/hooks/useLogout.test.tsx > useLogout > devrait réinitialiser l'erreur lors d'une nouvelle tentative
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+Erreur lors de la déconnexion: Error: LOGOUT_FAILED
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/__tests__/hooks/useLogout.test.tsx:154:19
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/vitest@2.1.9_@types+node@20.19.28_jsdom@24.1.3_lightningcss@1.30.2/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/hooks/useLogout.test.tsx > useLogout > devrait réinitialiser l'erreur lors d'une nouvelle tentative
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/auth/__tests__/hooks/useLogout.test.tsx (5 tests) 323ms
+ ✓ src/domains/memberships/__tests__/unit/utils/membershipValidation.test.ts (17 tests) 7ms
+ ✓ src/domains/memberships/__tests__/unit/utils/securityCode.test.ts (13 tests) 10ms
+ ✓ src/domains/infrastructure/references/__tests__/services/CompanySuggestionsService.test.ts (6 tests) 6ms
+ ✓ src/domains/infrastructure/references/__tests__/services/ProfessionService.test.ts (6 tests) 9ms
+stderr | src/domains/auth/__tests__/hooks/useAuth.test.tsx > useAuth > devrait retourner un état non authentifié quand aucun utilisateur
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/memberships/__tests__/unit/hooks/useMembershipStatsV2.test.ts (4 tests) 239ms
+stderr | src/domains/auth/__tests__/hooks/useAuth.test.tsx > useAuth > devrait retourner un état authentifié quand l'utilisateur existe et est vérifié
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/hooks/useAuth.test.tsx > useAuth > devrait retourner un état non authentifié quand l'utilisateur est null
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/infrastructure/references/__tests__/services/CompanyService.test.ts (6 tests) 7ms
+stderr | src/domains/auth/__tests__/hooks/useAuth.test.tsx > useAuth > devrait mettre à jour l'état quand l'utilisateur change
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/infrastructure/geography/__tests__/repositories/ProvinceRepositoryV2.test.ts (5 tests) 2ms
+stderr | src/domains/auth/__tests__/hooks/useAuth.test.tsx > useAuth > devrait mettre à jour l'état quand l'utilisateur change
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/domains/auth/__tests__/hooks/useAuth.test.tsx > useAuth > devrait mettre à jour l'état quand l'utilisateur change
+An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/domains/auth/__tests__/hooks/useAuth.test.tsx (6 tests) 348ms
+ ✓ src/domains/memberships/__tests__/unit/utils/whatsappUrl.test.ts (15 tests) 6ms
+stderr | src/domains/auth/__tests__/services/LogoutService.test.ts > LogoutService > logout > devrait gérer les erreurs de déconnexion Firebase
+Erreur lors de la déconnexion: Error: Firebase error
+    at /Users/glenneriss/Documents/projets/kara-client-front/src/domains/auth/__tests__/services/LogoutService.test.ts:70:21
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///Users/glenneriss/Documents/projets/kara-client-front/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+
+ ✓ src/domains/auth/__tests__/services/LogoutService.test.ts (5 tests) 5ms
+ ✓ src/domains/infrastructure/geography/__tests__/repositories/CommuneRepositoryV2.test.ts (4 tests) 2ms
+ ✓ src/domains/infrastructure/geography/__tests__/repositories/DepartmentRepositoryV2.test.ts (3 tests) 4ms
+ ✓ src/domains/infrastructure/geography/__tests__/repositories/DistrictRepositoryV2.test.ts (3 tests) 4ms
+ ✓ src/domains/infrastructure/geography/__tests__/repositories/QuarterRepositoryV2.test.ts (3 tests) 4ms
+
+ Test Files  58 passed (58)
+      Tests  931 passed (931)
+   Start at  20:51:55
+   Duration  12.68s (transform 2.50s, setup 11.43s, collect 18.94s, tests 16.30s, environment 25.63s, prepare 3.56s)
+

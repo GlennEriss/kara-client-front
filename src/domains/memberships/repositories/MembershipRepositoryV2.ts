@@ -38,6 +38,7 @@ import {
 } from '@/constantes/membership-requests'
 import type { MembershipRequestStatus } from '@/types/types'
 import { PaymentRepositoryV2 } from './PaymentRepositoryV2'
+import { getAlgoliaSearchService } from '@/services/search/AlgoliaSearchService'
 
 export class MembershipRepositoryV2 implements IMembershipRepository {
   private static instance: MembershipRepositoryV2
@@ -60,6 +61,26 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
     page: number = 1, 
     pageLimit: number = MEMBERSHIP_REQUEST_PAGINATION.DEFAULT_LIMIT
   ): Promise<MembershipRequestsResponse> {
+    // Si Algolia est configuré et qu'il y a une recherche, utiliser Algolia
+    if (process.env.NEXT_PUBLIC_ALGOLIA_APP_ID && filters.search && filters.search.trim()) {
+      try {
+        const searchService = getAlgoliaSearchService()
+        return await searchService.search({
+          query: filters.search.trim(),
+          filters: {
+            isPaid: filters.isPaid,
+            status: filters.status && filters.status !== 'all' ? filters.status : undefined,
+          },
+          page,
+          hitsPerPage: pageLimit,
+        })
+      } catch (error) {
+        console.error('Erreur Algolia, fallback Firestore:', error)
+        // Continue avec Firestore (fallback)
+      }
+    }
+
+    // Sinon, utiliser Firestore (code existant)
     const collectionRef = collection(db, this.collectionName)
     
     // Construction de la requête
