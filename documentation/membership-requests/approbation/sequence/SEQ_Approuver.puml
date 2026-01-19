@@ -1,16 +1,16 @@
 @startuml SEQ_Approuver
-title Séquence : Approuver une Demande d'Adhésion (Refactorisé avec Rollback)
+title Séquence : Approuver une Demande d'Adhésion (avec Génération PDF Identifiants)
 
 actor "Admin" as Admin
 participant "MembershipRequestActions\n(Component)" as Actions
 participant "MembershipApprovalModal\n(Component)" as Modal
 participant "useApproveMembershipRequest\n(Hook)" as Hook
 participant "MembershipApprovalService" as ApprovalService
-participant "API Route\n(/api/membership/approve)" as API
+participant "Cloud Function\n(approveMembershipRequest)" as CloudFunction
 database "Firebase Auth" as Auth
 database "Firestore" as Firestore
 database "Firebase Storage" as Storage
-participant "NotificationService" as Notif
+participant "PDFGenerator\n(jsPDF)" as PDFGen
 
 Admin -> Actions: Cliquer "Approuver"
 activate Actions
@@ -20,7 +20,7 @@ Actions -> Actions: Vérifier isPaid === true
 Actions -> Modal: Ouvrir modal d'approbation
 activate Modal
 
-Modal --> Admin: Formulaire:\n- Type de membre\n- Entreprise\n- Profession\n- PDF (optionnel)
+Modal --> Admin: Formulaire:\n- Type de membre\n- Entreprise (si isEmployed)\n- Profession (si isEmployed)\n- PDF d'adhésion (obligatoire)
 
 Admin -> Modal: Remplir et confirmer
 Modal -> Hook: approveMutation.mutate(params)
@@ -36,78 +36,153 @@ end note
 
 ApprovalService -> ApprovalService: validateRequest(requestId)
 
-alt PDF fourni
-    ApprovalService -> Storage: uploadBytes(adhesionPdf)
-    activate Storage
-    Storage --> ApprovalService: pdfUrl
-    deactivate Storage
-    ApprovalService -> ApprovalService: rollbackActions.push(\n() => deleteObject(pdfRef))
+note right of ApprovalService
+  Vérifications:
+  - Demande payée (isPaid === true)
+  - Type de membre sélectionné
+  - PDF d'adhésion fourni (obligatoire)
+  - Entreprise/Profession (si isEmployed)
+end note
+
+alt Entreprise renseignée (isEmployed === true)
+    ApprovalService -> Firestore: Vérifier existence entreprise
+    alt Entreprise n'existe pas
+        ApprovalService --> Admin: Demander création entreprise
+        Admin --> ApprovalService: Confirmer création
+        ApprovalService -> Firestore: Créer entreprise (companies)
+    end
 end
 
-ApprovalService -> API: POST /api/membership/approve
-activate API
+alt Profession renseignée (isEmployed === true)
+    ApprovalService -> Firestore: Vérifier existence profession
+    alt Profession n'existe pas
+        ApprovalService --> Admin: Demander création profession
+        Admin --> ApprovalService: Confirmer création
+        ApprovalService -> Firestore: Créer profession (professions)
+    end
+end
 
-API -> API: Vérifier permissions admin\n(getServerSession)
+ApprovalService -> Storage: uploadBytes(adhesionPdf)
+activate Storage
+Storage --> ApprovalService: pdfUrl
+deactivate Storage
 
-API -> API: Valider données (Zod)
+ApprovalService -> CloudFunction: approveMembershipRequest(\nrequestId, adminId, membershipType,\ncompanyId, professionId, adhesionPdfURL)
+activate CloudFunction
 
-API -> Auth: createUser(email, password)
+CloudFunction -> CloudFunction: Valider paramètres d'entrée
+
+CloudFunction -> CloudFunction: Vérifier permissions admin\n(request.auth.token.role)
+
+CloudFunction -> Firestore: getDoc(membership-requests/{requestId})
+
+CloudFunction -> CloudFunction: Valider demande :
+- isPaid === true
+- status === 'pending'
+
+CloudFunction -> CloudFunction: Générer email :
+{firstName}{lastName}{4chiffres}@kara.ga
+
+CloudFunction -> CloudFunction: Générer mot de passe sécurisé\n(12+ caractères aléatoires)
+
+note right of CloudFunction
+  Système de rollback:
+  const rollbackActions = []
+end note
+
+CloudFunction -> Auth: createUser(uid, email, password)
 activate Auth
-Auth --> API: UserRecord (uid)
+Auth --> CloudFunction: UserRecord (uid)
 deactivate Auth
 
-API -> API: rollbackActions.push(\n() => deleteUser(uid))
+CloudFunction -> CloudFunction: rollbackActions.push(\n() => deleteUser(uid))
 
-API -> Firestore: setDoc(users/{matricule}, userData)
-API -> API: rollbackActions.push(\n() => deleteDoc(users/{matricule}))
+CloudFunction -> Firestore: setDoc(users/{matricule}, userData)
+CloudFunction -> CloudFunction: rollbackActions.push(\n() => deleteDoc(users/{matricule}))
 
-API -> Firestore: addDoc(subscriptions, subscriptionData)
-API -> API: rollbackActions.push(\n() => deleteDoc(subscription))
+CloudFunction -> Firestore: addDoc(subscriptions, subscriptionData)
+CloudFunction -> CloudFunction: rollbackActions.push(\n() => deleteDoc(subscription))
 
-API -> Firestore: updateDoc(membership-requests/{id},\n{ status: 'approved', ... })
+CloudFunction -> Firestore: addDoc(documents, {\n  type: 'ADHESION',\n  memberId: matricule,\n  url: adhesionPdfURL\n})
+CloudFunction -> CloudFunction: rollbackActions.push(\n() => deleteDoc(document))
 
-API --> ApprovalService: { success: true, matricule, email }
-deactivate API
+CloudFunction -> Firestore: updateDoc(membership-requests/{id},\n{ status: 'approved', ... })
 
-alt Document archivé
-    ApprovalService -> Firestore: addDoc(documents, {\n  type: 'ADHESION',\n  memberId: matricule,\n  url: pdfUrl\n})
-end
+CloudFunction -> Firestore: addDoc(notifications, {\n  type: 'status_update',\n  status: 'approved',\n  ...\n})
 
-ApprovalService -> Notif: sendApprovalNotification(\nmemberId, requestId)
-activate Notif
-Notif -> Firestore: addDoc(notifications, ...)
-Notif --> ApprovalService: OK
-deactivate Notif
+note right of CloudFunction
+  ⚠️ IMPORTANT:
+  Le mot de passe est retourné UNIQUEMENT
+  dans la réponse Cloud Function (HTTPS).
+  Il n'est PAS stocké en Firestore.
+end note
 
-ApprovalService --> Hook: ApprovalResult
+CloudFunction --> ApprovalService: { success: true, matricule, email, password,\nsubscriptionId, companyId, professionId }
+deactivate CloudFunction
+
+ApprovalService --> Hook: ApprovalResult\n{ matricule, email, password,\nsubscriptionId, companyId, professionId }
 deactivate ApprovalService
 
 Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
 
-Hook --> Modal: success
+Hook --> Modal: success\n{ matricule, email, password }
 deactivate Hook
 
-Modal --> Admin: Toast succès:\n"Membre créé: {matricule}"
+Modal -> PDFGen: generateCredentialsPDF(\nfirstName, lastName, matricule,\nemail, password)
+activate PDFGen
+
+PDFGen -> PDFGen: Créer PDF avec jsPDF\n- Logo KARA\n- Informations membre\n- Identifiants (email + password)\n- Instructions\n- Avertissement sécurité
+
+PDFGen -> PDFGen: Télécharger PDF automatiquement\n(nom: Identifiants_Connexion_{matricule}_{date}.pdf)
+deactivate PDFGen
+
+Modal --> Admin: Toast succès:\n"Demande approuvée avec succès!\nMatricule: {matricule}\nEmail: {email}\nPDF téléchargé automatiquement"
 
 note right of Modal
-  ⚠️ Amélioration sécurité:
-  Mot de passe envoyé par email
-  au lieu d'être affiché
+  ✅ Sécurité:
+  - Mot de passe retourné uniquement
+    dans la réponse API (HTTPS)
+  - Utilisé immédiatement pour PDF
+  - Jamais stocké en Firestore
+  - PDF téléchargé automatiquement
 end note
 
 deactivate Modal
 deactivate Actions
 
-group Rollback en cas d'erreur
-    note over ApprovalService, Auth
+group Rollback en cas d'erreur (Cloud Function)
+    note over CloudFunction, Auth
       Si erreur à n'importe quelle étape:
-      1. Exécuter rollbackActions.reverse()
-      2. Supprimer User Firebase
+      1. Cloud Function exécute rollbackActions.reverse()
+      2. Supprimer User Firebase Auth
       3. Supprimer document users
       4. Supprimer subscription
-      5. Supprimer PDF uploadé
+      5. Supprimer document PDF archivé
       6. Logger pour intervention manuelle
+      
+      Note: Le PDF uploadé dans Storage
+      reste (peut être nettoyé manuellement)
     end note
 end
+
+note over Admin, PDFGen
+  **Flux complet:**
+  1. Admin approuve la demande
+  2. Vérification/création entreprise/profession (côté client)
+  3. Upload PDF d'adhésion (côté client)
+  4. Appel Cloud Function approveMembershipRequest
+  5. Cloud Function : Validation + Génération identifiants
+  6. Cloud Function : Création Auth + users + subscription
+  7. Cloud Function : Archivage document PDF
+  8. Cloud Function : Notification d'approbation
+  9. Génération et téléchargement PDF identifiants (côté client)
+  10. Toast de succès
+  
+  **Avantages Cloud Function:**
+  - Atomicité garantie (toutes opérations dans une transaction)
+  - Rollback automatique en cas d'erreur
+  - Privilèges admin natifs
+  - Cohérence avec submitCorrections
+end note
 
 @enduml

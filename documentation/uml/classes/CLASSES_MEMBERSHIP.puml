@@ -58,6 +58,8 @@ class MembershipRequest {
   + securityCodeUsed?: boolean
   + securityCodeVerifiedAt?: Date
   + priorityScore?: number
+  + approvedBy?: string
+  + approvedAt?: Date
   + createdAt: Date
   + updatedAt: Date
 }
@@ -278,6 +280,31 @@ class RegisterFormData {
 }
 
 ' ============================================
+' CLASSES : FONCTIONNALITÉ APPROBATION
+' ============================================
+
+' Paramètres d'entrée pour l'approbation
+class ApproveMembershipRequestInput {
+  + requestId: string
+  + adminId: string
+  + membershipType: MembershipType
+  + companyId?: string
+  + professionId?: string
+  + adhesionPdfURL: string
+}
+
+' Réponse de la Cloud Function d'approbation
+class ApproveMembershipRequestOutput {
+  + success: boolean
+  + matricule: string
+  + email: string
+  + password: string
+  + subscriptionId: string
+  + companyId?: string
+  + professionId?: string
+}
+
+' ============================================
 ' CLASSES : SERVICES (Architecture V2)
 ' ============================================
 
@@ -286,7 +313,7 @@ class MembershipServiceV2 {
   - adminRepository: AdminRepository
   + {static} getInstance(): MembershipServiceV2
   + requestCorrections(params: RequestCorrectionsParams): Promise<{securityCode: string, whatsAppUrl?: string}>
-  + approveMembershipRequest(params: ApproveMembershipRequestParams): Promise<void>
+  + approveMembershipRequest(params: ApproveMembershipRequestParams): Promise<ApproveMembershipRequestOutput>
   + rejectMembershipRequest(params: RejectMembershipRequestParams): Promise<void>
   + processPayment(params: ProcessPaymentParams): Promise<void>
 }
@@ -328,6 +355,23 @@ class RegistrationRepository {
 }
 
 ' ============================================
+' CLASSES : CLOUD FUNCTIONS
+' ============================================
+
+class ApproveMembershipRequestCloudFunction {
+  + {callable} approveMembershipRequest(input: ApproveMembershipRequestInput): Promise<ApproveMembershipRequestOutput>
+  - validateRequest(requestId: string): Promise<MembershipRequest>
+  - generateEmail(firstName: string, lastName: string, matricule: string): string
+  - generateSecurePassword(length: number): string
+  - createFirebaseAuthUser(matricule: string, email: string, password: string): Promise<UserRecord>
+  - createUserDocument(matricule: string, data: UserData): Promise<void>
+  - createSubscription(memberId: string, membershipType: MembershipType, adhesionPdfURL: string): Promise<string>
+  - archiveAdhesionDocument(matricule: string, adhesionPdfURL: string): Promise<string>
+  - createApprovalNotification(requestId: string, matricule: string, memberName: string, email: string, adminId: string): Promise<void>
+  - rollback(actions: RollbackAction[]): Promise<void>
+}
+
+' ============================================
 ' CLASSES : UTILITAIRES
 ' ============================================
 
@@ -338,6 +382,11 @@ class SecurityCodeUtils {
 
 class WhatsAppUrlUtils {
   + {static} generateWhatsAppUrl(phoneNumber: string, message: string): string
+}
+
+class PDFGenerator {
+  + {static} generateCredentialsPDF(firstName: string, lastName: string, matricule: string, email: string, password: string): Blob
+  + {static} downloadPDF(blob: Blob, filename: string): void
 }
 
 ' ============================================
@@ -419,10 +468,42 @@ RegisterFormData *-- AddressData : contains
 RegisterFormData *-- CompanyData : contains
 RegisterFormData *-- DocumentsData : contains
 
+' ============================================
+' RELATIONS : FONCTIONNALITÉ APPROBATION
+' ============================================
+
+' MembershipRequest peut être approuvée via Cloud Function
+MembershipRequest ..> ApproveMembershipRequestCloudFunction : approved_by
+
+' MembershipRequest génère un Document (PDF d'adhésion) lors de l'approbation
+MembershipRequest "1" --> "0..1" Document : generates_adhesion_pdf
+note right of Document
+  **Type:** ADHESION
+  **Format:** pdf
+  **Créé lors de l'approbation**
+  **Stocké dans collection "documents"**
+end note
+
+' ApproveMembershipRequestInput est utilisé par la Cloud Function
+ApproveMembershipRequestCloudFunction ..> ApproveMembershipRequestInput : uses
+ApproveMembershipRequestCloudFunction ..> ApproveMembershipRequestOutput : returns
+
+' Cloud Function crée un User lors de l'approbation
+ApproveMembershipRequestCloudFunction ..> User : creates
+
+' Cloud Function crée une Subscription lors de l'approbation
+ApproveMembershipRequestCloudFunction ..> Subscription : creates
+
+' Cloud Function archive un Document lors de l'approbation
+ApproveMembershipRequestCloudFunction ..> Document : archives
+
 ' Services utilisent leurs repositories respectifs
 MembershipServiceV2 --> MembershipRepositoryV2 : uses
 MembershipServiceV2 --> AdminRepository : uses
 RegistrationService --> RegistrationRepository : uses
+
+' MembershipServiceV2 appelle la Cloud Function pour l'approbation
+MembershipServiceV2 ..> ApproveMembershipRequestCloudFunction : calls
 
 ' Repositories interagissent avec MembershipRequest
 MembershipRepositoryV2 ..> MembershipRequest : queries/updates
@@ -431,6 +512,7 @@ RegistrationRepository ..> MembershipRequest : queries/updates
 ' Services utilisent les utilitaires
 MembershipServiceV2 ..> SecurityCodeUtils : uses
 MembershipServiceV2 ..> WhatsAppUrlUtils : uses
+MembershipServiceV2 ..> PDFGenerator : uses
 
 ' RegistrationRepository utilise SecurityCodeUtils pour marquer le code comme utilisé
 RegistrationRepository ..> SecurityCodeUtils : uses
@@ -438,7 +520,7 @@ RegistrationRepository ..> SecurityCodeUtils : uses
 note right of MembershipRequest
   **Collection Firestore:** membership-requests
   Clé primaire: id
-  Index sur: status, createdAt, matricule, isPaid
+  Index sur: status, createdAt, matricule, isPaid, approvedBy, approvedAt
   
   **Workflow métier:**
   - isPaid: false par défaut (migration appliquée)
@@ -452,6 +534,13 @@ note right of MembershipRequest
   - securityCodeUsed: Marqué à true après utilisation
   - Statut passe à 'under_review' lors de la demande de correction
   - Statut repasse à 'pending' après soumission des corrections
+  
+  **Fonctionnalité Approbation:**
+  - approvedBy: ID de l'admin qui a approuvé (obligatoire, pour traçabilité)
+  - approvedAt: Date d'approbation (obligatoire, timestamp serveur)
+  - Statut passe à 'approved' après approbation
+  - Génère un User, une Subscription et un Document (PDF d'adhésion)
+  - Ces champs permettent l'audit et la traçabilité des approbations
 end note
 
 note right of MembershipServiceV2
@@ -465,10 +554,18 @@ note right of MembershipServiceV2
   - Génère URL WhatsApp si numéro disponible
   - Retourne {securityCode, whatsAppUrl}
   
+  **Méthode approveMembershipRequest():**
+  - Valide les paramètres (requestId, adminId, membershipType, adhesionPdfURL)
+  - Upload PDF d'adhésion vers Firebase Storage
+  - Appelle Cloud Function approveMembershipRequest
+  - Génère et télécharge PDF des identifiants (email + password)
+  - Retourne ApproveMembershipRequestOutput
+  
   **Architecture:**
   - Singleton pattern
   - Utilise MembershipRepositoryV2 pour accès données
   - Utilise AdminRepository pour validation admin
+  - Appelle Cloud Function pour approbation atomique
 end note
 
 note right of RegistrationService
@@ -509,6 +606,57 @@ note right of WhatsAppUrlUtils
   **Utilisation:**
   - Admin peut sélectionner parmi plusieurs numéros
   - Message pré-rempli avec corrections et code de sécurité
+end note
+
+note right of ApproveMembershipRequestCloudFunction
+  **Cloud Function Callable pour approbation atomique**
+  
+  **Opérations atomiques:**
+  1. Validation (paiement, statut, permissions)
+  2. Génération email et mot de passe
+  3. Création utilisateur Firebase Auth
+  4. Création document users
+  5. Création abonnement subscriptions
+  6. Archivage document PDF (collection documents)
+  7. Mise à jour statut membership-requests
+  8. Création notification
+  
+  **Workflow PDF d'adhésion:**
+  1. Admin upload PDF dans le modal d'approbation
+  2. PDF uploadé vers Firebase Storage (chemin: membership-adhesion-pdfs/)
+  3. URL du PDF récupérée (adhesionPdfURL)
+  4. Cloud Function archive dans collection "documents"
+  5. Document créé avec type='ADHESION', memberId=matricule
+  
+  **Rollback automatique:**
+  - Si une étape échoue, annule toutes les opérations précédentes
+  - Supprime User Auth, document users, subscription, document PDF
+  - Note: PDF dans Storage reste (peut être nettoyé manuellement)
+  
+  **Sécurité:**
+  - Mot de passe retourné uniquement dans la réponse HTTPS
+  - Jamais stocké en Firestore
+  - Firebase Auth gère le stockage sécurisé
+  
+  **Fichier:** functions/src/membership-requests/approveMembershipRequest.ts
+end note
+
+note right of PDFGenerator
+  **Générateur de PDF pour identifiants de connexion**
+  
+  **generateCredentialsPDF():**
+  - Utilise jsPDF pour générer PDF côté client
+  - Contient: Logo KARA, informations membre, email, password
+  - Format: Identifiants_Connexion_{matricule}_{date}.pdf
+  
+  **downloadPDF():**
+  - Télécharge automatiquement le PDF généré
+  - Appelé immédiatement après génération
+  
+  **Utilisation:**
+  - Après approbation réussie
+  - PDF contient les identifiants pour le membre
+  - Téléchargement automatique pour l'admin
 end note
 
 note right of User
