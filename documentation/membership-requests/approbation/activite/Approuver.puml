@@ -14,6 +14,10 @@ endif
 
 :Afficher modal de confirmation;
 
+:Afficher entreprise et profession 
+depuis le dossier du client
+(seulement si company.isEmployed === true);
+
 :Demander type de membre :
 - Adhérent
 - Sympathisant  
@@ -24,71 +28,136 @@ if (Type de membre sélectionné ?) then (non)
   stop
 endif
 
-:Vérifier existence entreprise/profession 
-dans Firestore (si renseignées);
+if (company.isEmployed === true 
+    ET company.companyName existe ?) then (oui)
+  :Vérifier existence entreprise 
+  dans collection "companies";
+  
+  if (Entreprise existe ?) then (non)
+    :Demander à l'admin :
+    "Créer l'entreprise ?";
+    
+    if (Admin accepte ?) then (oui)
+      :Créer entreprise dans 
+      collection "companies";
+    else (non)
+      :Ne pas créer l'entreprise;
+    endif
+  endif
+else (non)
+  :Membre au chômage
+  (pas d'entreprise à créer);
+endif
 
-:Demander nom entreprise (si vide);
+if (company.isEmployed === true 
+    ET company.profession existe ?) then (oui)
+  :Vérifier existence profession 
+  dans collection "professions";
+  
+  if (Profession existe ?) then (non)
+    :Demander à l'admin :
+    "Créer la profession ?";
+    
+    if (Admin accepte ?) then (oui)
+      :Créer profession dans 
+      collection "professions";
+    else (non)
+      :Ne pas créer la profession;
+    endif
+  endif
+else (non)
+  :Membre au chômage
+  (pas de profession à créer);
+endif
 
-:Demander nom profession (si vide);
+:Demander upload PDF d'adhésion (obligatoire);
 
-:Demander upload PDF d'adhésion (optionnel);
+if (PDF fourni ?) then (non)
+  :Afficher erreur "PDF d'adhésion requis";
+  :Bouton "Approuver" désactivé;
+  stop
+endif
 
 :Admin confirme l'approbation;
 
 :isApproving = true;
 
 fork
-  if (PDF fourni ?) then (oui)
-    :Upload PDF vers Firebase Storage
-    (chemin: membership-adhesion-pdfs/);
-    
-    :Générer nom de fichier :
-    format "firstName_lastName_YYYY-YYYY.pdf";
-    
-    :Récupérer URL et métadonnées du PDF;
-  else (non)
-    :adhesionPdfURL = undefined;
-  endif
+  :Upload PDF vers Firebase Storage
+  (chemin: membership-adhesion-pdfs/);
+  
+  :Générer nom de fichier :
+  format "firstName_lastName_YYYY-YYYY.pdf";
+  
+  :Récupérer URL et métadonnées du PDF;
 fork again
-  :Appel API POST /api/create-firebase-user-email-pwd
-  avec :
+  :Appel Cloud Function approveMembershipRequest
+  (callable) avec :
   - requestId
   - adminId
   - membershipType
-  - companyName
-  - professionName
+  - companyId (si créée/sélectionnée)
+  - professionId (si créée/sélectionnée)
   - adhesionPdfURL;
 end fork
 
-if (API répond OK ?) then (oui)
-  :Récupérer matricule, email, mot de passe;
+if (Cloud Function répond OK ?) then (oui)
+  :Récupérer matricule, email, password
+  depuis la réponse;
   
-  if (PDF uploadé avec succès ?) then (oui)
-    :Créer document dans DocumentRepository :
-    - type: 'ADHESION'
-    - format: 'pdf'
-    - libelle: 'Fiche d'adhésion - {matricule}'
-    - memberId: matricule
-    - path, url, size;
-    
-    if (Document créé ?) then (non)
-      :Afficher warning "Document non archivé";
-    endif
-  endif
+  :Cloud Function valide demande
+  (paiement, statut, permissions);
   
-  :Mise à jour statut demande = 'approved'
-  (via API create-firebase-user);
+  :Cloud Function génère email et mot de passe
+  (email: {firstName}{lastName}{4chiffres}@kara.ga
+   password: 12+ caractères aléatoires);
+  
+  :Cloud Function crée utilisateur Firebase Auth
+  (email généré, mot de passe aléatoire);
+  
+  :Cloud Function crée document dans "users"
+  (sans stocker le mot de passe);
+  
+  :Cloud Function crée abonnement valide 1 an
+  dans collection "subscriptions";
+  
+  :Cloud Function archive document PDF
+  dans collection "documents" :
+  - type: 'ADHESION'
+  - format: 'pdf'
+  - libelle: 'Fiche d'adhésion - {matricule}'
+  - memberId: matricule;
+  
+  :Cloud Function met à jour statut
+  demande = 'approved';
+  
+  :Cloud Function crée notification d'approbation;
   
   :Invalider cache React Query 
   (membershipRequests, stats);
   
+  :Générer PDF des identifiants
+  (email + mot de passe);
+  
+  :Télécharger PDF automatiquement
+  (nom: Identifiants_Connexion_{matricule}_{date}.pdf);
+  
   :Afficher toast succès avec :
   - Matricule
   - Email
-  - Mot de passe (⚠️ problème sécurité);
+  - Message "PDF téléchargé automatiquement";
 else (non)
   :Afficher toast erreur 
-  avec message d'erreur de l'API;
+  avec message d'erreur de la Cloud Function;
+  
+  note right
+    Si erreur, la Cloud Function
+    effectue un rollback automatique :
+    - Supprime utilisateur Auth
+    - Supprime document users
+    - Supprime abonnement
+    - Supprime document PDF archivé
+  end note
 endif
 
 :isApproving = false;
@@ -96,12 +165,15 @@ endif
 stop
 
 note right
-  **⚠️ Problèmes identifiés :**
+  **✅ Améliorations apportées :**
   
-  1. Pas de rollback si erreur après création utilisateur
-  2. Mot de passe exposé dans le toast (sécurité)
-  3. Logique métier complexe dans le composant React
-  4. Pas de transaction Firestore
+  1. Vérification existence entreprise/profession
+  2. Demande de création à l'admin si n'existent pas
+  3. Cloud Function callable pour atomicité
+  4. Mot de passe géré uniquement par Firebase Auth
+  5. Génération et téléchargement PDF identifiants
+  6. Système de rollback automatique en cas d'erreur
+  7. Toutes les opérations dans une seule transaction
 end note
 
 @enduml

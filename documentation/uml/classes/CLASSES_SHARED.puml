@@ -140,6 +140,7 @@ enum UserRole {
 }
 
 enum DocumentType {
+  ADHESION
   ADHESION_CS
   ADHESION_CI
   CANCELED_CS
@@ -237,7 +238,23 @@ end note
 
 note right of Document
   **Collection Firestore:** documents
-  Liens via relatedEntityType/relatedEntityId
+  Clé primaire: id (généré: MK_{type}_{memberId}_{ddMMyy}_{HHmm})
+  
+  **Types de documents:**
+  - ADHESION: PDF d'adhésion (créé lors de l'approbation)
+  - ADHESION_CS: Contrat d'adhésion Caisse Spéciale
+  - ADHESION_CI: Contrat d'adhésion Caisse Imprévue
+  - Autres types selon module
+  
+  **Workflow d'approbation:**
+  1. Admin upload PDF d'adhésion (Firebase Storage)
+  2. Cloud Function archive dans collection "documents"
+  3. Document créé avec type='ADHESION', memberId=matricule
+  4. URL et path stockés depuis Firebase Storage
+  
+  **Relations:**
+  - memberId: Référence vers User (matricule)
+  - contractId: Optionnel (pour documents liés à un contrat)
 end note
 
 note right of Company
