@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { MembershipRequest } from '../../entities'
 import { MembershipRequestRowV2 } from './MembershipRequestRowV2'
-import { CorrectionBannerV2 } from '../shared'
+import { CorrectionsBlockV2 } from '../shared'
 import { Inbox } from 'lucide-react'
 
 interface MembershipRequestsTableV2Props {
@@ -51,6 +51,14 @@ interface MembershipRequestsTableV2Props {
   onExportPDF?: (id: string) => void
   onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
+  
+  // Actions corrections (si status === 'under_review')
+  onCopyCorrectionLink?: (id: string) => void
+  onSendWhatsAppCorrection?: (id: string) => void
+  onRenewSecurityCode?: (id: string) => void
+  
+  // Pour obtenir les infos de l'admin qui a demandé les corrections
+  getProcessedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
   
   // États de chargement
   loadingActions?: Record<string, boolean>
@@ -163,6 +171,10 @@ export function MembershipRequestsTableV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
+  onCopyCorrectionLink,
+  onSendWhatsAppCorrection,
+  onRenewSecurityCode,
+  getProcessedByInfo,
   loadingActions = {},
   hasActiveFilters = false,
   searchQuery = '',
@@ -252,13 +264,30 @@ export function MembershipRequestsTableV2({
                 onExportPDF={onExportPDF}
                 onExportExcel={onExportExcel}
                 onSendWhatsApp={onSendWhatsApp}
+                onCopyCorrectionLink={onCopyCorrectionLink}
+                onSendWhatsAppCorrection={onSendWhatsAppCorrection}
+                onRenewSecurityCode={onRenewSecurityCode}
                 loadingActions={loadingActions}
               />
-              {/* Afficher le bandeau de corrections si présent */}
-              {request.reviewNote && (
+              {/* Afficher le bloc de corrections si présent */}
+              {request.reviewNote && request.status === 'under_review' && (
                 <TableRow>
                   <TableCell colSpan={6} className="px-4 py-2 bg-amber-50/30">
-                    <CorrectionBannerV2 reviewNote={request.reviewNote} />
+                    <CorrectionsBlockV2
+                      reviewNote={request.reviewNote}
+                      securityCode={request.securityCode}
+                      securityCodeExpiry={request.securityCodeExpiry}
+                      requestId={request.id || ''}
+                      processedByName={getProcessedByInfo?.(request.id || '')?.name}
+                      processedByMatricule={getProcessedByInfo?.(request.id || '')?.matricule}
+                      onCopyLink={onCopyCorrectionLink ? () => onCopyCorrectionLink(request.id || '') : undefined}
+                      onSendWhatsApp={
+                        onSendWhatsAppCorrection && (request.identity.contacts || []).length > 0
+                          ? () => onSendWhatsAppCorrection(request.id || '')
+                          : undefined
+                      }
+                      onRenewCode={onRenewSecurityCode ? () => onRenewSecurityCode(request.id || '') : undefined}
+                    />
                   </TableCell>
                 </TableRow>
               )}

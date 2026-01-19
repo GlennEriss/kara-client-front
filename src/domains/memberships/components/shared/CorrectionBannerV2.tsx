@@ -36,10 +36,12 @@ export function CorrectionBannerV2({ reviewNote, className }: CorrectionBannerV2
         <div className="flex items-start gap-2">
           <FileText className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm mb-2">Corrections demandées :</p>
-            <ul className="space-y-1 list-disc list-inside">
+            <p className="font-semibold text-sm mb-2" data-testid="correction-banner-title">
+              Corrections demandées :
+            </p>
+            <ul className="space-y-1 list-disc list-inside" data-testid="correction-banner-list">
               {corrections.map((correction, index) => (
-                <li key={index} className="text-sm">
+                <li key={index} className="text-sm" data-testid={`correction-banner-item-${index}`}>
                   {correction.trim()}
                 </li>
               ))}

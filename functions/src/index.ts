@@ -8,6 +8,9 @@ import { checkAndNotifyVehicleInsuranceExpiring } from './scheduled/vehicleInsur
 import { transformCreditSpecialeToFixe } from './scheduled/transformCreditSpeciale'
 import { remindPendingCaisseSpecialeDemands, remindApprovedNotConvertedCaisseSpecialeDemands } from './scheduled/caisseSpecialeDemandReminders'
 import { remindPendingCaisseImprevueDemands, remindApprovedNotConvertedCaisseImprevueDemands } from './scheduled/caisseImprevueDemandReminders'
+import { verifySecurityCode } from './membership-requests/verifySecurityCode'
+import { submitCorrections } from './membership-requests/submitCorrections'
+import { renewSecurityCode } from './membership-requests/renewSecurityCode'
 
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
@@ -175,3 +178,13 @@ export const dailyCaisseImprevueApprovedNotConvertedReminders = onSchedule(
   }
 )
 
+// ==================== CLOUD FUNCTIONS - MEMBERSHIP REQUESTS ====================
+
+// Cloud Function pour vérifier un code de sécurité (transaction atomique)
+export { verifySecurityCode }
+
+// Cloud Function pour soumettre les corrections (transaction atomique)
+export { submitCorrections }
+
+// Cloud Function pour régénérer le code de sécurité (transaction atomique)
+export { renewSecurityCode }

@@ -62,6 +62,12 @@ export interface CreateTestRequestOptions {
   processedAt?: Date
   processedBy?: string
   memberNumber?: string
+  // Champs pour les corrections
+  securityCode?: string
+  securityCodeExpiry?: Date
+  securityCodeUsed?: boolean
+  // Permet de personnaliser les contacts pour les tests WhatsApp
+  contacts?: string[]
 }
 
 /**
@@ -103,6 +109,10 @@ export async function createTestMembershipRequest(
       processedAt,
       processedBy,
       memberNumber,
+      securityCode,
+      securityCodeExpiry,
+      securityCodeUsed = false,
+      contacts,
     } = options
 
     const matricule = generateTestMatricule()
@@ -110,7 +120,7 @@ export async function createTestMembershipRequest(
     const timestamp = Date.now()
 
     // Données de base pour une demande de test
-    const requestData = {
+    const requestData: any = {
       matricule,
       status,
       isPaid, // ✅ Champ critique pour le workflow
@@ -123,7 +133,7 @@ export async function createTestMembershipRequest(
         birthCertificateNumber: `TEST-${timestamp}`,
         prayerPlace: 'Église',
         religion: 'Christianisme',
-        contacts: ['+241061234567'],
+        contacts: contacts || ['+241061234567'],
         email: `test-e2e-${timestamp}@kara.test`,
         gender: 'Homme',
         nationality: 'Gabonaise',
@@ -168,6 +178,10 @@ export async function createTestMembershipRequest(
       processedAt: processedAt ? Timestamp.fromDate(processedAt) : null,
       processedBy: processedBy || null,
       memberNumber: memberNumber || null,
+      // Champs pour les corrections
+      securityCode: securityCode || null,
+      securityCodeExpiry: securityCodeExpiry ? Timestamp.fromDate(securityCodeExpiry) : null,
+      securityCodeUsed: securityCodeUsed || false,
       createdAt: now,
       updatedAt: now,
     }
@@ -306,6 +320,13 @@ export async function createRejectedRequest(): Promise<CreateTestRequestResult> 
 }
 
 /**
+ * Génère un code de sécurité de test (6 chiffres)
+ */
+function generateTestSecurityCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+/**
  * Crée une demande de test "En cours de révision"
  */
 export async function createUnderReviewRequest(): Promise<CreateTestRequestResult> {
@@ -318,11 +339,32 @@ export async function createUnderReviewRequest(): Promise<CreateTestRequestResul
 
 /**
  * Crée une demande de test avec corrections demandées
+ * Par défaut, crée une demande avec status='under_review' et un code de sécurité valide
  */
-export async function createRequestWithCorrections(): Promise<CreateTestRequestResult> {
+export async function createRequestWithCorrections(
+  options: {
+    reviewNote?: string
+    securityCode?: string
+    securityCodeExpiry?: Date
+    securityCodeUsed?: boolean
+    contacts?: string[]
+  } = {}
+): Promise<CreateTestRequestResult> {
+  const {
+    reviewNote = 'Photo floue\nAdresse incomplète\nSignature manquante',
+    securityCode = generateTestSecurityCode(),
+    securityCodeExpiry = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 jours
+    securityCodeUsed = false,
+    contacts,
+  } = options
+
   return createTestMembershipRequest({
-    status: 'pending',
+    status: 'under_review',
     isPaid: false,
-    reviewNote: 'Veuillez mettre à jour votre photo et corriger votre adresse (test E2E)',
+    reviewNote,
+    securityCode,
+    securityCodeExpiry,
+    securityCodeUsed,
+    contacts,
   })
 }

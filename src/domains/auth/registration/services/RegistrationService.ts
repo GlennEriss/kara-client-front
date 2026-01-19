@@ -10,6 +10,8 @@ import { IRegistrationRepository } from '../repositories/IRegistrationRepository
 import { STEP_TO_SECTION_MAP } from '@/domains/auth/registration/entities/registration-form.types'
 import { stepSchemas } from '@/schemas/schemas'
 import { z } from 'zod'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { app } from '@/firebase/app'
 
 export class RegistrationService implements IRegistrationService {
   readonly name = 'RegistrationService'
@@ -29,7 +31,52 @@ export class RegistrationService implements IRegistrationService {
     }
   }
 
-  async updateRegistration(requestId: string, data: RegisterFormData): Promise<boolean> {
+  async updateRegistration(requestId: string, data: RegisterFormData, securityCode?: string): Promise<boolean> {
+    // Si un securityCode est fourni, cela signifie que c'est une soumission de corrections
+    // Dans ce cas, on doit appeler la Cloud Function submitCorrections (transaction atomique)
+    if (securityCode) {
+      try {
+        const functions = getFunctions(app)
+        const submitCorrectionsCF = httpsCallable<{
+          requestId: string
+          securityCode: string
+          formData: RegisterFormData
+        }, {
+          success: boolean
+        }>(functions, 'submitCorrections')
+
+        const result = await submitCorrectionsCF({
+          requestId,
+          securityCode,
+          formData: data,
+        })
+
+        return result.data.success
+      } catch (error: any) {
+        console.error('[RegistrationService] Erreur lors de la soumission des corrections:', error)
+        
+        // Extraire le message d'erreur de Firebase Functions
+        let errorMessage = 'Erreur lors de la soumission des corrections'
+        
+        if (error?.code === 'functions/not-found') {
+          errorMessage = 'La fonction submitCorrections n\'est pas disponible. Veuillez contacter l\'administrateur.'
+        } else if (error?.code === 'functions/unauthenticated') {
+          errorMessage = 'Vous devez être authentifié pour soumettre des corrections.'
+        } else if (error?.code === 'functions/permission-denied') {
+          errorMessage = 'Vous n\'avez pas la permission de soumettre des corrections.'
+        } else if (error?.message) {
+          // Extraire le message d'erreur de la Cloud Function
+          errorMessage = error.message
+        } else if (error?.details) {
+          errorMessage = error.details
+        }
+        
+        throw new Error(errorMessage)
+      }
+    }
+
+    // Sinon, comportement normal (mise à jour sans code de sécurité)
+    // Note: Ce cas est rare mais peut être utilisé pour d'autres mises à jour
     try {
       return await this.repository.update(requestId, data)
     } catch (error) {
@@ -87,12 +134,70 @@ export class RegistrationService implements IRegistrationService {
     }
   }
 
-  async verifySecurityCode(requestId: string, code: string): Promise<boolean> {
+  async verifySecurityCode(requestId: string, code: string): Promise<{
+    isValid: boolean
+    reason?: string
+    requestData?: {
+      reviewNote?: string
+      [key: string]: any
+    }
+  }> {
     try {
-      return await this.repository.verifySecurityCode(requestId, code)
+      // Valider le format du code (6 chiffres)
+      if (!code || !/^\d{6}$/.test(code)) {
+        return {
+          isValid: false,
+          reason: 'FORMAT_INVALID',
+        }
+      }
+
+      // Appeler la Cloud Function verifySecurityCode (transaction atomique)
+      const functions = getFunctions(app)
+      const verifySecurityCodeCF = httpsCallable<{ requestId: string; code: string }, {
+        isValid: boolean
+        reason?: string
+        requestData?: any
+      }>(functions, 'verifySecurityCode')
+
+      const result = await verifySecurityCodeCF({ requestId, code })
+
+      return {
+        isValid: result.data.isValid,
+        reason: result.data.reason,
+        requestData: result.data.requestData,
+      }
     } catch (error) {
       console.error('[RegistrationService] Erreur lors de la vérification du code:', error)
-      return false
+      
+      // En cas d'erreur, retourner invalide avec la raison
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+      
+      // Si c'est une erreur Firebase Functions, extraire la raison
+      if (errorMessage.includes('Code de sécurité')) {
+        return {
+          isValid: false,
+          reason: 'CODE_INCORRECT',
+        }
+      }
+      
+      if (errorMessage.includes('expiré') || errorMessage.includes('expired')) {
+        return {
+          isValid: false,
+          reason: 'CODE_EXPIRED',
+        }
+      }
+      
+      if (errorMessage.includes('déjà utilisé') || errorMessage.includes('already used')) {
+        return {
+          isValid: false,
+          reason: 'CODE_ALREADY_USED',
+        }
+      }
+      
+      return {
+        isValid: false,
+        reason: 'UNKNOWN_ERROR',
+      }
     }
   }
 
@@ -102,6 +207,26 @@ export class RegistrationService implements IRegistrationService {
       if (!request) {
         return null
       }
+
+      // Vérifier que le statut est 'under_review'
+      if (request.status !== 'under_review') {
+        console.warn(`[RegistrationService] La demande ${requestId} n'est pas en statut 'under_review'. Statut actuel: ${request.status}`)
+        return null
+      }
+
+      // Utiliser les URLs directement si disponibles, sinon utiliser les data URLs
+      // Les composants géreront l'affichage des URLs Firebase Storage
+      const photo = typeof request.identity.photo === 'string' && request.identity.photo.startsWith('data:')
+        ? request.identity.photo
+        : request.identity.photoURL || (typeof request.identity.photo === 'string' ? request.identity.photo : undefined)
+
+      const documentPhotoFront = typeof request.documents.documentPhotoFront === 'string' && request.documents.documentPhotoFront.startsWith('data:')
+        ? request.documents.documentPhotoFront
+        : request.documents.documentPhotoFrontURL || (typeof request.documents.documentPhotoFront === 'string' ? request.documents.documentPhotoFront : undefined)
+
+      const documentPhotoBack = typeof request.documents.documentPhotoBack === 'string' && request.documents.documentPhotoBack.startsWith('data:')
+        ? request.documents.documentPhotoBack
+        : request.documents.documentPhotoBackURL || (typeof request.documents.documentPhotoBack === 'string' ? request.documents.documentPhotoBack : undefined)
 
       // Convertir MembershipRequest en RegisterFormData
       return {
@@ -124,7 +249,7 @@ export class RegistrationService implements IRegistrationService {
           spousePhone: request.identity.spousePhone,
           intermediaryCode: request.identity.intermediaryCode,
           hasCar: request.identity.hasCar,
-          photo: request.identity.photo,
+          photo: photo,
           photoURL: request.identity.photoURL,
           photoPath: request.identity.photoPath,
         },
@@ -133,8 +258,8 @@ export class RegistrationService implements IRegistrationService {
         documents: {
           identityDocument: request.documents.identityDocument,
           identityDocumentNumber: request.documents.identityDocumentNumber,
-          documentPhotoFront: request.documents.documentPhotoFront,
-          documentPhotoBack: request.documents.documentPhotoBack,
+          documentPhotoFront: documentPhotoFront,
+          documentPhotoBack: documentPhotoBack,
           expirationDate: request.documents.expirationDate,
           issuingPlace: request.documents.issuingPlace,
           issuingDate: request.documents.issuingDate,

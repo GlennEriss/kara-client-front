@@ -11,13 +11,11 @@ import type { MembershipRequest } from '@/types/types'
 const mockCreateMembershipRequest = vi.fn()
 const mockGetMembershipRequestById = vi.fn()
 const mockUpdateMembershipRequest = vi.fn()
-const mockMarkSecurityCodeAsUsed = vi.fn()
 
 vi.mock('@/db/membership.db', () => ({
   createMembershipRequest: (...args: any[]) => mockCreateMembershipRequest(...args),
   getMembershipRequestById: (...args: any[]) => mockGetMembershipRequestById(...args),
   updateMembershipRequest: (...args: any[]) => mockUpdateMembershipRequest(...args),
-  markSecurityCodeAsUsed: (...args: any[]) => mockMarkSecurityCodeAsUsed(...args),
 }))
 
 describe('RegistrationRepository', () => {
@@ -189,109 +187,6 @@ describe('RegistrationRepository', () => {
         company: mockFormData.company,
         documents: mockFormData.documents,
       }))
-    })
-  })
-
-  describe('verifySecurityCode', () => {
-    it('devrait retourner true si le code est valide', async () => {
-      mockGetMembershipRequestById.mockResolvedValue(mockMembershipRequest)
-
-      const result = await repository.verifySecurityCode('test-id-123', 'ABC123')
-
-      expect(result).toBe(true)
-    })
-
-    it('devrait retourner false si le code ne correspond pas', async () => {
-      mockGetMembershipRequestById.mockResolvedValue(mockMembershipRequest)
-
-      const result = await repository.verifySecurityCode('test-id-123', 'WRONG')
-
-      expect(result).toBe(false)
-    })
-
-    it('devrait retourner false si le code a déjà été utilisé', async () => {
-      const usedRequest = { ...mockMembershipRequest, securityCodeUsed: true }
-      mockGetMembershipRequestById.mockResolvedValue(usedRequest)
-
-      const result = await repository.verifySecurityCode('test-id-123', 'ABC123')
-
-      expect(result).toBe(false)
-    })
-
-    it('devrait retourner false si le code est expiré', async () => {
-      const expiredRequest = {
-        ...mockMembershipRequest,
-        securityCodeExpiry: new Date(Date.now() - 1000), // Expiré
-      }
-      mockGetMembershipRequestById.mockResolvedValue(expiredRequest)
-
-      const result = await repository.verifySecurityCode('test-id-123', 'ABC123')
-
-      expect(result).toBe(false)
-    })
-
-    it('devrait retourner false si aucune date d\'expiration', async () => {
-      const noExpiryRequest = {
-        ...mockMembershipRequest,
-        securityCodeExpiry: null,
-      }
-      mockGetMembershipRequestById.mockResolvedValue(noExpiryRequest)
-
-      const result = await repository.verifySecurityCode('test-id-123', 'ABC123')
-
-      expect(result).toBe(false)
-    })
-
-    it('devrait retourner false si la demande n\'existe pas', async () => {
-      mockGetMembershipRequestById.mockResolvedValue(null)
-
-      const result = await repository.verifySecurityCode('non-existent-id', 'ABC123')
-
-      expect(result).toBe(false)
-    })
-
-    it('devrait retourner false en cas d\'erreur', async () => {
-      mockGetMembershipRequestById.mockRejectedValue(new Error('Erreur'))
-
-      const result = await repository.verifySecurityCode('test-id-123', 'ABC123')
-
-      expect(result).toBe(false)
-    })
-
-    it('devrait gérer les dates Firestore Timestamp', async () => {
-      const firestoreTimestamp = {
-        toDate: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        seconds: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
-        nanoseconds: 0,
-      }
-      const requestWithTimestamp = {
-        ...mockMembershipRequest,
-        securityCodeExpiry: firestoreTimestamp,
-      }
-      mockGetMembershipRequestById.mockResolvedValue(requestWithTimestamp)
-
-      const result = await repository.verifySecurityCode('test-id-123', 'ABC123')
-
-      expect(result).toBe(true)
-    })
-  })
-
-  describe('markSecurityCodeAsUsed', () => {
-    it('devrait marquer le code comme utilisé avec succès', async () => {
-      mockMarkSecurityCodeAsUsed.mockResolvedValue(true)
-
-      const result = await repository.markSecurityCodeAsUsed('test-id-123')
-
-      expect(result).toBe(true)
-      expect(mockMarkSecurityCodeAsUsed).toHaveBeenCalledWith('test-id-123')
-    })
-
-    it('devrait retourner false en cas d\'erreur', async () => {
-      mockMarkSecurityCodeAsUsed.mockRejectedValue(new Error('Erreur'))
-
-      const result = await repository.markSecurityCodeAsUsed('test-id-123')
-
-      expect(result).toBe(false)
     })
   })
 })
