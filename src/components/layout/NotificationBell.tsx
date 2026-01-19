@@ -102,7 +102,14 @@ function NotificationItem({
     if (isBirthday && notification.metadata?.memberId) {
       onNavigate(`/memberships?tab=birthdays`)
     } else if (notification.module === 'memberships' && notification.entityId) {
-      onNavigate(`/memberships/${notification.entityId}`)
+      // Vérifier si c'est une notification de corrections (demande d'adhésion)
+      if (notification.type === 'corrections_submitted' || notification.type === 'corrections_requested' || notification.metadata?.requestId) {
+        // Rediriger vers la page des demandes d'adhésion
+        onNavigate(`/membership-requests/${notification.entityId}`)
+      } else {
+        // Sinon, c'est un membre
+        onNavigate(`/memberships/${notification.entityId}`)
+      }
     } else if (notification.module === 'caisse_imprevue' && notification.metadata?.contractId) {
       // Navigation vers les détails du contrat CI
       onNavigate(`/caisse-imprevue/contrats/${notification.metadata.contractId}`)

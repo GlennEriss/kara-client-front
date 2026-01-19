@@ -273,6 +273,11 @@ export type NotificationType =
   | 'caisse_imprevue_demand_converted' // Demande Caisse Imprévue convertie en contrat
   | 'caisse_imprevue_demand_pending_reminder' // Rappel demande Caisse Imprévue en attente
   | 'caisse_imprevue_demand_approved_not_converted' // Rappel demande Caisse Imprévue acceptée non convertie
+  | 'corrections_requested' // Corrections demandées (Membership Requests)
+  | 'corrections_submitted' // Corrections soumises (Membership Requests)
+  | 'security_code_expired' // Code de sécurité expiré (Membership Requests)
+  | 'security_code_expiring_soon' // Code de sécurité bientôt expiré (Membership Requests)
+  | 'security_code_renewed' // Code de sécurité régénéré (Membership Requests)
 
 /**
  * Filtres pour les requêtes de notifications

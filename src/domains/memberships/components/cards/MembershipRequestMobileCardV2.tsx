@@ -15,7 +15,7 @@ import {
   StatusBadgeV2, 
   PaymentBadgeV2, 
   RelativeDateV2,
-  CorrectionBannerV2,
+  CorrectionsBlockV2,
 } from '../shared'
 import { MembershipRequestActionsV2 } from '../actions'
 import { User, Phone, Mail } from 'lucide-react'
@@ -33,6 +33,14 @@ interface MembershipRequestMobileCardV2Props {
   onExportPDF?: (id: string) => void
   onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
+  
+  // Actions corrections (si status === 'under_review')
+  onCopyCorrectionLink?: (id: string) => void
+  onSendWhatsAppCorrection?: (id: string) => void
+  onRenewSecurityCode?: (id: string) => void
+  
+  // Pour obtenir les infos de l'admin qui a demandé les corrections
+  getProcessedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
   
   // États de chargement
   loadingActions?: Record<string, boolean>
@@ -67,6 +75,10 @@ export function MembershipRequestMobileCardV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
+  onCopyCorrectionLink,
+  onSendWhatsAppCorrection,
+  onRenewSecurityCode,
+  getProcessedByInfo,
   loadingActions = {},
   className,
 }: MembershipRequestMobileCardV2Props) {
@@ -164,9 +176,23 @@ export function MembershipRequestMobileCardV2({
           </div>
         )}
 
-        {/* Bandeau de corrections */}
-        {reviewNote && (
-          <CorrectionBannerV2 reviewNote={reviewNote} />
+        {/* Bloc de corrections */}
+        {reviewNote && request.status === 'under_review' && (
+          <CorrectionsBlockV2
+            reviewNote={reviewNote}
+            securityCode={request.securityCode}
+            securityCodeExpiry={request.securityCodeExpiry}
+            requestId={request.id || ''}
+            processedByName={getProcessedByInfo?.(request.id || '')?.name}
+            processedByMatricule={getProcessedByInfo?.(request.id || '')?.matricule}
+            onCopyLink={onCopyCorrectionLink ? () => onCopyCorrectionLink(request.id || '') : undefined}
+            onSendWhatsApp={
+              onSendWhatsAppCorrection && (request.identity.contacts || []).length > 0
+                ? () => onSendWhatsAppCorrection(request.id || '')
+                : undefined
+            }
+            onRenewCode={onRenewSecurityCode ? () => onRenewSecurityCode(request.id || '') : undefined}
+          />
         )}
 
         {/* Actions */}
@@ -186,10 +212,14 @@ export function MembershipRequestMobileCardV2({
             onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
             onExportExcel={onExportExcel ? () => onExportExcel(id || '') : undefined}
             onSendWhatsApp={onSendWhatsApp ? () => onSendWhatsApp(id || '') : undefined}
+            onCopyCorrectionLink={onCopyCorrectionLink ? () => onCopyCorrectionLink(id || '') : undefined}
+            onSendWhatsAppCorrection={onSendWhatsAppCorrection ? () => onSendWhatsAppCorrection(id || '') : undefined}
+            onRenewSecurityCode={onRenewSecurityCode ? () => onRenewSecurityCode(id || '') : undefined}
             isApproving={loadingActions?.[`approve-${id}`]}
             isRejecting={loadingActions?.[`reject-${id}`]}
             isRequestingCorrections={loadingActions?.[`corrections-${id}`]}
             isPaying={loadingActions?.[`pay-${id}`]}
+            isRenewingCode={loadingActions?.[`renew-code-${id}`]}
             className="flex-wrap"
           />
         </div>

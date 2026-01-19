@@ -84,8 +84,15 @@ export function useRegistration({
         // 1. Vérifier s'il y a un requestId dans l'URL (corrections)
         const urlParams = new URLSearchParams(window.location.search)
         const _requestId = urlParams.get('requestId')
+        const _code = urlParams.get('code') // Détecter le code dans l'URL
 
         if (_requestId) {
+          // Réinitialiser l'état de soumission si on accède à une URL de correction
+          // Cela permet de sortir de l'écran de succès et d'afficher le formulaire
+          setIsSubmitted(false)
+          setUserData(undefined)
+          cacheService.clearSubmissionData()
+          
           try {
             const request = await getMembershipRequestById(_requestId)
             if (request?.reviewNote && request?.securityCode) {
@@ -116,14 +123,82 @@ export function useRegistration({
                 return
               }
 
-              cacheService.clearSubmissionData()
               setCorrectionRequest({
                 requestId: request.id,
                 reviewNote: request.reviewNote,
                 securityCode: request.securityCode,
                 isVerified: false,
               })
+
+              // Si un code est présent dans l'URL, vérifier automatiquement
+              if (_code) {
+                // Vérifier d'abord si le code dans l'URL correspond au code actuel
+                if (request.securityCode && request.securityCode !== _code) {
+                  // Le code dans l'URL ne correspond pas au code actuel
+                  // Peut-être que le code a été renouvelé
+                  toast.warning('Code obsolète', {
+                    description: 'Le code dans l\'URL ne correspond pas au code actuel. Le code a peut-être été renouvelé. Veuillez utiliser le nouveau code ou le saisir manuellement.',
+                    duration: 8000,
+                  })
+                  setSecurityCodeInput('')
+                  setIsLoading(false)
+                  return
+                }
+
+                setSecurityCodeInput(_code)
+                setIsLoading(true) // Réactiver le loading pendant la vérification
+                try {
+                  // Vérifier le code automatiquement
+                  const verifyResult = await registrationService.verifySecurityCode(
+                    request.id,
+                    _code
+                  )
+
+                  if (verifyResult.isValid) {
+                    // Charger les données de la demande
+                    const formData = await registrationService.loadRegistrationForCorrection(request.id)
+                    if (formData) {
+                      reset(formData)
+                      resetSteps()
+                      setCorrectionRequest((prev) => (prev ? { ...prev, isVerified: true } : null))
+                      setSecurityCodeInput('')
+                      toast.success('Code vérifié !', {
+                        description: 'Vos données ont été chargées. Vous pouvez maintenant apporter les corrections.',
+                        duration: 4000,
+                      })
+                    }
+                  } else {
+                    // Code invalide, afficher l'erreur avec un message spécifique
+                    const errorMessage = verifyResult.reason === 'CODE_INCORRECT' 
+                      ? 'Le code de sécurité est incorrect. Vérifiez que vous utilisez le bon code.'
+                      : verifyResult.reason === 'CODE_EXPIRED'
+                      ? 'Le code de sécurité a expiré. Veuillez demander un nouveau code à l\'administrateur.'
+                      : verifyResult.reason === 'CODE_ALREADY_USED'
+                      ? 'Ce code de sécurité a déjà été utilisé. Veuillez demander un nouveau code à l\'administrateur.'
+                      : verifyResult.reason === 'INVALID_STATUS'
+                      ? 'La demande n\'est plus en correction. Contactez l\'administrateur.'
+                      : 'Le code de sécurité est incorrect, expiré ou déjà utilisé.'
+                    
+                    toast.error('Code invalide', {
+                      description: errorMessage,
+                      duration: 8000,
+                    })
+                    setSecurityCodeInput('')
+                  }
+                } catch (error) {
+                  console.error('[useRegistration] Erreur lors de la vérification automatique du code:', error)
+                  toast.error('Erreur', {
+                    description: 'Une erreur est survenue lors de la vérification du code. Veuillez réessayer.',
+                    duration: 5000,
+                  })
+                  setSecurityCodeInput('')
+                } finally {
+                  setIsLoading(false)
+                }
+              }
+
               setIsCacheLoaded(true)
+              setIsLoading(false)
               return
             }
           } catch (error) {
@@ -164,7 +239,7 @@ export function useRegistration({
     }
 
     loadInitialData()
-  }, [reset, cacheService, setCurrentStep, setCompletedSteps])
+  }, [reset, cacheService, setCurrentStep, setCompletedSteps, registrationService, resetSteps])
 
   // ================== SAUVEGARDE AUTOMATIQUE ==================
   const debouncedSave = useCallback(() => {
@@ -292,14 +367,22 @@ export function useRegistration({
       return false
     }
 
-    const isValid = await registrationService.verifySecurityCode(
+    const result = await registrationService.verifySecurityCode(
       correctionRequest.requestId,
       securityCodeInput.trim()
     )
 
-    if (!isValid) {
+    if (!result.isValid) {
+      const errorMessage = result.reason === 'CODE_INCORRECT' 
+        ? 'Le code de sécurité est incorrect.'
+        : result.reason === 'CODE_EXPIRED'
+        ? 'Le code de sécurité a expiré. Veuillez demander un nouveau code à l\'administrateur.'
+        : result.reason === 'CODE_ALREADY_USED'
+        ? 'Ce code de sécurité a déjà été utilisé. Veuillez demander un nouveau code à l\'administrateur.'
+        : 'Le code de sécurité est incorrect, expiré ou déjà utilisé.'
+      
       toast.error('Code invalide', {
-        description: 'Le code de sécurité est incorrect, expiré ou déjà utilisé.',
+        description: errorMessage,
         duration: 5000,
       })
       return false

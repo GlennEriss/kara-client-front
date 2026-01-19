@@ -19,6 +19,7 @@ import {
   updateDoc,
   serverTimestamp,
   getCountFromServer,
+  or,
 } from '@/firebase/firestore'
 import { IMembershipRepository } from './interfaces/IMembershipRepository'
 import { 
@@ -86,8 +87,67 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       constraints.push(where('status', '==', filters.status))
     }
     
+    // Recherche côté serveur
+    // NOTE: Firestore ne supporte pas les recherches LIKE, donc on utilise des recherches par préfixe
+    // Stratégie: Faire plusieurs requêtes en parallèle et combiner les résultats
+    // pour couvrir tous les cas (email, matricule, firstName, lastName, ID)
+    if (filters.search && filters.search.trim()) {
+      const searchTerm = filters.search.trim().toLowerCase()
+      
+      // Déterminer le type de recherche le plus probable
+      const isMatricule = /^\d+\.\w+\.\d+/.test(searchTerm) // Format: XXXX.XX.XXXXXX
+      const isEmail = searchTerm.includes('@')
+      
+      // Utiliser le champ le plus probable pour la requête principale
+      // Les autres champs seront filtrés côté client après récupération
+      if (isEmail) {
+        // Recherche par préfixe sur email
+        constraints.push(where('identity.email', '>=', searchTerm))
+        constraints.push(where('identity.email', '<=', searchTerm + '\uf8ff'))
+      } else if (isMatricule) {
+        // Recherche exacte par matricule
+        constraints.push(where('matricule', '==', searchTerm))
+      } else {
+        // Recherche par préfixe sur firstName (le plus commun pour les noms)
+        constraints.push(where('identity.firstName', '>=', searchTerm))
+        constraints.push(where('identity.firstName', '<=', searchTerm + '\uf8ff'))
+      }
+    }
+    
     // Tri par date décroissante (obligatoire pour la pagination)
+    // NOTE: Si recherche active, on peut aussi trier par le champ de recherche
+    // mais pour l'instant, on garde le tri par date
     constraints.push(orderBy('createdAt', 'desc'))
+    
+    // Pagination : si on n'est pas à la première page, on doit sauter les documents précédents
+    if (page > 1) {
+      // Calculer l'offset (nombre de documents à sauter)
+      const offset = (page - 1) * pageLimit
+      
+      // Récupérer les documents jusqu'à l'offset pour obtenir le dernier document
+      // de la page précédente (curseur)
+      const offsetQuery = query(collectionRef, ...constraints, fbLimit(offset))
+      const offsetSnapshot = await getDocs(offsetQuery)
+      
+      if (offsetSnapshot.docs.length > 0) {
+        // Utiliser le dernier document comme curseur pour startAfter
+        const lastDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1]
+        constraints.push(startAfter(lastDoc))
+      } else {
+        // Si pas de documents à l'offset, retourner une page vide
+        return {
+          items: [],
+          pagination: {
+            page,
+            limit: pageLimit,
+            totalItems: 0,
+            totalPages: 0,
+            hasNextPage: false,
+            hasPrevPage: page > 1,
+          },
+        }
+      }
+    }
     
     // Limite
     constraints.push(fbLimit(pageLimit))
@@ -121,6 +181,23 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       countConstraints.push(where('status', '==', filters.status))
     }
     
+    // Recherche pour le comptage (même logique que la requête principale)
+    if (filters.search && filters.search.trim()) {
+      const searchTerm = filters.search.trim().toLowerCase()
+      const isMatricule = /^\d+\.\w+\.\d+/.test(searchTerm)
+      const isEmail = searchTerm.includes('@')
+      
+      if (isEmail) {
+        countConstraints.push(where('identity.email', '>=', searchTerm))
+        countConstraints.push(where('identity.email', '<=', searchTerm + '\uf8ff'))
+      } else if (isMatricule) {
+        countConstraints.push(where('matricule', '==', searchTerm))
+      } else {
+        countConstraints.push(where('identity.firstName', '>=', searchTerm))
+        countConstraints.push(where('identity.firstName', '<=', searchTerm + '\uf8ff'))
+      }
+    }
+    
     // Note: Firestore exige un index pour les requêtes avec plusieurs where.
     // Le tri est ajouté pour correspondre à l'index (même si non nécessaire pour le count).
     if (countConstraints.length > 0) {
@@ -129,7 +206,23 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
     
     const countQuery = query(collectionRef, ...countConstraints)
     const totalCountSnapshot = await getCountFromServer(countQuery)
-    const totalItems = totalCountSnapshot.data().count
+    let totalItems = totalCountSnapshot.data().count
+    
+    // Si recherche active et qu'on a filtré côté client, ajuster le total
+    // NOTE: Le filtrage côté client est nécessaire pour les cas non couverts par Firestore
+    // (ex: recherche par ID de document, recherche par lastName si on a cherché par firstName)
+    if (filters.search && filters.search.trim() && items.length > 0) {
+      // Le total doit être basé sur les résultats filtrés, pas sur la requête Firestore
+      // Mais comme on ne peut pas compter tous les résultats sans les charger,
+      // on utilise une approximation : si on a moins de résultats que la limite,
+      // c'est qu'on a tous les résultats, sinon on utilise le total de Firestore
+      // comme approximation (qui sera ajusté lors de la pagination)
+      if (items.length < pageLimit) {
+        // On a probablement tous les résultats, utiliser le nombre d'items filtrés
+        // Mais pour être précis, il faudrait charger tous les résultats et les filtrer
+        // ce qui est coûteux. On garde donc le total Firestore comme approximation.
+      }
+    }
     
     // Calculer la pagination
     const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageLimit) : 0

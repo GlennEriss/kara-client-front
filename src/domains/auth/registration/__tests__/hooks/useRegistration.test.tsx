@@ -351,7 +351,10 @@ describe('useRegistration', () => {
 
       // Simuler une correction request vérifiée en utilisant verifySecurityCode
       await act(async () => {
-        vi.mocked(mockRegistrationService.verifySecurityCode).mockResolvedValue(true)
+        vi.mocked(mockRegistrationService.verifySecurityCode).mockResolvedValue({
+          isValid: true,
+          requestData: { reviewNote: 'test corrections' },
+        })
         vi.mocked(mockRegistrationService.loadRegistrationForCorrection).mockResolvedValue(
           defaultValues as RegisterFormData
         )
