@@ -37,6 +37,7 @@ export function StatusBadgeV2({ status, className, showLabel = false }: StatusBa
         className
       )}
       title={`Statut dossier : ${config.label}`}
+      data-testid={status === 'under_review' ? 'status-under-review-badge' : undefined}
     >
       <Icon className="w-3 h-3" />
       <span>{config.label}</span>

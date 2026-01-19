@@ -41,6 +41,8 @@ import {
   ApproveModalV2,
   RejectModalV2,
   CorrectionsModalV2,
+  SendWhatsAppModalV2,
+  RenewSecurityCodeModalV2,
   PaymentModalV2,
   PaymentDetailsModalV2,
   IdentityDocumentModalV2,
@@ -180,6 +182,8 @@ export function MembershipRequestsPageV2() {
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [membershipFormModalOpen, setMembershipFormModalOpen] = useState(false)
   const [identityDocumentModalOpen, setIdentityDocumentModalOpen] = useState(false)
+  const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false)
+  const [renewCodeModalOpen, setRenewCodeModalOpen] = useState(false)
 
   // États de chargement des actions
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({})
@@ -191,52 +195,13 @@ export function MembershipRequestsPageV2() {
     approveMutation,
     rejectMutation,
     requestCorrectionsMutation,
-    processPaymentMutation
+    processPaymentMutation,
+    renewSecurityCodeMutation
   } = useMembershipActionsV2()
 
-  // Filtrer par recherche côté client - Améliorée (P1.4)
-  // Recherche par : nom, email, téléphone, matricule, ID de demande
-  const filteredRequests = useMemo(() => {
-    if (!data?.items || !searchQuery.trim()) {
-      return data?.items || []
-    }
-
-    const query = searchQuery.toLowerCase().trim()
-    return data.items.filter((request) => {
-      // Recherche par ID de demande (exact ou partiel)
-      const requestId = request.id?.toLowerCase() || ''
-      if (requestId.includes(query) || requestId === query) {
-        return true
-      }
-
-      // Recherche par nom complet
-      const fullName = `${request.identity.firstName} ${request.identity.lastName}`.toLowerCase()
-      if (fullName.includes(query)) {
-        return true
-      }
-
-      // Recherche par email
-      const email = request.identity.email?.toLowerCase() || ''
-      if (email.includes(query)) {
-        return true
-      }
-
-      // Recherche par téléphone (normalisé - enlever espaces, tirets, etc.)
-      const phone = request.identity.contacts?.[0]?.replace(/[\s\-\(\)]/g, '').toLowerCase() || ''
-      const queryNormalized = query.replace(/[\s\-\(\)]/g, '')
-      if (phone.includes(queryNormalized)) {
-        return true
-      }
-
-      // Recherche par matricule
-      const matricule = request.matricule?.toLowerCase() || ''
-      if (matricule.includes(query)) {
-        return true
-      }
-
-      return false
-    })
-  }, [data?.items, searchQuery])
+  // La recherche est maintenant gérée côté serveur via les filtres
+  // Pas besoin de filtrer côté client
+  const filteredRequests = data?.items || []
 
   // Handlers
   const handleTabChange = useCallback((tab: string) => {
@@ -274,6 +239,13 @@ export function MembershipRequestsPageV2() {
 
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value)
+    // Mettre à jour les filtres avec la recherche
+    setFilters((prev) => ({
+      ...prev,
+      search: value.trim() || undefined,
+    }))
+    // Réinitialiser à la page 1 lors d'une recherche
+    setCurrentPage(1)
   }, [])
 
   const handlePageChange = useCallback((page: number) => {
@@ -369,6 +341,100 @@ export function MembershipRequestsPageV2() {
     }
   }, [data?.items, filteredRequests])
 
+  // Handlers pour les actions corrections (si status === 'under_review')
+  const handleCopyCorrectionLink = useCallback(async (requestId: string) => {
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (!request || request.status !== 'under_review' || !request.securityCode) {
+      toast.error('Lien de correction non disponible', {
+        description: 'Cette demande n\'est pas en correction ou le code n\'est pas disponible.',
+      })
+      return
+    }
+
+    const baseUrl = window.location.origin
+    const correctionLink = `${baseUrl}/register?requestId=${requestId}&code=${request.securityCode}`
+    
+    try {
+      await navigator.clipboard.writeText(correctionLink)
+      toast.success('Lien copié !', {
+        description: 'Le lien de correction a été copié dans le presse-papiers.',
+      })
+    } catch (error) {
+      toast.error('Erreur lors de la copie', {
+        description: 'Impossible de copier le lien. Veuillez le copier manuellement.',
+      })
+    }
+  }, [data?.items, filteredRequests])
+
+  const handleSendWhatsAppCorrection = useCallback((requestId: string) => {
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (!request || request.status !== 'under_review') {
+      toast.error('Action non disponible', {
+        description: 'Cette demande n\'est pas en correction.',
+      })
+      return
+    }
+    
+    if (!request.securityCode) {
+      toast.error('Code de sécurité non disponible', {
+        description: 'Le code de sécurité n\'est pas disponible pour cette demande.',
+      })
+      return
+    }
+    
+    // Récupérer les numéros de téléphone
+    const phoneNumbers = request.identity.contacts || []
+    if (phoneNumbers.length === 0) {
+      toast.error('Aucun numéro de téléphone disponible', {
+        description: 'Aucun numéro de téléphone n\'est associé à cette demande.',
+      })
+      return
+    }
+    
+    // Sélectionner la demande et ouvrir le modal
+    setSelectedRequest(request)
+    setWhatsAppModalOpen(true)
+  }, [data?.items, filteredRequests])
+
+  const handleRenewSecurityCode = useCallback((requestId: string) => {
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (!request || request.status !== 'under_review') {
+      toast.error('Action non disponible', {
+        description: 'Cette demande n\'est pas en correction.',
+      })
+      return
+    }
+    
+    // Sélectionner la demande et ouvrir le modal de confirmation
+    setSelectedRequest(request)
+    setRenewCodeModalOpen(true)
+  }, [data?.items, filteredRequests])
+
+  const handleConfirmRenewCode = useCallback(async () => {
+    if (!selectedRequest?.id || !user?.uid) return
+
+    setLoadingActions(prev => ({ ...prev, [`renew-code-${selectedRequest.id}`]: true }))
+
+    try {
+      const result = await renewSecurityCodeMutation.mutateAsync({
+        requestId: selectedRequest.id,
+        adminId: user.uid,
+      })
+
+      toast.success('Code régénéré avec succès', {
+        description: `Le nouveau code est : ${result.newCode}`,
+      })
+      setRenewCodeModalOpen(false)
+      setSelectedRequest(null)
+    } catch (error: any) {
+      toast.error('Erreur lors de la régénération', {
+        description: error.message || 'Une erreur est survenue.',
+      })
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`renew-code-${selectedRequest.id}`]: false }))
+    }
+  }, [selectedRequest, user?.uid, renewSecurityCodeMutation])
+
   // Handlers des modals
   const handleApprove = async (data: {
     membershipType: 'adherant' | 'bienfaiteur' | 'sympathisant'
@@ -430,10 +496,7 @@ export function MembershipRequestsPageV2() {
     }
   }
 
-  const handleCorrections = async (data: {
-    corrections: string[]
-    sendWhatsApp?: boolean
-  }): Promise<{ securityCode: string; whatsAppUrl?: string }> => {
+  const handleCorrections = async (corrections: string[]): Promise<void> => {
     if (!selectedRequest?.id || !user?.uid) {
       throw new Error('Demande ou utilisateur non défini')
     }
@@ -444,8 +507,7 @@ export function MembershipRequestsPageV2() {
       const result = await requestCorrectionsMutation.mutateAsync({
         requestId: selectedRequest.id,
         adminId: user.uid,
-        corrections: data.corrections,
-        sendWhatsApp: data.sendWhatsApp,
+        corrections,
       })
 
       toast.success('Corrections demandées', {
@@ -454,8 +516,6 @@ export function MembershipRequestsPageV2() {
 
       setCorrectionsModalOpen(false)
       setSelectedRequest(null)
-
-      return result
     } catch (error: any) {
       toast.error('Erreur lors de la demande de corrections', {
         description: error.message || 'Une erreur est survenue.',
@@ -787,7 +847,7 @@ export function MembershipRequestsPageV2() {
                     <div className="min-w-0 flex-1">
                       <h2 className="font-bold text-base md:text-lg text-kara-primary-dark truncate">Liste des demandes</h2>
                       <p className="text-xs md:text-sm text-kara-neutral-500 truncate">
-                        {filteredRequests.length} demande{filteredRequests.length > 1 ? 's' : ''} trouvée{filteredRequests.length > 1 ? 's' : ''}
+                        {data?.pagination?.totalItems || 0} demande{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''} trouvée{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''}
                       </p>
                     </div>
                   </div>
@@ -905,6 +965,18 @@ export function MembershipRequestsPageV2() {
                         onViewPaymentDetails={handleViewPaymentDetails}
                         onExportPDF={(id) => handleExportPDF(id)}
                         onExportExcel={(id) => handleExportExcel(id)}
+                        onCopyCorrectionLink={handleCopyCorrectionLink}
+                        onSendWhatsAppCorrection={handleSendWhatsAppCorrection}
+                        onRenewSecurityCode={handleRenewSecurityCode}
+                        getProcessedByInfo={(requestId) => {
+                          const request = filteredRequests.find(r => r.id === requestId)
+                          if (!request?.processedBy) return null
+                          // TODO: Récupérer le nom et matricule depuis la collection users/admins
+                          return {
+                            name: request.processedBy, // Pour l'instant, on utilise l'ID
+                            matricule: undefined, // À implémenter
+                          }
+                        }}
                         loadingActions={loadingActions}
                       />
                     ))
@@ -925,6 +997,19 @@ export function MembershipRequestsPageV2() {
                   onReject={openRejectModal}
                   onRequestCorrections={openCorrectionsModal}
                   onPay={openPaymentModal}
+                  onCopyCorrectionLink={handleCopyCorrectionLink}
+                  onSendWhatsAppCorrection={handleSendWhatsAppCorrection}
+                  onRenewSecurityCode={handleRenewSecurityCode}
+                  getProcessedByInfo={(requestId) => {
+                    const request = filteredRequests.find(r => r.id === requestId)
+                    if (!request?.processedBy) return null
+                    // TODO: Récupérer le nom et matricule depuis la collection users/admins
+                    return {
+                      name: request.processedBy, // Pour l'instant, on utilise l'ID
+                      matricule: undefined, // À implémenter
+                    }
+                  }}
+                  loadingActions={loadingActions}
                   hasActiveFilters={activeTab !== 'all' || Object.keys(filters).length > 0}
                   searchQuery={searchQuery}
                   totalCount={data?.pagination?.totalItems || 0}
@@ -1046,9 +1131,39 @@ export function MembershipRequestsPageV2() {
           onConfirm={handleCorrections}
           requestId={selectedRequest?.id || ''}
           memberName={selectedMemberName}
-          phoneNumber={selectedRequest?.identity.contacts?.[0]}
           isLoading={loadingActions[`corrections-${selectedRequest?.id}`]}
         />
+
+        {selectedRequest && selectedRequest.status === 'under_review' && selectedRequest.securityCode && (
+          <>
+            <SendWhatsAppModalV2
+              isOpen={whatsAppModalOpen}
+              onClose={() => {
+                setWhatsAppModalOpen(false)
+                setSelectedRequest(null)
+              }}
+              phoneNumbers={selectedRequest.identity.contacts || []}
+              correctionLink={`/register?requestId=${selectedRequest.id}&code=${selectedRequest.securityCode}`}
+              securityCode={selectedRequest.securityCode}
+              securityCodeExpiry={selectedRequest.securityCodeExpiry || new Date()}
+              memberName={selectedMemberName}
+              isLoading={false}
+            />
+            <RenewSecurityCodeModalV2
+              isOpen={renewCodeModalOpen}
+              onClose={() => {
+                setRenewCodeModalOpen(false)
+                setSelectedRequest(null)
+              }}
+              onConfirm={handleConfirmRenewCode}
+              requestId={selectedRequest.id || ''}
+              memberName={selectedMemberName}
+              currentCode={selectedRequest.securityCode}
+              currentExpiry={selectedRequest.securityCodeExpiry}
+              isLoading={loadingActions[`renew-code-${selectedRequest.id}`]}
+            />
+          </>
+        )}
 
         <PaymentModalV2
           isOpen={paymentModalOpen}

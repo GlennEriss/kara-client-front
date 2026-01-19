@@ -47,6 +47,7 @@ export const documentsSchema = z.object({
   // Photo de la pièce d'identité recto
   documentPhotoFront: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
+    z.string().url('URL invalide'), // Accepter les URLs Firebase Storage
     z.instanceof(File),
     z.undefined()
   ])
@@ -54,9 +55,17 @@ export const documentsSchema = z.object({
       (value) => {
         if (!value) return false // Photo obligatoire
         if (typeof value === 'string') {
-          return value.startsWith('data:image/jpeg') ||
+          // Accepter les data URLs
+          if (value.startsWith('data:image/jpeg') ||
             value.startsWith('data:image/png') ||
-            value.startsWith('data:image/webp')
+            value.startsWith('data:image/webp')) {
+            return true
+          }
+          // Accepter les URLs HTTP/HTTPS (Firebase Storage)
+          if (value.startsWith('http://') || value.startsWith('https://')) {
+            return true
+          }
+          return false
         }
         if (value instanceof File) {
           return value.size <= 5 * 1024 * 1024 && // 5MB
@@ -70,6 +79,7 @@ export const documentsSchema = z.object({
   // Photo de la pièce d'identité verso (optionnelle pour certains documents)
   documentPhotoBack: z.union([
     z.string().startsWith('data:image/', 'Format de photo invalide'),
+    z.string().url('URL invalide'), // Accepter les URLs Firebase Storage
     z.instanceof(File),
     z.undefined()
   ])
@@ -78,9 +88,17 @@ export const documentsSchema = z.object({
       (value) => {
         if (!value) return true // Optionnel
         if (typeof value === 'string') {
-          return value.startsWith('data:image/jpeg') ||
+          // Accepter les data URLs
+          if (value.startsWith('data:image/jpeg') ||
             value.startsWith('data:image/png') ||
-            value.startsWith('data:image/webp')
+            value.startsWith('data:image/webp')) {
+            return true
+          }
+          // Accepter les URLs HTTP/HTTPS (Firebase Storage)
+          if (value.startsWith('http://') || value.startsWith('https://')) {
+            return true
+          }
+          return false
         }
         if (value instanceof File) {
           return value.size <= 5 * 1024 * 1024 && // 5MB

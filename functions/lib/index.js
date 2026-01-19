@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -11,6 +11,12 @@ const vehicleInsuranceExpiring_1 = require("./scheduled/vehicleInsuranceExpiring
 const transformCreditSpeciale_1 = require("./scheduled/transformCreditSpeciale");
 const caisseSpecialeDemandReminders_1 = require("./scheduled/caisseSpecialeDemandReminders");
 const caisseImprevueDemandReminders_1 = require("./scheduled/caisseImprevueDemandReminders");
+const verifySecurityCode_1 = require("./membership-requests/verifySecurityCode");
+Object.defineProperty(exports, "verifySecurityCode", { enumerable: true, get: function () { return verifySecurityCode_1.verifySecurityCode; } });
+const submitCorrections_1 = require("./membership-requests/submitCorrections");
+Object.defineProperty(exports, "submitCorrections", { enumerable: true, get: function () { return submitCorrections_1.submitCorrections; } });
+const renewSecurityCode_1 = require("./membership-requests/renewSecurityCode");
+Object.defineProperty(exports, "renewSecurityCode", { enumerable: true, get: function () { return renewSecurityCode_1.renewSecurityCode; } });
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
 exports.dailyBirthdayNotifications = (0, scheduler_1.onSchedule)({

@@ -296,6 +296,7 @@ export const identitySchema = z.object({
 
     photo: z.union([
         z.string().startsWith('data:image/', 'Format de photo invalide'),
+        z.string().url('URL invalide'), // Accepter les URLs Firebase Storage
         z.instanceof(File),
         z.undefined()
     ])
@@ -303,11 +304,17 @@ export const identitySchema = z.object({
             (value: any) => {
                 if (!value) return false // Photo obligatoire
                 if (typeof value === 'string') {
-                    // Pour les data URLs, on ne peut pas vérifier la taille facilement
-                    // mais on peut vérifier le format
-                    return value.startsWith('data:image/jpeg') ||
+                    // Accepter les data URLs
+                    if (value.startsWith('data:image/jpeg') ||
                         value.startsWith('data:image/png') ||
-                        value.startsWith('data:image/webp')
+                        value.startsWith('data:image/webp')) {
+                        return true
+                    }
+                    // Accepter les URLs HTTP/HTTPS (Firebase Storage)
+                    if (value.startsWith('http://') || value.startsWith('https://')) {
+                        return true
+                    }
+                    return false
                 }
                 if (value instanceof File) {
                     return value.size <= 5 * 1024 * 1024 && // 5MB

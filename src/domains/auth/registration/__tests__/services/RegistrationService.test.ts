@@ -8,6 +8,19 @@ import type { IRegistrationRepository } from '../../repositories/IRegistrationRe
 import type { RegisterFormData } from '../../entities'
 import type { MembershipRequest } from '@/types/types'
 
+// Mock de Firebase Functions
+const mockHttpsCallable = vi.fn()
+const mockGetFunctions = vi.fn(() => ({}))
+
+vi.mock('firebase/functions', () => ({
+  getFunctions: () => ({}),
+  httpsCallable: (...args: any[]) => mockHttpsCallable(...args),
+}))
+
+vi.mock('@/firebase/app', () => ({
+  app: {},
+}))
+
 describe('RegistrationService', () => {
   let service: RegistrationService
   let mockRepository: IRegistrationRepository
@@ -65,11 +78,10 @@ describe('RegistrationService', () => {
       create: vi.fn(),
       getById: vi.fn(),
       update: vi.fn(),
-      verifySecurityCode: vi.fn(),
-      markSecurityCodeAsUsed: vi.fn(),
     } as unknown as IRegistrationRepository
 
     service = new RegistrationService(mockRepository)
+    vi.clearAllMocks()
   })
 
   describe('submitRegistration', () => {
@@ -205,35 +217,68 @@ describe('RegistrationService', () => {
   })
 
   describe('verifySecurityCode', () => {
-    it('devrait vérifier un code de sécurité valide', async () => {
-      vi.mocked(mockRepository.verifySecurityCode).mockResolvedValue(true)
+    it('devrait vérifier un code de sécurité valide via Cloud Function', async () => {
+      const mockCallable = vi.fn().mockResolvedValue({
+        data: {
+          isValid: true,
+          requestData: { reviewNote: 'test corrections' },
+        },
+      })
+      mockHttpsCallable.mockReturnValue(mockCallable)
 
-      const result = await service.verifySecurityCode('test-id-123', 'ABC123')
+      const result = await service.verifySecurityCode('test-id-123', '123456')
 
-      expect(result).toBe(true)
-      expect(mockRepository.verifySecurityCode).toHaveBeenCalledWith('test-id-123', 'ABC123')
+      expect(result.isValid).toBe(true)
+      expect(result.requestData).toEqual({ reviewNote: 'test corrections' })
+      expect(mockHttpsCallable).toHaveBeenCalled()
+      expect(mockCallable).toHaveBeenCalledWith({ requestId: 'test-id-123', code: '123456' })
     })
 
-    it('devrait retourner false si le code est invalide', async () => {
-      vi.mocked(mockRepository.verifySecurityCode).mockResolvedValue(false)
+    it('devrait retourner isValid: false si le format est invalide', async () => {
+      const result = await service.verifySecurityCode('test-id-123', 'ABC123') // Pas 6 chiffres
 
-      const result = await service.verifySecurityCode('test-id-123', 'WRONG')
-
-      expect(result).toBe(false)
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('FORMAT_INVALID')
     })
 
-    it('devrait retourner false en cas d\'erreur', async () => {
-      vi.mocked(mockRepository.verifySecurityCode).mockRejectedValue(new Error('Erreur'))
+    it('devrait retourner isValid: false si la Cloud Function retourne invalide', async () => {
+      const mockCallable = vi.fn().mockResolvedValue({
+        data: {
+          isValid: false,
+          reason: 'CODE_INCORRECT',
+        },
+      })
+      mockHttpsCallable.mockReturnValue(mockCallable)
 
-      const result = await service.verifySecurityCode('test-id-123', 'ABC123')
+      const result = await service.verifySecurityCode('test-id-123', '123456')
 
-      expect(result).toBe(false)
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('CODE_INCORRECT')
+    })
+
+    it('devrait retourner isValid: false en cas d\'erreur de la Cloud Function', async () => {
+      const mockCallable = vi.fn().mockRejectedValue(new Error('Erreur Cloud Function'))
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      const result = await service.verifySecurityCode('test-id-123', '123456')
+
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBeTruthy()
+    })
+
+    it('devrait valider le format du code (6 chiffres) avant d\'appeler la Cloud Function', async () => {
+      const result = await service.verifySecurityCode('test-id-123', '123') // Pas 6 chiffres
+
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('FORMAT_INVALID')
+      expect(mockHttpsCallable).not.toHaveBeenCalled()
     })
   })
 
   describe('loadRegistrationForCorrection', () => {
     it('devrait charger une inscription pour correction', async () => {
-      vi.mocked(mockRepository.getById).mockResolvedValue(mockMembershipRequest)
+      const requestForCorrection = { ...mockMembershipRequest, status: 'under_review' as const }
+      vi.mocked(mockRepository.getById).mockResolvedValue(requestForCorrection)
 
       const result = await service.loadRegistrationForCorrection('test-id-123')
 

@@ -18,12 +18,14 @@ export interface IRegistrationService {
 
   /**
    * Met à jour une demande d'inscription existante (correction)
+   * Si securityCode est fourni, appelle la Cloud Function submitCorrections (transaction atomique)
    * @param requestId - ID de la demande (matricule)
    * @param data - Données du formulaire
+   * @param securityCode - Code de sécurité optionnel (si fourni, utilise Cloud Function)
    * @returns true si la mise à jour réussit
    * @throws Error si la mise à jour échoue
    */
-  updateRegistration(requestId: string, data: RegisterFormData): Promise<boolean>
+  updateRegistration(requestId: string, data: RegisterFormData, securityCode?: string): Promise<boolean>
 
   /**
    * Valide une étape du formulaire
@@ -35,11 +37,19 @@ export interface IRegistrationService {
 
   /**
    * Vérifie un code de sécurité pour une demande de correction
+   * Appelle la Cloud Function verifySecurityCode pour une vérification atomique
    * @param requestId - ID de la demande (matricule)
-   * @param code - Code de sécurité à vérifier
-   * @returns true si le code est valide
+   * @param code - Code de sécurité à vérifier (6 chiffres)
+   * @returns Résultat de la vérification avec raison si invalide
    */
-  verifySecurityCode(requestId: string, code: string): Promise<boolean>
+  verifySecurityCode(requestId: string, code: string): Promise<{
+    isValid: boolean
+    reason?: string
+    requestData?: {
+      reviewNote?: string
+      [key: string]: any
+    }
+  }>
 
   /**
    * Charge les données d'une demande pour correction

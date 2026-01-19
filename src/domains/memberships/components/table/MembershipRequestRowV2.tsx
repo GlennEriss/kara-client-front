@@ -46,6 +46,11 @@ interface MembershipRequestRowV2Props {
   onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
   
+  // Actions corrections (si status === 'under_review')
+  onCopyCorrectionLink?: (id: string) => void
+  onSendWhatsAppCorrection?: (id: string) => void
+  onRenewSecurityCode?: (id: string) => void
+  
   // États de chargement
   loadingActions?: Record<string, boolean>
   
@@ -65,6 +70,9 @@ export function MembershipRequestRowV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
+  onCopyCorrectionLink,
+  onSendWhatsAppCorrection,
+  onRenewSecurityCode,
   loadingActions = {},
   className,
 }: MembershipRequestRowV2Props) {
@@ -169,10 +177,14 @@ export function MembershipRequestRowV2({
           onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
           onExportExcel={onExportExcel ? () => onExportExcel(id || '') : undefined}
           onSendWhatsApp={onSendWhatsApp ? () => onSendWhatsApp(id || '') : undefined}
+          onCopyCorrectionLink={onCopyCorrectionLink ? () => onCopyCorrectionLink(id || '') : undefined}
+          onSendWhatsAppCorrection={onSendWhatsAppCorrection ? () => onSendWhatsAppCorrection(id || '') : undefined}
+          onRenewSecurityCode={onRenewSecurityCode ? () => onRenewSecurityCode(id || '') : undefined}
           isApproving={loadingActions[`approve-${id}`]}
           isRejecting={loadingActions[`reject-${id}`]}
           isRequestingCorrections={loadingActions[`corrections-${id}`]}
           isPaying={loadingActions[`pay-${id}`]}
+          isRenewingCode={loadingActions[`renew-code-${id}`]}
         />
       </td>
     </tr>

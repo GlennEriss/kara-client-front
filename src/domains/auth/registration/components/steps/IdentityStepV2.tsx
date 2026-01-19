@@ -135,8 +135,13 @@ export default function IdentityStepV2() {
 
   // Initialiser photoPreview depuis la valeur du formulaire
   useEffect(() => {
-    if (typeof photo === 'string' && photo.startsWith('data:')) {
-      setPhotoPreview(photo)
+    if (typeof photo === 'string') {
+      // Accepter les data URLs (base64) et les URLs Firebase Storage
+      if (photo.startsWith('data:') || photo.startsWith('http://') || photo.startsWith('https://')) {
+        setPhotoPreview(photo)
+      } else {
+        setPhotoPreview(null)
+      }
     } else {
       // Réinitialiser la prévisualisation si la photo est supprimée
       setPhotoPreview(null)

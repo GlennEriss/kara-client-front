@@ -24,25 +24,17 @@ export interface IRegistrationRepository extends IRepository {
 
   /**
    * Met à jour une demande d'inscription existante
+   * 
+   * ⚠️ Note : Pour les corrections, utiliser la Cloud Function `submitCorrections` 
+   * via `RegistrationService.updateRegistration(requestId, data, securityCode)`.
+   * La Cloud Function garantit une transaction atomique et évite les race conditions.
+   * 
+   * Cette méthode reste utilisée pour d'autres cas d'usage non liés aux corrections.
+   * 
    * @param id - ID de la demande (matricule)
    * @param data - Données partielles à mettre à jour
    * @returns true si la mise à jour réussit
    * @throws Error si la mise à jour échoue
    */
   update(id: string, data: Partial<RegisterFormData>): Promise<boolean>
-
-  /**
-   * Vérifie un code de sécurité pour une demande de correction
-   * @param requestId - ID de la demande (matricule)
-   * @param code - Code de sécurité à vérifier
-   * @returns true si le code est valide et non expiré
-   */
-  verifySecurityCode(requestId: string, code: string): Promise<boolean>
-
-  /**
-   * Marque un code de sécurité comme utilisé
-   * @param requestId - ID de la demande (matricule)
-   * @returns true si le marquage réussit
-   */
-  markSecurityCodeAsUsed(requestId: string): Promise<boolean>
 }

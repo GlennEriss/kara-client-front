@@ -9,6 +9,10 @@ import { MembershipRepositoryV2 } from '../repositories/MembershipRepositoryV2'
 import { generateSecurityCode, calculateCodeExpiry } from '../utils/securityCode'
 import { generateWhatsAppUrl } from '../utils/whatsappUrl'
 import { AdminRepository } from '@/repositories/admins/AdminRepository'
+import { NotificationService } from '@/services/notifications/NotificationService'
+import { ServiceFactory } from '@/factories/ServiceFactory'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { app } from '@/firebase/app'
 import type {
   IMembershipService,
   ApproveMembershipRequestParams,
@@ -22,19 +26,21 @@ export class MembershipServiceV2 implements IMembershipService {
   private static instance: MembershipServiceV2
   private repository: MembershipRepositoryV2
   private adminRepository: AdminRepository
+  private notificationService: NotificationService
 
-  private constructor(repository?: MembershipRepositoryV2, adminRepository?: AdminRepository) {
+  private constructor(repository?: MembershipRepositoryV2, adminRepository?: AdminRepository, notificationService?: NotificationService) {
     this.repository = repository || MembershipRepositoryV2.getInstance()
     this.adminRepository = adminRepository || new AdminRepository()
+    this.notificationService = notificationService || ServiceFactory.getNotificationService()
   }
 
-  static getInstance(repository?: MembershipRepositoryV2, adminRepository?: AdminRepository): MembershipServiceV2 {
+  static getInstance(repository?: MembershipRepositoryV2, adminRepository?: AdminRepository, notificationService?: NotificationService): MembershipServiceV2 {
     if (!MembershipServiceV2.instance) {
-      MembershipServiceV2.instance = new MembershipServiceV2(repository, adminRepository)
+      MembershipServiceV2.instance = new MembershipServiceV2(repository, adminRepository, notificationService)
     }
     // En test, permettre de réinitialiser avec un nouveau repository
-    if ((repository || adminRepository) && process.env.NODE_ENV === 'test') {
-      MembershipServiceV2.instance = new MembershipServiceV2(repository, adminRepository)
+    if ((repository || adminRepository || notificationService) && process.env.NODE_ENV === 'test') {
+      MembershipServiceV2.instance = new MembershipServiceV2(repository, adminRepository, notificationService)
     }
     return MembershipServiceV2.instance
   }
@@ -171,11 +177,106 @@ export class MembershipServiceV2 implements IMembershipService {
       whatsAppUrl = generateWhatsAppUrl(phoneNumber, message)
     }
 
-    // TODO: Envoyer notification
+    // Créer notification NOTIF-CORR-001 (Corrections demandées) - Autres admins
+    try {
+      const admin = await this.adminRepository.getAdminById(adminId)
+      const adminName = admin ? `${admin.firstName} ${admin.lastName}`.trim() : adminId
+      const memberName = `${request.identity.firstName} ${request.identity.lastName}`.trim()
+
+      await this.notificationService.createNotification({
+        module: 'memberships',
+        entityId: requestId,
+        type: 'corrections_requested',
+        title: 'Corrections demandées',
+        message: `${adminName} a demandé des corrections pour la demande de ${memberName}`,
+        metadata: {
+          requestId,
+          memberName,
+          adminName,
+          adminId,
+          securityCode,
+          expiryDate: expiryDate.toISOString(),
+          correctionsCount: corrections.length,
+        },
+      })
+    } catch (error) {
+      // Erreur lors de la création de la notification - continue sans bloquer
+      console.error('[MembershipServiceV2] Erreur lors de la création de la notification:', error)
+    }
 
     return {
       securityCode,
       whatsAppUrl,
+    }
+  }
+
+  async renewSecurityCode(requestId: string, adminId: string): Promise<{
+    success: boolean
+    newCode: string
+    newExpiry: Date
+  }> {
+    // ==================== VALIDATIONS ====================
+    
+    // Récupérer la demande pour validation
+    const request = await this.repository.getById(requestId)
+    if (!request) {
+      throw new Error(`Demande d'adhésion ${requestId} introuvable`)
+    }
+
+    // Vérifier que la demande est en statut 'under_review'
+    if (request.status !== 'under_review') {
+      throw new Error(`La demande doit être en statut 'under_review' pour régénérer le code. Statut actuel: ${request.status}`)
+    }
+
+    // ==================== FLUX PRINCIPAL ====================
+    
+    // Appeler la Cloud Function renewSecurityCode (transaction atomique)
+    const functions = getFunctions(app)
+    const renewSecurityCodeCF = httpsCallable<{ requestId: string; adminId: string }, {
+      success: boolean
+      newCode: string
+      newExpiry: string
+    }>(functions, 'renewSecurityCode')
+
+    const result = await renewSecurityCodeCF({ requestId, adminId })
+
+    if (!result.data.success) {
+      throw new Error('Erreur lors de la régénération du code de sécurité')
+    }
+
+    const newCode = result.data.newCode
+    const newExpiry = new Date(result.data.newExpiry)
+
+    // Créer notification NOTIF-CORR-005 (Code régénéré) - Autres admins
+    try {
+      const admin = await this.adminRepository.getAdminById(adminId)
+      const adminName = admin ? `${admin.firstName} ${admin.lastName}`.trim() : adminId
+      const memberName = `${request.identity.firstName} ${request.identity.lastName}`.trim()
+
+      await this.notificationService.createNotification({
+        module: 'memberships',
+        entityId: requestId,
+        type: 'security_code_renewed',
+        title: 'Code de correction régénéré',
+        message: `${adminName} a régénéré le code de sécurité pour la demande de ${memberName}`,
+        metadata: {
+          requestId,
+          adminName,
+          adminId,
+          memberName,
+          newCode,
+          newExpiry: newExpiry.toISOString(),
+        },
+      })
+    } catch (error) {
+      // Erreur lors de la création de la notification - continue sans bloquer
+      console.error('[MembershipServiceV2] Erreur lors de la création de la notification:', error)
+    }
+
+    return {
+      success: true,
+      newCode,
+      newExpiry,
     }
   }
 
