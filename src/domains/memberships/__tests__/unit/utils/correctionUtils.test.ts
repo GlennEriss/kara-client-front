@@ -42,21 +42,37 @@ describe('Correction Utils', () => {
 
   describe('getTimeRemaining', () => {
     it('devrait calculer le temps restant correctement (2j 13h)', () => {
-      const expiry = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 13 * 60 * 60 * 1000) // +2j 13h
+      // Mock Date.now() pour avoir un temps fixe
+      const fixedNow = 1000000000000 // 2001-09-09 01:46:40 UTC
+      vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
+      
+      const expiry = new Date(fixedNow + 2 * 24 * 60 * 60 * 1000 + 13 * 60 * 60 * 1000) // +2j 13h
       const remaining = getTimeRemaining(expiry)
       expect(remaining).toBe('2j 13h')
+      
+      vi.restoreAllMocks()
     })
 
     it('devrait gérer une date expirée (retourner 0j 0h)', () => {
-      const expiry = new Date(Date.now() - 1000)
+      const fixedNow = 1000000000000
+      vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
+      
+      const expiry = new Date(fixedNow - 1000)
       const remaining = getTimeRemaining(expiry)
       expect(remaining).toBe('0j 0h')
+      
+      vi.restoreAllMocks()
     })
 
     it('devrait gérer une date avec seulement des heures (0j 5h)', () => {
-      const expiry = new Date(Date.now() + 5 * 60 * 60 * 1000) // +5h
+      const fixedNow = 1000000000000
+      vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
+      
+      const expiry = new Date(fixedNow + 5 * 60 * 60 * 1000) // +5h
       const remaining = getTimeRemaining(expiry)
       expect(remaining).toBe('0j 5h')
+      
+      vi.restoreAllMocks()
     })
 
     it('devrait gérer null ou undefined (retourner 0j 0h)', () => {
@@ -65,15 +81,25 @@ describe('Correction Utils', () => {
     })
 
     it('devrait gérer une date expirant dans moins d\'une heure', () => {
-      const expiry = new Date(Date.now() + 30 * 60 * 1000) // +30 minutes
+      const fixedNow = 1000000000000
+      vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
+      
+      const expiry = new Date(fixedNow + 30 * 60 * 1000) // +30 minutes
       const remaining = getTimeRemaining(expiry)
       expect(remaining).toBe('0j 0h')
+      
+      vi.restoreAllMocks()
     })
 
     it('devrait gérer une date expirant dans exactement 1 jour', () => {
-      const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // +24h
+      const fixedNow = 1000000000000
+      vi.spyOn(Date, 'now').mockReturnValue(fixedNow)
+      
+      const expiry = new Date(fixedNow + 24 * 60 * 60 * 1000) // +24h
       const remaining = getTimeRemaining(expiry)
       expect(remaining).toBe('1j 0h')
+      
+      vi.restoreAllMocks()
     })
   })
 

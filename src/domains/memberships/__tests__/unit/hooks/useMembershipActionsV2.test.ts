@@ -14,6 +14,13 @@ import type { PaymentInfo } from '../../../entities'
 
 // Mock du service
 vi.mock('../../../services/MembershipServiceV2')
+// Mock de sonner
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
 
 describe('useMembershipActionsV2', () => {
   let mockService: any
@@ -61,12 +68,16 @@ describe('useMembershipActionsV2', () => {
       await result.current.approveMutation.mutateAsync({
         requestId: 'test-id',
         adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
       })
       
       // Assert
       expect(mockService.approveMembershipRequest).toHaveBeenCalledWith({
         requestId: 'test-id',
         adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
       })
     })
 
@@ -84,6 +95,8 @@ describe('useMembershipActionsV2', () => {
       await result.current.approveMutation.mutateAsync({
         requestId: 'test-id',
         adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
       })
       
       // Assert
@@ -208,6 +221,156 @@ describe('useMembershipActionsV2', () => {
         requestId: 'test-id',
         adminId: 'admin-123',
         paymentInfo,
+      })
+    })
+  })
+
+  describe('copyCorrectionLink', () => {
+    let mockWriteText: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      // Mock navigator.clipboard
+      mockWriteText = vi.fn().mockResolvedValue(undefined)
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: mockWriteText,
+        },
+      })
+      // Mock window.location
+      Object.defineProperty(window, 'location', {
+        value: { origin: 'https://example.com' },
+        writable: true,
+        configurable: true,
+      })
+    })
+
+    it('devrait copier le lien de correction dans le presse-papiers', async () => {
+      // Arrange
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+
+      // Act
+      await result.current.copyCorrectionLink('test-request-id')
+
+      // Assert
+      expect(mockWriteText).toHaveBeenCalledWith(
+        'https://example.com/register?requestId=test-request-id'
+      )
+    })
+
+    it('devrait afficher un toast de succès après copie', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastSuccessSpy = vi.spyOn(toast, 'success')
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+
+      // Act
+      await result.current.copyCorrectionLink('test-request-id')
+
+      // Assert
+      await waitFor(() => {
+        expect(toastSuccessSpy).toHaveBeenCalledWith('Lien copié !', {
+          description: 'Le lien de correction a été copié dans le presse-papiers.',
+        })
+      })
+    })
+
+    it('devrait afficher un toast d\'erreur si la copie échoue', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastErrorSpy = vi.spyOn(toast, 'error')
+      mockWriteText.mockRejectedValue(new Error('Clipboard error'))
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+
+      // Act
+      await result.current.copyCorrectionLink('test-request-id')
+
+      // Assert
+      await waitFor(() => {
+        expect(toastErrorSpy).toHaveBeenCalledWith('Erreur lors de la copie', {
+          description: 'Impossible de copier le lien. Veuillez le copier manuellement.',
+        })
+      })
+    })
+  })
+
+  describe('sendWhatsApp', () => {
+    let mockWindowOpen: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+      // Mock window.open
+      mockWindowOpen = vi.fn()
+      window.open = mockWindowOpen
+      // Mock window.location
+      Object.defineProperty(window, 'location', {
+        value: { origin: 'https://example.com' },
+        writable: true,
+        configurable: true,
+      })
+    })
+
+    it('devrait ouvrir WhatsApp avec le message correct', () => {
+      // Arrange
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+
+      const params = {
+        requestId: 'test-request-id',
+        firstName: 'Jean',
+        corrections: ['Veuillez mettre à jour votre photo.'],
+        securityCode: '123456',
+        expiryDate: new Date('2024-12-31'),
+        phoneNumber: '+24165671734',
+      }
+
+      // Act
+      result.current.sendWhatsApp(params)
+
+      // Assert
+      expect(mockWindowOpen).toHaveBeenCalledWith(
+        expect.stringContaining('https://wa.me/24165671734'),
+        '_blank',
+        'noopener,noreferrer'
+      )
+    })
+
+    it('devrait afficher un toast d\'erreur si l\'ouverture échoue', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastErrorSpy = vi.spyOn(toast, 'error')
+      mockWindowOpen.mockImplementation(() => {
+        throw new Error('Failed to open')
+      })
+
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+
+      const params = {
+        requestId: 'test-request-id',
+        firstName: 'Jean',
+        corrections: ['Veuillez mettre à jour votre photo.'],
+        securityCode: '123456',
+        expiryDate: new Date('2024-12-31'),
+        phoneNumber: '+24165671734',
+      }
+
+      // Act
+      result.current.sendWhatsApp(params)
+
+      // Assert
+      await waitFor(() => {
+        expect(toastErrorSpy).toHaveBeenCalledWith('Erreur lors de l\'ouverture de WhatsApp', {
+          description: 'Failed to open',
+        })
       })
     })
   })
