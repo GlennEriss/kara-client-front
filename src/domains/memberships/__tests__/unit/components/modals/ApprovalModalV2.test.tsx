@@ -69,11 +69,9 @@ vi.mock('@/components/ui/select', () => ({
         disabled={disabled}
         {...props}
       >
-        {items.map((item, idx) => (
-          <option key={idx} value={item.props?.value || item.value}>
-            {item.props?.children || item.children}
-          </option>
-        ))}
+        <option value="adherant">Adhérent</option>
+        <option value="bienfaiteur">Bienfaiteur</option>
+        <option value="sympathisant">Sympathisant</option>
       </select>
     )
   },
