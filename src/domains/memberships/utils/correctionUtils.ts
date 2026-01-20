@@ -36,16 +36,16 @@ export function getTimeRemaining(expiryDate: Date | null | undefined): string {
     return '0j 0h'
   }
 
-  const now = new Date()
+  const now = Date.now()
   const expiry = expiryDate instanceof Date ? expiryDate : new Date(expiryDate)
   
   // Si la date est dans le passé, retourner 0j 0h
-  if (expiry.getTime() <= now.getTime()) {
+  if (expiry.getTime() <= now) {
     return '0j 0h'
   }
 
   // Calculer la différence en millisecondes
-  const diffMs = expiry.getTime() - now.getTime()
+  const diffMs = expiry.getTime() - now
   
   // Convertir en jours et heures
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
