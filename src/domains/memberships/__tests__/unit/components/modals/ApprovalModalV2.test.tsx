@@ -47,14 +47,39 @@ vi.mock('@/components/ui/label', () => ({
 }))
 
 vi.mock('@/components/ui/select', () => ({
-  Select: ({ children, onValueChange, value }: any) => (
-    <select value={value} onChange={(e) => onValueChange?.(e.target.value)} data-testid="select">
-      {children}
-    </select>
-  ),
+  Select: ({ children, onValueChange, value, 'data-testid': testId, disabled, ...props }: any) => {
+    // Extraire les SelectItem des enfants
+    const items: any[] = []
+    const processChildren = (child: any) => {
+      if (child?.type?.name === 'SelectItem' || child?.props?.value) {
+        items.push(child)
+      } else if (Array.isArray(child)) {
+        child.forEach(processChildren)
+      } else if (child?.props?.children) {
+        processChildren(child.props.children)
+      }
+    }
+    processChildren(children)
+    
+    return (
+      <select 
+        value={value || ''} 
+        onChange={(e) => onValueChange?.(e.target.value)} 
+        data-testid={testId || 'select'}
+        disabled={disabled}
+        {...props}
+      >
+        {items.map((item, idx) => (
+          <option key={idx} value={item.props?.value || item.value}>
+            {item.props?.children || item.children}
+          </option>
+        ))}
+      </select>
+    )
+  },
   SelectContent: ({ children }: any) => <div>{children}</div>,
   SelectItem: ({ children, value }: any) => <option value={value}>{children}</option>,
-  SelectTrigger: ({ children }: any) => <div>{children}</div>,
+  SelectTrigger: ({ children, className }: any) => <div className={className}>{children}</div>,
   SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
 }))
 
@@ -222,8 +247,6 @@ describe('ApprovalModalV2', () => {
     })
 
     it('should show error when trying to approve without membership type', async () => {
-      const { toast } = await import('sonner')
-
       render(
         <ApprovalModalV2
           isOpen={true}
@@ -234,11 +257,28 @@ describe('ApprovalModalV2', () => {
       )
 
       const approveButton = screen.getByTestId('approval-modal-approve-button')
-      fireEvent.click(approveButton)
-
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('Veuillez corriger les erreurs avant de continuer')
+      // Le bouton devrait être désactivé quand les champs ne sont pas remplis
+      expect(approveButton).toBeDisabled()
+      
+      // Test de la validation : on remplit seulement le PDF mais pas le type de membre
+      const { createFile } = await import('@/db/upload-image.db')
+      vi.mocked(createFile).mockResolvedValue({
+        url: 'https://storage.example.com/pdf/test.pdf',
+        path: 'membership-adhesion-pdfs/request-123/test.pdf',
       })
+
+      const pdfInput = screen.getByTestId('approval-modal-pdf-file-input')
+      const file = new File(['pdf content'], 'test.pdf', { type: 'application/pdf' })
+      fireEvent.change(pdfInput, { target: { files: [file] } })
+
+      // Attendre que l'upload soit terminé
+      await waitFor(() => {
+        expect(createFile).toHaveBeenCalled()
+      })
+
+      // Le bouton devrait toujours être désactivé car le type de membre n'est pas sélectionné
+      const approveButtonAfterUpload = screen.getByTestId('approval-modal-approve-button')
+      expect(approveButtonAfterUpload).toBeDisabled()
     })
   })
 
