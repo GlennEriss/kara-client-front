@@ -27,11 +27,24 @@ vi.mock('@/db/subscription.db')
 vi.mock('@/repositories/admins/AdminRepository')
 vi.mock('firebase/functions')
 vi.mock('@/utils/pdfGenerator')
+vi.mock('@/services/notifications/NotificationService', () => ({
+  NotificationService: vi.fn().mockImplementation(() => ({
+    createNotification: vi.fn().mockResolvedValue(undefined),
+  })),
+}))
+vi.mock('@/factories/ServiceFactory', () => ({
+  ServiceFactory: {
+    getNotificationService: vi.fn(() => ({
+      createNotification: vi.fn().mockResolvedValue(undefined),
+    })),
+  },
+}))
 
 describe('MembershipServiceV2', () => {
   let service: MembershipServiceV2
   let mockRepository: any
   let mockAdminRepository: any
+  let mockNotificationService: any
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -53,10 +66,15 @@ describe('MembershipServiceV2', () => {
       }),
     }
     
+    // Mock de NotificationService
+    mockNotificationService = {
+      createNotification: vi.fn().mockResolvedValue(undefined),
+    }
+    
     // Utiliser le repository mocké directement
     // Réinitialiser l'instance pour les tests
     ;(MembershipServiceV2 as any).instance = undefined
-    service = MembershipServiceV2.getInstance(mockRepository, mockAdminRepository)
+    service = MembershipServiceV2.getInstance(mockRepository, mockAdminRepository, mockNotificationService)
   })
 
   describe('approveMembershipRequest', () => {
@@ -92,6 +110,54 @@ describe('MembershipServiceV2', () => {
           adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
         })
       ).rejects.toThrow('Statut invalide pour approbation')
+    })
+
+    it('devrait throw si le type de membre est invalide', async () => {
+      // Arrange
+      const paidRequest = pendingPaidRequest()
+      mockRepository.getById.mockResolvedValue(paidRequest)
+      
+      // Act & Assert
+      await expect(
+        service.approveMembershipRequest({
+          requestId: paidRequest.id,
+          adminId: 'admin-123',
+          membershipType: 'invalid' as any,
+          adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
+        })
+      ).rejects.toThrow('Le type de membre est requis et doit être valide')
+    })
+
+    it('devrait throw si le PDF d\'adhésion est manquant', async () => {
+      // Arrange
+      const paidRequest = pendingPaidRequest()
+      mockRepository.getById.mockResolvedValue(paidRequest)
+      
+      // Act & Assert
+      await expect(
+        service.approveMembershipRequest({
+          requestId: paidRequest.id,
+          adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: '',
+        })
+      ).rejects.toThrow('Le PDF d\'adhésion est obligatoire')
+    })
+
+    it('devrait throw si le PDF d\'adhésion n\'est pas une string', async () => {
+      // Arrange
+      const paidRequest = pendingPaidRequest()
+      mockRepository.getById.mockResolvedValue(paidRequest)
+      
+      // Act & Assert
+      await expect(
+        service.approveMembershipRequest({
+          requestId: paidRequest.id,
+          adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: null as any,
+        })
+      ).rejects.toThrow('Le PDF d\'adhésion est obligatoire')
     })
 
     it('devrait throw si le statut n\'est pas "pending" ou "under_review" (rejected)', async () => {
@@ -181,6 +247,75 @@ describe('MembershipServiceV2', () => {
       // Vérifier que le PDF a été généré et téléchargé
       expect(generateCredentialsPDF).toHaveBeenCalled()
       expect(downloadPDF).toHaveBeenCalled()
+    })
+
+    it('devrait throw si la Cloud Function retourne success: false', async () => {
+      // Arrange
+      const paidRequest = pendingPaidRequest()
+      mockRepository.getById.mockResolvedValue(paidRequest)
+      
+      const mockCallableFunction = vi.fn().mockResolvedValue({
+        data: {
+          success: false,
+          matricule: '1234.MK.567890',
+          email: 'test@kara.ga',
+          password: 'TempPass123!',
+          subscriptionId: 'sub-123',
+        },
+      }) as any
+      mockCallableFunction.stream = vi.fn()
+      
+      const { getFunctions, httpsCallable } = await import('firebase/functions')
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+      vi.mocked(httpsCallable).mockReturnValue(mockCallableFunction)
+      
+      // Act & Assert
+      await expect(
+        service.approveMembershipRequest({
+          requestId: paidRequest.id,
+          adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
+        })
+      ).rejects.toThrow('Erreur lors de l\'approbation de la demande d\'adhésion')
+    })
+
+    it('devrait continuer même si la génération du PDF échoue', async () => {
+      // Arrange
+      const paidRequest = pendingPaidRequest()
+      mockRepository.getById.mockResolvedValue(paidRequest)
+      
+      const mockCallableFunction = vi.fn().mockResolvedValue({
+        data: {
+          success: true,
+          matricule: '1234.MK.567890',
+          email: 'test@kara.ga',
+          password: 'TempPass123!',
+          subscriptionId: 'sub-123',
+        },
+      }) as any
+      mockCallableFunction.stream = vi.fn()
+      
+      const { getFunctions, httpsCallable } = await import('firebase/functions')
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+      vi.mocked(httpsCallable).mockReturnValue(mockCallableFunction)
+      
+      // Mock PDF generator pour qu'il échoue
+      const { generateCredentialsPDF } = await import('@/utils/pdfGenerator')
+      vi.mocked(generateCredentialsPDF).mockRejectedValue(new Error('Erreur PDF'))
+      
+      // Act - Ne doit pas throw
+      await expect(
+        service.approveMembershipRequest({
+          requestId: paidRequest.id,
+          adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
+        })
+      ).resolves.toBeUndefined()
+      
+      // Assert - La Cloud Function a quand même été appelée
+      expect(mockCallableFunction).toHaveBeenCalled()
     })
   })
 
