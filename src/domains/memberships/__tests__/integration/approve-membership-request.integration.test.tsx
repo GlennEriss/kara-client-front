@@ -24,6 +24,18 @@ vi.mock('@/repositories/admins/AdminRepository')
 vi.mock('firebase/functions')
 vi.mock('@/firebase/app')
 vi.mock('@/utils/pdfGenerator')
+vi.mock('@/services/notifications/NotificationService', () => ({
+  NotificationService: vi.fn().mockImplementation(() => ({
+    createNotification: vi.fn().mockResolvedValue(undefined),
+  })),
+}))
+vi.mock('@/factories/ServiceFactory', () => ({
+  ServiceFactory: {
+    getNotificationService: vi.fn(() => ({
+      createNotification: vi.fn().mockResolvedValue(undefined),
+    })),
+  },
+}))
 
 describe('Integration: Approve Membership Request Flow', () => {
   let service: MembershipServiceV2

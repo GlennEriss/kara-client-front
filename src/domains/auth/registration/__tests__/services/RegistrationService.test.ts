@@ -128,6 +128,70 @@ describe('RegistrationService', () => {
         'Erreur de mise à jour'
       )
     })
+
+    it('devrait appeler la Cloud Function submitCorrections si securityCode est fourni', async () => {
+      const mockCallable = vi.fn().mockResolvedValue({
+        data: { success: true },
+      })
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      const result = await service.updateRegistration('test-id-123', mockFormData, '123456')
+
+      expect(result).toBe(true)
+      expect(mockHttpsCallable).toHaveBeenCalled()
+      expect(mockCallable).toHaveBeenCalledWith({
+        requestId: 'test-id-123',
+        securityCode: '123456',
+        formData: mockFormData,
+      })
+    })
+
+    it('devrait gérer l\'erreur functions/not-found', async () => {
+      const mockCallable = vi.fn().mockRejectedValue({ code: 'functions/not-found' })
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      await expect(
+        service.updateRegistration('test-id-123', mockFormData, '123456')
+      ).rejects.toThrow(
+        "La fonction submitCorrections n'est pas disponible. Veuillez contacter l'administrateur."
+      )
+    })
+
+    it('devrait gérer l\'erreur functions/unauthenticated', async () => {
+      const mockCallable = vi.fn().mockRejectedValue({ code: 'functions/unauthenticated' })
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      await expect(
+        service.updateRegistration('test-id-123', mockFormData, '123456')
+      ).rejects.toThrow("Vous devez être authentifié pour soumettre des corrections.")
+    })
+
+    it('devrait gérer l\'erreur functions/permission-denied', async () => {
+      const mockCallable = vi.fn().mockRejectedValue({ code: 'functions/permission-denied' })
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      await expect(
+        service.updateRegistration('test-id-123', mockFormData, '123456')
+      ).rejects.toThrow("Vous n'avez pas la permission de soumettre des corrections.")
+    })
+
+    it('devrait utiliser error.message si disponible', async () => {
+      const mockCallable = vi.fn().mockRejectedValue({ message: 'Erreur personnalisée' })
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      await expect(
+        service.updateRegistration('test-id-123', mockFormData, '123456')
+      ).rejects.toThrow('Erreur personnalisée')
+    })
+
+    it('devrait utiliser error.details si message n\'est pas disponible', async () => {
+      const mockCallable = vi.fn().mockRejectedValue({ details: 'Détails de l\'erreur' })
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      await expect(
+        service.updateRegistration('test-id-123', mockFormData, '123456')
+      ).rejects.toThrow("Détails de l'erreur")
+    })
   })
 
   describe('validateStep', () => {
@@ -266,6 +330,60 @@ describe('RegistrationService', () => {
       expect(result.reason).toBeTruthy()
     })
 
+    it('devrait retourner CODE_EXPIRED si le message contient "expiré"', async () => {
+      // Le message ne doit pas contenir "Code de sécurité" car il serait capturé par CODE_INCORRECT
+      const mockCallable = vi.fn().mockRejectedValue(new Error('Ce code a expiré'))
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      const result = await service.verifySecurityCode('test-id-123', '123456')
+
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('CODE_EXPIRED')
+    })
+
+    it('devrait retourner CODE_EXPIRED si le message contient "expired"', async () => {
+      // Le message ne doit pas contenir "Security code" car il serait capturé par CODE_INCORRECT
+      const mockCallable = vi.fn().mockRejectedValue(new Error('This code has expired'))
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      const result = await service.verifySecurityCode('test-id-123', '123456')
+
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('CODE_EXPIRED')
+    })
+
+    it('devrait retourner CODE_ALREADY_USED si le message contient "déjà utilisé"', async () => {
+      // Le message doit contenir "déjà utilisé" mais pas "Code de sécurité"
+      const mockCallable = vi.fn().mockRejectedValue(new Error('Le code est déjà utilisé'))
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      const result = await service.verifySecurityCode('test-id-123', '123456')
+
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('CODE_ALREADY_USED')
+    })
+
+    it('devrait retourner CODE_ALREADY_USED si le message contient "already used"', async () => {
+      // Le message doit contenir "already used" mais pas "Security code"
+      const mockCallable = vi.fn().mockRejectedValue(new Error('The code is already used'))
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      const result = await service.verifySecurityCode('test-id-123', '123456')
+
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('CODE_ALREADY_USED')
+    })
+
+    it('devrait retourner UNKNOWN_ERROR pour les autres erreurs', async () => {
+      const mockCallable = vi.fn().mockRejectedValue(new Error('Autre erreur'))
+      mockHttpsCallable.mockReturnValue(mockCallable)
+
+      const result = await service.verifySecurityCode('test-id-123', '123456')
+
+      expect(result.isValid).toBe(false)
+      expect(result.reason).toBe('UNKNOWN_ERROR')
+    })
+
     it('devrait valider le format du code (6 chiffres) avant d\'appeler la Cloud Function', async () => {
       const result = await service.verifySecurityCode('test-id-123', '123') // Pas 6 chiffres
 
@@ -312,6 +430,69 @@ describe('RegistrationService', () => {
       const result = await service.loadRegistrationForCorrection('test-id-123')
 
       expect(result).toBeNull()
+    })
+
+    it('devrait retourner null si le statut n\'est pas "under_review"', async () => {
+      const requestWithWrongStatus = { ...mockMembershipRequest, status: 'pending' as const }
+      vi.mocked(mockRepository.getById).mockResolvedValue(requestWithWrongStatus)
+
+      const result = await service.loadRegistrationForCorrection('test-id-123')
+
+      expect(result).toBeNull()
+    })
+
+    it('devrait utiliser photoURL si photo n\'est pas une data URL', async () => {
+      const requestForCorrection = {
+        ...mockMembershipRequest,
+        status: 'under_review' as const,
+        identity: {
+          ...mockMembershipRequest.identity,
+          photo: 'https://storage.example.com/photo.jpg',
+          photoURL: 'https://storage.example.com/photo.jpg',
+        },
+      }
+      vi.mocked(mockRepository.getById).mockResolvedValue(requestForCorrection)
+
+      const result = await service.loadRegistrationForCorrection('test-id-123')
+
+      expect(result).not.toBeNull()
+      expect(result?.identity.photo).toBe('https://storage.example.com/photo.jpg')
+    })
+
+    it('devrait utiliser documentPhotoFrontURL si documentPhotoFront n\'est pas une data URL', async () => {
+      const requestForCorrection = {
+        ...mockMembershipRequest,
+        status: 'under_review' as const,
+        documents: {
+          ...mockMembershipRequest.documents,
+          documentPhotoFront: 'https://storage.example.com/front.jpg',
+          documentPhotoFrontURL: 'https://storage.example.com/front.jpg',
+        },
+      }
+      vi.mocked(mockRepository.getById).mockResolvedValue(requestForCorrection)
+
+      const result = await service.loadRegistrationForCorrection('test-id-123')
+
+      expect(result).not.toBeNull()
+      expect(result?.documents.documentPhotoFront).toBe('https://storage.example.com/front.jpg')
+    })
+
+    it('devrait utiliser documentPhotoBackURL si documentPhotoBack n\'est pas une data URL', async () => {
+      const requestForCorrection = {
+        ...mockMembershipRequest,
+        status: 'under_review' as const,
+        documents: {
+          ...mockMembershipRequest.documents,
+          documentPhotoBack: 'https://storage.example.com/back.jpg',
+          documentPhotoBackURL: 'https://storage.example.com/back.jpg',
+        },
+      }
+      vi.mocked(mockRepository.getById).mockResolvedValue(requestForCorrection)
+
+      const result = await service.loadRegistrationForCorrection('test-id-123')
+
+      expect(result).not.toBeNull()
+      expect(result?.documents.documentPhotoBack).toBe('https://storage.example.com/back.jpg')
     })
   })
 })
