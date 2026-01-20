@@ -24,7 +24,7 @@ vi.mock('@/db/upload-image.db', () => ({
 
 // Mock des composants UI
 vi.mock('@/components/ui/dialog', () => ({
-  Dialog: ({ children, open, onOpenChange }: any) => (
+  Dialog: ({ children, open }: any) => (
     open ? <div data-testid="dialog">{children}</div> : null
   ),
   DialogContent: ({ children, className, ...props }: any) => (

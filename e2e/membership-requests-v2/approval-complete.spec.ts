@@ -16,7 +16,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin, goToMembershipRequestsV2, waitForRequestsList, getRequestRow, waitForSuccessToast, waitForErrorToast, waitForModal } from './helpers'
+import { loginAsAdmin, goToMembershipRequestsV2, waitForRequestsList, getRequestRow, waitForSuccessToast, waitForModal } from './helpers'
 import { createPendingPaidRequest, createPendingUnpaidRequest, createTestMembershipRequest, deleteTestMembershipRequest, type CreateTestRequestResult } from './fixtures'
 import * as path from 'path'
 import * as fs from 'fs'
@@ -24,7 +24,6 @@ import * as fs from 'fs'
 test.describe('E2E: Approbation Complète (18 scénarios)', () => {
   const createdRequests: CreateTestRequestResult[] = []
   const testPdfPath = path.join(__dirname, '../fixtures/test-document.pdf')
-  const largePdfPath = path.join(__dirname, '../fixtures/test-large.pdf')
 
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page)
