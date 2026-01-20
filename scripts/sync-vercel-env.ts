@@ -51,6 +51,15 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
   envVars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '').trim();
   envVars.NEXT_PUBLIC_FIREBASE_APP_ID = (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '').trim();
 
+  // Variables Algolia côté client (NEXT_PUBLIC_*)
+  envVars.NEXT_PUBLIC_ALGOLIA_APP_ID = (process.env.NEXT_PUBLIC_ALGOLIA_APP_ID || '').trim();
+  envVars.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY = (process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY || '').trim();
+  // Index par défaut selon l'environnement si non fourni
+  envVars.NEXT_PUBLIC_ALGOLIA_INDEX_NAME = (
+    process.env.NEXT_PUBLIC_ALGOLIA_INDEX_NAME ||
+    (environment === 'preview' ? 'membership-requests-preprod' : 'membership-requests-prod')
+  ).trim();
+
   // Variables Firebase côté serveur (sans NEXT_PUBLIC_)
   envVars.FIREBASE_PROJECT_ID = (process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '').trim();
     
@@ -59,6 +68,10 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
   envVars.FIREBASE_PRIVATE_KEY = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
   envVars.FIREBASE_PRIVATE_KEY_ID = (process.env.FIREBASE_PRIVATE_KEY_ID || '').trim();
   envVars.FIREBASE_CLIENT_ID = (process.env.FIREBASE_CLIENT_ID || '').trim();
+
+  // Variables Algolia côté serveur (secrets pour Cloud Functions / backend)
+  envVars.ALGOLIA_APP_ID = (process.env.ALGOLIA_APP_ID || process.env.NEXT_PUBLIC_ALGOLIA_APP_ID || '').trim();
+  envVars.ALGOLIA_WRITE_API_KEY = (process.env.ALGOLIA_WRITE_API_KEY || '').trim();
 
   const target = environment === 'preview' ? ['preview', 'development'] : ['production'];
 
@@ -100,6 +113,8 @@ async function syncVercelEnv(environment: 'preview' | 'production') {
     'FIREBASE_CLIENT_EMAIL',
     'FIREBASE_PRIVATE_KEY',
     'FIREBASE_PRIVATE_KEY_ID', // Optionnel mais sensible
+    'ALGOLIA_APP_ID',
+    'ALGOLIA_WRITE_API_KEY',
   ];
 
   // Créer ou mettre à jour les variables
