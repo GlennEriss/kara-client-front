@@ -658,7 +658,7 @@ test.describe('E2E: Approbation Complète (18 scénarios)', () => {
 
   // ==================== P0: TÉLÉCHARGEMENT PDF ====================
 
-  test('P0-APPROV-13: Téléchargement automatique du PDF des identifiants', async ({ page, context }) => {
+  test('P0-APPROV-13: Téléchargement automatique du PDF des identifiants', async ({ page, context: _context }) => {
     // Arrange
     const testRequest = await createPendingPaidRequest()
     createdRequests.push(testRequest)
