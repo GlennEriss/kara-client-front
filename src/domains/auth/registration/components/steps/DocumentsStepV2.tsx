@@ -76,7 +76,12 @@ export default function DocumentsStepV2() {
   const { register, watch, setValue, getValues, formState: { errors, isSubmitted } } = useFormContext<RegisterFormData>()
 
   const getPreviewValue = (value: string | File | undefined): string | null => {
-    if (typeof value === 'string') return value
+    if (typeof value === 'string') {
+      // Accepter les data URLs (base64) et les URLs Firebase Storage
+      if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) {
+        return value
+      }
+    }
     return null
   }
 

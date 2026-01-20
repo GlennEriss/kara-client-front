@@ -1,8 +1,9 @@
 /**
  * Modal de demande de corrections V2 pour une demande d'adhésion
  * 
- * Suit les diagrammes de séquence et la logique métier
- * Inclut le support WhatsApp
+ * Suit les diagrammes de séquence et la logique métier.
+ * Modal simplifié : uniquement textarea pour saisir les corrections.
+ * L'envoi WhatsApp est géré séparément via SendWhatsAppModalV2 (action post-création).
  */
 
 'use client'
@@ -18,24 +19,15 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
-import { FileEdit, Loader2, MessageSquare } from 'lucide-react'
+import { FileEdit, Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { cn } from '@/lib/utils'
 
 interface CorrectionsModalV2Props {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (data: {
-    corrections: string[]
-    sendWhatsApp?: boolean
-  }) => Promise<{
-    securityCode: string
-    whatsAppUrl?: string
-  } | undefined>
+  onConfirm: (corrections: string[]) => Promise<void>
   requestId: string
   memberName: string
-  phoneNumber?: string
   isLoading?: boolean
 }
 
@@ -45,11 +37,9 @@ export function CorrectionsModalV2({
   onConfirm,
   requestId,
   memberName,
-  phoneNumber,
   isLoading = false,
 }: CorrectionsModalV2Props) {
   const [correctionsText, setCorrectionsText] = useState('')
-  const [sendWhatsApp, setSendWhatsApp] = useState(false)
 
   const corrections = correctionsText
     .split('\n')
@@ -57,47 +47,41 @@ export function CorrectionsModalV2({
     .filter(line => line.length > 0)
 
   const isValid = corrections.length > 0
+  const correctionsCount = corrections.length
 
   const handleConfirm = async () => {
     if (!isValid) {
       return
     }
 
-    const result = await onConfirm({
-      corrections,
-      sendWhatsApp: sendWhatsApp && !!phoneNumber,
-    })
-
-    // Ouvrir WhatsApp si demandé
-    if (result?.whatsAppUrl && sendWhatsApp) {
-      window.open(result.whatsAppUrl, '_blank')
-    }
+    await onConfirm(corrections)
   }
 
   const handleClose = () => {
     if (!isLoading) {
       setCorrectionsText('')
-      setSendWhatsApp(false)
       onClose()
     }
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px]" data-testid="corrections-modal">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark">
+          <DialogTitle 
+            className="flex items-center gap-2 text-xl font-bold text-kara-primary-dark"
+            data-testid="corrections-modal-title"
+          >
             <FileEdit className="w-5 h-5 text-amber-600" />
             Demander des corrections
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-600">
-            Vous êtes sur le point de demander des corrections pour la demande de <strong>{memberName}</strong>.
-            Le demandeur recevra un code de sécurité pour accéder aux corrections.
+            Saisissez les corrections à apporter (une par ligne). Le demandeur recevra un code de sécurité pour accéder aux corrections.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Liste des corrections */}
+          {/* Zone de saisie des corrections */}
           <div className="space-y-2">
             <Label htmlFor="corrections" className="text-sm font-semibold text-kara-primary-dark">
               Corrections à apporter <span className="text-red-500">*</span>
@@ -110,47 +94,17 @@ export function CorrectionsModalV2({
               disabled={isLoading}
               rows={8}
               className="resize-none font-mono text-sm"
+              data-testid="corrections-modal-textarea"
             />
-            <p className="text-xs text-gray-500">
-              {corrections.length === 0
+            <p 
+              className="text-xs text-gray-500"
+              data-testid="corrections-modal-counter"
+            >
+              {correctionsCount === 0
                 ? 'Ajoutez au moins une correction (une par ligne)'
-                : `${corrections.length} correction${corrections.length > 1 ? 's' : ''} détectée${corrections.length > 1 ? 's' : ''}`}
+                : `${correctionsCount} correction${correctionsCount > 1 ? 's' : ''} détectée${correctionsCount > 1 ? 's' : ''}`}
             </p>
           </div>
-
-          {/* Option WhatsApp */}
-          {phoneNumber && (
-            <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <Checkbox
-                id="sendWhatsApp"
-                checked={sendWhatsApp}
-                onCheckedChange={(checked) => setSendWhatsApp(checked === true)}
-                disabled={isLoading}
-              />
-              <div className="flex-1 space-y-1">
-                <Label
-                  htmlFor="sendWhatsApp"
-                  className="text-sm font-semibold text-blue-900 cursor-pointer flex items-center gap-2"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Envoyer via WhatsApp
-                </Label>
-                <p className="text-xs text-blue-700">
-                  Un lien WhatsApp sera généré pour envoyer les corrections directement au demandeur ({phoneNumber}).
-                  Le code de sécurité sera inclus dans le message.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {!phoneNumber && (
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs text-gray-600">
-                <MessageSquare className="w-3 h-3 inline mr-1" />
-                Aucun numéro de téléphone disponible pour l'envoi WhatsApp.
-              </p>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -159,6 +113,7 @@ export function CorrectionsModalV2({
             onClick={handleClose}
             disabled={isLoading}
             className="border-gray-300"
+            data-testid="corrections-modal-cancel-button"
           >
             Annuler
           </Button>
@@ -166,6 +121,7 @@ export function CorrectionsModalV2({
             onClick={handleConfirm}
             disabled={isLoading || !isValid}
             className="bg-amber-600 hover:bg-amber-700 text-white"
+            data-testid="corrections-modal-submit-button"
           >
             {isLoading ? (
               <>

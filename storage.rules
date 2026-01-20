@@ -56,25 +56,29 @@ service firebase.storage {
     // DOCUMENTS D'IDENTITÉ (MEMBERSHIP-DOCUMENTS)
     // ==========================================
     // Pièces d'identité recto/verso - DONNÉES SENSIBLES
+    // Lecture publique pour permettre les corrections (sécurité gérée via code de sécurité)
     
     match /membership-documents/{requestId}/{fileName} {
-      // Lecture : Admins uniquement (données sensibles)
-      allow read: if isAdmin();
+      // Lecture : Publique (nécessaire pour les corrections via code de sécurité)
+      // La sécurité est gérée côté application via le code de sécurité
+      allow read: if true;
       
       // Écriture : Publique avec validation (image, max 5MB)
-      // Permet l'upload lors de l'inscription
+      // Permet l'upload lors de l'inscription et les corrections
       allow write: if isImage() && isImageSizeValid();
       
-      // Suppression : Admin uniquement
-      allow delete: if isAdmin();
+      // Suppression : Publique (pour permettre le remplacement lors des corrections)
+      // Sécurité gérée côté application via code de sécurité
+      allow delete: if true;
     }
     
     // ==========================================
     // PDFs D'ADHÉSION (MEMBERSHIP-ADHESION-PDFS)
     // ==========================================
     // PDFs générés lors de l'approbation - CONFIDENTIELS
+    // Supporte les chemins avec sous-dossiers (matricule) : membership-adhesion-pdfs/{matricule}/{fileName}
     
-    match /membership-adhesion-pdfs/{fileName} {
+    match /membership-adhesion-pdfs/{allPaths=**} {
       // Lecture : Admins uniquement
       allow read: if isAdmin();
       

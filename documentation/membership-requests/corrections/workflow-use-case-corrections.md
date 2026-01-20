@@ -68,6 +68,16 @@
   - `documentation/membership-requests/corrections/firebase/FIRESTORE_INDEXES.md` (Index Firestore)
   - `documentation/membership-requests/corrections/firebase/firestore.indexes.json` (Configuration indexes)
 
+### Documentation Cloud Functions
+- **Cloud Functions** :
+  - `documentation/membership-requests/corrections/functions/README.md` ⭐ (Cas obligatoires nécessitant des Cloud Functions)
+  - `documentation/membership-requests/corrections/CHANGELOG_CLOUD_FUNCTIONS.md` ⭐ (Changelog modifications Cloud Functions)
+
+### Documentation Notifications
+- **Notifications** :
+  - `documentation/membership-requests/corrections/notification/README.md` ⭐ (5 types de notifications identifiés)
+  - `documentation/membership-requests/corrections/notification/COMPATIBILITE_UML.md` ⭐ (Compatibilité avec diagramme de classes UML)
+
 ---
 
 ## 🎯 Architecture V2 - Domaines
@@ -263,12 +273,14 @@ git checkout -b feat/membership-request-corrections
   - [ ] Calcule expiration (48h)
   - [ ] Met à jour statut 'under_review'
   - [ ] Génère URL WhatsApp si numéro disponible
+  - [ ] **Créer notification NOTIF-CORR-001** (Corrections demandées) - Autres admins
   - [ ] Retourne `{ securityCode, securityCodeExpiry, whatsAppUrl? }`
 - [ ] `renewSecurityCode(requestId, adminId)` :
   - [ ] Vérifie demande en 'under_review'
   - [ ] Génère nouveau code
   - [ ] Calcule nouvelle expiration (48h)
   - [ ] Met à jour dans Firestore
+  - [ ] **Créer notification NOTIF-CORR-005** (Code régénéré) - Autres admins
   - [ ] Retourne `{ success, newCode }`
 
 **Checklist RegistrationService** :
@@ -336,6 +348,56 @@ git checkout -b feat/membership-request-corrections
 - [ ] Écrire les tests unitaires (mocks Firestore)
 - [ ] Exécuter `pnpm test --run`
 - [ ] Couverture 85%+ pour les repositories
+
+---
+
+### Étape 3.5 — Implémenter les Cloud Functions (Phase 2.3)
+
+**Objectif** : Déplacer la logique critique de vérification et de soumission du code de sécurité vers des Cloud Functions pour des raisons de sécurité et d'atomicité.
+
+**Fichiers à créer/modifier** :
+- `functions/src/membership-requests/verifySecurityCode.ts` (nouveau)
+- `functions/src/membership-requests/submitCorrections.ts` (nouveau)
+- `functions/src/index.ts` (exporter les nouvelles fonctions)
+
+**Références** :
+- `documentation/membership-requests/corrections/functions/README.md` (Documentation détaillée des Cloud Functions)
+- `documentation/membership-requests/corrections/sequence/DIAGRAMMES_SEQUENCE_CORRECTIONS.puml` (Interactions avec les CF)
+- `documentation/membership-requests/corrections/activite/DIAGRAMMES_ACTIVITE_DEMANDEUR_CORRECTIONS.puml` (Logique CF)
+
+**Checklist Cloud Functions** :
+- [ ] `verifySecurityCode` (Callable Function) :
+  - [ ] Prend `requestId` et `code`
+  - [ ] Effectue une transaction atomique pour :
+    - [ ] Récupérer la demande
+    - [ ] Valider le format du code
+    - [ ] Vérifier que le code correspond
+    - [ ] Vérifier que le code n'est pas `securityCodeUsed`
+    - [ ] Vérifier que le code n'est pas expiré
+    - [ ] Vérifier que le statut est `under_review`
+    - [ ] Mettre à jour `securityCodeVerifiedAt`
+  - [ ] Retourne `{ isValid: boolean, reason?: string, requestData?: any }`
+- [ ] `submitCorrections` (Callable Function) :
+  - [ ] Prend `requestId`, `securityCode` et `formData`
+  - [ ] Effectue une transaction atomique pour :
+    - [ ] Récupérer la demande
+    - [ ] Re-valider le `securityCode` (non utilisé, non expiré)
+    - [ ] Fusionner `formData` avec les données existantes
+    - [ ] Mettre à jour `status` à `'pending'`
+    - [ ] Mettre `securityCodeUsed` à `true`
+    - [ ] Nettoyer `reviewNote`, `securityCode`, `securityCodeExpiry`
+    - [ ] **Créer notification NOTIF-CORR-002** (Corrections soumises)
+  - [ ] Retourne `{ success: boolean }`
+- [ ] `checkExpiredSecurityCodes` (Scheduled Function, optionnel) :
+  - [ ] Cron : `every 1 hours` (ou `every 24 hours`)
+  - [ ] Recherche codes expirés (`securityCodeExpiry < now` ET `securityCodeUsed = false` ET `status = 'under_review'`)
+  - [ ] **Créer notification NOTIF-CORR-003** (Code expiré)
+  - [ ] Recherche codes expirant < 24h
+  - [ ] **Créer notification NOTIF-CORR-004** (Code expirant bientôt) - Une seule fois par code
+
+**Déploiement** :
+- [ ] Déployer les Cloud Functions : `firebase deploy --only functions`
+- [ ] Tester les Cloud Functions en dev avec Firebase Console ou Postman
 
 ---
 
@@ -803,7 +865,21 @@ Créer une PR `develop` → `main`.
 - [ ] Page demandeur `/register`
 - [ ] Tests E2E (17 tests)
 
-### Phase 6 : Firebase
+### Phase 6 : Cloud Functions
+- [ ] `verifySecurityCode` (Callable Function) — Vérification atomique du code
+- [ ] `submitCorrections` (Callable Function) — Soumission atomique des corrections
+- [ ] `checkExpiredSecurityCodes` (Scheduled Function, optionnel) — Vérification codes expirés
+- [ ] Déploiement : `firebase deploy --only functions`
+
+### Phase 7 : Notifications
+- [ ] Extension `NotificationService.createCorrectionNotification()`
+- [ ] Intégration dans `MembershipServiceV2.requestCorrections()` → NOTIF-CORR-001
+- [ ] Intégration dans Cloud Function `submitCorrections` → NOTIF-CORR-002
+- [ ] Intégration dans Cloud Function `checkExpiredSecurityCodes` → NOTIF-CORR-003, 004
+- [ ] Intégration dans `MembershipServiceV2.renewSecurityCode()` → NOTIF-CORR-005
+- [ ] Ajouter types `NotificationType` dans `src/types/types.ts` (5 types)
+
+### Phase 8 : Firebase
 - [ ] Firestore Rules
 - [ ] Storage Rules
 - [ ] Firestore Indexes (`firestore.indexes.json`)
@@ -824,6 +900,14 @@ Créer une PR `develop` → `main`.
 ### Documentation Firebase
 - Firebase : `documentation/membership-requests/corrections/firebase/`
 
+### Documentation Cloud Functions
+- Cloud Functions : `documentation/membership-requests/corrections/functions/`
+- Changelog Cloud Functions : `documentation/membership-requests/corrections/CHANGELOG_CLOUD_FUNCTIONS.md`
+
+### Documentation Notifications
+- Notifications : `documentation/membership-requests/corrections/notification/`
+- Compatibilité UML : `documentation/membership-requests/corrections/notification/COMPATIBILITE_UML.md`
+
 ### Documentation Générale
 - Workflow général : `documentation/general/WORKFLOW.md`
 - Architecture : `documentation/architecture/ARCHITECTURE.md`
@@ -835,12 +919,14 @@ Créer une PR `develop` → `main`.
 
 1. **Utilitaires** (base solide)
 2. **Services** (logique métier)
-3. **Repositories** (accès données)
-4. **Composants UI** (interface)
-5. **Hooks** (orchestration)
-6. **Intégration Pages** (assemblage)
-7. **Firebase** (règles et indexes)
-8. **Tests E2E** (validation complète)
+3. **Cloud Functions** (sécurité et atomicité)
+4. **Repositories** (accès données)
+5. **Composants UI** (interface)
+6. **Hooks** (orchestration)
+7. **Intégration Pages** (assemblage)
+8. **Notifications** (extension NotificationService)
+9. **Firebase** (règles et indexes)
+10. **Tests E2E** (validation complète)
 
 ---
 

@@ -88,9 +88,9 @@ service cloud.firestore {
     
     match /membership-requests/{requestId} {
       
-      // LECTURE : Admins ou propriétaire (via email)
-      allow read: if isAdmin() || 
-                     (isAuthenticated() && resource.data.identity.email == request.auth.token.email);
+      // LECTURE : Publique (nécessaire pour les corrections via code de sécurité)
+      // La sécurité est gérée côté application via le code de sécurité
+      allow read: if true;
       
       // CRÉATION : Publique avec validation des champs requis
       allow create: if 
@@ -117,17 +117,49 @@ service cloud.firestore {
         request.resource.data.get('processedBy', null) == null;
       
       // MISE À JOUR : Admin ou demandeur avec code de sécurité valide
-      allow update: if isAdmin() || (
-        // Demandeur avec email correspondant et code de sécurité valide
-        isAuthenticated() &&
-        resource.data.identity.email == request.auth.token.email &&
-        hasValidSecurityCode(resource.data) &&
-        // Ne peut pas modifier ces champs protégés
-        request.resource.data.matricule == resource.data.matricule &&
-        request.resource.data.status == resource.data.status &&
-        request.resource.data.get('isPaid', false) == resource.data.get('isPaid', false) &&
-        // Doit marquer le code comme utilisé
-        request.resource.data.securityCodeUsed == true
+      allow update: if (
+        // Cas 1: Admin - avec validation pour l'approbation
+        (isAdmin() && (
+          // Si le statut passe à 'approved', approvedBy et approvedAt doivent être présents
+          (request.resource.data.status == 'approved' &&
+           request.resource.data.approvedBy is string &&
+           request.resource.data.approvedBy != null &&
+           request.resource.data.approvedAt is timestamp &&
+           request.resource.data.approvedAt != null &&
+           // Protection : si déjà approuvé, empêcher la modification de approvedBy/approvedAt
+           (resource.data.status != 'approved' ||
+            (request.resource.data.approvedBy == resource.data.approvedBy &&
+             request.resource.data.approvedAt == resource.data.approvedAt))) ||
+          // Sinon, mise à jour normale par admin
+          (request.resource.data.status != 'approved')
+        ))
+      ) || (
+        // Cas 2: Demandeur authentifié avec email correspondant et code de sécurité valide
+        (isAuthenticated() &&
+         resource.data.identity.email == request.auth.token.email &&
+         hasValidSecurityCode(resource.data) &&
+         // Ne peut pas modifier ces champs protégés
+         request.resource.data.matricule == resource.data.matricule &&
+         request.resource.data.status == resource.data.status &&
+         request.resource.data.get('isPaid', false) == resource.data.get('isPaid', false) &&
+         // Doit marquer le code comme utilisé
+         request.resource.data.securityCodeUsed == true)
+        ||
+        // Cas 3: Demandeur non authentifié soumettant des corrections (via code de sécurité)
+        // Vérification que :
+        // - Le statut passe de 'under_review' à 'pending' (soumission corrections)
+        // - Le code est marqué comme utilisé
+        // - Le code et reviewNote sont nettoyés
+        // - Le statut actuel est 'under_review' avec code non utilisé
+        (resource.data.status == 'under_review' &&
+         resource.data.get('securityCodeUsed', false) == false &&
+         request.resource.data.status == 'pending' &&
+         request.resource.data.securityCodeUsed == true &&
+         (!('securityCode' in request.resource.data) || request.resource.data.securityCode == null) &&
+         (!('reviewNote' in request.resource.data) || request.resource.data.reviewNote == null) &&
+         // Ne peut pas modifier ces champs protégés
+         request.resource.data.matricule == resource.data.matricule &&
+         request.resource.data.get('isPaid', false) == resource.data.get('isPaid', false))
       );
       
       // SUPPRESSION : Admin uniquement

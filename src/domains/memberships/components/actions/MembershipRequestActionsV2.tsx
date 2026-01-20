@@ -28,6 +28,8 @@ import {
   MessageSquare,
   Loader2,
   IdCard,
+  Link as LinkIcon,
+  RotateCcw,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -52,11 +54,17 @@ interface MembershipRequestActionsV2Props {
   onExportExcel?: () => void // Export Excel individuel
   onSendWhatsApp?: () => void
   
+  // Actions corrections (si status === 'under_review')
+  onCopyCorrectionLink?: () => void
+  onSendWhatsAppCorrection?: () => void // Envoyer WhatsApp pour corrections
+  onRenewSecurityCode?: () => void
+  
   // États de chargement
   isApproving?: boolean
   isRejecting?: boolean
   isRequestingCorrections?: boolean
   isPaying?: boolean
+  isRenewingCode?: boolean
   
   className?: string
 }
@@ -76,10 +84,14 @@ export function MembershipRequestActionsV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
+  onCopyCorrectionLink,
+  onSendWhatsAppCorrection,
+  onRenewSecurityCode,
   isApproving = false,
   isRejecting = false,
   isRequestingCorrections = false,
   isPaying = false,
+  isRenewingCode = false,
   className,
 }: MembershipRequestActionsV2Props) {
   // Détecter mobile pour adapter l'affichage
@@ -126,20 +138,30 @@ export function MembershipRequestActionsV2({
   // Priorité : Payer > Approuver > (Rien si pas d'action critique)
   const primaryAction = canPay && onPay ? 'pay' : canApprove && onApprove ? 'approve' : null
 
+  // Vérifier si la demande est approuvée
+  const isApproved = status === 'approved'
+
   // En mobile : afficher plus d'actions directement visibles
   // Actions fréquentes à afficher en mobile : Voir détails, Rejeter (si possible)
   const showMobileQuickActions = isMobile && !isRejected
 
+  // Actions spécifiques pour status === 'under_review'
+  // NOTE: Les actions corrections (copier lien, WhatsApp, régénérer) sont maintenant
+  // dans le bloc "Corrections demandées" (CorrectionsBlockV2), pas dans le dropdown
+  const isUnderReview = status === 'under_review'
+
   // Vérifier s'il y a des actions secondaires à afficher dans le menu
   // En mobile, le menu contient uniquement les actions rares (fiche, pièce d'identité, détails paiement, export, WhatsApp)
   // En desktop, le menu contient toutes les actions secondaires
+  // NOTE: Les actions corrections ne sont plus dans le dropdown (feedback testeurs)
+  // NOTE: Pour les demandes approuvées, "Voir les détails" n'est PAS dans le dropdown (déjà visible comme bouton)
   const hasMenuActions = 
     onViewMembershipForm ||
     onViewIdDocument ||
     (onViewPaymentDetails && isPaid) || // Voir détails paiement si payé
     onExportPDF ||
     onExportExcel ||
-    (onSendWhatsApp && !isRejected) ||
+    (onSendWhatsApp && !isRejected) || // WhatsApp général (pas pour corrections en mode under_review)
     (!isMobile && (
       !isRejected && (
         (canPay && !primaryAction) ||
@@ -147,7 +169,8 @@ export function MembershipRequestActionsV2({
         canRequestCorrections ||
         (canReject && !showMobileQuickActions) // Rejeter dans menu seulement si pas affiché en mobile
       ) ||
-      (onViewDetails && !primaryAction) // Détails dans menu seulement si pas affiché en mobile
+      // Détails dans menu seulement si pas affiché en mobile ET pas approuvé (pour éviter duplication)
+      (onViewDetails && !primaryAction && !isApproved)
     ))
 
   return (
@@ -206,9 +229,31 @@ export function MembershipRequestActionsV2({
         </Button>
       )}
 
-      {/* Actions rapides en mobile : Voir détails + Rejeter (si possible) */}
+      {/* Actions rapides en mobile : Fiche d'adhésion (si approuvé) + Voir détails + Rejeter (si possible) */}
       {isMobile && (
         <>
+          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé en mobile */}
+          {isApproved && onViewMembershipForm && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onViewMembershipForm}
+                    className="h-9 w-9 p-0 border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-sm hover:shadow-md transition-all duration-200"
+                    data-testid="action-view-membership-form-mobile"
+                  >
+                    <FileText className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Voir la fiche d'adhésion</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {/* Voir détails - Toujours visible en mobile si disponible */}
           {onViewDetails && (
             <TooltipProvider>
@@ -257,19 +302,98 @@ export function MembershipRequestActionsV2({
         </>
       )}
 
-      {/* Action secondaire visible en desktop : "Voir détails" (si action principale présente) */}
-      {!isMobile && primaryAction && onViewDetails && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onViewDetails}
-          className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
-          data-testid="action-view-details-visible"
-          title="Voir les détails de la demande"
-        >
-          <Eye className="w-3.5 h-3.5 mr-1.5" />
-          <span className="hidden sm:inline">Détails</span>
-        </Button>
+      {/* Actions principales visibles en desktop : Fiche d'adhésion (si approuvé) + Détails + Rejeter (si pas d'action principale ou en under_review) */}
+      {!isMobile && !primaryAction && (
+        <>
+          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé */}
+          {isApproved && onViewMembershipForm && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewMembershipForm}
+              className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
+              data-testid="action-view-membership-form-visible"
+              title="Voir la fiche d'adhésion (PDF)"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5" />
+              <span className="hidden sm:inline">Fiche d'adhésion</span>
+            </Button>
+          )}
+
+          {/* Voir détails - Toujours visible en desktop si disponible */}
+          {onViewDetails && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewDetails}
+              className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
+              data-testid="action-view-details-visible"
+              title="Voir les détails de la demande"
+            >
+              <Eye className="w-3.5 h-3.5 mr-1.5" />
+              <span className="hidden sm:inline">Détails</span>
+            </Button>
+          )}
+
+          {/* Rejeter - Visible en desktop si possible (notamment en under_review) */}
+          {canReject && onReject && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReject}
+              disabled={isRejecting || !canReject}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium disabled:opacity-50"
+              data-testid="action-reject-visible"
+              title={rejectTooltip || 'Rejeter la demande'}
+            >
+              {isRejecting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  <span className="hidden sm:inline">Rejet...</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-3.5 h-3.5 mr-1.5" />
+                  <span className="hidden sm:inline">Rejeter</span>
+                </>
+              )}
+            </Button>
+          )}
+        </>
+      )}
+
+      {/* Actions secondaires visibles en desktop quand action principale présente : "Fiche d'adhésion" (si approuvé) + "Voir détails" */}
+      {!isMobile && primaryAction && (
+        <>
+          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé */}
+          {isApproved && onViewMembershipForm && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewMembershipForm}
+              className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
+              data-testid="action-view-membership-form-visible"
+              title="Voir la fiche d'adhésion (PDF)"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5" />
+              <span className="hidden sm:inline">Fiche d'adhésion</span>
+            </Button>
+          )}
+
+          {onViewDetails && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewDetails}
+              className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
+              data-testid="action-view-details-visible"
+              title="Voir les détails de la demande"
+            >
+              <Eye className="w-3.5 h-3.5 mr-1.5" />
+              <span className="hidden sm:inline">Détails</span>
+            </Button>
+          )}
+        </>
       )}
 
       {/* Menu contextuel pour les actions rares (mobile) ou toutes actions secondaires (desktop) */}
@@ -289,7 +413,10 @@ export function MembershipRequestActionsV2({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {/* Actions critiques (desktop uniquement - en mobile elles sont visibles) */}
-            {!isMobile && (
+            {/* NOTE: Les actions corrections (copier lien, WhatsApp, régénérer) sont maintenant
+                dans le bloc "Corrections demandées" (CorrectionsBlockV2), pas dans le dropdown */}
+            {/* En mode under_review, on n'affiche que les documents dans le dropdown (feedback testeurs) */}
+            {!isMobile && !isUnderReview && (
               <>
                 {canPay && !primaryAction && onPay && (
                   <DropdownMenuItem
@@ -324,7 +451,8 @@ export function MembershipRequestActionsV2({
                   </DropdownMenuItem>
                 )}
 
-                {canReject && onReject && (
+                {/* Rejeter dans dropdown seulement si pas affiché directement (pas en under_review) */}
+                {canReject && onReject && !isUnderReview && (
                   <DropdownMenuItem
                     onClick={onReject}
                     disabled={isRejecting}
@@ -336,12 +464,12 @@ export function MembershipRequestActionsV2({
                   </DropdownMenuItem>
                 )}
 
-                {(canPay || canApprove || canRequestCorrections || canReject) && (
+                {(canPay || canApprove || canRequestCorrections || (canReject && !isUnderReview)) && (
                   <DropdownMenuSeparator />
                 )}
 
-                {/* Actions consultation desktop - "Voir détails" dans menu si pas action principale */}
-                {onViewDetails && !primaryAction && (
+                {/* Actions consultation desktop - "Voir détails" dans menu si pas action principale et pas under_review et pas approuvé (pour éviter duplication) */}
+                {onViewDetails && !primaryAction && !isUnderReview && !isApproved && (
                   <DropdownMenuItem
                     onClick={onViewDetails}
                     data-testid="action-view-details-menu"
@@ -385,6 +513,7 @@ export function MembershipRequestActionsV2({
               </>
             )}
 
+            {/* Fiche d'adhésion dans le dropdown - Toujours disponible comme accès alternatif, même si visible comme bouton */}
             {onViewMembershipForm && (
               <DropdownMenuItem
                 onClick={onViewMembershipForm}
@@ -415,7 +544,7 @@ export function MembershipRequestActionsV2({
               </DropdownMenuItem>
             )}
 
-            {onSendWhatsApp && (
+            {onSendWhatsApp && !isUnderReview && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

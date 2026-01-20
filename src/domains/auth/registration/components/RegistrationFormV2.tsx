@@ -33,6 +33,9 @@ import AddressStepV2 from './steps/AddressStepV2'
 import CompanyStepV2 from './steps/CompanyStepV2'
 import DocumentsStepV2 from './steps/DocumentsStepV2'
 import SuccessStepV2 from './steps/SuccessStepV2'
+import { CorrectionBannerV2 } from '@/domains/memberships/components/shared/CorrectionBannerV2'
+import { SecurityCodeFormV2 } from './SecurityCodeFormV2'
+import { getMembershipRequestById } from '@/db/membership.db'
 
 // Instancier le service d'inscription
 const registrationRepository = new RegistrationRepository()
@@ -56,6 +59,16 @@ export default function RegistrationFormV2() {
     lastName?: string
     civility?: string
   } | null>(null)
+  
+  // État pour le mode correction
+  const [correctionRequest, setCorrectionRequest] = useState<{
+    requestId: string
+    reviewNote: string
+    isVerified: boolean
+    verifiedCode?: string // Stocker le code vérifié pour la soumission
+  } | null>(null)
+  const [isLoadingCorrection, setIsLoadingCorrection] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
 
   const totalSteps = STEPS.length
 
@@ -69,9 +82,85 @@ export default function RegistrationFormV2() {
 
   const { handleSubmit, trigger } = methods
 
+  // Détecter le requestId dans l'URL et charger la demande de correction
+  useEffect(() => {
+    const loadCorrectionRequest = async () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search)
+        const requestId = urlParams.get('requestId')
+
+        if (requestId) {
+          setIsLoadingCorrection(true)
+          try {
+            const request = await getMembershipRequestById(requestId)
+            if (request?.reviewNote && request?.securityCode) {
+              // Vérifier si le code est déjà utilisé
+              if (request.securityCodeUsed) {
+                toast.error('Code déjà utilisé', {
+                  description: 'Ce code de sécurité a déjà été utilisé.',
+                  duration: 5000,
+                })
+                setIsLoadingCorrection(false)
+                return
+              }
+
+              // Vérifier l'expiration
+              const expiry = request.securityCodeExpiry
+                ? request.securityCodeExpiry instanceof Date
+                  ? request.securityCodeExpiry
+                  : (request.securityCodeExpiry as any)?.toDate
+                  ? (request.securityCodeExpiry as any).toDate()
+                  : new Date(request.securityCodeExpiry)
+                : null
+
+              if (expiry && expiry < new Date()) {
+                toast.error('Code expiré', {
+                  description: 'Le code de sécurité a expiré.',
+                  duration: 5000,
+                })
+                setIsLoadingCorrection(false)
+                return
+              }
+
+              setCorrectionRequest({
+                requestId: request.id || requestId,
+                reviewNote: request.reviewNote,
+                isVerified: false,
+              })
+            }
+          } catch (error) {
+            console.error('[RegistrationFormV2] Erreur lors du chargement de la demande:', error)
+            toast.error('Erreur', {
+              description: 'Impossible de charger la demande de correction.',
+              duration: 5000,
+            })
+          } finally {
+            setIsLoadingCorrection(false)
+          }
+        }
+      } catch (error) {
+        console.error('[RegistrationFormV2] Erreur lors de la détection du requestId:', error)
+      }
+    }
+
+    loadCorrectionRequest()
+  }, [])
+
   // Vérifier si une demande a déjà été soumise avec succès au montage
+  // MAIS seulement si on n'est pas en mode correction (pas de requestId dans l'URL)
   useEffect(() => {
     try {
+      // Vérifier d'abord s'il y a un requestId dans l'URL (mode correction)
+      // Si oui, ne pas charger les données de soumission
+      const urlParams = new URLSearchParams(window.location.search)
+      const requestId = urlParams.get('requestId')
+      if (requestId) {
+        // On est en mode correction, ne pas afficher l'écran de succès
+        setIsSubmitted(false)
+        setSubmittedUserData(null)
+        return
+      }
+
       const submittedData = localStorage.getItem('kara-register-submitted')
       if (submittedData) {
         const { userData, timestamp } = JSON.parse(submittedData)
@@ -225,11 +314,95 @@ export default function RegistrationFormV2() {
     }
   }, [currentStep])
 
+  // Vérifier le code de sécurité
+  const handleVerifyCode = async (code: string): Promise<boolean> => {
+    if (!correctionRequest) return false
+
+    setCodeError(null)
+    try {
+      const result = await registrationService.verifySecurityCode(correctionRequest.requestId, code)
+
+      if (!result.isValid) {
+        const errorMessage = result.reason === 'CODE_INCORRECT'
+          ? 'Le code de sécurité est incorrect.'
+          : result.reason === 'CODE_EXPIRED'
+          ? 'Le code de sécurité a expiré. Veuillez demander un nouveau code à l\'administrateur.'
+          : result.reason === 'CODE_ALREADY_USED'
+          ? 'Ce code de sécurité a déjà été utilisé. Veuillez demander un nouveau code à l\'administrateur.'
+          : 'Le code de sécurité est incorrect, expiré ou déjà utilisé.'
+        
+        setCodeError(errorMessage)
+        return false
+      }
+
+      // Charger les données de la demande
+      const formData = await registrationService.loadRegistrationForCorrection(correctionRequest.requestId)
+      if (!formData) {
+        setCodeError('Impossible de charger les données de la demande.')
+        return false
+      }
+
+      // Réinitialiser le formulaire avec les données
+      methods.reset(formData)
+      setCurrentStep(1)
+      setCompletedSteps(new Set())
+
+      // Marquer comme vérifié et stocker le code
+      setCorrectionRequest((prev) => (prev ? { ...prev, isVerified: true, verifiedCode: code } : null))
+
+      toast.success('Code vérifié !', {
+        description: 'Vos données ont été chargées. Vous pouvez maintenant apporter les corrections.',
+        duration: 4000,
+      })
+
+      return true
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de la vérification.'
+      setCodeError(errorMessage)
+      return false
+    }
+  }
+
   // Soumettre le formulaire via RegistrationService
   const onSubmit = async (data: RegisterFormData) => {
     setIsSubmitting(true)
     try {
-      // Appeler le service d'inscription pour créer le document dans Firestore
+      // Si en mode correction, utiliser updateRegistration avec le code
+      if (correctionRequest?.isVerified && correctionRequest.requestId && correctionRequest.verifiedCode) {
+        // Le code a déjà été vérifié, on peut soumettre les corrections
+        // Passer le code de sécurité à updateRegistration qui appellera la Cloud Function submitCorrections
+        const success = await registrationService.updateRegistration(
+          correctionRequest.requestId,
+          data,
+          correctionRequest.verifiedCode
+        )
+
+        if (!success) {
+          throw new Error('Échec de la mise à jour des corrections')
+        }
+
+        // Préparer les données utilisateur pour la page de succès
+        const userData = {
+          firstName: data.identity.firstName,
+          lastName: data.identity.lastName,
+          civility: data.identity.civility,
+        }
+
+        toast.success('Corrections soumises !', {
+          description: 'Vos corrections ont été enregistrées. La demande est de nouveau en attente de validation.',
+          duration: 5000,
+        })
+
+        // Nettoyer le cache et définir l'état de soumission
+        localStorage.removeItem('kara-register-form-v2')
+        setSubmittedUserData(userData)
+        setCorrectionRequest(null)
+        setIsSubmitted(true) // Afficher la page de succès
+        
+        return
+      }
+
+      // Mode normal : nouvelle inscription
       const membershipId = await registrationService.submitRegistration(data)
       
       // Préparer les données utilisateur pour la page de succès
@@ -366,10 +539,29 @@ export default function RegistrationFormV2() {
           }}
         />
 
+        {/* Banner de corrections et formulaire de code */}
+        {correctionRequest && !correctionRequest.isVerified && (
+          <div className="mt-8 space-y-4 animate-in fade-in-0 slide-in-from-top-4 duration-500">
+            <CorrectionBannerV2 reviewNote={correctionRequest.reviewNote} />
+            <SecurityCodeFormV2
+              onVerify={handleVerifyCode}
+              isLoading={isLoadingCorrection}
+              error={codeError}
+            />
+          </div>
+        )}
+
         {/* Formulaire */}
         <FormProvider {...methods}>
           <form 
             onSubmit={async (e) => {
+              // Ne pas soumettre si en mode correction et code non vérifié
+              if (correctionRequest && !correctionRequest.isVerified) {
+                e.preventDefault()
+                e.stopPropagation()
+                return false
+              }
+
               // Ne soumettre que si on est vraiment à la dernière étape
               if (currentStep !== totalSteps) {
                 e.preventDefault()
@@ -382,86 +574,91 @@ export default function RegistrationFormV2() {
               return result
             }}
           >
-            {/* Contenu de l'étape */}
-            <div className="mt-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/50 overflow-hidden animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
-              <div
-                key={currentStep}
-                className="p-6 sm:p-8 animate-in fade-in-0 duration-300"
-              >
-                {currentStep === 1 && <IdentityStepV2 />}
-                {currentStep === 2 && <AddressStepV2 />}
-                {currentStep === 3 && <CompanyStepV2 />}
-                {currentStep === 4 && <DocumentsStepV2 />}
+            {/* Contenu de l'étape - Masquer si code non vérifié */}
+            {(!correctionRequest || correctionRequest.isVerified) && (
+              <div className="mt-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/50 overflow-hidden animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-200">
+                <div
+                  key={currentStep}
+                  className="p-6 sm:p-8 animate-in fade-in-0 duration-300"
+                >
+                  {currentStep === 1 && <IdentityStepV2 />}
+                  {currentStep === 2 && <AddressStepV2 />}
+                  {currentStep === 3 && <CompanyStepV2 />}
+                  {currentStep === 4 && <DocumentsStepV2 />}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Navigation */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-300">
-              {/* Bouton de réinitialisation */}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={resetForm}
-                className="text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-colors"
-              >
-                <RotateCcw className="w-4 h-4 mr-1" />
-                Réinitialiser
-              </Button>
-
-              <div className="flex gap-3">
+            {/* Navigation - Masquer si code non vérifié */}
+            {(!correctionRequest || correctionRequest.isVerified) && (
+              <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-300">
+                {/* Bouton de réinitialisation */}
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    prevStep(e)
-                  }}
-                  disabled={currentStep === 1}
-                  className={cn(
-                    "flex-1 sm:flex-none border-slate-200",
-                    currentStep === 1 && "opacity-50"
-                  )}
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetForm}
+                  className="text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Précédent
+                  <RotateCcw className="w-4 h-4 mr-1" />
+                  Réinitialiser
                 </Button>
 
-                {currentStep < totalSteps ? (
+                <div className="flex gap-3">
                   <Button
                     type="button"
+                    variant="outline"
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      nextStep(e)
+                      prevStep(e)
                     }}
-                    className="flex-1 sm:flex-none bg-linear-to-r from-kara-primary-dark to-kara-primary-dark/90 hover:from-kara-primary-dark/90 hover:to-kara-primary-dark/80 text-white shadow-lg shadow-kara-primary-dark/20"
-                  >
-                    Suivant
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 sm:flex-none bg-linear-to-r from-kara-primary-light to-kara-primary-light/90 hover:from-kara-primary-light/90 hover:to-kara-primary-light/80 text-white shadow-lg shadow-kara-primary-light/20"
-                  >
-                    {isSubmitting ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Envoi...
-                      </div>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-1" />
-                        Finaliser
-                      </>
+                    disabled={currentStep === 1}
+                    className={cn(
+                      "flex-1 sm:flex-none border-slate-200",
+                      currentStep === 1 && "opacity-50"
                     )}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Précédent
                   </Button>
-                )}
+
+                  {currentStep < totalSteps ? (
+                    <Button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        nextStep(e)
+                      }}
+                      className="flex-1 sm:flex-none bg-linear-to-r from-kara-primary-dark to-kara-primary-dark/90 hover:from-kara-primary-dark/90 hover:to-kara-primary-dark/80 text-white shadow-lg shadow-kara-primary-dark/20"
+                    >
+                      Suivant
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex-1 sm:flex-none bg-linear-to-r from-kara-primary-light to-kara-primary-light/90 hover:from-kara-primary-light/90 hover:to-kara-primary-light/80 text-white shadow-lg shadow-kara-primary-light/20"
+                      data-testid={correctionRequest?.isVerified ? "registration-form-submit-corrections-button" : undefined}
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Envoi...
+                        </div>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4 mr-1" />
+                          {correctionRequest?.isVerified ? 'Soumettre les corrections' : 'Finaliser'}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Footer info */}
             <div className="mt-8 text-center animate-in fade-in-0 duration-500 delay-500">

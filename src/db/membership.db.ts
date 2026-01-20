@@ -357,12 +357,55 @@ export async function getAllMembershipRequests(
 
 /**
  * Récupère les demandes d'adhésion avec pagination avancée
- * Utilise les curseurs Firebase pour une pagination efficace
+ * Utilise MembershipRepositoryV2 qui supporte Algolia pour la recherche
  * 
  * @param {object} options - Options de pagination
  * @returns {Promise<PaginatedMembershipRequests>} - Résultats paginés
  */
 export async function getMembershipRequestsPaginated(options: {
+    page?: number;
+    limit?: number;
+    status?: MembershipRequestStatus | 'all';
+    searchQuery?: string;
+    startAfterDoc?: any;
+    orderByField?: string;
+    orderByDirection?: 'asc' | 'desc';
+} = {}): Promise<PaginatedMembershipRequests> {
+    // Utiliser MembershipRepositoryV2 qui supporte Algolia
+    const { MembershipRepositoryV2 } = await import('@/domains/memberships/repositories/MembershipRepositoryV2')
+    const repository = MembershipRepositoryV2.getInstance()
+    
+    const result = await repository.getAll(
+        {
+            status: options.status === 'all' ? undefined : options.status,
+            search: options.searchQuery,
+            isPaid: undefined, // Pas de filtre par défaut
+        },
+        options.page || 1,
+        options.limit || 10
+    )
+    
+    // Convertir le format de réponse du repository vers le format attendu
+    return {
+        data: result.items, // MembershipRequestsResponse utilise 'items'
+        pagination: {
+            currentPage: result.pagination.page, // MembershipRequestPagination utilise 'page'
+            totalPages: result.pagination.totalPages,
+            totalItems: result.pagination.totalItems,
+            itemsPerPage: result.pagination.limit, // MembershipRequestPagination utilise 'limit'
+            hasNextPage: result.pagination.hasNextPage,
+            hasPrevPage: result.pagination.hasPrevPage,
+            nextCursor: null, // Le repository ne retourne pas de curseur
+            prevCursor: null,
+        },
+    }
+}
+
+/**
+ * @deprecated Cette fonction est remplacée par getMembershipRequestsPaginated qui utilise MembershipRepositoryV2
+ * Conservée pour compatibilité mais ne devrait plus être utilisée directement
+ */
+async function getMembershipRequestsPaginatedLegacy(options: {
     page?: number;
     limit?: number;
     status?: MembershipRequestStatus | 'all';

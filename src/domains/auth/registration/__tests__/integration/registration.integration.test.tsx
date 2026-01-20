@@ -132,11 +132,15 @@ describe('Registration Integration Tests', () => {
       create: vi.fn(),
       getById: vi.fn(),
       update: vi.fn(),
-      verifySecurityCode: vi.fn(),
-      markSecurityCodeAsUsed: vi.fn(),
     } as unknown as IRegistrationRepository
 
     registrationService = new RegistrationService(mockRepository)
+    
+    // Spy sur les méthodes du service pour les tests
+    vi.spyOn(registrationService, 'verifySecurityCode')
+    vi.spyOn(registrationService, 'loadRegistrationForCorrection')
+    vi.spyOn(registrationService, 'updateRegistration')
+    vi.spyOn(registrationService, 'submitRegistration')
     cacheService = new RegistrationCacheService({ expiry: 1000 * 60 * 60 })
   })
 
@@ -446,8 +450,13 @@ describe('Registration Integration Tests', () => {
       const { getMembershipRequestById } = await import('@/db/membership.db')
       vi.mocked(getMembershipRequestById).mockResolvedValue(mockRequest)
 
-      // Mock des appels
-      vi.mocked(mockRepository.verifySecurityCode).mockResolvedValue(true)
+      // Mock des appels - le service appelle maintenant la Cloud Function
+      vi.mocked(registrationService.verifySecurityCode).mockResolvedValue({
+        isValid: true,
+        requestData: { reviewNote: 'test corrections' },
+      })
+      // Mock loadRegistrationForCorrection qui est appelé après verifySecurityCode
+      vi.mocked(registrationService.loadRegistrationForCorrection).mockResolvedValue(mockData)
       vi.mocked(mockRepository.getById).mockResolvedValue(mockRequest)
 
       const { result } = renderHook(() =>
@@ -477,7 +486,7 @@ describe('Registration Integration Tests', () => {
 
       // Vérifier le résultat
       expect(isValid).toBe(true)
-      expect(mockRepository.verifySecurityCode).toHaveBeenCalledWith(
+      expect(registrationService.verifySecurityCode).toHaveBeenCalledWith(
         'test-request-id-123',
         'SEC-CODE-123'
       )
@@ -504,7 +513,10 @@ describe('Registration Integration Tests', () => {
       const { getMembershipRequestById } = await import('@/db/membership.db')
       vi.mocked(getMembershipRequestById).mockResolvedValue(mockRequest)
 
-      vi.mocked(mockRepository.verifySecurityCode).mockResolvedValue(false)
+      vi.mocked(registrationService.verifySecurityCode).mockResolvedValue({
+        isValid: false,
+        reason: 'CODE_INCORRECT',
+      })
 
       const { result } = renderHook(() =>
         useRegistration({ registrationService, cacheService })
@@ -546,10 +558,16 @@ describe('Registration Integration Tests', () => {
       const { getMembershipRequestById } = await import('@/db/membership.db')
       vi.mocked(getMembershipRequestById).mockResolvedValue(mockRequest)
 
-      // Mock des appels
-      vi.mocked(mockRepository.verifySecurityCode).mockResolvedValue(true)
+      // Mock des appels - le service appelle maintenant les Cloud Functions
+      vi.mocked(registrationService.verifySecurityCode).mockResolvedValue({
+        isValid: true,
+        requestData: { reviewNote: 'test corrections' },
+      })
+      // Mock loadRegistrationForCorrection qui est appelé après verifySecurityCode
+      vi.mocked(registrationService.loadRegistrationForCorrection).mockResolvedValue(mockData)
       vi.mocked(mockRepository.getById).mockResolvedValue(mockRequest)
-      vi.mocked(mockRepository.update).mockResolvedValue(true)
+      // updateRegistration avec securityCode appelle submitCorrections Cloud Function
+      vi.mocked(registrationService.updateRegistration).mockResolvedValue(true)
 
       const { result } = renderHook(() =>
         useRegistration({ registrationService, cacheService })
@@ -580,8 +598,8 @@ describe('Registration Integration Tests', () => {
         await result.current.submitForm()
       })
 
-      // 5. Vérifier que update a été appelé (pas create)
-      expect(mockRepository.update).toHaveBeenCalledWith(
+      // 5. Vérifier que updateRegistration a été appelé (pas create)
+      expect(registrationService.updateRegistration).toHaveBeenCalledWith(
         mockRequest.id,
         expect.objectContaining({
           address: expect.objectContaining({
@@ -589,7 +607,7 @@ describe('Registration Integration Tests', () => {
           }),
         })
       )
-      expect(mockRepository.create).not.toHaveBeenCalled()
+      expect(registrationService.submitRegistration).not.toHaveBeenCalled()
     })
   })
 

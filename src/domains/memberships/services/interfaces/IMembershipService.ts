@@ -8,9 +8,10 @@ import type { PaymentInfo } from '../../entities/MembershipRequest'
 export interface ApproveMembershipRequestParams {
   requestId: string
   adminId: string
-  membershipType?: 'adherant' | 'bienfaiteur' | 'sympathisant'
-  companyName?: string
-  professionName?: string
+  membershipType: 'adherant' | 'bienfaiteur' | 'sympathisant'
+  companyId?: string | null
+  professionId?: string | null
+  adhesionPdfURL: string  // Obligatoire
 }
 
 export interface RejectMembershipRequestParams {
@@ -58,4 +59,16 @@ export interface IMembershipService {
    * Traite un paiement pour une demande d'adhésion
    */
   processPayment(params: ProcessPaymentParams): Promise<void>
+
+  /**
+   * Régénère le code de sécurité pour une demande en correction
+   * @param requestId - ID de la demande
+   * @param adminId - ID de l'admin qui régénère le code
+   * @returns Nouveau code de sécurité et date d'expiration
+   */
+  renewSecurityCode(requestId: string, adminId: string): Promise<{
+    success: boolean
+    newCode: string
+    newExpiry: Date
+  }>
 }

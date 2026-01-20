@@ -10,7 +10,6 @@ import {
   createMembershipRequest,
   getMembershipRequestById,
   updateMembershipRequest,
-  markSecurityCodeAsUsed as dbMarkSecurityCodeAsUsed,
 } from '@/db/membership.db'
 
 export class RegistrationRepository implements IRegistrationRepository {
@@ -38,6 +37,20 @@ export class RegistrationRepository implements IRegistrationRepository {
     }
   }
 
+  /**
+   * Met à jour une demande d'inscription existante
+   * 
+   * ⚠️ DÉPRÉCIÉ pour les CORRECTIONS : 
+   * Pour les corrections, utiliser la Cloud Function `submitCorrections` via `RegistrationService.updateRegistration(requestId, data, securityCode)`.
+   * La Cloud Function garantit une transaction atomique et évite les race conditions.
+   * 
+   * Cette méthode reste utilisée pour d'autres cas d'usage non liés aux corrections.
+   * 
+   * @param id - ID de la demande (matricule)
+   * @param data - Données partielles à mettre à jour
+   * @returns true si la mise à jour réussit
+   * @throws Error si la mise à jour échoue
+   */
   async update(id: string, data: Partial<RegisterFormData>): Promise<boolean> {
     try {
       // updateMembershipRequest attend un RegisterFormData complet
@@ -75,55 +88,6 @@ export class RegistrationRepository implements IRegistrationRepository {
           ? error.message
           : 'Erreur lors de la mise à jour de la demande d\'inscription'
       )
-    }
-  }
-
-  async verifySecurityCode(requestId: string, code: string): Promise<boolean> {
-    try {
-      const request = await this.getById(requestId)
-      if (!request) {
-        return false
-      }
-
-      // Vérifier si le code correspond
-      if (request.securityCode !== code) {
-        return false
-      }
-
-      // Vérifier si le code a déjà été utilisé
-      if (request.securityCodeUsed) {
-        return false
-      }
-
-      // Vérifier l'expiration du code
-      if (request.securityCodeExpiry) {
-        const expiry = request.securityCodeExpiry instanceof Date
-          ? request.securityCodeExpiry
-          : (request.securityCodeExpiry as any)?.toDate
-          ? (request.securityCodeExpiry as any).toDate()
-          : new Date(request.securityCodeExpiry)
-        
-        if (expiry < new Date()) {
-          return false
-        }
-      } else {
-        // Pas de date d'expiration = code expiré
-        return false
-      }
-
-      return true
-    } catch (error) {
-      console.error('[RegistrationRepository] Erreur lors de la vérification du code:', error)
-      return false
-    }
-  }
-
-  async markSecurityCodeAsUsed(requestId: string): Promise<boolean> {
-    try {
-      return await dbMarkSecurityCodeAsUsed(requestId)
-    } catch (error) {
-      console.error('[RegistrationRepository] Erreur lors du marquage du code:', error)
-      return false
     }
   }
 }
