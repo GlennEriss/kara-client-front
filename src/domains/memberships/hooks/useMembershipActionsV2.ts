@@ -100,7 +100,7 @@ export function useMembershipActionsV2() {
       toast.success('Lien copié !', {
         description: 'Le lien de correction a été copié dans le presse-papiers.',
       })
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erreur lors de la copie', {
         description: 'Impossible de copier le lien. Veuillez le copier manuellement.',
       })

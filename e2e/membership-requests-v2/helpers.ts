@@ -183,7 +183,13 @@ export async function waitForRequestInList(page: Page, requestId: string, matric
 /**
  * Attend qu'un toast de succès soit affiché
  */
-export async function waitForSuccessToast(page: Page, message?: string | RegExp) {
+export async function waitForSuccessToast(
+  page: Page,
+  message?: string | RegExp,
+  options?: { timeout?: number }
+) {
+  const timeout = options?.timeout ?? 10000
+  
   // Sonner utilise plusieurs sélecteurs possibles
   const toastSelectors = [
     '[data-sonner-toast]',
@@ -212,7 +218,7 @@ export async function waitForSuccessToast(page: Page, message?: string | RegExp)
     toast = page.locator('[data-sonner-toast], .sonner-toast, [role="status"], [role="alert"]').first()
   }
   
-  await expect(toast.first()).toBeVisible({ timeout: 10000 })
+  await expect(toast.first()).toBeVisible({ timeout })
   
   if (message) {
     // Chercher le message dans le toast ou dans un élément enfant

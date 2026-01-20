@@ -48,6 +48,7 @@ export default defineConfig({
         // Exclure les types/interfaces (non testables directement)
         '**/entities/**',
         '**/types/**',
+        '**/interfaces/**',
       ],
       thresholds: {
         // Seuils globaux désactivés (0) pour ne pas bloquer les autres modules

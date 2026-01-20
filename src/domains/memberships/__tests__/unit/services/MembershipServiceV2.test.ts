@@ -25,6 +25,8 @@ vi.mock('@/firebase/adminAuth')
 vi.mock('@/db/user.db')
 vi.mock('@/db/subscription.db')
 vi.mock('@/repositories/admins/AdminRepository')
+vi.mock('firebase/functions')
+vi.mock('@/utils/pdfGenerator')
 
 describe('MembershipServiceV2', () => {
   let service: MembershipServiceV2
@@ -70,6 +72,8 @@ describe('MembershipServiceV2', () => {
         service.approveMembershipRequest({
           requestId: unpaidRequest.id,
           adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
         })
       ).rejects.toThrow('La demande doit être payée avant approbation')
     })
@@ -84,6 +88,8 @@ describe('MembershipServiceV2', () => {
         service.approveMembershipRequest({
           requestId: approvedReq.id,
           adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
         })
       ).rejects.toThrow('Statut invalide pour approbation')
     })
@@ -113,6 +119,8 @@ describe('MembershipServiceV2', () => {
         service.approveMembershipRequest({
           requestId: rejectedReq.id,
           adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
         })
       ).rejects.toThrow('Statut invalide pour approbation')
     })
@@ -126,23 +134,53 @@ describe('MembershipServiceV2', () => {
       // Arrange
       const paidRequest = pendingPaidRequest()
       mockRepository.getById.mockResolvedValue(paidRequest)
-      mockRepository.updateStatus.mockResolvedValue(undefined)
+      
+      // Mock de la Cloud Function
+      const mockCallableFunction = vi.fn().mockResolvedValue({
+        data: {
+          success: true,
+          matricule: '1234.MK.567890',
+          email: 'test@kara.ga',
+          password: 'TempPass123!',
+          subscriptionId: 'sub-123',
+        },
+      }) as any
+      
+      // Ajouter la propriété stream requise par HttpsCallable
+      mockCallableFunction.stream = vi.fn()
+      
+      const { getFunctions, httpsCallable } = await import('firebase/functions')
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+      vi.mocked(httpsCallable).mockReturnValue(mockCallableFunction)
+      
+      // Mock PDF generator
+      const { generateCredentialsPDF, downloadPDF } = await import('@/utils/pdfGenerator')
+      const mockPdfBlob = new Blob(['pdf content'], { type: 'application/pdf' })
+      vi.mocked(generateCredentialsPDF).mockResolvedValue(mockPdfBlob)
+      vi.mocked(downloadPDF).mockImplementation(() => {})
       
       // Act
       await service.approveMembershipRequest({
         requestId: paidRequest.id,
         adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
       })
       
       // Assert
-      expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-        paidRequest.id,
-        'approved',
-        expect.objectContaining({
-          processedBy: 'admin-123',
-          processedAt: expect.any(Date),
-        })
-      )
+      // Vérifier que la Cloud Function a été appelée avec les bons paramètres
+      expect(mockCallableFunction).toHaveBeenCalledWith({
+        requestId: paidRequest.id,
+        adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
+        companyId: null,
+        professionId: null,
+      })
+      
+      // Vérifier que le PDF a été généré et téléchargé
+      expect(generateCredentialsPDF).toHaveBeenCalled()
+      expect(downloadPDF).toHaveBeenCalled()
     })
   })
 
@@ -725,6 +763,8 @@ describe('MembershipServiceV2', () => {
         service.approveMembershipRequest({
           requestId: 'non-existent',
           adminId: 'admin-123',
+          membershipType: 'adherant',
+          adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
         })
       ).rejects.toThrow('introuvable')
     })

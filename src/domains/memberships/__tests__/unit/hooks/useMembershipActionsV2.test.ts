@@ -61,12 +61,16 @@ describe('useMembershipActionsV2', () => {
       await result.current.approveMutation.mutateAsync({
         requestId: 'test-id',
         adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
       })
       
       // Assert
       expect(mockService.approveMembershipRequest).toHaveBeenCalledWith({
         requestId: 'test-id',
         adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
       })
     })
 
@@ -84,6 +88,8 @@ describe('useMembershipActionsV2', () => {
       await result.current.approveMutation.mutateAsync({
         requestId: 'test-id',
         adminId: 'admin-123',
+        membershipType: 'adherant',
+        adhesionPdfURL: 'https://storage.example.com/pdf/test.pdf',
       })
       
       // Assert
