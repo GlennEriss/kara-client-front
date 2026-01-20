@@ -18,7 +18,7 @@ import {
   CorrectionsBlockV2,
 } from '../shared'
 import { MembershipRequestActionsV2 } from '../actions'
-import { User, Phone, Mail } from 'lucide-react'
+import { User, Phone, Mail, CheckCircle2, Calendar } from 'lucide-react'
 
 interface MembershipRequestMobileCardV2Props {
   request: MembershipRequest
@@ -41,6 +41,9 @@ interface MembershipRequestMobileCardV2Props {
   
   // Pour obtenir les infos de l'admin qui a demandé les corrections
   getProcessedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
+  
+  // Pour obtenir les infos de l'admin qui a approuvé
+  getApprovedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
   
   // États de chargement
   loadingActions?: Record<string, boolean>
@@ -79,6 +82,7 @@ export function MembershipRequestMobileCardV2({
   onSendWhatsAppCorrection,
   onRenewSecurityCode,
   getProcessedByInfo,
+  getApprovedByInfo,
   loadingActions = {},
   className,
 }: MembershipRequestMobileCardV2Props) {
@@ -89,6 +93,9 @@ export function MembershipRequestMobileCardV2({
     isPaid, 
     createdAt,
     reviewNote,
+    matricule,
+    approvedBy,
+    approvedAt,
   } = request
 
   const fullName = `${identity.firstName || ''} ${identity.lastName || ''}`.trim() || 'N/A'
@@ -125,19 +132,39 @@ export function MembershipRequestMobileCardV2({
               <h3 className="font-semibold text-base text-kara-primary-dark truncate">
                 {fullName}
               </h3>
-              {/* Traçabilité : Matricule et ID (P0.3) */}
-              <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                {request.matricule && (
-                  <span className="font-mono" title={`Matricule: ${request.matricule}`}>
-                    #{request.matricule}
-                  </span>
-                )}
-                {request.id && (
-                  <span className="font-mono text-[10px]" title={`ID: ${request.id}`}>
-                    {request.id.slice(0, 8)}...
-                  </span>
-                )}
-              </div>
+              {/* Traçabilité : Matricule uniquement avec # (P0.3) */}
+              {matricule && (
+                <span className="text-xs text-gray-400 mt-0.5 font-mono" title={`Matricule: ${matricule}`}>
+                  #{matricule}
+                </span>
+              )}
+              {/* Informations d'approbation (si approuvé) */}
+              {status === 'approved' && (approvedBy || approvedAt) && (
+                <div className="flex flex-col gap-1 mt-1">
+                  {approvedBy && getApprovedByInfo && (
+                    <div className="flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span className="truncate">
+                        Approuvé par: {getApprovedByInfo(id || '')?.name || approvedBy}
+                      </span>
+                    </div>
+                  )}
+                  {approvedAt && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Calendar className="w-3 h-3" />
+                      <span className="truncate">
+                        {toDateSafe(approvedAt)?.toLocaleDateString('fr-FR', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) || 'Date inconnue'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Badges : Statut + Paiement - Avec labels pour clarté */}

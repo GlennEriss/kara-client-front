@@ -13,6 +13,7 @@ import { NotificationService } from '@/services/notifications/NotificationServic
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { app } from '@/firebase/app'
+import { generateCredentialsPDF, downloadPDF, formatCredentialsFilename } from '@/utils/pdfGenerator'
 import type {
   IMembershipService,
   ApproveMembershipRequestParams,
@@ -46,7 +47,7 @@ export class MembershipServiceV2 implements IMembershipService {
   }
 
   async approveMembershipRequest(params: ApproveMembershipRequestParams): Promise<void> {
-    const { requestId, adminId } = params
+    const { requestId, adminId, membershipType, companyId, professionId, adhesionPdfURL } = params
 
     // Récupérer la demande
     const request = await this.repository.getById(requestId)
@@ -66,22 +67,69 @@ export class MembershipServiceV2 implements IMembershipService {
       throw new Error(`Statut invalide pour approbation: ${request.status}`)
     }
 
+    // Vérifier que le type de membre est fourni
+    if (!membershipType || !['adherant', 'bienfaiteur', 'sympathisant'].includes(membershipType)) {
+      throw new Error('Le type de membre est requis et doit être valide')
+    }
+
+    // Vérifier que le PDF d'adhésion est fourni
+    if (!adhesionPdfURL || typeof adhesionPdfURL !== 'string') {
+      throw new Error('Le PDF d\'adhésion est obligatoire')
+    }
+
     // ==================== FLUX PRINCIPAL ====================
-    // Note: L'implémentation complète nécessiterait Firebase Admin Auth,
-    // création de user, abonnement, PDF, etc.
-    // Pour l'instant, on se concentre sur la mise à jour du statut
     
-    // Mettre à jour le statut de la demande
-    await this.repository.updateStatus(requestId, 'approved', {
-      processedBy: adminId,
-      processedAt: new Date(),
+    // Appeler la Cloud Function approveMembershipRequest (transaction atomique)
+    const functions = getFunctions(app)
+    const approveMembershipRequestCF = httpsCallable<
+      {
+        requestId: string
+        adminId: string
+        membershipType: 'adherant' | 'bienfaiteur' | 'sympathisant'
+        companyId?: string | null
+        professionId?: string | null
+        adhesionPdfURL: string
+      },
+      {
+        success: boolean
+        matricule: string
+        email: string
+        password: string
+        subscriptionId: string
+        companyId?: string | null
+        professionId?: string | null
+      }
+    >(functions, 'approveMembershipRequest')
+
+    const result = await approveMembershipRequestCF({
+      requestId,
+      adminId,
+      membershipType,
+      companyId: companyId || null,
+      professionId: professionId || null,
+      adhesionPdfURL,
     })
 
-    // TODO: Créer utilisateur Firebase Auth
-    // TODO: Créer document user dans Firestore
-    // TODO: Créer abonnement initial
-    // TODO: Générer et sauvegarder PDF d'adhésion
-    // TODO: Envoyer notification
+    if (!result.data.success) {
+      throw new Error('Erreur lors de l\'approbation de la demande d\'adhésion')
+    }
+
+    // Générer et télécharger le PDF des identifiants de connexion
+    try {
+      const pdfBlob = await generateCredentialsPDF({
+        firstName: request.identity.firstName,
+        lastName: request.identity.lastName,
+        matricule: result.data.matricule,
+        email: result.data.email,
+        password: result.data.password,
+      })
+
+      const filename = formatCredentialsFilename(result.data.matricule)
+      downloadPDF(pdfBlob, filename)
+    } catch (error) {
+      // Ne pas bloquer le processus d'approbation si le PDF échoue
+      console.error('[MembershipServiceV2] Erreur lors de la génération du PDF des identifiants:', error)
+    }
   }
 
   async rejectMembershipRequest(params: RejectMembershipRequestParams): Promise<void> {

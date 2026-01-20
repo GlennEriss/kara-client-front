@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.syncToAlgolia = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -17,6 +17,8 @@ const submitCorrections_1 = require("./membership-requests/submitCorrections");
 Object.defineProperty(exports, "submitCorrections", { enumerable: true, get: function () { return submitCorrections_1.submitCorrections; } });
 const renewSecurityCode_1 = require("./membership-requests/renewSecurityCode");
 Object.defineProperty(exports, "renewSecurityCode", { enumerable: true, get: function () { return renewSecurityCode_1.renewSecurityCode; } });
+const approveMembershipRequest_1 = require("./membership-requests/approveMembershipRequest");
+Object.defineProperty(exports, "approveMembershipRequest", { enumerable: true, get: function () { return approveMembershipRequest_1.approveMembershipRequest; } });
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
 exports.dailyBirthdayNotifications = (0, scheduler_1.onSchedule)({
@@ -139,4 +141,7 @@ exports.dailyCaisseImprevueApprovedNotConvertedReminders = (0, scheduler_1.onSch
     await (0, caisseImprevueDemandReminders_1.remindApprovedNotConvertedCaisseImprevueDemands)();
     console.log('Job terminé avec succès');
 });
+// Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
+var syncToAlgolia_1 = require("./membership-requests/syncToAlgolia");
+Object.defineProperty(exports, "syncToAlgolia", { enumerable: true, get: function () { return syncToAlgolia_1.syncToAlgolia; } });
 //# sourceMappingURL=index.js.map

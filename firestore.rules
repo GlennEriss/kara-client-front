@@ -117,8 +117,24 @@ service cloud.firestore {
         request.resource.data.get('processedBy', null) == null;
       
       // MISE À JOUR : Admin ou demandeur avec code de sécurité valide
-      allow update: if isAdmin() || (
-        // Cas 1: Demandeur authentifié avec email correspondant et code de sécurité valide
+      allow update: if (
+        // Cas 1: Admin - avec validation pour l'approbation
+        (isAdmin() && (
+          // Si le statut passe à 'approved', approvedBy et approvedAt doivent être présents
+          (request.resource.data.status == 'approved' &&
+           request.resource.data.approvedBy is string &&
+           request.resource.data.approvedBy != null &&
+           request.resource.data.approvedAt is timestamp &&
+           request.resource.data.approvedAt != null &&
+           // Protection : si déjà approuvé, empêcher la modification de approvedBy/approvedAt
+           (resource.data.status != 'approved' ||
+            (request.resource.data.approvedBy == resource.data.approvedBy &&
+             request.resource.data.approvedAt == resource.data.approvedAt))) ||
+          // Sinon, mise à jour normale par admin
+          (request.resource.data.status != 'approved')
+        ))
+      ) || (
+        // Cas 2: Demandeur authentifié avec email correspondant et code de sécurité valide
         (isAuthenticated() &&
          resource.data.identity.email == request.auth.token.email &&
          hasValidSecurityCode(resource.data) &&
@@ -129,7 +145,7 @@ service cloud.firestore {
          // Doit marquer le code comme utilisé
          request.resource.data.securityCodeUsed == true)
         ||
-        // Cas 2: Demandeur non authentifié soumettant des corrections (via code de sécurité)
+        // Cas 3: Demandeur non authentifié soumettant des corrections (via code de sécurité)
         // Vérification que :
         // - Le statut passe de 'under_review' à 'pending' (soumission corrections)
         // - Le code est marqué comme utilisé

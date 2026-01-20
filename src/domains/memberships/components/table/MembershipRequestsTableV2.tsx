@@ -60,6 +60,9 @@ interface MembershipRequestsTableV2Props {
   // Pour obtenir les infos de l'admin qui a demandé les corrections
   getProcessedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
   
+  // Pour obtenir les infos de l'admin qui a approuvé
+  getApprovedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
+  
   // États de chargement
   loadingActions?: Record<string, boolean>
   
@@ -175,6 +178,7 @@ export function MembershipRequestsTableV2({
   onSendWhatsAppCorrection,
   onRenewSecurityCode,
   getProcessedByInfo,
+  getApprovedByInfo,
   loadingActions = {},
   hasActiveFilters = false,
   searchQuery = '',
@@ -267,6 +271,7 @@ export function MembershipRequestsTableV2({
                 onCopyCorrectionLink={onCopyCorrectionLink}
                 onSendWhatsAppCorrection={onSendWhatsAppCorrection}
                 onRenewSecurityCode={onRenewSecurityCode}
+                getApprovedByInfo={getApprovedByInfo}
                 loadingActions={loadingActions}
               />
               {/* Afficher le bloc de corrections si présent */}

@@ -16,7 +16,7 @@ import {
   RelativeDateV2 
 } from '../shared'
 import { MembershipRequestActionsV2 } from '../actions'
-import { User } from 'lucide-react'
+import { User, CheckCircle2, Calendar } from 'lucide-react'
 
 /**
  * Convertit un timestamp Firestore en Date de manière sécurisée
@@ -51,6 +51,9 @@ interface MembershipRequestRowV2Props {
   onSendWhatsAppCorrection?: (id: string) => void
   onRenewSecurityCode?: (id: string) => void
   
+  // Pour obtenir les infos de l'admin qui a approuvé
+  getApprovedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
+  
   // États de chargement
   loadingActions?: Record<string, boolean>
   
@@ -73,6 +76,7 @@ export function MembershipRequestRowV2({
   onCopyCorrectionLink,
   onSendWhatsAppCorrection,
   onRenewSecurityCode,
+  getApprovedByInfo,
   loadingActions = {},
   className,
 }: MembershipRequestRowV2Props) {
@@ -84,6 +88,8 @@ export function MembershipRequestRowV2({
     createdAt,
     reviewNote,
     matricule,
+    approvedBy,
+    approvedAt,
   } = request
 
   const fullName = `${identity.firstName || ''} ${identity.lastName || ''}`.trim() || 'N/A'
@@ -124,19 +130,39 @@ export function MembershipRequestRowV2({
               {identity.email}
             </span>
           )}
-          {/* Traçabilité : ID et matricule (P0.3) */}
-          <div className="flex items-center gap-2 text-[10px] text-gray-400">
-            {matricule && (
-              <span className="truncate" title={`Matricule: ${matricule}`}>
-                #{matricule}
-              </span>
-            )}
-            {id && (
-              <span className="truncate font-mono" title={`ID: ${id}`}>
-                {id.slice(0, 8)}...
-              </span>
-            )}
-          </div>
+          {/* Traçabilité : Matricule uniquement avec # (P0.3) */}
+          {matricule && (
+            <span className="text-[10px] text-gray-400 truncate" title={`Matricule: ${matricule}`}>
+              #{matricule}
+            </span>
+          )}
+          {/* Informations d'approbation (si approuvé) */}
+          {status === 'approved' && (approvedBy || approvedAt) && (
+            <div className="flex flex-col gap-0.5 mt-1">
+              {approvedBy && getApprovedByInfo && (
+                <div className="flex items-center gap-1 text-[10px] text-green-600">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span className="truncate">
+                    Approuvé par: {getApprovedByInfo(id || '')?.name || approvedBy}
+                  </span>
+                </div>
+              )}
+              {approvedAt && (
+                <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                  <Calendar className="w-3 h-3" />
+                  <span className="truncate">
+                    {toDateSafe(approvedAt)?.toLocaleDateString('fr-FR', { 
+                      day: '2-digit', 
+                      month: '2-digit', 
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) || 'Date inconnue'}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </td>
 
