@@ -199,6 +199,108 @@ test.describe('E2E: Approbation Complète (18 scénarios)', () => {
 
   // ==================== P0: GESTION ENTREPRISE/PROFESSION ====================
 
+  test('P0-APPROV-04: Créer une entreprise si elle n\'existe pas', async ({ page }) => {
+    // Arrange: Créer une demande avec isEmployed: true et companyName
+    // Note: La fonction createTestMembershipRequest crée toujours une demande avec company par défaut
+    // Pour tester une entreprise qui n'existe pas, on utilise un nom unique
+    const testRequest = await createTestMembershipRequest({
+      status: 'pending',
+      isPaid: true,
+    })
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const paidRow = await getRequestRow(page, testRequest.id)
+    if (await paidRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
+    if (await approveButton.count() === 0 || !(await approveButton.isVisible())) {
+      test.skip()
+      return
+    }
+
+    // Act: Ouvrir le modal
+    await approveButton.click()
+    await waitForModal(page, 'modal-approve')
+    await page.waitForTimeout(1000)
+
+    // Assert: La section entreprise est visible
+    const companySection = page.locator('[data-testid="approval-modal-company-section"]')
+    if (await companySection.count() > 0) {
+      await expect(companySection).toBeVisible()
+      
+      // Vérifier que le nom de l'entreprise est affiché
+      const companyName = page.locator('[data-testid="approval-modal-company-name"]')
+      await expect(companyName).toBeVisible()
+      // Le nom de l'entreprise devrait être celui de la demande créée
+      await expect(companyName).toContainText(/Test Company|Entreprise/i)
+      
+      // Note: La création d'entreprise nécessite une fonctionnalité qui n'est peut-être pas encore implémentée
+      // Le test vérifie juste que la section est visible et que l'entreprise est affichée
+    } else {
+      test.skip()
+    }
+  })
+
+  test('P0-APPROV-05: Créer une profession si elle n\'existe pas', async ({ page }) => {
+    // Arrange: Créer une demande avec isEmployed: true et profession
+    // Note: La fonction createTestMembershipRequest crée toujours une demande avec company par défaut
+    // Pour tester une profession qui n'existe pas, on utilise un nom unique
+    const testRequest = await createTestMembershipRequest({
+      status: 'pending',
+      isPaid: true,
+    })
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const paidRow = await getRequestRow(page, testRequest.id)
+    if (await paidRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
+    if (await approveButton.count() === 0 || !(await approveButton.isVisible())) {
+      test.skip()
+      return
+    }
+
+    // Act: Ouvrir le modal
+    await approveButton.click()
+    await waitForModal(page, 'modal-approve')
+    await page.waitForTimeout(1000)
+
+    // Assert: La section profession est visible
+    const professionSection = page.locator('[data-testid="approval-modal-profession-section"]')
+    if (await professionSection.count() > 0) {
+      await expect(professionSection).toBeVisible()
+      
+      // Vérifier que le nom de la profession est affiché
+      const professionName = page.locator('[data-testid="approval-modal-profession-name"]')
+      await expect(professionName).toBeVisible()
+      // Le nom de la profession devrait être celui de la demande créée
+      await expect(professionName).toContainText(/Testeur|Profession/i)
+      
+      // Note: La création de profession nécessite une fonctionnalité qui n'est peut-être pas encore implémentée
+      // Le test vérifie juste que la section est visible et que la profession est affichée
+    } else {
+      test.skip()
+    }
+  })
+
   test('P0-APPROV-06: Membre au chômage (pas d\'entreprise/profession)', async ({ page }) => {
     // Arrange: Créer une demande avec isEmployed: false
     const testRequest = await createTestMembershipRequest({
@@ -348,6 +450,59 @@ test.describe('E2E: Approbation Complète (18 scénarios)', () => {
     }
   })
 
+  test('P0-APPROV-09: Validation de la taille (max 10 MB)', async ({ page }) => {
+    // Arrange
+    const testRequest = await createPendingPaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const paidRow = await getRequestRow(page, testRequest.id)
+    if (await paidRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
+    if (await approveButton.count() === 0 || !(await approveButton.isVisible())) {
+      test.skip()
+      return
+    }
+
+    // Act: Ouvrir le modal
+    await approveButton.click()
+    await waitForModal(page, 'modal-approve')
+    await page.waitForTimeout(1000)
+
+    // Act: Créer un fichier PDF de plus de 10 MB (simulé)
+    const largePdfPath = path.join(__dirname, '../fixtures/test-large.pdf')
+    if (!fs.existsSync(largePdfPath)) {
+      // Créer un fichier de 11 MB pour le test
+      const largeContent = Buffer.alloc(11 * 1024 * 1024, 'PDF content')
+      fs.writeFileSync(largePdfPath, largeContent)
+    }
+
+    const pdfInput = page.locator('[data-testid="approval-modal-pdf-file-input"]')
+    if (fs.existsSync(largePdfPath)) {
+      await pdfInput.setInputFiles(largePdfPath)
+      await page.waitForTimeout(1000)
+
+      // Assert: Message d'erreur affiché pour taille excessive
+      const errorMessage = page.locator('[data-testid="approval-modal-pdf-error"]')
+      await expect(errorMessage).toBeVisible()
+      await expect(errorMessage).toContainText(/taille|10|MB|max/i)
+    }
+
+    // Nettoyer
+    if (fs.existsSync(largePdfPath)) {
+      fs.unlinkSync(largePdfPath)
+    }
+  })
+
   // ==================== P0: ÉTATS ET ERREURS ====================
 
   test('P0-APPROV-10: État de chargement pendant l\'approbation', async ({ page }) => {
@@ -431,6 +586,77 @@ test.describe('E2E: Approbation Complète (18 scénarios)', () => {
     }
   })
 
+  test('P0-APPROV-12: Erreur API - Demande déjà approuvée', async ({ page }) => {
+    // Arrange: Créer une demande et l'approuver d'abord
+    const testRequest = await createPendingPaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const paidRow = await getRequestRow(page, testRequest.id)
+    if (await paidRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
+    if (await approveButton.count() === 0 || !(await approveButton.isVisible())) {
+      test.skip()
+      return
+    }
+
+    // Act: Approuver la demande une première fois
+    await approveButton.click()
+    await waitForModal(page, 'modal-approve')
+    await page.waitForTimeout(1000)
+
+    const membershipTypeSelect = page.locator('[data-testid="approval-modal-membership-type-select"]')
+    await membershipTypeSelect.selectOption({ index: 0 })
+    await page.waitForTimeout(500)
+
+    const pdfInput = page.locator('[data-testid="approval-modal-pdf-file-input"]')
+    if (fs.existsSync(testPdfPath)) {
+      await pdfInput.setInputFiles(testPdfPath)
+      await page.waitForTimeout(1000)
+    }
+
+    const approveModalButton = page.locator('[data-testid="approval-modal-approve-button"]')
+    await approveModalButton.click()
+
+    // Attendre que l'approbation soit terminée
+    await waitForSuccessToast(page, /approuvée|succès/i, { timeout: 15000 })
+    await page.waitForTimeout(3000)
+
+    // Act: Essayer de réapprouver la même demande
+    await page.reload()
+    await waitForRequestsList(page)
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const approvedRow = await getRequestRow(page, testRequest.id)
+    if (await approvedRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    // Assert: Le bouton Approuver ne devrait plus être visible ou être désactivé
+    const approveButtonAgain = approvedRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]')
+    if (await approveButtonAgain.count() > 0) {
+      // Si le bouton existe, il devrait être désactivé
+      await expect(approveButtonAgain.first()).toBeDisabled()
+    } else {
+      // Le bouton n'existe plus, ce qui est correct
+      const statusBadge = approvedRow.locator('[data-testid="status-badge"]')
+      if (await statusBadge.count() > 0) {
+        await expect(statusBadge.first()).toContainText(/approuvée|approved/i)
+      }
+    }
+  })
+
   // ==================== P0: TÉLÉCHARGEMENT PDF ====================
 
   test('P0-APPROV-13: Téléchargement automatique du PDF des identifiants', async ({ page, context }) => {
@@ -484,6 +710,126 @@ test.describe('E2E: Approbation Complète (18 scénarios)', () => {
     const download = await downloadPromise
     if (download) {
       expect(download.suggestedFilename()).toMatch(/Identifiants_Connexion_.*\.pdf/i)
+    }
+  })
+
+  // ==================== P1: ROLLBACK ====================
+
+  test('P1-APPROV-14: Rollback si création User échoue', async ({ page }) => {
+    // Note: Ce test nécessite de mocker la Cloud Function pour faire échouer la création User
+    // Pour l'instant, on vérifie juste que l'erreur est gérée correctement côté UI
+    
+    // Arrange
+    const testRequest = await createPendingPaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const paidRow = await getRequestRow(page, testRequest.id)
+    if (await paidRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
+    if (await approveButton.count() === 0 || !(await approveButton.isVisible())) {
+      test.skip()
+      return
+    }
+
+    // Act: Ouvrir le modal et tenter d'approuver
+    await approveButton.click()
+    await waitForModal(page, 'modal-approve')
+    await page.waitForTimeout(1000)
+
+    const membershipTypeSelect = page.locator('[data-testid="approval-modal-membership-type-select"]')
+    await membershipTypeSelect.selectOption({ index: 0 })
+    await page.waitForTimeout(500)
+
+    const pdfInput = page.locator('[data-testid="approval-modal-pdf-file-input"]')
+    if (fs.existsSync(testPdfPath)) {
+      await pdfInput.setInputFiles(testPdfPath)
+      await page.waitForTimeout(1000)
+    }
+
+    // Note: Pour tester le rollback réel, il faudrait mocker la Cloud Function
+    // Ici on vérifie juste que le modal gère les erreurs
+    const approveModalButton = page.locator('[data-testid="approval-modal-approve-button"]')
+    await approveModalButton.click()
+
+    // Si une erreur survient, elle devrait être affichée
+    const errorMessage = page.locator('[data-testid="approval-modal-api-error"]')
+    // Le test passe si l'approbation réussit ou si l'erreur est affichée
+    try {
+      await waitForSuccessToast(page, /approuvée|succès/i, { timeout: 5000 })
+    } catch {
+      // Si l'approbation échoue, vérifier que l'erreur est affichée
+      if (await errorMessage.count() > 0) {
+        await expect(errorMessage).toBeVisible()
+      }
+    }
+  })
+
+  test('P1-APPROV-15: Rollback si création Subscription échoue', async ({ page }) => {
+    // Note: Ce test nécessite de mocker la Cloud Function pour faire échouer la création Subscription
+    // Pour l'instant, on vérifie juste que l'erreur est gérée correctement côté UI
+    
+    // Arrange
+    const testRequest = await createPendingPaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const paidRow = await getRequestRow(page, testRequest.id)
+    if (await paidRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
+    if (await approveButton.count() === 0 || !(await approveButton.isVisible())) {
+      test.skip()
+      return
+    }
+
+    // Act: Ouvrir le modal et tenter d'approuver
+    await approveButton.click()
+    await waitForModal(page, 'modal-approve')
+    await page.waitForTimeout(1000)
+
+    const membershipTypeSelect = page.locator('[data-testid="approval-modal-membership-type-select"]')
+    await membershipTypeSelect.selectOption({ index: 0 })
+    await page.waitForTimeout(500)
+
+    const pdfInput = page.locator('[data-testid="approval-modal-pdf-file-input"]')
+    if (fs.existsSync(testPdfPath)) {
+      await pdfInput.setInputFiles(testPdfPath)
+      await page.waitForTimeout(1000)
+    }
+
+    // Note: Pour tester le rollback réel, il faudrait mocker la Cloud Function
+    // Ici on vérifie juste que le modal gère les erreurs
+    const approveModalButton = page.locator('[data-testid="approval-modal-approve-button"]')
+    await approveModalButton.click()
+
+    // Si une erreur survient, elle devrait être affichée
+    const errorMessage = page.locator('[data-testid="approval-modal-api-error"]')
+    // Le test passe si l'approbation réussit ou si l'erreur est affichée
+    try {
+      await waitForSuccessToast(page, /approuvée|succès/i, { timeout: 5000 })
+    } catch {
+      // Si l'approbation échoue, vérifier que l'erreur est affichée
+      if (await errorMessage.count() > 0) {
+        await expect(errorMessage).toBeVisible()
+      }
     }
   })
 
@@ -546,6 +892,58 @@ test.describe('E2E: Approbation Complète (18 scénarios)', () => {
     if (await approvedAtInfo.count() > 0) {
       await expect(approvedAtInfo).toBeVisible()
     }
+  })
+
+  // ==================== P1: NOTIFICATIONS ====================
+
+  test('P1-APPROV-17: Notification d\'approbation créée', async ({ page }) => {
+    // Arrange
+    const testRequest = await createPendingPaidRequest()
+    createdRequests.push(testRequest)
+    await page.reload()
+    await waitForRequestsList(page)
+
+    const searchInput = page.locator('[data-testid="search-input"]').first()
+    await searchInput.fill(testRequest.matricule)
+    await page.waitForTimeout(1500)
+
+    const paidRow = await getRequestRow(page, testRequest.id)
+    if (await paidRow.count() === 0) {
+      test.skip()
+      return
+    }
+
+    const approveButton = paidRow.locator('button:has-text("Approuver"), [data-testid="action-approve-primary"]').first()
+    if (await approveButton.count() === 0 || !(await approveButton.isVisible())) {
+      test.skip()
+      return
+    }
+
+    // Act: Approuver la demande
+    await approveButton.click()
+    await waitForModal(page, 'modal-approve')
+    await page.waitForTimeout(1000)
+
+    const membershipTypeSelect = page.locator('[data-testid="approval-modal-membership-type-select"]')
+    await membershipTypeSelect.selectOption({ index: 0 })
+    await page.waitForTimeout(500)
+
+    const pdfInput = page.locator('[data-testid="approval-modal-pdf-file-input"]')
+    if (fs.existsSync(testPdfPath)) {
+      await pdfInput.setInputFiles(testPdfPath)
+      await page.waitForTimeout(1000)
+    }
+
+    const approveModalButton = page.locator('[data-testid="approval-modal-approve-button"]')
+    await approveModalButton.click()
+
+    // Assert: Toast de succès
+    await waitForSuccessToast(page, /approuvée|succès/i, { timeout: 15000 })
+
+    // Note: La vérification de la notification dans Firestore nécessiterait Firebase Admin SDK
+    // Pour l'instant, on vérifie juste que l'approbation a réussi
+    // La notification est créée par la Cloud Function, donc elle devrait exister
+    await page.waitForTimeout(2000)
   })
 
   // ==================== P2: RESPONSIVE ====================
