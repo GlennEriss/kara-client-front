@@ -23,10 +23,18 @@ vi.mock('jspdf', () => {
     setFontSize: vi.fn(),
     setFont: vi.fn(),
     text: vi.fn(),
-    output: vi.fn(() => ({
-      type: 'application/pdf',
-      data: new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]), // PDF header
-    })),
+    output: vi.fn((type?: string) => {
+      if (type === 'blob') {
+        // Retourner un vrai Blob pour les tests
+        const pdfData = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]) // PDF header
+        return new Blob([pdfData], { type: 'application/pdf' })
+      }
+      // Pour les autres types, retourner l'objet par défaut
+      return {
+        type: 'application/pdf',
+        data: new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]), // PDF header
+      }
+    }),
   }
 
   const MockjsPDF = vi.fn(() => mockDoc)
