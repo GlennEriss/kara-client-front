@@ -8,9 +8,10 @@ import type { PaymentInfo } from '../../entities/MembershipRequest'
 export interface ApproveMembershipRequestParams {
   requestId: string
   adminId: string
-  membershipType?: 'adherant' | 'bienfaiteur' | 'sympathisant'
-  companyName?: string
-  professionName?: string
+  membershipType: 'adherant' | 'bienfaiteur' | 'sympathisant'
+  companyId?: string | null
+  professionId?: string | null
+  adhesionPdfURL: string  // Obligatoire
 }
 
 export interface RejectMembershipRequestParams {

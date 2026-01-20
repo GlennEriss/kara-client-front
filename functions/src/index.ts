@@ -11,6 +11,7 @@ import { remindPendingCaisseImprevueDemands, remindApprovedNotConvertedCaisseImp
 import { verifySecurityCode } from './membership-requests/verifySecurityCode'
 import { submitCorrections } from './membership-requests/submitCorrections'
 import { renewSecurityCode } from './membership-requests/renewSecurityCode'
+import { approveMembershipRequest } from './membership-requests/approveMembershipRequest'
 
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
@@ -188,6 +189,9 @@ export { submitCorrections }
 
 // Cloud Function pour régénérer le code de sécurité (transaction atomique)
 export { renewSecurityCode }
+
+// Cloud Function pour approuver une demande d'adhésion (transaction atomique)
+export { approveMembershipRequest }
 
 // Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
 export { syncToAlgolia } from './membership-requests/syncToAlgolia'

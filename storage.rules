@@ -76,8 +76,9 @@ service firebase.storage {
     // PDFs D'ADHÉSION (MEMBERSHIP-ADHESION-PDFS)
     // ==========================================
     // PDFs générés lors de l'approbation - CONFIDENTIELS
+    // Supporte les chemins avec sous-dossiers (matricule) : membership-adhesion-pdfs/{matricule}/{fileName}
     
-    match /membership-adhesion-pdfs/{fileName} {
+    match /membership-adhesion-pdfs/{allPaths=**} {
       // Lecture : Admins uniquement
       allow read: if isAdmin();
       

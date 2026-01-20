@@ -38,7 +38,7 @@ import { toast } from 'sonner'
 import { MembershipRequestsTableV2 } from '../table'
 import { MembershipRequestMobileCardV2 } from '../cards'
 import {
-  ApproveModalV2,
+  ApprovalModalV2,
   RejectModalV2,
   CorrectionsModalV2,
   SendWhatsAppModalV2,
@@ -53,6 +53,7 @@ import {
 import { useMembershipRequestsV2 } from '../../hooks/useMembershipRequestsV2'
 import { useMembershipActionsV2 } from '../../hooks/useMembershipActionsV2'
 import { useMembershipStatsV2 } from '../../hooks/useMembershipStatsV2'
+import { useApproveMembershipRequest } from '../../hooks/useApproveMembershipRequest'
 
 // Types et constantes
 import type { MembershipRequest, MembershipRequestFilters } from '../../entities'
@@ -64,6 +65,9 @@ import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
 import MemberDetailsModal from '@/components/memberships/MemberDetailsModal'
 import { generateRequestPDF, generateRequestExcel } from '../../utils/exportRequestUtils'
+import { getUserById } from '@/db/user.db'
+import { formatAdminName } from '@/utils/formatAdminName'
+import { useQueries } from '@tanstack/react-query'
 
 // Hook pour détecter le responsive
 function useIsMobile() {
@@ -192,16 +196,60 @@ export function MembershipRequestsPageV2() {
   const { data, isLoading, error, refetch } = useMembershipRequestsV2(filters, currentPage)
   const { data: stats } = useMembershipStatsV2()
   const {
-    approveMutation,
     rejectMutation,
     requestCorrectionsMutation,
     processPaymentMutation,
     renewSecurityCodeMutation
   } = useMembershipActionsV2()
+  
+  // Hook pour l'approbation
+  const { approve, isPending: isApproving } = useApproveMembershipRequest({
+    onSuccess: () => {
+      setApproveModalOpen(false)
+      setSelectedRequest(null)
+    },
+  })
 
   // La recherche est maintenant gérée côté serveur via les filtres
   // Pas besoin de filtrer côté client
   const filteredRequests = data?.items || []
+
+  // Récupérer tous les admins uniques qui ont approuvé des demandes
+  const uniqueApprovedByIds = useMemo(() => {
+    const ids = new Set<string>()
+    filteredRequests.forEach(request => {
+      if (request.approvedBy) {
+        ids.add(request.approvedBy)
+      }
+    })
+    return Array.from(ids)
+  }, [filteredRequests])
+
+  // Récupérer les données des admins avec React Query
+  const adminQueries = useQueries({
+    queries: uniqueApprovedByIds.map((adminId) => ({
+      queryKey: ['admin', adminId],
+      queryFn: () => getUserById(adminId),
+      enabled: !!adminId,
+      staleTime: 5 * 60 * 1000, // Cache pendant 5 minutes
+    })),
+  })
+
+  // Créer un map pour accéder rapidement aux données des admins
+  const adminMap = useMemo(() => {
+    const map = new Map<string, { name: string; matricule?: string }>()
+    adminQueries.forEach((query, index) => {
+      const adminId = uniqueApprovedByIds[index]
+      if (query.data) {
+        const formattedName = formatAdminName(query.data.firstName, query.data.lastName)
+        map.set(adminId, {
+          name: formattedName,
+          matricule: query.data.matricule,
+        })
+      }
+    })
+    return map
+  }, [adminQueries, uniqueApprovedByIds])
 
   // Handlers
   const handleTabChange = useCallback((tab: string) => {
@@ -436,36 +484,26 @@ export function MembershipRequestsPageV2() {
   }, [selectedRequest, user?.uid, renewSecurityCodeMutation])
 
   // Handlers des modals
-  const handleApprove = async (data: {
+  const handleApprove = async (params: {
     membershipType: 'adherant' | 'bienfaiteur' | 'sympathisant'
-    companyName?: string
-    professionName?: string
+    adhesionPdfURL: string
+    companyId?: string | null
+    professionId?: string | null
   }) => {
     if (!selectedRequest?.id || !user?.uid) return
 
-    setLoadingActions(prev => ({ ...prev, [`approve-${selectedRequest.id}`]: true }))
-
     try {
-      await approveMutation.mutateAsync({
+      await approve({
         requestId: selectedRequest.id,
         adminId: user.uid,
-        membershipType: data.membershipType,
-        companyName: data.companyName,
-        professionName: data.professionName,
+        membershipType: params.membershipType,
+        adhesionPdfURL: params.adhesionPdfURL,
+        companyId: params.companyId,
+        professionId: params.professionId,
       })
-
-      toast.success('Demande approuvée', {
-        description: `${selectedRequest.identity.firstName} ${selectedRequest.identity.lastName} est maintenant membre.`,
-      })
-
-      setApproveModalOpen(false)
-      setSelectedRequest(null)
     } catch (error: any) {
-      toast.error('Erreur lors de l\'approbation', {
-        description: error.message || 'Une erreur est survenue.',
-      })
-    } finally {
-      setLoadingActions(prev => ({ ...prev, [`approve-${selectedRequest.id}`]: false }))
+      // L'erreur est déjà gérée par le hook (toast)
+      console.error('Erreur lors de l\'approbation:', error)
     }
   }
 
@@ -977,6 +1015,19 @@ export function MembershipRequestsPageV2() {
                             matricule: undefined, // À implémenter
                           }
                         }}
+                        getApprovedByInfo={(requestId) => {
+                          const request = filteredRequests.find(r => r.id === requestId)
+                          if (!request?.approvedBy) return null
+                          const adminInfo = adminMap.get(request.approvedBy)
+                          if (adminInfo) {
+                            return adminInfo
+                          }
+                          // Fallback si l'admin n'est pas encore chargé
+                          return {
+                            name: request.approvedBy,
+                            matricule: undefined,
+                          }
+                        }}
                         loadingActions={loadingActions}
                       />
                     ))
@@ -1007,6 +1058,19 @@ export function MembershipRequestsPageV2() {
                     return {
                       name: request.processedBy, // Pour l'instant, on utilise l'ID
                       matricule: undefined, // À implémenter
+                    }
+                  }}
+                  getApprovedByInfo={(requestId) => {
+                    const request = filteredRequests.find(r => r.id === requestId)
+                    if (!request?.approvedBy) return null
+                    const adminInfo = adminMap.get(request.approvedBy)
+                    if (adminInfo) {
+                      return adminInfo
+                    }
+                    // Fallback si l'admin n'est pas encore chargé
+                    return {
+                      name: request.approvedBy,
+                      matricule: undefined,
                     }
                   }}
                   loadingActions={loadingActions}
@@ -1098,17 +1162,18 @@ export function MembershipRequestsPageV2() {
         </Tabs>
 
         {/* Modals */}
-        <ApproveModalV2
-          isOpen={approveModalOpen}
-          onClose={() => {
-            setApproveModalOpen(false)
-            setSelectedRequest(null)
-          }}
-          onConfirm={handleApprove}
-          requestId={selectedRequest?.id || ''}
-          memberName={selectedMemberName}
-          isLoading={loadingActions[`approve-${selectedRequest?.id}`]}
-        />
+        {selectedRequest && (
+          <ApprovalModalV2
+            isOpen={approveModalOpen}
+            onClose={() => {
+              setApproveModalOpen(false)
+              setSelectedRequest(null)
+            }}
+            onApprove={handleApprove}
+            request={selectedRequest}
+            isLoading={isApproving}
+          />
+        )}
 
         <RejectModalV2
           isOpen={rejectModalOpen}

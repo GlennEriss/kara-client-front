@@ -116,6 +116,10 @@ export interface MembershipRequest extends RegisterFormData {
   // Dernier admin ayant mis à jour le dossier (ex: réouverture)
   updatedBy?: string
 
+  // Traçabilité spécifique pour l'approbation
+  approvedBy?: string  // ID de l'admin qui a approuvé la demande
+  approvedAt?: Date    // Date d'approbation (timestamp serveur)
+
   // Commentaires administratifs
   adminComments?: string
 
