@@ -52,7 +52,8 @@ interface MembershipRequestActionsV2Props {
   
   // Actions secondaires (dans le menu dropdown)
   onViewDetails?: () => void
-  onViewMembershipForm?: () => void
+  onViewMembershipForm?: () => void // PDF du dossier initial (généré)
+  onViewApprovedMembershipPdf?: () => void // PDF uploadé lors de l'approbation (document officiel validé)
   onViewIdDocument?: () => void
   onViewPaymentDetails?: () => void // Nouvelle action pour voir les détails du paiement
   onExportPDF?: () => void // Export PDF individuel
@@ -89,6 +90,7 @@ export function MembershipRequestActionsV2({
   onSendWhatsAppRejection,
   onViewDetails,
   onViewMembershipForm,
+  onViewApprovedMembershipPdf,
   onViewIdDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -236,26 +238,26 @@ export function MembershipRequestActionsV2({
         </Button>
       )}
 
-      {/* Actions rapides en mobile : Fiche d'adhésion (si approuvé) + Voir détails + Rejeter (si possible) */}
+      {/* Actions rapides en mobile : Adhésion PDF (si approuvé) + Voir détails + Rejeter (si possible) */}
       {isMobile && (
         <>
-          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé en mobile */}
-          {isApproved && onViewMembershipForm && (
+          {/* Voir le PDF d'adhésion validé (PDF uploadé lors de l'approbation) - Visible uniquement si approuvé */}
+          {isApproved && onViewApprovedMembershipPdf && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={onViewMembershipForm}
+                    onClick={onViewApprovedMembershipPdf}
                     className="h-9 w-9 p-0 border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-sm hover:shadow-md transition-all duration-200"
-                    data-testid="action-view-membership-form-mobile"
+                    data-testid="action-view-approved-membership-pdf-mobile"
                   >
                     <FileText className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Voir la fiche d'adhésion</p>
+                  <p>Adhésion PDF</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -393,21 +395,21 @@ export function MembershipRequestActionsV2({
         </>
       )}
 
-      {/* Actions principales visibles en desktop : Fiche d'adhésion (si approuvé) + Détails + Rejeter (si pas d'action principale ou en under_review) */}
+      {/* Actions principales visibles en desktop : Adhésion PDF (si approuvé) + Détails + Rejeter (si pas d'action principale ou en under_review) */}
       {!isMobile && !primaryAction && (
         <>
-          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé */}
-          {isApproved && onViewMembershipForm && (
+          {/* Voir le PDF d'adhésion validé (PDF uploadé lors de l'approbation) - Visible uniquement si approuvé */}
+          {isApproved && onViewApprovedMembershipPdf && (
             <Button
               variant="outline"
               size="sm"
-              onClick={onViewMembershipForm}
+              onClick={onViewApprovedMembershipPdf}
               className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
-              data-testid="action-view-membership-form-visible"
-              title="Voir la fiche d'adhésion (PDF)"
+              data-testid="action-view-approved-membership-pdf-visible"
+              title="Ouvrir le PDF d'adhésion validé (document officiel uploadé lors de l'approbation)"
             >
               <FileText className="w-3.5 h-3.5 mr-1.5" />
-              <span className="hidden sm:inline">Fiche d'adhésion</span>
+              <span className="hidden sm:inline">Adhésion PDF</span>
             </Button>
           )}
 
@@ -523,21 +525,21 @@ export function MembershipRequestActionsV2({
         </>
       )}
 
-      {/* Actions secondaires visibles en desktop quand action principale présente : "Fiche d'adhésion" (si approuvé) + "Voir détails" */}
+      {/* Actions secondaires visibles en desktop quand action principale présente : "Adhésion PDF" (si approuvé) + "Voir détails" */}
       {!isMobile && primaryAction && (
         <>
-          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé */}
-          {isApproved && onViewMembershipForm && (
+          {/* Voir le PDF d'adhésion validé (PDF uploadé lors de l'approbation) - Visible uniquement si approuvé */}
+          {isApproved && onViewApprovedMembershipPdf && (
             <Button
               variant="outline"
               size="sm"
-              onClick={onViewMembershipForm}
+              onClick={onViewApprovedMembershipPdf}
               className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
-              data-testid="action-view-membership-form-visible"
-              title="Voir la fiche d'adhésion (PDF)"
+              data-testid="action-view-approved-membership-pdf-visible"
+              title="Ouvrir le PDF d'adhésion validé (document officiel uploadé lors de l'approbation)"
             >
               <FileText className="w-3.5 h-3.5 mr-1.5" />
-              <span className="hidden sm:inline">Fiche d'adhésion</span>
+              <span className="hidden sm:inline">Adhésion PDF</span>
             </Button>
           )}
 
