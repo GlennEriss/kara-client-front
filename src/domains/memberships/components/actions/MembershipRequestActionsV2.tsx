@@ -28,8 +28,8 @@ import {
   MessageSquare,
   Loader2,
   IdCard,
-  Link as LinkIcon,
   RotateCcw,
+  Trash2,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -45,9 +45,15 @@ interface MembershipRequestActionsV2Props {
   onRequestCorrections?: () => void
   onPay?: () => void
   
+  // Actions post-rejet (si status === 'rejected')
+  onReopen?: () => void
+  onDelete?: () => void
+  onSendWhatsAppRejection?: () => void // Envoyer WhatsApp avec motif de rejet
+  
   // Actions secondaires (dans le menu dropdown)
   onViewDetails?: () => void
-  onViewMembershipForm?: () => void
+  onViewMembershipForm?: () => void // PDF du dossier initial (généré)
+  onViewApprovedMembershipPdf?: () => void // PDF uploadé lors de l'approbation (document officiel validé)
   onViewIdDocument?: () => void
   onViewPaymentDetails?: () => void // Nouvelle action pour voir les détails du paiement
   onExportPDF?: () => void // Export PDF individuel
@@ -65,33 +71,41 @@ interface MembershipRequestActionsV2Props {
   isRequestingCorrections?: boolean
   isPaying?: boolean
   isRenewingCode?: boolean
+  isReopening?: boolean
+  isDeleting?: boolean
   
   className?: string
 }
 
 export function MembershipRequestActionsV2({
-  requestId,
+  requestId: _requestId,
   status,
   isPaid,
   onApprove,
   onReject,
   onRequestCorrections,
   onPay,
+  onReopen,
+  onDelete,
+  onSendWhatsAppRejection,
   onViewDetails,
   onViewMembershipForm,
+  onViewApprovedMembershipPdf,
   onViewIdDocument,
   onViewPaymentDetails,
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
-  onCopyCorrectionLink,
-  onSendWhatsAppCorrection,
-  onRenewSecurityCode,
+  onCopyCorrectionLink: _onCopyCorrectionLink,
+  onSendWhatsAppCorrection: _onSendWhatsAppCorrection,
+  onRenewSecurityCode: _onRenewSecurityCode,
   isApproving = false,
   isRejecting = false,
   isRequestingCorrections = false,
   isPaying = false,
-  isRenewingCode = false,
+  isRenewingCode: _isRenewingCode = false,
+  isReopening = false,
+  isDeleting = false,
   className,
 }: MembershipRequestActionsV2Props) {
   // Détecter mobile pour adapter l'affichage
@@ -124,11 +138,6 @@ export function MembershipRequestActionsV2({
     ? 'Payer d\'abord pour approuver'
     : !canApprove && status !== 'pending'
     ? 'Dossier déjà traité'
-    : undefined
-  const correctionsTooltip = isRejected
-    ? 'Dossier rejeté - Aucune action possible'
-    : status !== 'pending'
-    ? 'Les corrections ne peuvent être demandées que pour un dossier en attente'
     : undefined
   const rejectTooltip = isRejected
     ? 'Dossier déjà rejeté'
@@ -229,26 +238,26 @@ export function MembershipRequestActionsV2({
         </Button>
       )}
 
-      {/* Actions rapides en mobile : Fiche d'adhésion (si approuvé) + Voir détails + Rejeter (si possible) */}
+      {/* Actions rapides en mobile : Adhésion PDF (si approuvé) + Voir détails + Rejeter (si possible) */}
       {isMobile && (
         <>
-          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé en mobile */}
-          {isApproved && onViewMembershipForm && (
+          {/* Voir le PDF d'adhésion validé (PDF uploadé lors de l'approbation) - Visible uniquement si approuvé */}
+          {isApproved && onViewApprovedMembershipPdf && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={onViewMembershipForm}
+                    onClick={onViewApprovedMembershipPdf}
                     className="h-9 w-9 p-0 border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-sm hover:shadow-md transition-all duration-200"
-                    data-testid="action-view-membership-form-mobile"
+                    data-testid="action-view-approved-membership-pdf-mobile"
                   >
                     <FileText className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Voir la fiche d'adhésion</p>
+                  <p>Adhésion PDF</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -299,24 +308,108 @@ export function MembershipRequestActionsV2({
               </Tooltip>
             </TooltipProvider>
           )}
+
+          {/* Actions post-rejet - Visible uniquement si status === 'rejected' */}
+          {isRejected && (
+            <>
+              {/* Réouvrir - Bouton principal post-rejet */}
+              {onReopen && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onReopen}
+                        disabled={isReopening}
+                        className="h-9 w-9 p-0 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50"
+                        data-testid="reopen-button"
+                        title="Réouvrir le dossier"
+                      >
+                        {isReopening ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Réouvrir</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* Envoyer WhatsApp - Bouton WhatsApp post-rejet */}
+              {onSendWhatsAppRejection && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onSendWhatsAppRejection}
+                        className="h-9 w-9 p-0 border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 shadow-sm hover:shadow-md transition-all duration-200"
+                        data-testid="send-whatsapp-button"
+                        title="Envoyer le motif de rejet via WhatsApp"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Envoyer WhatsApp</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* Supprimer - Bouton suppression post-rejet */}
+              {onDelete && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onDelete}
+                        disabled={isDeleting}
+                        className="h-9 w-9 p-0 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50"
+                        data-testid="delete-button"
+                        title="Supprimer définitivement le dossier"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Supprimer</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </>
+          )}
         </>
       )}
 
-      {/* Actions principales visibles en desktop : Fiche d'adhésion (si approuvé) + Détails + Rejeter (si pas d'action principale ou en under_review) */}
+      {/* Actions principales visibles en desktop : Adhésion PDF (si approuvé) + Détails + Rejeter (si pas d'action principale ou en under_review) */}
       {!isMobile && !primaryAction && (
         <>
-          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé */}
-          {isApproved && onViewMembershipForm && (
+          {/* Voir le PDF d'adhésion validé (PDF uploadé lors de l'approbation) - Visible uniquement si approuvé */}
+          {isApproved && onViewApprovedMembershipPdf && (
             <Button
               variant="outline"
               size="sm"
-              onClick={onViewMembershipForm}
+              onClick={onViewApprovedMembershipPdf}
               className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
-              data-testid="action-view-membership-form-visible"
-              title="Voir la fiche d'adhésion (PDF)"
+              data-testid="action-view-approved-membership-pdf-visible"
+              title="Ouvrir le PDF d'adhésion validé (document officiel uploadé lors de l'approbation)"
             >
               <FileText className="w-3.5 h-3.5 mr-1.5" />
-              <span className="hidden sm:inline">Fiche d'adhésion</span>
+              <span className="hidden sm:inline">Adhésion PDF</span>
             </Button>
           )}
 
@@ -359,24 +452,94 @@ export function MembershipRequestActionsV2({
               )}
             </Button>
           )}
+
+          {/* Actions post-rejet - Visible uniquement si status === 'rejected' */}
+          {isRejected && (
+            <>
+              {/* Réouvrir - Bouton principal post-rejet */}
+              {onReopen && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onReopen}
+                  disabled={isReopening}
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium disabled:opacity-50"
+                  data-testid="reopen-button"
+                  title="Réouvrir le dossier"
+                >
+                  {isReopening ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      <span className="hidden sm:inline">Réouverture...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="hidden sm:inline">Réouvrir</span>
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {/* Envoyer WhatsApp - Bouton WhatsApp post-rejet */}
+              {onSendWhatsAppRejection && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSendWhatsAppRejection}
+                  className="border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
+                  data-testid="send-whatsapp-button"
+                  title="Envoyer le motif de rejet via WhatsApp"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                  <span className="hidden sm:inline">Envoyer WhatsApp</span>
+                </Button>
+              )}
+
+              {/* Supprimer - Bouton suppression post-rejet */}
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium disabled:opacity-50"
+                  data-testid="delete-button"
+                  title="Supprimer définitivement le dossier"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      <span className="hidden sm:inline">Suppression...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="hidden sm:inline">Supprimer</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </>
+          )}
         </>
       )}
 
-      {/* Actions secondaires visibles en desktop quand action principale présente : "Fiche d'adhésion" (si approuvé) + "Voir détails" */}
+      {/* Actions secondaires visibles en desktop quand action principale présente : "Adhésion PDF" (si approuvé) + "Voir détails" */}
       {!isMobile && primaryAction && (
         <>
-          {/* Voir la fiche d'adhésion (PDF) - Visible uniquement si approuvé */}
-          {isApproved && onViewMembershipForm && (
+          {/* Voir le PDF d'adhésion validé (PDF uploadé lors de l'approbation) - Visible uniquement si approuvé */}
+          {isApproved && onViewApprovedMembershipPdf && (
             <Button
               variant="outline"
               size="sm"
-              onClick={onViewMembershipForm}
+              onClick={onViewApprovedMembershipPdf}
               className="border-kara-neutral-200 text-kara-neutral-700 hover:bg-kara-neutral-50 hover:border-kara-neutral-300 hover:text-kara-primary-dark shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
-              data-testid="action-view-membership-form-visible"
-              title="Voir la fiche d'adhésion (PDF)"
+              data-testid="action-view-approved-membership-pdf-visible"
+              title="Ouvrir le PDF d'adhésion validé (document officiel uploadé lors de l'approbation)"
             >
               <FileText className="w-3.5 h-3.5 mr-1.5" />
-              <span className="hidden sm:inline">Fiche d'adhésion</span>
+              <span className="hidden sm:inline">Adhésion PDF</span>
             </Button>
           )}
 
@@ -544,7 +707,51 @@ export function MembershipRequestActionsV2({
               </DropdownMenuItem>
             )}
 
-            {onSendWhatsApp && !isUnderReview && (
+            {/* Actions post-rejet dans le dropdown */}
+            {isRejected && (
+              <>
+                {onReopen && (
+                  <DropdownMenuItem
+                    onClick={onReopen}
+                    disabled={isReopening}
+                    className="text-blue-600"
+                    data-testid="reopen-button"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    {isReopening ? 'Réouverture...' : 'Réouvrir'}
+                  </DropdownMenuItem>
+                )}
+
+                {onSendWhatsAppRejection && (
+                  <DropdownMenuItem
+                    onClick={onSendWhatsAppRejection}
+                    className="text-green-600"
+                    data-testid="send-whatsapp-button"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Envoyer WhatsApp (rejet)
+                  </DropdownMenuItem>
+                )}
+
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    disabled={isDeleting}
+                    className="text-red-600"
+                    data-testid="delete-button"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {isDeleting ? 'Suppression...' : 'Supprimer'}
+                  </DropdownMenuItem>
+                )}
+
+                {(onReopen || onSendWhatsAppRejection || onDelete) && (
+                  <DropdownMenuSeparator />
+                )}
+              </>
+            )}
+
+            {onSendWhatsApp && !isUnderReview && !isRejected && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

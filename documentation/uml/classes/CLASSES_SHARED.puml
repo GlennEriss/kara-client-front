@@ -128,6 +128,23 @@ class Notification {
 }
 
 ' ============================================
+' CLASSE : AUDIT_LOG (Log d'audit)
+' ============================================
+class AuditLog {
+  + id: string
+  + action: string
+  + requestId?: string
+  + matricule?: string
+  + memberName?: string
+  + deletedBy?: string
+  + deletedByName?: string
+  + deletedAt?: Date
+  + reason?: string
+  + metadata?: Record<string, any>
+  + createdAt: Date
+}
+
+' ============================================
 ' TYPES ENUMERÉS
 ' ============================================
 enum UserRole {
@@ -203,6 +220,10 @@ enum NotificationType {
   security_code_expired
   security_code_expiring_soon
   security_code_renewed
+  membership_approved
+  membership_rejected
+  membership_reopened
+  membership_deleted
   ...
 }
 
@@ -269,7 +290,28 @@ end note
 
 note right of Notification
   **Collection Firestore:** notifications
-  Index sur userId, isRead, createdAt
+  Index sur userId, isRead, createdAt, module, type
+  
+  **Types de notifications pour rejet:**
+  - membership_rejected: Demande rejetée (créée pour admins)
+  - membership_reopened: Dossier réouvert (créée pour admins)
+  - membership_deleted: Dossier supprimé (créée pour admins, optionnel)
+end note
+
+note right of AuditLog
+  **Collection Firestore:** audit-logs
+  Clé primaire: id (auto-généré)
+  
+  **Utilisation:**
+  - Logs d'audit pour actions critiques (suppression définitive)
+  - Créé par Cloud Function deleteMembershipRequest
+  - Contient métadonnées complètes pour traçabilité
+  
+  **Champs principaux:**
+  - action: Type d'action (ex: 'membership_request_deleted')
+  - requestId: ID de la demande concernée
+  - deletedBy: ID de l'admin qui a supprimé
+  - metadata: Données supplémentaires (statut, motifReject, etc.)
 end note
 
 @enduml

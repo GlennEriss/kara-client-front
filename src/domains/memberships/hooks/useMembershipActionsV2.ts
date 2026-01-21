@@ -16,9 +16,12 @@ import { generateWhatsAppUrl } from '../utils/whatsappUrl'
 import type {
   ApproveMembershipRequestParams,
   RejectMembershipRequestParams,
+  ReopenMembershipRequestParams,
   RequestCorrectionsParams,
   ProcessPaymentParams,
 } from '../services/interfaces/IMembershipService'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { app } from '@/firebase/app'
 
 export function useMembershipActionsV2() {
   const queryClient = useQueryClient()
@@ -47,6 +50,18 @@ export function useMembershipActionsV2() {
       })
       queryClient.invalidateQueries({ 
         queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
+      })
+      // Invalider les notifications pour afficher la nouvelle notification de rejet
+      queryClient.invalidateQueries({ 
+        queryKey: ['notifications'] 
+      })
+      toast.success('Demande rejetée', {
+        description: 'La demande d\'adhésion a été rejetée avec succès.',
+      })
+    },
+    onError: (error: Error) => {
+      toast.error('Erreur lors du rejet', {
+        description: error.message || 'Une erreur est survenue lors du rejet de la demande.',
       })
     },
   })
@@ -86,6 +101,77 @@ export function useMembershipActionsV2() {
       })
       queryClient.invalidateQueries({ 
         queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
+      })
+    },
+  })
+
+  const reopenMutation = useMutation({
+    mutationFn: (params: ReopenMembershipRequestParams) =>
+      service.reopenMembershipRequest(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY] 
+      })
+      queryClient.invalidateQueries({ 
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
+      })
+      // Invalider les notifications pour afficher la nouvelle notification de réouverture
+      queryClient.invalidateQueries({ 
+        queryKey: ['notifications'] 
+      })
+      toast.success('Dossier réouvert', {
+        description: 'La demande d\'adhésion a été réouverte avec succès.',
+      })
+    },
+    onError: (error: Error) => {
+      toast.error('Erreur lors de la réouverture', {
+        description: error.message || 'Une erreur est survenue lors de la réouverture du dossier.',
+      })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (params: { requestId: string; confirmedMatricule: string }) => {
+      const functions = getFunctions(app)
+      const deleteMembershipRequestCF = httpsCallable<
+        { requestId: string; confirmedMatricule: string },
+        { success: boolean; requestId: string; filesDeleted: number; deletedAt: string; warnings?: string }
+      >(functions, 'deleteMembershipRequest')
+
+      const result = await deleteMembershipRequestCF({
+        requestId: params.requestId,
+        confirmedMatricule: params.confirmedMatricule,
+      })
+
+      if (!result.data.success) {
+        throw new Error('Erreur lors de la suppression de la demande')
+      }
+
+      return result.data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ 
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.QUERY_KEY] 
+      })
+      queryClient.invalidateQueries({ 
+        queryKey: [MEMBERSHIP_REQUEST_CACHE.STATS_QUERY_KEY] 
+      })
+      // Invalider les notifications pour afficher la notification de suppression (si créée)
+      queryClient.invalidateQueries({ 
+        queryKey: ['notifications'] 
+      })
+      
+      const message = data.warnings
+        ? `Dossier supprimé. ${data.warnings}`
+        : 'Le dossier a été supprimé définitivement avec succès.'
+      
+      toast.success('Dossier supprimé', {
+        description: message,
+      })
+    },
+    onError: (error: Error) => {
+      toast.error('Erreur lors de la suppression', {
+        description: error.message || 'Une erreur est survenue lors de la suppression du dossier.',
       })
     },
   })
@@ -142,6 +228,8 @@ export function useMembershipActionsV2() {
   return {
     approveMutation,
     rejectMutation,
+    reopenMutation,
+    deleteMutation,
     requestCorrectionsMutation,
     processPaymentMutation,
     renewSecurityCodeMutation,

@@ -18,6 +18,7 @@ import type {
   IMembershipService,
   ApproveMembershipRequestParams,
   RejectMembershipRequestParams,
+  ReopenMembershipRequestParams,
   RequestCorrectionsParams,
   ProcessPaymentParams,
 } from './interfaces/IMembershipService'
@@ -163,14 +164,109 @@ export class MembershipServiceV2 implements IMembershipService {
     // ==================== FLUX PRINCIPAL ====================
     
     // Mettre à jour le statut
+    const processedAt = new Date()
     await this.repository.updateStatus(requestId, 'rejected', {
       motifReject: reason.trim(),
       processedBy: adminId,
-      processedAt: new Date(),
+      processedAt,
     })
 
-    // TODO: Envoyer notification
+    // ==================== NOTIFICATIONS ====================
+    
+    // Récupérer les informations admin pour la notification
+    const admin = await this.adminRepository.getAdminById(adminId)
+    const adminName = admin ? `${admin.firstName} ${admin.lastName}`.trim() : adminId
+    
+    // Construire le nom du demandeur
+    const memberName = `${request.identity.firstName} ${request.identity.lastName}`.trim()
+    
+    // Créer notification Firestore pour tous les admins (NOTIF-REJET-002)
+    try {
+      await this.notificationService.createRejectionNotification(
+        requestId,
+        memberName,
+        adminName,
+        adminId,
+        reason.trim(),
+        processedAt
+      )
+    } catch (error) {
+      // Ne pas bloquer le processus de rejet si la notification échoue
+      console.error('[MembershipServiceV2] Erreur lors de la création de la notification de rejet:', error)
+    }
+
     // Note: Les documents uploadés ne sont PAS supprimés (conforme aux règles métier)
+  }
+
+  async reopenMembershipRequest(params: ReopenMembershipRequestParams): Promise<void> {
+    const { requestId, adminId, reason } = params
+
+    // ==================== VALIDATIONS ====================
+    
+    // Vérifier le motif de réouverture
+    if (!reason || reason.trim().length === 0) {
+      throw new Error('Un motif de réouverture est requis')
+    }
+
+    // Vérifier la longueur minimale
+    const minLength = 10
+    if (reason.trim().length < minLength) {
+      throw new Error(`Le motif de réouverture doit contenir au moins ${minLength} caractères`)
+    }
+
+    // Vérifier la longueur maximale
+    const maxLength = MEMBERSHIP_REQUEST_VALIDATION.MAX_REJECTION_REASON_LENGTH // 500 caractères (même limite que rejet)
+    if (reason.length > maxLength) {
+      throw new Error(`Le motif de réouverture ne peut pas dépasser ${maxLength} caractères`)
+    }
+
+    // Récupérer la demande
+    const request = await this.repository.getById(requestId)
+    if (!request) {
+      throw new Error(`Demande d'adhésion ${requestId} introuvable`)
+    }
+
+    // Vérifier que le statut est 'rejected'
+    if (request.status !== 'rejected') {
+      throw new Error('Seules les demandes rejetées peuvent être réouvertes')
+    }
+
+    // ==================== FLUX PRINCIPAL ====================
+    
+    // Mettre à jour le statut à 'pending' (remettre en attente)
+    const reopenedAt = new Date()
+    await this.repository.updateStatus(requestId, 'pending', {
+      reopenReason: reason.trim(),
+      reopenedBy: adminId,
+      reopenedAt,
+      // Conserver le motif de rejet initial pour historique
+      motifReject: request.motifReject,
+    })
+
+    // ==================== NOTIFICATIONS ====================
+    
+    // Récupérer les informations admin pour la notification
+    const admin = await this.adminRepository.getAdminById(adminId)
+    const adminName = admin ? `${admin.firstName} ${admin.lastName}`.trim() : adminId
+    
+    // Construire le nom du demandeur
+    const memberName = `${request.identity.firstName} ${request.identity.lastName}`.trim()
+    
+    // Créer notification Firestore pour tous les admins (NOTIF-REJET-003)
+    try {
+      await this.notificationService.createReopeningNotification(
+        requestId,
+        memberName,
+        adminName,
+        adminId,
+        reason.trim(),
+        reopenedAt,
+        request.motifReject // Conserver le motif de rejet initial pour référence
+      )
+    } catch (error) {
+      // Ne pas bloquer le processus de réouverture si la notification échoue
+      console.error('[MembershipServiceV2] Erreur lors de la création de la notification de réouverture:', error)
+    }
   }
 
   async requestCorrections(params: RequestCorrectionsParams): Promise<{

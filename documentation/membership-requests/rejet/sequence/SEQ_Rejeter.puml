@@ -2,11 +2,11 @@
 title Séquence : Rejeter une Demande d'Adhésion
 
 actor "Admin" as Admin
-participant "MembershipRequestActions\n(Component)" as Actions
-participant "MembershipRejectionModal\n(Component)" as Modal
-participant "useUpdateMembershipStatus\n(Hook)" as Hook
-participant "MembershipService" as Service
-participant "membership.db\n(Repository)" as DB
+participant "MembershipRequestActionsV2\n(Component)" as Actions
+participant "RejectModalV2\n(Component)" as Modal
+participant "useMembershipActionsV2\n(Hook)" as Hook
+participant "MembershipServiceV2" as Service
+participant "MembershipRepositoryV2\n(Repository)" as Repository
 database "Firestore" as Firestore
 participant "NotificationService" as Notif
 
@@ -20,33 +20,38 @@ Modal --> Admin: Formulaire motif de rejet
 
 Admin -> Modal: Saisir motif + confirmer
 
-Modal -> Hook: rejectMutation.mutate(\n{ requestId, motif })
+Modal -> Hook: rejectMutation.mutate(\n{ requestId, adminId, reason })
 activate Hook
 
-Hook -> Service: rejectMembershipRequest(\nrequestId, adminId, motif)
+Hook -> Service: rejectMembershipRequest(\n{ requestId, adminId, reason })
 activate Service
 
-Service -> DB: updateMembershipRequestStatus(\nrequestId, 'rejected', data)
-activate DB
+Service -> Service: Validations :\n- Vérifier motif (10-500 caractères)\n- Vérifier existence demande
 
-DB -> Firestore: updateDoc(membership-requests/{id}, {\n  status: 'rejected',\n  processedBy: adminId,\n  processedAt: serverTimestamp(),\n  motifReject: motif\n})
+Service -> Repository: updateStatus(\nid, 'rejected', {\n  motifReject, processedBy, processedAt\n})
+activate Repository
+
+Repository -> Firestore: updateDoc(membership-requests/{id}, {\n  status: 'rejected',\n  processedBy: adminId,\n  processedAt: new Date(),\n  motifReject: reason.trim(),\n  updatedAt: serverTimestamp()\n})
 activate Firestore
-Firestore --> DB: OK
+Firestore --> Repository: OK
 deactivate Firestore
 
-DB --> Service: OK
-deactivate DB
+Repository --> Service: OK
+deactivate Repository
 
-Service -> Notif: sendRejectionNotification(\nrequestId, motif)
+Service -> Notif: createRejectionNotification(\nrequestId, adminId, reason,\nmemberName)
 activate Notif
-Notif -> Firestore: addDoc(notifications, {\n  type: 'status_update',\n  module: 'memberships',\n  ...\n})
+Note right of Notif: Notification Firestore\npour admins (type: membership_rejected)
+Notif -> Firestore: Créer notification\npour tous les admins
+Firestore --> Notif: OK
 Notif --> Service: OK
 deactivate Notif
 
-Service --> Hook: { success: true }
+Note right of Service: ⚠️ Notification email/SMS\nautomatique au demandeur\nest optionnelle/non prioritaire\n(via Cloud Function Trigger\nonMembershipRequestRejected)\n\n✅ Bouton WhatsApp manuel\ndisponible dans actions\npost-rejet pour informer\ndirectement le demandeur
+Service --> Hook: void
 deactivate Service
 
-Hook -> Hook: invalidateQueries(\n['membershipRequests', 'stats'])
+Hook -> Hook: invalidateQueries([\n  'membershipRequests',\n  'membershipRequest', requestId,\n  'notifications'\n])
 
 Hook --> Modal: success
 deactivate Hook

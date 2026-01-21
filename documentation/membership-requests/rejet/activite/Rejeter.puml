@@ -1,5 +1,5 @@
 @startuml Rejeter
-title Workflow : Rejeter une Demande d'Adhésion
+title Workflow : Rejeter une Demande d'Adhésion et Actions Post-Rejet
 
 start
 
@@ -8,34 +8,270 @@ start
 
 :Afficher modal de confirmation;
 
-:Demander motif de rejet (optionnel mais recommandé);
+:Demander motif de rejet (obligatoire, 10-500 caractères);
 
-:Admin renseigne motif de rejet (texte libre);
+:Admin renseigne motif de rejet (texte libre, validé en temps réel);
 
 :Admin confirme le rejet;
 
-:Appel mutation useUpdateMembershipRequestStatus 
+:Validation côté client :
+- Motif non vide
+- Longueur >= 10 caractères
+- Longueur <= 500 caractères;
+
+:Appel rejectMutation.mutate()
 avec :
 - requestId
-- newStatus: 'rejected'
-- reviewedBy: admin.uid
-- motifReject: motif renseigné;
+- adminId
+- reason (motif renseigné);
 
-:Appel MembershipService.updateMembershipRequestStatus;
+:Appel MembershipServiceV2.rejectMembershipRequest();
 
-:Mise à jour document Firestore :
+:Validations service :
+- Vérifier motif (10-500 caractères)
+- Vérifier existence demande;
+
+:Mise à jour document Firestore via MembershipRepositoryV2 :
 - status = 'rejected'
 - processedBy = adminId
-- processedAt = serverTimestamp()
-- motifReject = motif;
+- processedAt = new Date()
+- motifReject = reason.trim()
+- updatedAt = serverTimestamp();
 
-:Notification automatique envoyée au demandeur
-(via NotificationService);
+:Créer notification Firestore pour admins
+(via NotificationService)
+type: 'membership_rejected';
 
-:Invalider cache React Query 
-(membershipRequests, stats, notifications);
+:Invalider cache React Query :
+- ['membershipRequests']
+- ['membershipRequest', requestId]
+- ['notifications'];
 
 :Afficher toast "Demande rejetée avec succès";
+
+note right
+  **APRÈS REJET - ACTIONS DISPONIBLES**
+end note
+
+:Statut de la demande = 'rejected';
+
+:Actions disponibles sur demande rejetée :
+- Réouvrir (remettre à 'under_review')
+- Voir détails
+- Envoyer WhatsApp (motif de rejet)
+- Supprimer (définitif et irréversible)
+- Dropdown actions :
+  * Fiche d'adhésion
+  * Pièce d'identité;
+
+if (Action = "Réouvrir") then (oui)
+  :Admin clique sur "Réouvrir";
+  
+  :Afficher modal de réouverture
+  (ReopenModalV2);
+  
+  :Afficher informations du dossier :
+  - Nom, prénom, matricule
+  - Motif de rejet initial;
+  
+  :Demander motif de réouverture
+  (obligatoire, 10-500 caractères);
+  
+  :Admin renseigne motif de réouverture;
+  
+  :Admin confirme la réouverture;
+  
+  :Validation côté client :
+  - Motif non vide
+  - Longueur >= 10 caractères
+  - Longueur <= 500 caractères;
+  
+  :Appel reopenMutation.mutate()
+  avec :
+  - requestId
+  - adminId
+  - reason (motif de réouverture);
+  
+  :Appel MembershipServiceV2.reopenMembershipRequest();
+  
+  :Validations service :
+  - Vérifier que statut = 'rejected'
+  - Vérifier motif (10-500 caractères)
+  - Vérifier existence demande;
+  
+  :Mise à jour document Firestore :
+  - status = 'under_review'
+  - reopenedBy = adminId
+  - reopenedAt = new Date()
+  - reopenReason = reason.trim()
+  - updatedAt = serverTimestamp();
+  
+  :Invalider cache React Query;
+  
+  :Afficher toast "Dossier réouvert avec succès";
+  
+  :Fermer modal;
+  
+  stop
+  
+elseif (Action = "Supprimer") then (oui)
+  :Admin clique sur "Supprimer";
+  
+  :Afficher modal de suppression
+  (DeleteModalV2);
+  
+  :Afficher avertissement :
+  "La suppression sera définitive et non réversible";
+  
+  :Afficher informations du dossier :
+  - Nom, prénom
+  - Matricule : {matricule};
+  
+  :Demander confirmation par saisie du matricule
+  (obligatoire pour validation);
+  
+  :Admin saisit le matricule
+  pour confirmation;
+  
+  if (Matricule saisi = Matricule du dossier ?) then (oui)
+    :Admin confirme la suppression;
+    
+    :Appel deleteMutation.mutate()
+    avec :
+    - requestId
+    - adminId
+    - confirmedMatricule;
+    
+    :Appel Cloud Function deleteMembershipRequest
+    via httpsCallable
+    avec :
+    - requestId
+    - adminId
+    - confirmedMatricule;
+    
+    :Cloud Function valide :
+    - Permissions admin
+    - Statut = 'rejected'
+    - Matricule confirmé = matricule du dossier
+    - Existence demande;
+    
+    :Cloud Function crée log d'audit
+    dans collection audit-logs;
+    
+    :Cloud Function supprime documents Storage
+    (photos, pièces d'identité)
+    depuis Firebase Storage;
+    
+    :Cloud Function supprime document Firestore
+    membership-requests/{requestId};
+    
+    :Cloud Function retourne succès
+    avec nombre de fichiers supprimés;
+    
+    :Invalider cache React Query;
+    
+    :Afficher toast "Dossier supprimé avec succès";
+    
+    :Fermer modal;
+    
+    stop
+    
+  else (non)
+    :Afficher erreur "Le matricule saisi ne correspond pas";
+    
+    :Garder modal ouvert;
+    
+    stop
+    
+  endif
+  
+elseif (Action = "Voir détails") then (oui)
+  :Admin clique sur "Voir détails";
+  
+  :Ouvrir modal MemberDetailsModal
+  avec toutes les informations du dossier;
+  
+  :Afficher :
+  - Informations identité
+  - Adresse
+  - Documents
+  - Statut : 'rejected'
+  - Motif de rejet
+  - Historique des actions;
+  
+  stop
+  
+elseif (Action = "Envoyer WhatsApp") then (oui)
+  :Admin clique sur "Envoyer WhatsApp"
+  (visible si status = 'rejected');
+  
+  :Afficher modal RejectWhatsAppModalV2;
+  
+  if (Plusieurs numéros disponibles ?) then (oui)
+    :Afficher Select/Dropdown
+    pour sélectionner le numéro WhatsApp;
+    
+    :Admin sélectionne le numéro
+    (par défaut : premier numéro);
+    
+  else (non - un seul numéro)
+    :Afficher directement le numéro
+    (en lecture seule);
+    
+  endif
+  
+  :Afficher message template prérempli :
+  - Bonjour {firstName}
+  - Matricule: {matricule}
+  - Motif de rejet: {motifReject}
+  - Template KARA Mutuelle;
+  
+  :Admin peut modifier le message
+  (textarea modifiable);
+  
+  :Admin clique sur "Envoyer via WhatsApp";
+  
+  :Générer URL WhatsApp :
+  https://wa.me/{phoneNumber}?text={message};
+  
+  :Ouvrir WhatsApp Web dans nouvel onglet
+  avec message prérempli;
+  
+  :Afficher toast "WhatsApp ouvert";
+  
+  :Fermer modal;
+  
+  stop
+  
+elseif (Action = "Dropdown - Fiche d'adhésion") then (oui)
+  :Admin clique sur "Fiche d'adhésion"
+  dans le dropdown;
+  
+  :Si PDF d'adhésion existe :
+  Ouvrir/visualiser le PDF;
+  
+  :Si PDF n'existe pas :
+  Afficher message "Aucune fiche d'adhésion disponible";
+  
+  stop
+  
+elseif (Action = "Dropdown - Pièce d'identité") then (oui)
+  :Admin clique sur "Pièce d'identité"
+  dans le dropdown;
+  
+  :Si pièces d'identité existent :
+  Afficher modal avec photos
+  (recto et verso);
+  
+  :Si pièces d'identité n'existent pas :
+  Afficher message "Aucune pièce d'identité disponible";
+  
+  stop
+  
+else (autre action)
+  stop
+  
+endif
 
 stop
 

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncToAlgolia = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.syncToAlgolia = exports.deleteMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -141,6 +141,9 @@ exports.dailyCaisseImprevueApprovedNotConvertedReminders = (0, scheduler_1.onSch
     await (0, caisseImprevueDemandReminders_1.remindApprovedNotConvertedCaisseImprevueDemands)();
     console.log('Job terminé avec succès');
 });
+// Cloud Function pour supprimer définitivement une demande rejetée
+var deleteMembershipRequest_1 = require("./membership-requests/deleteMembershipRequest");
+Object.defineProperty(exports, "deleteMembershipRequest", { enumerable: true, get: function () { return deleteMembershipRequest_1.deleteMembershipRequest; } });
 // Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
 var syncToAlgolia_1 = require("./membership-requests/syncToAlgolia");
 Object.defineProperty(exports, "syncToAlgolia", { enumerable: true, get: function () { return syncToAlgolia_1.syncToAlgolia; } });

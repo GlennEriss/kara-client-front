@@ -45,7 +45,14 @@ interface MembershipRequestsTableV2Props {
   onReject?: (request: MembershipRequest) => void
   onRequestCorrections?: (request: MembershipRequest) => void
   onPay?: (request: MembershipRequest) => void
+  
+  // Actions post-rejet (si status === 'rejected')
+  onReopen?: (request: MembershipRequest) => void
+  onDelete?: (request: MembershipRequest) => void
+  onSendWhatsAppRejection?: (request: MembershipRequest) => void
+  
   onViewMembershipForm?: (id: string) => void
+  onViewApprovedMembershipPdf?: (id: string) => void
   onViewIdentityDocument?: (id: string) => void
   onViewPaymentDetails?: (id: string) => void
   onExportPDF?: (id: string) => void
@@ -168,7 +175,11 @@ export function MembershipRequestsTableV2({
   onReject,
   onRequestCorrections,
   onPay,
+  onReopen,
+  onDelete,
+  onSendWhatsAppRejection,
   onViewMembershipForm,
+  onViewApprovedMembershipPdf,
   onViewIdentityDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -258,11 +269,15 @@ export function MembershipRequestsTableV2({
               <MembershipRequestRowV2
                 request={request}
                 onViewDetails={onViewDetails}
-                onApprove={onApprove ? (id) => onApprove(request) : undefined}
-                onReject={onReject ? (id) => onReject(request) : undefined}
-                onRequestCorrections={onRequestCorrections ? (id) => onRequestCorrections(request) : undefined}
-                onPay={onPay ? (id) => onPay(request) : undefined}
+                onApprove={onApprove ? (_id) => onApprove(request) : undefined}
+                onReject={onReject ? (_id) => onReject(request) : undefined}
+                onRequestCorrections={onRequestCorrections ? (_id) => onRequestCorrections(request) : undefined}
+                onPay={onPay ? (_id) => onPay(request) : undefined}
+                onReopen={onReopen ? (_id) => onReopen(request) : undefined}
+                onDelete={onDelete ? (_id) => onDelete(request) : undefined}
+                onSendWhatsAppRejection={onSendWhatsAppRejection ? (_id) => onSendWhatsAppRejection(request) : undefined}
                 onViewMembershipForm={onViewMembershipForm}
+                onViewApprovedMembershipPdf={onViewApprovedMembershipPdf}
                 onViewIdDocument={onViewIdentityDocument}
                 onViewPaymentDetails={onViewPaymentDetails}
                 onExportPDF={onExportPDF}

@@ -27,7 +27,14 @@ interface MembershipRequestMobileCardV2Props {
   onReject?: (id: string) => void
   onRequestCorrections?: (id: string) => void
   onPay?: (id: string) => void
+  
+  // Actions post-rejet (si status === 'rejected')
+  onReopen?: (id: string) => void
+  onDelete?: (id: string) => void
+  onSendWhatsAppRejection?: (id: string) => void
+  
   onViewMembershipForm?: (id: string) => void
+  onViewApprovedMembershipPdf?: (id: string) => void
   onViewIdDocument?: (id: string) => void
   onViewPaymentDetails?: (id: string) => void
   onExportPDF?: (id: string) => void
@@ -72,7 +79,11 @@ export function MembershipRequestMobileCardV2({
   onReject,
   onRequestCorrections,
   onPay,
+  onReopen,
+  onDelete,
+  onSendWhatsAppRejection,
   onViewMembershipForm,
+  onViewApprovedMembershipPdf,
   onViewIdDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -232,8 +243,12 @@ export function MembershipRequestMobileCardV2({
             onReject={onReject ? () => onReject(id || '') : undefined}
             onRequestCorrections={onRequestCorrections ? () => onRequestCorrections(id || '') : undefined}
             onPay={onPay ? () => onPay(id || '') : undefined}
+            onReopen={onReopen ? () => onReopen(id || '') : undefined}
+            onDelete={onDelete ? () => onDelete(id || '') : undefined}
+            onSendWhatsAppRejection={onSendWhatsAppRejection ? () => onSendWhatsAppRejection(id || '') : undefined}
             onViewDetails={onViewDetails ? () => onViewDetails(id || '') : undefined}
             onViewMembershipForm={onViewMembershipForm ? () => onViewMembershipForm(id || '') : undefined}
+            onViewApprovedMembershipPdf={onViewApprovedMembershipPdf ? () => onViewApprovedMembershipPdf(id || '') : undefined}
             onViewIdDocument={onViewIdDocument ? () => onViewIdDocument(id || '') : undefined}
             onViewPaymentDetails={onViewPaymentDetails ? () => onViewPaymentDetails(id || '') : undefined}
             onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
@@ -246,6 +261,8 @@ export function MembershipRequestMobileCardV2({
             isRejecting={loadingActions?.[`reject-${id}`]}
             isRequestingCorrections={loadingActions?.[`corrections-${id}`]}
             isPaying={loadingActions?.[`pay-${id}`]}
+            isReopening={loadingActions?.[`reopen-${id}`]}
+            isDeleting={loadingActions?.[`delete-${id}`]}
             isRenewingCode={loadingActions?.[`renew-code-${id}`]}
             className="flex-wrap"
           />

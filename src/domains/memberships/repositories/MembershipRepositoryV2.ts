@@ -487,6 +487,7 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
       createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt || Date.now()),
       updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt || Date.now()),
       processedAt: data.processedAt?.toDate?.() || (data.processedAt ? new Date(data.processedAt) : undefined),
+      approvedAt: data.approvedAt?.toDate?.() || (data.approvedAt ? new Date(data.approvedAt) : undefined),
       securityCodeExpiry: data.securityCodeExpiry?.toDate?.() || (data.securityCodeExpiry ? new Date(data.securityCodeExpiry) : undefined),
     } as MembershipRequest
   }

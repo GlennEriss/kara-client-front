@@ -60,6 +60,9 @@ class MembershipRequest {
   + priorityScore?: number
   + approvedBy?: string
   + approvedAt?: Date
+  + reopenedBy?: string
+  + reopenedAt?: Date
+  + reopenReason?: string
   + createdAt: Date
   + updatedAt: Date
 }
@@ -305,22 +308,71 @@ class ApproveMembershipRequestOutput {
 }
 
 ' ============================================
+' CLASSES : FONCTIONNALITÉ REJET
+' ============================================
+
+' Paramètres d'entrée pour le rejet
+class RejectMembershipRequestParams {
+  + requestId: string
+  + adminId: string
+  + reason: string
+}
+
+' Paramètres d'entrée pour la réouverture
+class ReopenMembershipRequestParams {
+  + requestId: string
+  + adminId: string
+  + reason: string
+}
+
+' Paramètres d'entrée pour la suppression
+class DeleteMembershipRequestInput {
+  + requestId: string
+  + confirmedMatricule: string
+}
+
+' Réponse de la Cloud Function de suppression
+class DeleteMembershipRequestOutput {
+  + success: boolean
+  + requestId: string
+  + filesDeleted: number
+  + deletedAt: string
+}
+
+' ============================================
 ' CLASSES : SERVICES (Architecture V2)
 ' ============================================
 
 class MembershipServiceV2 {
   - repository: MembershipRepositoryV2
   - adminRepository: AdminRepository
+  - notificationService: NotificationService
   + {static} getInstance(): MembershipServiceV2
   + requestCorrections(params: RequestCorrectionsParams): Promise<{securityCode: string, whatsAppUrl?: string}>
   + approveMembershipRequest(params: ApproveMembershipRequestParams): Promise<ApproveMembershipRequestOutput>
   + rejectMembershipRequest(params: RejectMembershipRequestParams): Promise<void>
+  + reopenMembershipRequest(params: ReopenMembershipRequestParams): Promise<void>
   + processPayment(params: ProcessPaymentParams): Promise<void>
 }
 
 note right of MembershipServiceV2
+  **Service métier V2 pour Membership Requests**
+  
   **Note:** AdminRepository est défini dans CLASSES_AUTH.puml
   Utilisé pour valider l'identité de l'admin lors des opérations
+  
+  **Méthode rejectMembershipRequest():**
+  - Valide le motif (10-500 caractères)
+  - Met à jour statut à 'rejected' avec motifReject, processedBy, processedAt
+  - Crée notification Firestore pour admins (type: membership_rejected)
+  - Retourne void
+  
+  **Méthode reopenMembershipRequest():**
+  - Valide que statut = 'rejected'
+  - Valide le motif de réouverture (10-500 caractères)
+  - Met à jour statut à 'under_review' avec reopenReason, reopenedBy, reopenedAt
+  - Crée notification Firestore pour admins (type: membership_reopened)
+  - Retourne void
 end note
 
 class RegistrationService {
@@ -371,6 +423,39 @@ class ApproveMembershipRequestCloudFunction {
   - rollback(actions: RollbackAction[]): Promise<void>
 }
 
+class DeleteMembershipRequestCloudFunction {
+  + {callable} deleteMembershipRequest(input: DeleteMembershipRequestInput): Promise<DeleteMembershipRequestOutput>
+  - validatePermissions(auth: any): void
+  - validateRequest(requestId: string): Promise<MembershipRequest>
+  - validateMatricule(request: MembershipRequest, confirmedMatricule: string): void
+  - createAuditLog(requestId: string, request: MembershipRequest, adminId: string): Promise<void>
+  - deleteStorageFiles(request: MembershipRequest): Promise<number>
+  - deleteFirestoreDocument(requestId: string): Promise<void>
+}
+
+class OnMembershipRequestRejectedCloudFunction {
+  + {trigger} onMembershipRequestRejected(event: FirestoreEvent): Promise<void>
+  - detectStatusChange(before: any, after: any): boolean
+  - sendEmailNotification(request: MembershipRequest): Promise<void>
+  - sendSMSNotification(request: MembershipRequest): Promise<void>
+}
+
+note right of OnMembershipRequestRejectedCloudFunction
+  **Cloud Function Trigger (optionnel/non prioritaire)**
+  
+  **Déclencheur:** Changement de statut vers 'rejected'
+  
+  **Objectif:** Envoyer automatiquement email/SMS au demandeur
+  
+  **Priorité:** ⚠️ Optionnel / Non prioritaire
+  
+  **État:** À implémenter dans une phase ultérieure
+  
+  **Alternative:** Bouton WhatsApp manuel disponible dans l'interface admin
+  
+  **Fichier:** functions/src/membership-requests/onMembershipRequestRejected.ts
+end note
+
 ' ============================================
 ' CLASSES : UTILITAIRES
 ' ============================================
@@ -382,6 +467,7 @@ class SecurityCodeUtils {
 
 class WhatsAppUrlUtils {
   + {static} generateWhatsAppUrl(phoneNumber: string, message: string): string
+  + {static} generateRejectionWhatsAppUrl(phoneNumber: string, firstName: string, matricule: string, motifReject: string): string
 }
 
 class PDFGenerator {
@@ -488,6 +574,10 @@ end note
 ApproveMembershipRequestCloudFunction ..> ApproveMembershipRequestInput : uses
 ApproveMembershipRequestCloudFunction ..> ApproveMembershipRequestOutput : returns
 
+' DeleteMembershipRequestInput est utilisé par la Cloud Function
+DeleteMembershipRequestCloudFunction ..> DeleteMembershipRequestInput : uses
+DeleteMembershipRequestCloudFunction ..> DeleteMembershipRequestOutput : returns
+
 ' Cloud Function crée un User lors de l'approbation
 ApproveMembershipRequestCloudFunction ..> User : creates
 
@@ -497,13 +587,30 @@ ApproveMembershipRequestCloudFunction ..> Subscription : creates
 ' Cloud Function archive un Document lors de l'approbation
 ApproveMembershipRequestCloudFunction ..> Document : archives
 
+' Cloud Function crée un log d'audit lors de la suppression
+DeleteMembershipRequestCloudFunction ..> AuditLog : creates
+
+' MembershipRequest peut générer des Notifications
+MembershipRequest "1" --> "*" Notification : generates
+
+' Cloud Function peut créer des Notifications
+MembershipServiceV2 ..> Notification : creates
+
+' Services utilisent leurs paramètres
+MembershipServiceV2 ..> RejectMembershipRequestParams : uses
+MembershipServiceV2 ..> ReopenMembershipRequestParams : uses
+
 ' Services utilisent leurs repositories respectifs
 MembershipServiceV2 --> MembershipRepositoryV2 : uses
 MembershipServiceV2 --> AdminRepository : uses
+MembershipServiceV2 --> NotificationService : uses
 RegistrationService --> RegistrationRepository : uses
 
 ' MembershipServiceV2 appelle la Cloud Function pour l'approbation
 MembershipServiceV2 ..> ApproveMembershipRequestCloudFunction : calls
+
+' MembershipServiceV2 appelle la Cloud Function pour la suppression
+MembershipServiceV2 ..> DeleteMembershipRequestCloudFunction : calls
 
 ' Repositories interagissent avec MembershipRequest
 MembershipRepositoryV2 ..> MembershipRequest : queries/updates
@@ -514,13 +621,17 @@ MembershipServiceV2 ..> SecurityCodeUtils : uses
 MembershipServiceV2 ..> WhatsAppUrlUtils : uses
 MembershipServiceV2 ..> PDFGenerator : uses
 
+' NotificationService crée des notifications pour les admins
+MembershipServiceV2 ..> NotificationService : creates_notifications
+NotificationService ..> Notification : creates
+
 ' RegistrationRepository utilise SecurityCodeUtils pour marquer le code comme utilisé
 RegistrationRepository ..> SecurityCodeUtils : uses
 
 note right of MembershipRequest
   **Collection Firestore:** membership-requests
   Clé primaire: id
-  Index sur: status, createdAt, matricule, isPaid, approvedBy, approvedAt
+  Index sur: status, createdAt, matricule, isPaid, approvedBy, approvedAt, processedBy, processedAt
   
   **Workflow métier:**
   - isPaid: false par défaut (migration appliquée)
@@ -541,6 +652,21 @@ note right of MembershipRequest
   - Statut passe à 'approved' après approbation
   - Génère un User, une Subscription et un Document (PDF d'adhésion)
   - Ces champs permettent l'audit et la traçabilité des approbations
+  
+  **Fonctionnalité Rejet:**
+  - motifReject: Motif de rejet (obligatoire, 10-500 caractères)
+  - processedBy: ID de l'admin qui a rejeté (obligatoire, pour traçabilité)
+  - processedAt: Date de rejet (obligatoire, timestamp serveur)
+  - Statut passe à 'rejected' après rejet
+  - Notification Firestore créée pour tous les admins (type: membership_rejected)
+  - Bouton WhatsApp manuel disponible pour informer le demandeur
+  
+  **Fonctionnalité Réouverture:**
+  - reopenReason: Motif de réouverture (obligatoire, 10-500 caractères)
+  - reopenedBy: ID de l'admin qui a réouvert (obligatoire, pour traçabilité)
+  - reopenedAt: Date de réouverture (obligatoire, timestamp serveur)
+  - Statut passe de 'rejected' à 'under_review' après réouverture
+  - Notification Firestore créée pour tous les admins (type: membership_reopened)
 end note
 
 note right of MembershipServiceV2
@@ -603,9 +729,15 @@ note right of WhatsAppUrlUtils
   - Encode message en URL
   - Retourne URL format: https://wa.me/{phoneNumber}?text={encodedMessage}
   
+  **generateRejectionWhatsAppUrl(phoneNumber, firstName, matricule, motifReject):**
+  - Génère URL WhatsApp avec template de message de rejet
+  - Message pré-rempli avec motif de rejet
+  - Utilisé pour notifier le demandeur du rejet
+  
   **Utilisation:**
   - Admin peut sélectionner parmi plusieurs numéros
-  - Message pré-rempli avec corrections et code de sécurité
+  - Message pré-rempli avec corrections et code de sécurité (corrections)
+  - Message pré-rempli avec motif de rejet (rejet)
 end note
 
 note right of ApproveMembershipRequestCloudFunction
