@@ -1,0 +1,22 @@
+@startuml UC5 - Recherche membre dans l'onglet Véhicules
+Title Recherche d'un membre dans l'onglet Véhicules
+
+start
+
+:Admin est sur l'onglet Véhicules d'un écran;
+
+:Admin saisit un nom/matricule
+dans un champ de recherche de membre;
+
+:Hook useMembershipSearch(searchTerm) est appelé;
+
+:Résultats de recherche affichés (liste de membres);
+
+:Admin sélectionne un membre dans la liste;
+
+:Écran Véhicules se met à jour
+avec le membre sélectionné;
+
+stop
+
+@enduml

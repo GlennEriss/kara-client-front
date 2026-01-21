@@ -1,0 +1,36 @@
+@startuml Séquence - Chargement fiche membre
+Title Chargement de la fiche membre complète
+
+actor Admin
+participant "Next Page /memberships/{id}" as Page
+participant "MemberDetailsPage" as View
+participant "useMembershipDetails" as Hook
+participant "MemberRepositoryV2" as MemberRepo
+participant "SubscriptionRepositoryV2" as SubRepo
+participant "CaisseContractsRepositoryV2" as ContractRepo
+participant "FilleulsRepository" as FilleulRepo
+participant Firestore
+
+Admin -> Page: Accès /memberships/{id}
+Page -> View: Render MemberDetailsPage
+View -> Hook: useMembershipDetails(memberId)
+Hook -> MemberRepo: getById(memberId)
+MemberRepo -> Firestore: get users/{memberId}
+Firestore --> MemberRepo: member document
+MemberRepo --> Hook: member
+Hook -> SubRepo: getByMemberId(memberId)
+SubRepo -> Firestore: query subscriptions by userId
+Firestore --> SubRepo: subscriptions[]
+SubRepo --> Hook: subscriptions
+Hook -> ContractRepo: listByMember(memberId)
+ContractRepo -> Firestore: query contracts by memberId
+Firestore --> ContractRepo: contracts[]
+ContractRepo --> Hook: contracts
+Hook -> FilleulRepo: getByParrain(memberId)
+FilleulRepo -> Firestore: query filleuls by parrainId
+Firestore --> FilleulRepo: filleuls[]
+FilleulRepo --> Hook: filleuls
+Hook --> View: { member, subscriptions, contracts, filleuls }
+View -> View: Afficher sections UI
+
+@enduml

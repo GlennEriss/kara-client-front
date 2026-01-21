@@ -1,0 +1,23 @@
+@startuml Séquence - Chargement liste
+title Séquence de chargement de la liste des membres
+
+actor Admin
+participant "Page Next" as Page
+participant "useMembershipsListV2" as Hook
+participant "MembershipRepositoryV2" as Repo
+participant "MembershipStatsService" as Stats
+participant Firestore
+
+Admin -> Page: Accède à /memberships
+Page -> Hook: useMembershipsListV2({})
+Hook -> Repo: getMembersPaginated(filters, page, limit)
+Repo -> Firestore: query(users, constraints)
+Firestore --> Repo: documents[]
+Repo -> Repo: getMemberWithSubscription() pour chaque membre
+Repo --> Hook: PaginatedMembers
+Hook -> Stats: calculateStats(members)
+Stats --> Hook: UserStats
+Hook --> Page: { members, pagination, stats, isLoading: false }
+Page -> Page: Rend composants (Stats, Header, Tabs, Filters, Layout, Pagination)
+
+@enduml

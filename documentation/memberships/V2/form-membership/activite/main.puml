@@ -1,0 +1,77 @@
+@startuml Formulaire membre - Flux principal
+Title Parcours complet du formulaire d'adhésion
+
+start
+
+:Admin accède à /memberships/add;
+
+:Page Next charge AddMemberPage;
+
+:RegisterProvider initialise le formulaire;
+
+:Affichage Step1 (Identité);
+
+:Admin remplit les champs identité;
+
+if (Validation Step1 OK ?) then (oui)
+  :Navigation vers Step2 (Adresse);
+else (non)
+  :Affichage erreurs validation;
+  stop
+endif
+
+:Admin remplit les champs adresse;
+
+if (Besoin de créer une province/ville ?) then (oui)
+  :Ouvrir modal création rapide;
+  :Créer l'entité;
+  :Sélection automatique dans combobox;
+endif
+
+if (Validation Step2 OK ?) then (oui)
+  :Navigation vers Step3 (Entreprise);
+else (non)
+  :Affichage erreurs validation;
+  stop
+endif
+
+:Admin remplit les champs entreprise/profession;
+
+if (Besoin de créer entreprise/profession ?) then (oui)
+  :Ouvrir modal création rapide;
+  :Créer l'entité;
+  :Sélection automatique dans combobox;
+endif
+
+if (Validation Step3 OK ?) then (oui)
+  :Navigation vers Step4 (Documents);
+else (non)
+  :Affichage erreurs validation;
+  stop
+endif
+
+:Admin upload les documents (photo, pièces identité);
+
+if (Validation Step4 OK ?) then (oui)
+  :Bouton "Soumettre" activé;
+else (non)
+  :Affichage erreurs validation;
+  stop
+endif
+
+:Admin clique "Soumettre";
+
+:MembershipFormService.submitNewMembership();
+
+:Création MembershipRequest + upload documents;
+
+if (Succès ?) then (oui)
+  :Redirection vers liste membres;
+  :Toast succès;
+  stop
+else (non)
+  :Affichage erreur;
+  stop
+endif
+
+@enduml

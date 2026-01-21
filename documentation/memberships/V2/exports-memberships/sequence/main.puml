@@ -1,0 +1,32 @@
+@startuml Séquence - Export membres (client)
+Title Séquence d'export côté client
+
+actor Admin
+participant "MembershipList" as List
+participant "ExportMembershipModal" as Modal
+participant "useMembershipExport" as Hook
+participant "MembershipExportService" as Service
+participant "MembershipRepositoryV2" as Repo
+participant "MembershipRequestRepository" as ReqRepo
+participant Firestore
+participant Browser
+
+Admin -> List: Clique "Exporter"
+List -> Modal: open()
+Admin -> Modal: Configure options (format, filtres)
+Admin -> Modal: Clique "Lancer l'export"
+Modal -> Hook: exportMembers(options)
+Hook -> Service: exportMembers(options)
+Service -> Repo: getMembersForExport(options)
+Repo -> Firestore: query users avec filtres
+Firestore --> Repo: members[]
+Service -> ReqRepo: getRequestsByIds(dossierIds)
+ReqRepo -> Firestore: query membershipRequests
+Firestore --> ReqRepo: requests[]
+Service -> Service: buildRows(members, requests)
+Service -> Browser: generate file (CSV/Excel/PDF)
+Browser -> Admin: déclenche téléchargement
+Hook -> Modal: notifie succès/erreur
+Modal -> Modal: close()
+
+@enduml

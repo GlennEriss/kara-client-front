@@ -1,0 +1,23 @@
+@startuml Détails membre - Gestion des erreurs
+Title Erreurs lors du chargement de la fiche
+
+start
+
+:Admin ouvre /memberships/{id};
+
+:useMembershipDetails(memberId) charge les données;
+
+if (Membre trouvé ?) then (oui)
+  :Affichage normal de la fiche;
+  stop
+else (non)
+  :Erreur (membre introuvable / réseau);
+  :Afficher MemberDetailsErrorState
+  avec message + bouton retour;
+  if (Admin clique sur "Retour liste" ?) then (oui)
+    :Navigation vers liste des membres;
+  endif
+  stop
+endif
+
+@enduml

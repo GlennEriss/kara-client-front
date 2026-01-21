@@ -1,0 +1,19 @@
+@startuml Séquence - Calcul des statistiques membres
+Title Séquence de calcul et affichage des stats
+
+actor Admin
+participant "MembershipList" as List
+participant "useMembershipStats" as Hook
+participant "MembershipStatsService" as Service
+participant Firestore
+
+Admin -> List: Accède /memberships
+List -> List: Charge les membres (pagination)
+List -> Hook: useMembershipStats(members)
+Hook -> Service: calculateStats(members)
+Service -> Service: Calcule indicateurs (total, actifs, expirés, genre, etc.)
+Service --> Hook: stats
+Hook --> List: stats
+List -> List: Affiche StatsCarousel avec les stats
+
+@enduml

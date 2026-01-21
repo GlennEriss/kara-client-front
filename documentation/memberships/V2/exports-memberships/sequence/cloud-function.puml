@@ -1,0 +1,25 @@
+@startuml Séquence - Export membres (Cloud Function)
+Title Séquence d'export via Cloud Function (optionnel)
+
+actor Admin
+participant "ExportMembershipModal" as Modal
+participant "useMembershipExport" as Hook
+participant "Browser" as Browser
+participant "Cloud Function exportMembersList" as CF
+participant Firestore
+participant Storage
+
+Admin -> Modal: Configure un gros export
+Admin -> Modal: Clique "Lancer l'export"
+Modal -> Hook: exportMembers(options)
+Hook -> CF: HTTPS callable exportMembersList(options)
+CF -> Firestore: query users + membershipRequests
+Firestore --> CF: données agrégées
+CF -> CF: génère le fichier (CSV/Excel/PDF)
+CF -> Storage: upload fichier d'export
+Storage --> CF: downloadUrl
+CF --> Hook: { downloadUrl }
+Hook -> Browser: ouvrir downloadUrl ou déclencher téléchargement
+Hook -> Modal: toast succès + close
+
+@enduml

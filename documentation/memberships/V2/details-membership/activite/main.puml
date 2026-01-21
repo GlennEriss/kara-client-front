@@ -1,0 +1,32 @@
+@startuml Détails membre - Flux principal
+Title Chargement de la fiche membre
+
+start
+
+:Admin clique sur un membre dans la liste;
+
+:Next.js charge la page /memberships/{id};
+
+:Initialisation de MemberDetailsPage;
+
+:Appel du hook useMembershipDetails(memberId);
+
+:Chargement des données membre, abonnements, contrats, filleuls;
+
+:Assemblage du ViewModel (MembershipDetailsViewModel);
+
+:Affichage des sections:
+- Header
+- Identité
+- Contacts
+- Adresse
+- Abonnement
+- Documents / Dossier
+- Filleuls
+- Paiements
+- Contrats
+- Liens vers autres modules;
+
+stop
+
+@enduml

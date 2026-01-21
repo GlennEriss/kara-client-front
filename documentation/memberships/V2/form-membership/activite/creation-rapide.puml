@@ -1,0 +1,32 @@
+@startuml Formulaire membre - Création rapide référentiel
+Title Création rapide d'un référentiel depuis le formulaire
+
+start
+
+:Admin est sur Step2 ou Step3;
+
+:Admin clique sur bouton "+" à côté d'une combobox;
+
+:Ouverture de la modal de création
+(AddProvinceModal, AddCompanyModal, etc.);
+
+:Admin remplit le formulaire de la modal;
+
+:Admin clique "Créer";
+
+:Service de domaine crée l'entité
+(GeographyService.createProvince(), etc.);
+
+:Invalidation des caches React Query;
+
+:Rafraîchissement de la liste dans la combobox;
+
+:Sélection automatique de la nouvelle entité;
+
+:Toast succès "Province créée avec succès";
+
+:Modal se ferme;
+
+stop
+
+@enduml

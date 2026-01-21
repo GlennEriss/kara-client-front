@@ -1,0 +1,21 @@
+@startuml Séquence - Export
+title Séquence d'export de la liste
+
+actor Admin
+participant "MembershipsListPage" as Page
+participant "ExportMembershipModal" as Modal
+participant "MembershipExportService" as Export
+participant Firestore
+
+Admin -> Page: Clique "Exporter"
+Page -> Modal: Ouvre modal
+Admin -> Modal: Sélectionne format (PDF/Excel) + filtre
+Modal -> Export: exportMembers(filters, format)
+Export -> Firestore: Récupère membres selon filtres
+Firestore --> Export: members[]
+Export -> Export: Génère fichier (PDF/Excel)
+Export --> Modal: Blob/URL fichier
+Modal -> Modal: Déclenche téléchargement
+Modal -> Modal: Toast succès
+
+@enduml

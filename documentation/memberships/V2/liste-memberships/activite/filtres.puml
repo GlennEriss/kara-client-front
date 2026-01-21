@@ -1,0 +1,34 @@
+@startuml Application de filtres
+title Filtres avancés et recherche
+
+start
+
+:Admin ouvre filtres avancés;
+
+:Admin sélectionne filtres
+(type, abonnement, géographie, etc.);
+
+:Admin saisit recherche texte;
+
+:Debounce (300ms);
+
+:UserFilters construit;
+
+:useMembershipsListV2 reçoit filtres;
+
+:Repository.getMembersPaginated()
+avec filtres;
+
+if (Filtres côté Firestore?) then (oui)
+  :Requête Firestore avec where();
+else (non)
+  :Filtrage côté client;
+endif
+
+:Liste filtrée affichée;
+
+:Badges filtres actifs affichés;
+
+stop
+
+@enduml

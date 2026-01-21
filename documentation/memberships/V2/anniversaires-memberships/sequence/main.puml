@@ -1,0 +1,19 @@
+@startuml Séquence - Vue Anniversaires
+Title Séquence principale de la vue Anniversaires
+
+actor Admin
+participant "Page Anniversaires" as Page
+participant "MemberBirthdaysList" as List
+participant "useMemberBirthdays" as Hook
+participant Firestore
+
+Admin -> Page: Accède à la vue Anniversaires
+Page -> List: Render composant
+List -> Hook: useMemberBirthdays(month, year)
+Hook -> Firestore: query users (birthDate, isActive)
+Firestore --> Hook: liste des membres
+Hook -> Hook: calcul des anniversaires (nextBirthday, daysUntil, age)
+Hook --> List: données anniversaires
+List -> Admin: affiche liste/calendrier
+
+@enduml

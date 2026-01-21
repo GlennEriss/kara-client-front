@@ -1,0 +1,27 @@
+@startuml Détails membre - Navigation vers modules liés
+Title Navigation depuis la fiche membre
+
+start
+
+:Admin ouvre la fiche membre;
+
+if (Clique sur "Voir l'abonnement" ?) then (oui)
+  :Ouvrir modal historique abonnements;
+  :Consultation des abonnements;
+endif
+
+if (Clique sur "Voir le dossier" ?) then (oui)
+  :Navigation vers MembershipRequestDetails;
+endif
+
+if (Clique sur section contrats caisse ?) then (oui)
+  :Navigation vers module caisse (liste contrats du membre);
+endif
+
+if (Clique sur section filleuls ?) then (oui)
+  :Navigation vers vue filleuls / parrainage du membre;
+endif
+
+stop
+
+@enduml

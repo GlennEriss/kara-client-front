@@ -1,0 +1,25 @@
+@startuml Séquence - Recherche globale membres
+Title Séquence de recherche sur la liste des membres
+
+actor Admin
+participant "Page /memberships" as Page
+participant "MembershipList" as List
+participant "MembershipSearchBar" as SearchBar
+participant "useMembershipFilters" as Filters
+participant "useMembershipsListV2" as Hook
+participant "MembershipRepositoryV2" as Repo
+participant Firestore
+
+Admin -> Page: Accède /memberships
+Page -> List: Render liste + filtres + search bar
+Admin -> SearchBar: Tape un terme de recherche
+SearchBar -> Filters: met à jour filters.searchQuery
+Filters -> Hook: notifie changement de filtres
+Hook -> Repo: getMembers(filters, pagination)
+Repo -> Firestore: query users avec filtres
+Firestore --> Repo: members[]
+Repo --> Hook: members[]
+Hook --> List: données filtrées
+List -> Admin: affiche liste des membres;
+
+@enduml

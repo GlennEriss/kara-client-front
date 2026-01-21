@@ -1,0 +1,32 @@
+@startuml Liste des membres - Flux principal
+title Chargement de la page liste des membres
+
+start
+
+:Admin accède à /memberships;
+
+:Page Next charge MembershipListPage;
+
+:useMembershipsListV2() appelé;
+
+:Repository.getMembersPaginated() appelé;
+
+:Firestore query exécutée;
+
+:Données membres récupérées;
+
+:Service stats calcule statistiques;
+
+:Composants rendus :
+- StatsCarousel
+- Header
+- Tabs
+- Filters
+- Layout (grille/liste)
+- Pagination;
+
+:Page affichée avec données;
+
+stop
+
+@enduml

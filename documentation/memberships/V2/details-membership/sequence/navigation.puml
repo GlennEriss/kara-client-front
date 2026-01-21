@@ -1,0 +1,29 @@
+@startuml Séquence - Navigation depuis la fiche membre
+Title Navigation vers modules liés depuis détails membre
+
+actor Admin
+participant "MemberDetailsPage" as View
+participant "useMembershipDetails" as Hook
+participant "Next Router" as Router
+
+== Voir abonnement ==
+Admin -> View: Clique "Voir l'historique" abonnements
+View -> Hook: onOpenSubscriptionHistory()
+Hook -> Router: push(/memberships/{id}/subscriptions) ou ouverture modal
+
+== Voir dossier d'adhésion ==
+Admin -> View: Clique "Voir le dossier"
+View -> Hook: onOpenMembershipRequest()
+Hook -> Router: push(/membership-requests/{dossierId})
+
+== Voir contrats caisse ==
+Admin -> View: Clique sur lien contrats caisse
+View -> Hook: onOpenContracts('caisse')
+Hook -> Router: push(/caisse/contracts?memberId={id})
+
+== Voir filleuls ==
+Admin -> View: Clique sur lien filleuls
+View -> Hook: onOpenContracts('filleuls') ou handler dédié
+Hook -> Router: push(/memberships/{id}/filleuls) (à définir)
+
+@enduml

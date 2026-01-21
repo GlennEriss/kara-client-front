@@ -1,0 +1,21 @@
+@startuml Séquence - Changement de tab
+title Séquence de changement de tab
+
+actor Admin
+participant "MembershipsListTabs" as Tabs
+participant "useMembershipsListV2" as Hook
+participant "MembershipRepositoryV2" as Repo
+participant Firestore
+
+Admin -> Tabs: Clique sur tab "Adhérents"
+Tabs -> Hook: setTab('adherents')
+Hook -> Hook: mapTabToFilters('adherents')
+note right: { roles: ['Adherant'] }
+Hook -> Repo: getMembersPaginated({ roles: ['Adherant'] }, page, limit)
+Repo -> Firestore: query(users, where('roles', 'array-contains', 'Adherant'))
+Firestore --> Repo: documents[]
+Repo --> Hook: PaginatedMembers
+Hook --> Tabs: { members, pagination }
+Tabs -> Tabs: Affiche liste filtrée
+
+@enduml

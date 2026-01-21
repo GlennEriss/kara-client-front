@@ -1,0 +1,28 @@
+@startuml Recherche & filtres - Flux principal
+Title Application de la recherche et des filtres sur la liste des membres
+
+start
+
+:Admin ouvre /memberships;
+
+:Chargement initial de la liste avec filtres par défaut;
+
+:Admin saisit un terme dans la barre de recherche
+ou modifie des filtres avancés;
+
+:Hook useMembershipFilters met à jour UserFilters;
+
+:Hook useMembershipsListV2 / useAllMembers
+relance la requête avec les nouveaux filtres;
+
+:Liste des membres mise à jour;
+
+if (Aucun résultat ?) then (oui)
+  :Afficher message "Aucun membre ne correspond à votre recherche";
+else (non)
+  :Afficher les membres filtrés;
+endif
+
+stop
+
+@enduml

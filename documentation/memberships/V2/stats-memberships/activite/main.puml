@@ -1,0 +1,21 @@
+@startuml Statistiques membres - Flux principal
+Title Calcul et affichage des statistiques membres
+
+start
+
+:Admin ouvre la liste des membres;
+
+:Chargement des membres (pagination);
+
+:useMembershipStats calcule les stats
+à partir des membres chargés;
+
+:Affichage du carrousel de stats
+(Total, Actifs, Expirés, Hommes, Femmes);
+
+:Admin peut naviguer dans le carrousel
+(drag/swipe ou boutons);
+
+stop
+
+@enduml
