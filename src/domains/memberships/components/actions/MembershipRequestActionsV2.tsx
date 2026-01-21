@@ -257,7 +257,7 @@ export function MembershipRequestActionsV2({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Adhésion PDF</p>
+                  <p>PDF</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -409,7 +409,7 @@ export function MembershipRequestActionsV2({
               title="Ouvrir le PDF d'adhésion validé (document officiel uploadé lors de l'approbation)"
             >
               <FileText className="w-3.5 h-3.5 mr-1.5" />
-              <span className="hidden sm:inline">Adhésion PDF</span>
+              <span className="hidden sm:inline">PDF</span>
             </Button>
           )}
 

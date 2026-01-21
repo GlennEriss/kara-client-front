@@ -1,0 +1,40 @@
+@startuml
+title Vue Détails - Séquence Affichage Paiement
+
+actor Admin
+participant "MembershipRequestDetails" as View
+participant "request data" as Data
+
+Admin -> View: consulte section paiement
+
+== Vérification paiement ==
+View -> Data: vérifier request.isPaid
+
+alt isPaid == true
+  View -> Data: récupérer request.payments[]
+  
+  alt payments.length > 0
+    View -> View: trier par date (plus récent d'abord)
+    View -> View: formater montant, date, mode paiement
+    
+    View -> Admin: afficher carte paiement avec:
+    note right: - Montant total\n- Date paiement\n- Mode (Airtel Money, Mobicash, Cash...)\n- Statut "Payé" (badge vert)
+    
+    alt plusieurs paiements
+      View -> Admin: afficher liste historique paiements
+    end
+  else aucun paiement
+    View -> Admin: afficher "Aucun paiement enregistré" (cas rare)
+  end
+else isPaid == false
+  View -> Admin: afficher badge "Non payé" (rouge)
+  View -> Admin: masquer section détails paiement
+end
+
+== Actions disponibles ==
+alt isPaid == false ET status == pending
+  View -> Admin: bouton "Payer" visible
+else isPaid == true ET status == pending
+  View -> Admin: bouton "Approuver" visible
+end
+@enduml

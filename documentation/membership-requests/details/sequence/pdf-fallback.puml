@@ -1,0 +1,37 @@
+@startuml
+title Vue Détails - Séquence Ouverture PDF Adhésion (avec fallback)
+
+actor Admin
+participant "MembershipRequestDetails" as View
+participant "handleViewApprovedMembershipPdf" as Handler
+participant "DocumentRepository" as DocRepo
+participant "Firestore\ndocuments" as FSDoc
+participant "Browser" as Browser
+
+Admin -> View: clic "Adhésion PDF"
+
+== Vérification URL directe ==
+View -> Handler: handleViewApprovedMembershipPdf(requestId)
+Handler -> Handler: vérifier request.adhesionPdfURL
+
+alt adhesionPdfURL présent
+  Handler -> Browser: window.open(adhesionPdfURL)
+  Browser --> Admin: PDF ouvert
+else pas d'URL
+  == Fallback Firestore ==
+  Handler -> DocRepo: getDocuments(memberId|matricule, type=ADHESION, sort=createdAt desc, page=1, pageSize=1)
+  DocRepo -> FSDoc: query documents where memberId==X AND type==ADHESION orderBy createdAt desc limit 1
+  FSDoc --> DocRepo: doc | []
+  DocRepo --> Handler: documents[0] | []
+  
+  alt document trouvé
+    Handler -> Handler: extraire doc.url
+    Handler -> Browser: window.open(doc.url)
+    Browser --> Admin: PDF ouvert (depuis Firestore)
+  else aucun document
+    Handler -> Admin: toast.error("PDF non disponible", "Aucun PDF d'adhésion validé n'a été trouvé")
+  end
+end
+
+note over Handler: Gestion erreur réseau\ncatch -> toast "Impossible de récupérer le PDF"
+@enduml

@@ -1,0 +1,40 @@
+@startuml
+title Vue Détails - Scénario Demande "En cours d'examen" (under_review)
+
+start
+
+:Admin ouvre /membership-requests/{id};
+:Chargement demande avec status="under_review";
+
+partition "Affichage spécifique" {
+  :Badge "En cours d'examen" (bleu, icône Eye animée);
+  
+  partition "Section Corrections" {
+    if (reviewNote présent ?) then (oui)
+      :Afficher bloc corrections avec reviewNote;
+      :Afficher code de sécurité (si présent);
+      :Afficher date d'expiration code;
+      
+      if (Code expiré ?) then (oui)
+        :Badge "Code expiré" (rouge);
+        :Bouton "Régénérer code" disponible;
+      else (non)
+        :Afficher lien correction (si code valide);
+      endif
+    endif
+  }
+  
+  partition "Actions disponibles" {
+    :Bouton "Rejeter" disponible;
+    :Bouton "Demander corrections" masqué;
+    :Bouton "Approuver" masqué (pas encore payé ou corrections en cours);
+  }
+}
+
+partition "Documents" {
+  :Pièce d'identité visible;
+  :PDF adhésion validée masqué (pas encore approuvé);
+}
+
+stop
+@enduml

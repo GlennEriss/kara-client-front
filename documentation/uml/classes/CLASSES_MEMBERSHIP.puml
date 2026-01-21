@@ -406,6 +406,23 @@ class RegistrationRepository {
   + markSecurityCodeAsUsed(requestId: string): Promise<boolean>
 }
 
+note right of DocumentRepository
+  **Repository pour accès aux documents Firestore**
+  
+  **Défini dans:** CLASSES_SHARED.puml
+  
+  **Package:** src/domains/infrastructure/documents/repositories/
+  
+  **Utilisé par:**
+  - resolveAdhesionPdfUrl() pour fallback PDF adhésion
+  
+  **Méthodes utilisées:**
+  - getDocuments({ memberId, type: 'ADHESION', sort: [{ field: 'createdAt', direction: 'desc' }] })
+  
+  **Collection:** documents
+  **Filtres:** memberId (matricule), type='ADHESION', orderBy createdAt (desc)
+end note
+
 ' ============================================
 ' CLASSES : CLOUD FUNCTIONS
 ' ============================================
@@ -474,6 +491,271 @@ class PDFGenerator {
   + {static} generateCredentialsPDF(firstName: string, lastName: string, matricule: string, email: string, password: string): Blob
   + {static} downloadPDF(blob: Blob, filename: string): void
 }
+
+' ============================================
+' CLASSES : UTILITAIRES VUE DÉTAILS
+' ============================================
+
+class DetailsUtils {
+  + {static} formatDateDetailed(timestamp: Date | Timestamp | string | null | undefined): string
+  + {static} isDateExpired(timestamp: Date | Timestamp | string | null | undefined): boolean
+  + {static} formatAddress(address: AddressData): string
+  + {static} resolveAdhesionPdfUrl(params: ResolveAdhesionPdfUrlParams): Promise<string | null>
+}
+
+class ResolveAdhesionPdfUrlParams {
+  + id: string
+  + matricule?: string
+  + adhesionPdfURL?: string | null
+  + status: MembershipRequestStatus
+}
+
+note right of DetailsUtils
+  **Utilitaires pour la vue détails d'une demande d'adhésion**
+  
+  **formatDateDetailed():**
+  - Formate une date (Date, Firestore Timestamp, string) en format français détaillé
+  - Gère les valeurs null/undefined → "Non définie"
+  - Gère les dates invalides → "Date invalide"
+  
+  **isDateExpired():**
+  - Vérifie si une date est dans le passé
+  - Compare à aujourd'hui (heure réinitialisée à 00:00:00)
+  - Retourne false si date null/undefined/invalide
+  
+  **formatAddress():**
+  - Formate une adresse complète depuis AddressData
+  - Filtre les champs vides/null
+  - Retourne "Non renseignée" si tous les champs sont vides
+  
+  **resolveAdhesionPdfUrl():**
+  - Résout l'URL du PDF d'adhésion validé
+  - Priorité: adhesionPdfURL direct → Fallback Firestore documents (type ADHESION)
+  - Retourne null si aucun PDF trouvé
+  - Utilise DocumentRepository pour requête Firestore
+end note
+
+' ============================================
+' CLASSES : HOOKS VUE DÉTAILS
+' ============================================
+
+class useMembershipRequestDetails {
+  + request: MembershipRequest | null
+  + admin: any | null
+  + intermediary: any | null
+  + adhesionPdfUrlResolved: string | null
+  + isLoading: boolean
+  + isError: boolean
+  + error: unknown
+}
+
+note right of useMembershipRequestDetails
+  **Hook React Query agrégateur pour la vue détails**
+  
+  **Fonctionnalités:**
+  - Récupère la demande via MembershipRepositoryV2.getById()
+  - Récupère l'admin traiteur via getAdminById(processedBy)
+  - Récupère l'intermédiaire via useIntermediary(intermediaryCode)
+  - Résout l'URL du PDF d'adhésion via resolveAdhesionPdfUrl()
+  
+  **Gestion des états:**
+  - isLoading: true si au moins une requête est en cours
+  - isError: true si au moins une requête a échoué
+  - error: Première erreur rencontrée
+  
+  **Cache React Query:**
+  - Évite les appels multiples pour les mêmes données
+  - staleTime: 5 minutes (admin, PDF), selon MEMBERSHIP_REQUEST_CACHE (request)
+  - gcTime: 10 minutes (admin, PDF), selon MEMBERSHIP_REQUEST_CACHE (request)
+end note
+
+' ============================================
+' CLASSES : COMPOSANTS VUE DÉTAILS
+' ============================================
+
+' Composant principal refactorisé
+class MembershipRequestDetails {
+  + render(): JSX.Element
+  - handleViewAdhesionPdf(): Promise<void>
+}
+
+' Composants de base
+class DetailsSkeleton {
+  + render(): JSX.Element
+}
+
+class DetailsErrorState {
+  + error?: unknown
+  + onRetry?: () => void
+  + render(): JSX.Element
+}
+
+' Composants partagés
+class InfoField {
+  + label: string
+  + value: string | React.ReactNode
+  + icon?: React.ComponentType
+  + color?: string
+  + copyable?: boolean
+  + render(): JSX.Element
+}
+
+class ModernCard {
+  + title: string
+  + icon: React.ComponentType
+  + children: React.ReactNode
+  + className?: string
+  + iconColor?: string
+  + render(): JSX.Element
+}
+
+' Composants de sections
+class DetailsHeaderStatus {
+  + request: MembershipRequest
+  + render(): JSX.Element
+}
+
+class DetailsIdentityCard {
+  + request: MembershipRequest
+  + intermediaryInfo?: IntermediaryInfo | null
+  + isLoadingIntermediary?: boolean
+  + render(): JSX.Element
+}
+
+class DetailsContactCard {
+  + request: MembershipRequest
+  + render(): JSX.Element
+}
+
+class DetailsAddressCard {
+  + request: MembershipRequest
+  + render(): JSX.Element
+}
+
+class DetailsEmploymentCard {
+  + request: MembershipRequest
+  + intermediaryInfo?: IntermediaryInfo | null
+  + render(): JSX.Element
+}
+
+class DetailsPaymentCard {
+  + request: MembershipRequest
+  + render(): JSX.Element
+}
+
+class DetailsDocumentsCard {
+  + request: MembershipRequest
+  + adhesionPdfUrlResolved?: string | null
+  + onViewAdhesionPdf?: () => void
+  + render(): JSX.Element
+}
+
+class DetailsMetaCard {
+  + request: MembershipRequest
+  + admin?: AdminInfo | null
+  + isLoadingAdmin?: boolean
+  + render(): JSX.Element
+}
+
+class DetailsPhotoCard {
+  + request: MembershipRequest
+  + render(): JSX.Element
+}
+
+' Types auxiliaires
+class IntermediaryInfo {
+  + firstName: string
+  + lastName: string
+  + type: 'user' | 'admin'
+}
+
+class AdminInfo {
+  + firstName?: string
+  + lastName?: string
+}
+
+note right of MembershipRequestDetails
+  **Composant principal refactorisé (Phase 4)**
+  
+  **Architecture:**
+  - Utilise useMembershipRequestDetails() pour agrégation des données
+  - Composition de 9 sous-composants présentatifs
+  - Gestion des états: loading (skeleton), error (error state), success (sections)
+  
+  **Réduction de code:**
+  - Avant: 834 lignes (monolithe)
+  - Après: ~150 lignes (composition)
+  
+  **Fonctionnalités:**
+  - handleViewAdhesionPdf(): Gère l'ouverture du PDF avec fallback Firestore
+  - Affichage conditionnel selon le statut (PDF visible si approved)
+end note
+
+note right of DetailsUtils
+  **Package:** src/domains/memberships/utils/details/
+  
+  **Fichiers:**
+  - formatDateDetailed.ts
+  - isDateExpired.ts
+  - formatAddress.ts
+  - resolveAdhesionPdfUrl.ts
+  - index.ts (exports)
+  
+  **Tests:** 100% couverture (Phase 1)
+end note
+
+note right of useMembershipRequestDetails
+  **Package:** src/domains/memberships/hooks/
+  
+  **Fichier:** useMembershipRequestDetails.ts
+  
+  **Dépendances:**
+  - MembershipRepositoryV2
+  - getAdminById (db/admin.db)
+  - useIntermediary (hooks/useIntermediary)
+  - resolveAdhesionPdfUrl (utils/details)
+  
+  **Tests:** ≥80% couverture (Phase 2)
+end note
+
+note right of MembershipRequestDetails
+  **Package:** src/components/memberships/
+  
+  **Fichier:** MembershipRequestDetails.tsx
+  
+  **Composants utilisés:**
+  - DetailsHeaderStatus
+  - DetailsIdentityCard
+  - DetailsContactCard
+  - DetailsAddressCard
+  - DetailsEmploymentCard
+  - DetailsPaymentCard
+  - DetailsDocumentsCard
+  - DetailsPhotoCard
+  - DetailsMetaCard
+  - DetailsSkeleton (loading)
+  - DetailsErrorState (error)
+end note
+
+note right of DetailsIdentityCard
+  **Package:** src/domains/memberships/components/details/
+  
+  **Fonctionnalités:**
+  - Affiche toutes les informations d'identité
+  - Affiche le parrain/intermédiaire si code présent
+  - Affiche le statut véhicule (hasCar)
+  - Utilise formatDateDetailed() pour dates
+  - Utilise getNationalityName() pour nationalité
+end note
+
+note right of DetailsDocumentsCard
+  **Fonctionnalités:**
+  - Affiche le bouton "Adhésion PDF" si statut = approved
+  - Gère l'ouverture du PDF (URL directe ou fallback)
+  - Affiche les pièces d'identité (recto/verso)
+  - Utilise isDateExpired() pour badge expiration
+  - Utilise formatDateDetailed() pour dates
+end note
 
 ' ============================================
 ' TYPES ENUMERÉS
@@ -620,6 +902,77 @@ RegistrationRepository ..> MembershipRequest : queries/updates
 MembershipServiceV2 ..> SecurityCodeUtils : uses
 MembershipServiceV2 ..> WhatsAppUrlUtils : uses
 MembershipServiceV2 ..> PDFGenerator : uses
+
+' ============================================
+' RELATIONS : VUE DÉTAILS
+' ============================================
+
+' Composant principal utilise le hook
+MembershipRequestDetails --> useMembershipRequestDetails : uses
+
+' Hook utilise les repositories et utilitaires
+useMembershipRequestDetails --> MembershipRepositoryV2 : uses
+useMembershipRequestDetails --> DetailsUtils : uses
+useMembershipRequestDetails ..> User : queries_admin
+useMembershipRequestDetails ..> Document : queries_pdf
+
+' Composant principal compose les sous-composants
+MembershipRequestDetails *-- DetailsSkeleton : uses_loading
+MembershipRequestDetails *-- DetailsErrorState : uses_error
+MembershipRequestDetails *-- DetailsHeaderStatus : uses
+MembershipRequestDetails *-- DetailsIdentityCard : uses
+MembershipRequestDetails *-- DetailsContactCard : uses
+MembershipRequestDetails *-- DetailsAddressCard : uses
+MembershipRequestDetails *-- DetailsEmploymentCard : uses
+MembershipRequestDetails *-- DetailsPaymentCard : uses
+MembershipRequestDetails *-- DetailsDocumentsCard : uses
+MembershipRequestDetails *-- DetailsPhotoCard : uses
+MembershipRequestDetails *-- DetailsMetaCard : uses
+
+' Sous-composants utilisent les composants partagés
+DetailsIdentityCard --> InfoField : uses
+DetailsIdentityCard --> ModernCard : uses
+DetailsContactCard --> InfoField : uses
+DetailsContactCard --> ModernCard : uses
+DetailsAddressCard --> InfoField : uses
+DetailsAddressCard --> ModernCard : uses
+DetailsEmploymentCard --> InfoField : uses
+DetailsEmploymentCard --> ModernCard : uses
+DetailsPaymentCard --> ModernCard : uses
+DetailsDocumentsCard --> ModernCard : uses
+DetailsMetaCard --> InfoField : uses
+DetailsMetaCard --> ModernCard : uses
+DetailsPhotoCard --> ModernCard : uses
+DetailsHeaderStatus --> ModernCard : uses
+
+' Sous-composants utilisent les utilitaires
+DetailsIdentityCard ..> DetailsUtils : uses_formatDateDetailed
+DetailsAddressCard ..> DetailsUtils : uses_formatAddress
+DetailsDocumentsCard ..> DetailsUtils : uses_isDateExpired
+DetailsDocumentsCard ..> DetailsUtils : uses_formatDateDetailed
+DetailsMetaCard ..> DetailsUtils : uses_formatDateDetailed
+
+' Sous-composants reçoivent les données
+DetailsIdentityCard ..> MembershipRequest : receives
+DetailsIdentityCard ..> IntermediaryInfo : receives
+DetailsContactCard ..> MembershipRequest : receives
+DetailsAddressCard ..> MembershipRequest : receives
+DetailsEmploymentCard ..> MembershipRequest : receives
+DetailsEmploymentCard ..> IntermediaryInfo : receives
+DetailsPaymentCard ..> MembershipRequest : receives
+DetailsDocumentsCard ..> MembershipRequest : receives
+DetailsMetaCard ..> MembershipRequest : receives
+DetailsMetaCard ..> AdminInfo : receives
+DetailsPhotoCard ..> MembershipRequest : receives
+DetailsHeaderStatus ..> MembershipRequest : receives
+
+' Hook utilise resolveAdhesionPdfUrl avec paramètres
+useMembershipRequestDetails ..> ResolveAdhesionPdfUrlParams : uses
+DetailsUtils ..> ResolveAdhesionPdfUrlParams : uses
+DetailsUtils --> DocumentRepository : queries_fallback
+
+' DocumentRepository interroge Document
+DocumentRepository ..> Document : queries
 
 ' NotificationService crée des notifications pour les admins
 MembershipServiceV2 ..> NotificationService : creates_notifications
