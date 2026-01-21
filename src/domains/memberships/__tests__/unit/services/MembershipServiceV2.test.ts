@@ -69,6 +69,9 @@ describe('MembershipServiceV2', () => {
     // Mock de NotificationService
     mockNotificationService = {
       createNotification: vi.fn().mockResolvedValue(undefined),
+      createRejectionNotification: vi.fn().mockResolvedValue(undefined),
+      createReopeningNotification: vi.fn().mockResolvedValue(undefined),
+      createDeletionNotification: vi.fn().mockResolvedValue(undefined),
     }
     
     // Utiliser le repository mocké directement
@@ -346,7 +349,7 @@ describe('MembershipServiceV2', () => {
           adminId: 'admin-123',
           reason: '',
         })
-      ).rejects.toThrow()
+      ).rejects.toThrow('requis')
     })
 
     it('devrait throw si motif trop court (< 10 caractères)', async () => {
@@ -361,7 +364,7 @@ describe('MembershipServiceV2', () => {
           adminId: 'admin-123',
           reason: 'Court',
         })
-      ).rejects.toThrow()
+      ).rejects.toThrow('au moins 10 caractères')
     })
 
     it('devrait mettre à jour le statut en "rejected"', async () => {
@@ -388,6 +391,49 @@ describe('MembershipServiceV2', () => {
           processedAt: expect.any(Date),
         })
       )
+    })
+
+    it('devrait créer une notification de rejet', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      const reason = 'Documents incomplets et informations manquantes.'
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.updateStatus.mockResolvedValue(undefined)
+      
+      // Act
+      await service.rejectMembershipRequest({
+        requestId: request.id,
+        adminId: 'admin-123',
+        reason,
+      })
+      
+      // Assert
+      await vi.waitFor(() => {
+        expect(mockNotificationService.createRejectionNotification).toHaveBeenCalledWith(
+          request.id,
+          expect.any(String), // memberName
+          expect.any(String), // adminName
+          'admin-123',
+          reason,
+          expect.any(Date) // processedAt
+        )
+      }, { timeout: 1000 })
+    })
+
+    it('devrait throw si motif trop long (> 500 caractères)', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      const longReason = 'A'.repeat(501) // > 500 caractères
+      
+      // Act & Assert
+      await expect(
+        service.rejectMembershipRequest({
+          requestId: request.id,
+          adminId: 'admin-123',
+          reason: longReason,
+        })
+      ).rejects.toThrow('ne peut pas dépasser 500 caractères')
     })
   })
 
@@ -905,24 +951,6 @@ describe('MembershipServiceV2', () => {
     })
   })
 
-  describe('rejectMembershipRequest - branches supplémentaires', () => {
-    it('devrait throw si motif trop long', async () => {
-      // Arrange
-      const request = pendingUnpaidRequest()
-      mockRepository.getById.mockResolvedValue(request)
-      
-      const longReason = 'A'.repeat(2001) // > 2000 caractères
-      
-      // Act & Assert
-      await expect(
-        service.rejectMembershipRequest({
-          requestId: request.id,
-          adminId: 'admin-123',
-          reason: longReason,
-        })
-      ).rejects.toThrow('dépasser')
-    })
-  })
 
   describe('requestCorrections - branches supplémentaires', () => {
     it('devrait throw si une correction est vide', async () => {
@@ -952,6 +980,123 @@ describe('MembershipServiceV2', () => {
           corrections: ['Correction'],
         })
       ).rejects.toThrow('introuvable')
+    })
+  })
+
+  describe('reopenMembershipRequest', () => {
+    it('devrait throw si la demande n\'existe pas', async () => {
+      // Arrange
+      mockRepository.getById.mockResolvedValue(null)
+      
+      // Act & Assert
+      await expect(
+        service.reopenMembershipRequest({
+          requestId: 'non-existent-id',
+          adminId: 'admin-123',
+          reason: 'Nouvelle information disponible. Le dossier nécessite un réexamen.',
+        })
+      ).rejects.toThrow('introuvable')
+    })
+
+    it('devrait throw si le statut n\'est pas "rejected"', async () => {
+      // Arrange
+      const request = pendingUnpaidRequest() // status: 'pending'
+      mockRepository.getById.mockResolvedValue(request)
+      
+      // Act & Assert
+      await expect(
+        service.reopenMembershipRequest({
+          requestId: request.id,
+          adminId: 'admin-123',
+          reason: 'Nouvelle information disponible.',
+        })
+      ).rejects.toThrow('Seules les demandes rejetées peuvent être réouvertes')
+    })
+
+    it('devrait throw si motif trop court (< 10 caractères)', async () => {
+      // Arrange
+      const request = rejectedRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      
+      // Act & Assert
+      await expect(
+        service.reopenMembershipRequest({
+          requestId: request.id,
+          adminId: 'admin-123',
+          reason: 'Court',
+        })
+      ).rejects.toThrow('au moins 10 caractères')
+    })
+
+    it('devrait throw si motif trop long (> 500 caractères)', async () => {
+      // Arrange
+      const request = rejectedRequest()
+      mockRepository.getById.mockResolvedValue(request)
+      const longReason = 'A'.repeat(501) // > 500 caractères
+      
+      // Act & Assert
+      await expect(
+        service.reopenMembershipRequest({
+          requestId: request.id,
+          adminId: 'admin-123',
+          reason: longReason,
+        })
+      ).rejects.toThrow('ne peut pas dépasser 500 caractères')
+    })
+
+    it('devrait mettre à jour le statut en "under_review" avec motif de réouverture', async () => {
+      // Arrange
+      const request = rejectedRequest()
+      const reason = 'Nouvelle information disponible. Le dossier nécessite un réexamen.'
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.updateStatus.mockResolvedValue(undefined)
+      
+      // Act
+      await service.reopenMembershipRequest({
+        requestId: request.id,
+        adminId: 'admin-123',
+        reason,
+      })
+      
+      // Assert
+      expect(mockRepository.updateStatus).toHaveBeenCalledWith(
+        request.id,
+        'pending',
+        expect.objectContaining({
+          reopenReason: reason.trim(),
+          reopenedBy: 'admin-123',
+          reopenedAt: expect.any(Date),
+          motifReject: request.motifReject, // Conserver le motif de rejet initial
+        })
+      )
+    })
+
+    it('devrait créer une notification de réouverture', async () => {
+      // Arrange
+      const request = rejectedRequest()
+      const reason = 'Nouvelle information disponible.'
+      mockRepository.getById.mockResolvedValue(request)
+      mockRepository.updateStatus.mockResolvedValue(undefined)
+      
+      // Act
+      await service.reopenMembershipRequest({
+        requestId: request.id,
+        adminId: 'admin-123',
+        reason,
+      })
+      
+      // Assert
+      await vi.waitFor(() => {
+        expect(mockNotificationService.createReopeningNotification).toHaveBeenCalledWith(
+          request.id,
+          expect.any(String), // memberName
+          expect.any(String), // adminName
+          'admin-123',
+          reason.trim(),
+          expect.any(Date), // reopenedAt
+          request.motifReject // previousMotifReject
+        )
+      }, { timeout: 1000 })
     })
   })
 })

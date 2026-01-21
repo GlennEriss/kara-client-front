@@ -119,6 +119,7 @@ export interface MembershipRequest extends RegisterFormData {
   // Traçabilité spécifique pour l'approbation
   approvedBy?: string  // ID de l'admin qui a approuvé la demande
   approvedAt?: Date    // Date d'approbation (timestamp serveur)
+  adhesionPdfURL?: string  // URL du PDF uploadé lors de l'approbation
 
   // Commentaires administratifs
   adminComments?: string
@@ -128,6 +129,10 @@ export interface MembershipRequest extends RegisterFormData {
   reviewNote?: string;
   // Motif de rejet (raison fournie par l'admin)
   motifReject?: string;
+  // Traçabilité de la réouverture (si rejetée puis réouverte)
+  reopenedAt?: Date; // Date de la réouverture
+  reopenedBy?: string; // ID de l'admin qui a réouvert
+  reopenReason?: string; // Motif de la réouverture
   // Paiements
   isPaid?: boolean
   payments?: Payment[]
@@ -282,6 +287,10 @@ export type NotificationType =
   | 'security_code_expired' // Code de sécurité expiré (Membership Requests)
   | 'security_code_expiring_soon' // Code de sécurité bientôt expiré (Membership Requests)
   | 'security_code_renewed' // Code de sécurité régénéré (Membership Requests)
+  | 'membership_approved' // Demande d'adhésion approuvée (Membership Requests)
+  | 'membership_rejected' // Demande d'adhésion rejetée (Membership Requests)
+  | 'membership_reopened' // Dossier rejeté réouvert (Membership Requests)
+  | 'membership_deleted' // Dossier rejeté supprimé définitivement (Membership Requests)
 
 /**
  * Filtres pour les requêtes de notifications

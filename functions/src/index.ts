@@ -193,5 +193,8 @@ export { renewSecurityCode }
 // Cloud Function pour approuver une demande d'adhésion (transaction atomique)
 export { approveMembershipRequest }
 
+// Cloud Function pour supprimer définitivement une demande rejetée
+export { deleteMembershipRequest } from './membership-requests/deleteMembershipRequest'
+
 // Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
 export { syncToAlgolia } from './membership-requests/syncToAlgolia'

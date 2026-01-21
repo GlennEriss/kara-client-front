@@ -28,8 +28,8 @@ import {
   MessageSquare,
   Loader2,
   IdCard,
-  Link as LinkIcon,
   RotateCcw,
+  Trash2,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -44,6 +44,11 @@ interface MembershipRequestActionsV2Props {
   onReject?: () => void
   onRequestCorrections?: () => void
   onPay?: () => void
+  
+  // Actions post-rejet (si status === 'rejected')
+  onReopen?: () => void
+  onDelete?: () => void
+  onSendWhatsAppRejection?: () => void // Envoyer WhatsApp avec motif de rejet
   
   // Actions secondaires (dans le menu dropdown)
   onViewDetails?: () => void
@@ -65,18 +70,23 @@ interface MembershipRequestActionsV2Props {
   isRequestingCorrections?: boolean
   isPaying?: boolean
   isRenewingCode?: boolean
+  isReopening?: boolean
+  isDeleting?: boolean
   
   className?: string
 }
 
 export function MembershipRequestActionsV2({
-  requestId,
+  requestId: _requestId,
   status,
   isPaid,
   onApprove,
   onReject,
   onRequestCorrections,
   onPay,
+  onReopen,
+  onDelete,
+  onSendWhatsAppRejection,
   onViewDetails,
   onViewMembershipForm,
   onViewIdDocument,
@@ -84,14 +94,16 @@ export function MembershipRequestActionsV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
-  onCopyCorrectionLink,
-  onSendWhatsAppCorrection,
-  onRenewSecurityCode,
+  onCopyCorrectionLink: _onCopyCorrectionLink,
+  onSendWhatsAppCorrection: _onSendWhatsAppCorrection,
+  onRenewSecurityCode: _onRenewSecurityCode,
   isApproving = false,
   isRejecting = false,
   isRequestingCorrections = false,
   isPaying = false,
-  isRenewingCode = false,
+  isRenewingCode: _isRenewingCode = false,
+  isReopening = false,
+  isDeleting = false,
   className,
 }: MembershipRequestActionsV2Props) {
   // Détecter mobile pour adapter l'affichage
@@ -124,11 +136,6 @@ export function MembershipRequestActionsV2({
     ? 'Payer d\'abord pour approuver'
     : !canApprove && status !== 'pending'
     ? 'Dossier déjà traité'
-    : undefined
-  const correctionsTooltip = isRejected
-    ? 'Dossier rejeté - Aucune action possible'
-    : status !== 'pending'
-    ? 'Les corrections ne peuvent être demandées que pour un dossier en attente'
     : undefined
   const rejectTooltip = isRejected
     ? 'Dossier déjà rejeté'
@@ -299,6 +306,90 @@ export function MembershipRequestActionsV2({
               </Tooltip>
             </TooltipProvider>
           )}
+
+          {/* Actions post-rejet - Visible uniquement si status === 'rejected' */}
+          {isRejected && (
+            <>
+              {/* Réouvrir - Bouton principal post-rejet */}
+              {onReopen && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onReopen}
+                        disabled={isReopening}
+                        className="h-9 w-9 p-0 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50"
+                        data-testid="reopen-button"
+                        title="Réouvrir le dossier"
+                      >
+                        {isReopening ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Réouvrir</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* Envoyer WhatsApp - Bouton WhatsApp post-rejet */}
+              {onSendWhatsAppRejection && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onSendWhatsAppRejection}
+                        className="h-9 w-9 p-0 border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 shadow-sm hover:shadow-md transition-all duration-200"
+                        data-testid="send-whatsapp-button"
+                        title="Envoyer le motif de rejet via WhatsApp"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Envoyer WhatsApp</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* Supprimer - Bouton suppression post-rejet */}
+              {onDelete && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onDelete}
+                        disabled={isDeleting}
+                        className="h-9 w-9 p-0 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50"
+                        data-testid="delete-button"
+                        title="Supprimer définitivement le dossier"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Supprimer</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </>
+          )}
         </>
       )}
 
@@ -358,6 +449,76 @@ export function MembershipRequestActionsV2({
                 </>
               )}
             </Button>
+          )}
+
+          {/* Actions post-rejet - Visible uniquement si status === 'rejected' */}
+          {isRejected && (
+            <>
+              {/* Réouvrir - Bouton principal post-rejet */}
+              {onReopen && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onReopen}
+                  disabled={isReopening}
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium disabled:opacity-50"
+                  data-testid="reopen-button"
+                  title="Réouvrir le dossier"
+                >
+                  {isReopening ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      <span className="hidden sm:inline">Réouverture...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="hidden sm:inline">Réouvrir</span>
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {/* Envoyer WhatsApp - Bouton WhatsApp post-rejet */}
+              {onSendWhatsAppRejection && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSendWhatsAppRejection}
+                  className="border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium"
+                  data-testid="send-whatsapp-button"
+                  title="Envoyer le motif de rejet via WhatsApp"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                  <span className="hidden sm:inline">Envoyer WhatsApp</span>
+                </Button>
+              )}
+
+              {/* Supprimer - Bouton suppression post-rejet */}
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 font-medium disabled:opacity-50"
+                  data-testid="delete-button"
+                  title="Supprimer définitivement le dossier"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      <span className="hidden sm:inline">Suppression...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                      <span className="hidden sm:inline">Supprimer</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </>
           )}
         </>
       )}
@@ -544,7 +705,51 @@ export function MembershipRequestActionsV2({
               </DropdownMenuItem>
             )}
 
-            {onSendWhatsApp && !isUnderReview && (
+            {/* Actions post-rejet dans le dropdown */}
+            {isRejected && (
+              <>
+                {onReopen && (
+                  <DropdownMenuItem
+                    onClick={onReopen}
+                    disabled={isReopening}
+                    className="text-blue-600"
+                    data-testid="reopen-button"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    {isReopening ? 'Réouverture...' : 'Réouvrir'}
+                  </DropdownMenuItem>
+                )}
+
+                {onSendWhatsAppRejection && (
+                  <DropdownMenuItem
+                    onClick={onSendWhatsAppRejection}
+                    className="text-green-600"
+                    data-testid="send-whatsapp-button"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Envoyer WhatsApp (rejet)
+                  </DropdownMenuItem>
+                )}
+
+                {onDelete && (
+                  <DropdownMenuItem
+                    onClick={onDelete}
+                    disabled={isDeleting}
+                    className="text-red-600"
+                    data-testid="delete-button"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {isDeleting ? 'Suppression...' : 'Supprimer'}
+                  </DropdownMenuItem>
+                )}
+
+                {(onReopen || onSendWhatsAppRejection || onDelete) && (
+                  <DropdownMenuSeparator />
+                )}
+              </>
+            )}
+
+            {onSendWhatsApp && !isUnderReview && !isRejected && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

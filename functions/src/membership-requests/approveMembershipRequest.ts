@@ -260,6 +260,7 @@ export const approveMembershipRequest = onCall(
         status: 'approved',
         approvedBy: adminId, // ID de l'admin qui a approuvé (obligatoire pour traçabilité)
         approvedAt: Timestamp.now(), // Date d'approbation (obligatoire pour traçabilité)
+        adhesionPdfURL, // URL du PDF uploadé lors de l'approbation
         updatedAt: Timestamp.now(),
       })
 

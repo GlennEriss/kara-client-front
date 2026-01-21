@@ -11,7 +11,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Search,
@@ -29,7 +29,6 @@ import {
   AlertCircle,
   Inbox,
   CheckCircle2,
-  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -40,6 +39,9 @@ import { MembershipRequestMobileCardV2 } from '../cards'
 import {
   ApprovalModalV2,
   RejectModalV2,
+  ReopenModalV2,
+  DeleteModalV2,
+  RejectWhatsAppModalV2,
   CorrectionsModalV2,
   SendWhatsAppModalV2,
   RenewSecurityCodeModalV2,
@@ -58,7 +60,6 @@ import { useApproveMembershipRequest } from '../../hooks/useApproveMembershipReq
 // Types et constantes
 import type { MembershipRequest, MembershipRequestFilters } from '../../entities'
 import {
-  MEMBERSHIP_REQUEST_PAGINATION,
   MEMBERSHIP_REQUEST_MESSAGES,
 } from '@/constantes/membership-requests'
 import { useAuth } from '@/hooks/useAuth'
@@ -180,6 +181,9 @@ export function MembershipRequestsPageV2() {
   const [selectedRequest, setSelectedRequest] = useState<MembershipRequest | null>(null)
   const [approveModalOpen, setApproveModalOpen] = useState(false)
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [reopenModalOpen, setReopenModalOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [rejectWhatsAppModalOpen, setRejectWhatsAppModalOpen] = useState(false)
   const [correctionsModalOpen, setCorrectionsModalOpen] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [paymentDetailsModalOpen, setPaymentDetailsModalOpen] = useState(false)
@@ -193,10 +197,12 @@ export function MembershipRequestsPageV2() {
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({})
 
   // Hooks de données
-  const { data, isLoading, error, refetch } = useMembershipRequestsV2(filters, currentPage)
+  const { data, isLoading, refetch } = useMembershipRequestsV2(filters, currentPage)
   const { data: stats } = useMembershipStatsV2()
   const {
     rejectMutation,
+    reopenMutation,
+    deleteMutation,
     requestCorrectionsMutation,
     processPaymentMutation,
     renewSecurityCodeMutation
@@ -335,6 +341,21 @@ export function MembershipRequestsPageV2() {
     setRejectModalOpen(true)
   }, [])
 
+  const openReopenModal = useCallback((request: MembershipRequest) => {
+    setSelectedRequest(request)
+    setReopenModalOpen(true)
+  }, [])
+
+  const openDeleteModal = useCallback((request: MembershipRequest) => {
+    setSelectedRequest(request)
+    setDeleteModalOpen(true)
+  }, [])
+
+  const openRejectWhatsAppModal = useCallback((request: MembershipRequest) => {
+    setSelectedRequest(request)
+    setRejectWhatsAppModalOpen(true)
+  }, [])
+
   const openCorrectionsModal = useCallback((request: MembershipRequest) => {
     setSelectedRequest(request)
     setCorrectionsModalOpen(true)
@@ -407,7 +428,7 @@ export function MembershipRequestsPageV2() {
       toast.success('Lien copié !', {
         description: 'Le lien de correction a été copié dans le presse-papiers.',
       })
-    } catch (error) {
+    } catch {
       toast.error('Erreur lors de la copie', {
         description: 'Impossible de copier le lien. Veuillez le copier manuellement.',
       })
@@ -516,23 +537,65 @@ export function MembershipRequestsPageV2() {
       await rejectMutation.mutateAsync({
         requestId: selectedRequest.id,
         adminId: user.uid,
-        motifReject: reason,
+        reason: reason,
       })
 
-      toast.success('Demande rejetée', {
-        description: `La demande de ${selectedRequest.identity.firstName} ${selectedRequest.identity.lastName} a été rejetée.`,
-      })
-
+      // Le toast est déjà géré par le hook
       setRejectModalOpen(false)
       setSelectedRequest(null)
     } catch (error: any) {
-      toast.error('Erreur lors du rejet', {
-        description: error.message || 'Une erreur est survenue.',
-      })
+      // L'erreur est déjà gérée par le hook (toast)
+      console.error('Erreur lors du rejet:', error)
     } finally {
       setLoadingActions(prev => ({ ...prev, [`reject-${selectedRequest.id}`]: false }))
     }
   }
+
+  const handleReopen = async (reason: string) => {
+    if (!selectedRequest?.id || !user?.uid) return
+
+    setLoadingActions(prev => ({ ...prev, [`reopen-${selectedRequest.id}`]: true }))
+
+    try {
+      await reopenMutation.mutateAsync({
+        requestId: selectedRequest.id,
+        adminId: user.uid,
+        reason,
+      })
+
+      // Le toast est déjà géré par le hook
+      setReopenModalOpen(false)
+      setSelectedRequest(null)
+    } catch (error: any) {
+      // L'erreur est déjà gérée par le hook (toast)
+      console.error('Erreur lors de la réouverture:', error)
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`reopen-${selectedRequest.id}`]: false }))
+    }
+  }
+
+  const handleDelete = async (confirmedMatricule: string) => {
+    if (!selectedRequest?.id || !user?.uid) return
+
+    setLoadingActions(prev => ({ ...prev, [`delete-${selectedRequest.id}`]: true }))
+
+    try {
+      await deleteMutation.mutateAsync({
+        requestId: selectedRequest.id,
+        confirmedMatricule,
+      })
+
+      // Le toast est déjà géré par le hook
+      setDeleteModalOpen(false)
+      setSelectedRequest(null)
+    } catch (error: any) {
+      // L'erreur est déjà gérée par le hook (toast)
+      console.error('Erreur lors de la suppression:', error)
+    } finally {
+      setLoadingActions(prev => ({ ...prev, [`delete-${selectedRequest.id}`]: false }))
+    }
+  }
+
 
   const handleCorrections = async (corrections: string[]): Promise<void> => {
     if (!selectedRequest?.id || !user?.uid) {
@@ -990,6 +1053,18 @@ export function MembershipRequestsPageV2() {
                           const req = filteredRequests.find(r => r.id === id)
                           if (req) openRejectModal(req)
                         }}
+                        onReopen={(id) => {
+                          const req = filteredRequests.find(r => r.id === id)
+                          if (req) openReopenModal(req)
+                        }}
+                        onDelete={(id) => {
+                          const req = filteredRequests.find(r => r.id === id)
+                          if (req) openDeleteModal(req)
+                        }}
+                        onSendWhatsAppRejection={(id) => {
+                          const req = filteredRequests.find(r => r.id === id)
+                          if (req) openRejectWhatsAppModal(req)
+                        }}
                         onRequestCorrections={(id) => {
                           const req = filteredRequests.find(r => r.id === id)
                           if (req) openCorrectionsModal(req)
@@ -1048,6 +1123,9 @@ export function MembershipRequestsPageV2() {
                   onReject={openRejectModal}
                   onRequestCorrections={openCorrectionsModal}
                   onPay={openPaymentModal}
+                  onReopen={openReopenModal}
+                  onDelete={openDeleteModal}
+                  onSendWhatsAppRejection={openRejectWhatsAppModal}
                   onCopyCorrectionLink={handleCopyCorrectionLink}
                   onSendWhatsAppCorrection={handleSendWhatsAppCorrection}
                   onRenewSecurityCode={handleRenewSecurityCode}
@@ -1186,6 +1264,52 @@ export function MembershipRequestsPageV2() {
           memberName={selectedMemberName}
           isLoading={loadingActions[`reject-${selectedRequest?.id}`]}
         />
+
+        {selectedRequest && selectedRequest.status === 'rejected' && (
+          <>
+            <ReopenModalV2
+              isOpen={reopenModalOpen}
+              onClose={() => {
+                setReopenModalOpen(false)
+                setSelectedRequest(null)
+              }}
+              onConfirm={handleReopen}
+              requestId={selectedRequest.id}
+              memberName={selectedMemberName}
+              matricule={selectedRequest.matricule}
+              previousRejectReason={selectedRequest.motifReject || ''}
+              isLoading={loadingActions[`reopen-${selectedRequest.id}`]}
+            />
+
+            <DeleteModalV2
+              isOpen={deleteModalOpen}
+              onClose={() => {
+                setDeleteModalOpen(false)
+                setSelectedRequest(null)
+              }}
+              onConfirm={handleDelete}
+              requestId={selectedRequest.id}
+              memberName={selectedMemberName}
+              matricule={selectedRequest.matricule}
+              isLoading={loadingActions[`delete-${selectedRequest.id}`]}
+            />
+
+            <RejectWhatsAppModalV2
+              isOpen={rejectWhatsAppModalOpen}
+              onClose={() => {
+                setRejectWhatsAppModalOpen(false)
+                setSelectedRequest(null)
+              }}
+              phoneNumbers={selectedRequest.identity.contacts || []}
+              memberName={selectedMemberName}
+              firstName={selectedRequest.identity.firstName}
+              matricule={selectedRequest.matricule}
+              motifReject={selectedRequest.motifReject || ''}
+              requestId={selectedRequest.id}
+              isLoading={false}
+            />
+          </>
+        )}
 
         <CorrectionsModalV2
           isOpen={correctionsModalOpen}

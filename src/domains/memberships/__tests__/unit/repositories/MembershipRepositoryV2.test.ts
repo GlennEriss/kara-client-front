@@ -596,6 +596,66 @@ describe('MembershipRepositoryV2', () => {
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
 
+    it('devrait mettre à jour le statut en "rejected" avec motif de rejet et traçabilité', async () => {
+      // Arrange
+      const requestId = 'test-id-123'
+      const motif = 'Documents incomplets et informations manquantes.'
+      const adminId = 'admin-123'
+      const processedAt = new Date()
+      const request = createMembershipRequestFixture({ id: requestId })
+      
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => request,
+      })
+      
+      mockUpdateDoc.mockResolvedValue(undefined)
+      
+      // Act
+      await repository.updateStatus(requestId, 'rejected', {
+        motifReject: motif,
+        processedBy: adminId,
+        processedAt,
+      })
+      
+      // Assert
+      expect(mockUpdateDoc).toHaveBeenCalled()
+    })
+
+    it('devrait mettre à jour le statut en "under_review" avec motif de réouverture et traçabilité', async () => {
+      // Arrange
+      const requestId = 'test-id-123'
+      const reopenReason = 'Nouvelle information disponible. Le dossier nécessite un réexamen.'
+      const adminId = 'admin-123'
+      const reopenedAt = new Date()
+      const previousMotifReject = 'Documents incomplets.'
+      const request = createMembershipRequestFixture({ 
+        id: requestId,
+        status: 'rejected',
+        motifReject: previousMotifReject,
+      })
+      
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => request,
+      })
+      
+      mockUpdateDoc.mockResolvedValue(undefined)
+      
+      // Act
+      await repository.updateStatus(requestId, 'under_review', {
+        reopenReason,
+        reopenedBy: adminId,
+        reopenedAt,
+        motifReject: previousMotifReject, // Conserver le motif de rejet initial
+      })
+      
+      // Assert
+      expect(mockUpdateDoc).toHaveBeenCalled()
+    })
+
     it('devrait mettre à jour le statut en "under_review" avec corrections', async () => {
       // Arrange
       const requestId = 'test-id-123'
