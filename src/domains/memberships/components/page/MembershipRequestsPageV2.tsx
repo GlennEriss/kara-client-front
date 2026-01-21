@@ -66,6 +66,7 @@ import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
 import MemberDetailsModal from '@/components/memberships/MemberDetailsModal'
 import { generateRequestPDF, generateRequestExcel } from '../../utils/exportRequestUtils'
+import { DocumentRepository } from '@/domains/infrastructure/documents/repositories/DocumentRepository'
 import { getUserById } from '@/db/user.db'
 import { formatAdminName } from '@/utils/formatAdminName'
 import { useQueries } from '@tanstack/react-query'
@@ -318,6 +319,53 @@ export function MembershipRequestsPageV2() {
       setMembershipFormModalOpen(true)
     } else {
       toast.error('Demande introuvable', { description: 'Impossible de trouver la demande d\'adhésion' })
+    }
+  }, [data?.items, filteredRequests])
+
+  // Nouvelle fonction pour ouvrir le PDF uploadé lors de l'approbation (document officiel validé)
+  const handleViewApprovedMembershipPdf = useCallback(async (requestId: string) => {
+    const request = data?.items.find(r => r.id === requestId) || filteredRequests.find(r => r.id === requestId)
+    if (!request) {
+      toast.error('Demande introuvable', { description: 'Impossible de trouver la demande d\'adhésion' })
+      return
+    }
+
+    // Vérifier que le statut est approuvé
+    if (request.status !== 'approved') {
+      toast.error('Demande non approuvée', { description: 'Ce document n\'est disponible que pour les demandes approuvées' })
+      return
+    }
+
+    // 1) Si l'URL est déjà présente sur la demande, on l'utilise directement
+    if (request.adhesionPdfURL) {
+      window.open(request.adhesionPdfURL, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    // 2) Sinon, on tente de récupérer le PDF dans la collection Firestore "documents" (type ADHESION)
+    try {
+      const repo = new DocumentRepository()
+      const memberId = request.matricule || request.id
+      const result = await repo.getDocuments({
+        memberId,
+        type: 'ADHESION',
+        page: 1,
+        pageSize: 1,
+        sort: [
+          { field: 'createdAt', direction: 'desc' }
+        ],
+      })
+
+      const doc = result.documents?.[0]
+      if (doc?.url) {
+        window.open(doc.url, '_blank', 'noopener,noreferrer')
+        return
+      }
+
+      toast.error('PDF non disponible', { description: 'Aucun PDF d\'adhésion validé n\'a été trouvé pour cette demande' })
+    } catch (error) {
+      console.error('Erreur lors de la récupération du PDF validé:', error)
+      toast.error('PDF non disponible', { description: 'Impossible de récupérer le PDF d\'adhésion validé' })
     }
   }, [data?.items, filteredRequests])
 
@@ -1074,6 +1122,7 @@ export function MembershipRequestsPageV2() {
                           if (req) openPaymentModal(req)
                         }}
                         onViewMembershipForm={handleViewMembershipForm}
+                        onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
                         onViewIdDocument={handleViewIdentityDocument}
                         onViewPaymentDetails={handleViewPaymentDetails}
                         onExportPDF={(id) => handleExportPDF(id)}
@@ -1115,6 +1164,7 @@ export function MembershipRequestsPageV2() {
                   isLoading={isLoading}
                   onViewDetails={handleViewDetails}
                   onViewMembershipForm={handleViewMembershipForm}
+                  onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
                   onViewIdentityDocument={handleViewIdentityDocument}
                   onViewPaymentDetails={handleViewPaymentDetails}
                   onExportPDF={(id) => handleExportPDF(id)}

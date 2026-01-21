@@ -46,6 +46,7 @@ interface MembershipRequestRowV2Props {
   onSendWhatsAppRejection?: (id: string) => void
   
   onViewMembershipForm?: (id: string) => void
+  onViewApprovedMembershipPdf?: (id: string) => void
   onViewIdDocument?: (id: string) => void
   onViewPaymentDetails?: (id: string) => void
   onExportPDF?: (id: string) => void
@@ -77,6 +78,7 @@ export function MembershipRequestRowV2({
   onDelete,
   onSendWhatsAppRejection,
   onViewMembershipForm,
+  onViewApprovedMembershipPdf,
   onViewIdDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -210,6 +212,7 @@ export function MembershipRequestRowV2({
           onSendWhatsAppRejection={onSendWhatsAppRejection ? () => onSendWhatsAppRejection(id || '') : undefined}
           onViewDetails={onViewDetails ? () => onViewDetails(id || '') : undefined}
           onViewMembershipForm={onViewMembershipForm ? () => onViewMembershipForm(id || '') : undefined}
+          onViewApprovedMembershipPdf={onViewApprovedMembershipPdf ? () => onViewApprovedMembershipPdf(id || '') : undefined}
           onViewIdDocument={onViewIdDocument ? () => onViewIdDocument(id || '') : undefined}
           onViewPaymentDetails={onViewPaymentDetails ? () => onViewPaymentDetails(id || '') : undefined}
           onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
