@@ -1,0 +1,33 @@
+@startuml
+title Vue Détails - Scénario PDF Adhésion Manquant
+
+start
+
+:Admin consulte demande approuvée;
+:Admin clique "Adhésion PDF";
+
+partition "Tentative ouverture PDF" {
+  if (request.adhesionPdfURL existe ?) then (non)
+    :Pas d'URL sur la demande;
+    
+    partition "Fallback Firestore documents" {
+      :DocumentRepository.getDocuments(memberId, type=ADHESION);
+      :Tri par createdAt desc;
+      :Récupérer premier document;
+      
+      if (Document trouvé ?) then (non)
+        :Aucun document ADHESION trouvé;
+        :Afficher toast "PDF non disponible";
+        :Message: "Aucun PDF d'adhésion validé n'a été trouvé";
+        stop
+      else (oui)
+        :Ouvrir doc.url dans nouvel onglet;
+      endif
+    }
+  else (oui)
+    :Ouvrir adhesionPdfURL directement;
+  endif
+}
+
+stop
+@enduml

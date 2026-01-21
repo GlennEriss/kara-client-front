@@ -1,0 +1,52 @@
+@startuml
+title Vue Détails Demande d’Adhésion - Séquence principale
+
+actor Admin
+participant "Next.js page" as Page
+participant "MembershipRequestDetails" as View
+participant "useMembershipRequest\n(React Query)" as HookReq
+participant "Firestore\nmembershipRequests" as FSReq
+participant "getAdminById" as AdminDB
+participant "DocumentRepository\n(documents)" as DocRepo
+participant "Browser" as Browser
+
+Admin -> Page: ouvre /membership-requests/{id}
+Page -> View: render
+
+== Chargement demande ==
+View -> HookReq: useMembershipRequest(id)
+HookReq -> FSReq: get doc by id
+FSReq --> HookReq: doc | 404/err
+HookReq --> View: { data, isLoading, isError }
+
+alt erreur/404
+  View -> Admin: affiche erreur "Demande introuvable"
+else succès
+  View -> AdminDB: getAdminById(processedBy)
+  AdminDB --> View: admin | null
+
+  View -> Admin: affiche sections (identité, contact, adresse, statut, paiement, docs...)
+
+  == Ouvrir PDF adhésion validée ==
+  Admin -> View: clic "Adhésion PDF"
+  alt adhesionPdfURL présent
+    View -> Browser: window.open(adhesionPdfURL)
+  else pas d’URL sur la demande
+    View -> DocRepo: getDocuments(memberId/matricule, type=ADHESION, sort=createdAt desc, page=1)
+    DocRepo --> View: documents[0] | vide/err
+    alt doc trouvé
+      View -> Browser: window.open(doc.url)
+    else non trouvé
+      View -> Admin: toast "PDF non disponible"
+    end
+  end
+end
+
+== Pièce d'identité ==
+Admin -> View: consulte section identité
+View -> Admin: affiche URLs/visuels depuis request.documents.*
+
+== États ==
+note over View: isLoading -> skeletons\nisError -> message\nsuccess -> contenu
+
+@enduml

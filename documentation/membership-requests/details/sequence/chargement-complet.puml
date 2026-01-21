@@ -1,0 +1,52 @@
+@startuml
+title Vue Détails - Séquence Chargement Complet (avec données complémentaires)
+
+actor Admin
+participant "Next.js page" as Page
+participant "MembershipRequestDetails" as View
+participant "useMembershipRequest" as HookReq
+participant "useIntermediary" as HookInter
+participant "getAdminById" as AdminDB
+participant "Firestore\nmembershipRequests" as FSReq
+participant "Firestore\nintermediaries" as FSInter
+participant "Firestore\nusers/admins" as FSAdmin
+
+Admin -> Page: ouvre /membership-requests/{id}
+Page -> View: render
+
+== Chargement demande principale ==
+View -> HookReq: useMembershipRequest(id)
+activate HookReq
+HookReq -> FSReq: getDoc(id)
+FSReq --> HookReq: doc data
+HookReq --> View: { data: request, isLoading: false, isError: false }
+deactivate HookReq
+
+== Données complémentaires (parallèle) ==
+par Admin traiteur
+  View -> AdminDB: getAdminById(request.processedBy)
+  activate AdminDB
+  AdminDB -> FSAdmin: getDoc(processedBy)
+  FSAdmin --> AdminDB: admin data
+  AdminDB --> View: admin | null
+  deactivate AdminDB
+and Intermédiaire (si présent)
+  View -> HookInter: useIntermediary(request.intermediaryCode)
+  activate HookInter
+  alt code présent
+    HookInter -> FSInter: query where code==X
+    FSInter --> HookInter: intermediary | []
+    HookInter --> View: intermediary | null
+  else pas de code
+    HookInter --> View: null
+  end
+  deactivate HookInter
+end
+
+== Affichage ==
+View -> View: calculer sections à afficher
+View -> View: formater dates/adresses
+View -> Admin: afficher cartes (identité, contact, adresse, emploi, statut, paiement, documents)
+
+note over View: États gérés:\n- isLoading -> skeletons\n- isError -> message erreur\n- success -> contenu complet
+@enduml

@@ -1,0 +1,50 @@
+@startuml
+title Vue Détails - Séquence Erreur Réseau / Firestore
+
+actor Admin
+participant "Next.js page" as Page
+participant "MembershipRequestDetails" as View
+participant "useMembershipRequest" as HookReq
+participant "Firestore\nmembershipRequests" as FSReq
+
+Admin -> Page: ouvre /membership-requests/{id}
+Page -> View: render
+
+== Tentative chargement ==
+View -> HookReq: useMembershipRequest(id)
+activate HookReq
+HookReq -> FSReq: getDoc(id)
+
+alt Erreur réseau
+  FSReq --> HookReq: NetworkError / Timeout
+  HookReq --> View: { isError: true, error: NetworkError }
+else Erreur permissions
+  FSReq --> HookReq: PermissionDenied
+  HookReq --> View: { isError: true, error: PermissionDenied }
+else Erreur serveur
+  FSReq --> HookReq: InternalError
+  HookReq --> View: { isError: true, error: InternalError }
+end
+deactivate HookReq
+
+== Gestion erreur ==
+View -> View: détecter isError
+View -> View: extraire message erreur
+
+alt NetworkError
+  View -> Admin: afficher "Erreur de connexion. Vérifiez votre connexion internet."
+else PermissionDenied
+  View -> Admin: afficher "Vous n'avez pas les droits pour consulter cette demande."
+else Autre erreur
+  View -> Admin: afficher "Une erreur est survenue lors du chargement."
+end
+
+View -> Admin: afficher bouton "Réessayer"
+View -> Admin: afficher bouton "Retour à la liste"
+
+== Retry ==
+alt Admin clique "Réessayer"
+  View -> HookReq: refetch()
+  HookReq -> FSReq: getDoc(id) [retry]
+end
+@enduml
