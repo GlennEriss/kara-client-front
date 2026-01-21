@@ -74,3 +74,34 @@ export function generateWhatsAppUrl(phoneNum: string, message: string = ''): str
   
   return url
 }
+
+/**
+ * Génère une URL WhatsApp avec un message template de rejet
+ * @param phoneNumber Numéro de téléphone (sera normalisé)
+ * @param firstName Prénom du demandeur
+ * @param matricule Matricule de la demande
+ * @param motifReject Motif de rejet
+ * @returns URL WhatsApp avec message template prérempli
+ */
+export function generateRejectionWhatsAppUrl(
+  phoneNumber: string,
+  firstName: string,
+  matricule: string,
+  motifReject: string
+): string {
+  // Générer le message template
+  const message = `Bonjour ${firstName},
+
+Votre demande d'adhésion KARA (matricule: ${matricule}) a été rejetée.
+
+Motif de rejet:
+${motifReject}
+
+Pour toute question, veuillez contacter notre service client.
+
+Cordialement,
+KARA Mutuelle`
+
+  // Utiliser la fonction existante pour générer l'URL
+  return generateWhatsAppUrl(phoneNumber, message)
+}

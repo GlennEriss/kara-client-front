@@ -21,6 +21,14 @@ vi.mock('sonner', () => ({
     error: vi.fn(),
   },
 }))
+// Mock Firebase Functions
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(() => ({})),
+  httpsCallable: vi.fn(() => vi.fn()),
+}))
+vi.mock('@/firebase/app', () => ({
+  app: {},
+}))
 
 describe('useMembershipActionsV2', () => {
   let mockService: any
@@ -48,8 +56,10 @@ describe('useMembershipActionsV2', () => {
     mockService = {
       approveMembershipRequest: vi.fn(),
       rejectMembershipRequest: vi.fn(),
+      reopenMembershipRequest: vi.fn(),
       requestCorrections: vi.fn(),
       processPayment: vi.fn(),
+      renewSecurityCode: vi.fn(),
     }
     
     vi.mocked(MembershipServiceV2.getInstance).mockReturnValue(mockService)
@@ -119,14 +129,100 @@ describe('useMembershipActionsV2', () => {
       await result.current.rejectMutation.mutateAsync({
         requestId: 'test-id',
         adminId: 'admin-123',
-        reason: 'Documents incomplets et informations manquantes.',
+        motifReject: 'Documents incomplets et informations manquantes.',
       })
       
       // Assert
       expect(mockService.rejectMembershipRequest).toHaveBeenCalledWith({
         requestId: 'test-id',
         adminId: 'admin-123',
-        reason: 'Documents incomplets et informations manquantes.',
+        motifReject: 'Documents incomplets et informations manquantes.',
+      })
+    })
+
+    it('devrait invalider le cache après succès', async () => {
+      // Arrange
+      mockService.rejectMembershipRequest.mockResolvedValue(undefined)
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      const invalidateSpy = vi.spyOn(sharedQueryClient, 'invalidateQueries')
+      
+      // Act
+      await result.current.rejectMutation.mutateAsync({
+        requestId: 'test-id',
+        adminId: 'admin-123',
+        motifReject: 'Documents incomplets et informations manquantes.',
+      })
+      
+      // Assert
+      await waitFor(() => {
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['membership-requests'],
+        })
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['membership-requests-stats'],
+        })
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['notifications'],
+        })
+      })
+    })
+
+    it('devrait afficher un toast de succès après rejet', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastSuccessSpy = vi.spyOn(toast, 'success')
+      mockService.rejectMembershipRequest.mockResolvedValue(undefined)
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      await result.current.rejectMutation.mutateAsync({
+        requestId: 'test-id',
+        adminId: 'admin-123',
+        motifReject: 'Documents incomplets et informations manquantes.',
+      })
+      
+      // Assert
+      await waitFor(() => {
+        expect(toastSuccessSpy).toHaveBeenCalledWith('Demande rejetée', {
+          description: 'La demande d\'adhésion a été rejetée avec succès.',
+        })
+      })
+    })
+
+    it('devrait afficher un toast d\'erreur si le rejet échoue', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastErrorSpy = vi.spyOn(toast, 'error')
+      const errorMessage = 'Erreur lors du rejet de la demande'
+      mockService.rejectMembershipRequest.mockRejectedValue(new Error(errorMessage))
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      try {
+        await result.current.rejectMutation.mutateAsync({
+          requestId: 'test-id',
+          adminId: 'admin-123',
+          motifReject: 'Documents incomplets et informations manquantes.',
+        })
+      } catch {
+        // L'erreur est attendue
+      }
+      
+      // Assert
+      await waitFor(() => {
+        expect(toastErrorSpy).toHaveBeenCalledWith('Erreur lors du rejet', {
+          description: errorMessage,
+        })
       })
     })
   })
@@ -190,6 +286,299 @@ describe('useMembershipActionsV2', () => {
         sendWhatsApp: true,
       })
       expect(response.whatsAppUrl).toBe('https://wa.me/24165671734?text=Bonjour')
+    })
+  })
+
+  describe('reopenMutation', () => {
+    it('devrait appeler reopenMembershipRequest avec le motif de réouverture', async () => {
+      // Arrange
+      mockService.reopenMembershipRequest.mockResolvedValue(undefined)
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      await result.current.reopenMutation.mutateAsync({
+        requestId: 'test-id',
+        adminId: 'admin-123',
+        reason: 'Nouvelle information disponible. Le dossier nécessite un réexamen.',
+      })
+      
+      // Assert
+      expect(mockService.reopenMembershipRequest).toHaveBeenCalledWith({
+        requestId: 'test-id',
+        adminId: 'admin-123',
+        reason: 'Nouvelle information disponible. Le dossier nécessite un réexamen.',
+      })
+    })
+
+    it('devrait invalider le cache après succès', async () => {
+      // Arrange
+      mockService.reopenMembershipRequest.mockResolvedValue(undefined)
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      const invalidateSpy = vi.spyOn(sharedQueryClient, 'invalidateQueries')
+      
+      // Act
+      await result.current.reopenMutation.mutateAsync({
+        requestId: 'test-id',
+        adminId: 'admin-123',
+        reason: 'Nouvelle information disponible.',
+      })
+      
+      // Assert
+      await waitFor(() => {
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['membership-requests'],
+        })
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['membership-requests-stats'],
+        })
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['notifications'],
+        })
+      })
+    })
+
+    it('devrait afficher un toast de succès après réouverture', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastSuccessSpy = vi.spyOn(toast, 'success')
+      mockService.reopenMembershipRequest.mockResolvedValue(undefined)
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      await result.current.reopenMutation.mutateAsync({
+        requestId: 'test-id',
+        adminId: 'admin-123',
+        reason: 'Nouvelle information disponible.',
+      })
+      
+      // Assert
+      await waitFor(() => {
+        expect(toastSuccessSpy).toHaveBeenCalledWith('Dossier réouvert', {
+          description: 'La demande d\'adhésion a été réouverte avec succès.',
+        })
+      })
+    })
+
+    it('devrait afficher un toast d\'erreur si la réouverture échoue', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastErrorSpy = vi.spyOn(toast, 'error')
+      const errorMessage = 'Erreur lors de la réouverture du dossier'
+      mockService.reopenMembershipRequest.mockRejectedValue(new Error(errorMessage))
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      try {
+        await result.current.reopenMutation.mutateAsync({
+          requestId: 'test-id',
+          adminId: 'admin-123',
+          reason: 'Nouvelle information disponible.',
+        })
+      } catch {
+        // L'erreur est attendue
+      }
+      
+      // Assert
+      await waitFor(() => {
+        expect(toastErrorSpy).toHaveBeenCalledWith('Erreur lors de la réouverture', {
+          description: errorMessage,
+        })
+      })
+    })
+  })
+
+  describe('deleteMutation', () => {
+    let mockHttpsCallable: ReturnType<typeof vi.fn>
+
+    beforeEach(async () => {
+      const { httpsCallable, getFunctions } = await import('firebase/functions')
+      mockHttpsCallable = vi.fn().mockResolvedValue({
+        data: {
+          success: true,
+          requestId: 'test-id',
+          filesDeleted: 2,
+          deletedAt: new Date().toISOString(),
+        },
+      }) as any
+      vi.mocked(httpsCallable).mockReturnValue(mockHttpsCallable as any)
+      vi.mocked(getFunctions).mockReturnValue({} as any)
+    })
+
+    it('devrait appeler la Cloud Function deleteMembershipRequest avec les bons paramètres', async () => {
+      // Arrange
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      await result.current.deleteMutation.mutateAsync({
+        requestId: 'test-id',
+        confirmedMatricule: 'MK-2024-001234',
+      })
+      
+      // Assert
+      expect(mockHttpsCallable).toHaveBeenCalledWith({
+        requestId: 'test-id',
+        confirmedMatricule: 'MK-2024-001234',
+      })
+    })
+
+    it('devrait invalider le cache après succès', async () => {
+      // Arrange
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      const invalidateSpy = vi.spyOn(sharedQueryClient, 'invalidateQueries')
+      
+      // Act
+      await result.current.deleteMutation.mutateAsync({
+        requestId: 'test-id',
+        confirmedMatricule: 'MK-2024-001234',
+      })
+      
+      // Assert
+      await waitFor(() => {
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['membership-requests'],
+        })
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['membership-requests-stats'],
+        })
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['notifications'],
+        })
+      })
+    })
+
+    it('devrait afficher un toast de succès après suppression (sans warnings)', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastSuccessSpy = vi.spyOn(toast, 'success')
+      mockHttpsCallable.mockResolvedValue({
+        data: {
+          success: true,
+          requestId: 'test-id',
+          filesDeleted: 2,
+          deletedAt: new Date().toISOString(),
+        },
+      })
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      await result.current.deleteMutation.mutateAsync({
+        requestId: 'test-id',
+        confirmedMatricule: 'MK-2024-001234',
+      })
+      
+      // Assert
+      await waitFor(() => {
+        expect(toastSuccessSpy).toHaveBeenCalledWith('Dossier supprimé', {
+          description: 'Le dossier a été supprimé définitivement avec succès.',
+        })
+      })
+    })
+
+    it('devrait afficher un toast avec warnings si présents', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastSuccessSpy = vi.spyOn(toast, 'success')
+      const warning = 'Certains fichiers n\'ont pas pu être supprimés'
+      mockHttpsCallable.mockResolvedValue({
+        data: {
+          success: true,
+          requestId: 'test-id',
+          filesDeleted: 1,
+          deletedAt: new Date().toISOString(),
+          warnings: warning,
+        },
+      })
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      await result.current.deleteMutation.mutateAsync({
+        requestId: 'test-id',
+        confirmedMatricule: 'MK-2024-001234',
+      })
+      
+      // Assert
+      await waitFor(() => {
+        expect(toastSuccessSpy).toHaveBeenCalledWith('Dossier supprimé', {
+          description: `Dossier supprimé. ${warning}`,
+        })
+      })
+    })
+
+    it('devrait afficher un toast d\'erreur si la suppression échoue', async () => {
+      // Arrange
+      const { toast } = await import('sonner')
+      const toastErrorSpy = vi.spyOn(toast, 'error')
+      const errorMessage = 'Erreur lors de la suppression du dossier'
+      mockHttpsCallable.mockRejectedValue(new Error(errorMessage))
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act
+      try {
+        await result.current.deleteMutation.mutateAsync({
+          requestId: 'test-id',
+          confirmedMatricule: 'MK-2024-001234',
+        })
+      } catch {
+        // L'erreur est attendue
+      }
+      
+      // Assert
+      await waitFor(() => {
+        expect(toastErrorSpy).toHaveBeenCalledWith('Erreur lors de la suppression', {
+          description: errorMessage,
+        })
+      })
+    })
+
+    it('devrait lever une erreur si la Cloud Function retourne success: false', async () => {
+      // Arrange
+      mockHttpsCallable.mockResolvedValue({
+        data: {
+          success: false,
+          requestId: 'test-id',
+          filesDeleted: 0,
+          deletedAt: null,
+        },
+      })
+      
+      const { result } = renderHook(() => useMembershipActionsV2(), {
+        wrapper: createWrapper(),
+      })
+      
+      // Act & Assert
+      await expect(
+        result.current.deleteMutation.mutateAsync({
+          requestId: 'test-id',
+          confirmedMatricule: 'MK-2024-001234',
+        })
+      ).rejects.toThrow('Erreur lors de la suppression de la demande')
     })
   })
 

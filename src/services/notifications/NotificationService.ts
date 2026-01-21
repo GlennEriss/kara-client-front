@@ -244,5 +244,104 @@ export class NotificationService {
         return true
     }
   }
+
+  /**
+   * Crée une notification pour le rejet d'une demande d'adhésion
+   */
+  async createRejectionNotification(
+    requestId: string,
+    memberName: string,
+    adminName: string,
+    adminId: string,
+    motifReject: string,
+    processedAt: Date
+  ): Promise<Notification> {
+    return this.repository.create({
+      module: 'memberships',
+      entityId: requestId,
+      type: 'membership_rejected',
+      title: 'Demande d\'adhésion rejetée',
+      message: `${adminName} a rejeté la demande de ${memberName}. Motif: ${motifReject}`,
+      isRead: false,
+      metadata: {
+        requestId,
+        memberName,
+        adminName,
+        adminId,
+        status: 'rejected',
+        motifReject,
+        processedAt: processedAt.toISOString(),
+        processedBy: adminId,
+      },
+    })
+  }
+
+  /**
+   * Crée une notification pour la réouverture d'un dossier rejeté
+   */
+  async createReopeningNotification(
+    requestId: string,
+    memberName: string,
+    adminName: string,
+    adminId: string,
+    reopenReason: string,
+    reopenedAt: Date,
+    previousMotifReject?: string
+  ): Promise<Notification> {
+    return this.repository.create({
+      module: 'memberships',
+      entityId: requestId,
+      type: 'membership_reopened',
+      title: 'Dossier réouvert',
+      message: `${adminName} a réouvert le dossier de ${memberName}. Motif: ${reopenReason}`,
+      isRead: false,
+      metadata: {
+        requestId,
+        memberName,
+        adminName,
+        adminId,
+        status: 'under_review',
+        reopenReason,
+        reopenedAt: reopenedAt.toISOString(),
+        reopenedBy: adminId,
+        previousStatus: 'rejected',
+        previousMotifReject,
+      },
+    })
+  }
+
+  /**
+   * Crée une notification pour la suppression définitive d'un dossier
+   */
+  async createDeletionNotification(
+    requestId: string,
+    memberName: string,
+    matricule: string,
+    adminName: string,
+    adminId: string,
+    deletedAt: Date,
+    previousMotifReject?: string
+  ): Promise<Notification> {
+    return this.repository.create({
+      module: 'memberships',
+      entityId: requestId,
+      type: 'membership_deleted',
+      title: 'Dossier supprimé définitivement',
+      message: `${adminName} a supprimé définitivement le dossier de ${memberName} (matricule: ${matricule})`,
+      isRead: false,
+      metadata: {
+        requestId,
+        memberName,
+        matricule,
+        adminName,
+        adminId,
+        deletedAt: deletedAt.toISOString(),
+        deletedBy: adminId,
+        reason: 'Suppression définitive d\'une demande rejetée',
+        previousStatus: 'rejected',
+        previousMotifReject,
+      },
+    })
+  }
 }
 

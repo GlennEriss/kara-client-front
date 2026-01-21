@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizePhoneNumber,
   generateWhatsAppUrl,
+  generateRejectionWhatsAppUrl,
 } from '../../../utils/whatsappUrl'
 
 describe('WhatsApp URL Utils', () => {
@@ -82,6 +83,82 @@ describe('WhatsApp URL Utils', () => {
     it('devrait normaliser le numéro de téléphone avant de générer l\'URL', () => {
       const url = generateWhatsAppUrl('65 67 17 34', 'Bonjour')
       expect(url).toContain('24165671734')
+    })
+  })
+
+  describe('generateRejectionWhatsAppUrl', () => {
+    it('devrait générer une URL WhatsApp valide avec message de rejet', () => {
+      const url = generateRejectionWhatsAppUrl(
+        '+24165671734',
+        'Jean',
+        'MK-2024-001234',
+        'Documents incomplets'
+      )
+      expect(url).toContain('https://wa.me/24165671734')
+      expect(url).toContain('text=')
+    })
+
+    it('devrait inclure le prénom dans le message', () => {
+      const url = generateRejectionWhatsAppUrl(
+        '+24165671734',
+        'Jean',
+        'MK-2024-001234',
+        'Documents incomplets'
+      )
+      const decodedUrl = decodeURIComponent(url)
+      expect(decodedUrl).toContain('Bonjour Jean')
+    })
+
+    it('devrait inclure le matricule dans le message', () => {
+      const url = generateRejectionWhatsAppUrl(
+        '+24165671734',
+        'Jean',
+        'MK-2024-001234',
+        'Documents incomplets'
+      )
+      const decodedUrl = decodeURIComponent(url)
+      expect(decodedUrl).toContain('MK-2024-001234')
+    })
+
+    it('devrait inclure le motif de rejet dans le message', () => {
+      const motifReject = 'Documents incomplets. Veuillez fournir tous les documents requis.'
+      const url = generateRejectionWhatsAppUrl(
+        '+24165671734',
+        'Jean',
+        'MK-2024-001234',
+        motifReject
+      )
+      const decodedUrl = decodeURIComponent(url)
+      expect(decodedUrl).toContain(motifReject)
+    })
+
+    it('devrait normaliser le numéro de téléphone', () => {
+      const url = generateRejectionWhatsAppUrl(
+        '65 67 17 34',
+        'Jean',
+        'MK-2024-001234',
+        'Documents incomplets'
+      )
+      expect(url).toContain('24165671734')
+      expect(url).not.toContain(' ')
+    })
+
+    it('devrait inclure le template complet avec toutes les informations', () => {
+      const url = generateRejectionWhatsAppUrl(
+        '+24165671734',
+        'Jean',
+        'MK-2024-001234',
+        'Documents incomplets'
+      )
+      const decodedUrl = decodeURIComponent(url)
+      expect(decodedUrl).toContain('Bonjour Jean')
+      expect(decodedUrl).toContain('Votre demande d\'adhésion KARA')
+      expect(decodedUrl).toContain('MK-2024-001234')
+      expect(decodedUrl).toContain('a été rejetée')
+      expect(decodedUrl).toContain('Motif de rejet:')
+      expect(decodedUrl).toContain('Documents incomplets')
+      expect(decodedUrl).toContain('Pour toute question, veuillez contacter notre service client')
+      expect(decodedUrl).toContain('KARA Mutuelle')
     })
   })
 })

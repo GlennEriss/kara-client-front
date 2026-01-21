@@ -21,6 +21,12 @@ export interface RejectMembershipRequestParams {
   motifReject?: string
 }
 
+export interface ReopenMembershipRequestParams {
+  requestId: string
+  adminId: string
+  reason: string
+}
+
 export interface RequestCorrectionsParams {
   requestId: string
   adminId: string
@@ -45,6 +51,11 @@ export interface IMembershipService {
    * Rejette une demande d'adhésion
    */
   rejectMembershipRequest(params: RejectMembershipRequestParams): Promise<void>
+
+  /**
+   * Réouvre un dossier rejeté pour le remettre en examen
+   */
+  reopenMembershipRequest(params: ReopenMembershipRequestParams): Promise<void>
 
   /**
    * Demande des corrections à un demandeur
