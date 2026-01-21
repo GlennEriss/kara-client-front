@@ -26,7 +26,7 @@ import {
   Cake,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
-import { useAllMembers } from '@/hooks/useMembers'
+import { useMembershipsListV2 } from '@/domains/memberships/hooks/useMembershipsListV2'
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'
 import MemberFilters from './MemberFilters'
@@ -328,13 +328,19 @@ const MembershipList = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isExportOpen, setIsExportOpen] = useState(false)
 
-  // React Query
+  // React Query V2
   const { 
     data: membersData, 
+    stats,
     isLoading, 
+    isError,
     error, 
     refetch 
-  } = useAllMembers(filters, currentPage, itemsPerPage)
+  } = useMembershipsListV2({
+    filters,
+    page: currentPage,
+    limit: itemsPerPage,
+  })
 
   // Reset page when filters change
   useEffect(() => {
@@ -489,36 +495,8 @@ const MembershipList = () => {
   // Transformation des données
   const membersWithSubscriptions: MemberWithSubscription[] = membersData?.data || []
 
-  // Calcul des statistiques modernes
-  const stats = React.useMemo(() => {
-    if (!membersData) return null
-    
-    const total = membersData.pagination.totalItems
-    const activeMembers = membersWithSubscriptions.filter(m => m.isSubscriptionValid).length
-    const expiredMembers = membersWithSubscriptions.filter(m => m.lastSubscription && !m.isSubscriptionValid).length
-    const noSubscription = membersWithSubscriptions.filter(m => !m.lastSubscription).length
-    
-    // Calcul des statistiques de genre
-    const men = membersWithSubscriptions.filter(m => m.gender === 'Homme').length
-    const women = membersWithSubscriptions.filter(m => m.gender === 'Femme').length
-    
-    return {
-      total,
-      active: activeMembers,
-      expired: expiredMembers,
-      noSub: noSubscription,
-      men,
-      women,
-      activePercentage: total > 0 ? (activeMembers / total) * 100 : 0,
-      expiredPercentage: total > 0 ? (expiredMembers / total) * 100 : 0,
-      noSubPercentage: total > 0 ? (noSubscription / total) * 100 : 0,
-      menPercentage: total > 0 ? (men / total) * 100 : 0,
-      womenPercentage: total > 0 ? (women / total) * 100 : 0,
-    }
-  }, [membersData, membersWithSubscriptions])
-
   // Gestion des erreurs
-  if (error) {
+  if (isError || error) {
     return (
       <div className="space-y-8 animate-in fade-in-0 duration-500">
         {/* Stats même en cas d'erreur */}
