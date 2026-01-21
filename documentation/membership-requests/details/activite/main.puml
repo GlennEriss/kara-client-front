@@ -1,0 +1,59 @@
+@startuml
+title Vue Détails Demande d’Adhésion - Diagramme d’activité (admin)
+
+start
+
+:Admin ouvre /membership-requests/{id};
+:Next.js route charge MembershipRequestDetails;
+
+partition "Chargement données" {
+  :Récupérer requestId (useParams);
+  :Appel hook useMembershipRequest(requestId);
+  if (Données en cache ?) then (oui)
+    :Retour immédiat (cache react-query);
+  else (non)
+    :fetch membershipRequests/{id} Firestore;
+  endif
+  if (Réponse OK ?) then (oui)
+    :Stocker data dans state (request);
+  else (404/erreur)
+    :Afficher erreur "Demande introuvable";
+    stop
+  endif
+}
+
+partition "Données complémentaires" {
+  :Récupérer admin traiteur (getAdminById request.processedBy);
+  :Récupérer intermédiaire (useIntermediary si présent);
+}
+
+partition "Affichage principal" {
+  if (isLoading) then (oui)
+    :Afficher skeletons;
+  else (non)
+    :Afficher cartes Identité / Contact / Adresse / Emploi;
+    :Afficher statut (badges);
+    :Afficher paiement si présent;
+    :Afficher section documents;
+  endif
+}
+
+partition "Ouverture PDF adhésion validée" {
+  if (request.adhesionPdfURL existe) then (oui)
+    :Ouvrir adhesionPdfURL dans nouvel onglet;
+  else (non)
+    :fallback Firestore `documents` (memberId|matricule, type ADHESION, tri createdAt desc);
+    if (doc trouvé ?) then (oui)
+      :Ouvrir doc.url;
+    else (non)
+      :Toast "PDF non disponible";
+    endif
+  endif
+}
+
+partition "Pièce d'identité" {
+  :Afficher liens/photos depuis request.documents.* ou URLs;
+}
+
+end
+@enduml

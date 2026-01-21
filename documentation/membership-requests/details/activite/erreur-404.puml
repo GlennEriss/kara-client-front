@@ -1,0 +1,32 @@
+@startuml
+title Vue Détails - Scénario Erreur 404 (Demande introuvable)
+
+start
+
+:Admin ouvre /membership-requests/{id};
+:Next.js route charge MembershipRequestDetails;
+
+:Récupérer requestId (useParams);
+:Appel hook useMembershipRequest(requestId);
+
+partition "Tentative récupération" {
+  :fetch membershipRequests/{id} Firestore;
+  if (Document existe ?) then (non)
+    :Firestore retourne 404 / doc non trouvé;
+    :Hook retourne isError=true, error="Not found";
+  endif
+}
+
+partition "Affichage erreur" {
+  :Détecter isError dans le composant;
+  :Afficher message "La demande d'adhésion demandée n'existe pas\nou n'est plus accessible";
+  :Afficher bouton "Retour à la liste";
+}
+
+partition "Navigation" {
+  :Admin clique "Retour";
+  :Redirection vers /membership-requests;
+}
+
+stop
+@enduml
