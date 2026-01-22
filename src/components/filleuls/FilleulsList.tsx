@@ -181,7 +181,7 @@ export default function FilleulsList() {
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
               <Avatar className="w-10 h-10">
-                <AvatarImage src={memberData.photoURL || undefined} />
+                <AvatarImage src={memberData.photoURL || undefined} alt={`Photo de ${memberData.firstName} ${memberData.lastName}`} />
                 <AvatarFallback className="bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white">
                   <UserIcon className="w-5 h-5" />
                 </AvatarFallback>
@@ -284,7 +284,7 @@ export default function FilleulsList() {
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
                   <Avatar className="w-14 h-14">
-                    <AvatarImage src={filleul.photoURL || undefined} />
+                    <AvatarImage src={filleul.photoURL || undefined} alt={`Photo de ${filleul.firstName} ${filleul.lastName}`} />
                     <AvatarFallback className="bg-gradient-to-br from-[#234D65] to-[#2c5a73] text-white">
                       <UserIcon className="w-7 h-7" />
                     </AvatarFallback>

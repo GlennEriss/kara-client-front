@@ -134,6 +134,11 @@ export async function addCaisseContractToUser(userId: string, contractId: string
 
 /**
  * Récupère la liste des membres avec pagination et filtres
+ * 
+ * Note: Firestore ne supporte pas l'offset natif.
+ * Pour la pagination par page, on récupère tous les documents jusqu'à la page demandée
+ * et on ne garde que ceux de la page courante.
+ * Pour les grands datasets, utiliser la pagination par curseur.
  */
 export async function getMembers(
   filters: UserFilters = {},
@@ -146,6 +151,9 @@ export async function getMembers(
 
     // Construction des contraintes de requête
     const constraints: QueryConstraint[] = []
+    
+    // Calculer l'offset pour la pagination par page (si pas de curseur)
+    const offset = (page - 1) * itemsPerPage
 
     // Filtrer par rôles (seulement les membres, pas les admins)
     const memberRoles = ['Adherant', 'Bienfaiteur', 'Sympathisant']
@@ -183,36 +191,61 @@ export async function getMembers(
     const orderDirection = filters.orderByDirection || 'desc'
     constraints.push(orderBy(orderField, orderDirection))
 
-    // Pagination avec curseur
-    if (cursor) {
-      constraints.push(startAfter(cursor))
+    // Obtenir le total avec getCountFromServer (mêmes filtres Firestore, sans pagination)
+    // Note: Les filtres côté client (searchQuery, adresse, profession) ne sont pas inclus
+    // car ils sont appliqués après récupération. Le total sera donc une approximation.
+    const countQuery = query(membersRef, ...constraints)
+    let totalItems = 0
+    try {
+      const countSnapshot = await getCountFromServer(countQuery)
+      totalItems = countSnapshot.data().count
+    } catch (countError) {
+      // Si getCountFromServer échoue (index manquant), on utilisera une approximation
+      console.warn('⚠️ [getMembers] getCountFromServer failed, using approximation:', countError)
     }
 
-    // Limite
-    constraints.push(limit(itemsPerPage + 1)) // +1 pour savoir s'il y a une page suivante
+    // Pagination : soit par curseur, soit par offset (page)
+    if (cursor) {
+      // Pagination par curseur (plus efficace pour navigation séquentielle)
+      constraints.push(startAfter(cursor))
+      constraints.push(limit(itemsPerPage + 1))
+    } else if (page > 1) {
+      // Pagination par page : récupérer tous les docs jusqu'à la page demandée
+      // Firestore ne supporte pas l'offset natif, donc on doit récupérer plus de documents
+      constraints.push(limit(offset + itemsPerPage + 1))
+    } else {
+      // Page 1 sans curseur
+      constraints.push(limit(itemsPerPage + 1))
+    }
 
     const q = query(membersRef, ...constraints)
     const querySnapshot = await getDocs(q)
 
-    const members: MemberWithSubscription[] = []
-    let hasNextPage = false
-
-    // Traitement séquentiel pour éviter de surcharger Firebase
-    for (let _index = 0; _index < querySnapshot.docs.length; _index++) {
-      if (_index < itemsPerPage) {
-        const doc = querySnapshot.docs[_index]
-
-        // Récupérer chaque membre avec ses subscriptions
-        const memberWithSubscription = await getMemberWithSubscription(doc.id)
-
-        if (memberWithSubscription) {
-          members.push(memberWithSubscription)
-        }
-      } else {
-        hasNextPage = true
-        break
-      }
+    // Calculer les documents à traiter en fonction du mode de pagination
+    let docsToProcess: typeof querySnapshot.docs
+    let hasNextPage: boolean
+    
+    if (cursor) {
+      // Mode curseur : prendre les premiers documents
+      docsToProcess = querySnapshot.docs.slice(0, itemsPerPage)
+      hasNextPage = querySnapshot.docs.length > itemsPerPage
+    } else if (page > 1) {
+      // Mode offset : sauter les premiers documents et prendre la page demandée
+      docsToProcess = querySnapshot.docs.slice(offset, offset + itemsPerPage)
+      hasNextPage = querySnapshot.docs.length > offset + itemsPerPage
+    } else {
+      // Page 1 : prendre les premiers documents
+      docsToProcess = querySnapshot.docs.slice(0, itemsPerPage)
+      hasNextPage = querySnapshot.docs.length > itemsPerPage
     }
+
+    // Paralléliser les appels getMemberWithSubscription pour améliorer les performances
+    const memberPromises = docsToProcess.map(doc => getMemberWithSubscription(doc.id))
+    const memberResults = await Promise.all(memberPromises)
+    
+    const members: MemberWithSubscription[] = memberResults.filter(
+      (member): member is MemberWithSubscription => member !== null
+    )
 
     // Appliquer les filtres côté client
     let filteredMembers = members
@@ -314,18 +347,62 @@ export async function getMembers(
         .join(', ')
 
       console.log(`🎯 [getMembers] Processed ${filteredMembers.length} members${activeFilters ? ` with filters: ${activeFilters}` : ''}`)
+      console.log(`📊 [getMembers] Total Firestore: ${totalItems}, Filtered: ${filteredMembers.length}`)
     }
 
-    const nextCursor = members.length > 0 ? querySnapshot.docs[Math.min(itemsPerPage - 1, querySnapshot.docs.length - 1)] : null
+    // Calculer le curseur pour la page suivante
+    // Pour le mode offset, utiliser le dernier document de la page courante
+    let nextCursor: DocumentSnapshot | null = null
+    if (docsToProcess.length > 0) {
+      if (cursor) {
+        // Mode curseur : utiliser le dernier document récupéré
+        nextCursor = querySnapshot.docs[Math.min(itemsPerPage - 1, querySnapshot.docs.length - 1)]
+      } else {
+        // Mode offset : utiliser le dernier document de la page courante
+        const lastDocIndex = offset + docsToProcess.length - 1
+        if (lastDocIndex < querySnapshot.docs.length) {
+          nextCursor = querySnapshot.docs[lastDocIndex]
+        }
+      }
+    }
+
+    // Si des filtres côté client sont appliqués et qu'on a moins de résultats que prévu,
+    // ajuster le totalItems pour refléter la réalité (mais cela reste une approximation)
+    let adjustedTotalItems = totalItems
+    let adjustedHasNextPage = hasNextPage
+    
+    if (filters.searchQuery || filters.province || filters.city || filters.arrondissement || 
+        filters.district || filters.companyName || filters.profession) {
+      // Si on a récupéré tous les résultats (moins que itemsPerPage), utiliser le nombre filtré
+      if (filteredMembers.length < itemsPerPage && !hasNextPage) {
+        adjustedTotalItems = filteredMembers.length
+        adjustedHasNextPage = false
+      }
+      // Si après filtrage on a exactement itemsPerPage résultats, vérifier si on est vraiment sur la dernière page
+      // En calculant le totalPages basé sur les résultats filtrés
+      else if (filteredMembers.length === itemsPerPage) {
+        // On garde hasNextPage tel quel car on ne peut pas savoir avec certitude sans charger la page suivante
+        // Mais on ajustera dans le composant de pagination en vérifiant currentPage vs totalPages
+      }
+      // Sinon, garder le total Firestore comme approximation
+    }
+
+    // Calculer totalPages basé sur le total ajusté
+    const totalPages = adjustedTotalItems > 0 ? Math.ceil(adjustedTotalItems / itemsPerPage) : 0
+    
+    // Corriger hasNextPage : si on est sur la dernière page, il ne peut pas y avoir de page suivante
+    if (page >= totalPages) {
+      adjustedHasNextPage = false
+    }
 
     return {
       data: filteredMembers,
       pagination: {
         currentPage: page,
-        totalPages: Math.ceil(filteredMembers.length / itemsPerPage), // Approximation
-        totalItems: filteredMembers.length, // Approximation
+        totalPages,
+        totalItems: adjustedTotalItems,
         itemsPerPage,
-        hasNextPage,
+        hasNextPage: adjustedHasNextPage,
         hasPrevPage: page > 1,
         nextCursor,
         prevCursor: null
@@ -375,11 +452,17 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
 
         subscriptionsSnapshot.docs.forEach(doc => {
           const subData = doc.data()
+          // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+          const dateStart = convertFirestoreDate(subData.dateStart) || convertFirestoreDate(subData.startDate)
+          const dateEnd = convertFirestoreDate(subData.dateEnd) || convertFirestoreDate(subData.endDate)
+          
           subscriptions.push({
             id: doc.id,
             ...subData,
-            dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
-            dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
+            dateStart: dateStart || new Date(),
+            dateEnd: dateEnd || new Date(),
+            // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+            type: subData.type || subData.membershipType,
             createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
             updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
           } as Subscription)
@@ -403,15 +486,21 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
         const subscriptionPromises = member.subscriptions.map(async (subId) => {
           const subDoc = await getDoc(doc(db, 'subscriptions', subId))
           if (subDoc.exists()) {
-            const subData = subDoc.data()
-            return {
-              id: subDoc.id,
-              ...subData,
-              dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
-              dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
-              createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
-              updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
-            } as Subscription
+          const subData = subDoc.data()
+          // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+          const dateStart = convertFirestoreDate(subData.dateStart) || convertFirestoreDate(subData.startDate)
+          const dateEnd = convertFirestoreDate(subData.dateEnd) || convertFirestoreDate(subData.endDate)
+          
+          return {
+            id: subDoc.id,
+            ...subData,
+            dateStart: dateStart || new Date(),
+            dateEnd: dateEnd || new Date(),
+            // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+            type: subData.type || subData.membershipType,
+            createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
+            updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
+          } as Subscription
           }
           return null
         })
@@ -455,11 +544,17 @@ export async function getMemberSubscriptions(userId: string): Promise<Subscripti
 
     subscriptionsSnapshot.docs.forEach(doc => {
       const subData = doc.data()
+      // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+      const dateStart = convertFirestoreDate(subData.dateStart) || convertFirestoreDate(subData.startDate)
+      const dateEnd = convertFirestoreDate(subData.dateEnd) || convertFirestoreDate(subData.endDate)
+      
       subscriptions.push({
         id: doc.id,
         ...subData,
-        dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
-        dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
+        dateStart: dateStart || new Date(),
+        dateEnd: dateEnd || new Date(),
+        // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+        type: subData.type || subData.membershipType,
         createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
         updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
       } as Subscription)

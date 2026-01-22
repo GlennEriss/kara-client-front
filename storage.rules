@@ -12,8 +12,15 @@ service firebase.storage {
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-             request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary'];
+      return isAuthenticated() && (
+        // Méthode 1 : Vérifier via custom claims (token.role)
+        (request.auth.token.role != null && 
+         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary']) ||
+        // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
+        // Note: Storage rules ne supportent pas exists() directement, donc on se base sur token.role
+        // Si token.role n'est pas défini, l'utilisateur devra se reconnecter pour obtenir les custom claims
+        false
+      );
     }
     
     // Vérifie si le fichier est une image
@@ -120,6 +127,27 @@ service firebase.storage {
       
       // Suppression : Admin uniquement
       allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // DOCUMENTS CONTRATS (CONTRACTS-CI)
+    // ==========================================
+    // Documents uploadés pour les contrats et demandes d'adhésion
+    // Supporte les chemins : contracts-ci/{memberId}/{contractId}/{fileName}
+    // Utilisé pour les photos de profil et documents d'identité des demandes d'adhésion
+    
+    match /contracts-ci/{memberId}/{contractId}/{fileName} {
+      // Lecture : Publique (nécessaire pour afficher les documents dans le formulaire)
+      // La sécurité est gérée côté application
+      allow read: if true;
+      
+      // Écriture : Publique avec validation (image, max 5MB)
+      // Permet l'upload lors de l'inscription et les corrections
+      allow write: if isImage() && isImageSizeValid();
+      
+      // Suppression : Publique (pour permettre le remplacement lors des corrections)
+      // Sécurité gérée côté application
+      allow delete: if true;
     }
     
     // ==========================================

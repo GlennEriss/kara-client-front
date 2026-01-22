@@ -1,0 +1,48 @@
+@startuml Séquence - Changement de tab
+title Séquence de changement de tab (V2)
+
+actor Admin
+participant "MembershipsListTabs" as Tabs
+participant "MembershipsListPage" as Page
+participant "useMembershipsListV2" as Hook
+participant "MembershipsListService" as Service
+participant "MembersRepositoryV2" as Repo
+participant Firestore
+
+Admin -> Tabs: Clique sur tab "Adhérents"
+activate Tabs
+Tabs -> Page: onTabChange('adherents')
+activate Page
+Page -> Page: setActiveTab('adherents')
+Page -> Page: setCurrentPage(1)
+Page -> Hook: useMembershipsListV2({ tab: 'adherents', page: 1 })
+activate Hook
+
+Hook -> Service: buildFiltersForTab({}, 'adherents')
+activate Service
+Service --> Hook: { membershipType: ['adherant'] }
+deactivate Service
+
+Hook -> Hook: Réinitialise cursorHistoryRef (filtres changés)
+Hook -> Repo: getAll({ membershipType: ['adherant'] }, 1, limit)
+activate Repo
+Repo -> Firestore: query(users, where('membershipType', '==', 'adherant'))
+activate Firestore
+Firestore --> Repo: documents[] + count
+deactivate Firestore
+Repo --> Hook: PaginatedMembers
+deactivate Repo
+
+Hook -> Service: calculateStats(paginated)
+activate Service
+Service --> Hook: MembershipStats
+deactivate Service
+
+Hook --> Page: { data, stats, isLoading: false }
+deactivate Hook
+Page -> Tabs: Mise à jour de la liste
+deactivate Page
+Tabs -> Tabs: Affiche liste filtrée (adhérents uniquement)
+deactivate Tabs
+
+@enduml

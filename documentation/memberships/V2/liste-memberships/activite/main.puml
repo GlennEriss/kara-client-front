@@ -1,0 +1,40 @@
+@startuml Liste des membres - Flux principal (V2)
+title Chargement de la page liste des membres (V2)
+
+start
+
+:Admin accède à /memberships;
+
+:MembershipsListPage chargé;
+
+:useMembershipsListV2() appelé avec options;
+
+:MembershipsListService.buildFiltersForTab()
+construit les filtres effectifs;
+
+:MembersRepositoryV2.getAll() appelé;
+
+:getMembers() dans member.db.ts :
+- Construit requête Firestore avec filtres
+- Appelle getCountFromServer() pour totalItems
+- Exécute query avec pagination (cursor si fourni);
+
+:Parallélisation getMemberWithSubscription()
+avec Promise.all() pour éviter N+1;
+
+:Service calculateStats() calcule statistiques
+(actifs, expirés, genre, pourcentages);
+
+:Composants rendus :
+- MembershipsListStats (carrousel)
+- MembershipsListHeader (titre, actions)
+- MembershipsListTabs (presets filtres)
+- MembershipsListFilters (filtres avancés)
+- MembershipsListLayout (grille/liste)
+- MembershipsListPagination;
+
+:Page affichée avec données;
+
+stop
+
+@enduml

@@ -1,8 +1,7 @@
-import MembershipDetails from '@/components/memberships/MembershipDetails'
-import React from 'react'
+'use client'
+
+import { MemberDetailsPage } from '@/domains/memberships/components/details/MemberDetailsPage'
 
 export default function page() {
-  return (
-    <MembershipDetails />
-  )
+  return <MemberDetailsPage />
 }

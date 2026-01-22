@@ -1,0 +1,301 @@
+@startuml CLASSES_CLOUD_FUNCTIONS
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightCoral
+  BorderColor DarkRed
+  ArrowColor DarkRed
+}
+
+title Diagramme de Classes - Cloud Functions Firebase
+
+' ============================================
+' PACKAGE : MEMBERSHIP REQUESTS (Callable)
+' ============================================
+package "Membership Requests" <<Frame>> {
+  
+  class approveMembershipRequest <<callable>> {
+    + requestId: string
+    + adminId: string
+    + membershipType: MembershipType
+    + adhesionPdfURL: string
+    + companyId?: string
+    + professionId?: string
+    --
+    **Returns:**
+    + success: boolean
+    + matricule: string
+    + email: string
+    + password: string
+    + subscriptionId: string
+  }
+  
+  class deleteMembershipRequest <<callable>> {
+    + requestId: string
+    + confirmedMatricule: string
+    --
+    **Returns:**
+    + success: boolean
+    + requestId: string
+    + filesDeleted: number
+    + deletedAt: string
+  }
+  
+  class verifySecurityCode <<callable>> {
+    + requestId: string
+    + securityCode: string
+    --
+    **Returns:**
+    + valid: boolean
+    + error?: string
+    + request?: MembershipRequest
+  }
+  
+  class submitCorrections <<callable>> {
+    + requestId: string
+    + securityCode: string
+    + corrections: object
+    --
+    **Returns:**
+    + success: boolean
+  }
+  
+  class renewSecurityCode <<callable>> {
+    + requestId: string
+    + adminId: string
+    --
+    **Returns:**
+    + success: boolean
+    + securityCode: string
+    + expiresAt: Timestamp
+  }
+  
+  class syncToAlgolia <<trigger>> {
+    + trigger: onDocumentWritten
+    + path: membership-requests/{requestId}
+    --
+    **Actions:**
+    - Create/Update → Index Algolia
+    - Delete → Remove from Algolia
+  }
+}
+
+' ============================================
+' PACKAGE : SCHEDULED FUNCTIONS (Cron)
+' ============================================
+package "Scheduled Functions" <<Frame>> {
+  
+  class dailyBirthdayNotifications <<scheduled>> {
+    + schedule: "0 8 * * *"
+    + timezone: Africa/Libreville
+    + memory: 512MiB
+    + timeout: 540s
+    --
+    **Notifications:**
+    - J-2: 2 jours avant
+    - J: Jour anniversaire
+    - J+1: Rattrapage
+  }
+  
+  class hourlyScheduledNotifications <<scheduled>> {
+    + schedule: "0 * * * *"
+    + timezone: Africa/Libreville
+    + memory: 256MiB
+    + timeout: 300s
+    --
+    **Actions:**
+    - Process scheduledAt <= now
+    - Mark sentAt
+  }
+  
+  class dailyOverdueCommissions <<scheduled>> {
+    + schedule: "0 9 * * *"
+    + module: Placement
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - commission_overdue
+  }
+  
+  class dailyCreditPaymentDue <<scheduled>> {
+    + schedule: "30 9 * * *"
+    + module: Crédit Spéciale
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - J-3: Rappel avant échéance
+    - J: Jour échéance
+    - J+n: Retard
+  }
+  
+  class dailyCIPaymentDue <<scheduled>> {
+    + schedule: "0 10 * * *"
+    + module: Caisse Imprévue
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - Versements dus (journaliers/mensuels)
+  }
+  
+  class dailyVehicleInsuranceExpiring <<scheduled>> {
+    + schedule: "30 10 * * *"
+    + module: Véhicule
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - Assurances expiring dans 30j
+  }
+  
+  class dailyTransformCreditSpeciale <<scheduled>> {
+    + schedule: "0 11 * * *"
+    + module: Crédit Spéciale
+    + memory: 512MiB
+    --
+    **Actions:**
+    - Transform after 7 months
+    - Crédit spéciale → Crédit fixe
+  }
+  
+  class dailyCaisseSpecialePendingReminders <<scheduled>> {
+    + schedule: "0 9 * * *"
+    + module: Caisse Spéciale
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - demand_pending_reminder
+  }
+  
+  class dailyCaisseSpecialeApprovedNotConvertedReminders <<scheduled>> {
+    + schedule: "0 10 * * *"
+    + module: Caisse Spéciale
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - demand_approved_not_converted
+  }
+  
+  class dailyCaisseImprevuePendingReminders <<scheduled>> {
+    + schedule: "0 11 * * *"
+    + module: Caisse Imprévue
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - demand_pending_reminder
+  }
+  
+  class dailyCaisseImprevueApprovedNotConvertedReminders <<scheduled>> {
+    + schedule: "30 11 * * *"
+    + module: Caisse Imprévue
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - demand_approved_not_converted
+  }
+}
+
+' ============================================
+' PACKAGE : SHARED DEPENDENCIES
+' ============================================
+package "Firebase Admin SDK" <<Cloud>> {
+  class Firestore {
+    + collection(name: string)
+    + doc(id: string)
+    + runTransaction()
+    + writeBatch()
+  }
+  
+  class Auth {
+    + createUser(properties: CreateRequest)
+    + getUser(uid: string)
+    + deleteUser(uid: string)
+    + setCustomUserClaims(uid: string, claims: object)
+  }
+  
+  class Storage {
+    + bucket()
+    + file(path: string)
+    + delete()
+  }
+}
+
+' ============================================
+' RELATIONS
+' ============================================
+
+' Callable functions use Firebase Admin
+approveMembershipRequest --> Firestore : uses
+approveMembershipRequest --> Auth : creates user
+approveMembershipRequest --> Storage : archives PDF
+
+deleteMembershipRequest --> Firestore : deletes
+deleteMembershipRequest --> Storage : deletes files
+
+verifySecurityCode --> Firestore : queries
+submitCorrections --> Firestore : updates
+renewSecurityCode --> Firestore : updates
+syncToAlgolia --> Firestore : triggers
+
+' Scheduled functions use Firestore
+dailyBirthdayNotifications --> Firestore : creates notifications
+hourlyScheduledNotifications --> Firestore : processes scheduled
+dailyOverdueCommissions --> Firestore : creates notifications
+dailyCreditPaymentDue --> Firestore : creates notifications
+dailyCIPaymentDue --> Firestore : creates notifications
+dailyVehicleInsuranceExpiring --> Firestore : creates notifications
+dailyTransformCreditSpeciale --> Firestore : updates contracts
+dailyCaisseSpecialePendingReminders --> Firestore : creates notifications
+dailyCaisseSpecialeApprovedNotConvertedReminders --> Firestore : creates notifications
+dailyCaisseImprevuePendingReminders --> Firestore : creates notifications
+dailyCaisseImprevueApprovedNotConvertedReminders --> Firestore : creates notifications
+
+' ============================================
+' NOTES
+' ============================================
+
+note right of approveMembershipRequest
+  **Transaction atomique avec rollback**
+  
+  **Étapes:**
+  1. Validation (paiement, statut, permissions)
+  2. Génération email/password
+  3. Création Firebase Auth user
+  4. Création document users
+  5. Création subscription
+  6. Archivage PDF dans documents
+  7. Mise à jour statut → approved
+  8. Création notification
+  
+  **Rollback:** Si erreur, annule toutes les étapes
+end note
+
+note right of dailyBirthdayNotifications
+  **Planning des jobs:**
+  
+  | Heure | Job |
+  |-------|-----|
+  | 08:00 | Anniversaires |
+  | 09:00 | Commissions retard + CS pending |
+  | 09:30 | Crédit échéances |
+  | 10:00 | CI échéances + CS non converties |
+  | 10:30 | Assurances véhicules |
+  | 11:00 | Transform crédit + CI pending |
+  | 11:30 | CI non converties |
+  | */1h  | Notifications programmées |
+end note
+
+note bottom of Firestore
+  **Collections utilisées par Cloud Functions:**
+  
+  - membership-requests
+  - users
+  - subscriptions
+  - documents
+  - notifications
+  - audit-logs
+  - caisse-speciale-demands
+  - caisse-imprevue-demands
+  - credit-speciale-contracts
+  - placements
+  - vehicles
+end note
+
+@enduml

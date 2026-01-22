@@ -1,0 +1,31 @@
+@startuml Exports membres - Flux principal
+Title Lancer un export depuis la liste des membres
+
+start
+
+:Admin est sur la liste des membres;
+
+:Admin clique sur le bouton "Exporter";
+
+:Ouverture de ExportMembershipModal;
+
+:Admin choisit format (CSV/Excel/PDF)
++ filtres (période, quantité, véhicule...);
+
+:Admin clique sur "Lancer l'export";
+
+:Appel de useMembershipExport/exportMembers(options);
+
+:MembershipExportService récupère les membres
+(et leurs dossiers) selon les options;
+
+:MembershipExportService génère le fichier;
+
+:Déclenchement du téléchargement
+(et/ou mise à disposition du fichier);
+
+:Affichage d'un toast de succès ou d'erreur;
+
+stop
+
+@enduml

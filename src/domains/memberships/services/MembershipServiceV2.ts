@@ -118,11 +118,11 @@ export class MembershipServiceV2 implements IMembershipService {
     // Générer et télécharger le PDF des identifiants de connexion
     try {
       const pdfBlob = await generateCredentialsPDF({
-        firstName: request.identity.firstName,
-        lastName: request.identity.lastName,
-        matricule: result.data.matricule,
-        email: result.data.email,
-        password: result.data.password,
+        firstName: request.identity.firstName || '',
+        lastName: request.identity.lastName || '',
+        matricule: result.data.matricule || '',
+        email: result.data.email || '',
+        password: result.data.password || '',
       })
 
       const filename = formatCredentialsFilename(result.data.matricule)

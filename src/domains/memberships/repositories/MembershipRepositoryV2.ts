@@ -17,6 +17,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  setDoc,
   serverTimestamp,
   getCountFromServer,
   or,
@@ -36,17 +37,24 @@ import {
   PAYMENT_MODES,
   type PaymentMode,
 } from '@/constantes/membership-requests'
-import type { MembershipRequestStatus } from '@/types/types'
+import type { MembershipRequestStatus, RegisterFormData } from '@/types/types'
 import { PaymentRepositoryV2 } from './PaymentRepositoryV2'
 import { getAlgoliaSearchService } from '@/services/search/AlgoliaSearchService'
+import { generateMatricule } from '@/db/user.db'
+import { DocumentRepository } from '@/repositories/documents/DocumentRepository'
+import { MembershipErrorHandler } from '../services/MembershipErrorHandler'
 
 export class MembershipRepositoryV2 implements IMembershipRepository {
   private static instance: MembershipRepositoryV2
   private readonly collectionName = MEMBERSHIP_REQUEST_COLLECTIONS.REQUESTS
   private paymentRepository: PaymentRepositoryV2
+  private documentRepository: DocumentRepository
+  private errorHandler: MembershipErrorHandler
 
   private constructor() {
     this.paymentRepository = PaymentRepositoryV2.getInstance()
+    this.documentRepository = new DocumentRepository()
+    this.errorHandler = MembershipErrorHandler.getInstance()
   }
 
   static getInstance(): MembershipRepositoryV2 {
@@ -473,6 +481,158 @@ export class MembershipRepositoryV2 implements IMembershipRepository {
         contacts.some(contact => contact?.toLowerCase().includes(searchTerm))
       )
     })
+  }
+
+  /**
+   * Crée une nouvelle demande d'adhésion
+   * 
+   * @param formData Données du formulaire d'inscription
+   * @returns L'ID de la demande créée (matricule)
+   */
+  async create(formData: RegisterFormData): Promise<string> {
+    try {
+      // Créer un identifiant unique basé sur l'email ou le premier numéro de téléphone
+      const userIdentifier = formData.identity.email || 
+                            formData.identity.contacts[0] || 
+                            `${formData.identity.firstName}_${formData.identity.lastName}_${Date.now()}`
+
+      // Générer un matricule unique pour cette demande
+      const matricule = await generateMatricule()
+
+      // Préparer les données de base
+      const { photo, ...identityWithoutPhoto } = formData.identity
+      const { documentPhotoFront, documentPhotoBack, ...documentsWithoutPhotos } = formData.documents
+      
+      let membershipData: any = {
+        matricule,
+        identity: {
+          ...identityWithoutPhoto
+        },
+        address: formData.address,
+        company: formData.company,
+        documents: {
+          ...documentsWithoutPhotos
+        },
+        state: 'IN_PROGRESS',
+        status: 'pending',
+        isPaid: false,
+      }
+
+      // Upload de la photo de profil si fournie via DocumentRepository
+      if (formData.identity.photo && typeof formData.identity.photo === 'string' && formData.identity.photo.startsWith('data:image/')) {
+        try {
+          // Utiliser DocumentRepository pour uploader l'image
+          // userIdentifier comme memberId temporaire, matricule comme contractId
+          const { url: fileURL, path: filePATH } = await this.documentRepository.uploadImage(
+            formData.identity.photo,
+            userIdentifier,
+            matricule,
+            'membership-request-profile-photo'
+          )
+          
+          membershipData.identity.photoURL = fileURL
+          membershipData.identity.photoPath = filePATH
+        } catch (photoError: any) {
+          console.error("❌ ERREUR lors de l'upload de la photo de profil:", photoError)
+          console.warn("   ⚠️ Continuons la création du document sans photo de profil")
+        }
+      }
+
+      // Upload de la photo recto du document si fournie via DocumentRepository
+      if (formData.documents.documentPhotoFront && typeof formData.documents.documentPhotoFront === 'string' && formData.documents.documentPhotoFront.startsWith('data:image/')) {
+        try {
+          // Utiliser DocumentRepository pour uploader l'image
+          const { url: frontURL, path: frontPATH } = await this.documentRepository.uploadImage(
+            formData.documents.documentPhotoFront,
+            userIdentifier,
+            matricule,
+            'membership-request-document-front'
+          )
+          
+          membershipData.documents.documentPhotoFrontURL = frontURL
+          membershipData.documents.documentPhotoFrontPath = frontPATH
+        } catch (frontPhotoError: any) {
+          console.error("❌ ERREUR lors de l'upload de la photo recto du document:", frontPhotoError)
+          console.warn("   ⚠️ Continuons la création du document sans photo recto")
+        }
+      }
+
+      // Upload de la photo verso du document si fournie via DocumentRepository
+      if (formData.documents.documentPhotoBack && typeof formData.documents.documentPhotoBack === 'string' && formData.documents.documentPhotoBack.startsWith('data:image/')) {
+        try {
+          // Utiliser DocumentRepository pour uploader l'image
+          const { url: backURL, path: backPATH } = await this.documentRepository.uploadImage(
+            formData.documents.documentPhotoBack,
+            userIdentifier,
+            matricule,
+            'membership-request-document-back'
+          )
+          
+          membershipData.documents.documentPhotoBackURL = backURL
+          membershipData.documents.documentPhotoBackPath = backPATH
+        } catch (backPhotoError: any) {
+          console.error("❌ ERREUR lors de l'upload de la photo verso du document:", backPhotoError)
+          console.warn("   ⚠️ Continuons la création du document sans photo verso")
+        }
+      }
+
+      // Nettoyer toutes les valeurs undefined avant d'envoyer à Firestore
+      const cleanedMembershipData = this.cleanUndefinedValues(membershipData)
+      
+      // Créer le document avec l'ID personnalisé (le matricule)
+      const docRef = doc(db, this.collectionName, matricule)
+      
+      // Ajouter les timestamps
+      const finalData = {
+        ...cleanedMembershipData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }
+      
+      // Sauvegarder avec l'ID personnalisé
+      try {
+        await setDoc(docRef, finalData)
+        return matricule // Retourner le matricule comme ID
+      } catch (setDocError: any) {
+        // Normaliser et re-lancer l'erreur avec le gestionnaire centralisé
+        const normalizedError = this.errorHandler.normalizeError(setDocError, 'create.setDoc')
+        throw new Error(this.errorHandler.formatForUI(normalizedError))
+      }
+    } catch (error: any) {
+      // Si l'erreur est déjà normalisée, la re-lancer telle quelle
+      if (error instanceof Error && error.message) {
+        throw error
+      }
+      // Sinon, normaliser l'erreur
+      const normalizedError = this.errorHandler.normalizeError(error, 'create')
+      throw new Error(this.errorHandler.formatForUI(normalizedError))
+    }
+  }
+
+  /**
+   * Fonction utilitaire pour nettoyer les valeurs undefined d'un objet
+   * Firestore n'accepte pas les valeurs undefined
+   */
+  private cleanUndefinedValues(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return null
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanUndefinedValues(item)).filter(item => item !== null)
+    }
+    
+    if (typeof obj === 'object') {
+      const cleaned: any = {}
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = this.cleanUndefinedValues(value)
+        }
+      }
+      return cleaned
+    }
+    
+    return obj
   }
 
   /**

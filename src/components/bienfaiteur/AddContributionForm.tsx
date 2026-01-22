@@ -306,7 +306,7 @@ export default function AddContributionForm({ eventId, isOpen, onClose }: AddCon
                       {participantType === 'member' && selectedMemberData ? (
                         <>
                           <Avatar>
-                            <AvatarImage src={selectedMemberData.photoURL || ''} />
+                            <AvatarImage src={selectedMemberData.photoURL || ''} alt={`Photo de ${selectedMemberData.firstName} ${selectedMemberData.lastName}`} />
                             <AvatarFallback>
                               {`${selectedMemberData.firstName?.[0] || ''}${selectedMemberData.lastName?.[0] || ''}`}
                             </AvatarFallback>

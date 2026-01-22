@@ -13,9 +13,15 @@ service cloud.firestore {
     }
     
     // Vérifie si l'utilisateur est admin (Admin, SuperAdmin ou Secretary)
+    // Vérifie d'abord via custom claims (token.role), puis via collection admins
     function isAdmin() {
-      return isAuthenticated() && 
-             request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary'];
+      return isAuthenticated() && (
+        // Méthode 1 : Vérifier via custom claims (token.role)
+        (request.auth.token.role != null && 
+         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary']) ||
+        // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
     
     // Vérifie si le code de sécurité est valide pour modification par le demandeur
@@ -56,6 +62,18 @@ service cloud.firestore {
     }
     
     match /quarters/{quarterId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // STRUCTURE D'ADRESSES (ADDRESSES)
+    // ==========================================
+    // Structure hiérarchique des adresses (province -> ville -> arrondissement -> district)
+    // Lecture publique pour permettre le remplissage du formulaire d'inscription
+    // Écriture réservée aux admins
+    
+    match /addresses/{addressId} {
       allow read: if true;
       allow write: if isAdmin();
     }

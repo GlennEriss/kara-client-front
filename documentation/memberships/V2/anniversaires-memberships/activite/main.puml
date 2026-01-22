@@ -1,0 +1,25 @@
+@startuml Anniversaires - Flux principal
+Title Vue Anniversaires (liste + calendrier)
+
+start
+
+:Admin ouvre l’onglet/page Anniversaires;
+
+:Hook useMemberBirthdays charge les membres
+et calcule les anniversaires;
+
+if (Vue liste ?) then (oui)
+  :Afficher la liste triée par jours restants;
+else (non)
+  :Afficher le calendrier du mois sélectionné;
+endif
+
+:Admin peut changer de mois/année;
+
+:Recalcul/filtrage des anniversaires selon le mois;
+
+:Admin peut lancer un export (Excel/PDF);
+
+stop
+
+@enduml

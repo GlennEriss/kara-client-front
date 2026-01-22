@@ -139,7 +139,12 @@ export default function CharityParticipantsSection({ eventId }: CharityParticipa
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={memberInfo?.photoURL || ''} />
+                          <AvatarImage
+                            src={memberInfo?.photoURL || ''}
+                            alt={participant.participantType === 'member' && memberInfo
+                              ? `Photo de ${memberInfo.firstName} ${memberInfo.lastName}`
+                              : `Photo du groupe #${participant.groupId?.slice(0, 8) ?? '?'}`}
+                          />
                           <AvatarFallback>
                             {participant.participantType === 'member' && memberInfo
                               ? `${memberInfo.firstName?.[0] || ''}${memberInfo.lastName?.[0] || ''}`

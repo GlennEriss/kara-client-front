@@ -1,0 +1,29 @@
+@startuml Séquence - Création rapide référentiel
+Title Séquence de création rapide d'un référentiel depuis le formulaire
+
+actor Admin
+participant "MembershipFormStepAddress" as Step
+participant "AddProvinceModal" as Modal
+participant "GeographyService" as GeoService
+participant "GeographyRepository" as GeoRepo
+participant Firestore
+participant "React Query" as Query
+
+Admin -> Step: Clique bouton "+" province
+Step -> Modal: open()
+Admin -> Modal: Remplit formulaire (nom province)
+Admin -> Modal: Clique "Créer"
+Modal -> GeoService: createProvince({ name })
+GeoService -> GeoRepo: create(provinceData)
+GeoRepo -> Firestore: add(provinces, data)
+Firestore --> GeoRepo: provinceId
+GeoRepo --> GeoService: province
+GeoService --> Modal: province
+Modal -> Query: invalidateQueries(['provinces'])
+Query -> Query: Refetch provinces
+Modal -> Step: onCreated(province)
+Step -> Step: setValue('address.provinceId', province.id)
+Step -> Step: Toast succès
+Modal -> Modal: close()
+
+@enduml

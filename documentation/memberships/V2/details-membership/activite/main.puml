@@ -1,0 +1,63 @@
+@startuml Détails membre - Flux principal (V2)
+Title Chargement de la fiche membre (V2)
+
+start
+
+:Admin clique sur un membre dans la liste;
+
+:Next.js charge la page /memberships/{id};
+
+:Initialisation de MemberDetailsPage;
+
+:Appel du hook useMembershipDetails(memberId);
+
+fork
+  :Chargement membre via getUserById(memberId);
+end fork
+
+fork
+  :Chargement abonnements via getMemberSubscriptions(memberId);
+end fork
+
+fork
+  :Chargement contrats via listContractsByMember(memberId);
+end fork
+
+fork
+  :Chargement filleuls via useMemberWithFilleuls(memberId);
+end fork
+
+fork
+  :Chargement documents via useDocumentList(memberId);
+end fork
+
+:Enrichissement des données:
+- fullName, displayName, nationalityName
+- lastSubscription, isSubscriptionValid
+- Organisation des contrats par type;
+
+if (isLoading?) then (oui)
+  :Afficher MemberDetailsSkeleton;
+  stop
+elseif (isError ou !member?) then (oui)
+  :Afficher MemberDetailsErrorState;
+  stop
+else (non)
+  :Affichage des sections:
+  - MemberDetailsHeader (titre, matricule, actions)
+  - Informations personnelles (genre, nationalité, véhicule)
+  - Photo du membre
+  - Contacts (email, téléphones)
+  - Profession (profession, entreprise)
+  - Adresse (province, ville, quartier)
+  - Abonnement (statut, dates, historique)
+  - Documents (compteur, voir dossier)
+  - Filleuls (compteur, voir liste)
+  - Contrats (résumé par type)
+  - Paiements (placeholder)
+  - Relations (liens vers autres modules);
+endif
+
+stop
+
+@enduml

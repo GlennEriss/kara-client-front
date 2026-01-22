@@ -1,0 +1,21 @@
+@startuml Séquence - Ouverture de modals depuis la fiche membre
+Title Ouverture de modals (abonnements, documents)
+
+actor Admin
+participant "MemberDetailsPage" as View
+participant "useMembershipDetails" as Hook
+participant "MemberSubscriptionModal" as SubModal
+participant "DocumentModal" as DocModal
+
+== Historique abonnements ==
+Admin -> View: Clique "Voir l'historique" abonnements
+View -> SubModal: open()
+SubModal -> Hook: (optionnel) demander données supplémentaires
+SubModal -> Admin: Affiche la liste des abonnements
+
+== Documents / dossier ==
+Admin -> View: Clique sur un document (si modal locale)
+View -> DocModal: open(documentId)
+DocModal -> Admin: Affiche le document (prévisualisation)
+
+@enduml

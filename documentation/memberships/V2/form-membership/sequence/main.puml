@@ -1,0 +1,31 @@
+@startuml Séquence - Soumission du formulaire
+Title Séquence de soumission du formulaire d'adhésion
+
+actor Admin
+participant "AddMemberPage" as Page
+participant "Register" as Form
+participant "MembershipFormService" as Service
+participant "MembershipRepositoryV2" as Repo
+participant "DocumentRepository" as DocRepo
+participant Firestore
+participant Storage
+
+Admin -> Page: Accède à /memberships/add
+Page -> Form: Render Register (Step1)
+Admin -> Form: Remplit Step1 → Step2 → Step3 → Step4
+Admin -> Form: Clique "Soumettre"
+Form -> Service: submitNewMembership(formData)
+Service -> Service: Valide formData (schémas)
+Service -> Repo: create(membershipRequestData)
+Repo -> Firestore: add(membershipRequests, data)
+Firestore --> Repo: requestId
+Repo --> Service: requestId
+Service -> DocRepo: uploadDocuments(documents, requestId)
+DocRepo -> Storage: upload files
+Storage --> DocRepo: urls[]
+DocRepo --> Service: documentIds[]
+Service --> Form: { requestId, success: true }
+Form -> Form: Toast succès
+Form -> Page: Redirection vers /memberships
+
+@enduml

@@ -1,0 +1,43 @@
+{
+    "searchableAttributes": [
+      "searchableText",
+      "matricule",
+      "firstName",
+      "lastName",
+      "email",
+      "companyName",
+      "profession"
+    ],
+    "attributesForFaceting": [
+      "filterOnly(membershipType)",
+      "filterOnly(isActive)",
+      "filterOnly(gender)",
+      "filterOnly(hasCar)",
+      "filterOnly(province)",
+      "filterOnly(companyId)",
+      "filterOnly(professionId)",
+      "searchable(roles)"
+    ],
+    "customRanking": [
+      "desc(createdAt)"
+    ],
+    "ranking": [
+      "typo",
+      "geo",
+      "words",
+      "filters",
+      "proximity",
+      "attribute",
+      "exact",
+      "custom"
+    ],
+    "highlightPreTag": "<mark>",
+    "highlightPostTag": "</mark>",
+    "minWordSizefor1Typo": 4,
+    "minWordSizefor2Typos": 8,
+    "typoTolerance": true,
+    "ignorePlurals": true,
+    "removeStopWords": false,
+    "distinct": false,
+    "maxValuesPerFacet": 100
+  }

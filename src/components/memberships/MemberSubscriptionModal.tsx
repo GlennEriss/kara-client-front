@@ -270,19 +270,22 @@ const MemberSubscriptionModal = ({ isOpen, onClose, memberId }: MemberSubscripti
                             </div>
                           </div>
                           
-                          <div className="flex items-start gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                              <CreditCard className="h-4 w-4 text-emerald-600" />
+                          {/* Afficher le montant seulement s'il existe */}
+                          {subscription.montant != null && (
+                            <div className="flex items-start gap-3">
+                              <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                <CreditCard className="h-4 w-4 text-emerald-600" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                                  Montant
+                                </p>
+                                <p className="font-semibold text-gray-900 truncate">
+                                  {subscription.montant} {subscription.currency || 'XOF'}
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                                Montant
-                              </p>
-                              <p className="font-semibold text-gray-900 truncate">
-                                {subscription.montant} {subscription.currency}
-                              </p>
-                            </div>
-                          </div>
+                          )}
                           
                           <div className="flex items-start gap-3">
                             <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">

@@ -8,24 +8,27 @@
 
 ```
 documentation/uml/
-├── README.md                    # Ce fichier (index)
+├── README.md                        # Ce fichier (index)
 │
-├── use-cases/                   # Diagrammes de cas d'usage
-│   └── USE_CASES_COMPLETS.puml  # Tous les use cases de l'application
+├── use-cases/                       # Diagrammes de cas d'usage
+│   ├── USE_CASE_LOGIN.puml          # Use case authentification
+│   └── USE_CASES_COMPLETS.puml      # Tous les use cases de l'application
 │
-├── classes/                     # Diagrammes de classes
-│   ├── CLASSES_MEMBERSHIP.puml
-│   ├── CLASSES_CAISSE_SPECIALE.puml
-│   ├── CLASSES_CAISSE_IMPREVUE.puml
-│   ├── CLASSES_CREDIT_SPECIALE.puml
-│   ├── CLASSES_PLACEMENT.puml
-│   ├── CLASSES_BIENFAITEUR.puml
-│   ├── CLASSES_VEHICULE.puml
-│   ├── CLASSES_GEOGRAPHIE.puml
-│   └── CLASSES_SHARED.puml      # Classes partagées (User, Document, etc.)
+├── classes/                         # Diagrammes de classes
+│   ├── CLASSES_MEMBERSHIP.puml      # Module Membership (demandes, membres)
+│   ├── CLASSES_CAISSE_SPECIALE.puml # Module Caisse Spéciale
+│   ├── CLASSES_CAISSE_IMPREVUE.puml # Module Caisse Imprévue
+│   ├── CLASSES_CREDIT_SPECIALE.puml # Module Crédit Spéciale
+│   ├── CLASSES_PLACEMENT.puml       # Module Placement
+│   ├── CLASSES_BIENFAITEUR.puml     # Module Bienfaiteur
+│   ├── CLASSES_VEHICULE.puml        # Module Véhicule
+│   ├── CLASSES_GEOGRAPHIE.puml      # Infrastructure Géographie (V2)
+│   ├── CLASSES_AUTH.puml            # Authentification
+│   ├── CLASSES_SHARED.puml          # Classes partagées (User, Notification, etc.)
+│   └── CLASSES_CLOUD_FUNCTIONS.puml # Cloud Functions Firebase (NEW)
 │
-└── sequences/                   # Diagrammes de séquence
-    └── SEQUENCES_MEMBERSHIP.puml  # Séquences module Membership Requests
+└── sequences/                       # Diagrammes de séquence
+    └── SEQUENCES_MEMBERSHIP.puml    # Séquences module Membership Requests
 ```
 
 ---
@@ -82,8 +85,23 @@ documentation/uml/
 
 ### 9. Infrastructure — Shared
 - **Diagramme de classes** : `classes/CLASSES_SHARED.puml`
-- **Entités partagées** : `User`, `Document`, référentiels (companies, professions)
+- **Entités partagées** : `User`, `Document`, `Notification`, référentiels (companies, professions)
+- **Services** : `NotificationService`, `NotificationRepository`
+- **Hooks** : `useNotifications`, `useUnreadCount`, `useMarkNotificationAsRead`, etc.
 - **Collections Firestore** : `users`, `documents`, `companies`, `professions`, `notifications`
+
+### 10. Infrastructure — Cloud Functions
+- **Diagramme de classes** : `classes/CLASSES_CLOUD_FUNCTIONS.puml`
+- **Fonctions Callable** : `approveMembershipRequest`, `deleteMembershipRequest`, `verifySecurityCode`, `submitCorrections`, `renewSecurityCode`, `syncToAlgolia`
+- **Fonctions Scheduled (Cron)** :
+  - Anniversaires : `dailyBirthdayNotifications` (08:00)
+  - Notifications programmées : `hourlyScheduledNotifications` (*/1h)
+  - Placement : `dailyOverdueCommissions` (09:00)
+  - Crédit Spéciale : `dailyCreditPaymentDue` (09:30), `dailyTransformCreditSpeciale` (11:00)
+  - Caisse Imprévue : `dailyCIPaymentDue` (10:00), reminders (11:00, 11:30)
+  - Caisse Spéciale : reminders (09:00, 10:00)
+  - Véhicule : `dailyVehicleInsuranceExpiring` (10:30)
+- **Documentation** : `../functions/README.md`
 
 ---
 
@@ -165,19 +183,26 @@ plantuml documentation/uml/classes/CLASSES_*.puml
 
 ## État Actuel
 
-### ✅ Créé
+### ✅ Créé / Mis à jour
 
-- [x] `classes/CLASSES_MEMBERSHIP.puml` - Diagramme de classes Membership
-- [x] `classes/CLASSES_SHARED.puml` - Classes partagées (User, Document, etc.)
+- [x] `classes/CLASSES_MEMBERSHIP.puml` - Diagramme de classes Membership (complet)
+- [x] `classes/CLASSES_SHARED.puml` - Classes partagées (User, Document, Notification, NotificationService, etc.)
 - [x] `classes/CLASSES_CAISSE_SPECIALE.puml` - Classes Caisse Spéciale
 - [x] `classes/CLASSES_CAISSE_IMPREVUE.puml` - Classes Caisse Imprévue
 - [x] `classes/CLASSES_CREDIT_SPECIALE.puml` - Classes Crédit Spéciale
 - [x] `classes/CLASSES_PLACEMENT.puml` - Classes Placement
 - [x] `classes/CLASSES_BIENFAITEUR.puml` - Classes Bienfaiteur
 - [x] `classes/CLASSES_VEHICULE.puml` - Classes Véhicule
-- [x] `classes/CLASSES_GEOGRAPHIE.puml` - Classes Géographie
+- [x] `classes/CLASSES_GEOGRAPHIE.puml` - Classes Géographie (V2 avec Hooks + Combobox)
 - [x] `classes/CLASSES_AUTH.puml` - Classes Authentification
+- [x] `classes/CLASSES_CLOUD_FUNCTIONS.puml` - **NEW** Cloud Functions (Callable + Scheduled)
 - [x] `sequences/SEQUENCES_MEMBERSHIP.puml` - Séquences Membership Requests (13 diagrammes)
+
+### 📅 Dernière mise à jour
+
+- **2025-01-22** : Mise à jour de CLASSES_GEOGRAPHIE.puml (ajout hooks, combobox, repository)
+- **2025-01-22** : Mise à jour de CLASSES_SHARED.puml (ajout NotificationService, hooks notifications)
+- **2025-01-22** : Création de CLASSES_CLOUD_FUNCTIONS.puml (callable + scheduled functions)
 
 ### 📋 À Faire
 
@@ -186,12 +211,15 @@ plantuml documentation/uml/classes/CLASSES_*.puml
 - [ ] Créer `sequences/SEQUENCES_CAISSE_IMPREVUE.puml`
 - [ ] Créer `sequences/SEQUENCES_CREDIT_SPECIALE.puml`
 - [ ] Créer `sequences/SEQUENCES_PLACEMENT.puml`
+- [ ] Créer `sequences/SEQUENCES_NOTIFICATIONS.puml`
 
 ### 📝 Notes
 
 - Les diagrammes existants dans `documentation/placement/`, `documentation/credit-speciale/`, etc. doivent être consolidés dans cette structure
 - Les diagrammes de classes doivent être cohérents avec les types TypeScript dans `src/types/types.ts`
 - Les diagrammes de classes doivent refléter les relations Firestore (collections, sous-collections)
+- **CLASSES_GEOGRAPHIE.puml** : Reflète maintenant l'architecture V2 avec hooks React Query et composants Combobox
+- **CLASSES_CLOUD_FUNCTIONS.puml** : Nouveau diagramme documentant toutes les Cloud Functions (callable et scheduled)
 
 ---
 

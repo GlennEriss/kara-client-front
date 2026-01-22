@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,7 +19,9 @@ import {
   MapPin,
   Loader2
 } from 'lucide-react'
-import { cn, compressImage, IMAGE_COMPRESSION_PRESETS, getImageInfo } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { useDocumentUpload } from '@/domains/memberships/hooks/useDocumentUpload'
+import { useStep4Validation } from '@/domains/memberships/hooks/useStep4Validation'
 
 interface Step4Props {
   form: any // Type du form de react-hook-form
@@ -37,20 +39,16 @@ const IDENTITY_DOCUMENT_OPTIONS = [
 ]
 
 export default function Step4({ form }: Step4Props) {
-  const [frontPhotoPreview, setFrontPhotoPreview] = useState<string | null>(null)
-  const [backPhotoPreview, setBackPhotoPreview] = useState<string | null>(null)
-  const [isDragOverFront, setIsDragOverFront] = useState(false)
-  const [isDragOverBack, setIsDragOverBack] = useState(false)
-  const [isCompressingFront, setIsCompressingFront] = useState(false)
-  const [isCompressingBack, setIsCompressingBack] = useState(false)
-  const [frontCompressionInfo, setFrontCompressionInfo] = useState<string | null>(null)
-  const [backCompressionInfo, setBackCompressionInfo] = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
 
-  const frontFileInputRef = useRef<HTMLInputElement>(null)
-  const backFileInputRef = useRef<HTMLInputElement>(null)
+  const { register, watch, setValue, formState: { errors } } = form
 
-  const { register, watch, setValue, setError, clearErrors, formState: { errors } } = form
+  // Utiliser les hooks centralisés pour l'upload des documents
+  const frontUpload = useDocumentUpload({ form, documentType: 'front' })
+  const backUpload = useDocumentUpload({ form, documentType: 'back' })
+
+  // Utiliser le hook centralisé pour la validation
+  useStep4Validation({ form, termsAccepted })
 
   // Watch pour les animations et validation
   const watchedFields = watch([
@@ -63,193 +61,17 @@ export default function Step4({ form }: Step4Props) {
     'documents.issuingDate'
   ])
 
-  // Synchroniser le state local avec le formulaire
-  React.useEffect(() => {
-    setValue('documents.termsAccepted', termsAccepted)
-  }, [termsAccepted, setValue])
-
-  // Validation des conditions acceptées
-  React.useEffect(() => {
-    if (!termsAccepted) {
-      setError('documents.termsAccepted', {
-        type: 'required',
-        message: 'Vous devez accepter les conditions pour continuer'
-      })
-    } else {
-      clearErrors('documents.termsAccepted')
-    }
-  }, [termsAccepted, setError, clearErrors])
-
-  // Restaurer les previews des photos si elles existent
-  React.useEffect(() => {
-    const frontPhoto = watch('documents.documentPhotoFront')
-    const backPhoto = watch('documents.documentPhotoBack')
-
-    if (frontPhoto && !frontPhotoPreview && typeof frontPhoto === 'string' && frontPhoto.startsWith('data:')) {
-      setFrontPhotoPreview(frontPhoto)
-    }
-    if (backPhoto && !backPhotoPreview && typeof backPhoto === 'string' && backPhoto.startsWith('data:')) {
-      setBackPhotoPreview(backPhoto)
-    }
-  }, [watchedFields[2], watchedFields[3], frontPhotoPreview, backPhotoPreview, watch])
-
-  // Validation en temps réel des champs obligatoires
-  React.useEffect(() => {
-    const frontPhoto = watch('documents.documentPhotoFront')
-    const expirationDate = watch('documents.expirationDate')
-    const issuingPlace = watch('documents.issuingPlace')
-    const issuingDate = watch('documents.issuingDate')
-
-    // Validation photo recto
-    if (!frontPhoto) {
-      setError('documents.documentPhotoFront', {
-        type: 'required',
-        message: 'La photo recto de la pièce d\'identité est requise'
-      })
-    } else {
-      clearErrors('documents.documentPhotoFront')
-    }
-
-    // Validation date d'expiration
-    if (!expirationDate || expirationDate.trim() === '') {
-      setError('documents.expirationDate', {
-        type: 'required',
-        message: 'La date d\'expiration est requise'
-      })
-    } else {
-      clearErrors('documents.expirationDate')
-    }
-
-    // Validation lieu de délivrance
-    if (!issuingPlace || issuingPlace.trim() === '') {
-      setError('documents.issuingPlace', {
-        type: 'required',
-        message: 'Le lieu de délivrance est requis'
-      })
-    } else if (issuingPlace.length < 2) {
-      setError('documents.issuingPlace', {
-        type: 'minLength',
-        message: 'Le lieu de délivrance doit contenir au moins 2 caractères'
-      })
-    } else {
-      clearErrors('documents.issuingPlace')
-    }
-
-    // Validation date de délivrance
-    if (!issuingDate || issuingDate.trim() === '') {
-      setError('documents.issuingDate', {
-        type: 'required',
-        message: 'La date de délivrance est requise'
-      })
-    } else {
-      clearErrors('documents.issuingDate')
-    }
-  }, [
-    watchedFields[2],
-    watchedFields[4],
-    watchedFields[5],
-    watchedFields[6],
-    setError,
-    clearErrors,
-    watch
-  ])
-
-  // Nettoyer automatiquement les erreurs quand les champs sont corrigés
-  React.useEffect(() => {
-    const subscription = watch((value: any) => {
-      // Nettoyer les erreurs de type de document
-      if (value.documents?.identityDocument && errors.documents?.identityDocument) {
-        clearErrors('documents.identityDocument')
-      }
-
-      // Nettoyer les erreurs de numéro de document
-      if (value.documents?.identityDocumentNumber && value.documents.identityDocumentNumber.length >= 1 && errors.documents?.identityDocumentNumber) {
-        clearErrors('documents.identityDocumentNumber')
-      }
-
-      // Nettoyer les erreurs de photo verso
-      if (value.documents?.documentPhotoBack && errors.documents?.documentPhotoBack) {
-        clearErrors('documents.documentPhotoBack')
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [watch, clearErrors, errors.documents])
-
-  // Gestion de l'upload des photos avec compression
-  const handlePhotoUpload = async (file: File, isBack: boolean = false) => {
-    if (file && file.type.startsWith('image/')) {
-      // Définir les états de compression
-      if (isBack) {
-        setIsCompressingBack(true)
-        setBackCompressionInfo(null)
-      } else {
-        setIsCompressingFront(true)
-        setFrontCompressionInfo(null)
-      }
-
-      try {
-        // Compresser l'image en WebP avec le preset document
-        const compressedDataUrl = await compressImage(file, IMAGE_COMPRESSION_PRESETS.document)
-
-        // Obtenir les informations sur l'image compressée
-        const imageInfo = getImageInfo(compressedDataUrl)
-
-        // Mettre à jour les états selon le type (recto/verso)
-        if (isBack) {
-          setBackPhotoPreview(compressedDataUrl)
-          setValue('documents.documentPhotoBack', compressedDataUrl)
-          setBackCompressionInfo(`${imageInfo.format} • ${imageInfo.sizeText}`)
-        } else {
-          setFrontPhotoPreview(compressedDataUrl)
-          setValue('documents.documentPhotoFront', compressedDataUrl)
-          clearErrors('documents.documentPhotoFront')
-          setFrontCompressionInfo(`${imageInfo.format} • ${imageInfo.sizeText}`)
-        }
-
-      } catch (error) {
-        console.error('Erreur lors de la compression:', error)
-        const fieldName = isBack ? 'documents.documentPhotoBack' : 'documents.documentPhotoFront'
-        setError(fieldName, {
-          type: 'compression',
-          message: 'Erreur lors de la compression de l\'image'
-        })
-      } finally {
-        // Arrêter les états de compression
-        if (isBack) {
-          setIsCompressingBack(false)
-        } else {
-          setIsCompressingFront(false)
-        }
-      }
-    }
-  }
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isBack: boolean = false) => {
-    const file = e.target.files?.[0]
-    if (file) handlePhotoUpload(file, isBack)
-  }
-
-  const handleDrop = (e: React.DragEvent, isBack: boolean = false) => {
-    e.preventDefault()
-    if (isBack) {
-      setIsDragOverBack(false)
-    } else {
-      setIsDragOverFront(false)
-    }
-    const file = e.dataTransfer.files[0]
-    if (file) handlePhotoUpload(file, isBack)
-  }
+  // L'upload est géré par useDocumentUpload
 
   return (
     <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden">
       {/* Header avec animation */}
       <div className="text-center space-y-3 animate-in fade-in-0 slide-in-from-top-4 duration-500 px-2">
-        <div className="inline-flex items-center space-x-3 px-5 sm:px-6 py-3 bg-gradient-to-r from-[#224D62]/10 via-[#CBB171]/10 to-[#224D62]/10 rounded-full shadow-lg border border-[#224D62]/20">
-          <FileText className="w-6 h-6 text-[#224D62]" />
-          <span className="text-[#224D62] font-bold text-base sm:text-lg">Pièces d'identité</span>
+        <div className="inline-flex items-center space-x-3 px-5 sm:px-6 py-3 bg-linear-to-r from-kara-primary-dark/10 via-kara-primary-light/10 to-kara-primary-dark/10 rounded-full shadow-lg border border-kara-primary-dark/20">
+          <FileText className="w-6 h-6 text-kara-primary-dark" />
+          <span className="text-kara-primary-dark font-bold text-base sm:text-lg">Pièces d'identité</span>
         </div>
-        <p className="text-[#224D62]/80 text-sm sm:text-base break-words font-medium">
+        <p className="text-kara-primary-dark/80 text-sm sm:text-base wrap-break-word font-medium">
           Téléchargez les photos de votre pièce d'identité et complétez les informations
         </p>
       </div>
@@ -258,7 +80,7 @@ export default function Step4({ form }: Step4Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 w-full">
         {/* Type de pièce d'identité */}
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 w-full min-w-0">
-          <Label className="text-xs sm:text-sm font-medium text-[#224D62]">
+          <Label className="text-xs sm:text-sm font-medium text-kara-primary-dark">
             Type de pièce d'identité <span className="text-red-500">*</span>
           </Label>
           <Select
@@ -266,8 +88,8 @@ export default function Step4({ form }: Step4Props) {
             defaultValue={watch('documents.identityDocument')}
           >
             <SelectTrigger className={cn(
-              "border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
-              watchedFields[0] && "border-[#CBB171] bg-[#CBB171]/5"
+              "border-kara-primary-light/30 focus:border-kara-primary-dark focus:ring-kara-primary-dark/20 transition-all duration-300 w-full",
+              watchedFields[0] && "border-kara-primary-light bg-kara-primary-light/5"
             )}>
               <SelectValue placeholder="Sélectionner le type de document" />
             </SelectTrigger>
@@ -280,7 +102,7 @@ export default function Step4({ form }: Step4Props) {
             </SelectContent>
           </Select>
           {watchedFields[0] && (
-            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+            <div className="flex items-center space-x-1 text-kara-primary-light text-xs animate-in slide-in-from-left-2 duration-300">
               <CheckCircle className="w-3 h-3" />
               <span>Type sélectionné: {watchedFields[0]}</span>
             </div>
@@ -289,27 +111,27 @@ export default function Step4({ form }: Step4Props) {
 
         {/* Numéro de pièce d'identité */}
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100 w-full min-w-0">
-          <Label htmlFor="identityDocumentNumber" className="text-xs sm:text-sm font-medium text-[#224D62]">
+          <Label htmlFor="identityDocumentNumber" className="text-xs sm:text-sm font-medium text-kara-primary-dark">
             Numéro de pièce d'identité <span className="text-red-500">*</span>
           </Label>
           <div className="relative">
-            <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+            <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-kara-primary-light" />
             <Input
               id="identityDocumentNumber"
               {...register('documents.identityDocumentNumber')}
               placeholder="Numéro de votre pièce d'identité"
               className={cn(
-                "pl-10 pr-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                "pl-10 pr-10 border-kara-primary-light/30 focus:border-kara-primary-dark focus:ring-kara-primary-dark/20 transition-all duration-300 w-full",
                 errors?.documents?.identityDocumentNumber && "border-red-300 focus:border-red-500 bg-red-50/50",
-                watchedFields[1] && !errors?.documents?.identityDocumentNumber && "border-[#CBB171] bg-[#CBB171]/5"
+                watchedFields[1] && !errors?.documents?.identityDocumentNumber && "border-kara-primary-light bg-kara-primary-light/5"
               )}
             />
             {watchedFields[1] && !errors?.documents?.identityDocumentNumber && (
-              <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171] animate-in zoom-in-50 duration-200" />
+              <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-kara-primary-light animate-in zoom-in-50 duration-200" />
             )}
           </div>
           {errors?.documents?.identityDocumentNumber && (
-            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 break-words">
+            <div className="flex items-center space-x-1 text-red-500 text-xs animate-in slide-in-from-right-2 duration-300 wrap-break-word">
               <AlertCircle className="w-3 h-3" />
               <span>{errors.documents.identityDocumentNumber.message}</span>
             </div>
@@ -320,9 +142,9 @@ export default function Step4({ form }: Step4Props) {
       {/* Section upload des photos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 w-full">
         {/* Photo recto (obligatoire) */}
-        <Card className="border-2 border-[#224D62]/20 bg-gradient-to-br from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 zoom-in-95 duration-700 delay-200">
+        <Card className="border-2 border-kara-primary-dark/20 bg-linear-to-br from-kara-primary-dark/5 to-kara-primary-light/5 animate-in fade-in-0 zoom-in-95 duration-700 delay-200">
           <CardHeader className="pb-4">
-            <CardTitle className="text-base sm:text-lg text-[#224D62] flex items-center space-x-2">
+            <CardTitle className="text-base sm:text-lg text-kara-primary-dark flex items-center space-x-2">
               <Camera className="w-5 h-5" />
               <span>Photo recto <span className="text-red-500">*</span></span>
             </CardTitle>
@@ -332,41 +154,41 @@ export default function Step4({ form }: Step4Props) {
             <div
               className={cn(
                 "relative w-full h-48 sm:h-64 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer group",
-                isDragOverFront
-                  ? "border-[#224D62] bg-[#224D62]/5 shadow-lg scale-105"
-                  : "border-[#224D62]/30 hover:border-[#224D62]/50 hover:bg-[#224D62]/5",
-                frontPhotoPreview && "border-solid border-[#224D62]/50 bg-[#224D62]/5"
+                frontUpload.isDragOver
+                  ? "border-kara-primary-dark bg-kara-primary-dark/5 shadow-lg scale-105"
+                  : "border-kara-primary-dark/30 hover:border-kara-primary-dark/50 hover:bg-kara-primary-dark/5",
+                frontUpload.preview && "border-solid border-kara-primary-dark/50 bg-kara-primary-dark/5"
               )}
-              onDrop={(e) => handleDrop(e, false)}
-              onDragOver={(e) => { e.preventDefault(); setIsDragOverFront(true) }}
-              onDragLeave={() => setIsDragOverFront(false)}
-              onClick={() => frontFileInputRef.current?.click()}
+              onDrop={frontUpload.handleDrop}
+              onDragOver={frontUpload.handleDragOver}
+              onDragLeave={frontUpload.handleDragLeave}
+              onClick={frontUpload.openFileSelector}
             >
-              {isCompressingFront ? (
+              {frontUpload.isCompressing ? (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3">
-                  <Loader2 className="w-8 h-8 text-[#224D62] animate-spin" />
+                  <Loader2 className="w-8 h-8 text-kara-primary-dark animate-spin" />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-[#224D62]">Compression en cours...</p>
+                    <p className="text-sm font-medium text-kara-primary-dark">Compression en cours...</p>
                     <p className="text-xs text-gray-500">Optimisation de l'image</p>
                   </div>
                 </div>
-              ) : frontPhotoPreview ? (
+              ) : frontUpload.preview ? (
                 <div className="w-full h-full rounded-lg overflow-hidden relative">
                   <img
-                    src={frontPhotoPreview}
+                    src={frontUpload.preview}
                     alt="Pièce d'identité recto"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-2 right-2">
-                    <Badge className="bg-gradient-to-r from-[#CBB171] to-[#224D62] text-white text-xs">
+                    <Badge className="bg-linear-to-r from-kara-primary-light to-kara-primary-dark text-white text-xs">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Ajoutée
                     </Badge>
                   </div>
-                  {frontCompressionInfo && (
+                  {frontUpload.compressionInfo && (
                     <div className="absolute top-2 left-2">
-                      <Badge variant="secondary" className="bg-white/90 text-[#224D62] text-xs">
-                        {frontCompressionInfo}
+                      <Badge variant="secondary" className="bg-white/90 text-kara-primary-dark text-xs">
+                        {frontUpload.compressionInfo}
                       </Badge>
                     </div>
                   )}
@@ -374,10 +196,10 @@ export default function Step4({ form }: Step4Props) {
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="flex-1 bg-white/90 text-[#224D62] hover:bg-white"
+                      className="flex-1 bg-white/90 text-kara-primary-dark hover:bg-white"
                       onClick={(e) => {
                         e.stopPropagation()
-                        frontFileInputRef.current?.click()
+                        frontUpload.openFileSelector()
                       }}
                     >
                       <Upload className="w-3 h-3 mr-1" />
@@ -387,18 +209,18 @@ export default function Step4({ form }: Step4Props) {
                 </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3 group-hover:scale-105 transition-transform">
-                  <Upload className="w-8 h-8 sm:w-12 sm:h-12 text-[#224D62]/60" />
+                  <Upload className="w-8 h-8 sm:w-12 sm:h-12 text-kara-primary-dark/60" />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-[#224D62]">Télécharger la photo recto</p>
+                    <p className="text-sm font-medium text-kara-primary-dark">Télécharger la photo recto</p>
                     <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP → Optimisé automatiquement</p>
                   </div>
                 </div>
               )}
               <input
-                ref={frontFileInputRef}
+                ref={frontUpload.fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleFileChange(e, false)}
+                onChange={frontUpload.handleFileChange}
                 className="hidden"
               />
             </div>
@@ -412,12 +234,12 @@ export default function Step4({ form }: Step4Props) {
         </Card>
 
         {/* Photo verso (optionnelle) */}
-        <Card className="border-2 border-[#CBB171]/20 bg-gradient-to-br from-[#CBB171]/5 to-[#224D62]/5 animate-in fade-in-0 zoom-in-95 duration-700 delay-300">
+        <Card className="border-2 border-kara-primary-light/20 bg-linear-to-br from-kara-primary-light/5 to-kara-primary-dark/5 animate-in fade-in-0 zoom-in-95 duration-700 delay-300">
           <CardHeader className="pb-4">
-            <CardTitle className="text-base sm:text-lg text-[#224D62] flex items-center space-x-2">
+            <CardTitle className="text-base sm:text-lg text-kara-primary-dark flex items-center space-x-2">
               <Camera className="w-5 h-5" />
               <span>Photo verso</span>
-              <Badge variant="secondary" className="ml-2 bg-[#CBB171]/10 text-[#CBB171] text-[10px] sm:text-xs">
+              <Badge variant="secondary" className="ml-2 bg-kara-primary-light/10 text-kara-primary-light text-[10px] sm:text-xs">
                 Optionnel
               </Badge>
             </CardTitle>
@@ -427,41 +249,41 @@ export default function Step4({ form }: Step4Props) {
             <div
               className={cn(
                 "relative w-full h-48 sm:h-64 border-2 border-dashed rounded-lg transition-all duration-300 cursor-pointer group",
-                isDragOverBack
-                  ? "border-[#CBB171] bg-[#CBB171]/5 shadow-lg scale-105"
-                  : "border-[#CBB171]/30 hover:border-[#CBB171]/50 hover:bg-[#CBB171]/5",
-                backPhotoPreview && "border-solid border-[#CBB171]/50 bg-[#CBB171]/5"
+                backUpload.isDragOver
+                  ? "border-kara-primary-light bg-kara-primary-light/5 shadow-lg scale-105"
+                  : "border-kara-primary-light/30 hover:border-kara-primary-light/50 hover:bg-kara-primary-light/5",
+                backUpload.preview && "border-solid border-kara-primary-light/50 bg-kara-primary-light/5"
               )}
-              onDrop={(e) => handleDrop(e, true)}
-              onDragOver={(e) => { e.preventDefault(); setIsDragOverBack(true) }}
-              onDragLeave={() => setIsDragOverBack(false)}
-              onClick={() => backFileInputRef.current?.click()}
+              onDrop={backUpload.handleDrop}
+              onDragOver={backUpload.handleDragOver}
+              onDragLeave={backUpload.handleDragLeave}
+              onClick={backUpload.openFileSelector}
             >
-              {isCompressingBack ? (
+              {backUpload.isCompressing ? (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3">
-                  <Loader2 className="w-8 h-8 text-[#CBB171] animate-spin" />
+                  <Loader2 className="w-8 h-8 text-kara-primary-light animate-spin" />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-[#224D62]">Compression en cours...</p>
+                    <p className="text-sm font-medium text-kara-primary-dark">Compression en cours...</p>
                     <p className="text-xs text-gray-500">Optimisation de l'image</p>
                   </div>
                 </div>
-              ) : backPhotoPreview ? (
+              ) : backUpload.preview ? (
                 <div className="w-full h-full rounded-lg overflow-hidden relative">
                   <img
-                    src={backPhotoPreview}
+                    src={backUpload.preview}
                     alt="Pièce d'identité verso"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-2 right-2">
-                    <Badge className="bg-gradient-to-r from-[#224D62] to-[#CBB171] text-white text-xs">
+                    <Badge className="bg-linear-to-r from-kara-primary-dark to-kara-primary-light text-white text-xs">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Ajoutée
                     </Badge>
                   </div>
-                  {backCompressionInfo && (
+                  {backUpload.compressionInfo && (
                     <div className="absolute top-2 left-2">
-                      <Badge variant="secondary" className="bg-white/90 text-[#224D62] text-xs">
-                        {backCompressionInfo}
+                      <Badge variant="secondary" className="bg-white/90 text-kara-primary-dark text-xs">
+                        {backUpload.compressionInfo}
                       </Badge>
                     </div>
                   )}
@@ -469,10 +291,10 @@ export default function Step4({ form }: Step4Props) {
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="flex-1 bg-white/90 text-[#224D62] hover:bg-white"
+                      className="flex-1 bg-white/90 text-kara-primary-dark hover:bg-white"
                       onClick={(e) => {
                         e.stopPropagation()
-                        backFileInputRef.current?.click()
+                        backUpload.openFileSelector()
                       }}
                     >
                       <Upload className="w-3 h-3 mr-1" />
@@ -482,18 +304,18 @@ export default function Step4({ form }: Step4Props) {
                 </div>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center space-y-3 group-hover:scale-105 transition-transform">
-                  <Upload className="w-8 h-8 sm:w-12 sm:h-12 text-[#CBB171]/60" />
+                  <Upload className="w-8 h-8 sm:w-12 sm:h-12 text-kara-primary-light/60" />
                   <div className="text-center">
-                    <p className="text-sm font-medium text-[#224D62]">Télécharger la photo verso</p>
+                    <p className="text-sm font-medium text-kara-primary-dark">Télécharger la photo verso</p>
                     <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP → Optimisé automatiquement</p>
                   </div>
                 </div>
               )}
               <input
-                ref={backFileInputRef}
+                ref={backUpload.fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleFileChange(e, true)}
+                onChange={backUpload.handleFileChange}
                 className="hidden"
               />
             </div>
@@ -506,24 +328,24 @@ export default function Step4({ form }: Step4Props) {
         {/* Date de délivrance */}
         <div className="w-full max-w-md">
           <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-600 w-full min-w-0">
-            <Label htmlFor="issuingDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
+            <Label htmlFor="issuingDate" className="text-xs sm:text-sm font-medium text-kara-primary-dark">
               Date de délivrance <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-kara-primary-light" />
               <Input
                 id="issuingDate"
                 type="date"
                 {...register('documents.issuingDate')}
                 className={cn(
-                  "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                  "pl-10 border-kara-primary-light/30 focus:border-kara-primary-dark focus:ring-kara-primary-dark/20 transition-all duration-300 w-full",
                   errors?.documents?.issuingDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                  watchedFields[6] && !errors?.documents?.issuingDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                  watchedFields[6] && !errors?.documents?.issuingDate && "border-kara-primary-light/50 bg-kara-primary-light/5"
                 )}
               />
             </div>
             {watchedFields[6] && !errors?.documents?.issuingDate && (
-              <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+              <div className="flex items-center space-x-1 text-kara-primary-light text-xs animate-in slide-in-from-left-2 duration-300">
                 <CheckCircle className="w-3 h-3" />
                 <span>Date de délivrance ajoutée</span>
               </div>
@@ -539,24 +361,24 @@ export default function Step4({ form }: Step4Props) {
         
         {/* Date d'expiration */}
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-400 w-full min-w-0">
-          <Label htmlFor="expirationDate" className="text-xs sm:text-sm font-medium text-[#224D62]">
+          <Label htmlFor="expirationDate" className="text-xs sm:text-sm font-medium text-kara-primary-dark">
             Date d'expiration <span className="text-red-500">*</span>
           </Label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-kara-primary-light" />
             <Input
               id="expirationDate"
               type="date"
               {...register('documents.expirationDate')}
               className={cn(
-                "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                "pl-10 border-kara-primary-light/30 focus:border-kara-primary-dark focus:ring-kara-primary-dark/20 transition-all duration-300 w-full",
                 errors?.documents?.expirationDate && "border-red-300 focus:border-red-500 bg-red-50/50",
-                watchedFields[4] && !errors?.documents?.expirationDate && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                watchedFields[4] && !errors?.documents?.expirationDate && "border-kara-primary-light/50 bg-kara-primary-light/5"
               )}
             />
           </div>
           {watchedFields[4] && !errors?.documents?.expirationDate && (
-            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-left-2 duration-300">
+            <div className="flex items-center space-x-1 text-kara-primary-light text-xs animate-in slide-in-from-left-2 duration-300">
               <CheckCircle className="w-3 h-3" />
               <span>Date d'expiration ajoutée</span>
             </div>
@@ -571,24 +393,24 @@ export default function Step4({ form }: Step4Props) {
 
         {/* Lieu de délivrance */}
         <div className="space-y-2 animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-500 w-full min-w-0">
-          <Label htmlFor="issuingPlace" className="text-xs sm:text-sm font-medium text-[#224D62]">
+          <Label htmlFor="issuingPlace" className="text-xs sm:text-sm font-medium text-kara-primary-dark">
             Lieu de délivrance <span className="text-red-500">*</span>
           </Label>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#CBB171]" />
+            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-kara-primary-light" />
             <Input
               id="issuingPlace"
               {...register('documents.issuingPlace')}
               placeholder="Ex: Libreville, Gabon..."
               className={cn(
-                "pl-10 border-[#CBB171]/30 focus:border-[#224D62] focus:ring-[#224D62]/20 transition-all duration-300 w-full",
+                "pl-10 border-kara-primary-light/30 focus:border-kara-primary-dark focus:ring-kara-primary-dark/20 transition-all duration-300 w-full",
                 errors?.documents?.issuingPlace && "border-red-300 focus:border-red-500 bg-red-50/50",
-                watchedFields[5] && !errors?.documents?.issuingPlace && "border-[#CBB171]/50 bg-[#CBB171]/5"
+                watchedFields[5] && !errors?.documents?.issuingPlace && "border-kara-primary-light/50 bg-kara-primary-light/5"
               )}
             />
           </div>
           {watchedFields[5] && !errors?.documents?.issuingPlace && (
-            <div className="flex items-center space-x-1 text-[#CBB171] text-xs animate-in slide-in-from-right-2 duration-300">
+            <div className="flex items-center space-x-1 text-kara-primary-light text-xs animate-in slide-in-from-right-2 duration-300">
               <CheckCircle className="w-3 h-3" />
               <span>Lieu de délivrance ajouté</span>
             </div>
@@ -603,24 +425,24 @@ export default function Step4({ form }: Step4Props) {
       </div>
 
       {/* Résumé du document et validation */}
-      <Card className="border border-[#224D62]/20 bg-gradient-to-r from-[#224D62]/5 to-[#CBB171]/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
+      <Card className="border border-kara-primary-dark/20 bg-linear-to-r from-kara-primary-dark/5 to-kara-primary-light/5 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 w-full">
         <CardContent className="p-4 sm:p-6 w-full">
           <div className="flex items-start space-x-4 w-full min-w-0">
-            <FileText className="w-6 h-6 text-[#224D62] mt-1 flex-shrink-0" />
+            <FileText className="w-6 h-6 text-kara-primary-dark mt-1 shrink-0" />
             <div className="space-y-3 min-w-0 flex-1">
-              <p className="text-sm sm:text-base font-medium text-[#224D62]">État de validation du document</p>
+              <p className="text-sm sm:text-base font-medium text-kara-primary-dark">État de validation du document</p>
 
               {/* Grille des validations */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
                 {/* Photo recto */}
                 <div className="flex items-center space-x-2">
-                  {frontPhotoPreview ? (
+                  {frontUpload.preview ? (
                     <CheckCircle className="w-4 h-4 text-green-500" />
                   ) : (
                     <AlertCircle className="w-4 h-4 text-red-500" />
                   )}
-                  <span className={frontPhotoPreview ? "text-green-600" : "text-red-600"}>
-                    Photo recto {frontPhotoPreview ? "✓" : "(requis)"}
+                  <span className={frontUpload.preview ? "text-green-600" : "text-red-600"}>
+                    Photo recto {frontUpload.preview ? "✓" : "(requis)"}
                   </span>
                 </div>
 
@@ -663,7 +485,7 @@ export default function Step4({ form }: Step4Props) {
 
               {/* Informations du document si disponibles */}
               {(watchedFields[0] || watchedFields[1]) && (
-                <div className="pt-3 border-t border-[#224D62]/10">
+                <div className="pt-3 border-t border-kara-primary-dark/10">
                   <p className="text-xs text-gray-500 mb-2">Informations du document:</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600">
                     {watchedFields[0] && (
@@ -685,11 +507,11 @@ export default function Step4({ form }: Step4Props) {
       </Card>
 
       {/* Message d'erreur si des champs sont manquants */}
-      {(!frontPhotoPreview || !watchedFields[4] || !watchedFields[5] || !watchedFields[6] || !termsAccepted ||
+      {(!frontUpload.preview || !watchedFields[4] || !watchedFields[5] || !watchedFields[6] || !termsAccepted ||
         errors?.documents?.expirationDate || errors?.documents?.issuingPlace || errors?.documents?.issuingDate || errors?.documents?.termsAccepted) && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg animate-in fade-in-0 slide-in-from-top-2 duration-300 w-full">
             <div className="flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
               <div>
                 <h3 className="text-sm font-medium text-red-800 mb-1">Champs obligatoires manquants</h3>
                 <p className="text-sm text-red-600">
@@ -702,10 +524,10 @@ export default function Step4({ form }: Step4Props) {
 
       {/* Checkbox Lu et approuvé */}
       <Card className={cn(
-        "border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700 w-full transition-all duration-300",
+        "border-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700 w-full transition-all",
         termsAccepted 
-          ? "border-green-500 bg-gradient-to-r from-green-50 to-green-100 shadow-lg" 
-          : "border-red-300 bg-gradient-to-r from-red-50 to-red-100"
+          ? "border-green-500 bg-linear-to-r from-green-50 to-green-100 shadow-lg" 
+          : "border-red-300 bg-linear-to-r from-red-50 to-red-100"
       )}>
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-start space-x-4">
@@ -753,7 +575,7 @@ export default function Step4({ form }: Step4Props) {
           </div>
           {errors?.documents?.termsAccepted && (
             <div className="flex items-center space-x-2 text-red-600 text-sm mt-3 p-3 bg-red-50 rounded-lg border border-red-200 animate-in slide-in-from-top-2 duration-300">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 shrink-0" />
               <span className="font-medium">{errors.documents.termsAccepted.message}</span>
             </div>
           )}
@@ -761,10 +583,10 @@ export default function Step4({ form }: Step4Props) {
       </Card>
 
       {/* Message final */}
-      <div className="text-center p-4 sm:p-6 bg-gradient-to-r from-[#224D62]/5 via-[#CBB171]/5 to-[#224D62]/10 rounded-xl border border-[#224D62]/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full break-words shadow-lg">
+      <div className="text-center p-4 sm:p-6 bg-linear-to-r from-kara-primary-dark/5 via-kara-primary-light/5 to-kara-primary-dark/10 rounded-xl border border-kara-primary-dark/20 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-800 w-full max-w-full wrap-break-word shadow-lg">
         <div className="flex items-center justify-center space-x-3">
-          <FileText className="w-6 h-6 text-[#CBB171]" />
-          <p className="text-sm sm:text-base text-[#224D62] font-bold">
+          <FileText className="w-6 h-6 text-kara-primary-light" />
+          <p className="text-sm sm:text-base text-kara-primary-dark font-bold">
             <strong>Sécurité :</strong> Vos documents d'identité sont stockés de manière sécurisée et utilisés uniquement pour la vérification de votre identité
           </p>
         </div>

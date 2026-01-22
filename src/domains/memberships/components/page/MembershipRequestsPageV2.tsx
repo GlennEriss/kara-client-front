@@ -1352,7 +1352,7 @@ export function MembershipRequestsPageV2() {
               }}
               phoneNumbers={selectedRequest.identity.contacts || []}
               memberName={selectedMemberName}
-              firstName={selectedRequest.identity.firstName}
+              firstName={selectedRequest.identity.firstName || ''}
               matricule={selectedRequest.matricule}
               motifReject={selectedRequest.motifReject || ''}
               requestId={selectedRequest.id}

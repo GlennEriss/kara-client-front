@@ -1,0 +1,24 @@
+@startuml Changement de tab
+title Navigation entre tabs (presets de filtres)
+
+start
+
+:Admin clique sur un tab
+(Adhérents, Bienfaiteurs, etc.);
+
+:Tab sélectionné;
+
+:useMembershipsListV2 reçoit tab;
+
+:Mapping tab → UserFilters;
+
+:Preset de filtres appliqué;
+
+:Repository.getMembersPaginated()
+avec nouveaux filtres;
+
+:Liste mise à jour;
+
+stop
+
+@enduml

@@ -1,0 +1,24 @@
+@startuml Séquence - UC5 recherche dans Véhicules
+Title Recherche d'un membre depuis l'onglet Véhicules
+
+actor Admin
+participant "Onglet Véhicules" as Vehicules
+participant "MemberSearchInput" as Input
+participant "useMembershipSearch" as SearchHook
+participant "MemberSearchService" as Service
+participant Firestore
+
+Admin -> Vehicules: Ouvre onglet Véhicules
+Vehicules -> Input: Render champ de recherche membre
+Admin -> Input: Tape un terme (nom/matricule)
+Input -> SearchHook: useMembershipSearch(searchTerm)
+SearchHook -> Service: searchByNameOrMatricule(searchTerm)
+Service -> Firestore: query users (ou Algolia selon implémentation)
+Firestore --> Service: résultats
+Service --> SearchHook: liste membres
+SearchHook --> Input: met à jour liste de suggestions
+Admin -> Input: Sélectionne un membre
+Input -> Vehicules: notifie membre sélectionné
+Vehicules -> Vehicules: met à jour contexte (memberId)
+
+@enduml
