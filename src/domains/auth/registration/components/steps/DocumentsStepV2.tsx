@@ -244,7 +244,7 @@ export default function DocumentsStepV2() {
           </div>
         ) : preview ? (
           <>
-            <img src={preview} alt="" className="w-full h-full object-cover" />
+            <img src={preview} alt={isBack ? 'Aperçu du verso du document d\'identité' : 'Aperçu du recto du document d\'identité'} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-4">
               <div className="flex gap-2">
                 <button

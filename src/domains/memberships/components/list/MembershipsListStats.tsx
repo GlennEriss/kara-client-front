@@ -215,7 +215,7 @@ export function MembershipsListStats({ stats }: MembershipsListStatsProps) {
       percentage: stats.expiredPercentage,
       color: '#ef4444',
       icon: Clock,
-      trend: stats.expiredPercentage > 20 ? 'up' : 'neutral',
+      trend: (stats.expiredPercentage > 20 ? 'up' : 'neutral') as 'up' | 'down' | 'neutral',
     },
     {
       title: 'Hommes',

@@ -116,10 +116,10 @@ export class MembershipFormService {
       }
     } catch (error) {
       console.error('❌ [MembershipFormService] Erreur lors de la soumission:', error)
-      console.error('   Type:', error?.constructor?.name)
-      console.error('   Code:', error?.code)
-      console.error('   Message:', error?.message)
-      console.error('   Stack:', error?.stack)
+      console.error('   Type:', (error as any)?.constructor?.name)
+      console.error('   Code:', (error as any)?.code)
+      console.error('   Message:', (error as any)?.message)
+      console.error('   Stack:', (error as any)?.stack)
       
       const normalizedError = this.errorHandler.normalizeError(error, 'submitNewMembership')
       console.error('   Erreur normalisée:', normalizedError)

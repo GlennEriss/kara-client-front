@@ -562,7 +562,7 @@ const MembershipRequestCard = ({
           const start = new Date()
           const end = new Date()
           end.setFullYear(end.getFullYear() + 1)
-          const safe = (s: string) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-.]/g, '')
+          const safe = (s: string | undefined) => (s || '').trim().replace(/\s+/g, '_').replace(/[^\w\-.]/g, '')
           const first = safe(request.identity.firstName)
           const last = safe(request.identity.lastName)
           const fileName = `${first}_${last}_${start.getFullYear()}-${end.getFullYear()}.pdf`

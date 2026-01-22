@@ -34,8 +34,8 @@ export class MemberRepository implements IMemberRepository {
 
                 // Transformer MembershipRequest en Filleul
                 const filleulData: Filleul = {
-                    lastName: membershipData.identity.lastName,
-                    firstName: membershipData.identity.firstName,
+                    lastName: membershipData.identity.lastName || '',
+                    firstName: membershipData.identity.firstName || '',
                     matricule: membershipData.matricule || doc.id,
                     photoURL: membershipData.identity.photoURL,
                     photoPath: membershipData.identity.photoPath,

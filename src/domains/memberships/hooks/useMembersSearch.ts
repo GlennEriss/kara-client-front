@@ -18,7 +18,7 @@ import {
   type MembersSearchFilters,
   type MembersSortBy,
 } from '@/services/search/MembersAlgoliaSearchService'
-import type { UserFilters, MembershipType } from '@/types/types'
+import type { UserFilters, MembershipType, UserRole } from '@/types/types'
 
 export interface UseMembersSearchOptions {
   /** Terme de recherche textuelle (nom, prénom, matricule, email, téléphone, etc.) */
@@ -26,7 +26,7 @@ export interface UseMembersSearchOptions {
   /** Filtres à appliquer */
   filters?: {
     membershipType?: MembershipType
-    roles?: string[]
+    roles?: UserRole[]
     isActive?: boolean
     gender?: 'M' | 'F'
     hasCar?: boolean
