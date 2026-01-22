@@ -272,7 +272,7 @@ describe('MembersRepositoryV2', () => {
         expect.objectContaining({
           filters: expect.objectContaining({
             membershipType: 'adherant',
-            roles: ['member'],
+            roles: ['Adherant'],
             isActive: true,
             hasCar: false,
             province: 'Estuaire',
