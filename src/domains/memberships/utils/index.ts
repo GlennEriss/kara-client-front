@@ -3,3 +3,4 @@
 export * from './securityCode'
 export * from './whatsappUrl'
 export * from './correctionUtils'
+export * from './getSubscriptionAmountFromPayments'

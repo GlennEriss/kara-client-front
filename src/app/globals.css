@@ -201,6 +201,12 @@ html {
   outline-offset: 2px;
 }
 
+/* Fallback global : indicateur de focus au clavier (évite outline: none sans alternative) */
+:focus-visible {
+  outline: 2px solid var(--kara-gold);
+  outline-offset: 2px;
+}
+
 /* Amélioration des performances pour les animations */
 .will-change-transform {
   will-change: transform;
@@ -415,6 +421,16 @@ html {
       width: calc(100% - 32px) !important;
     }
   }
+}
+
+/* Classe utilitaire pour masquer la barre de défilement tout en gardant le scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE et Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari et Opera */
 }
 
 /* Responsive typography */

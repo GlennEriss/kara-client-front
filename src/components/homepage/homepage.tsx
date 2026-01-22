@@ -18,7 +18,7 @@ const Homepage = () => {
   return (
     <div className="h-screen bg-white font-montserrat">
       {/* Navigation */}
-      <nav className={`fixed w-full z-50 transition-all duration-500 ${isScrolled ? 'py-3 navbar-scrolled' : 'py-4'}`}>
+      <nav className={`fixed w-full z-50 transition-all duration-500 ${isScrolled ? 'py-3 navbar-scrolled' : 'py-4'}`} aria-label="Navigation principale">
         <div className="container mx-auto px-4 lg:px-6">
           <div className="flex justify-between items-center">
             <NavbarLogo
@@ -34,12 +34,13 @@ const Homepage = () => {
               {['accueil', 'qui-sommes-nous', 'objectifs', 'services', 'adhesion', 'contact'].map((item) => (
                 <button
                   key={item}
+                  type="button"
                   onClick={() => scrollToSection(item)}
-                  className={`relative font-medium transition-all duration-300 capitalize group ${isScrolled ? 'text-kara-blue' : 'text-white'
+                  className={`relative font-medium transition-all duration-300 capitalize group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded ${isScrolled ? 'text-kara-blue' : 'text-white'
                     } hover:text-kara-gold`}
                 >
                   {item.replace('-', ' ')}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-kara-gold transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-kara-gold transition-all duration-300 group-hover:w-full" aria-hidden="true"></span>
                 </button>
               ))}
               <Button
@@ -56,13 +57,16 @@ const Homepage = () => {
 
             {/* Mobile Menu Toggle */}
             <button
-              className="lg:hidden p-2 rounded-lg transition-all duration-300 hover:bg-white/10"
+              type="button"
+              className="lg:hidden p-2 rounded-lg transition-all duration-300 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
               onClick={toggleMenu}
+              aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+              aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? (
-                <X size={24} className={isScrolled ? 'text-kara-blue' : 'text-white'} />
+                <X size={24} className={isScrolled ? 'text-kara-blue' : 'text-white'} aria-hidden />
               ) : (
-                <Menu size={24} className={isScrolled ? 'text-kara-blue' : 'text-white'} />
+                <Menu size={24} className={isScrolled ? 'text-kara-blue' : 'text-white'} aria-hidden />
               )}
             </button>
           </div>
@@ -95,6 +99,7 @@ const Homepage = () => {
         </div>
       </nav>
 
+      <main id="main-content">
       {/* Hero Section */}
       <section id="accueil" className="hero-section md:px-5 min-h-screen flex items-center relative overflow-hidden">
         <div className="container mx-auto px-4 lg:px-6 relative z-10">
@@ -144,8 +149,8 @@ const Homepage = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-kara-blue/20 to-transparent"></div>
                 </div>
-                <div className="hero-badge absolute -top-4 -right-4 sm:-top-6 sm:-right-6 w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-kara-gold to-yellow-400 rounded-full flex items-center justify-center animate-bounce-in shadow-xl">
-                  <Star className="text-white animate-pulse" size={24} />
+                <div className="hero-badge absolute -top-4 -right-4 sm:-top-6 sm:-right-6 w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-kara-gold to-yellow-400 rounded-full flex items-center justify-center animate-bounce-in shadow-xl" aria-hidden="true">
+                  <Star className="text-kara-primary-dark animate-pulse" size={24} aria-hidden />
                 </div>
 
                 {/* Decorative elements */}
@@ -414,9 +419,10 @@ const Homepage = () => {
           </div>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
-      <footer className="footer-section text-white py-12">
+      <footer className="footer-section text-white py-12" role="contentinfo">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-8 mb-8">
             <div className="text-center">
@@ -442,8 +448,9 @@ const Homepage = () => {
                 ].map((link) => (
                   <li key={link.id}>
                     <button
+                      type="button"
                       onClick={() => scrollToSection(link.id)}
-                      className="text-gray-300 hover:text-kara-gold transition-colors"
+                      className="text-gray-300 hover:text-kara-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
                     >
                       {link.label}
                     </button>
@@ -455,36 +462,54 @@ const Homepage = () => {
 
           <div className="text-center">
             <h4 className="text-xl font-semibold mb-4">Suivez-nous</h4>
-            <div className="flex justify-center space-x-4">
+            <div className="flex justify-center space-x-4" role="group" aria-label="Réseaux sociaux">
               <button
+                type="button"
                 onClick={() => window.open(process.env.NEXT_PUBLIC_FACEBOOK_URL, '_blank')}
-                className="text-gray-300 hover:text-kara-gold transition-colors">
-                <IconBrandFacebook size={24} />
+                className="text-gray-300 hover:text-kara-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                aria-label="Facebook"
+              >
+                <IconBrandFacebook size={24} aria-hidden />
               </button>
               <button
+                type="button"
                 onClick={() => window.open(process.env.NEXT_PUBLIC_TWITTER_URL, '_blank')}
-                className="text-gray-300 hover:text-kara-gold transition-colors">
-                <IconBrandTwitter size={24} />
+                className="text-gray-300 hover:text-kara-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                aria-label="Twitter"
+              >
+                <IconBrandTwitter size={24} aria-hidden />
               </button>
               <button
+                type="button"
                 onClick={() => window.open(process.env.NEXT_PUBLIC_INSTAGRAM_URL, '_blank')}
-                className="text-gray-300 hover:text-kara-gold transition-colors">
-                <IconBrandInstagram size={24} />
+                className="text-gray-300 hover:text-kara-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                aria-label="Instagram"
+              >
+                <IconBrandInstagram size={24} aria-hidden />
               </button>
               <button
+                type="button"
                 onClick={() => window.open(process.env.NEXT_PUBLIC_LINKEDIN_URL, '_blank')}
-                className="text-gray-300 hover:text-kara-gold transition-colors">
-                <IconBrandLinkedin size={24} />
+                className="text-gray-300 hover:text-kara-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                aria-label="LinkedIn"
+              >
+                <IconBrandLinkedin size={24} aria-hidden />
               </button>
               <button
+                type="button"
                 onClick={() => window.open(process.env.NEXT_PUBLIC_YOUTUBE_URL, '_blank')}
-                className="text-gray-300 hover:text-kara-gold transition-colors">
-                <IconBrandYoutube size={24} />
+                className="text-gray-300 hover:text-kara-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                aria-label="YouTube"
+              >
+                <IconBrandYoutube size={24} aria-hidden />
               </button>
               <button
+                type="button"
                 onClick={() => window.open(process.env.NEXT_PUBLIC_TIKTOK_URL, '_blank')}
-                className="text-gray-300 hover:text-kara-gold transition-colors">
-                <IconBrandTiktok size={24} />
+                className="text-gray-300 hover:text-kara-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kara-gold focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+                aria-label="TikTok"
+              >
+                <IconBrandTiktok size={24} aria-hidden />
               </button>
             </div>
           </div>

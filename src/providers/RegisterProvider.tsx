@@ -9,7 +9,8 @@ import {
   stepSchemas,
   defaultValues
 } from '@/schemas/schemas'
-import { createMembershipRequest, getMembershipRequestById, updateMembershipRequest, markSecurityCodeAsUsed } from '@/db/membership.db'
+import { getMembershipRequestById, markSecurityCodeAsUsed } from '@/db/membership.db'
+import { MembershipFormService } from '@/domains/memberships/services/MembershipFormService'
 import { toast } from "sonner"
 import { CompanyFormMediatorFactory } from '@/factories/CompanyFormMediatorFactory'
 import { CompanyFormMediator } from '@/mediators/CompanyFormMediator'
@@ -289,6 +290,9 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
   const totalSteps = 4
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Instance du service centralisé
+  const formService = MembershipFormService.getInstance()
 
   // Configuration du formulaire avec react-hook-form
   const form = useForm<RegisterFormData>({
@@ -373,8 +377,17 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         }
 
         // Vérifier ensuite s'il y a une soumission valide (priorité secondaire)
+        // IMPORTANT: Ne vérifier que si on n'a pas de requestId dans l'URL
+        // Si on arrive sur /memberships/add sans requestId, c'est qu'on veut créer une nouvelle demande
+        // Il faut donc nettoyer le cache de soumission pour permettre la création d'une nouvelle demande
         const submissionData = CacheManager.loadSubmissionData()
-        if (submissionData) {
+        if (submissionData && !requestId) {
+          // On arrive sur /memberships/add sans requestId = nouvelle demande
+          // Nettoyer le cache de soumission pour permettre la création
+          console.log('🧹 Nettoyage du cache de soumission pour permettre la création d\'une nouvelle demande')
+          CacheManager.clearSubmissionData()
+        } else if (submissionData && requestId) {
+          // On a un requestId ET des données de soumission = on continue avec la vérification normale
           // Vérifier si le document existe encore dans Firestore
           console.log('🔍 Vérification de l\'existence du membership:', submissionData.membershipId)
           try {
@@ -444,12 +457,15 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     debounceRef.current = setTimeout(() => {
       if (isCacheLoaded) {
         const currentData = getValues()
+        // Sauvegarder via le service centralisé (brouillon)
+        formService.saveDraft(currentData)
+        // Garder aussi le CacheManager pour la compatibilité (étapes, progression)
         CacheManager.saveFormData(currentData)
         CacheManager.saveCurrentStep(currentStep)
         CacheManager.saveCompletedSteps(completedSteps)
       }
     }, DEBOUNCE_DELAY)
-  }, [getValues, currentStep, completedSteps, isCacheLoaded])
+  }, [getValues, currentStep, completedSteps, isCacheLoaded, formService])
 
   // Surveiller les changements du formulaire pour sauvegarder
   useEffect(() => {
@@ -573,10 +589,13 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   // ================== GESTION DU CACHE ==================
   const saveToCache = useCallback(() => {
     const currentData = getValues()
+    // Sauvegarder via le service centralisé (brouillon)
+    formService.saveDraft(currentData)
+    // Garder aussi le CacheManager pour la compatibilité (étapes, progression)
     CacheManager.saveFormData(currentData)
     CacheManager.saveCurrentStep(currentStep)
     CacheManager.saveCompletedSteps(completedSteps)
-  }, [getValues, currentStep, completedSteps])
+  }, [getValues, currentStep, completedSteps, formService])
 
   const loadFromCache = useCallback((): boolean => {
     const cachedData = CacheManager.loadFormData()
@@ -636,13 +655,18 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       const formData = getValues()
 
       // Vérifier si c'est une correction ou une nouvelle demande
-      if (correctionRequest?.isVerified) {
+      if (correctionRequest?.isVerified && securityCodeInput.trim()) {
         // Mise à jour d'une demande existante (correction)
         console.log('🔄 Mise à jour de la demande de correction:', correctionRequest.requestId)
 
-        const success = await updateMembershipRequest(correctionRequest.requestId, formData)
-        if (!success) {
-          throw new Error('Échec de la mise à jour de la demande d\'adhésion')
+        const result = await formService.submitCorrection(
+          formData,
+          correctionRequest.requestId,
+          securityCodeInput.trim()
+        )
+
+        if (!result.success) {
+          throw new Error(result.error || 'Échec de la mise à jour de la demande d\'adhésion')
         }
 
         // Succès - nettoyer le cache et afficher le message de succès
@@ -674,13 +698,16 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         setIsSubmitted(true)
         setUserData(userData)
         setCorrectionRequest(null) // Nettoyer les données de correction
+        setSecurityCodeInput('') // Nettoyer le code de sécurité
       } else {
         // Nouvelle demande
-        const membershipRequestId = await createMembershipRequest(formData)
-        console.log('membershipRequestId', membershipRequestId)
-        if (!membershipRequestId) {
-          throw new Error('Échec de l\'enregistrement de la demande d\'adhésion')
+        const result = await formService.submitNewMembership(formData)
+
+        if (!result.success || !result.requestId) {
+          throw new Error(result.error || 'Échec de l\'enregistrement de la demande d\'adhésion')
         }
+
+        console.log('membershipRequestId', result.requestId)
 
         // Succès - sauvegarder les données de soumission et nettoyer le cache du formulaire
         const userData = {
@@ -693,7 +720,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
         CacheManager.clearFormDataOnly()
 
         // Sauvegarder l'ID du membership et les données utilisateur pour 48h
-        CacheManager.saveSubmissionData(membershipRequestId, userData)
+        CacheManager.saveSubmissionData(result.requestId, userData)
 
         // Afficher toast de succès
         const { displayName } = getIdentityDetails()
@@ -736,7 +763,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
       setIsSubmitting(false)
       setIsLoading(false)
     }
-  }, [trigger, getValues, reset, correctionRequest, getIdentityDetails])
+  }, [trigger, getValues, reset, correctionRequest, securityCodeInput, getIdentityDetails, formService])
 
   // ================== RESET ==================
   const resetForm = useCallback(() => {

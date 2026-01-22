@@ -6,7 +6,7 @@ skinparam class {
   ArrowColor DarkBlue
 }
 
-title Diagramme de Classes - Module Géographie
+title Diagramme de Classes - Module Géographie (V2)
 
 ' ============================================
 ' RÉFÉRENCE AUX CLASSES PARTAGÉES
@@ -20,8 +20,9 @@ package "Shared" <<Cloud>> {
 }
 
 ' ============================================
-' CLASSE : PROVINCE
+' ENTITÉS FIRESTORE
 ' ============================================
+
 class Province {
   + id: string
   + code: string
@@ -30,9 +31,6 @@ class Province {
   + updatedAt: Date
 }
 
-' ============================================
-' CLASSE : DEPARTMENT (Département)
-' ============================================
 class Department {
   + id: string
   + provinceId: string
@@ -42,9 +40,6 @@ class Department {
   + updatedAt: Date
 }
 
-' ============================================
-' CLASSE : COMMUNE (Ville)
-' ============================================
 class Commune {
   + id: string
   + departmentId: string
@@ -55,9 +50,6 @@ class Commune {
   + updatedAt: Date
 }
 
-' ============================================
-' CLASSE : DISTRICT (Arrondissement)
-' ============================================
 class District {
   + id: string
   + communeId: string
@@ -66,9 +58,6 @@ class District {
   + updatedAt: Date
 }
 
-' ============================================
-' CLASSE : QUARTER (Quartier)
-' ============================================
 class Quarter {
   + id: string
   + districtId: string
@@ -78,31 +67,220 @@ class Quarter {
 }
 
 ' ============================================
-' RELATIONS HIÉRARCHIQUES
+' HOOKS REACT QUERY
 ' ============================================
 
-' Province (1) --> Department (*) : contient
+class useProvinces {
+  + data: Province[] | undefined
+  + isLoading: boolean
+  + isError: boolean
+}
+
+class useCommunesByProvince {
+  + provinceId: string
+  + data: Commune[] | undefined
+  + isLoading: boolean
+  + isEnabled: boolean
+}
+
+class useDistrictsByCommune {
+  + communeId: string
+  + data: District[] | undefined
+  + isLoading: boolean
+  + isEnabled: boolean
+}
+
+class useQuartersByDistrict {
+  + districtId: string
+  + data: Quarter[] | undefined
+  + isLoading: boolean
+  + isEnabled: boolean
+}
+
+class useAddressCascade {
+  + form: UseFormReturn
+  + provinceId?: string
+  + communeId?: string
+  + districtId?: string
+  + provinces: Province[]
+  + communes: Commune[]
+  + districts: District[]
+  + quarters: Quarter[]
+  + loading: CascadeLoadingState
+  + errors: CascadeErrorState
+}
+
+note right of useAddressCascade
+  **Hook orchestrateur pour cascade géographique**
+  
+  **Package:** src/domains/infrastructure/geography/hooks/
+  
+  **Fonctionnalités:**
+  - Gère la cascade Province → Commune → District → Quartier
+  - Reset automatique des champs enfants lors de changement parent
+  - Cache React Query (5 min staleTime)
+  - Agrège les états de chargement/erreur
+  
+  **Utilisé par:**
+  - MembershipFormStepAddress (Step 2)
+end note
+
+' ============================================
+' COMPOSANTS UI - COMBOBOX
+' ============================================
+
+class ProvinceCombobox {
+  + form: UseFormReturn
+  + disabled?: boolean
+  + onChange?: (provinceId: string) => void
+  - selectedProvinceId: string
+  - filteredProvinces: Province[]
+  - handleSelect(value: string): void
+}
+
+class CommuneCombobox {
+  + form: UseFormReturn
+  + provinceId?: string
+  + disabled?: boolean
+  + onChange?: (communeId: string) => void
+  - selectedCommuneId: string
+  - filteredCommunes: Commune[]
+  - handleSelect(value: string): void
+}
+
+class DistrictCombobox {
+  + form: UseFormReturn
+  + communeId?: string
+  + disabled?: boolean
+  + onChange?: (districtId: string) => void
+  - selectedDistrictId: string
+  - filteredDistricts: District[]
+  - handleSelect(value: string): void
+}
+
+class QuarterCombobox {
+  + form: UseFormReturn
+  + districtId?: string
+  + disabled?: boolean
+  + onChange?: (quarterId: string) => void
+  - selectedQuarterId: string
+  - filteredQuarters: Quarter[]
+  - handleSelect(value: string): void
+}
+
+note right of ProvinceCombobox
+  **Composant Combobox avec recherche**
+  
+  **Package:** src/domains/infrastructure/geography/components/forms/
+  
+  **Fonctionnalités:**
+  - Recherche locale (filtre par nom)
+  - Intégration React Hook Form (setValue)
+  - Feedback visuel (loading, disabled)
+  - Bouton création rapide (optionnel)
+  
+  **Utilise:**
+  - useProvinces() pour les données
+  - shadcn/ui Popover + Command
+end note
+
+' ============================================
+' REPOSITORIES
+' ============================================
+
+class GeographyRepository {
+  + {static} getInstance(): GeographyRepository
+  + getProvinces(): Promise<Province[]>
+  + getCommunesByProvince(provinceId: string): Promise<Commune[]>
+  + getDistrictsByCommune(communeId: string): Promise<District[]>
+  + getQuartersByDistrict(districtId: string): Promise<Quarter[]>
+  + createProvince(data: Omit<Province, 'id'>): Promise<Province>
+  + createCommune(data: Omit<Commune, 'id'>): Promise<Commune>
+  + createDistrict(data: Omit<District, 'id'>): Promise<District>
+  + createQuarter(data: Omit<Quarter, 'id'>): Promise<Quarter>
+}
+
+note right of GeographyRepository
+  **Repository pour données géographiques**
+  
+  **Package:** src/domains/infrastructure/geography/repositories/
+  
+  **Collections Firestore:**
+  - provinces
+  - communes
+  - districts
+  - quarters
+  
+  **Singleton pattern**
+end note
+
+' ============================================
+' TYPES AUXILIAIRES
+' ============================================
+
+class CascadeLoadingState {
+  + provinces: boolean
+  + communes: boolean
+  + districts: boolean
+  + quarters: boolean
+}
+
+class CascadeErrorState {
+  + provinces: Error | null
+  + communes: Error | null
+  + districts: Error | null
+  + quarters: Error | null
+}
+
+' ============================================
+' RELATIONS HIÉRARCHIQUES (ENTITÉS)
+' ============================================
+
 Province "1" --> "*" Department : contains
-
-' Department (1) --> Commune (*) : contient
 Department "1" --> "*" Commune : contains
-
-' Commune (1) --> District (*) : contient
 Commune "1" --> "*" District : contains
-
-' District (1) --> Quarter (*) : contient
 District "1" --> "*" Quarter : contains
+
+' ============================================
+' RELATIONS HOOKS → ENTITÉS
+' ============================================
+
+useProvinces ..> Province : queries
+useCommunesByProvince ..> Commune : queries
+useDistrictsByCommune ..> District : queries
+useQuartersByDistrict ..> Quarter : queries
+
+useAddressCascade --> useProvinces : uses
+useAddressCascade --> useCommunesByProvince : uses
+useAddressCascade --> useDistrictsByCommune : uses
+useAddressCascade --> useQuartersByDistrict : uses
+
+' ============================================
+' RELATIONS COMBOBOX → HOOKS
+' ============================================
+
+ProvinceCombobox --> useProvinces : uses
+CommuneCombobox --> useCommunesByProvince : uses
+DistrictCombobox --> useDistrictsByCommune : uses
+QuarterCombobox --> useQuartersByDistrict : uses
+
+' ============================================
+' RELATIONS REPOSITORY
+' ============================================
+
+useProvinces ..> GeographyRepository : uses
+useCommunesByProvince ..> GeographyRepository : uses
+useDistrictsByCommune ..> GeographyRepository : uses
+useQuartersByDistrict ..> GeographyRepository : uses
+
+' ============================================
+' NOTES FIRESTORE
+' ============================================
 
 note right of Province
   **Collection Firestore:** provinces
   Clé primaire: id
   Index sur: code, name
-end note
-
-note right of Department
-  **Collection Firestore:** departments
-  Clé primaire: id
-  Index sur: provinceId, name
 end note
 
 note right of Commune
@@ -126,10 +304,22 @@ note right of Quarter
 end note
 
 note bottom of Province
-  **Hiérarchie géographique:**
-  Province → Department → Commune (Ville) → District (Arrondissement) → Quarter (Quartier)
+  **Hiérarchie géographique (cascade):**
+  Province → Commune (Ville) → District (Arrondissement) → Quarter (Quartier)
   
-  Chaque niveau référence le niveau supérieur via un ID
+  **Flux de sélection:**
+  1. Utilisateur sélectionne Province
+  2. Communes filtrées par provinceId (via departmentId)
+  3. Utilisateur sélectionne Commune
+  4. Districts filtrés par communeId
+  5. Utilisateur sélectionne District
+  6. Quartiers filtrés par districtId
+  7. Utilisateur sélectionne Quartier
+  
+  **Reset automatique:**
+  Changement de province → reset commune, district, quartier
+  Changement de commune → reset district, quartier
+  Changement de district → reset quartier
 end note
 
 @enduml

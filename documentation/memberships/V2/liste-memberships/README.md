@@ -67,6 +67,12 @@
 - **Filtres mixtes** : certains côté Firestore (`getMembers`), d’autres côté client (recherche texte, adresse, profession).
 - **Performance** : `getMembers` récupère chaque membre puis appelle `getMemberWithSubscription` séquentiellement (N+1 queries).
 - **Tests difficiles** : impossible de tester isolément stats, filtres, carrousel, exports.
+- **Pagination incorrecte** :
+  - `totalItems` est calculé sur la page actuelle uniquement (`filteredMembers.length`), pas sur le total réel.
+  - Les filtres texte/adresse/profession sont appliqués côté client après récupération d’une seule page, donc la recherche ne porte que sur les 12 membres de la page, pas sur tous.
+  - Le curseur de pagination (`startAfter`) n’est pas utilisé correctement (paramètre optionnel non passé).
+  - `totalPages` est calculé de manière incorrecte car basé sur `filteredMembers.length` au lieu du vrai total.
+  - **Solution disponible** : Firebase fournit `getCountFromServer()` pour obtenir le vrai total, mais elle n’est pas utilisée dans `getMembers()` actuel.
 
 ### 2. Objectifs V2
 
@@ -88,6 +94,12 @@
 - **Optimiser les requêtes** :
   - Éviter les N+1 queries (agréger subscriptions en batch si possible).
   - Déplacer les filtres texte/adresse/profession côté Firestore (index + requêtes) plutôt que côté client.
+- **Pagination côté serveur complète** :
+  - Utiliser `getCountFromServer()` (fonction Firebase standard) pour obtenir le vrai `totalItems` (pas seulement la page actuelle).
+    - **Note** : `getCountFromServer()` est déjà disponible dans le codebase (utilisé dans `MembershipRepositoryV2.ts`, `user.db.ts`, etc.) mais n’est pas utilisée dans `getMembers()` actuel.
+  - Implémenter correctement la pagination par curseur (`startAfter`) pour naviguer entre les pages.
+  - Calculer `totalPages` basé sur le vrai total : `Math.ceil(totalItems / itemsPerPage)` où `totalItems` vient de `getCountFromServer()`.
+  - Appliquer tous les filtres côté Firestore avant la pagination (pas de filtrage côté client après récupération).
 - **Faciliter** :
   - L’ajout d’exports (voir `../exports-memberships`).
   - L’intégration des **anniversaires** (voir `../anniversaires-memberships`).
@@ -152,8 +164,14 @@ Chaque tab sera un **preset de `UserFilters`** passé au hook `useMembershipsLis
 Les filtres avancés restent accessibles via le composant `MembershipsListFilters`, mais la logique de construction de requête sera dans le hook/repository V2 :
 
 - **Recherche texte** : actuellement côté client → **à déplacer côté Firestore** (index full-text ou champ `searchableText`).
+  - **Impact pagination** : actuellement, la recherche ne porte que sur la page récupérée (12 membres), pas sur tous les membres.
+  - **Solution V2** : utiliser un champ `searchableText` indexé ou des requêtes Firestore avec `where` sur les champs individuels (nom, prénom, matricule, email).
 - **Filtres géographiques** : actuellement côté client → **à déplacer côté Firestore** (index composite si nécessaire).
+  - **Impact pagination** : les filtres d’adresse sont appliqués après récupération, donc la pagination ne fonctionne pas correctement.
+  - **Solution V2** : créer des index composites pour `roles + address.province + createdAt`, etc.
 - **Filtres entreprise/profession** : actuellement côté client → **à déplacer côté Firestore** (index si nécessaire).
+  - **Impact pagination** : même problème que les filtres géographiques.
+  - **Solution V2** : index composites pour `roles + companyName + createdAt` et `roles + profession + createdAt`.
 
 > À compléter au fur et à mesure du refactor : lister les nouveaux fichiers V2 créés et ceux de V1 qui seront retirés des routes admin.
 

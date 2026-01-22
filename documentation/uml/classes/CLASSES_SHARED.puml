@@ -121,10 +121,109 @@ class Notification {
   + createdAt: Date
   + scheduledAt?: Date
   + sentAt?: Date
-  + metadata?: Record<string, any>
+  + metadata?: NotificationMetadata
   + requestId?: string
   + memberId?: string
   + contractId?: string
+}
+
+class NotificationMetadata {
+  + memberId?: string
+  + memberFirstName?: string
+  + memberLastName?: string
+  + memberName?: string
+  + adminId?: string
+  + adminName?: string
+  + status?: string
+  + motifReject?: string
+  + reopenReason?: string
+  + birthDate?: string
+  + daysUntil?: number
+  + age?: number
+  + notificationDate?: string
+  + processedAt?: string
+  + processedBy?: string
+  + reopenedAt?: string
+  + reopenedBy?: string
+  + deletedAt?: string
+  + deletedBy?: string
+  + [key: string]: any
+}
+
+' ============================================
+' CLASSE : NOTIFICATION_SERVICE
+' ============================================
+class NotificationService {
+  - repository: NotificationRepository
+  + createNotification(params: CreateNotificationParams): Promise<Notification>
+  + createBirthdayNotification(memberId, firstName, lastName, birthDate, daysUntil): Promise<Notification>
+  + createMembershipRequestNotification(requestId, type, memberName?, status?): Promise<Notification>
+  + createRejectionNotification(requestId, memberName, adminName, adminId, motif, processedAt): Promise<Notification>
+  + createReopeningNotification(requestId, memberName, adminName, adminId, reason, reopenedAt, prevMotif?): Promise<Notification>
+  + createDeletionNotification(requestId, memberName, matricule, adminName, adminId, deletedAt, prevMotif?): Promise<Notification>
+  + getUnreadCount(): Promise<number>
+  + getUnreadNotifications(limit?: number): Promise<Notification[]>
+  + getNotifications(filters?: NotificationFilters): Promise<Notification[]>
+  + markAsRead(id: string): Promise<void>
+  + markAllAsRead(): Promise<void>
+  + markAsReadByModule(module: NotificationModule): Promise<void>
+  + formatNotificationMessage(type, metadata): string
+  + shouldCreateNotification(type, context): boolean
+}
+
+class NotificationRepository {
+  + create(notification: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification>
+  + getById(id: string): Promise<Notification | null>
+  + update(id: string, updates: Partial<Notification>): Promise<Notification | null>
+  + delete(id: string): Promise<void>
+  + getUnreadCount(): Promise<number>
+  + getUnreadNotifications(limit?: number): Promise<Notification[]>
+  + getNotificationsByModule(module: NotificationModule, filters?: NotificationFilters): Promise<Notification[]>
+  + getPaginatedNotifications(filters?, page?, limit?): Promise<PaginatedNotifications>
+  + markAsRead(id: string): Promise<void>
+  + markAllAsRead(): Promise<void>
+  + markAsReadByModule(module: NotificationModule): Promise<void>
+  + getScheduledNotifications(beforeDate: Date): Promise<Notification[]>
+  + markAsSent(id: string): Promise<void>
+}
+
+class NotificationFilters {
+  + module?: NotificationModule
+  + type?: NotificationType
+  + isRead?: boolean
+  + dateFrom?: Date
+  + dateTo?: Date
+}
+
+' ============================================
+' HOOKS : NOTIFICATIONS
+' ============================================
+class useNotifications {
+  + filters?: NotificationFilters
+  + data: Notification[] | undefined
+  + isLoading: boolean
+  + isError: boolean
+}
+
+class useUnreadNotifications {
+  + limit?: number
+  + data: Notification[] | undefined
+  + isLoading: boolean
+}
+
+class useUnreadCount {
+  + data: number | undefined
+  + isLoading: boolean
+}
+
+class useMarkNotificationAsRead {
+  + mutate(id: string): void
+  + isPending: boolean
+}
+
+class useMarkAllNotificationsAsRead {
+  + mutate(): void
+  + isPending: boolean
 }
 
 ' ============================================
@@ -290,13 +389,61 @@ end note
 
 note right of Notification
   **Collection Firestore:** notifications
-  Index sur userId, isRead, createdAt, module, type
+  Index sur: isRead, createdAt, module, type, scheduledAt, sentAt
   
-  **Types de notifications pour rejet:**
-  - membership_rejected: Demande rejetée (créée pour admins)
-  - membership_reopened: Dossier réouvert (créée pour admins)
-  - membership_deleted: Dossier supprimé (créée pour admins, optionnel)
+  **Types de notifications:**
+  - birthday_reminder: Anniversaire (J-2, J, J+1)
+  - new_request: Nouvelle demande d'adhésion
+  - status_update: Changement de statut
+  - membership_rejected: Demande rejetée
+  - membership_reopened: Dossier réouvert
+  - membership_deleted: Dossier supprimé
+  - commission_overdue: Commission en retard (Placement)
+  - payment_due: Paiement dû
+  - contract_expiring: Contrat expire bientôt
+  - demand_created/approved/rejected: Demandes CI/CS
+  
+  **Anti-doublon (anniversaires):**
+  Vérifie metadata.memberId + notificationDate + daysUntil
 end note
+
+note right of NotificationService
+  **Service métier pour les notifications**
+  
+  **Package:** src/services/notifications/
+  
+  **Responsabilités:**
+  - Création de notifications selon les règles métier
+  - Formatage des messages
+  - Vérification anti-doublon
+  - Lecture et marquage comme lu
+  
+  **Utilisé par:**
+  - MembershipServiceV2 (rejet, réouverture, approbation)
+  - Cloud Functions (anniversaires, rappels, échéances)
+end note
+
+note right of NotificationRepository
+  **Repository Firestore pour notifications**
+  
+  **Package:** src/repositories/notifications/
+  
+  **Collection:** notifications
+  
+  **Méthodes clés:**
+  - getUnreadCount(): Utilise getCountFromServer()
+  - markAllAsRead(): Batch update
+  - getScheduledNotifications(): Pour jobs Cloud Functions
+end note
+
+' Relations Notifications
+NotificationService --> NotificationRepository : uses
+Notification *-- NotificationMetadata : contains
+useNotifications ..> NotificationService : uses
+useUnreadNotifications ..> NotificationService : uses
+useUnreadCount ..> NotificationService : uses
+useMarkNotificationAsRead ..> NotificationService : uses
+useMarkAllNotificationsAsRead ..> NotificationService : uses
 
 note right of AuditLog
   **Collection Firestore:** audit-logs

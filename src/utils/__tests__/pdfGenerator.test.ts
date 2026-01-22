@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   generateCredentialsPDF,
   downloadPDF,
@@ -60,6 +60,7 @@ const originalRevokeObjectURL = URL.revokeObjectURL
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.useFakeTimers()
   
   // Reset mocks
   document.createElement = originalCreateElement
@@ -67,6 +68,10 @@ beforeEach(() => {
   document.body.removeChild = originalRemoveChild
   URL.createObjectURL = originalCreateObjectURL
   URL.revokeObjectURL = originalRevokeObjectURL
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('pdfGenerator', () => {
@@ -155,6 +160,12 @@ describe('pdfGenerator', () => {
       expect(appendChildSpy).toHaveBeenCalled()
       expect(removeChildSpy).toHaveBeenCalled()
       expect(createObjectURLSpy).toHaveBeenCalledWith(blob)
+      
+      // Avancer les timers pour déclencher revokeObjectURL
+      vi.advanceTimersByTime(100)
+      
+      // Vérifier que revokeObjectURL a été appelé
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:test-url')
     })
   })
 

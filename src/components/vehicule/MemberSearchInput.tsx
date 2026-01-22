@@ -251,7 +251,7 @@ export default function MemberSearchInput({
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               {selectedMember.photoURL ? (
-                <AvatarImage src={selectedMember.photoURL} />
+                <AvatarImage src={selectedMember.photoURL} alt={`Photo de ${selectedMember.firstName} ${selectedMember.lastName}`} />
               ) : (
                 <AvatarFallback className="bg-[#234D65] text-white">
                   {`${selectedMember.firstName?.[0] || ''}${selectedMember.lastName?.[0] || ''}`.toUpperCase()}

@@ -63,4 +63,11 @@ export interface IMembershipRepository {
    * @returns Liste des demandes trouvées
    */
   search(query: string, filters?: MembershipRequestFilters): Promise<MembershipRequest[]>
+
+  /**
+   * Crée une nouvelle demande d'adhésion
+   * @param formData Données du formulaire d'inscription
+   * @returns L'ID de la demande créée
+   */
+  create(formData: any): Promise<string>
 }

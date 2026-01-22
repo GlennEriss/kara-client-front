@@ -1,23 +1,60 @@
 @startuml Séquence - Chargement liste
-title Séquence de chargement de la liste des membres
+title Séquence de chargement de la liste des membres (V2)
 
 actor Admin
-participant "Page Next" as Page
+participant "MembershipsListPage" as Page
 participant "useMembershipsListV2" as Hook
-participant "MembershipRepositoryV2" as Repo
-participant "MembershipStatsService" as Stats
+participant "MembersRepositoryV2" as Repo
+participant "MembershipsListService" as Service
+participant "getMembers (member.db.ts)" as GetMembers
 participant Firestore
 
 Admin -> Page: Accède à /memberships
-Page -> Hook: useMembershipsListV2({})
-Hook -> Repo: getMembersPaginated(filters, page, limit)
-Repo -> Firestore: query(users, constraints)
-Firestore --> Repo: documents[]
-Repo -> Repo: getMemberWithSubscription() pour chaque membre
+activate Page
+Page -> Hook: useMembershipsListV2({ filters, page, limit, tab })
+activate Hook
+
+Hook -> Service: buildFiltersForTab(baseFilters, tab)
+Service --> Hook: effectiveFilters
+activate Service
+deactivate Service
+
+Hook -> Repo: getAll(effectiveFilters, page, limit, cursor?)
+activate Repo
+Repo -> GetMembers: getMembers(filters, page, limit, cursor)
+activate GetMembers
+
+GetMembers -> Firestore: query(users, constraints) + getCountFromServer()
+activate Firestore
+Firestore --> GetMembers: querySnapshot + countSnapshot
+deactivate Firestore
+
+GetMembers -> GetMembers: Paralléliser getMemberWithSubscription() avec Promise.all()
+GetMembers -> Firestore: getDocs(subscriptions) pour chaque membre (batch)
+activate Firestore
+Firestore --> GetMembers: subscriptions[]
+deactivate Firestore
+
+GetMembers --> Repo: PaginatedMembers { data, pagination { totalItems, totalPages, nextCursor } }
+deactivate GetMembers
 Repo --> Hook: PaginatedMembers
-Hook -> Stats: calculateStats(members)
-Stats --> Hook: UserStats
-Hook --> Page: { members, pagination, stats, isLoading: false }
-Page -> Page: Rend composants (Stats, Header, Tabs, Filters, Layout, Pagination)
+deactivate Repo
+
+Hook -> Service: calculateStats(paginated)
+activate Service
+Service --> Hook: MembershipStats
+deactivate Service
+
+Hook --> Page: { data, stats, isLoading: false, goToNextPage, goToPrevPage, canGoNext, canGoPrev }
+deactivate Hook
+
+Page -> Page: Rend composants :
+- MembershipsListStats
+- MembershipsListHeader
+- MembershipsListTabs
+- MembershipsListFilters
+- MembershipsListLayout
+- MembershipsListPagination
+deactivate Page
 
 @enduml

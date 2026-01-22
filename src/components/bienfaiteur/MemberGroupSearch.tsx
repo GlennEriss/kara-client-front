@@ -177,7 +177,7 @@ export default function MemberGroupSearch({
                             )}
                           >
                             <Avatar>
-                              <AvatarImage src={member.photoURL || ''} />
+                              <AvatarImage src={member.photoURL || ''} alt={`Photo de ${member.firstName} ${member.lastName}`} />
                               <AvatarFallback>
                                 {`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
                               </AvatarFallback>

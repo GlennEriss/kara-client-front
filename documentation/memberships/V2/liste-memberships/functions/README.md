@@ -61,7 +61,7 @@
   - Performance : stats pré-calculées, chargement instantané de la page.
   - Cohérence : stats calculées une fois par jour plutôt qu'à chaque requête.
 
-#### 3. `updateMemberSearchableText` (trigger) ⏳ **À CRÉER**
+#### 3. `updateMemberSearchableText` (trigger) ⏳ **À CRÉER** - **CRITIQUE POUR PAGINATION**
 - **Objectif** : Maintenir un champ `searchableText` dans chaque document `users` pour optimiser la recherche textuelle côté Firestore.
 - **Déclenchement** : Trigger `onUpdate` et `onCreate` sur collection `users`.
 - **Implémentation** :
@@ -70,8 +70,11 @@
 - **Avantages** :
   - Permet de déplacer la recherche textuelle côté Firestore (au lieu de filtrer côté client).
   - Requête Firestore plus performante avec index sur `searchableText`.
+- **Impact pagination côté serveur** :
+  - **CRITIQUE** : Sans cette fonction, la recherche textuelle doit rester côté client, ce qui casse la pagination (recherche seulement sur la page actuelle, pas sur tous les membres).
+  - Avec `searchableText` indexé, la recherche peut être faite côté Firestore avant pagination, permettant un `totalItems` correct.
 
-#### 4. `syncMemberSubscriptions` (trigger ou scheduled) ⏳ **À CRÉER**
+#### 4. `syncMemberSubscriptions` (trigger ou scheduled) ⏳ **À CRÉER** - **CRITIQUE POUR PAGINATION**
 - **Objectif** : Maintenir un champ `lastSubscription` et `isSubscriptionValid` dans chaque document `users` pour éviter les N+1 queries.
 - **Déclenchement** :
   - **Option 1** : Trigger `onWrite` sur collection `subscriptions` → met à jour le `users` correspondant.
@@ -82,6 +85,9 @@
 - **Avantages** :
   - Évite les N+1 queries dans `getMembersPaginated`.
   - Filtres "Abonnement valide/invalide" plus rapides (requête Firestore directe).
+- **Impact pagination côté serveur** :
+  - **CRITIQUE** : Sans cette fonction, `getMembersPaginated` doit appeler `getMemberWithSubscription()` pour chaque membre (N+1 queries), ce qui est très lent.
+  - Avec `isSubscriptionValid` dans le document `users`, les filtres "Abonnement valide/invalide" peuvent être appliqués côté Firestore avant pagination, permettant un `totalItems` correct.
 
 ### Décisions d'architecture V2
 
@@ -99,17 +105,31 @@
 
 #### Recherche textuelle : côté client vs Firestore
 - **V1** : Filtrage côté client après récupération.
+  - **Problème** : La recherche ne porte que sur la page actuelle (12 membres), pas sur tous les membres.
+  - **Impact pagination** : `totalItems` est incorrect car basé sur les résultats filtrés de la page uniquement.
 - **V2 recommandé** :
   - Créer fonction `updateMemberSearchableText` (trigger).
   - Créer index Firestore sur `searchableText`.
   - Déplacer recherche côté Firestore pour meilleures performances.
+  - **Impact pagination** : La recherche est appliquée avant pagination, donc `totalItems` est correct.
 
 ### Checklist d'implémentation
 
-- [ ] **Phase 1** : Créer `updateMemberSearchableText` (trigger) pour optimiser recherche.
-- [ ] **Phase 2** : Créer `syncMemberSubscriptions` (trigger) pour éviter N+1 queries.
+- [ ] **Phase 1 (CRITIQUE pour pagination)** : Créer `updateMemberSearchableText` (trigger) pour optimiser recherche.
+  - **Blocage** : Sans cette fonction, la recherche textuelle doit rester côté client, ce qui casse la pagination.
+- [ ] **Phase 2 (CRITIQUE pour pagination)** : Créer `syncMemberSubscriptions` (trigger) pour éviter N+1 queries.
+  - **Blocage** : Sans cette fonction, les filtres "Abonnement valide/invalide" ne peuvent pas être appliqués côté Firestore avant pagination.
 - [ ] **Phase 3** : Créer `recalculateMemberStats` (scheduled) pour stats pré-calculées.
 - [ ] **Phase 4** : Créer `exportMembersList` (callable) pour exports volumineux.
 - [ ] **Tests** : Tester chaque fonction avec données réelles.
 - [ ] **Monitoring** : Configurer alertes sur erreurs/exécutions longues.
+
+### Ordre de priorité pour pagination côté serveur
+
+Pour que la pagination côté serveur fonctionne correctement, les fonctions suivantes doivent être implémentées **en priorité** :
+
+1. **`updateMemberSearchableText`** : Permet de déplacer la recherche textuelle côté Firestore.
+2. **`syncMemberSubscriptions`** : Permet de déplacer les filtres d'abonnement côté Firestore.
+
+Sans ces deux fonctions, la pagination côté serveur ne peut pas être complètement implémentée car certains filtres doivent rester côté client, ce qui casse le calcul de `totalItems`.
 

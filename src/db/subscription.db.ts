@@ -73,14 +73,23 @@ export async function getSubscriptionById(subscriptionId: string): Promise<Subsc
     }
     
     const data = docSnap.data()
+    // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+    const dateStartField = data.dateStart || data.startDate
+    const dateEndField = data.dateEnd || data.endDate
+    
+    const dateStart = dateStartField?.toDate ? dateStartField.toDate() : new Date()
+    const dateEnd = dateEndField?.toDate ? dateEndField.toDate() : new Date()
+    
     return {
       ...data,
-      dateStart: data.dateStart.toDate(),
-      dateEnd: data.dateEnd.toDate(),
-      createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt.toDate(),
+      dateStart,
+      dateEnd,
+      // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+      type: data.type || data.membershipType,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+      updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
       // Recalculer isValid au moment de la récupération
-      isValid: data.dateEnd.toDate() > new Date(),
+      isValid: dateEnd > new Date(),
     } as Subscription
   } catch (error) {
     console.error('Erreur lors de la récupération de la souscription:', error)
@@ -94,21 +103,36 @@ export async function getSubscriptionById(subscriptionId: string): Promise<Subsc
 export async function getSubscriptionsByUserId(userId: string): Promise<Subscription[]> {
   try {
     const subscriptionsRef = collection(db, FIREBASE_COLLECTION_NAMES.SUBSCRIPTIONS)
-    const q = query(subscriptionsRef, where('userId', '==', userId), orderBy('dateStart', 'desc'))
+    // ✅ Fallback : chercher sur dateStart (nouveau) ou startDate (ancien)
+    // Note: Firestore ne permet pas de faire un OR dans orderBy, donc on essaie dateStart d'abord
+    let q
+    try {
+      q = query(subscriptionsRef, where('userId', '==', userId), orderBy('dateStart', 'desc'))
+    } catch {
+      // Si l'index dateStart n'existe pas, essayer startDate
+      q = query(subscriptionsRef, where('userId', '==', userId), orderBy('startDate', 'desc'))
+    }
     const querySnapshot = await getDocs(q)
     
     const subscriptions: Subscription[] = []
     
     querySnapshot.forEach((doc) => {
       const data = doc.data()
+      // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+      const dateStart = data.dateStart?.toDate?.() || data.startDate?.toDate?.() || new Date()
+      const dateEnd = data.dateEnd?.toDate?.() || data.endDate?.toDate?.() || new Date()
+      
       subscriptions.push({
         ...data,
-        dateStart: data.dateStart.toDate(),
-        dateEnd: data.dateEnd.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate(),
+        id: doc.id,
+        dateStart,
+        dateEnd,
+        // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+        type: data.type || data.membershipType,
+        createdAt: data.createdAt?.toDate?.() || new Date(),
+        updatedAt: data.updatedAt?.toDate?.() || new Date(),
         // Recalculer isValid au moment de la récupération
-        isValid: data.dateEnd.toDate() > new Date(),
+        isValid: dateEnd > new Date(),
       } as Subscription)
     })
     
@@ -226,14 +250,23 @@ export async function getAllSubscriptions(filters: {
     
     querySnapshot.forEach((doc) => {
       const data = doc.data()
+      // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+      const dateStartField = data.dateStart || data.startDate
+      const dateEndField = data.dateEnd || data.endDate
+      
+      const dateStart = dateStartField?.toDate ? dateStartField.toDate() : new Date()
+      const dateEnd = dateEndField?.toDate ? dateEndField.toDate() : new Date()
+      
       subscriptions.push({
         ...data,
-        dateStart: data.dateStart.toDate(),
-        dateEnd: data.dateEnd.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate(),
+        dateStart,
+        dateEnd,
+        // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+        type: data.type || data.membershipType,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
         // Recalculer isValid au moment de la récupération
-        isValid: data.dateEnd.toDate() > new Date(),
+        isValid: dateEnd > new Date(),
       } as Subscription)
     })
     
@@ -271,13 +304,20 @@ export async function getExpiringSoonSubscriptions(daysBeforeExpiry: number = 30
     
     querySnapshot.forEach((doc) => {
       const data = doc.data()
+      // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+      const dateStart = data.dateStart?.toDate?.() || data.startDate?.toDate?.() || new Date()
+      const dateEnd = data.dateEnd?.toDate?.() || data.endDate?.toDate?.() || new Date()
+      
       subscriptions.push({
         ...data,
-        dateStart: data.dateStart.toDate(),
-        dateEnd: data.dateEnd.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate(),
-        isValid: data.dateEnd.toDate() > new Date(),
+        id: doc.id,
+        dateStart,
+        dateEnd,
+        // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+        type: data.type || data.membershipType,
+        createdAt: data.createdAt?.toDate?.() || new Date(),
+        updatedAt: data.updatedAt?.toDate?.() || new Date(),
+        isValid: dateEnd > new Date(),
       } as Subscription)
     })
     
