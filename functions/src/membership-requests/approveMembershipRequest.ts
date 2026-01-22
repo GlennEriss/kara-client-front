@@ -3,6 +3,7 @@ import { onCall } from 'firebase-functions/v2/https'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore, Timestamp } from 'firebase-admin/firestore'
 import * as crypto from 'crypto'
+import { getSubscriptionAmountFromPayments } from './utils/getSubscriptionAmountFromPayments'
 
 /**
  * Cloud Function pour approuver une demande d'adhésion de manière atomique
@@ -216,15 +217,24 @@ export const approveMembershipRequest = onCall(
       console.log(`[approveMembershipRequest] Création abonnement pour: ${matricule}`)
 
       // Calculer les dates (1 an de validité)
-      const startDate = Timestamp.now()
-      const endDate = new Date(startDate.toDate())
-      endDate.setFullYear(endDate.getFullYear() + 1)
+      const dateStart = Timestamp.now()
+      const dateEnd = new Date(dateStart.toDate())
+      dateEnd.setFullYear(dateEnd.getFullYear() + 1)
+
+      // Récupérer le montant réel du paiement depuis la demande
+      const payments = membershipRequest.payments || []
+      const finalAmount = getSubscriptionAmountFromPayments(payments, membershipType)
+      
+      console.log(`[approveMembershipRequest] Montant d'abonnement: ${finalAmount} XOF (depuis ${payments.length > 0 ? 'paiements' : 'montant par défaut'})`)
 
       const subscriptionData = {
-        memberId: matricule,
-        membershipType,
-        startDate,
-        endDate: Timestamp.fromDate(endDate),
+        userId: matricule, // ✅ Utiliser userId au lieu de memberId (cohérence avec frontend)
+        type: membershipType, // ✅ Utiliser 'type' selon l'interface TypeScript (au lieu de 'membershipType')
+        dateStart, // ✅ Utiliser dateStart selon le diagramme UML et l'interface TypeScript
+        dateEnd: Timestamp.fromDate(dateEnd), // ✅ Utiliser dateEnd selon le diagramme UML et l'interface TypeScript
+        montant: finalAmount, // ✅ Utiliser le montant réel du paiement ou le montant par défaut
+        currency: 'XOF', // ✅ Ajouter currency selon le diagramme UML
+        createdBy: adminId, // ✅ Ajouter createdBy selon le diagramme UML
         status: 'active',
         adhesionPdfURL, // URL du PDF d'adhésion (obligatoire)
         createdAt: Timestamp.now(),

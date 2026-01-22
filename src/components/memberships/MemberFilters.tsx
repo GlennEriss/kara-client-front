@@ -31,16 +31,37 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useAddresses } from '@/hooks/useAddresses'
 import { useCompanies } from '@/domains/infrastructure/references/hooks/useCompanies'
 import { useProfessions } from '@/domains/infrastructure/references/hooks/useProfessions'
+import type { MembersTab } from '@/domains/memberships/services/MembershipsListService'
 
 interface MemberFiltersProps {
   filters: UserFilters
   onFiltersChange: (filters: UserFilters) => void
   onReset: () => void
+  activeTab?: MembersTab
+  onTabChange?: (tab: MembersTab) => void
 }
 
-const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps) => {
+const MemberFilters = ({ filters, onFiltersChange, onReset, activeTab, onTabChange }: MemberFiltersProps) => {
   const [searchTerm, setSearchTerm] = useState(filters.searchQuery || '')
   const [isExpanded, setIsExpanded] = useState(false)
+
+  // Déterminer quels filtres sont verrouillés selon le tab actif
+  const isTabLocked = activeTab && activeTab !== 'all'
+  const lockedMembershipType = isTabLocked && (activeTab === 'adherents' || activeTab === 'bienfaiteurs' || activeTab === 'sympathisants')
+    ? activeTab === 'adherents' ? 'adherant' : activeTab === 'bienfaiteurs' ? 'bienfaiteur' : 'sympathisant'
+    : null
+  const lockedSubscriptionStatus = isTabLocked && (activeTab === 'abonnement-valide' || activeTab === 'abonnement-invalide')
+    ? activeTab === 'abonnement-valide' ? 'valid' : 'invalid'
+    : null
+
+  // Fonction pour revenir au tab "all" si un filtre verrouillé est modifié
+  const handleLockedFilterChange = () => {
+    if (onTabChange && isTabLocked) {
+      // Afficher un message informatif
+      // Note: onTabChange va déclencher le changement de tab, ce qui va mettre à jour les filtres
+      onTabChange('all')
+    }
+  }
   
   // Hooks pour les données
   const { addressData, loadCities, loadArrondissements, loadDistricts } = useAddresses()
@@ -70,6 +91,12 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
   }
 
   const handleSubscriptionStatusChange = (value: string) => {
+    // Si le filtre est verrouillé par le tab, revenir au tab "all"
+    if (lockedSubscriptionStatus && value !== lockedSubscriptionStatus && value !== 'all') {
+      handleLockedFilterChange()
+      return
+    }
+
     if (value === 'all') {
       const { isActive, ...otherFilters } = filters
       onFiltersChange(otherFilters)
@@ -171,12 +198,17 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
     <Card className="mb-6">
       <CardHeader>
         <div className="md:flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-[#224D62] flex items-center">
+          <CardTitle className="text-lg font-semibold text-kara-primary-dark flex items-center">
             <Filter className="h-5 w-5 mr-2" />
             Filtres et Recherche
             {getActiveFiltersCount() > 0 && (
               <Badge variant="secondary" className="ml-2">
                 {getActiveFiltersCount()}
+              </Badge>
+            )}
+            {isTabLocked && (
+              <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                Verrouillé par l'onglet
               </Badge>
             )}
           </CardTitle>
@@ -185,7 +217,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
               variant="outline"
               size="sm"
               onClick={onReset}
-              className="text-gray-600 hover:text-[#224D62]"
+              className="text-gray-600 hover:text-kara-primary-dark"
             >
               <RotateCcw className="h-4 w-4 mr-1" />
               Réinitialiser
@@ -194,7 +226,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="text-[#224D62]"
+              className="text-kara-primary-dark"
             >
               Filtres <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </Button>
@@ -207,7 +239,7 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Rechercher par nom, prénom, matricule ou email..."
+            placeholder="Rechercher par nom, prénom, matricule, email, téléphone, entreprise ou profession..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-4"
@@ -232,25 +264,40 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
               <label className="text-sm font-medium text-gray-700 flex items-center">
                 <Users className="h-4 w-4 mr-1" />
                 Type de Membre
+                {lockedMembershipType && (
+                  <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                    Verrouillé
+                  </Badge>
+                )}
               </label>
               <div className="space-y-2">
-                {Object.entries(MEMBERSHIP_TYPE_LABELS).map(([type, label]) => (
-                  <div key={type} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`type-${type}`}
-                      checked={filters.membershipType?.includes(type as MembershipType) || false}
-                      onCheckedChange={(checked) => 
-                        handleMembershipTypeChange(type as MembershipType, checked as boolean)
-                      }
-                    />
-                    <label 
-                      htmlFor={`type-${type}`}
-                      className="text-sm text-gray-700 cursor-pointer"
-                    >
-                      {label}
-                    </label>
-                  </div>
-                ))}
+                {Object.entries(MEMBERSHIP_TYPE_LABELS).map(([type, label]) => {
+                  const isLocked = lockedMembershipType !== null && type !== lockedMembershipType
+                  const isChecked = filters.membershipType?.includes(type as MembershipType) || false
+                  return (
+                    <div key={type} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`type-${type}`}
+                        checked={isChecked}
+                        disabled={isLocked}
+                        onCheckedChange={(checked) => 
+                          handleMembershipTypeChange(type as MembershipType, checked as boolean)
+                        }
+                      />
+                      <label 
+                        htmlFor={`type-${type}`}
+                        className={`text-sm ${
+                          isLocked 
+                            ? 'text-gray-400 cursor-not-allowed' 
+                            : 'text-gray-700 cursor-pointer'
+                        }`}
+                      >
+                        {label}
+                        {isLocked && <span className="ml-1 text-xs text-gray-400">(verrouillé)</span>}
+                      </label>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
@@ -259,6 +306,11 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
               <label className="text-sm font-medium text-gray-700 flex items-center">
                 <Calendar className="h-4 w-4 mr-1" />
                 Statut d'Abonnement
+                {lockedSubscriptionStatus && (
+                  <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                    Verrouillé
+                  </Badge>
+                )}
               </label>
               <Select
                 value={
@@ -266,16 +318,31 @@ const MemberFilters = ({ filters, onFiltersChange, onReset }: MemberFiltersProps
                   filters.isActive ? 'valid' : 'invalid'
                 }
                 onValueChange={handleSubscriptionStatusChange}
+                disabled={!!lockedSubscriptionStatus}
               >
-                <SelectTrigger>
+                <SelectTrigger className={lockedSubscriptionStatus ? 'bg-gray-50 cursor-not-allowed' : ''}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="valid">Abonnement valide</SelectItem>
-                  <SelectItem value="invalid">Abonnement expiré</SelectItem>
+                  <SelectItem value="all" disabled={!!lockedSubscriptionStatus}>
+                    Tous les statuts
+                    {lockedSubscriptionStatus && <span className="ml-1 text-xs text-gray-400">(verrouillé)</span>}
+                  </SelectItem>
+                  <SelectItem value="valid" disabled={lockedSubscriptionStatus === 'invalid'}>
+                    Abonnement valide
+                    {lockedSubscriptionStatus === 'invalid' && <span className="ml-1 text-xs text-gray-400">(verrouillé)</span>}
+                  </SelectItem>
+                  <SelectItem value="invalid" disabled={lockedSubscriptionStatus === 'valid'}>
+                    Abonnement expiré
+                    {lockedSubscriptionStatus === 'valid' && <span className="ml-1 text-xs text-gray-400">(verrouillé)</span>}
+                  </SelectItem>
                 </SelectContent>
               </Select>
+              {lockedSubscriptionStatus && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Modifier ce filtre reviendra à l'onglet "Tous"
+                </p>
+              )}
             </div>
 
             {/* Possession de véhicule */}

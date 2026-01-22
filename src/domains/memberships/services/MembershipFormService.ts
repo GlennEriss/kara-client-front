@@ -314,6 +314,11 @@ export class MembershipFormService {
       }
 
       const timestamp = parseInt(timestampStr, 10)
+      // Vérifier si le parsing a échoué (NaN)
+      if (isNaN(timestamp)) {
+        return null
+      }
+      
       const now = Date.now()
       const ageMs = now - timestamp
       const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000))

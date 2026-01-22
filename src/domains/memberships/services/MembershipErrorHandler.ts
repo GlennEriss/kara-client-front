@@ -113,6 +113,17 @@ export class MembershipErrorHandler {
       return MembershipErrorCode.FUNCTION_ERROR
     }
 
+    // Erreurs Storage (vérifier AVANT Firestore pour éviter les conflits)
+    if (error?.code === 'storage/unauthorized' || error?.code === 'storage/permission-denied' || error?.code === 'storage/authorization') {
+      return MembershipErrorCode.STORAGE_PERMISSION_DENIED
+    }
+    if (error?.code === 'storage/quota-exceeded') {
+      return MembershipErrorCode.STORAGE_QUOTA_EXCEEDED
+    }
+    if (error?.code?.startsWith('storage/')) {
+      return MembershipErrorCode.STORAGE_ERROR
+    }
+
     // Erreurs Firestore
     if (error?.code === 'permission-denied' || error?.message?.includes('permission')) {
       return MembershipErrorCode.FIRESTORE_PERMISSION_DENIED
@@ -122,17 +133,6 @@ export class MembershipErrorHandler {
     }
     if (error?.code?.startsWith('firestore/')) {
       return MembershipErrorCode.FIRESTORE_ERROR
-    }
-
-    // Erreurs Storage
-    if (error?.code === 'storage/unauthorized' || error?.code === 'storage/permission-denied') {
-      return MembershipErrorCode.STORAGE_PERMISSION_DENIED
-    }
-    if (error?.code === 'storage/quota-exceeded') {
-      return MembershipErrorCode.STORAGE_QUOTA_EXCEEDED
-    }
-    if (error?.code?.startsWith('storage/')) {
-      return MembershipErrorCode.STORAGE_ERROR
     }
 
     // Erreurs réseau

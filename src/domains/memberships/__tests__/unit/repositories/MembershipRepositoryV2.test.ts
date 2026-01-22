@@ -28,6 +28,7 @@ const mockGetDocs = vi.fn()
 const mockGetDoc = vi.fn()
 const mockUpdateDoc = vi.fn()
 const mockGetCountFromServer = vi.fn()
+const mockSetDoc = vi.fn()
 
 vi.mock('@/firebase/firestore', () => ({
   db: {},
@@ -41,6 +42,7 @@ vi.mock('@/firebase/firestore', () => ({
   getDocs: () => mockGetDocs(),
   getDoc: () => mockGetDoc(),
   updateDoc: () => mockUpdateDoc(),
+  setDoc: () => mockSetDoc(),
   getCountFromServer: () => mockGetCountFromServer(),
   serverTimestamp: () => ({ toMillis: () => Date.now() }),
 }))
@@ -53,6 +55,20 @@ vi.mock('../../../repositories/PaymentRepositoryV2', () => ({
       createPayment: mockCreatePayment,
     })),
   },
+}))
+
+// Mock generateMatricule
+const mockGenerateMatricule = vi.fn()
+vi.mock('@/db/user.db', () => ({
+  generateMatricule: () => mockGenerateMatricule(),
+}))
+
+// Mock DocumentRepository
+const mockUploadImage = vi.fn()
+vi.mock('@/repositories/documents/DocumentRepository', () => ({
+  DocumentRepository: vi.fn(() => ({
+    uploadImage: mockUploadImage,
+  })),
 }))
 
 import { MembershipRepositoryV2 } from '../../../repositories/MembershipRepositoryV2'
@@ -78,8 +94,11 @@ function resetFirestoreMocks() {
   mockGetDocs.mockReset()
   mockGetDoc.mockReset()
   mockUpdateDoc.mockReset()
+  mockSetDoc.mockReset()
   mockGetCountFromServer.mockReset()
   mockCreatePayment.mockReset()
+  mockGenerateMatricule.mockReset()
+  mockUploadImage.mockReset()
 }
 
 describe('MembershipRepositoryV2', () => {
@@ -1361,6 +1380,157 @@ describe('MembershipRepositoryV2', () => {
       
       // Assert
       expect(result.length).toBe(0)
+    })
+  })
+
+  describe('create', () => {
+    it('devrait créer une nouvelle demande d\'adhésion', async () => {
+      const matricule = '1234.MK.567890'
+      mockGenerateMatricule.mockResolvedValue(matricule)
+      mockSetDoc.mockResolvedValue(undefined)
+
+      const formData: RegisterFormData = {
+        identity: {
+          firstName: 'Jean',
+          lastName: 'Dupont',
+          email: 'jean.dupont@example.com',
+          phone: '0123456789',
+          contacts: ['0123456789'],
+          gender: 'male',
+          birthDate: '1990-01-01',
+          birthPlace: 'Libreville',
+          nationality: 'gabonaise',
+        },
+        address: {
+          provinceId: 'province-1',
+          communeId: 'commune-1',
+          districtId: 'district-1',
+          quarterId: 'quarter-1',
+          province: 'Estuaire',
+          city: 'Libreville',
+          arrondissement: 'Arrondissement 1',
+          district: 'District 1',
+          street: 'Rue Test',
+        },
+        company: {
+          companyId: 'company-1',
+          companyName: 'Test Company',
+          professionId: 'profession-1',
+          profession: 'Engineer',
+        },
+        documents: {
+          identityDocument: 'cni',
+          identityDocumentNumber: '123456789',
+          expirationDate: '2025-12-31',
+          issuingPlace: 'Libreville',
+          issuingDate: '2020-01-01',
+          termsAccepted: true,
+        },
+      }
+
+      const result = await repository.create(formData)
+
+      expect(mockGenerateMatricule).toHaveBeenCalled()
+      expect(mockSetDoc).toHaveBeenCalled()
+      expect(result).toBe(matricule)
+    })
+
+    it('devrait uploader la photo de profil si fournie', async () => {
+      const matricule = '1234.MK.567890'
+      mockGenerateMatricule.mockResolvedValue(matricule)
+      mockSetDoc.mockResolvedValue(undefined)
+      mockUploadImage.mockResolvedValue({
+        url: 'https://storage.example.com/photo.jpg',
+        path: 'photos/photo.jpg',
+      })
+
+      const formData: RegisterFormData = {
+        identity: {
+          firstName: 'Jean',
+          lastName: 'Dupont',
+          email: 'jean.dupont@example.com',
+          phone: '0123456789',
+          contacts: ['0123456789'],
+          gender: 'male',
+          birthDate: '1990-01-01',
+          birthPlace: 'Libreville',
+          nationality: 'gabonaise',
+          photo: 'data:image/jpeg;base64,test',
+        },
+        address: {
+          provinceId: 'province-1',
+          communeId: 'commune-1',
+          province: 'Estuaire',
+          city: 'Libreville',
+        },
+        company: {
+          companyId: 'company-1',
+          companyName: 'Test Company',
+        },
+        documents: {
+          identityDocument: 'cni',
+          identityDocumentNumber: '123456789',
+          termsAccepted: true,
+        },
+      }
+
+      await repository.create(formData)
+
+      expect(mockUploadImage).toHaveBeenCalledWith(
+        'data:image/jpeg;base64,test',
+        'jean.dupont@example.com',
+        matricule,
+        'membership-request-profile-photo'
+      )
+    })
+
+    it('devrait continuer même si l\'upload de photo échoue', async () => {
+      const matricule = '1234.MK.567890'
+      mockGenerateMatricule.mockResolvedValue(matricule)
+      mockSetDoc.mockResolvedValue(undefined)
+      mockUploadImage.mockRejectedValue(new Error('Upload failed'))
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const formData: RegisterFormData = {
+        identity: {
+          firstName: 'Jean',
+          lastName: 'Dupont',
+          email: 'jean.dupont@example.com',
+          phone: '0123456789',
+          contacts: ['0123456789'],
+          gender: 'male',
+          birthDate: '1990-01-01',
+          birthPlace: 'Libreville',
+          nationality: 'gabonaise',
+          photo: 'data:image/jpeg;base64,test',
+        },
+        address: {
+          provinceId: 'province-1',
+          communeId: 'commune-1',
+          province: 'Estuaire',
+          city: 'Libreville',
+        },
+        company: {
+          companyId: 'company-1',
+          companyName: 'Test Company',
+        },
+        documents: {
+          identityDocument: 'cni',
+          identityDocumentNumber: '123456789',
+          termsAccepted: true,
+        },
+      }
+
+      const result = await repository.create(formData)
+
+      expect(result).toBe(matricule)
+      expect(mockSetDoc).toHaveBeenCalled()
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      expect(consoleWarnSpy).toHaveBeenCalled()
+
+      consoleErrorSpy.mockRestore()
+      consoleWarnSpy.mockRestore()
     })
   })
 })

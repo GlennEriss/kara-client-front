@@ -198,3 +198,8 @@ export { deleteMembershipRequest } from './membership-requests/deleteMembershipR
 
 // Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
 export { syncToAlgolia } from './membership-requests/syncToAlgolia'
+
+// ==================== CLOUD FUNCTIONS - MEMBERS ====================
+
+// Cloud Function pour synchroniser les membres vers Algolia
+export { syncMembersToAlgolia } from './members/syncMembersToAlgolia'

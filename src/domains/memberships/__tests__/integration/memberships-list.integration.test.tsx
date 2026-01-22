@@ -421,19 +421,36 @@ describe('MembershipsListPage - Tests d\'intégration', () => {
         },
       })
       const mockStats = createStatsFixture()
-      const mockGoToNextPage = vi.fn()
+      
+      // Mock pour simuler le changement de page
+      let currentPage = 1
+      const mockRefetch = vi.fn()
 
-      mockUseMembershipsListV2.mockReturnValue({
-        data: mockData,
-        stats: mockStats,
-        isLoading: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-        goToNextPage: mockGoToNextPage,
-        goToPrevPage: vi.fn(),
-        canGoNext: true,
-        canGoPrev: false,
+      mockUseMembershipsListV2.mockImplementation((options = {}) => {
+        const page = options.page || currentPage
+        return {
+          data: page === 1 ? mockData : createPaginatedMembersFixture({
+            pagination: {
+              currentPage: 2,
+              totalPages: 2,
+              totalItems: 20,
+              itemsPerPage: 12,
+              hasNextPage: false,
+              hasPrevPage: true,
+              nextCursor: null,
+              prevCursor: {} as any,
+            },
+          }),
+          stats: mockStats,
+          isLoading: false,
+          isError: false,
+          error: null,
+          refetch: mockRefetch,
+          goToNextPage: () => { currentPage = 2 },
+          goToPrevPage: () => { currentPage = 1 },
+          canGoNext: page === 1,
+          canGoPrev: page > 1,
+        }
       })
 
       renderComponent()
@@ -448,16 +465,26 @@ describe('MembershipsListPage - Tests d\'intégration', () => {
       const nextButtons = pagination.querySelectorAll('button')
       const nextButton = Array.from(nextButtons).find(btn => {
         const svg = btn.querySelector('svg')
-        return svg && (svg.getAttribute('class')?.includes('chevron-right') || btn.textContent?.includes('Suivant'))
+        // Chercher le bouton avec ChevronRight (icône lucide-react)
+        return svg && (
+          svg.getAttribute('class')?.includes('lucide-chevron-right') || 
+          svg.getAttribute('class')?.includes('chevron-right') ||
+          btn.textContent?.includes('Suivant')
+        )
       })
 
       if (nextButton && !nextButton.hasAttribute('disabled')) {
         fireEvent.click(nextButton)
+        // Vérifier que le composant a bien changé de page (via handlePageChange qui appelle setCurrentPage)
+        // Le composant devrait re-render avec page=2
         await waitFor(() => {
-          expect(mockGoToNextPage).toHaveBeenCalled()
+          // Vérifier que le hook a été appelé avec page=2
+          const calls = mockUseMembershipsListV2.mock.calls
+          const lastCall = calls[calls.length - 1]
+          expect(lastCall[0]?.page).toBe(2)
         }, { timeout: 2000 })
       } else {
-        // Si le bouton n'est pas trouvé, vérifier que la pagination existe
+        // Si le bouton n'est pas trouvé ou est désactivé, vérifier que la pagination existe
         expect(screen.getByTestId('memberships-list-pagination')).toBeInTheDocument()
       }
     })

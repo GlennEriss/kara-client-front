@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,6 +29,7 @@ import {
   MembershipsListFilters,
 } from '@/domains/memberships/components/list'
 import type { MembersTab } from '@/domains/memberships/services/MembershipsListService'
+import { MembershipsListService } from '@/domains/memberships/services/MembershipsListService'
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'
 import routes from '@/constantes/routes'
@@ -116,6 +117,32 @@ export function MembershipsListPage() {
 
   // Référence pour comparer les filtres précédents
   const prevFiltersRef = useRef<string>(JSON.stringify(filters))
+
+  // Synchroniser les filtres avec le tab actif
+  useEffect(() => {
+    if (activeTab !== 'all') {
+      // Construire les filtres pour le tab actif
+      const tabFilters = MembershipsListService.buildFiltersForTab({}, activeTab)
+      
+      // Mettre à jour les filtres pour refléter le tab
+      // On garde les autres filtres (recherche, géographie, etc.) mais on force les filtres du tab
+      setFilters(prevFilters => {
+        const newFilters = { ...prevFilters }
+        
+        // Appliquer les filtres du tab (écrase les filtres correspondants)
+        if (tabFilters.membershipType) {
+          newFilters.membershipType = tabFilters.membershipType
+        }
+        
+        if (tabFilters.isActive !== undefined) {
+          newFilters.isActive = tabFilters.isActive
+        }
+        
+        return newFilters
+      })
+    }
+    // Note: Sur le tab "all", on garde les filtres existants (l'utilisateur peut les modifier librement)
+  }, [activeTab])
 
   // Gestionnaires d'événements
   // Note: On réinitialise la page UNIQUEMENT si les filtres ont vraiment changé
@@ -384,6 +411,11 @@ export function MembershipsListPage() {
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onReset={handleResetFilters}
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab)
+          setCurrentPage(1)
+        }}
       />
 
       {/* Tabs de filtres */}

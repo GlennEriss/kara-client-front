@@ -452,11 +452,17 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
 
         subscriptionsSnapshot.docs.forEach(doc => {
           const subData = doc.data()
+          // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+          const dateStart = convertFirestoreDate(subData.dateStart) || convertFirestoreDate(subData.startDate)
+          const dateEnd = convertFirestoreDate(subData.dateEnd) || convertFirestoreDate(subData.endDate)
+          
           subscriptions.push({
             id: doc.id,
             ...subData,
-            dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
-            dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
+            dateStart: dateStart || new Date(),
+            dateEnd: dateEnd || new Date(),
+            // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+            type: subData.type || subData.membershipType,
             createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
             updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
           } as Subscription)
@@ -480,15 +486,21 @@ export async function getMemberWithSubscription(userId: string): Promise<MemberW
         const subscriptionPromises = member.subscriptions.map(async (subId) => {
           const subDoc = await getDoc(doc(db, 'subscriptions', subId))
           if (subDoc.exists()) {
-            const subData = subDoc.data()
-            return {
-              id: subDoc.id,
-              ...subData,
-              dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
-              dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
-              createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
-              updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
-            } as Subscription
+          const subData = subDoc.data()
+          // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+          const dateStart = convertFirestoreDate(subData.dateStart) || convertFirestoreDate(subData.startDate)
+          const dateEnd = convertFirestoreDate(subData.dateEnd) || convertFirestoreDate(subData.endDate)
+          
+          return {
+            id: subDoc.id,
+            ...subData,
+            dateStart: dateStart || new Date(),
+            dateEnd: dateEnd || new Date(),
+            // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+            type: subData.type || subData.membershipType,
+            createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
+            updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
+          } as Subscription
           }
           return null
         })
@@ -532,11 +544,17 @@ export async function getMemberSubscriptions(userId: string): Promise<Subscripti
 
     subscriptionsSnapshot.docs.forEach(doc => {
       const subData = doc.data()
+      // ✅ Fallback : supporter startDate/endDate (ancien format) et dateStart/dateEnd (nouveau format)
+      const dateStart = convertFirestoreDate(subData.dateStart) || convertFirestoreDate(subData.startDate)
+      const dateEnd = convertFirestoreDate(subData.dateEnd) || convertFirestoreDate(subData.endDate)
+      
       subscriptions.push({
         id: doc.id,
         ...subData,
-        dateStart: convertFirestoreDate(subData.dateStart) || new Date(),
-        dateEnd: convertFirestoreDate(subData.dateEnd) || new Date(),
+        dateStart: dateStart || new Date(),
+        dateEnd: dateEnd || new Date(),
+        // ✅ Fallback : supporter membershipType (ancien) et type (nouveau)
+        type: subData.type || subData.membershipType,
         createdAt: convertFirestoreDate(subData.createdAt) || new Date(),
         updatedAt: convertFirestoreDate(subData.updatedAt) || new Date()
       } as Subscription)

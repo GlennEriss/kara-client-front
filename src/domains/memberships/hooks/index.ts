@@ -4,6 +4,7 @@ export { useAddressCascade } from './useAddressCascade'
 export { useDocumentUpload } from './useDocumentUpload'
 export { useStepValidation } from './useStepValidation'
 export { useStep4Validation } from './useStep4Validation'
+export { useMembersSearch, useMembersSearchWithUserFilters } from './useMembersSearch'
 export type {
   UseMembershipsListV2Options,
   UseMembershipsListV2Result,
@@ -27,3 +28,6 @@ export type {
   UseStepValidationOptions,
   UseStepValidationReturn,
 } from './useStepValidation'
+export type {
+  UseMembersSearchOptions,
+} from './useMembersSearch'
