@@ -12,8 +12,15 @@ service firebase.storage {
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-             request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary'];
+      return isAuthenticated() && (
+        // Méthode 1 : Vérifier via custom claims (token.role)
+        (request.auth.token.role != null && 
+         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary']) ||
+        // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
+        // Note: Storage rules ne supportent pas exists() directement, donc on se base sur token.role
+        // Si token.role n'est pas défini, l'utilisateur devra se reconnecter pour obtenir les custom claims
+        false
+      );
     }
     
     // Vérifie si le fichier est une image

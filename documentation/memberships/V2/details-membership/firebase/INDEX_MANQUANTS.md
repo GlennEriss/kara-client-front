@@ -112,18 +112,48 @@ Une fois les index créés, tester la page de détails d'un membre :
   - Contrats
   - Filleuls
 
+## 🔍 Problème de permissions (corrigé le 2026-01-22)
+
+Après le déploiement des index, une nouvelle erreur est apparue : **"Missing or insufficient permissions"**.
+
+### Cause identifiée
+
+La fonction `isAdmin()` dans `firestore.rules` vérifiait uniquement `request.auth.token.role`, mais si le token JWT ne contient pas le champ `role` (parce que les custom claims n'ont pas été définis ou que l'utilisateur n'a pas re-connecté après la définition des claims), alors `isAdmin()` retournait `false`, bloquant l'accès aux collections `subscriptions` et `documents`.
+
+### Solution appliquée
+
+Modification de la fonction `isAdmin()` pour ajouter un fallback via la collection `admins` :
+
+```javascript
+function isAdmin() {
+  return isAuthenticated() && (
+    // Méthode 1 : Vérifier via custom claims (token.role)
+    (request.auth.token.role != null && 
+     request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary']) ||
+    // Méthode 2 : Vérifier via collection admins (fallback)
+    exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+  );
+}
+```
+
+### Déploiement effectué
+
+- ✅ **DEV** (`kara-gabon-dev`) : Règles Firestore et Storage déployées le 2026-01-22
+- ✅ **PROD** (`kara-gabon`) : Règles Firestore et Storage déployées le 2026-01-22
+
 ## 🔍 Pourquoi le module n'était pas vraiment "terminé" ?
 
 Le module `details-membership/` était marqué comme **TERMINÉ** dans la documentation, mais il manquait :
 
 1. **Index Firestore** : Les index nécessaires n'étaient pas créés, ce qui empêchait les requêtes de fonctionner
-2. **Documentation incomplète** : Les index pour `documents` n'étaient pas documentés
-3. **Configuration Firebase** : Les index doivent être déployés sur chaque environnement (dev, preprod, prod)
+2. **Règles de sécurité** : La fonction `isAdmin()` ne fonctionnait pas correctement si les custom claims n'étaient pas définis
+3. **Documentation incomplète** : Les index pour `documents` n'étaient pas documentés
+4. **Configuration Firebase** : Les index et règles doivent être déployés sur chaque environnement (dev, preprod, prod)
 
 **Conclusion** : Un module n'est vraiment "terminé" que lorsque :
 - ✅ Le code est écrit et testé
 - ✅ Les index Firestore sont créés et déployés
-- ✅ Les règles Firestore/Storage sont configurées
+- ✅ Les règles Firestore/Storage sont configurées et testées
 - ✅ La documentation est complète
 - ✅ Les tests passent en environnement réel
 

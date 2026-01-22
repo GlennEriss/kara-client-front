@@ -10,7 +10,7 @@
  * - INT-LIST-06 : Pagination (changement page, items par page)
  * - INT-LIST-07 : Toggle vue grille/liste
  * - INT-LIST-08 : Export (ouverture modal ExportMembershipModal)
- * - INT-LIST-09 : Ouverture détails membre (modal MemberDetailsWrapper)
+ * - INT-LIST-09 : Navigation vers détails membre (page dédiée /memberships/{id})
  * - INT-LIST-10 : État vide (avec/sans filtres actifs)
  */
 
@@ -46,10 +46,13 @@ vi.mock('@/firebase/firestore', () => ({
 
 vi.mock('@/domains/memberships/hooks/useMembershipsListV2')
 vi.mock('@/domains/memberships/repositories/MembersRepositoryV2')
+const mockPush = vi.fn()
+const mockBack = vi.fn()
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: vi.fn(),
-    back: vi.fn(),
+    push: mockPush,
+    back: mockBack,
   }),
 }))
 vi.mock('sonner', () => ({
@@ -98,12 +101,6 @@ vi.mock('next/image', () => ({
 }))
 
 // Mock des composants enfants
-vi.mock('@/components/memberships/MemberDetailsWrapper', () => ({
-  default: ({ isOpen, onClose, dossierId }: any) => (
-    isOpen ? <div data-testid="member-details-modal">Modal détails: {dossierId}</div> : null
-  ),
-}))
-
 vi.mock('@/components/memberships/ExportMembershipModal', () => ({
   default: ({ isOpen, onClose }: any) => (
     isOpen ? <div data-testid="export-modal">Modal export</div> : null
@@ -227,6 +224,8 @@ describe('MembershipsListPage - Tests d\'intégration', () => {
       },
     })
     vi.clearAllMocks()
+    mockPush.mockClear()
+    mockBack.mockClear()
   })
 
   const renderComponent = () => {
@@ -573,8 +572,8 @@ describe('MembershipsListPage - Tests d\'intégration', () => {
     })
   })
 
-  describe('INT-LIST-09 : Ouverture détails membre', () => {
-    it('devrait ouvrir le modal de détails quand on clique sur un membre', async () => {
+  describe('INT-LIST-09 : Navigation vers détails membre', () => {
+    it('devrait naviguer vers la page de détails quand on clique sur "Voir détails"', async () => {
       const mockData = createPaginatedMembersFixture()
       const mockStats = createStatsFixture()
 
@@ -608,8 +607,9 @@ describe('MembershipsListPage - Tests d\'intégration', () => {
       
       fireEvent.click(detailsButton!)
       
+      // Vérifier que router.push est appelé avec la bonne route
       await waitFor(() => {
-        expect(screen.getByTestId('member-details-modal')).toBeInTheDocument()
+        expect(mockPush).toHaveBeenCalledWith(`/memberships/${firstMemberId}`)
       })
     })
   })
