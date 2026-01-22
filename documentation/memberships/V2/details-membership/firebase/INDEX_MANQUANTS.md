@@ -116,13 +116,21 @@ Une fois les index créés, tester la page de détails d'un membre :
 
 Après le déploiement des index, une nouvelle erreur est apparue : **"Missing or insufficient permissions"**.
 
-### Cause identifiée
+### Causes identifiées
+
+#### 1. Fonction `isAdmin()` incomplète
 
 La fonction `isAdmin()` dans `firestore.rules` vérifiait uniquement `request.auth.token.role`, mais si le token JWT ne contient pas le champ `role` (parce que les custom claims n'ont pas été définis ou que l'utilisateur n'a pas re-connecté après la définition des claims), alors `isAdmin()` retournait `false`, bloquant l'accès aux collections `subscriptions` et `documents`.
 
-### Solution appliquée
+#### 2. Collection `caisseContracts` sans règles
 
-Modification de la fonction `isAdmin()` pour ajouter un fallback via la collection `admins` :
+La collection `caisseContracts` utilisée par `listContractsByMember()` dans `useMembershipDetails` n'avait **aucune règle définie** dans `firestore.rules`. Elle tombait donc sous la règle par défaut `match /{document=**} { allow read, write: if false; }` qui refuse tout accès, causant l'erreur "Missing or insufficient permissions" lors du chargement des contrats d'un membre.
+
+### Solutions appliquées
+
+#### 1. Modification de la fonction `isAdmin()`
+
+Ajout d'un fallback via la collection `admins` :
 
 ```javascript
 function isAdmin() {
@@ -133,6 +141,19 @@ function isAdmin() {
     // Méthode 2 : Vérifier via collection admins (fallback)
     exists(/databases/$(database)/documents/admins/$(request.auth.uid))
   );
+}
+```
+
+#### 2. Ajout des règles pour `caisseContracts`
+
+Ajout des règles de sécurité pour la collection `caisseContracts` :
+
+```javascript
+match /caisseContracts/{contractId} {
+  // Lecture : Admin uniquement
+  allow read: if isAdmin();
+  // Écriture : Admin uniquement
+  allow write: if isAdmin();
 }
 ```
 
