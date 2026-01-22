@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,7 +34,6 @@ import { MembershipsListService } from '@/domains/memberships/services/Membershi
 import { UserFilters } from '@/types/types'
 import { MemberWithSubscription } from '@/db/member.db'
 import routes from '@/constantes/routes'
-import MemberDetailsWrapper from '@/components/memberships/MemberDetailsWrapper'
 import { toast } from 'sonner'
 import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, createTestUserWithoutSubscription, createTestUserWithAddressAndProfession, createTestUserWithBirthdayToday } from '@/utils/test-data'
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
@@ -88,10 +88,7 @@ export function MembershipsListPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10) // Valeur par défaut : 10 pour correspondre aux options du sélecteur
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [activeTab, setActiveTab] = useState<MembersTab>('all')
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
-  const [selectedMember, setSelectedMember] = useState<MemberWithSubscription | null>(null)
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false)
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isExportOpen, setIsExportOpen] = useState(false)
@@ -190,12 +187,11 @@ export function MembershipsListPage() {
     window.location.href = routes.admin.membershipSubscription(memberId)
   }
 
+  const router = useRouter()
+  
   const handleViewDetails = (memberId: string) => {
-    const member = membersWithSubscriptions.find(m => m.id === memberId)
-    if (member) {
-      setSelectedMember(member)
-      setIsDetailsModalOpen(true)
-    }
+    // Naviguer vers la page de détails du membre
+    router.push(routes.admin.membershipDetails(memberId))
   }
 
   const handlePreviewAdhesion = (url: string | null) => {
@@ -467,18 +463,7 @@ export function MembershipsListPage() {
 
       {/* Modals */}
       {/* Modal des abonnements supprimé: désormais sur page dédiée */}
-
-      {selectedMember && (
-        <MemberDetailsWrapper
-          isOpen={isDetailsModalOpen}
-          onClose={() => {
-            setIsDetailsModalOpen(false)
-            setSelectedMember(null)
-          }}
-          dossierId={selectedMember.dossier}
-          memberName={`${selectedMember.firstName} ${selectedMember.lastName}`}
-        />
-      )}
+      {/* Modal des détails supprimée: désormais sur page dédiée /memberships/{id} */}
 
       {/* Prévisualisation fiche d'adhésion */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>

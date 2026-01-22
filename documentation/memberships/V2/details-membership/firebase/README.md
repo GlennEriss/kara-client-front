@@ -47,10 +47,12 @@
 #### 2.1 Abonnements par membre
 
 - Collection : `subscriptions`
-- Index :
-  - `userId` (Ascending), `dateEnd` (Descending)
+- Index requis :
+  - `userId` (Ascending), `createdAt` (Descending) ✅ **REQUIS pour `getMemberSubscriptions()`**
+  - `userId` (Ascending), `dateStart` (Descending) - pour compatibilité avec ancien format
 - Utilisation :
-  - Récupérer toutes les subscriptions d'un membre triées par date (pour l'historique et la dernière subscription).
+  - Récupérer toutes les subscriptions d'un membre triées par date de création (pour l'historique et la dernière subscription).
+  - Utilisé dans `useMembershipDetails` via `getMemberSubscriptions(memberId)`.
 
 #### 2.2 Contrats par membre
 
@@ -70,7 +72,18 @@
 - Utilisation :
   - Lister les filleuls d'un membre (parrain) dans la section filleuls.
 
-#### 2.4 Membres (profil)
+#### 2.4 Documents par membre
+
+- Collection : `documents`
+- Index requis :
+  - `memberId` (Ascending), `type` (Ascending), `createdAt` (Descending) ✅ **REQUIS pour `DocumentRepository.getDocuments()`**
+  - `memberId` (Ascending), `createdAt` (Descending) - pour requêtes sans filtre type
+- Utilisation :
+  - Récupérer tous les documents d'un membre triés par type puis par date de création.
+  - Utilisé dans `useMembershipDetails` via `useDocumentList(memberId)`.
+  - Requête : `where('memberId', '==', memberId) + orderBy('type', 'asc') + orderBy('createdAt', 'desc')`
+
+#### 2.5 Membres (profil)
 
 - Collection : `users`
 - Index :
@@ -130,7 +143,7 @@ match /sponsorships/{sponsorshipId} {
 - **`users`** : via `getUserById(memberId)` depuis `@/db/user.db`
   - Fonction : `getDoc(doc(db, 'users', memberId))`
 - **`subscriptions`** : via `getMemberSubscriptions(memberId)` depuis `@/db/member.db`
-  - Requête : `query(collection(db, 'subscriptions'), where('userId', '==', memberId), orderBy('dateEnd', 'desc'))`
+  - Requête : `query(collection(db, 'subscriptions'), where('userId', '==', memberId), orderBy('createdAt', 'desc'))`
 - **`caisse-contracts`** : via `listContractsByMember(memberId)` depuis `@/db/caisse/contracts.db`
   - Requête : `query(collection(db, 'caisse-contracts'), where('memberId', '==', memberId))`
 - **Filleuls** : via `useMemberWithFilleuls(memberId)` depuis `@/hooks/filleuls` (collection à confirmer)
@@ -139,12 +152,24 @@ match /sponsorships/{sponsorshipId} {
 #### Requêtes Firestore effectives
 
 1. **Membre** : `getDoc(doc(db, 'users', memberId))`
-2. **Abonnements** : Query sur `subscriptions` avec `where('userId', '==', memberId)` + `orderBy('dateEnd', 'desc')`
-3. **Contrats** : Query sur `caisse-contracts` avec `where('memberId', '==', memberId)`
+2. **Abonnements** : Query sur `subscriptions` avec `where('userId', '==', memberId)` + `orderBy('createdAt', 'desc')`
+3. **Documents** : Query sur `documents` avec `where('memberId', '==', memberId)` + `orderBy('type', 'asc')` + `orderBy('createdAt', 'desc')`
+4. **Contrats** : Query sur `caisse-contracts` avec `where('memberId', '==', memberId)`
 
 ### 6. Vérifications effectuées
 
 - [x] Les requêtes dans `useMembershipDetails` utilisent les fonctions DB existantes (`getUserById`, `getMemberSubscriptions`, `listContractsByMember`).
-- [x] Les index nécessaires sont déjà en place (utilisés par les fonctions DB existantes).
+- [x] Les index nécessaires ont été ajoutés dans `firestore.indexes.json` (voir `INDEX_MANQUANTS.md` pour les détails).
 - [x] Les règles Firestore et Storage existantes couvrent les accès nécessaires (lecture admin uniquement).
+- [ ] **Déploiement des index Firestore** : Les index doivent être déployés sur chaque environnement (dev, preprod, prod) via `firebase deploy --only firestore:indexes`.
 - [ ] Tests d'intégration pour erreurs de permissions (403) : **À FAIRE** (Phase 5).
+
+### 7. ⚠️ Index manquants (corrigé le 2026-01-22)
+
+Voir `INDEX_MANQUANTS.md` pour les détails complets du problème et de la solution.
+
+**Résumé** : Deux index Firestore manquants empêchaient le chargement des données :
+1. `subscriptions` : `userId` (Ascending), `createdAt` (Descending)
+2. `documents` : `memberId` (Ascending), `type` (Ascending), `createdAt` (Descending)
+
+Ces index ont été ajoutés dans `firestore.indexes.json` et doivent être déployés.
