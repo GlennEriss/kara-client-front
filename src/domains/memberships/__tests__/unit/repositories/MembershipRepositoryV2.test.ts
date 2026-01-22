@@ -82,6 +82,7 @@ import {
   underReviewRequest,
 } from '../../fixtures'
 import type { MembershipRequestFilters, PaymentInfo } from '../../../entities'
+import type { RegisterFormData } from '@/schemas/schemas'
 
 function resetFirestoreMocks() {
   mockCollection.mockReset()
@@ -1391,15 +1392,20 @@ describe('MembershipRepositoryV2', () => {
 
       const formData: RegisterFormData = {
         identity: {
+          civility: 'M',
           firstName: 'Jean',
           lastName: 'Dupont',
           email: 'jean.dupont@example.com',
-          phone: '0123456789',
           contacts: ['0123456789'],
           gender: 'male',
           birthDate: '1990-01-01',
           birthPlace: 'Libreville',
+          birthCertificateNumber: '123456789',
+          prayerPlace: 'Mosquée',
+          religion: 'Islam',
           nationality: 'gabonaise',
+          maritalStatus: 'single',
+          hasCar: false,
         },
         address: {
           provinceId: 'province-1',
@@ -1410,12 +1416,10 @@ describe('MembershipRepositoryV2', () => {
           city: 'Libreville',
           arrondissement: 'Arrondissement 1',
           district: 'District 1',
-          street: 'Rue Test',
         },
         company: {
-          companyId: 'company-1',
+          isEmployed: false,
           companyName: 'Test Company',
-          professionId: 'profession-1',
           profession: 'Engineer',
         },
         documents: {
@@ -1446,15 +1450,20 @@ describe('MembershipRepositoryV2', () => {
 
       const formData: RegisterFormData = {
         identity: {
+          civility: 'M',
           firstName: 'Jean',
           lastName: 'Dupont',
           email: 'jean.dupont@example.com',
-          phone: '0123456789',
           contacts: ['0123456789'],
           gender: 'male',
           birthDate: '1990-01-01',
           birthPlace: 'Libreville',
+          birthCertificateNumber: '123456789',
+          prayerPlace: 'Mosquée',
+          religion: 'Islam',
           nationality: 'gabonaise',
+          maritalStatus: 'single',
+          hasCar: false,
           photo: 'data:image/jpeg;base64,test',
         },
         address: {
@@ -1462,14 +1471,19 @@ describe('MembershipRepositoryV2', () => {
           communeId: 'commune-1',
           province: 'Estuaire',
           city: 'Libreville',
+          district: '',
+          arrondissement: '',
         },
         company: {
-          companyId: 'company-1',
+          isEmployed: false,
           companyName: 'Test Company',
         },
         documents: {
           identityDocument: 'cni',
           identityDocumentNumber: '123456789',
+          expirationDate: '2025-12-31',
+          issuingPlace: 'Libreville',
+          issuingDate: '2020-01-01',
           termsAccepted: true,
         },
       }
@@ -1494,15 +1508,20 @@ describe('MembershipRepositoryV2', () => {
 
       const formData: RegisterFormData = {
         identity: {
+          civility: 'M',
           firstName: 'Jean',
           lastName: 'Dupont',
           email: 'jean.dupont@example.com',
-          phone: '0123456789',
           contacts: ['0123456789'],
           gender: 'male',
           birthDate: '1990-01-01',
           birthPlace: 'Libreville',
+          birthCertificateNumber: '123456789',
+          prayerPlace: 'Mosquée',
+          religion: 'Islam',
           nationality: 'gabonaise',
+          maritalStatus: 'single',
+          hasCar: false,
           photo: 'data:image/jpeg;base64,test',
         },
         address: {
@@ -1510,14 +1529,19 @@ describe('MembershipRepositoryV2', () => {
           communeId: 'commune-1',
           province: 'Estuaire',
           city: 'Libreville',
+          district: '',
+          arrondissement: '',
         },
         company: {
-          companyId: 'company-1',
+          isEmployed: false,
           companyName: 'Test Company',
         },
         documents: {
           identityDocument: 'cni',
           identityDocumentNumber: '123456789',
+          expirationDate: '2025-12-31',
+          issuingPlace: 'Libreville',
+          issuingDate: '2020-01-01',
           termsAccepted: true,
         },
       }

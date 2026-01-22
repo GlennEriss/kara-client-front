@@ -258,7 +258,7 @@ describe('MembersRepositoryV2', () => {
       const filters: UserFilters = {
         searchQuery: 'test',
         membershipType: ['adherant'],
-        roles: ['member'],
+        roles: ['Adherant'],
         isActive: true,
         hasCar: false,
         province: 'Estuaire',

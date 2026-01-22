@@ -15,11 +15,8 @@ describe('useStep4Validation', () => {
         defaultValues: {
           documents: {
             termsAccepted: false,
-            identityCardFront: null,
-            identityCardBack: null,
-            photo: null,
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
             expirationDate: '',
             issuingPlace: '',
             issuingDate: '',
@@ -27,7 +24,7 @@ describe('useStep4Validation', () => {
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { rerender } = renderHook(
       ({ termsAccepted }) => useStep4Validation({ form, termsAccepted }),
@@ -48,11 +45,8 @@ describe('useStep4Validation', () => {
         defaultValues: {
           documents: {
             termsAccepted: false,
-            identityCardFront: null,
-            identityCardBack: null,
-            photo: null,
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
             expirationDate: '',
             issuingPlace: '',
             issuingDate: '',
@@ -60,7 +54,7 @@ describe('useStep4Validation', () => {
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     renderHook(() => useStep4Validation({ form, termsAccepted: false }))
 
@@ -77,11 +71,8 @@ describe('useStep4Validation', () => {
         defaultValues: {
           documents: {
             termsAccepted: false,
-            identityCardFront: null,
-            identityCardBack: null,
-            photo: null,
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
             expirationDate: '',
             issuingPlace: '',
             issuingDate: '',
@@ -89,7 +80,7 @@ describe('useStep4Validation', () => {
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { rerender } = renderHook(
       ({ termsAccepted }) => useStep4Validation({ form, termsAccepted }),
@@ -113,11 +104,8 @@ describe('useStep4Validation', () => {
         defaultValues: {
           documents: {
             termsAccepted: true,
-            identityCardFront: null,
-            identityCardBack: null,
-            photo: null,
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
             expirationDate: '',
             issuingPlace: '',
             issuingDate: '',
@@ -125,7 +113,7 @@ describe('useStep4Validation', () => {
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     renderHook(() => useStep4Validation({ form, termsAccepted: true }))
 
@@ -143,11 +131,8 @@ describe('useStep4Validation', () => {
         defaultValues: {
           documents: {
             termsAccepted: true,
-            identityCardFront: null,
-            identityCardBack: null,
-            photo: null,
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
             expirationDate: '',
             issuingPlace: '',
             issuingDate: '',
@@ -155,7 +140,7 @@ describe('useStep4Validation', () => {
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     renderHook(() => useStep4Validation({ form, termsAccepted: true }))
 

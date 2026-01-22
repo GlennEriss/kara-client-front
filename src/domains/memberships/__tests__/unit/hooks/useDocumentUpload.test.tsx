@@ -35,13 +35,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })
@@ -59,13 +59,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })
@@ -93,13 +93,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })
@@ -129,13 +129,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })
@@ -158,13 +158,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })
@@ -188,13 +188,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })
@@ -231,13 +231,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })
@@ -268,13 +268,13 @@ describe('useDocumentUpload', () => {
       useForm<RegisterFormData>({
         defaultValues: {
           documents: {
-            documentPhotoFront: null,
-            documentPhotoBack: null,
+            documentPhotoFront: undefined,
+            documentPhotoBack: undefined,
           },
         },
       })
     )
-    const form = formResult.current
+    const form = formResult.current as any
 
     const { result } = renderHook(() =>
       useDocumentUpload({ form, documentType: 'front' })

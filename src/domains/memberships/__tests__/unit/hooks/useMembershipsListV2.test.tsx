@@ -7,7 +7,8 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useMembershipsListV2 } from '../../../hooks/useMembershipsListV2'
 import type { UserFilters } from '@/types/types'
-import type { PaginatedMembers } from '@/db/member.db'
+import type { PaginatedMembers, MemberWithSubscription } from '@/db/member.db'
+import type { MembershipStats } from '../../../services/MembershipsListService'
 
 // Mock MembersRepositoryV2
 const mockGetAll = vi.fn()
@@ -59,14 +60,19 @@ describe('useMembershipsListV2', () => {
     })
     vi.clearAllMocks()
     // Réinitialiser les mocks
-    mockBuildFiltersForTab.mockImplementation((filters) => filters)
+    mockBuildFiltersForTab.mockImplementation((filters) => filters || {})
     mockCalculateStats.mockReturnValue({
       total: 0,
-      adherant: 0,
-      bienfaiteur: 0,
-      sympathisant: 0,
       active: 0,
       expired: 0,
+      noSub: 0,
+      men: 0,
+      women: 0,
+      activePercentage: 0,
+      expiredPercentage: 0,
+      noSubPercentage: 0,
+      menPercentage: 0,
+      womenPercentage: 0,
     })
   })
 
@@ -81,9 +87,9 @@ describe('useMembershipsListV2', () => {
           id: 'user1',
           firstName: 'John',
           lastName: 'Doe',
-          lastSubscription: null,
+          lastSubscription: undefined,
           isSubscriptionValid: false,
-        },
+        } as MemberWithSubscription,
       ],
       pagination: {
         currentPage: 1,
@@ -134,7 +140,7 @@ describe('useMembershipsListV2', () => {
     mockGetAll.mockResolvedValue(mockData)
 
     const { result } = renderHook(
-      () => useMembershipsListV2({ filters: baseFilters, page: 1, limit: 10, tab: 'adherant' }),
+      () => useMembershipsListV2({ filters: baseFilters, page: 1, limit: 10, tab: 'adherents' }),
       { wrapper }
     )
 
@@ -142,7 +148,7 @@ describe('useMembershipsListV2', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    expect(mockBuildFiltersForTab).toHaveBeenCalledWith(baseFilters, 'adherant')
+    expect(mockBuildFiltersForTab).toHaveBeenCalledWith(baseFilters, 'adherents')
     expect(mockGetAll).toHaveBeenCalledWith(tabFilters, 1, 10)
   })
 
@@ -161,13 +167,18 @@ describe('useMembershipsListV2', () => {
       },
     }
 
-    const mockStats = {
+    const mockStats: MembershipStats = {
       total: 10,
-      adherant: 5,
-      bienfaiteur: 3,
-      sympathisant: 2,
       active: 8,
       expired: 2,
+      noSub: 0,
+      men: 5,
+      women: 5,
+      activePercentage: 80,
+      expiredPercentage: 20,
+      noSubPercentage: 0,
+      menPercentage: 50,
+      womenPercentage: 50,
     }
 
     mockGetAll.mockResolvedValue(mockData)
@@ -420,7 +431,7 @@ describe('useMembershipsListV2', () => {
         ({ filters }) => useMembershipsListV2({ filters, page: 1, limit: 10 }),
         {
           wrapper,
-          initialProps: { filters: { membershipType: ['adherant'] } },
+          initialProps: { filters: { membershipType: ['adherant'] } as UserFilters },
         }
       )
 
