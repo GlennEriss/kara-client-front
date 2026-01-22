@@ -61,6 +61,18 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // STRUCTURE D'ADRESSES (ADDRESSES)
+    // ==========================================
+    // Structure hiérarchique des adresses (province -> ville -> arrondissement -> district)
+    // Lecture publique pour permettre le remplissage du formulaire d'inscription
+    // Écriture réservée aux admins
+    
+    match /addresses/{addressId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
     // UTILISATEURS (USERS)
     // ==========================================
     

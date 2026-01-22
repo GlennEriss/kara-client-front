@@ -355,6 +355,26 @@ class MembershipServiceV2 {
   + processPayment(params: ProcessPaymentParams): Promise<void>
 }
 
+class MembershipsListService {
+  + {static} buildFiltersForTab(baseFilters: UserFilters, tab?: MembersTab): UserFilters
+  + {static} calculateStats(paginated: PaginatedMembers | null): MembershipStats | null
+}
+
+note right of MembershipsListService
+  **Service pour la liste des membres (V2)**
+  
+  **Package:** src/domains/memberships/services/
+  
+  **Méthode buildFiltersForTab():**
+  - Mappe les tabs (all, adherents, bienfaiteurs, etc.) vers UserFilters
+  - Combine avec les filtres de base
+  
+  **Méthode calculateStats():**
+  - Calcule les statistiques (actifs, expirés, genre, pourcentages)
+  - Basé sur les données paginées
+  - Gère les cas limites (liste vide)
+end note
+
 note right of MembershipServiceV2
   **Service métier V2 pour Membership Requests**
   
@@ -385,6 +405,31 @@ class RegistrationService {
 }
 
 ' ============================================
+' CLASSES : SERVICE LISTE MEMBRES (V2)
+' ============================================
+
+class MembershipsListService {
+  + {static} buildFiltersForTab(baseFilters: UserFilters, tab?: MembersTab): UserFilters
+  + {static} calculateStats(paginated: PaginatedMembers | null): MembershipStats | null
+}
+
+note right of MembershipsListService
+  **Service V2 pour la liste des membres**
+  
+  **Package:** src/domains/memberships/services/
+  
+  **Méthode buildFiltersForTab():**
+  - Mappe les tabs (all, adherents, bienfaiteurs, etc.) vers UserFilters
+  - Combine avec les filtres de base
+  
+  **Méthode calculateStats():**
+  - Calcule les statistiques (actifs, expirés, genre, pourcentages)
+  - Basé sur les données paginées
+  
+  **Utilisé par:** useMembershipsListV2
+end note
+
+' ============================================
 ' CLASSES : REPOSITORIES (Architecture V2)
 ' ============================================
 
@@ -397,6 +442,60 @@ class MembershipRepositoryV2 {
   + markAsPaid(id: string, paymentInfo: PaymentInfo): Promise<void>
   + getPaginated(filters: MembershipRequestFilters): Promise<MembershipRequestsResponse>
 }
+
+class MembersRepositoryV2 {
+  + {static} getInstance(): MembersRepositoryV2
+  + getAll(filters: UserFilters, page: number, limit: number, cursor?: DocumentSnapshot): Promise<PaginatedMembers>
+}
+
+note right of MembersRepositoryV2
+  **Repository V2 pour la liste des membres**
+  
+  **Package:** src/domains/memberships/repositories/
+  
+  **Méthode getAll():**
+  - Délègue à getMembers() dans member.db.ts
+  - Support pagination par curseur
+  - Utilise getCountFromServer() pour totalItems
+  - Parallélise getMemberWithSubscription() avec Promise.all()
+  
+  **Collection:** users
+  **Filtres:** roles, membershipType, hasCar, isActive, géographie, entreprise, profession
+end note
+
+note right of MembershipRepositoryV2
+  **Repository V2 pour Membership Requests**
+  
+  **Package:** src/domains/memberships/repositories/
+  
+  **Collection:** membership-requests
+  
+  **Utilisé par:** MembershipServiceV2, useMembershipRequestDetails
+end note
+
+' ============================================
+' CLASSES : REPOSITORY MEMBRES (V2 - Liste)
+' ============================================
+
+class MembersRepositoryV2 {
+  + {static} getInstance(): MembersRepositoryV2
+  + getAll(filters: UserFilters, page: number, limit: number, cursor?: DocumentSnapshot | null): Promise<PaginatedMembers>
+}
+
+note right of MembersRepositoryV2
+  **Repository V2 pour la liste des membres**
+  
+  **Package:** src/domains/memberships/repositories/
+  
+  **Collection:** users
+  
+  **Méthode getAll():**
+  - Délègue à getMembers() dans member.db.ts
+  - Supporte pagination par curseur
+  - Utilise getCountFromServer() pour totalItems
+  
+  **Utilisé par:** useMembershipsListV2
+end note
 
 class RegistrationRepository {
   + getById(id: string): Promise<MembershipRequest | null>
@@ -549,6 +648,40 @@ class useMembershipRequestDetails {
   + error: unknown
 }
 
+class useMembershipsListV2 {
+  + data: PaginatedMembers | undefined
+  + stats: MembershipStats | null
+  + isLoading: boolean
+  + isError: boolean
+  + error: unknown
+  + refetch: () => Promise<unknown>
+  + goToNextPage: () => void
+  + goToPrevPage: () => void
+  + canGoNext: boolean
+  + canGoPrev: boolean
+}
+
+note right of useMembershipsListV2
+  **Hook React Query agrégateur pour la liste des membres (V2)**
+  
+  **Package:** src/domains/memberships/hooks/
+  
+  **Fonctionnalités:**
+  - Agrège repository + service stats
+  - Gère les filtres (base + tabs)
+  - Pagination par curseur et numéro de page
+  - Cache React Query (5 min staleTime, 10 min gcTime)
+  
+  **Navigation par curseur:**
+  - cursorHistoryRef pour navigation arrière
+  - goToNextPage() / goToPrevPage() pour navigation séquentielle
+  - Support saut de page (pagination classique)
+  
+  **Dépendances:**
+  - MembersRepositoryV2
+  - MembershipsListService
+end note
+
 note right of useMembershipRequestDetails
   **Hook React Query agrégateur pour la vue détails**
   
@@ -578,6 +711,102 @@ class MembershipRequestDetails {
   + render(): JSX.Element
   - handleViewAdhesionPdf(): Promise<void>
 }
+
+' ============================================
+' CLASSES : COMPOSANTS LISTE DES MEMBRES (V2)
+' ============================================
+
+' Composant principal de la liste
+class MembershipsListPage {
+  + render(): JSX.Element
+  - handleFiltersChange(filters: UserFilters): void
+  - handlePageChange(page: number): void
+  - handleViewDetails(memberId: string): void
+  - handleExport(): void
+}
+
+' Composants présentatifs
+class MembershipsListStats {
+  + stats: MembershipStats
+  + render(): JSX.Element
+}
+
+class MembershipsListHeader {
+  + totalItems: number
+  + currentPage: number
+  + viewMode: 'grid' | 'list'
+  + onViewModeChange(mode: 'grid' | 'list'): void
+  + onRefresh(): void
+  + onExport(): void
+  + render(): JSX.Element
+}
+
+class MembershipsListTabs {
+  + activeTab: MembersTab
+  + onTabChange(tab: MembersTab): void
+  + counts?: TabCounts
+  + render(): JSX.Element
+}
+
+class MembershipsListFilters {
+  + filters: UserFilters
+  + onFiltersChange(filters: UserFilters): void
+  + onReset(): void
+  + render(): JSX.Element
+}
+
+class MembershipsListLayout {
+  + members: MemberWithSubscription[]
+  + viewMode: 'grid' | 'list'
+  + onViewSubscriptions(memberId: string): void
+  + onViewDetails(memberId: string): void
+  + onPreviewAdhesion(url: string | null): void
+  + render(): JSX.Element
+}
+
+class MembershipsListPagination {
+  + pagination: PaginationInfo
+  + onPageChange(page: number): void
+  + onItemsPerPageChange(itemsPerPage: number): void
+  + isLoading: boolean
+  + render(): JSX.Element
+}
+
+class MembershipsListSkeleton {
+  + viewMode: 'grid' | 'list'
+  + itemsPerPage: number
+  + render(): JSX.Element
+}
+
+class MembershipsListErrorState {
+  + onRetry: () => void
+  + render(): JSX.Element
+}
+
+class MembershipsListEmptyState {
+  + filters: UserFilters
+  + onResetFilters: () => void
+  + render(): JSX.Element
+}
+
+note right of MembershipsListPage
+  **Composant principal refactorisé (V2)**
+  
+  **Package:** src/domains/memberships/components/page/
+  
+  **Architecture:**
+  - Utilise useMembershipsListV2() pour agrégation des données
+  - Composition de 9 sous-composants présentatifs
+  - Gestion des états: loading (skeleton), error (error state), success (liste)
+  
+  **Réduction de code:**
+  - Avant: ~900 lignes (monolithe)
+  - Après: ~479 lignes (composition + outils de test en dev)
+  
+  **Fonctionnalités:**
+  - Gestion modals (détails, prévisualisation PDF, export)
+  - Outils de test/debug en développement uniquement
+end note
 
 ' Composants de base
 class DetailsSkeleton {
@@ -788,6 +1017,82 @@ enum MembershipType {
   sympathisant
 }
 
+enum MembersTab {
+  all
+  adherents
+  bienfaiteurs
+  sympathisants
+  abonnement_valide
+  abonnement_invalide
+  anniversaires
+}
+
+class MembershipStats {
+  + total: number
+  + active: number
+  + expired: number
+  + noSub: number
+  + men: number
+  + women: number
+  + activePercentage: number
+  + expiredPercentage: number
+  + noSubPercentage: number
+  + menPercentage: number
+  + womenPercentage: number
+}
+
+class PaginatedMembers {
+  + data: MemberWithSubscription[]
+  + pagination: PaginationInfo
+}
+
+class PaginationInfo {
+  + currentPage: number
+  + totalPages: number
+  + totalItems: number
+  + itemsPerPage: number
+  + hasNextPage: boolean
+  + hasPrevPage: boolean
+  + nextCursor: DocumentSnapshot | null
+  + prevCursor: DocumentSnapshot | null
+}
+
+note right of PaginationInfo
+  **Informations de pagination (V2)**
+  
+  **totalItems:** Vrai total obtenu via getCountFromServer()
+  **totalPages:** Calculé via Math.ceil(totalItems / itemsPerPage)
+  **nextCursor/prevCursor:** Curseurs Firestore pour navigation
+end note
+
+class MemberWithSubscription {
+  + id: string
+  + firstName: string
+  + lastName: string
+  + matricule: string
+  + email?: string
+  + gender: string
+  + membershipType: MembershipType
+  + isSubscriptionValid: boolean
+  + lastSubscription?: Subscription
+  + address?: AddressData
+  + company?: CompanyData
+  + createdAt: Date
+}
+
+note right of MemberWithSubscription
+  **Type enrichi pour la liste des membres**
+  
+  **Enrichissement:**
+  - lastSubscription: Dernière subscription du membre
+  - isSubscriptionValid: Calculé côté client (dateEnd > aujourd'hui)
+  
+  **Utilisé par:**
+  - MembershipsListLayout
+  - MemberCard
+  - MembershipsListStats (calcul stats)
+end note
+
 ' ============================================
 ' RELATIONS
 ' ============================================
@@ -888,6 +1193,9 @@ MembershipServiceV2 --> AdminRepository : uses
 MembershipServiceV2 --> NotificationService : uses
 RegistrationService --> RegistrationRepository : uses
 
+' Service liste utilise MembersRepositoryV2
+MembershipsListService ..> MembersRepositoryV2 : used_by
+
 ' MembershipServiceV2 appelle la Cloud Function pour l'approbation
 MembershipServiceV2 ..> ApproveMembershipRequestCloudFunction : calls
 
@@ -897,6 +1205,22 @@ MembershipServiceV2 ..> DeleteMembershipRequestCloudFunction : calls
 ' Repositories interagissent avec MembershipRequest
 MembershipRepositoryV2 ..> MembershipRequest : queries/updates
 RegistrationRepository ..> MembershipRequest : queries/updates
+
+' Repository membres interagit avec User et Subscription
+MembersRepositoryV2 ..> User : queries
+MembersRepositoryV2 ..> Subscription : queries
+
+' Hook retourne les types
+useMembershipsListV2 ..> PaginatedMembers : returns
+useMembershipsListV2 ..> MembershipStats : returns
+
+' Service retourne les types
+MembershipsListService ..> MembershipStats : returns
+MembershipsListService ..> UserFilters : returns
+
+' Composants utilisent les types
+MembershipsListStats ..> MembershipStats : uses
+MembershipsListLayout ..> MemberWithSubscription : uses
 
 ' Services utilisent les utilitaires
 MembershipServiceV2 ..> SecurityCodeUtils : uses
@@ -916,6 +1240,12 @@ useMembershipRequestDetails --> DetailsUtils : uses
 useMembershipRequestDetails ..> User : queries_admin
 useMembershipRequestDetails ..> Document : queries_pdf
 
+' Hook liste utilise repository et service
+useMembershipsListV2 --> MembersRepositoryV2 : uses
+useMembershipsListV2 --> MembershipsListService : uses
+useMembershipsListV2 ..> User : queries_members
+useMembershipsListV2 ..> Subscription : queries_subscriptions
+
 ' Composant principal compose les sous-composants
 MembershipRequestDetails *-- DetailsSkeleton : uses_loading
 MembershipRequestDetails *-- DetailsErrorState : uses_error
@@ -928,6 +1258,23 @@ MembershipRequestDetails *-- DetailsPaymentCard : uses
 MembershipRequestDetails *-- DetailsDocumentsCard : uses
 MembershipRequestDetails *-- DetailsPhotoCard : uses
 MembershipRequestDetails *-- DetailsMetaCard : uses
+
+' Composant liste utilise le hook
+MembershipsListPage --> useMembershipsListV2 : uses
+
+' Composant liste compose les sous-composants
+MembershipsListPage *-- MembershipsListStats : uses
+MembershipsListPage *-- MembershipsListHeader : uses
+MembershipsListPage *-- MembershipsListTabs : uses
+MembershipsListPage *-- MembershipsListFilters : uses
+MembershipsListPage *-- MembershipsListLayout : uses
+MembershipsListPage *-- MembershipsListPagination : uses
+MembershipsListPage *-- MembershipsListSkeleton : uses_loading
+MembershipsListPage *-- MembershipsListErrorState : uses_error
+MembershipsListPage *-- MembershipsListEmptyState : uses_empty
+
+' Layout utilise MemberCard (composant existant)
+MembershipsListLayout ..> MemberCard : uses
 
 ' Sous-composants utilisent les composants partagés
 DetailsIdentityCard --> InfoField : uses

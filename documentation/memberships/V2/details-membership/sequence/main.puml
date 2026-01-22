@@ -1,36 +1,57 @@
-@startuml Séquence - Chargement fiche membre
-Title Chargement de la fiche membre complète
+@startuml Séquence - Chargement fiche membre (V2)
+Title Chargement de la fiche membre complète (V2)
 
 actor Admin
 participant "Next Page /memberships/{id}" as Page
 participant "MemberDetailsPage" as View
 participant "useMembershipDetails" as Hook
-participant "MemberRepositoryV2" as MemberRepo
-participant "SubscriptionRepositoryV2" as SubRepo
-participant "CaisseContractsRepositoryV2" as ContractRepo
-participant "FilleulsRepository" as FilleulRepo
+participant "getUserById (user.db.ts)" as UserDb
+participant "getMemberSubscriptions (member.db.ts)" as SubDb
+participant "listContractsByMember (contracts.db.ts)" as ContractDb
+participant "useMemberWithFilleuls" as FilleulHook
+participant "useDocumentList" as DocHook
 participant Firestore
 
 Admin -> Page: Accès /memberships/{id}
 Page -> View: Render MemberDetailsPage
 View -> Hook: useMembershipDetails(memberId)
-Hook -> MemberRepo: getById(memberId)
-MemberRepo -> Firestore: get users/{memberId}
-Firestore --> MemberRepo: member document
-MemberRepo --> Hook: member
-Hook -> SubRepo: getByMemberId(memberId)
-SubRepo -> Firestore: query subscriptions by userId
-Firestore --> SubRepo: subscriptions[]
-SubRepo --> Hook: subscriptions
-Hook -> ContractRepo: listByMember(memberId)
-ContractRepo -> Firestore: query contracts by memberId
-Firestore --> ContractRepo: contracts[]
-ContractRepo --> Hook: contracts
-Hook -> FilleulRepo: getByParrain(memberId)
-FilleulRepo -> Firestore: query filleuls by parrainId
-Firestore --> FilleulRepo: filleuls[]
-FilleulRepo --> Hook: filleuls
-Hook --> View: { member, subscriptions, contracts, filleuls }
-View -> View: Afficher sections UI
+
+activate Hook
+
+Hook -> UserDb: getUserById(memberId)
+UserDb -> Firestore: getDoc(doc(db, 'users', memberId))
+Firestore --> UserDb: user document
+UserDb --> Hook: member (User)
+
+Hook -> SubDb: getMemberSubscriptions(memberId)
+SubDb -> Firestore: query subscriptions where userId == memberId orderBy dateEnd desc
+Firestore --> SubDb: subscriptions[]
+SubDb --> Hook: subscriptions (Subscription[])
+
+Hook -> ContractDb: listContractsByMember(memberId)
+ContractDb -> Firestore: query caisse-contracts where memberId == memberId
+Firestore --> ContractDb: contracts[]
+ContractDb --> Hook: contracts (MemberContract[])
+
+Hook -> FilleulHook: useMemberWithFilleuls(memberId)
+FilleulHook -> Firestore: query filleuls where parrainId == memberId
+Firestore --> FilleulHook: filleuls[]
+FilleulHook --> Hook: filleuls (Filleul[])
+
+Hook -> DocHook: useDocumentList(memberId)
+DocHook -> Firestore: query documents where memberId == memberId
+Firestore --> DocHook: documents[]
+DocHook --> Hook: documents
+
+Hook -> Hook: Enrichir member (fullName, displayName, nationalityName)
+Hook -> Hook: Calculer lastSubscription et isSubscriptionValid
+Hook -> Hook: Organiser contracts par type (caisseSpeciale, caisseImprevue, placements)
+
+deactivate Hook
+
+Hook --> View: { member, subscriptions, lastSubscription, isSubscriptionValid, contracts, filleuls, documents, ...handlers }
+
+View -> View: Afficher MemberDetailsHeader
+View -> View: Afficher sections UI (identité, contacts, adresse, abonnement, documents, filleuls, contrats, paiements, relations)
 
 @enduml

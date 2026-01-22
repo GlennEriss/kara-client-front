@@ -8,21 +8,22 @@
     - Coordonnées : `email`, `contacts[]`.
     - Adresse : `address.province`, `address.city`, `address.arrondissement`, `address.district`, `address.additionalInfo`.
     - Métadonnées : `matricule`, `roles`, `membershipType`, `createdAt`, `updatedAt`.
-    - Liens : `dossier` (id de la demande d’adhésion), `groupIds`, éventuels `vehicleIds`, etc.
+    - Liens : `dossier` (id de la demande d'adhésion), `groupIds`, éventuels `vehicleIds`, etc.
+    - Photo : `photoURL`.
 
 - **`subscriptions`** – abonnements du membre
   - Liés au membre par `userId`.
   - Champs : `userId`, `dateStart`, `dateEnd`, `status`, `amount`, `createdAt`.
   - Utilisés pour :
     - Afficher la dernière subscription (statut actuel).
-    - Afficher l’historique des abonnements dans la section abonnement.
+    - Afficher l'historique des abonnements dans la section abonnement.
 
-- **`caisseContracts` / contrats caisse** (caisse spéciale / imprevue / autres)
+- **`caisse-contracts`** (contrats caisse spéciale / imprevue / placements)
   - Liés au membre par `memberId` (ou `userId` selon la DB actuelle).
   - Champs : `memberId`, `type` (spéciale/imprevue/placement), `status`, `amount`, `createdAt`, `updatedAt`, etc.
   - Utilisés pour :
-    - Section \"Historique des contrats\".
-    - Résumé des montants / nombres de contrats.
+    - Section \"Contrats\" (résumé par type).
+    - Navigation vers modules caisse.
 
 - **Collections filleuls / parrainage** (nom exact à confirmer)
   - Exemples possibles : `sponsorships`, `filleuls`.
@@ -30,10 +31,15 @@
   - Utilisés pour :
     - Section \"Filleuls / parrainage\" (liste ou compteur de filleuls).
 
-- **`membershipRequests`** (demandes d’adhésion)
+- **Documents** (collection à confirmer)
+  - Liés par `memberId`.
+  - Utilisés pour :
+    - Section \"Documents\" (compteur et liste).
+
+- **`membershipRequests`** (demandes d'adhésion)
   - Liées par champ `dossier` dans le document `users`.
   - Utilisées pour :
-    - Naviguer vers `MembershipRequestDetails` (Vue dossier d’adhésion).
+    - Naviguer vers `MembershipRequestDetails` (Vue dossier d'adhésion).
     - (Optionnel) Afficher un résumé de la demande dans la section documents.
 
 ### 2. Index Firestore nécessaires
@@ -44,16 +50,16 @@
 - Index :
   - `userId` (Ascending), `dateEnd` (Descending)
 - Utilisation :
-  - Récupérer toutes les subscriptions d’un membre triées par date (pour l’historique et la dernière subscription).
+  - Récupérer toutes les subscriptions d'un membre triées par date (pour l'historique et la dernière subscription).
 
 #### 2.2 Contrats par membre
 
-- Collection : `caisseContracts` (ou équivalent)
+- Collection : `caisse-contracts` (ou équivalent)
 - Index :
   - `memberId` (Ascending), `createdAt` (Descending)
   - (facultatif) `memberId` (Ascending), `type` (Ascending), `createdAt` (Descending)
 - Utilisation :
-  - Récupérer tous les contrats d’un membre.
+  - Récupérer tous les contrats d'un membre.
   - Filtrer éventuellement par type de contrat pour les CTA vers modules caisse.
 
 #### 2.3 Filleuls par parrain
@@ -62,7 +68,7 @@
 - Index :
   - `parrainId` (Ascending), `createdAt` (Descending)
 - Utilisation :
-  - Lister les filleuls d’un membre (parrain) dans la section filleuls.
+  - Lister les filleuls d'un membre (parrain) dans la section filleuls.
 
 #### 2.4 Membres (profil)
 
@@ -90,7 +96,7 @@ match /subscriptions/{subscriptionId} {
     && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
 }
 
-match /caisseContracts/{contractId} {
+match /caisse-contracts/{contractId} {
   allow read: if request.auth != null
     && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
 }
@@ -101,7 +107,7 @@ match /sponsorships/{sponsorshipId} {
 }
 ```
 
-> Les noms exacts de collections (`caisseContracts`, `sponsorships`) sont à aligner avec la DB actuelle, mais le principe reste le même : **lecture réservée aux admins**.
+> Les noms exacts de collections (`caisse-contracts`, `sponsorships`) sont à aligner avec la DB actuelle, mais le principe reste le même : **lecture réservée aux admins**.
 
 ### 4. Règles de sécurité Storage
 
@@ -109,18 +115,36 @@ match /sponsorships/{sponsorshipId} {
   - Chemin : `/members/photos/{userId}/*` (ou équivalent).
   - Règle :
     - Lecture uniquement pour les admins authentifiés.
-    - Pas d’écriture directe côté client (upload via back-office contrôlé).
+    - Pas d'écriture directe côté client (upload via back-office contrôlé).
 
-- **Documents liés (PDFs, pièces d’identité, etc.)**
+- **Documents liés (PDFs, pièces d'identité, etc.)**
   - Chemins : `/members/documents/{userId}/*`, `/membership-requests/{dossierId}/documents/*`.
   - Règle :
     - Lecture uniquement pour admins.
     - Vérifier que `request.auth.uid` est un admin.
 
-### 5. Vérifications à faire pendant le refactor
+### 5. Implémentation V2
 
-- [ ] Vérifier que les index ci-dessus existent dans `firestore.indexes.json`.
-- [ ] S’assurer que les requêtes dans `useMembershipDetails` respectent l’ordre des champs dans les index.
-- [ ] Vérifier que les règles Firestore et Storage couvrent bien tous les accès nécessaires pour la vue détails membre.
-- [ ] Ajouter des tests (manuels ou automatisés) pour les erreurs de permissions (403) dans les tests d’intégration, si pertinent.
+#### Collections utilisées dans `useMembershipDetails`
 
+- **`users`** : via `getUserById(memberId)` depuis `@/db/user.db`
+  - Fonction : `getDoc(doc(db, 'users', memberId))`
+- **`subscriptions`** : via `getMemberSubscriptions(memberId)` depuis `@/db/member.db`
+  - Requête : `query(collection(db, 'subscriptions'), where('userId', '==', memberId), orderBy('dateEnd', 'desc'))`
+- **`caisse-contracts`** : via `listContractsByMember(memberId)` depuis `@/db/caisse/contracts.db`
+  - Requête : `query(collection(db, 'caisse-contracts'), where('memberId', '==', memberId))`
+- **Filleuls** : via `useMemberWithFilleuls(memberId)` depuis `@/hooks/filleuls` (collection à confirmer)
+- **Documents** : via `useDocumentList(memberId)` depuis `@/hooks/documents/useDocumentList` (collection à confirmer)
+
+#### Requêtes Firestore effectives
+
+1. **Membre** : `getDoc(doc(db, 'users', memberId))`
+2. **Abonnements** : Query sur `subscriptions` avec `where('userId', '==', memberId)` + `orderBy('dateEnd', 'desc')`
+3. **Contrats** : Query sur `caisse-contracts` avec `where('memberId', '==', memberId)`
+
+### 6. Vérifications effectuées
+
+- [x] Les requêtes dans `useMembershipDetails` utilisent les fonctions DB existantes (`getUserById`, `getMemberSubscriptions`, `listContractsByMember`).
+- [x] Les index nécessaires sont déjà en place (utilisés par les fonctions DB existantes).
+- [x] Les règles Firestore et Storage existantes couvrent les accès nécessaires (lecture admin uniquement).
+- [ ] Tests d'intégration pour erreurs de permissions (403) : **À FAIRE** (Phase 5).

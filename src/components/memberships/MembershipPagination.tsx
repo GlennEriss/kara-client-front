@@ -42,10 +42,27 @@ const MembershipPagination = ({
     currentPage,
     totalPages,
     totalItems,
-    itemsPerPage,
+    itemsPerPage: rawItemsPerPage,
     hasNextPage,
     hasPrevPage
   } = pagination
+
+  // Options valides pour le sélecteur
+  const validItemsPerPageOptions = [10, 20, 50, 100]
+  
+  // Valeur par défaut : 10 éléments par page si itemsPerPage n'est pas défini, invalide ou pas dans les options
+  const itemsPerPage = rawItemsPerPage && rawItemsPerPage > 0 && validItemsPerPageOptions.includes(rawItemsPerPage)
+    ? rawItemsPerPage
+    : 10
+
+  // Vérifier si on est vraiment sur la dernière page
+  // hasNextPage peut être incorrect si calculé avant le filtrage côté client
+  const isOnLastPage = currentPage >= totalPages
+  const isOnFirstPage = currentPage <= 1
+  
+  // Corriger hasNextPage et hasPrevPage en vérifiant aussi currentPage vs totalPages
+  const correctedHasNextPage = hasNextPage && !isOnLastPage
+  const correctedHasPrevPage = hasPrevPage && !isOnFirstPage
 
   // Calculer l'index de début et de fin pour l'affichage
   const startIndex = (currentPage - 1) * itemsPerPage + 1
@@ -116,9 +133,10 @@ const MembershipPagination = ({
           <Select
             value={itemsPerPage.toString()}
             onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
+            defaultValue="10"
           >
             <SelectTrigger className="w-20">
-              <SelectValue />
+              <SelectValue placeholder="10" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="10">10</SelectItem>
@@ -138,7 +156,7 @@ const MembershipPagination = ({
               variant="outline"
               size="sm"
               onClick={() => onPageChange(1)}
-              disabled={!hasPrevPage || isLoading}
+              disabled={!correctedHasPrevPage || isLoading || isOnFirstPage}
               className="h-8 w-8 p-0"
             >
               <ChevronsLeft className="h-4 w-4" />
@@ -149,7 +167,7 @@ const MembershipPagination = ({
               variant="outline"
               size="sm"
               onClick={() => onPageChange(currentPage - 1)}
-              disabled={!hasPrevPage || isLoading}
+              disabled={!correctedHasPrevPage || isLoading || isOnFirstPage}
               className="h-8 w-8 p-0"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -190,7 +208,7 @@ const MembershipPagination = ({
               variant="outline"
               size="sm"
               onClick={() => onPageChange(currentPage + 1)}
-              disabled={!hasNextPage || isLoading}
+              disabled={!correctedHasNextPage || isLoading || isOnLastPage}
               className="h-8 w-8 p-0"
             >
               <ChevronRight className="h-4 w-4" />
@@ -201,7 +219,7 @@ const MembershipPagination = ({
               variant="outline"
               size="sm"
               onClick={() => onPageChange(totalPages)}
-              disabled={!hasNextPage || isLoading}
+              disabled={!correctedHasNextPage || isLoading || isOnLastPage}
               className="h-8 w-8 p-0"
             >
               <ChevronsRight className="h-4 w-4" />

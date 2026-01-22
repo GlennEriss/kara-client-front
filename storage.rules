@@ -123,6 +123,27 @@ service firebase.storage {
     }
     
     // ==========================================
+    // DOCUMENTS CONTRATS (CONTRACTS-CI)
+    // ==========================================
+    // Documents uploadés pour les contrats et demandes d'adhésion
+    // Supporte les chemins : contracts-ci/{memberId}/{contractId}/{fileName}
+    // Utilisé pour les photos de profil et documents d'identité des demandes d'adhésion
+    
+    match /contracts-ci/{memberId}/{contractId}/{fileName} {
+      // Lecture : Publique (nécessaire pour afficher les documents dans le formulaire)
+      // La sécurité est gérée côté application
+      allow read: if true;
+      
+      // Écriture : Publique avec validation (image, max 5MB)
+      // Permet l'upload lors de l'inscription et les corrections
+      allow write: if isImage() && isImageSizeValid();
+      
+      // Suppression : Publique (pour permettre le remplacement lors des corrections)
+      // Sécurité gérée côté application
+      allow delete: if true;
+    }
+    
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
     // Refuser tout accès non explicitement autorisé

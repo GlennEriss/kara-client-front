@@ -17,7 +17,7 @@ export interface RegisterFormData {
   identity: {
     civility: string;
     lastName: string;
-    firstName: string;
+    firstName?: string; // Optionnel selon le schéma Zod
     birthDate: string;
     birthPlace: string;
     birthCertificateNumber: string;

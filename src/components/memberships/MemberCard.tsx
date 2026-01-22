@@ -157,7 +157,10 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44 sm:w-48">
-                <DropdownMenuItem onClick={() => router.push(routes.admin.membershipDetails(member.id!))}>
+                <DropdownMenuItem 
+                  onClick={() => onViewDetails(member.id!)}
+                  data-testid={`view-details-dropdown-${member.id}`}
+                >
                   <Eye className="h-4 w-4 mr-2" />
                   Voir détails
                 </DropdownMenuItem>
@@ -287,7 +290,8 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push(routes.admin.membershipDetails(member.id!))}
+              onClick={() => onViewDetails(member.id!)}
+              data-testid={`view-details-mobile-${member.id}`}
               className="w-full text-[#224D62] border-[#224D62] hover:bg-[#224D62] hover:text-white"
             >
               <User className="h-4 w-4 mr-2" />

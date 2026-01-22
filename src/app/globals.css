@@ -417,6 +417,16 @@ html {
   }
 }
 
+/* Classe utilitaire pour masquer la barre de défilement tout en gardant le scroll */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE et Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari et Opera */
+}
+
 /* Responsive typography */
 @media (max-width: 640px) {
   h1 {
