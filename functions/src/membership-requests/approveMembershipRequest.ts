@@ -171,12 +171,50 @@ export const approveMembershipRequest = onCall(
 
       const userRole = membershipTypeToRole(membershipType)
 
+      // Calculer les champs d'anniversaire à partir de birthDate
+      function calculateBirthdayFields(birthDateStr: string | undefined): {
+        birthMonth: number | null
+        birthDay: number | null
+        birthDayOfYear: number | null
+      } {
+        if (!birthDateStr) {
+          return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+        }
+
+        try {
+          const birthDate = new Date(birthDateStr)
+          if (isNaN(birthDate.getTime())) {
+            console.warn(`[approveMembershipRequest] Date de naissance invalide: ${birthDateStr}`)
+            return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+          }
+
+          const birthMonth = birthDate.getMonth() + 1 // 1-12
+          const birthDay = birthDate.getDate() // 1-31
+          
+          // Calculer le jour de l'année (1-366)
+          const start = new Date(birthDate.getFullYear(), 0, 0)
+          const diff = birthDate.getTime() - start.getTime()
+          const oneDay = 1000 * 60 * 60 * 24
+          const birthDayOfYear = Math.floor(diff / oneDay)
+
+          return { birthMonth, birthDay, birthDayOfYear }
+        } catch (error) {
+          console.error(`[approveMembershipRequest] Erreur calcul champs anniversaire:`, error)
+          return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+        }
+      }
+
+      const birthdayFields = calculateBirthdayFields(membershipRequest.identity?.birthDate)
+
       // Préparer les données utilisateur
       const userData = {
         matricule,
         firstName: membershipRequest.identity?.firstName || '',
         lastName: membershipRequest.identity?.lastName || '',
         birthDate: membershipRequest.identity?.birthDate || '',
+        birthMonth: birthdayFields.birthMonth,
+        birthDay: birthdayFields.birthDay,
+        birthDayOfYear: birthdayFields.birthDayOfYear,
         birthPlace: membershipRequest.identity?.birthPlace || '',
         contacts: membershipRequest.identity?.contacts || [],
         gender: membershipRequest.identity?.gender || '',

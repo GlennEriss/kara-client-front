@@ -1,19 +1,128 @@
-@startuml Séquence - Vue Anniversaires
-Title Séquence principale de la vue Anniversaires
+@startuml Séquence - Vue Anniversaires V2
+Title Séquence principale de la vue Anniversaires (V2)
 
 actor Admin
 participant "Page Anniversaires" as Page
-participant "MemberBirthdaysList" as List
-participant "useMemberBirthdays" as Hook
-participant Firestore
+participant "BirthdaysSearch" as Search
+participant "BirthdaysList" as List
+participant "BirthdaysCalendar" as Calendar
+participant "useMemberBirthdays" as HookList
+participant "useBirthdaysByMonth" as HookCalendar
+participant "useBirthdaySearch" as HookSearch
+participant "Algolia" as Algolia
+participant "Firestore" as Firestore
+participant "React Query Cache" as Cache
+
+== Initialisation ==
 
 Admin -> Page: Accède à la vue Anniversaires
-Page -> List: Render composant
-List -> Hook: useMemberBirthdays(month, year)
-Hook -> Firestore: query users (birthDate, isActive)
-Firestore --> Hook: liste des membres
-Hook -> Hook: calcul des anniversaires (nextBirthday, daysUntil, age)
-Hook --> List: données anniversaires
-List -> Admin: affiche liste/calendrier
+Page -> HookList: useMemberBirthdays({ page: 1 })
+HookList -> Cache: Vérifie cache ['birthdays', 'list', 1]
+alt Cache miss
+  HookList -> Firestore: Query 1: birthDayOfYear >= today\n(anniversaires à venir)
+  Firestore --> HookList: Membres à venir
+  HookList -> Firestore: Query 2: birthDayOfYear < today\n(anniversaires passés cette année)
+  Firestore --> HookList: Membres passés
+  HookList -> HookList: Merge et calcul daysUntil, age
+  HookList -> Firestore: getCountFromServer()
+  Firestore --> HookList: totalCount
+  HookList -> Cache: Stocker résultat
+end
+Cache --> HookList: Données paginées
+HookList --> Page: { data, pagination, isLoading }
+Page -> List: Render liste avec 20 cards (5x4)
+List -> Admin: Affiche anniversaires triés par J-X
+
+== Recherche Algolia ==
+
+Admin -> Search: Tape "Ndong Obiang"
+Search -> HookSearch: useBirthdaySearch("Ndong Obiang")
+HookSearch -> Algolia: search({ query: "Ndong Obiang",\n  filters: "isActive:true" })
+Algolia --> HookSearch: { hits: [{ objectID, birthMonth, firstName, lastName }] }
+HookSearch --> Search: Résultats de recherche
+Search -> Admin: Affiche suggestions
+
+Admin -> Search: Sélectionne "Jean Ndong Obiang"
+Search -> Page: onSelectMember({ birthMonth: 8 })
+Page -> Page: setSelectedMonth(8)
+Page -> HookCalendar: useBirthdaysByMonth(8, 2026)
+
+== Navigation Calendrier ==
+
+Page -> Calendar: Render vue calendrier
+Calendar -> HookCalendar: useBirthdaysByMonth(month, year)
+HookCalendar -> Cache: Vérifie cache ['birthdays', 'calendar', 8, 2026]
+alt Cache miss
+  HookCalendar -> Firestore: where('birthMonth', '==', 8)\norderBy('birthDay')
+  Firestore --> HookCalendar: Membres nés en août
+  HookCalendar -> HookCalendar: Calcul nextBirthday, age
+  HookCalendar -> Cache: Stocker résultat (staleTime: 10min)
+end
+Cache --> HookCalendar: Données du mois
+HookCalendar --> Calendar: { data, isLoading }
+Calendar -> Admin: Affiche calendrier août avec "Ndong Obiang" en surbrillance
+
+== Navigation mois (avec cache) ==
+
+Admin -> Calendar: Clique sur "Mois suivant" (Septembre)
+Calendar -> HookCalendar: useBirthdaysByMonth(9, 2026)
+HookCalendar -> Cache: Vérifie cache ['birthdays', 'calendar', 9, 2026]
+alt Cache miss
+  HookCalendar -> Firestore: where('birthMonth', '==', 9)
+  Firestore --> HookCalendar: Membres nés en septembre
+  HookCalendar -> Cache: Stocker résultat
+end
+Cache --> HookCalendar: Données de septembre
+Calendar -> Admin: Affiche calendrier septembre
+
+Admin -> Calendar: Clique sur "Mois précédent" (Août)
+Calendar -> HookCalendar: useBirthdaysByMonth(8, 2026)
+HookCalendar -> Cache: Vérifie cache ['birthdays', 'calendar', 8, 2026]
+note right of Cache: Cache hit!\nPas de fetch Firestore
+Cache --> HookCalendar: Données d'août (depuis cache)
+Calendar -> Admin: Affiche calendrier août instantanément
+
+== Filtres par mois ==
+
+Admin -> Page: Sélectionne filtres [Janvier, Février]
+Page -> HookList: useMemberBirthdays({ months: [1, 2], page: 1 })
+HookList -> Cache: Vérifie cache ['birthdays', 'list', [1,2], 1]
+alt Cache miss
+  HookList -> Firestore: where('birthMonth', 'in', [1, 2])\norderBy('birthDay')
+  Firestore --> HookList: Membres nés en Jan/Fév
+  HookList -> Firestore: getCountFromServer() avec même filtre
+  Firestore --> HookList: countFiltered
+  HookList -> Cache: Stocker résultat
+end
+HookList --> Page: { data: membresJanFev, pagination }
+Page -> List: Render liste filtrée
+List -> Admin: Affiche uniquement Jan/Fév
+
+Admin -> Page: Clique "Réinitialiser filtres"
+Page -> Page: setFilters({ months: [] })
+Page -> HookList: useMemberBirthdays({ months: [], page: 1 })
+note right of HookList: Retour à la liste complète\ntriée par anniversaire proche
+HookList --> Page: Liste complète
+List -> Admin: Affiche tous les anniversaires
+
+== Pagination ==
+
+Admin -> Page: Clique "Page suivante"
+Page -> HookList: useMemberBirthdays({ page: 2, cursor })
+HookList -> Cache: Vérifie cache ['birthdays', 'list', 2]
+alt Cache miss
+  HookList -> Firestore: startAfter(cursor)\nlimit(20)
+  Firestore --> HookList: Page 2
+  HookList -> Cache: Stocker résultat
+end
+HookList --> Page: { data, pagination: { page: 2, ... } }
+List -> Admin: Affiche page 2
+
+== Export ==
+
+Admin -> Page: Clique "Export Excel"
+Page -> Page: Utilise données filtrées actuelles
+Page -> Page: Génère fichier XLSX
+Page -> Admin: Télécharge fichier
 
 @enduml

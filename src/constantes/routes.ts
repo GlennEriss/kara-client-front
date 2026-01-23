@@ -18,6 +18,8 @@ const routes = {
         membershipDocuments: (id: string) => `/memberships/${id}/documents`,
         membershipRemunerations: (id: string) => `/memberships/${id}/remunerations`,
         membershipAdd: '/memberships/add',
+        membershipAnniversaires: '/memberships/anniversaires',
+        membershipBirthdays: '/memberships/anniversaires',
         groups: '/groups',
         groupDetails: (id: string) => `/groups/${id}`,
         admin: '/admin',
