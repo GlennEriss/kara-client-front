@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { MembershipsListPage } from '@/domains/memberships/components/page/MembershipsListPage'
 import MemberVehicleList from '@/components/memberships/MemberVehicleList'
-import MemberBirthdaysList from '@/components/memberships/MemberBirthdaysList'
+import { BirthdaysPage } from '@/domains/memberships/components/birthdays/BirthdaysPage'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Users, Car, Cake } from 'lucide-react'
 
@@ -54,7 +54,7 @@ export default function MembershipsPage() {
         </TabsContent>
 
         <TabsContent value="birthdays" className="mt-6">
-          <MemberBirthdaysList />
+          <BirthdaysPage />
         </TabsContent>
       </Tabs>
     </div>

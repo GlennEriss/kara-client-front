@@ -248,6 +248,10 @@ export const syncMembersToAlgolia = onDocumentWritten(
             isActive: beforeData.isActive,
             gender: beforeData.gender,
             hasCar: beforeData.hasCar,
+            birthDate: beforeData.birthDate,
+            birthMonth: beforeData.birthMonth,
+            birthDay: beforeData.birthDay,
+            birthDayOfYear: beforeData.birthDayOfYear,
           }
           const afterRelevant = {
             matricule: afterData.matricule,
@@ -263,6 +267,10 @@ export const syncMembersToAlgolia = onDocumentWritten(
             isActive: afterData.isActive,
             gender: afterData.gender,
             hasCar: afterData.hasCar,
+            birthDate: afterData.birthDate,
+            birthMonth: afterData.birthMonth,
+            birthDay: afterData.birthDay,
+            birthDayOfYear: afterData.birthDayOfYear,
           }
           
           if (JSON.stringify(beforeRelevant) === JSON.stringify(afterRelevant)) {
@@ -302,6 +310,12 @@ export const syncMembersToAlgolia = onDocumentWritten(
           city: afterData.address?.city || '',
           district: afterData.address?.district || '',
           arrondissement: afterData.address?.arrondissement || '',
+          // Anniversaires (pour fonctionnalité anniversaires)
+          birthDate: afterData.birthDate || null,
+          birthMonth: afterData.birthMonth || null,
+          birthDay: afterData.birthDay || null,
+          birthDayOfYear: afterData.birthDayOfYear || null,
+          photoURL: afterData.photoURL || null,
           // Attributs filtrables (facets)
           membershipType: afterData.membershipType || 'adherant',
           roles: afterData.roles || [],

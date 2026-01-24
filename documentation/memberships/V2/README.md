@@ -12,10 +12,10 @@ L'objectif est de **conserver le design actuel (UI/UX)** et de :
 - Clarifier et stabiliser la **structure de données** (membre, abonnements, liens vers véhicules, caisses, etc.).
 - Isoler les fonctionnalités dans des **sous-modules V2** :
   - `liste-memberships/` (vue principale + tabs) ✅ **TERMINÉ**
-  - `details-membership/` ✅ **TERMINÉ** (Phase 5 - Tests d'intégration à faire)
-  - `form-membership/` ⏳ **À FAIRE** (Priorité 1)
-  - `recherche-memberships/` ⏳ **À FAIRE** (Priorité 2)
-  - `exports-memberships/` ⏳ **À FAIRE** (Priorité 3)
+  - `details-membership/` ✅ **TERMINÉ**
+  - `exports-memberships/` ✅ **TERMINÉ**
+  - `recherche-memberships/` ✅ **TERMINÉ**
+  - `form-membership/` ⏳ **À FAIRE** (Priorité 1 - Tests d'intégration restants)
   - `anniversaires-memberships/` ⏳ **À FAIRE** (Priorité 4)
   - `stats-memberships/` ⏳ **À FAIRE** (Priorité 5)
 
@@ -39,14 +39,32 @@ Chaque sous-dossier contiendra :
    - Documentation complète
    - **Statut** : Production-ready
 
-2. **`details-membership/`** ✅ **TERMINÉ** (Phase 5 restante)
+2. **`details-membership/`** ✅ **TERMINÉ**
    - Hook `useMembershipDetails` créé
    - 13 composants présentatifs créés
    - Container `MemberDetailsPage` créé et branché
    - Route Next.js mise à jour
    - Tests unitaires du hook (4 scénarios)
    - Documentation complète
-   - **Statut** : Production-ready (tests d'intégration à faire en Phase 5)
+   - Index Firestore et règles de sécurité déployés
+   - **Statut** : Production-ready
+
+3. **`exports-memberships/`** ✅ **TERMINÉ**
+   - Service `MembershipExportService` créé
+   - Hook `useMembershipExport` créé
+   - Composant `ExportMembershipModal` refactorisé (présentatif)
+   - Tests unitaires complets (25+ tests)
+   - Documentation complète
+   - **Statut** : Production-ready
+
+4. **`recherche-memberships/`** ✅ **TERMINÉ**
+   - Hook `useMembersSearch` créé (recherche Algolia)
+   - Hook `useMembershipSearch` créé (recherche demandes d'adhésion)
+   - Hook `useMembersSearchWithUserFilters` créé (compatibilité UserFilters)
+   - Tests unitaires complets
+   - Tests d'intégration créés (4 scénarios)
+   - Intégration Algolia fonctionnelle
+   - **Statut** : Production-ready
 
 #### ⏳ Fonctionnalités à faire (par ordre de priorité)
 
@@ -55,10 +73,14 @@ Chaque sous-dossier contiendra :
    - Documentation disponible dans `form-membership/workflow/README.md`
    - **Prochaine étape** : Commencer le refactoring
 
-4. **`recherche-memberships/`** ⏳ **PRIORITÉ 2**
-   - Recherche globale (nom, matricule, email, etc.)
-   - Documentation disponible dans `recherche-memberships/workflow/README.md`
-   - **Prochaine étape** : Après `form-membership`
+4. **`recherche-memberships/`** ✅ **TERMINÉ**
+   - Hook `useMembersSearch` créé (recherche Algolia)
+   - Hook `useMembershipSearch` créé (recherche demandes d'adhésion)
+   - Hook `useMembersSearchWithUserFilters` créé (compatibilité UserFilters)
+   - Tests unitaires complets (useMembersSearch, useMembershipSearch)
+   - Tests d'intégration créés (4 scénarios)
+   - Intégration Algolia fonctionnelle
+   - **Statut** : Production-ready
 
 5. **`exports-memberships/`** ⏳ **PRIORITÉ 3**
    - Exports Excel, CSV, PDF

@@ -1,25 +1,226 @@
-@startuml Anniversaires - Flux principal
-Title Vue Anniversaires (liste + calendrier)
+@startuml Activité - Anniversaires V2
+Title Diagramme d'activité - Gestion des Anniversaires (V2)
 
+|Admin|
 start
 
-:Admin ouvre l’onglet/page Anniversaires;
+:Accède à la vue Anniversaires;
 
-:Hook useMemberBirthdays charge les membres
-et calcule les anniversaires;
+|Système|
+:Initialiser React Query;
+:Charger liste paginée (useMemberBirthdays);
 
-if (Vue liste ?) then (oui)
-  :Afficher la liste triée par jours restants;
-else (non)
-  :Afficher le calendrier du mois sélectionné;
+fork
+  :Query 1 : birthDayOfYear >= aujourd'hui;
+  note right
+    Anniversaires à venir
+    (du jour courant à fin d'année)
+  end note
+fork again
+  :Query 2 : birthDayOfYear < aujourd'hui;
+  note right
+    Anniversaires passés
+    (début d'année au jour courant)
+  end note
+fork again
+  :getCountFromServer();
+  note right
+    Total des membres
+    pour la pagination
+  end note
+end fork
+
+:Merger les résultats (Query1 + Query2);
+:Calculer daysUntil et age pour chaque membre;
+:Stocker dans cache React Query;
+:Afficher liste avec 20 cards (5 par ligne);
+
+|Admin|
+
+if (Admin recherche un membre ?) then (oui)
+  :Tape nom/prénom/matricule;
+  
+  |Système|
+  :Recherche Algolia;
+  note right
+    Index: members-{env}
+    Attributs: firstName, lastName, matricule
+    Filtres: isActive:true
+  end note
+  
+  :Retourne suggestions avec birthMonth;
+  
+  |Admin|
+  :Sélectionne un membre;
+  
+  |Système|
+  :Récupérer birthMonth du membre;
+  
+  if (Vue calendrier active ?) then (oui)
+    :Naviguer vers le mois d'anniversaire;
+    :Mettre le membre en surbrillance;
+  else (non)
+    :Afficher le membre dans la liste;
+    :Scroller vers sa position;
+  endif
 endif
 
-:Admin peut changer de mois/année;
+|Admin|
 
-:Recalcul/filtrage des anniversaires selon le mois;
+if (Admin change de vue ?) then (liste → calendrier)
+  :Clique sur icône calendrier;
+  
+  |Système|
+  :Charger useBirthdaysByMonth(moisCourant);
+  
+  if (Cache existe pour ce mois ?) then (oui)
+    :Retourner données depuis cache;
+  else (non)
+    :Query Firestore: birthMonth = moisCourant;
+    :Stocker dans cache (10 min);
+  endif
+  
+  :Afficher calendrier mensuel;
+  :Colorier les jours avec anniversaires;
+  
+  |Admin|
+  
+  while (Navigation entre mois) is (continue)
+    if (Mois suivant/précédent ?) then (suivant)
+      :Incrémenter mois;
+    else (précédent)
+      :Décrémenter mois;
+    endif
+    
+    |Système|
+    if (Cache existe pour ce mois ?) then (oui)
+      :Affichage instantané (cache hit);
+      note right
+        Pas de fetch Firestore
+        → UX fluide
+      end note
+    else (non)
+      :Fetch Firestore pour ce mois;
+      :Stocker dans cache;
+    endif
+    
+    :Mettre à jour le calendrier;
+    |Admin|
+  end while (termine)
+  
+else (calendrier → liste)
+  :Clique sur icône liste;
+  
+  |Système|
+  :Réafficher la liste paginée;
+  :Utiliser cache si disponible;
+endif
 
-:Admin peut lancer un export (Excel/PDF);
+|Admin|
 
+if (Admin applique des filtres par mois ?) then (oui)
+  :Sélectionne un ou plusieurs mois;
+  note right
+    Multi-sélection possible
+    Ex: Janvier + Février
+  end note
+  
+  |Système|
+  :Construire filtre: birthMonth IN [...];
+  
+  if (Plus de 10 mois sélectionnés ?) then (oui)
+    :Diviser en plusieurs requêtes;
+    note right
+      Limite Firestore: max 10
+      valeurs pour 'in'
+    end note
+    :Exécuter requêtes en parallèle;
+    :Merger les résultats;
+  else (non)
+    :Exécuter une seule requête;
+  endif
+  
+  :Trier par birthDay;
+  :Mettre à jour le comptage filtré;
+  :Stocker dans cache avec clé de filtre;
+  :Afficher liste filtrée;
+  
+  |Admin|
+  
+  if (Réinitialiser les filtres ?) then (oui)
+    :Clique "Réinitialiser";
+    
+    |Système|
+    :Remettre filtres à vide;
+    :Recharger liste complète;
+    :Tri par anniversaire proche;
+  endif
+endif
+
+|Admin|
+
+if (Admin navigue entre pages ?) then (oui)
+  while (Pagination) is (continue)
+    if (Page suivante ?) then (oui)
+      :Clique "Page suivante";
+      
+      |Système|
+      :Utiliser cursor de la page précédente;
+      :startAfter(cursor), limit(20);
+      :Stocker cursor pour page précédente;
+    else (non - page précédente)
+      :Clique "Page précédente";
+      
+      |Système|
+      :Récupérer cursor stocké;
+      :Refaire la requête avec cursor;
+    endif
+    
+    :Mettre à jour la pagination;
+    |Admin|
+  end while (termine)
+endif
+
+|Admin|
+
+if (Admin exporte les données ?) then (oui)
+  if (Format Excel ?) then (oui)
+    :Clique "Export Excel";
+    
+    |Système|
+    :Utiliser données filtrées actuelles;
+    :Générer fichier XLSX avec colonnes:;
+    note right
+      - Nom
+      - Prénom
+      - Matricule
+      - Date de naissance
+      - Prochain anniversaire
+      - Jours restants
+      - Âge
+      - Téléphones
+    end note
+    :Déclencher téléchargement;
+    
+  else (PDF)
+    :Clique "Export PDF";
+    
+    |Système|
+    :Utiliser jsPDF + autoTable;
+    :Générer PDF avec en-tête:;
+    note right
+      - Titre: "Liste des Anniversaires"
+      - Mois filtré ou "Tous"
+      - Date de génération
+    end note
+    :Déclencher téléchargement;
+  endif
+  
+  |Admin|
+  :Reçoit le fichier;
+endif
+
+|Admin|
 stop
 
 @enduml

@@ -103,6 +103,64 @@ function timestampToMillis(value: any): number {
   return Date.now()
 }
 
+/**
+ * Calcule le jour de l'année (1-366) pour une date donnée
+ * Gère correctement les années bissextiles
+ */
+function calculateDayOfYear(date: Date): number {
+  const start = new Date(date.getFullYear(), 0, 0)
+  const diff = date.getTime() - start.getTime()
+  const oneDay = 1000 * 60 * 60 * 24
+  return Math.floor(diff / oneDay)
+}
+
+/**
+ * Calcule les champs d'anniversaire à partir de birthDate
+ */
+function calculateBirthdayFields(birthDateStr: string | undefined | null | Date | Timestamp): {
+  birthMonth: number | null
+  birthDay: number | null
+  birthDayOfYear: number | null
+} {
+  if (!birthDateStr) {
+    return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+  }
+
+  try {
+    let birthDate: Date
+    
+    // Gérer les Timestamp Firestore
+    if (typeof birthDateStr === 'object' && birthDateStr !== null) {
+      if ('toDate' in birthDateStr) {
+        // Timestamp Firestore
+        birthDate = (birthDateStr as any).toDate()
+      } else if (birthDateStr instanceof Date) {
+        birthDate = birthDateStr
+      } else {
+        // Essayer de convertir en Date
+        birthDate = new Date(birthDateStr as any)
+      }
+    } else if (typeof birthDateStr === 'string') {
+      birthDate = new Date(birthDateStr)
+    } else {
+      // Type inconnu, essayer de convertir
+      birthDate = new Date(birthDateStr as any)
+    }
+
+    if (isNaN(birthDate.getTime())) {
+      return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+    }
+
+    const birthMonth = birthDate.getMonth() + 1 // 1-12
+    const birthDay = birthDate.getDate() // 1-31
+    const birthDayOfYear = calculateDayOfYear(birthDate) // 1-366
+
+    return { birthMonth, birthDay, birthDayOfYear }
+  } catch (error) {
+    return { birthMonth: null, birthDay: null, birthDayOfYear: null }
+  }
+}
+
 // Initialiser Firebase Admin
 function initializeFirebaseAdmin(env: string) {
   if (getApps().length > 0) {
@@ -307,6 +365,13 @@ async function migrateMembersToAlgolia(env: string, options: { dryRun?: boolean;
           city: data.address?.city || '',
           district: data.address?.district || '',
           arrondissement: data.address?.arrondissement || '',
+          // Anniversaires (pour fonctionnalité anniversaires)
+          // Utiliser les champs calculés s'ils existent, sinon les calculer depuis birthDate
+          birthDate: data.birthDate || null,
+          birthMonth: data.birthMonth ?? (data.birthDate ? calculateBirthdayFields(data.birthDate).birthMonth : null),
+          birthDay: data.birthDay ?? (data.birthDate ? calculateBirthdayFields(data.birthDate).birthDay : null),
+          birthDayOfYear: data.birthDayOfYear ?? (data.birthDate ? calculateBirthdayFields(data.birthDate).birthDayOfYear : null),
+          photoURL: data.photoURL || null,
           // Attributs filtrables (facets)
           membershipType: data.membershipType || 'adherant',
           roles: data.roles || [],

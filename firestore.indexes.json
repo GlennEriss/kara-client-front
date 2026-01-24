@@ -783,6 +783,130 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "memberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "caisseContracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "memberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "birthDayOfYear",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "birthMonth",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "birthDay",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "birthMonth",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "birthDay",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "birthDayOfYear",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "roles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "birthMonth",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "birthMonth",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "birthDay",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

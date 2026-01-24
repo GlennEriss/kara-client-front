@@ -4,17 +4,18 @@
 
 #### 1.1 `useMembershipFilters`
 
-- [ ] Initialisation correcte des filtres par défaut.
-- [ ] Mise à jour de chaque filtre (`setFilter`).
-- [ ] Réinitialisation (`resetFilters`).
-- [ ] Calcul `activeFiltersCount`.
+- Note: Ce hook n'existe pas encore. Les filtres sont gérés directement dans `MembershipsListPage`.
+- [ ] Créer le hook `useMembershipFilters` si nécessaire pour centraliser la gestion des filtres.
 
-#### 1.2 `useMembershipSearch`
+#### 1.2 `useMembershipSearch` et `useMembersSearch`
 
-- [ ] Cas succès : renvoie une liste de membres correspondant au `searchTerm`.
-- [ ] Cas "aucun résultat".
-- [ ] Cas erreur (backend / réseau).
-- [ ] Gestion du `enabled` et du seuil minimal de caractères.
+- ✅ Tests unitaires créés dans `__tests__/unit/hooks/useMembershipSearch.test.tsx`
+- ✅ Tests unitaires créés dans `__tests__/unit/hooks/useMembersSearch.test.tsx`
+- ✅ Cas succès : renvoie une liste de membres correspondant au `searchTerm`.
+- ✅ Cas "aucun résultat".
+- ✅ Cas erreur (backend / réseau).
+- ✅ Gestion du `enabled` et du seuil minimal de caractères.
+- ✅ Gestion de la disponibilité Algolia.
 
 ### 2. Tests d’intégration
 
