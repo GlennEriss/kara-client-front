@@ -96,7 +96,7 @@ export class MembershipFormService {
           hasDocumentBack: !!formData.documents.documentPhotoBack
         }
       })
-      
+
       const requestId = await this.membershipRepository.create(formData)
 
       if (!requestId) {
@@ -120,10 +120,83 @@ export class MembershipFormService {
       console.error('   Code:', (error as any)?.code)
       console.error('   Message:', (error as any)?.message)
       console.error('   Stack:', (error as any)?.stack)
-      
+
       const normalizedError = this.errorHandler.normalizeError(error, 'submitNewMembership')
       console.error('   Erreur normalisée:', normalizedError)
-      
+
+      return {
+        success: false,
+        requestId: null,
+        error: this.errorHandler.formatForUI(normalizedError),
+      }
+    }
+  }
+
+  /**
+   * Met à jour une demande d'adhésion existante
+   * 
+   * @param requestId ID de la demande à modifier
+   * @param formData Données du formulaire mises à jour
+   * @returns Résultat de la mise à jour
+   */
+  async updateMembershipRequest(requestId: string, formData: RegisterFormData): Promise<SubmitMembershipResult> {
+    try {
+      // Valider que l'ID est fourni
+      if (!requestId || requestId.trim() === '') {
+        const validationError = this.errorHandler.createValidationError('L\'ID de la demande est requis')
+        return {
+          success: false,
+          requestId: null,
+          error: this.errorHandler.formatForUI(validationError),
+        }
+      }
+
+      // Valider les données (mêmes règles que submitNewMembership)
+      if (!formData.identity.lastName || formData.identity.lastName.trim() === '') {
+        const validationError = this.errorHandler.createValidationError('Le nom est obligatoire')
+        return {
+          success: false,
+          requestId: null,
+          error: this.errorHandler.formatForUI(validationError),
+        }
+      }
+
+      if (!formData.documents.termsAccepted) {
+        const validationError = this.errorHandler.createValidationError('L\'acceptation des conditions doit rester valide')
+        return {
+          success: false,
+          requestId: null,
+          error: this.errorHandler.formatForUI(validationError),
+        }
+      }
+
+      console.log('📝 [MembershipFormService] Tentative de mise à jour de la demande:', {
+        requestId,
+        identity: {
+          firstName: formData.identity.firstName,
+          lastName: formData.identity.lastName,
+          email: formData.identity.email,
+          hasPhoto: !!formData.identity.photo
+        },
+        address: formData.address,
+        company: formData.company,
+      })
+
+      // Mettre à jour via le repository
+      await this.membershipRepository.update(requestId, formData)
+
+      return {
+        success: true,
+        requestId,
+      }
+    } catch (error) {
+      console.error('❌ [MembershipFormService] Erreur lors de la mise à jour:', error)
+      console.error('   Type:', (error as any)?.constructor?.name)
+      console.error('   Message:', (error as any)?.message)
+
+      const normalizedError = this.errorHandler.normalizeError(error, 'updateMembershipRequest')
+      console.error('   Erreur normalisée:', normalizedError)
+
       return {
         success: false,
         requestId: null,
@@ -195,7 +268,7 @@ export class MembershipFormService {
       }
     } catch (error: any) {
       const normalizedError = this.errorHandler.normalizeError(error, 'submitCorrection')
-      
+
       return {
         success: false,
         error: this.errorHandler.formatForUI(normalizedError),
@@ -318,7 +391,7 @@ export class MembershipFormService {
       if (isNaN(timestamp)) {
         return null
       }
-      
+
       const now = Date.now()
       const ageMs = now - timestamp
       const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000))

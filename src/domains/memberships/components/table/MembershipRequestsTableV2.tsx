@@ -38,19 +38,19 @@ interface MembershipRequestsTableV2Props {
     }
   }
   isLoading?: boolean
-  
+
   // Actions
   onViewDetails?: (id: string) => void
   onApprove?: (request: MembershipRequest) => void
   onReject?: (request: MembershipRequest) => void
   onRequestCorrections?: (request: MembershipRequest) => void
   onPay?: (request: MembershipRequest) => void
-  
+
   // Actions post-rejet (si status === 'rejected')
   onReopen?: (request: MembershipRequest) => void
   onDelete?: (request: MembershipRequest) => void
   onSendWhatsAppRejection?: (request: MembershipRequest) => void
-  
+
   onViewMembershipForm?: (id: string) => void
   onViewApprovedMembershipPdf?: (id: string) => void
   onViewIdentityDocument?: (id: string) => void
@@ -58,26 +58,27 @@ interface MembershipRequestsTableV2Props {
   onExportPDF?: (id: string) => void
   onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
-  
+  onEdit?: (id: string) => void // Nouvelle action pour modifier une demande
+
   // Actions corrections (si status === 'under_review')
   onCopyCorrectionLink?: (id: string) => void
   onSendWhatsAppCorrection?: (id: string) => void
   onRenewSecurityCode?: (id: string) => void
-  
+
   // Pour obtenir les infos de l'admin qui a demandé les corrections
   getProcessedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
-  
+
   // Pour obtenir les infos de l'admin qui a approuvé
   getApprovedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
-  
+
   // États de chargement
   loadingActions?: Record<string, boolean>
-  
+
   // États vides améliorés
   hasActiveFilters?: boolean
   searchQuery?: string
   totalCount?: number
-  
+
   className?: string
 }
 
@@ -130,10 +131,10 @@ interface EmptyStateProps {
 
 function EmptyState({ hasActiveFilters = false, searchQuery = '', totalCount = 0 }: EmptyStateProps) {
   const hasSearch = searchQuery.trim().length > 0
-  
+
   let title = 'Aucune demande trouvée'
   let description = 'Il n\'y a actuellement aucune demande d\'adhésion à afficher'
-  
+
   if (hasActiveFilters || hasSearch) {
     title = 'Aucune demande ne correspond à vos critères'
     if (hasSearch) {
@@ -146,7 +147,7 @@ function EmptyState({ hasActiveFilters = false, searchQuery = '', totalCount = 0
   } else {
     description = 'Il n\'y a actuellement aucune demande d\'adhésion à traiter.'
   }
-  
+
   return (
     <TableRow>
       <TableCell colSpan={6} className="h-64 text-center">
@@ -188,6 +189,7 @@ export function MembershipRequestsTableV2({
   onCopyCorrectionLink,
   onSendWhatsAppCorrection,
   onRenewSecurityCode,
+  onEdit,
   getProcessedByInfo,
   getApprovedByInfo,
   loadingActions = {},
@@ -198,7 +200,7 @@ export function MembershipRequestsTableV2({
 }: MembershipRequestsTableV2Props) {
   // Support des deux formats : requests direct ou data.items
   const requests = requestsProp || data?.items || []
-  
+
   if (isLoading) {
     return (
       <div className={cn('rounded-lg border border-gray-200 overflow-hidden', className)}>
@@ -234,7 +236,7 @@ export function MembershipRequestsTableV2({
             </TableRow>
           </TableHeader>
           <TableBody>
-            <EmptyState 
+            <EmptyState
               hasActiveFilters={hasActiveFilters}
               searchQuery={searchQuery}
               totalCount={totalCount || data?.pagination?.totalItems || 0}
@@ -251,8 +253,8 @@ export function MembershipRequestsTableV2({
         <TableHeader>
           <TableRow className="bg-gray-50">
             {TABLE_HEADERS.map((header) => (
-              <TableHead 
-                key={header.label} 
+              <TableHead
+                key={header.label}
                 className={cn(
                   'font-semibold text-xs text-kara-primary-dark uppercase tracking-wider',
                   header.className
@@ -286,6 +288,7 @@ export function MembershipRequestsTableV2({
                 onCopyCorrectionLink={onCopyCorrectionLink}
                 onSendWhatsAppCorrection={onSendWhatsAppCorrection}
                 onRenewSecurityCode={onRenewSecurityCode}
+                onEdit={onEdit}
                 getApprovedByInfo={getApprovedByInfo}
                 loadingActions={loadingActions}
               />

@@ -208,7 +208,7 @@ export function MembershipRequestsPageV2() {
     processPaymentMutation,
     renewSecurityCodeMutation
   } = useMembershipActionsV2()
-  
+
   // Hook pour l'approbation
   const { approve, isPending: isApproving } = useApproveMembershipRequest({
     onSuccess: () => {
@@ -470,7 +470,7 @@ export function MembershipRequestsPageV2() {
 
     const baseUrl = window.location.origin
     const correctionLink = `${baseUrl}/register?requestId=${requestId}&code=${request.securityCode}`
-    
+
     try {
       await navigator.clipboard.writeText(correctionLink)
       toast.success('Lien copié !', {
@@ -491,14 +491,14 @@ export function MembershipRequestsPageV2() {
       })
       return
     }
-    
+
     if (!request.securityCode) {
       toast.error('Code de sécurité non disponible', {
         description: 'Le code de sécurité n\'est pas disponible pour cette demande.',
       })
       return
     }
-    
+
     // Récupérer les numéros de téléphone
     const phoneNumbers = request.identity.contacts || []
     if (phoneNumbers.length === 0) {
@@ -507,7 +507,7 @@ export function MembershipRequestsPageV2() {
       })
       return
     }
-    
+
     // Sélectionner la demande et ouvrir le modal
     setSelectedRequest(request)
     setWhatsAppModalOpen(true)
@@ -521,11 +521,15 @@ export function MembershipRequestsPageV2() {
       })
       return
     }
-    
+
     // Sélectionner la demande et ouvrir le modal de confirmation
     setSelectedRequest(request)
     setRenewCodeModalOpen(true)
   }, [data?.items, filteredRequests])
+
+  const handleEdit = useCallback((requestId: string) => {
+    router.push(`/memberships/update/${requestId}`)
+  }, [router])
 
   const handleConfirmRenewCode = useCallback(async () => {
     if (!selectedRequest?.id || !user?.uid) return
@@ -1127,6 +1131,7 @@ export function MembershipRequestsPageV2() {
                         onViewPaymentDetails={handleViewPaymentDetails}
                         onExportPDF={(id) => handleExportPDF(id)}
                         onExportExcel={(id) => handleExportExcel(id)}
+                        onEdit={handleEdit}
                         onCopyCorrectionLink={handleCopyCorrectionLink}
                         onSendWhatsAppCorrection={handleSendWhatsAppCorrection}
                         onRenewSecurityCode={handleRenewSecurityCode}
@@ -1179,6 +1184,7 @@ export function MembershipRequestsPageV2() {
                   onCopyCorrectionLink={handleCopyCorrectionLink}
                   onSendWhatsAppCorrection={handleSendWhatsAppCorrection}
                   onRenewSecurityCode={handleRenewSecurityCode}
+                  onEdit={handleEdit}
                   getProcessedByInfo={(requestId) => {
                     const request = filteredRequests.find(r => r.id === requestId)
                     if (!request?.processedBy) return null

@@ -269,9 +269,12 @@ export const useRegisterContext = () => {
 // ================== PROVIDER ==================
 interface RegisterProviderProps {
   children: ReactNode
+  initialData?: Partial<RegisterFormData>
+  requestId?: string // Pour le mode update (admin)
+  isAdminMode?: boolean
 }
 
-export function RegisterProvider({ children }: RegisterProviderProps): React.JSX.Element {
+export function RegisterProvider({ children, initialData, requestId: adminRequestId, isAdminMode = false }: RegisterProviderProps): React.JSX.Element {
   const [currentStep, setCurrentStep] = useState(1)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
@@ -290,14 +293,14 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
   const totalSteps = 4
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
-  
+
   // Instance du service centralisé
   const formService = MembershipFormService.getInstance()
 
   // Configuration du formulaire avec react-hook-form
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema) as any,
-    defaultValues,
+    defaultValues: isAdminMode && initialData ? { ...defaultValues, ...initialData } : defaultValues,
     mode: 'onChange'
   })
   const mediatorStep3 = CompanyFormMediatorFactory.create(form)
@@ -306,6 +309,12 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
   // ================== CHARGEMENT INITIAL DU CACHE ==================
   useEffect(() => {
     const loadCachedData = async () => {
+      // En mode admin, on skip le chargement du cache
+      if (isAdminMode) {
+        setIsCacheLoaded(true)
+        return
+      }
+
       setIsLoading(true)
 
       try {
@@ -455,7 +464,7 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
     }
 
     debounceRef.current = setTimeout(() => {
-      if (isCacheLoaded) {
+      if (isCacheLoaded && !isAdminMode) {
         const currentData = getValues()
         // Sauvegarder via le service centralisé (brouillon)
         formService.saveDraft(currentData)
@@ -654,7 +663,35 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
       const formData = getValues()
 
-      // Vérifier si c'est une correction ou une nouvelle demande
+      // Cas 1: Mise à jour administrative (Admin Mode)
+      if (isAdminMode && adminRequestId) {
+        console.log('🔄 Mise à jour administrative de la demande:', adminRequestId)
+
+        const result = await formService.updateMembershipRequest(
+          adminRequestId,
+          formData
+        )
+
+        if (!result.success) {
+          throw new Error(result.error || 'Échec de la mise à jour de la demande')
+        }
+
+        toast.success("Mise à jour réussie !", {
+          description: "Les modifications ont été enregistrées.",
+          style: {
+            background: '#10B981',
+            color: 'white',
+            border: 'none'
+          },
+          duration: 4000
+        })
+
+        // En mode admin, rediriger vers la page de détails
+        window.location.href = `/membership-requests/${adminRequestId}`
+        return
+      }
+
+      // Cas 2: Correction avec code de sécurité (User Mode)
       if (correctionRequest?.isVerified && securityCodeInput.trim()) {
         // Mise à jour d'une demande existante (correction)
         console.log('🔄 Mise à jour de la demande de correction:', correctionRequest.requestId)
@@ -767,14 +804,23 @@ export function RegisterProvider({ children }: RegisterProviderProps): React.JSX
 
   // ================== RESET ==================
   const resetForm = useCallback(() => {
-    reset(defaultValues)
+    if (isAdminMode && initialData) {
+      // En mode admin, on recharge les données initiales
+      reset({ ...defaultValues, ...initialData })
+    } else {
+      reset(defaultValues)
+    }
+
     setCurrentStep(1)
     setCompletedSteps(new Set())
     setIsSubmitted(false)
     setSubmissionError(null)
     setUserData(undefined)
-    CacheManager.clearAll() // Nettoie tout, y compris les données de soumission
-  }, [reset])
+
+    if (!isAdminMode) {
+      CacheManager.clearAll() // Nettoie tout seulement en mode utilisateur
+    }
+  }, [reset, isAdminMode, initialData])
 
   // ================== UTILITAIRES ==================
   const isStepCompleted = useCallback((step: number): boolean => {

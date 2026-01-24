@@ -11,9 +11,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import type { MembershipRequest } from '../../entities'
-import { 
-  StatusBadgeV2, 
-  PaymentBadgeV2, 
+import {
+  StatusBadgeV2,
+  PaymentBadgeV2,
   RelativeDateV2,
   CorrectionsBlockV2,
 } from '../shared'
@@ -27,12 +27,12 @@ interface MembershipRequestMobileCardV2Props {
   onReject?: (id: string) => void
   onRequestCorrections?: (id: string) => void
   onPay?: (id: string) => void
-  
+
   // Actions post-rejet (si status === 'rejected')
   onReopen?: (id: string) => void
   onDelete?: (id: string) => void
   onSendWhatsAppRejection?: (id: string) => void
-  
+
   onViewMembershipForm?: (id: string) => void
   onViewApprovedMembershipPdf?: (id: string) => void
   onViewIdDocument?: (id: string) => void
@@ -40,21 +40,22 @@ interface MembershipRequestMobileCardV2Props {
   onExportPDF?: (id: string) => void
   onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
-  
+  onEdit?: (id: string) => void // Nouvelle action pour modifier
+
   // Actions corrections (si status === 'under_review')
   onCopyCorrectionLink?: (id: string) => void
   onSendWhatsAppCorrection?: (id: string) => void
   onRenewSecurityCode?: (id: string) => void
-  
+
   // Pour obtenir les infos de l'admin qui a demandé les corrections
   getProcessedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
-  
+
   // Pour obtenir les infos de l'admin qui a approuvé
   getApprovedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
-  
+
   // États de chargement
   loadingActions?: Record<string, boolean>
-  
+
   className?: string
 }
 
@@ -89,6 +90,7 @@ export function MembershipRequestMobileCardV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
+  onEdit,
   onCopyCorrectionLink,
   onSendWhatsAppCorrection,
   onRenewSecurityCode,
@@ -97,11 +99,11 @@ export function MembershipRequestMobileCardV2({
   loadingActions = {},
   className,
 }: MembershipRequestMobileCardV2Props) {
-  const { 
-    id, 
-    identity, 
-    status, 
-    isPaid, 
+  const {
+    id,
+    identity,
+    status,
+    isPaid,
     createdAt,
     reviewNote,
     matricule,
@@ -128,8 +130,8 @@ export function MembershipRequestMobileCardV2({
         {/* Header : Photo + Nom */}
         <div className="flex items-start gap-3">
           <Avatar className="w-16 h-16 border-2 border-gray-200 shrink-0">
-            <AvatarImage 
-              src={identity.photoURL || undefined} 
+            <AvatarImage
+              src={identity.photoURL || undefined}
               alt={fullName}
               className="object-cover"
             />
@@ -164,9 +166,9 @@ export function MembershipRequestMobileCardV2({
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Calendar className="w-3 h-3" />
                       <span className="truncate">
-                        {toDateSafe(approvedAt)?.toLocaleDateString('fr-FR', { 
-                          day: '2-digit', 
-                          month: '2-digit', 
+                        {toDateSafe(approvedAt)?.toLocaleDateString('fr-FR', {
+                          day: '2-digit',
+                          month: '2-digit',
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit'
@@ -207,8 +209,8 @@ export function MembershipRequestMobileCardV2({
         {/* Date de soumission */}
         {createdAt && (
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <RelativeDateV2 
-              date={toDateSafe(createdAt) || new Date()} 
+            <RelativeDateV2
+              date={toDateSafe(createdAt) || new Date()}
               showIcon={true}
             />
           </div>
@@ -254,6 +256,7 @@ export function MembershipRequestMobileCardV2({
             onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
             onExportExcel={onExportExcel ? () => onExportExcel(id || '') : undefined}
             onSendWhatsApp={onSendWhatsApp ? () => onSendWhatsApp(id || '') : undefined}
+            onEdit={onEdit ? () => onEdit(id || '') : undefined}
             onCopyCorrectionLink={onCopyCorrectionLink ? () => onCopyCorrectionLink(id || '') : undefined}
             onSendWhatsAppCorrection={onSendWhatsAppCorrection ? () => onSendWhatsAppCorrection(id || '') : undefined}
             onRenewSecurityCode={onRenewSecurityCode ? () => onRenewSecurityCode(id || '') : undefined}

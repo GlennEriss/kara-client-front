@@ -12,6 +12,7 @@ import { verifySecurityCode } from './membership-requests/verifySecurityCode'
 import { submitCorrections } from './membership-requests/submitCorrections'
 import { renewSecurityCode } from './membership-requests/renewSecurityCode'
 import { approveMembershipRequest } from './membership-requests/approveMembershipRequest'
+import { updateMembershipRequest } from './membership-requests/updateMembershipRequest'
 
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
@@ -192,6 +193,9 @@ export { renewSecurityCode }
 
 // Cloud Function pour approuver une demande d'adhésion (transaction atomique)
 export { approveMembershipRequest }
+
+// Cloud Function pour modifier une demande d'adhésion
+export { updateMembershipRequest }
 
 // Cloud Function pour supprimer définitivement une demande rejetée
 export { deleteMembershipRequest } from './membership-requests/deleteMembershipRequest'

@@ -10,6 +10,7 @@ export { useMemberBirthdays } from './useMemberBirthdays'
 export { useBirthdaysByMonth } from './useBirthdaysByMonth'
 export { useBirthdaySearch } from './useBirthdaySearch'
 export { useMembershipStats } from './useMembershipStats'
+export { useMembershipRequest } from './useMembershipRequest'
 export type {
   UseMembershipsListV2Options,
   UseMembershipsListV2Result,

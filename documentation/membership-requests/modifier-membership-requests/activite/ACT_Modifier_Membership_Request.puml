@@ -1,0 +1,45 @@
+@startuml ACT_Modifier_Membership_Request
+title Modifier une demande d'adhésion (admin)
+
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+}
+
+start
+
+:'Admin' ouvre /membership-requests;
+:La liste des demandes est affichée;
+
+repeat
+  :L'admin ouvre le menu d'actions\nde la ligne souhaitée;
+  :Clique sur \"Modifier\";
+  -> [rediriger] Naviguer vers /memberships/update/{requestId};
+  :Charger la MembershipRequest\ncorrespondante (RepositoryV2);
+  :Pré-remplir le formulaire\nd'adhésion avec les données existantes;
+
+  :'Admin' modifie les champs autorisés\n(identité, adresse, entreprise, documents...);
+
+  if (Valider le formulaire ?) then (oui)
+    :Appeler Cloud Function updateMembershipRequest(requestId, formData);
+    if (Succès ?) then (oui)
+      :Récupérer la réponse (success: true);
+      :Mettre à jour la demande\n(Firestore via MembershipRepositoryV2);
+      :Nettoyer/mettre à jour les brouillons locaux si besoin;
+      :Afficher un toast de succès;
+      :Rediriger vers /membership-requests\nou rester sur /memberships/update;
+    else (erreur)
+      :Formatter l'erreur via MembershipErrorHandler;
+      :Afficher un message d'erreur\net garder le formulaire ouvert;
+    endif
+  else (non)
+    :Afficher les erreurs de validation\nsous les champs concernés;
+  endif
+
+repeat while (L'admin souhaite modifier\nd'autres demandes ?) is (oui)
+
+stop
+
+@enduml
+

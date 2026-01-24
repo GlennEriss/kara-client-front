@@ -111,13 +111,13 @@ export class DocumentRepository implements IDocumentRepository {
     async uploadDocumentFile(file: File, memberId: string, documentType: string): Promise<{ url: string; path: string; size: number }> {
         try {
             const storage = getStorageInstance();
-            
+
             const timestamp = Date.now();
             const fileName = `${timestamp}_${documentType}_${file.name}`;
             const filePath = `contracts-ci/${memberId}/${fileName}`;
 
             const storageRef = ref(storage, filePath);
-            
+
             // Métadonnées du fichier
             const metadata = {
                 contentType: file.type,
@@ -133,7 +133,7 @@ export class DocumentRepository implements IDocumentRepository {
 
             // Récupérer l'URL de téléchargement
             const downloadURL = await getDownloadURL(snapshot.ref);
-            
+
             return {
                 url: downloadURL,
                 path: filePath,
@@ -141,21 +141,21 @@ export class DocumentRepository implements IDocumentRepository {
             };
         } catch (error: any) {
             console.error('❌ Upload failed:', error);
-            
+
             // Gestion des erreurs d'autorisation
             if (error.code === 'storage/unauthorized') {
                 console.log('🔄 Unauthorized error, retrying...');
-                
+
                 try {
                     const storage = getStorageInstance();
                     const timestamp = Date.now();
                     const fileName = `${timestamp}_${documentType}_${file.name}`;
                     const filePath = `contracts-ci/${memberId}/${fileName}`;
                     const storageRef = ref(storage, filePath);
-                    
+
                     const snapshot = await uploadBytes(storageRef, file);
                     const downloadURL = await getDownloadURL(snapshot.ref);
-                    
+
                     console.log('✅ Retry successful!');
                     return {
                         url: downloadURL,
@@ -166,7 +166,7 @@ export class DocumentRepository implements IDocumentRepository {
                     throw new Error(`Failed to upload document: ${retryError.message}`);
                 }
             }
-            
+
             throw new Error(`Failed to upload document: ${error.message}`);
         }
     }
@@ -183,25 +183,25 @@ export class DocumentRepository implements IDocumentRepository {
     async uploadImage(imageUrl: string, memberId: string, contractId: string, imageType: string): Promise<{ url: string; path: string }> {
         try {
             console.log('📥 Téléchargement de l\'image depuis:', imageUrl)
-            
+
             // Télécharger l'image depuis l'URL
             const response = await fetch(imageUrl)
             if (!response.ok) {
                 throw new Error(`Échec du téléchargement de l'image: ${response.statusText}`)
             }
-            
+
             const blob = await response.blob()
             const file = new File([blob], `${imageType}.jpg`, { type: blob.type })
-            
+
             console.log('📤 Upload de l\'image vers Firebase Storage...')
-            
+
             const storage = getStorageInstance()
             const timestamp = Date.now()
             const fileName = `${timestamp}_${imageType}_${memberId}.jpg`
             const filePath = `contracts-ci/${memberId}/${contractId}/${fileName}`
-            
+
             const storageRef = ref(storage, filePath)
-            
+
             // Métadonnées du fichier
             const metadata = {
                 contentType: blob.type,
@@ -212,17 +212,17 @@ export class DocumentRepository implements IDocumentRepository {
                     uploadedAt: new Date().toISOString()
                 }
             }
-            
+
             // Upload du fichier
             const snapshot = await uploadBytes(storageRef, file, metadata)
-            
+
             // Récupérer l'URL de téléchargement
             const downloadURL = await getDownloadURL(snapshot.ref)
-            
+
             console.log('✅ Image uploadée avec succès!')
             console.log('📍 Path:', filePath)
             console.log('🔗 URL:', downloadURL)
-            
+
             return {
                 url: downloadURL,
                 path: filePath
@@ -254,7 +254,7 @@ export class DocumentRepository implements IDocumentRepository {
                 const year = String(now.getFullYear()).slice(-2);
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                
+
                 documentId = `MK_${data.type}_${data.memberId}_${day}${month}${year}_${hours}${minutes}`;
             }
 
@@ -269,7 +269,7 @@ export class DocumentRepository implements IDocumentRepository {
 
             // Récupérer le document créé
             const createdDoc = await this.getDocumentById(documentId);
-            
+
             if (!createdDoc) {
                 throw new Error("Erreur lors de la récupération du document créé");
             }
@@ -290,16 +290,16 @@ export class DocumentRepository implements IDocumentRepository {
     async getDocumentById(id: string): Promise<Document | null> {
         try {
             const { doc, getDoc, db } = await getFirestore();
-            
+
             const documentRef = doc(db, firebaseCollectionNames.documents || "documents", id);
             const docSnap = await getDoc(documentRef);
-            
+
             if (!docSnap.exists()) {
                 return null;
             }
-            
+
             const data = docSnap.data();
-            
+
             return {
                 id: docSnap.id,
                 ...(data as any),
@@ -328,7 +328,7 @@ export class DocumentRepository implements IDocumentRepository {
             );
 
             const snapshot = await getDocs(q);
-            
+
             return snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
@@ -357,7 +357,7 @@ export class DocumentRepository implements IDocumentRepository {
             );
 
             const snapshot = await getDocs(q);
-            
+
             return snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
@@ -399,7 +399,7 @@ export class DocumentRepository implements IDocumentRepository {
             }
 
             const snapshot = await getDocs(q);
-            
+
             let documents = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
@@ -410,7 +410,7 @@ export class DocumentRepository implements IDocumentRepository {
             // Filtres côté client pour recherche et dates
             if (filters?.searchQuery) {
                 const searchLower = filters.searchQuery.toLowerCase();
-                documents = documents.filter(doc => 
+                documents = documents.filter(doc =>
                     doc.libelle?.toLowerCase().includes(searchLower) ||
                     doc.id?.toLowerCase().includes(searchLower) ||
                     doc.memberId?.toLowerCase().includes(searchLower)
@@ -418,7 +418,7 @@ export class DocumentRepository implements IDocumentRepository {
             }
 
             if (filters?.startDate) {
-                documents = documents.filter(doc => 
+                documents = documents.filter(doc =>
                     doc.createdAt >= filters.startDate
                 );
             }
@@ -426,7 +426,7 @@ export class DocumentRepository implements IDocumentRepository {
             if (filters?.endDate) {
                 const endOfDay = new Date(filters.endDate);
                 endOfDay.setHours(23, 59, 59, 999);
-                documents = documents.filter(doc => 
+                documents = documents.filter(doc =>
                     doc.createdAt <= endOfDay
                 );
             }
@@ -476,7 +476,7 @@ export class DocumentRepository implements IDocumentRepository {
 
             // Pagination avec offset
             const offset = (currentPage - 1) * pageSize;
-            
+
             // Créer la requête paginée
             let paginatedQuery = query(baseQuery, limit(pageSize));
 
@@ -485,7 +485,7 @@ export class DocumentRepository implements IDocumentRepository {
                 // Récupérer les documents jusqu'à l'offset pour obtenir le dernier document
                 const offsetQuery = query(baseQuery, limit(offset));
                 const offsetSnapshot = await getDocs(offsetQuery);
-                
+
                 if (offsetSnapshot.docs.length > 0) {
                     const lastDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1];
                     paginatedQuery = query(baseQuery, startAfter(lastDoc), limit(pageSize));
@@ -494,7 +494,7 @@ export class DocumentRepository implements IDocumentRepository {
 
             // Exécuter la requête paginée
             const snapshot = await getDocs(paginatedQuery);
-            
+
             const documents = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
@@ -566,6 +566,32 @@ export class DocumentRepository implements IDocumentRepository {
         } catch (error) {
             console.error("Erreur lors de la suppression du document:", error);
             throw error;
+        }
+    }
+
+    /**
+     * Supprime un fichier du stockage
+     * @param {string} path - Le chemin du fichier dans le stockage
+     * @returns {Promise<void>}
+     */
+    async deleteFile(path: string): Promise<void> {
+        if (!path) return;
+
+        try {
+            const { ref, deleteObject } = await import('firebase/storage');
+            const storage = getStorageInstance();
+            const fileRef = ref(storage, path);
+
+            await deleteObject(fileRef);
+            console.log(`Fichier supprimé avec succès: ${path}`);
+        } catch (error: any) {
+            // Ignorer l'erreur si le fichier n'existe pas
+            if (error.code === 'storage/object-not-found') {
+                console.warn(`Le fichier n'existe pas: ${path}`);
+                return;
+            }
+            console.error("Erreur lors de la suppression du fichier:", error);
+            // On ne throw pas pour ne pas bloquer le flux principal
         }
     }
 }

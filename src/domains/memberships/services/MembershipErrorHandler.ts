@@ -10,28 +10,28 @@ export enum MembershipErrorCode {
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   INVALID_FORM_DATA = 'INVALID_FORM_DATA',
   MISSING_REQUIRED_FIELD = 'MISSING_REQUIRED_FIELD',
-  
+
   // Erreurs Firebase Functions
   FUNCTION_NOT_FOUND = 'FUNCTION_NOT_FOUND',
   FUNCTION_UNAUTHENTICATED = 'FUNCTION_UNAUTHENTICATED',
   FUNCTION_PERMISSION_DENIED = 'FUNCTION_PERMISSION_DENIED',
   FUNCTION_ERROR = 'FUNCTION_ERROR',
-  
+
   // Erreurs Firestore
   FIRESTORE_PERMISSION_DENIED = 'FIRESTORE_PERMISSION_DENIED',
   FIRESTORE_NOT_FOUND = 'FIRESTORE_NOT_FOUND',
   FIRESTORE_ERROR = 'FIRESTORE_ERROR',
-  
+
   // Erreurs Storage
   STORAGE_UNAUTHORIZED = 'STORAGE_UNAUTHORIZED',
   STORAGE_PERMISSION_DENIED = 'STORAGE_PERMISSION_DENIED',
   STORAGE_QUOTA_EXCEEDED = 'STORAGE_QUOTA_EXCEEDED',
   STORAGE_ERROR = 'STORAGE_ERROR',
-  
+
   // Erreurs réseau
   NETWORK_ERROR = 'NETWORK_ERROR',
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
-  
+
   // Erreurs génériques
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
   OPERATION_FAILED = 'OPERATION_FAILED',
@@ -48,7 +48,7 @@ export interface MembershipError {
 export class MembershipErrorHandler {
   private static instance: MembershipErrorHandler
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): MembershipErrorHandler {
     if (!MembershipErrorHandler.instance) {
@@ -66,10 +66,10 @@ export class MembershipErrorHandler {
 
     // Extraire le code d'erreur
     const code = this.extractErrorCode(error)
-    
+
     // Extraire le message d'erreur
     const message = this.extractErrorMessage(error)
-    
+
     // Log détaillé pour les erreurs de validation
     if (code === MembershipErrorCode.VALIDATION_ERROR || code === MembershipErrorCode.INVALID_FORM_DATA) {
       console.error('🔍 [MembershipErrorHandler] Erreur de validation détectée:', {
@@ -82,7 +82,7 @@ export class MembershipErrorHandler {
         originalError: error
       })
     }
-    
+
     // Générer un message utilisateur-friendly
     const userMessage = this.generateUserMessage(code, message, error)
 
@@ -101,6 +101,11 @@ export class MembershipErrorHandler {
   private extractErrorCode(error: any): MembershipErrorCode {
     // Erreurs Firebase Functions
     if (error?.code === 'functions/not-found') {
+      // Si le message indique que la demande est introuvable, c'est une erreur métier (404 document)
+      // et non une erreur d'infrastructure (404 endpoint)
+      if (error?.message === "La demande d'adhésion est introuvable." || error?.message?.includes("introuvable")) {
+        return MembershipErrorCode.FIRESTORE_NOT_FOUND
+      }
       return MembershipErrorCode.FUNCTION_NOT_FOUND
     }
     if (error?.code === 'functions/unauthenticated') {
@@ -263,7 +268,7 @@ export class MembershipErrorHandler {
    */
   private logError(error: any, context?: string): void {
     const prefix = context ? `[MembershipErrorHandler:${context}]` : '[MembershipErrorHandler]'
-    
+
     console.error(`${prefix} Erreur détectée:`, {
       error,
       code: error?.code,
