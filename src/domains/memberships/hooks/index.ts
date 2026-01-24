@@ -9,6 +9,7 @@ export { useMembersSearch, useMembersSearchWithUserFilters } from './useMembersS
 export { useMemberBirthdays } from './useMemberBirthdays'
 export { useBirthdaysByMonth } from './useBirthdaysByMonth'
 export { useBirthdaySearch } from './useBirthdaySearch'
+export { useMembershipStats } from './useMembershipStats'
 export type {
   UseMembershipsListV2Options,
   UseMembershipsListV2Result,
@@ -47,3 +48,7 @@ export type {
   UseBirthdaySearchOptions,
   UseBirthdaySearchReturn,
 } from './useBirthdaySearch'
+export type {
+  UseMembershipStatsOptions,
+  UseMembershipStatsResult,
+} from './useMembershipStats'

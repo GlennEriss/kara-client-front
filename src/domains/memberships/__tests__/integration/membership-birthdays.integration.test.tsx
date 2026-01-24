@@ -165,11 +165,12 @@ describe('Anniversaires - Tests d\'intégration', () => {
     })
 
     // Trouver le bouton calendrier (icône Calendar)
+    let calendarButton: HTMLElement
     await waitFor(() => {
-      const calendarButton = screen.getByTestId('member-birthdays-view-toggle-calendar')
+      calendarButton = screen.getByTestId('member-birthdays-view-toggle-calendar')
       expect(calendarButton).toBeInTheDocument()
-      fireEvent.click(calendarButton)
     })
+    fireEvent.click(calendarButton!)
 
     // Vérifier que le calendrier est affiché (peut prendre du temps)
     await waitFor(() => {
