@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useMembershipsListV2 } from '../../../hooks/useMembershipsListV2'
 import type { UserFilters } from '@/types/types'
 import type { PaginatedMembers, MemberWithSubscription } from '@/db/member.db'
-import type { MembershipStats } from '../../../services/MembershipsListService'
+import type { MembershipStatsV2 } from '../../../services/MembershipStatsService'
 
 // Mock MembersRepositoryV2
 const mockGetAll = vi.fn()
@@ -25,26 +25,41 @@ vi.mock('../../../repositories/MembersRepositoryV2', () => ({
 // Mock MembershipsListService
 vi.mock('../../../services/MembershipsListService', () => {
   const mockBuildFiltersForTab = vi.fn((filters, tab) => filters)
-  const mockCalculateStats = vi.fn(() => ({
-    total: 0,
-    adherant: 0,
-    bienfaiteur: 0,
-    sympathisant: 0,
-    active: 0,
-    expired: 0,
-  }))
   
   return {
     MembershipsListService: {
       buildFiltersForTab: mockBuildFiltersForTab,
+    },
+  }
+})
+
+// Mock MembershipStatsService
+vi.mock('../../../services/MembershipStatsService', () => {
+  const mockCalculateStats = vi.fn(() => ({
+    total: 0,
+    active: 0,
+    expired: 0,
+    noSub: 0,
+    men: 0,
+    women: 0,
+    activePercentage: 0,
+    expiredPercentage: 0,
+    noSubPercentage: 0,
+    menPercentage: 0,
+    womenPercentage: 0,
+  }))
+  
+  return {
+    MembershipStatsService: {
       calculateStats: mockCalculateStats,
     },
   }
 })
 
 const { MembershipsListService } = await import('../../../services/MembershipsListService')
+const { MembershipStatsService } = await import('../../../services/MembershipStatsService')
 const mockBuildFiltersForTab = vi.mocked(MembershipsListService.buildFiltersForTab)
-const mockCalculateStats = vi.mocked(MembershipsListService.calculateStats)
+const mockCalculateStats = vi.mocked(MembershipStatsService.calculateStats)
 
 describe('useMembershipsListV2', () => {
   let queryClient: QueryClient
@@ -167,7 +182,7 @@ describe('useMembershipsListV2', () => {
       },
     }
 
-    const mockStats: MembershipStats = {
+    const mockStats: MembershipStatsV2 = {
       total: 10,
       active: 8,
       expired: 2,

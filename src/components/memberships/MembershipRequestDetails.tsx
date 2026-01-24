@@ -59,7 +59,7 @@ export default function MembershipRequestDetails() {
 
       if (url) {
         window.open(url, '_blank', 'noopener,noreferrer')
-      } else {
+        } else {
         toast.error('PDF non disponible', {
           description: 'Aucun PDF d\'adhésion validé n\'a été trouvé pour cette demande',
         })

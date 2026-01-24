@@ -10,10 +10,10 @@
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import type { MembershipRequest } from '../../entities'
-import { 
-  StatusBadgeV2, 
-  PaymentBadgeV2, 
-  RelativeDateV2 
+import {
+  StatusBadgeV2,
+  PaymentBadgeV2,
+  RelativeDateV2
 } from '../shared'
 import { MembershipRequestActionsV2 } from '../actions'
 import { User, CheckCircle2, Calendar } from 'lucide-react'
@@ -39,12 +39,12 @@ interface MembershipRequestRowV2Props {
   onReject?: (id: string) => void
   onRequestCorrections?: (id: string) => void
   onPay?: (id: string) => void
-  
+
   // Actions post-rejet (si status === 'rejected')
   onReopen?: (id: string) => void
   onDelete?: (id: string) => void
   onSendWhatsAppRejection?: (id: string) => void
-  
+
   onViewMembershipForm?: (id: string) => void
   onViewApprovedMembershipPdf?: (id: string) => void
   onViewIdDocument?: (id: string) => void
@@ -52,18 +52,19 @@ interface MembershipRequestRowV2Props {
   onExportPDF?: (id: string) => void
   onExportExcel?: (id: string) => void
   onSendWhatsApp?: (id: string) => void
-  
+  onEdit?: (id: string) => void // Nouvelle action pour modifier
+
   // Actions corrections (si status === 'under_review')
   onCopyCorrectionLink?: (id: string) => void
   onSendWhatsAppCorrection?: (id: string) => void
   onRenewSecurityCode?: (id: string) => void
-  
+
   // Pour obtenir les infos de l'admin qui a approuvé
   getApprovedByInfo?: (requestId: string) => { name?: string; matricule?: string } | null
-  
+
   // États de chargement
   loadingActions?: Record<string, boolean>
-  
+
   className?: string
 }
 
@@ -84,6 +85,7 @@ export function MembershipRequestRowV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
+  onEdit,
   onCopyCorrectionLink,
   onSendWhatsAppCorrection,
   onRenewSecurityCode,
@@ -91,11 +93,11 @@ export function MembershipRequestRowV2({
   loadingActions = {},
   className,
 }: MembershipRequestRowV2Props) {
-  const { 
-    id, 
-    identity, 
-    status, 
-    isPaid, 
+  const {
+    id,
+    identity,
+    status,
+    isPaid,
     createdAt,
     reviewNote,
     matricule,
@@ -119,8 +121,8 @@ export function MembershipRequestRowV2({
       {/* Photo */}
       <td className="px-4 py-3">
         <Avatar className="w-10 h-10 border-2 border-gray-200">
-          <AvatarImage 
-            src={identity.photoURL || undefined} 
+          <AvatarImage
+            src={identity.photoURL || undefined}
             alt={fullName}
             className="object-cover"
           />
@@ -162,9 +164,9 @@ export function MembershipRequestRowV2({
                 <div className="flex items-center gap-1 text-[10px] text-gray-500">
                   <Calendar className="w-3 h-3" />
                   <span className="truncate">
-                    {toDateSafe(approvedAt)?.toLocaleDateString('fr-FR', { 
-                      day: '2-digit', 
-                      month: '2-digit', 
+                    {toDateSafe(approvedAt)?.toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: '2-digit',
                       year: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit'
@@ -218,6 +220,7 @@ export function MembershipRequestRowV2({
           onExportPDF={onExportPDF ? () => onExportPDF(id || '') : undefined}
           onExportExcel={onExportExcel ? () => onExportExcel(id || '') : undefined}
           onSendWhatsApp={onSendWhatsApp ? () => onSendWhatsApp(id || '') : undefined}
+          onEdit={onEdit ? () => onEdit(id || '') : undefined}
           onCopyCorrectionLink={onCopyCorrectionLink ? () => onCopyCorrectionLink(id || '') : undefined}
           onSendWhatsAppCorrection={onSendWhatsAppCorrection ? () => onSendWhatsAppCorrection(id || '') : undefined}
           onRenewSecurityCode={onRenewSecurityCode ? () => onRenewSecurityCode(id || '') : undefined}

@@ -19,7 +19,7 @@ export interface UseDocumentUploadOptions {
    * Le formulaire react-hook-form
    */
   form: UseFormReturn<RegisterFormData>
-  
+
   /**
    * Type de document : 'front' pour recto, 'back' pour verso
    */
@@ -31,52 +31,52 @@ export interface UseDocumentUploadReturn {
    * URL de preview de l'image (data URL)
    */
   preview: string | null
-  
+
   /**
    * État de compression en cours
    */
   isCompressing: boolean
-  
+
   /**
    * Informations de compression (format, taille)
    */
   compressionInfo: string | null
-  
+
   /**
    * État de drag over
    */
   isDragOver: boolean
-  
+
   /**
    * Référence vers l'input file
    */
   fileInputRef: React.RefObject<HTMLInputElement | null>
-  
+
   /**
    * Gérer l'upload d'un fichier
    */
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  
+
   /**
    * Gérer le drop d'un fichier
    */
   handleDrop: (e: React.DragEvent) => void
-  
+
   /**
    * Gérer le drag over
    */
   handleDragOver: (e: React.DragEvent) => void
-  
+
   /**
    * Gérer le drag leave
    */
   handleDragLeave: () => void
-  
+
   /**
    * Ouvrir le sélecteur de fichier
    */
   openFileSelector: () => void
-  
+
   /**
    * Réinitialiser le document
    */
@@ -103,31 +103,31 @@ export interface UseDocumentUploadReturn {
  * } = useDocumentUpload({ form, documentType: 'front' })
  * ```
  */
-export function useDocumentUpload({ 
-  form, 
-  documentType 
+export function useDocumentUpload({
+  form,
+  documentType
 }: UseDocumentUploadOptions): UseDocumentUploadReturn {
   const { watch, setValue, setError, clearErrors } = form
-  
+
   const [preview, setPreview] = useState<string | null>(null)
   const [isCompressing, setIsCompressing] = useState(false)
   const [compressionInfo, setCompressionInfo] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
-  
+
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  
-  const fieldName = documentType === 'front' 
-    ? 'documents.documentPhotoFront' 
+
+  const fieldName = documentType === 'front'
+    ? 'documents.documentPhotoFront'
     : 'documents.documentPhotoBack'
-  
+
   // Restaurer la preview si elle existe dans le formulaire
   const existingPhoto = watch(fieldName)
   useEffect(() => {
-    if (existingPhoto && !preview && typeof existingPhoto === 'string' && existingPhoto.startsWith('data:')) {
+    if (existingPhoto && !preview && typeof existingPhoto === 'string' && (existingPhoto.startsWith('data:') || existingPhoto.startsWith('http'))) {
       setPreview(existingPhoto)
     }
   }, [existingPhoto, preview])
-  
+
   /**
    * Gérer l'upload et la compression d'un fichier
    */
@@ -139,27 +139,27 @@ export function useDocumentUpload({
       })
       return
     }
-    
+
     setIsCompressing(true)
     setCompressionInfo(null)
-    
+
     try {
       // Compresser l'image en WebP avec le preset document
       const compressedDataUrl = await compressImage(file, IMAGE_COMPRESSION_PRESETS.document)
-      
+
       // Obtenir les informations sur l'image compressée
       const imageInfo = getImageInfo(compressedDataUrl)
-      
+
       // Mettre à jour les états
       setPreview(compressedDataUrl)
       setValue(fieldName as any, compressedDataUrl, { shouldValidate: true })
       setCompressionInfo(`${imageInfo.format} • ${imageInfo.sizeText}`)
-      
+
       // Nettoyer les erreurs
       if (documentType === 'front') {
         clearErrors('documents.documentPhotoFront')
       }
-      
+
     } catch (error) {
       console.error('Erreur lors de la compression:', error)
       setError(fieldName as any, {
@@ -170,7 +170,7 @@ export function useDocumentUpload({
       setIsCompressing(false)
     }
   }, [fieldName, documentType, setValue, setError, clearErrors])
-  
+
   /**
    * Gérer le changement de fichier via l'input
    */
@@ -180,7 +180,7 @@ export function useDocumentUpload({
       handlePhotoUpload(file)
     }
   }, [handlePhotoUpload])
-  
+
   /**
    * Gérer le drop d'un fichier
    */
@@ -192,7 +192,7 @@ export function useDocumentUpload({
       handlePhotoUpload(file)
     }
   }, [handlePhotoUpload])
-  
+
   /**
    * Gérer le drag over
    */
@@ -200,21 +200,21 @@ export function useDocumentUpload({
     e.preventDefault()
     setIsDragOver(true)
   }, [])
-  
+
   /**
    * Gérer le drag leave
    */
   const handleDragLeave = useCallback(() => {
     setIsDragOver(false)
   }, [])
-  
+
   /**
    * Ouvrir le sélecteur de fichier
    */
   const openFileSelector = useCallback(() => {
     fileInputRef.current?.click()
   }, [])
-  
+
   /**
    * Réinitialiser le document
    */
@@ -228,7 +228,7 @@ export function useDocumentUpload({
       fileInputRef.current.value = ''
     }
   }, [fieldName, setValue])
-  
+
   return {
     preview,
     isCompressing,

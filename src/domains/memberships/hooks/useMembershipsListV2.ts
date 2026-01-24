@@ -5,11 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import type { UserFilters } from '@/types/types'
 import type { PaginatedMembers } from '@/db/member.db'
 import { MembersRepositoryV2 } from '../repositories/MembersRepositoryV2'
-import {
-  MembershipsListService,
-  type MembersTab,
-  type MembershipStats,
-} from '../services/MembershipsListService'
+import { MembershipsListService, type MembersTab } from '../services/MembershipsListService'
+import { MembershipStatsService, type MembershipStatsV2 } from '../services/MembershipStatsService'
 
 export interface UseMembershipsListV2Options {
   filters?: UserFilters
@@ -21,7 +18,7 @@ export interface UseMembershipsListV2Options {
 
 export interface UseMembershipsListV2Result {
   data: PaginatedMembers | undefined
-  stats: MembershipStats | null
+  stats: MembershipStatsV2 | null
   isLoading: boolean
   isError: boolean
   error: unknown
@@ -70,9 +67,9 @@ export function useMembershipsListV2(
     refetchOnWindowFocus: false,
   })
 
-  // Calculer les statistiques
+  // Calculer les statistiques avec le nouveau service V2
   const stats = useMemo(
-    () => MembershipsListService.calculateStats(query.data ?? null),
+    () => MembershipStatsService.calculateStats(query.data ?? null),
     [query.data],
   )
 

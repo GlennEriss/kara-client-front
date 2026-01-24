@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Users, UserCheck, Clock, Mars, Venus, TrendingUp } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { cn } from '@/lib/utils'
-import type { MembershipStats } from '../../services/MembershipsListService'
+import type { MembershipStatsV2 } from '../../services/MembershipStatsService'
 
 // Hook personnalisé pour le carousel avec drag/swipe
 function useCarousel(itemCount: number, itemsPerView: number = 1) {
@@ -188,7 +188,7 @@ export function ModernStatsCard({
 
 // Composant Carrousel des statistiques avec drag/swipe
 interface MembershipsListStatsProps {
-  stats: MembershipStats
+  stats: MembershipStatsV2
 }
 
 export function MembershipsListStats({ stats }: MembershipsListStatsProps) {

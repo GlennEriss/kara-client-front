@@ -1,18 +1,31 @@
 ## Tests – Modifier une demande d'adhésion
 
-> **À compléter plus tard** : Ce dossier décrira les tests pour la fonctionnalité de modification.
+Cette section décrit la stratégie de test pour garantir la robustesse de la modification des demandes.
 
-### Tests prévus
+### Stratégie de Test
 
-- **Unitaires** :
-  - Service de modification (`MembershipRequestUpdateService`).
-  - Validation des modifications (schémas).
-  - Composants de formulaire de modification.
+#### 1. Tests Unitaires (Frontend)
+- **`useDocumentUpload` Hook** :
+  - Vérifier que les `data:` URIs sont acceptés.
+  - Vérifier que les `https:` URLs sont acceptées (Bug fix).
+  - Vérifier la compression d'image.
+- **`MembershipFormService`** :
+  - Mocker l'appel Cloud Function.
+  - Vérifier la transformation des données avant envoi.
 
-- **Intégration** :
-  - Parcours complet : ouverture depuis détails → modification → sauvegarde.
-  - Validation des champs modifiés.
-  - Gestion des erreurs.
+#### 2. Tests d'Intégration (Backend - Emulateurs)
+- **Cloud Function `updateMembershipRequest`** :
+  - **Cas Nominal** : Admin authentifié, payload valide -> Mise à jour Firestore effectuée.
+  - **Cas Erreur Auth** : Utilisateur non authentifié ou non-admin -> Rejet (`PERMISSION_DENIED`).
+  - **Cas Validation** : Payload invalide (ex: email malformé) -> Rejet (`INVALID_ARGUMENT`).
+  - **Cas Inexistant** : ID inconnu -> Rejet (`NOT_FOUND`).
 
-- **E2E** :
-  - Scénarios utilisateur de modification d'une demande d'adhésion.
+#### 3. Tests E2E (Cypress/Playwright)
+- **Scénario Admin** :
+  1. Login Admin.
+  2. Navigation vers une demande.
+  3. Clic "Modifier".
+  4. Modification d'un champ (ex: Nom).
+  5. Soumission.
+  6. Vérification du toast succès.
+  7. Rechargement page -> la modification persiste.

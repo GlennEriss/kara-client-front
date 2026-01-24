@@ -1,0 +1,63 @@
+@startuml SEQ_Modifier_Membership_Request
+title Séquence principale - Modifier une demande d'adhésion (admin)
+
+skinparam shadowing false
+
+actor Admin
+participant "MembershipRequestsPageV2\n(/membership-requests)" as ListPage
+participant "Router\n(next/navigation)" as Router
+participant "/memberships/update/{requestId}\n(Formulaire d'adhésion)" as UpdatePage
+participant "MembershipFormService" as FormService
+participant "MembershipRepositoryV2" as Repo
+participant "Cloud Functions" as Functions
+database "Firestore\n(membership_requests)" as Firestore
+
+== Ouverture de l'écran de modification ==
+
+Admin -> ListPage : Ouvrir /membership-requests
+ListPage -> Repo : getAll(filters, page, limit)
+Repo --> ListPage : MembershipRequestsResponse
+ListPage --> Admin : Affiche la liste des demandes
+
+Admin -> ListPage : Clic sur \"Modifier\" (ligne {requestId})
+ListPage -> Router : push(/memberships/update/{requestId})
+Router -> UpdatePage : Render page avec requestId
+
+== Chargement des données de la demande ==
+
+UpdatePage -> Repo : getById(requestId)
+Repo -> Firestore : getDoc(membership_requests/{id})
+Firestore --> Repo : Données brutes de la demande
+Repo --> UpdatePage : MembershipRequest
+UpdatePage -> UpdatePage : Mapper MembershipRequest -> valeurs du formulaire
+UpdatePage --> Admin : Formulaire pré-rempli affiché
+
+== Soumission des modifications ==
+
+Admin -> UpdatePage : Cliquer sur \"Enregistrer les modifications\"
+UpdatePage -> FormService : updateMembershipRequest(requestId, formData)
+FormService -> Repo : getById(requestId)\n(vérifier existence / statut)
+Repo -> Firestore : getDoc(membership_requests/{id})
+Firestore --> Repo : MembershipRequest actuelle
+Repo --> FormService : MembershipRequest actuelle
+
+FormService -> FormService : Valider formData\n(règles métier)
+
+alt données valides
+  FormService -> Functions : call('updateMembershipRequest', { requestId, formData })
+  activate Functions
+  Functions -> Functions : Valider Auth (Admin)
+  Functions -> Functions : Valider Schema (Zod)
+  Functions -> Firestore : update(membership_requests/{id}, payload)
+  Firestore --> Functions : OK
+  Functions --> FormService : { success: true }
+  deactivate Functions
+  FormService --> UpdatePage : { success: true }
+  UpdatePage --> Admin : Toast succès + redirection\n(/membership-requests ou rester sur la page)
+else erreur de validation / Firestore
+  FormService --> UpdatePage : { success: false, error }
+  UpdatePage --> Admin : Affiche message d'erreur\net garde le formulaire ouvert
+end
+
+@enduml
+

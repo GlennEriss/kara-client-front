@@ -17,10 +17,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import type { MembershipRequestStatus } from '@/types/types'
-import { 
-  CheckCircle2, 
-  XCircle, 
-  FileEdit, 
+import {
+  CheckCircle2,
+  XCircle,
+  FileEdit,
   CreditCard,
   MoreVertical,
   Eye,
@@ -30,6 +30,7 @@ import {
   IdCard,
   RotateCcw,
   Trash2,
+  Edit,
 } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -38,18 +39,18 @@ interface MembershipRequestActionsV2Props {
   requestId: string
   status: MembershipRequestStatus
   isPaid: boolean
-  
+
   // Actions principales
   onApprove?: () => void
   onReject?: () => void
   onRequestCorrections?: () => void
   onPay?: () => void
-  
+
   // Actions post-rejet (si status === 'rejected')
   onReopen?: () => void
   onDelete?: () => void
   onSendWhatsAppRejection?: () => void // Envoyer WhatsApp avec motif de rejet
-  
+
   // Actions secondaires (dans le menu dropdown)
   onViewDetails?: () => void
   onViewMembershipForm?: () => void // PDF du dossier initial (généré)
@@ -59,12 +60,13 @@ interface MembershipRequestActionsV2Props {
   onExportPDF?: () => void // Export PDF individuel
   onExportExcel?: () => void // Export Excel individuel
   onSendWhatsApp?: () => void
-  
+  onEdit?: () => void // Modifier directement la demande (admin)
+
   // Actions corrections (si status === 'under_review')
   onCopyCorrectionLink?: () => void
   onSendWhatsAppCorrection?: () => void // Envoyer WhatsApp pour corrections
   onRenewSecurityCode?: () => void
-  
+
   // États de chargement
   isApproving?: boolean
   isRejecting?: boolean
@@ -73,7 +75,7 @@ interface MembershipRequestActionsV2Props {
   isRenewingCode?: boolean
   isReopening?: boolean
   isDeleting?: boolean
-  
+
   className?: string
 }
 
@@ -96,6 +98,7 @@ export function MembershipRequestActionsV2({
   onExportPDF,
   onExportExcel,
   onSendWhatsApp,
+  onEdit,
   onCopyCorrectionLink: _onCopyCorrectionLink,
   onSendWhatsAppCorrection: _onSendWhatsAppCorrection,
   onRenewSecurityCode: _onRenewSecurityCode,
@@ -110,7 +113,7 @@ export function MembershipRequestActionsV2({
 }: MembershipRequestActionsV2Props) {
   // Détecter mobile pour adapter l'affichage
   const isMobile = useIsMobile()
-  
+
   // Déterminer les actions possibles selon le workflow métier strict
   // Règles P0.1 :
   // - Payer : uniquement si pending ET non payé (dossier validé)
@@ -127,18 +130,18 @@ export function MembershipRequestActionsV2({
   // Messages d'aide pour les actions désactivées (workflow métier)
   const payTooltip = isRejected
     ? 'Dossier rejeté - Aucune action possible'
-    : !canPay && status === 'pending' && isPaid 
-    ? 'Déjà payé' 
-    : !canPay && status !== 'pending' 
-    ? 'Dossier déjà traité' 
-    : undefined
+    : !canPay && status === 'pending' && isPaid
+      ? 'Déjà payé'
+      : !canPay && status !== 'pending'
+        ? 'Dossier déjà traité'
+        : undefined
   const approveTooltip = isRejected
     ? 'Dossier rejeté - Aucune action possible'
     : !canApprove && status === 'pending' && !isPaid
-    ? 'Payer d\'abord pour approuver'
-    : !canApprove && status !== 'pending'
-    ? 'Dossier déjà traité'
-    : undefined
+      ? 'Payer d\'abord pour approuver'
+      : !canApprove && status !== 'pending'
+        ? 'Dossier déjà traité'
+        : undefined
   const rejectTooltip = isRejected
     ? 'Dossier déjà rejeté'
     : undefined
@@ -164,7 +167,7 @@ export function MembershipRequestActionsV2({
   // En desktop, le menu contient toutes les actions secondaires
   // NOTE: Les actions corrections ne sont plus dans le dropdown (feedback testeurs)
   // NOTE: Pour les demandes approuvées, "Voir les détails" n'est PAS dans le dropdown (déjà visible comme bouton)
-  const hasMenuActions = 
+  const hasMenuActions =
     onViewMembershipForm ||
     onViewIdDocument ||
     (onViewPaymentDetails && isPaid) || // Voir détails paiement si payé
@@ -183,7 +186,7 @@ export function MembershipRequestActionsV2({
     ))
 
   return (
-    <div 
+    <div
       className={cn(
         'flex items-center gap-2 justify-start',
         className
@@ -191,7 +194,7 @@ export function MembershipRequestActionsV2({
       data-testid="membership-request-actions"
     >
       {/* Action principale - 1 seule visible selon priorité */}
-      
+
       {primaryAction === 'pay' && onPay && (
         <Button
           onClick={onPay}
@@ -639,6 +642,17 @@ export function MembershipRequestActionsV2({
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     Voir détails
+                  </DropdownMenuItem>
+                )}
+
+                {/* Modifier (Admin) */}
+                {onEdit && !isApproved && (
+                  <DropdownMenuItem
+                    onClick={onEdit}
+                    data-testid="action-edit-menu"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Modifier
                   </DropdownMenuItem>
                 )}
               </>

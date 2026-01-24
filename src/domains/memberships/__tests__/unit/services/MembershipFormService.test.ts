@@ -69,10 +69,11 @@ describe('MembershipFormService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Mock MembershipRepositoryV2
     mockRepository = {
       create: vi.fn(),
+      update: vi.fn(),
     }
     vi.mocked(MembershipRepositoryV2.getInstance).mockReturnValue(mockRepository as any)
 
@@ -102,8 +103,8 @@ describe('MembershipFormService', () => {
     vi.mocked(getFunctions).mockReturnValue({} as any)
     vi.mocked(httpsCallable).mockReturnValue(mockSubmitCorrectionsCF)
 
-    // Réinitialiser l'instance singleton
-    ;(MembershipFormService as any).instance = undefined
+      // Réinitialiser l'instance singleton
+      ; (MembershipFormService as any).instance = undefined
     service = MembershipFormService.getInstance()
 
     // Mock localStorage
@@ -302,6 +303,57 @@ describe('MembershipFormService', () => {
     })
   })
 
+  describe('updateMembershipRequest', () => {
+    const requestId = '1234.MK.567890'
+
+    it('devrait mettre à jour avec succès une demande', async () => {
+      mockRepository.update.mockResolvedValue(undefined)
+
+      const result = await service.updateMembershipRequest(requestId, validFormData)
+
+      expect(result.success).toBe(true)
+      expect(result.requestId).toBe(requestId)
+      expect(mockRepository.update).toHaveBeenCalledWith(requestId, validFormData)
+    })
+
+    it('devrait échouer si requestId est manquant', async () => {
+      const result = await service.updateMembershipRequest('', validFormData)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('ID')
+      expect(mockRepository.update).not.toHaveBeenCalled()
+    })
+
+    it('devrait échouer si le nom est manquant', async () => {
+      const invalidData = {
+        ...validFormData,
+        identity: {
+          ...validFormData.identity,
+          lastName: '',
+        },
+      }
+
+      const result = await service.updateMembershipRequest(requestId, invalidData)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('nom')
+      expect(mockRepository.update).not.toHaveBeenCalled()
+    })
+
+    it('devrait gérer les erreurs lors de la mise à jour', async () => {
+      const error = new Error('Update failed')
+      mockRepository.update.mockRejectedValue(error)
+      mockErrorHandler.normalizeError.mockReturnValue(error)
+      mockErrorHandler.formatForUI.mockReturnValue('Erreur normalisée')
+
+      const result = await service.updateMembershipRequest(requestId, validFormData)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('Erreur normalisée')
+      expect(mockErrorHandler.normalizeError).toHaveBeenCalledWith(error, 'updateMembershipRequest')
+    })
+  })
+
   describe('saveDraft', () => {
     it('devrait sauvegarder un brouillon dans localStorage', () => {
       service.saveDraft(validFormData)
@@ -365,7 +417,7 @@ describe('MembershipFormService', () => {
     })
 
     it('ne devrait pas bloquer si localStorage échoue', () => {
-      ;(global.localStorage.setItem as any).mockImplementation(() => {
+      ; (global.localStorage.setItem as any).mockImplementation(() => {
         throw new Error('localStorage error')
       })
 
@@ -377,11 +429,11 @@ describe('MembershipFormService', () => {
     it('devrait charger un brouillon depuis localStorage', () => {
       const draftData = JSON.stringify(validFormData)
       const timestamp = Date.now().toString()
-      ;(global.localStorage.getItem as any).mockImplementation((key: string) => {
-        if (key === 'membership-form-draft') return draftData
-        if (key === 'membership-form-draft-timestamp') return timestamp
-        return null
-      })
+        ; (global.localStorage.getItem as any).mockImplementation((key: string) => {
+          if (key === 'membership-form-draft') return draftData
+          if (key === 'membership-form-draft-timestamp') return timestamp
+          return null
+        })
 
       const result = service.loadDraft()
 
@@ -389,7 +441,7 @@ describe('MembershipFormService', () => {
     })
 
     it('devrait retourner null si aucun brouillon', () => {
-      ;(global.localStorage.getItem as any).mockReturnValue(null)
+      ; (global.localStorage.getItem as any).mockReturnValue(null)
 
       const result = service.loadDraft()
 
@@ -400,11 +452,11 @@ describe('MembershipFormService', () => {
       const draftData = JSON.stringify(validFormData)
       // Timestamp il y a 8 jours (au-delà de l'expiration de 7 jours)
       const oldTimestamp = (Date.now() - 8 * 24 * 60 * 60 * 1000).toString()
-      ;(global.localStorage.getItem as any).mockImplementation((key: string) => {
-        if (key === 'membership-form-draft') return draftData
-        if (key === 'membership-form-draft-timestamp') return oldTimestamp
-        return null
-      })
+        ; (global.localStorage.getItem as any).mockImplementation((key: string) => {
+          if (key === 'membership-form-draft') return draftData
+          if (key === 'membership-form-draft-timestamp') return oldTimestamp
+          return null
+        })
 
       const result = service.loadDraft()
 
@@ -413,7 +465,7 @@ describe('MembershipFormService', () => {
     })
 
     it('devrait supprimer le brouillon corrompu en cas d\'erreur de parsing', () => {
-      ;(global.localStorage.getItem as any).mockImplementation((key: string) => {
+      ; (global.localStorage.getItem as any).mockImplementation((key: string) => {
         if (key === 'membership-form-draft') return 'invalid json'
         if (key === 'membership-form-draft-timestamp') return Date.now().toString()
         return null
@@ -430,11 +482,11 @@ describe('MembershipFormService', () => {
     it('devrait retourner true si un brouillon existe', () => {
       const draftData = JSON.stringify(validFormData)
       const timestamp = Date.now().toString()
-      ;(global.localStorage.getItem as any).mockImplementation((key: string) => {
-        if (key === 'membership-form-draft') return draftData
-        if (key === 'membership-form-draft-timestamp') return timestamp
-        return null
-      })
+        ; (global.localStorage.getItem as any).mockImplementation((key: string) => {
+          if (key === 'membership-form-draft') return draftData
+          if (key === 'membership-form-draft-timestamp') return timestamp
+          return null
+        })
 
       const result = service.hasDraft()
 
@@ -442,7 +494,7 @@ describe('MembershipFormService', () => {
     })
 
     it('devrait retourner false si aucun brouillon', () => {
-      ;(global.localStorage.getItem as any).mockReturnValue(null)
+      ; (global.localStorage.getItem as any).mockReturnValue(null)
 
       const result = service.hasDraft()
 
@@ -459,7 +511,7 @@ describe('MembershipFormService', () => {
     })
 
     it('ne devrait pas bloquer si localStorage échoue', () => {
-      ;(global.localStorage.removeItem as any).mockImplementation(() => {
+      ; (global.localStorage.removeItem as any).mockImplementation(() => {
         throw new Error('localStorage error')
       })
 
@@ -471,7 +523,7 @@ describe('MembershipFormService', () => {
     it('devrait retourner l\'âge du brouillon en jours', () => {
       const daysAgo = 3
       const timestamp = (Date.now() - daysAgo * 24 * 60 * 60 * 1000).toString()
-      ;(global.localStorage.getItem as any).mockReturnValue(timestamp)
+        ; (global.localStorage.getItem as any).mockReturnValue(timestamp)
 
       const result = service.getDraftAge()
 
@@ -479,7 +531,7 @@ describe('MembershipFormService', () => {
     })
 
     it('devrait retourner null si aucun brouillon', () => {
-      ;(global.localStorage.getItem as any).mockReturnValue(null)
+      ; (global.localStorage.getItem as any).mockReturnValue(null)
 
       const result = service.getDraftAge()
 
@@ -487,7 +539,7 @@ describe('MembershipFormService', () => {
     })
 
     it('devrait retourner null en cas d\'erreur', () => {
-      ;(global.localStorage.getItem as any).mockReturnValue('invalid')
+      ; (global.localStorage.getItem as any).mockReturnValue('invalid')
 
       const result = service.getDraftAge()
 

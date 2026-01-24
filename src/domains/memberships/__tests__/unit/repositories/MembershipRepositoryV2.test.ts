@@ -29,6 +29,19 @@ const mockGetDoc = vi.fn()
 const mockUpdateDoc = vi.fn()
 const mockGetCountFromServer = vi.fn()
 const mockSetDoc = vi.fn()
+const mockHttpsCallable = vi.fn()
+
+vi.mock('firebase/functions', async () => {
+  const actual = await vi.importActual('firebase/functions')
+  return {
+    ...actual,
+    getFunctions: vi.fn(),
+    httpsCallable: vi.fn((functions, name) => mockHttpsCallable)
+  }
+})
+
+// Export pour utilisation dans les tests
+import { httpsCallable } from 'firebase/functions'
 
 vi.mock('@/firebase/firestore', () => ({
   db: {},
@@ -72,8 +85,8 @@ vi.mock('@/repositories/documents/DocumentRepository', () => ({
 }))
 
 import { MembershipRepositoryV2 } from '../../../repositories/MembershipRepositoryV2'
-import { 
-  createMembershipRequestFixture, 
+import {
+  createMembershipRequestFixture,
   generateManyRequests,
   pendingUnpaidRequest,
   pendingPaidRequest,
@@ -118,7 +131,7 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
@@ -127,14 +140,14 @@ describe('MembershipRepositoryV2', () => {
           mockDocs.forEach(callback)
         },
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 25 }),
       })
-      
+
       // Act
       const result = await repository.getAll({}, 1, 10)
-      
+
       // Assert
       expect(result.items).toHaveLength(10)
       expect(result.pagination.page).toBe(1)
@@ -149,16 +162,16 @@ describe('MembershipRepositoryV2', () => {
         docs: [],
         empty: true,
         size: 0,
-        forEach: () => {},
+        forEach: () => { },
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 0 }),
       })
-      
+
       // Act
       const result = await repository.getAll()
-      
+
       // Assert
       expect(result.items).toEqual([])
       expect(result.pagination.totalItems).toBe(0)
@@ -172,21 +185,21 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
         size: 2,
         forEach: (callback: (doc: any) => void) => mockDocs.forEach(callback),
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 2 }),
       })
-      
+
       // Act
       const result = await repository.getAll({ status: 'pending' }, 1, 10)
-      
+
       // Assert
       expect(result.items).toHaveLength(2)
       expect(result.items.every(item => item.status === 'pending')).toBe(true)
@@ -199,21 +212,21 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
         size: 1,
         forEach: (callback: (doc: any) => void) => mockDocs.forEach(callback),
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 1 }),
       })
-      
+
       // Act
       const result = await repository.getAll({ status: 'approved' }, 1, 10)
-      
+
       // Assert
       expect(result.items).toHaveLength(1)
       expect(result.items[0].status).toBe('approved')
@@ -226,21 +239,21 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
         size: 1,
         forEach: (callback: (doc: any) => void) => mockDocs.forEach(callback),
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 1 }),
       })
-      
+
       // Act
       const result = await repository.getAll({ status: 'rejected' }, 1, 10)
-      
+
       // Assert
       expect(result.items).toHaveLength(1)
       expect(result.items[0].status).toBe('rejected')
@@ -253,21 +266,21 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
         size: 1,
         forEach: (callback: (doc: any) => void) => mockDocs.forEach(callback),
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 1 }),
       })
-      
+
       // Act
       const result = await repository.getAll({ status: 'under_review' }, 1, 10)
-      
+
       // Assert
       expect(result.items).toHaveLength(1)
       expect(result.items[0].status).toBe('under_review')
@@ -280,21 +293,21 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
         size: 3,
         forEach: (callback: (doc: any) => void) => mockDocs.forEach(callback),
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 3 }),
       })
-      
+
       // Act
       const result = await repository.getAll()
-      
+
       // Assert
       expect(result.items).toHaveLength(3)
       // Vérifier l'ordre décroissant des dates
@@ -312,21 +325,21 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
         size: 2,
         forEach: (callback: (doc: any) => void) => mockDocs.forEach(callback),
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 2 }),
       })
-      
+
       // Act
       const result = await repository.getAll({ isPaid: true }, 1, 10)
-      
+
       // Assert
       expect(result.items).toHaveLength(2)
       expect(result.items.every(item => item.isPaid === true)).toBe(true)
@@ -339,21 +352,21 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
         size: 1,
         forEach: (callback: (doc: any) => void) => mockDocs.forEach(callback),
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 1 }),
       })
-      
+
       // Act
       const result = await repository.getAll({ status: 'pending', isPaid: true }, 1, 10)
-      
+
       // Assert
       expect(result.items).toHaveLength(1)
       expect(result.items[0].status).toBe('pending')
@@ -363,7 +376,7 @@ describe('MembershipRepositoryV2', () => {
     it('devrait throw une erreur si la connexion Firestore échoue', async () => {
       // Arrange
       mockGetDocs.mockRejectedValue(new Error('Firestore connection error'))
-      
+
       // Act & Assert
       await expect(repository.getAll()).rejects.toThrow('Firestore connection error')
     })
@@ -374,16 +387,16 @@ describe('MembershipRepositoryV2', () => {
         docs: [],
         empty: true,
         size: 0,
-        forEach: () => {},
+        forEach: () => { },
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 0 }),
       })
-      
+
       // Act
       const result = await repository.getAll({ status: 'invalid' as any }, 1, 10)
-      
+
       // Assert
       expect(result.items).toEqual([])
     })
@@ -394,7 +407,7 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
@@ -403,14 +416,14 @@ describe('MembershipRepositoryV2', () => {
           mockDocs.forEach(callback)
         },
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 25 }),
       })
-      
+
       // Act
       const result = await repository.getAll({}, 1, 10)
-      
+
       // Assert
       expect(result.pagination.hasNextPage).toBe(true)
       expect(result.pagination.hasPrevPage).toBe(false)
@@ -423,7 +436,7 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
@@ -432,14 +445,14 @@ describe('MembershipRepositoryV2', () => {
           mockDocs.forEach(callback)
         },
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 25 }),
       })
-      
+
       // Act - dernière page (page 3 sur 25 items avec 10 par page = 3 pages)
       const result = await repository.getAll({}, 3, 10)
-      
+
       // Assert
       expect(result.pagination.hasNextPage).toBe(false)
       expect(result.pagination.hasPrevPage).toBe(true)
@@ -453,7 +466,7 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
@@ -462,14 +475,14 @@ describe('MembershipRepositoryV2', () => {
           mockDocs.forEach(callback)
         },
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 30 }),
       })
-      
+
       // Act - page 2 sur 3 pages
       const result = await repository.getAll({}, 2, 10)
-      
+
       // Assert
       expect(result.pagination.hasNextPage).toBe(true)
       expect(result.pagination.hasPrevPage).toBe(true)
@@ -483,7 +496,7 @@ describe('MembershipRepositoryV2', () => {
         id: req.id,
         data: () => req,
       }))
-      
+
       mockGetDocs.mockResolvedValue({
         docs: mockDocs,
         empty: false,
@@ -492,14 +505,14 @@ describe('MembershipRepositoryV2', () => {
           mockDocs.forEach(callback)
         },
       })
-      
+
       mockGetCountFromServer.mockResolvedValue({
         data: () => ({ count: 5 }),
       })
-      
+
       // Act - page 1 avec seulement 5 items (1 seule page)
       const result = await repository.getAll({}, 1, 10)
-      
+
       // Assert
       expect(result.pagination.hasNextPage).toBe(false)
       expect(result.pagination.hasPrevPage).toBe(false)
@@ -512,16 +525,16 @@ describe('MembershipRepositoryV2', () => {
     it('devrait retourner une demande par son ID', async () => {
       // Arrange
       const request = createMembershipRequestFixture({ id: 'test-id-123' })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: 'test-id-123',
         data: () => request,
       })
-      
+
       // Act
       const result = await repository.getById('test-id-123')
-      
+
       // Assert
       expect(result).toBeDefined()
       expect(result?.id).toBe('test-id-123')
@@ -533,10 +546,10 @@ describe('MembershipRepositoryV2', () => {
       mockGetDoc.mockResolvedValue({
         exists: () => false,
       })
-      
+
       // Act
       const result = await repository.getById('non-existent-id')
-      
+
       // Assert
       expect(result).toBeNull()
     })
@@ -549,16 +562,16 @@ describe('MembershipRepositoryV2', () => {
     it('devrait inclure les sous-documents (identity, address, etc.)', async () => {
       // Arrange
       const request = createMembershipRequestFixture()
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: request.id,
         data: () => request,
       })
-      
+
       // Act
       const result = await repository.getById(request.id)
-      
+
       // Assert
       expect(result?.identity).toBeDefined()
       expect(result?.identity.firstName).toBe(request.identity.firstName)
@@ -574,21 +587,21 @@ describe('MembershipRepositoryV2', () => {
       const requestId = 'test-id-123'
       const adminId = 'admin-123'
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
-      
+
       // Act
       await repository.updateStatus(requestId, 'approved', {
         processedBy: adminId,
         processedAt: new Date(),
       })
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -598,20 +611,20 @@ describe('MembershipRepositoryV2', () => {
       const requestId = 'test-id-123'
       const motif = 'Documents incomplets.'
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
-      
+
       // Act
       await repository.updateStatus(requestId, 'rejected', {
         motifReject: motif,
       })
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -623,22 +636,22 @@ describe('MembershipRepositoryV2', () => {
       const adminId = 'admin-123'
       const processedAt = new Date()
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
-      
+
       // Act
       await repository.updateStatus(requestId, 'rejected', {
         motifReject: motif,
         processedBy: adminId,
         processedAt,
       })
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -650,20 +663,20 @@ describe('MembershipRepositoryV2', () => {
       const adminId = 'admin-123'
       const reopenedAt = new Date()
       const previousMotifReject = 'Documents incomplets.'
-      const request = createMembershipRequestFixture({ 
+      const request = createMembershipRequestFixture({
         id: requestId,
         status: 'rejected',
         motifReject: previousMotifReject,
       })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
-      
+
       // Act
       await repository.updateStatus(requestId, 'under_review', {
         reopenReason,
@@ -671,7 +684,7 @@ describe('MembershipRepositoryV2', () => {
         reopenedAt,
         motifReject: previousMotifReject, // Conserver le motif de rejet initial
       })
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -682,15 +695,15 @@ describe('MembershipRepositoryV2', () => {
       const corrections = 'Veuillez mettre à jour votre photo.'
       const securityCode = '123456'
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
-      
+
       // Act
       await repository.updateStatus(requestId, 'under_review', {
         reviewNote: corrections, // Utiliser reviewNote à la place de corrections
@@ -698,7 +711,7 @@ describe('MembershipRepositoryV2', () => {
         securityCodeUsed: false,
         securityCodeExpiry: new Date(Date.now() + 48 * 60 * 60 * 1000),
       })
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -708,7 +721,7 @@ describe('MembershipRepositoryV2', () => {
       mockGetDoc.mockResolvedValue({
         exists: () => false,
       })
-      
+
       // Act & Assert
       await expect(repository.updateStatus('non-existent-id', 'approved'))
         .rejects.toThrow()
@@ -718,20 +731,20 @@ describe('MembershipRepositoryV2', () => {
       // Arrange
       const requestId = 'test-id-123'
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       const firestoreError = new Error('Firestore update failed')
       mockUpdateDoc.mockRejectedValue(firestoreError)
-      
+
       // Act & Assert
       await expect(repository.updateStatus(requestId, 'approved'))
         .rejects.toThrow('Firestore update failed')
-      
+
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
 
@@ -739,18 +752,18 @@ describe('MembershipRepositoryV2', () => {
       // Arrange
       const requestId = 'test-id-123'
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
-      
+
       // Act
       await repository.updateStatus(requestId, 'approved')
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -770,19 +783,19 @@ describe('MembershipRepositoryV2', () => {
         recordedAt: new Date(),
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
       mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
-      
+
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
       // Vérifier que les champs de traçabilité sont bien passés dans paymentInfo
@@ -805,18 +818,18 @@ describe('MembershipRepositoryV2', () => {
         recordedAt,
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
-      
+
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
       // Vérifier que les champs de traçabilité sont bien passés
@@ -834,7 +847,7 @@ describe('MembershipRepositoryV2', () => {
         date: new Date().toISOString(),
         time: '14:30',
       }
-      
+
       // Act & Assert
       await expect(repository.markAsPaid(requestId, paymentInfo))
         .rejects.toThrow()
@@ -849,7 +862,7 @@ describe('MembershipRepositoryV2', () => {
         date: new Date().toISOString(),
         time: '14:30',
       }
-      
+
       // Act & Assert
       await expect(repository.markAsPaid(requestId, paymentInfo))
         .rejects.toThrow()
@@ -868,19 +881,19 @@ describe('MembershipRepositoryV2', () => {
         recordedAt: new Date(),
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
       mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
-      
+
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
-      
+
       // Assert
       expect(mockCreatePayment).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -908,16 +921,16 @@ describe('MembershipRepositoryV2', () => {
         recordedAt: new Date(),
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
       mockCreatePayment.mockRejectedValue(new Error('Payment repository error'))
-      
+
       // Act & Assert - ne devrait pas throw même si la collection centralisée échoue
       await expect(repository.markAsPaid(requestId, paymentInfo)).resolves.not.toThrow()
       expect(mockUpdateDoc).toHaveBeenCalled() // Le paiement doit quand même être enregistré dans membership-request
@@ -935,11 +948,11 @@ describe('MembershipRepositoryV2', () => {
         recordedByName: 'Admin Test',
         recordedAt: new Date(),
       }
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => false,
       })
-      
+
       // Act & Assert
       await expect(repository.markAsPaid(requestId, paymentInfo))
         .rejects.toThrow()
@@ -953,23 +966,23 @@ describe('MembershipRepositoryV2', () => {
         mode: 'cash',
         // date, time, recordedBy, recordedByName, recordedAt manquants
       } as any
-      const request = createMembershipRequestFixture({ 
+      const request = createMembershipRequestFixture({
         id: requestId,
         processedBy: 'previous-admin',
       })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
       mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
-      
+
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -988,19 +1001,19 @@ describe('MembershipRepositoryV2', () => {
         recordedAt: new Date(),
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
       mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
-      
+
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -1019,19 +1032,19 @@ describe('MembershipRepositoryV2', () => {
         recordedAt: new Date(),
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
       mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
-      
+
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -1051,19 +1064,19 @@ describe('MembershipRepositoryV2', () => {
         recordedAt: new Date(),
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockResolvedValue(undefined)
       mockCreatePayment.mockResolvedValue({ id: 'payment-123' })
-      
+
       // Act
       await repository.markAsPaid(requestId, paymentInfo)
-      
+
       // Assert
       expect(mockUpdateDoc).toHaveBeenCalled()
     })
@@ -1081,15 +1094,15 @@ describe('MembershipRepositoryV2', () => {
         recordedAt: new Date(),
       }
       const request = createMembershipRequestFixture({ id: requestId })
-      
+
       mockGetDoc.mockResolvedValue({
         exists: () => true,
         id: requestId,
         data: () => request,
       })
-      
+
       mockUpdateDoc.mockRejectedValue(new Error('Firestore update failed'))
-      
+
       // Act & Assert
       await expect(repository.markAsPaid(requestId, paymentInfo))
         .rejects.toThrow('Firestore update failed')
@@ -1107,10 +1120,10 @@ describe('MembershipRepositoryV2', () => {
         .mockResolvedValueOnce({ data: () => ({ count: 2 }) })  // rejected
         .mockResolvedValueOnce({ data: () => ({ count: 4 }) })  // paid
         .mockResolvedValueOnce({ data: () => ({ count: 6 }) })  // unpaid
-      
+
       // Act
       const result = await repository.getStatistics()
-      
+
       // Assert
       expect(result.total).toBe(10)
       expect(result.byStatus.pending).toBe(5)
@@ -1129,10 +1142,10 @@ describe('MembershipRepositoryV2', () => {
         .mockResolvedValueOnce({ data: () => ({ count: 2 }) })  // rejected
         .mockResolvedValueOnce({ data: () => ({ count: 4 }) })  // paid
         .mockResolvedValueOnce({ data: () => ({ count: 6 }) })  // unpaid
-      
+
       // Act
       const result = await repository.getStatistics()
-      
+
       // Assert
       expect(result.byPayment.paid).toBe(4)
       expect(result.byPayment.unpaid).toBe(6)
@@ -1148,10 +1161,10 @@ describe('MembershipRepositoryV2', () => {
         .mockResolvedValueOnce({ data: () => ({ count: 2 }) })  // rejected
         .mockResolvedValueOnce({ data: () => ({ count: 4 }) })  // paid
         .mockResolvedValueOnce({ data: () => ({ count: 6 }) })  // unpaid
-      
+
       // Act
       const result = await repository.getStatistics()
-      
+
       // Assert
       expect(result.percentages.pending).toBe(50)  // 5/10 * 100
       expect(result.percentages.approved).toBe(30) // 3/10 * 100
@@ -1168,10 +1181,10 @@ describe('MembershipRepositoryV2', () => {
         .mockResolvedValueOnce({ data: () => ({ count: 0 }) }) // rejected
         .mockResolvedValueOnce({ data: () => ({ count: 0 }) }) // paid
         .mockResolvedValueOnce({ data: () => ({ count: 0 }) }) // unpaid
-      
+
       // Act
       const result = await repository.getStatistics()
-      
+
       // Assert
       expect(result.total).toBe(0)
       expect(result.percentages.pending).toBe(0)
@@ -1185,7 +1198,7 @@ describe('MembershipRepositoryV2', () => {
       // Arrange
       const firestoreError = new Error('Firestore query failed')
       mockGetCountFromServer.mockRejectedValue(firestoreError)
-      
+
       // Act & Assert
       await expect(repository.getStatistics())
         .rejects.toThrow('Firestore query failed')
@@ -1211,10 +1224,10 @@ describe('MembershipRepositoryV2', () => {
       const requests = generateManyRequests(5)
       mockGetDocs.mockResolvedValue(createMockQuerySnapshot(requests))
       mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 5 }) })
-      
+
       // Act
       const result = await repository.search('')
-      
+
       // Assert
       expect(result.length).toBe(5)
     })
@@ -1224,10 +1237,10 @@ describe('MembershipRepositoryV2', () => {
       const requests = generateManyRequests(5)
       mockGetDocs.mockResolvedValue(createMockQuerySnapshot(requests))
       mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 5 }) })
-      
+
       // Act
       const result = await repository.search('   ')
-      
+
       // Assert
       expect(result.length).toBe(5)
     })
@@ -1237,30 +1250,30 @@ describe('MembershipRepositoryV2', () => {
       const requests = [
         createMembershipRequestFixture({
           id: 'req-search-1',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
-            firstName: 'Alphonse', 
+          identity: {
+            ...createMembershipRequestFixture().identity,
+            firstName: 'Alphonse',
             lastName: 'Zorro',
             email: 'alphonse@unique.com',
           },
         }),
         createMembershipRequestFixture({
           id: 'req-search-2',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
-            firstName: 'Bertrand', 
+          identity: {
+            ...createMembershipRequestFixture().identity,
+            firstName: 'Bertrand',
             lastName: 'Xavier',
             email: 'bertrand@unique.com',
           },
         }),
       ]
-      
+
       mockGetDocs.mockResolvedValue(createMockQuerySnapshot(requests))
       mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 2 }) })
-      
+
       // Act
       const result = await repository.search('alphonse')
-      
+
       // Assert
       expect(result.length).toBe(1)
       expect(result[0].identity.firstName).toBe('Alphonse')
@@ -1271,30 +1284,30 @@ describe('MembershipRepositoryV2', () => {
       const requests = [
         createMembershipRequestFixture({
           id: 'req-search-3',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
-            firstName: 'Charles', 
+          identity: {
+            ...createMembershipRequestFixture().identity,
+            firstName: 'Charles',
             lastName: 'Uniquenom',
             email: 'charles@unique.com',
           },
         }),
         createMembershipRequestFixture({
           id: 'req-search-4',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
-            firstName: 'David', 
+          identity: {
+            ...createMembershipRequestFixture().identity,
+            firstName: 'David',
             lastName: 'Autrenom',
             email: 'david@unique.com',
           },
         }),
       ]
-      
+
       mockGetDocs.mockResolvedValue(createMockQuerySnapshot(requests))
       mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 2 }) })
-      
+
       // Act
       const result = await repository.search('Uniquenom')
-      
+
       // Assert
       expect(result.length).toBe(1)
       expect(result[0].identity.lastName).toBe('Uniquenom')
@@ -1305,8 +1318,8 @@ describe('MembershipRepositoryV2', () => {
       const requests = [
         createMembershipRequestFixture({
           id: 'req-search-5',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
+          identity: {
+            ...createMembershipRequestFixture().identity,
             firstName: 'Email1',
             lastName: 'Test1',
             email: 'uniqueemail123@test.com',
@@ -1314,21 +1327,21 @@ describe('MembershipRepositoryV2', () => {
         }),
         createMembershipRequestFixture({
           id: 'req-search-6',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
+          identity: {
+            ...createMembershipRequestFixture().identity,
             firstName: 'Email2',
             lastName: 'Test2',
             email: 'autreemail456@test.com',
           },
         }),
       ]
-      
+
       mockGetDocs.mockResolvedValue(createMockQuerySnapshot(requests))
       mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 2 }) })
-      
+
       // Act
       const result = await repository.search('uniqueemail123')
-      
+
       // Assert
       expect(result.length).toBe(1)
       expect(result[0].identity.email).toBe('uniqueemail123@test.com')
@@ -1339,8 +1352,8 @@ describe('MembershipRepositoryV2', () => {
       const requests = [
         createMembershipRequestFixture({
           id: 'req-filter-1',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
+          identity: {
+            ...createMembershipRequestFixture().identity,
             firstName: 'FilterTest',
             lastName: 'One',
             email: 'filtertest@unique.com',
@@ -1348,13 +1361,13 @@ describe('MembershipRepositoryV2', () => {
           status: 'pending',
         }),
       ]
-      
+
       mockGetDocs.mockResolvedValue(createMockQuerySnapshot(requests))
       mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 1 }) })
-      
+
       // Act
       const result = await repository.search('FilterTest', { status: 'pending' })
-      
+
       // Assert
       expect(result.length).toBe(1)
     })
@@ -1364,21 +1377,21 @@ describe('MembershipRepositoryV2', () => {
       const requests = [
         createMembershipRequestFixture({
           id: 'req-nomatch-1',
-          identity: { 
-            ...createMembershipRequestFixture().identity, 
+          identity: {
+            ...createMembershipRequestFixture().identity,
             firstName: 'NoMatch',
             lastName: 'Person',
             email: 'nomatch@test.com',
           },
         }),
       ]
-      
+
       mockGetDocs.mockResolvedValue(createMockQuerySnapshot(requests))
       mockGetCountFromServer.mockResolvedValue({ data: () => ({ count: 1 }) })
-      
+
       // Act
       const result = await repository.search('XYZ123NOTFOUND')
-      
+
       // Assert
       expect(result.length).toBe(0)
     })
@@ -1503,8 +1516,8 @@ describe('MembershipRepositoryV2', () => {
       mockGenerateMatricule.mockResolvedValue(matricule)
       mockSetDoc.mockResolvedValue(undefined)
       mockUploadImage.mockRejectedValue(new Error('Upload failed'))
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { })
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { })
 
       const formData: RegisterFormData = {
         identity: {
@@ -1555,6 +1568,192 @@ describe('MembershipRepositoryV2', () => {
 
       consoleErrorSpy.mockRestore()
       consoleWarnSpy.mockRestore()
+    })
+  })
+
+  describe('update', () => {
+    it('devrait mettre à jour une demande existante avec succès', async () => {
+      // Arrange
+      const requestId = 'mk-123'
+      const existingRequest = createMembershipRequestFixture({ id: requestId })
+      const formData: RegisterFormData = {
+        identity: {
+          firstName: 'Pierre',
+          lastName: 'Moussa',
+          civility: 'M.',
+          contacts: ['+24177000000'],
+          email: 'pierre.moussa@example.com',
+          birthDate: '1980-01-01',
+          birthPlace: 'Libreville, Gabon',
+          nationality: 'Gabonaise',
+          birthCertificateNumber: '123456789',
+          prayerPlace: 'Mosquée Hassan II',
+          religion: 'Islam',
+          gender: 'male',
+          maritalStatus: 'single',
+          hasCar: true,
+        },
+        address: {
+          provinceId: 'province-1',
+          communeId: 'commune-1',
+          city: 'Libreville',
+          district: 'Centre',
+          province: 'Estuaire',
+          arrondissement: '',
+        },
+        company: {
+          isEmployed: true,
+          companyName: 'Education Nationale',
+          profession: 'Enseignant',
+        },
+        documents: {
+          identityDocument: 'CNI',
+          identityDocumentNumber: '123456789',
+          expirationDate: '2030-01-01',
+          issuingPlace: 'Libreville',
+          issuingDate: '2020-01-01',
+          termsAccepted: true,
+        },
+      }
+
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => existingRequest,
+      })
+
+      const mockHttpsCallable = vi.fn().mockResolvedValue({ data: { success: true } })
+      // @ts-ignore
+      vi.mocked(httpsCallable).mockReturnValue(mockHttpsCallable)
+
+      // Act
+      await repository.update(requestId, formData)
+
+      // Assert
+      expect(mockGetDoc).toHaveBeenCalled()
+      expect(mockHttpsCallable).toHaveBeenCalledWith({
+        requestId: requestId,
+        formData: expect.objectContaining({
+          identity: expect.objectContaining({
+            firstName: 'Pierre',
+            lastName: 'Moussa',
+          }),
+          address: expect.objectContaining({
+            city: 'Libreville',
+          }),
+        })
+      })
+    })
+
+    it('devrait gérer l\'upload de nouvelles photos', async () => {
+      // Arrange
+      const requestId = 'mk-123'
+      const existingRequest = createMembershipRequestFixture({ id: requestId })
+      const formData: RegisterFormData = {
+        identity: {
+          ...existingRequest.identity,
+          photo: 'data:image/png;base64,test-image',
+          birthDate: '1980-01-01',
+          birthPlace: 'Test, Gabon',
+          nationality: 'Test',
+          contacts: ['01'], // Valeur bidon
+          civility: 'M',
+          firstName: 'Test',
+          lastName: 'Test',
+          email: 'test@test.com',
+          gender: 'male',
+          birthCertificateNumber: '123',
+          prayerPlace: 'Test',
+          religion: 'Test',
+          maritalStatus: 'single',
+          hasCar: false
+        },
+        address: { ...existingRequest.address, provinceId: '1', communeId: '1', province: 'Estuaire', city: 'Libreville', district: '', arrondissement: '' },
+        company: { isEmployed: false, companyName: 'Test' },
+        documents: {
+          ...existingRequest.documents,
+          identityDocument: 'CNI',
+          identityDocumentNumber: '123',
+          documentPhotoFront: undefined,
+          termsAccepted: true
+        },
+      }
+
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => existingRequest,
+      })
+
+      const mockHttpsCallable = vi.fn().mockResolvedValue({ data: { success: true } })
+      // @ts-ignore
+      vi.mocked(httpsCallable).mockReturnValue(mockHttpsCallable)
+
+      mockUploadImage.mockResolvedValue({
+        url: 'https://new-photo-url.com',
+        path: 'new/photo/path'
+      })
+
+      // Act
+      await repository.update(requestId, formData)
+
+      // Assert
+      expect(mockUploadImage).toHaveBeenCalled()
+      expect(mockHttpsCallable).toHaveBeenCalledWith({
+        requestId: requestId,
+        formData: expect.objectContaining({
+          identity: expect.objectContaining({
+            photoURL: 'https://new-photo-url.com',
+            photoPath: 'new/photo/path'
+          })
+        })
+      })
+    })
+
+    it('devrait throw si la demande n\'existe pas', async () => {
+      // Arrange
+      const requestId = 'non-existent-id'
+      const formData = {} as RegisterFormData
+
+      mockGetDoc.mockResolvedValue({
+        exists: () => false,
+      })
+
+      // Act & Assert
+      await expect(repository.update(requestId, formData))
+        .rejects.toThrow(`Demande avec ID ${requestId} introuvable`)
+    })
+
+    it('devrait gérer les erreurs de Cloud Function', async () => {
+      // Arrange
+      const requestId = 'mk-123'
+      const existingRequest = createMembershipRequestFixture({ id: requestId })
+      const formData = {
+        identity: { ...existingRequest.identity },
+        address: { ...existingRequest.address },
+        company: { isEmployed: false, companyName: 'Test' },
+        documents: { ...existingRequest.documents },
+      } as unknown as RegisterFormData
+
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: requestId,
+        data: () => existingRequest,
+      })
+
+      const firebaseError = {
+        code: 'functions/internal',
+        message: 'Internal error'
+      }
+      const mockHttpsCallable = vi.fn().mockRejectedValue(firebaseError)
+      // @ts-ignore
+      vi.mocked(httpsCallable).mockReturnValue(mockHttpsCallable)
+
+      // Act & Assert
+      const promise = repository.update(requestId, formData)
+
+      // Le gestionnaire d'erreur transforme l'erreur
+      await expect(promise).rejects.toThrow()
     })
   })
 })

@@ -353,6 +353,17 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // CONTRATS CAISSE SPÉCIALE (CAISSE CONTRACTS)
+    // ==========================================
+    
+    match /caisseContracts/{contractId} {
+      // Lecture : Admin uniquement
+      allow read: if isAdmin();
+      // Écriture : Admin uniquement
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
     // Refuser tout accès non explicitement autorisé
