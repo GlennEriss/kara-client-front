@@ -221,6 +221,42 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
     return amount ? amount.toLocaleString('fr-FR') : '0'
   }
 
+  /**
+   * Formate les contacts par paires pour l'affichage
+   * - 2 numéros : num1/num2 sur une ligne
+   * - 3 numéros : num1/num2 sur une ligne, num3 en dessous
+   * - 4 numéros : num1/num2 sur une ligne, num3/num4 en dessous
+   */
+  const formatContactsByPairs = (contacts: string[]): string[] => {
+    if (!contacts || contacts.length === 0) return []
+    
+    const pairs: string[] = []
+    for (let i = 0; i < contacts.length; i += 2) {
+      if (i + 1 < contacts.length) {
+        // Paire complète : num1/num2
+        pairs.push(`${contacts[i]}/${contacts[i + 1]}`)
+      } else {
+        // Numéro seul (impair) : num3
+        pairs.push(contacts[i])
+      }
+    }
+    return pairs
+  }
+
+  // Déterminer la liste des contacts à afficher
+  // On privilégie les contacts du membre (à jour), sinon ceux du contrat (snapshot)
+  const contacts = React.useMemo(() => {
+    if (contract?.member?.contacts && Array.isArray(contract.member.contacts) && contract.member.contacts.length > 0) {
+      return contract.member.contacts
+    }
+    return contract?.memberContacts || []
+  }, [contract])
+
+  // Formater les contacts par paires
+  const formattedContacts = React.useMemo(() => {
+    return formatContactsByPairs(contacts)
+  }, [contacts])
+
 
   return (
     <Document>
@@ -268,12 +304,30 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
               <Text style={styles.cell}>N°CNI/PASS/CS :</Text>
               <Text style={styles.cell}>{contract?.member?.identityDocumentNumber || getMemberData('identityDocumentNumber')}</Text>
             </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
-              <Text style={styles.cell}>{contract?.member?.contacts?.[0] || contract?.memberContacts?.[0] || '—'}</Text>
-              <Text style={styles.cell}>TÉLÉPHONE 2 :</Text>
-              <Text style={styles.cell}>{contract?.member?.contacts?.[1] || contract?.memberContacts?.[1] || '—'}</Text>
-            </View>
+            {formattedContacts.length > 0 ? (
+              <View style={styles.row}>
+                <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
+                <Text style={styles.cell}>{formattedContacts[0] || '—'}</Text>
+                {formattedContacts.length > 1 ? (
+                  <>
+                    <Text style={styles.cell}>TÉLÉPHONE 2 :</Text>
+                    <Text style={styles.cell}>{formattedContacts[1] || '—'}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.cell}></Text>
+                    <Text style={styles.cell}></Text>
+                  </>
+                )}
+              </View>
+            ) : (
+              <View style={styles.row}>
+                <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
+                <Text style={styles.cell}>—</Text>
+                <Text style={styles.cell}>TÉLÉPHONE 2 :</Text>
+                <Text style={styles.cell}>—</Text>
+              </View>
+            )}
             <View style={styles.row}>
               <Text style={styles.cell}>SEXE :</Text>
               <Text style={styles.cell}>{contract?.member?.gender || contract?.memberGender || '—'}</Text>
@@ -320,15 +374,15 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
           <Text style={styles.title}>VOLET ENTRAIDE</Text>
 
           <Text style={styles.articleText}>
-            Dans le cadre d'une démarche purement sociale, l'association LE KARA lance le volet « Entraide », 
-            qui est un contrat sous lequel l'association garantit des prestations destinées à octroyer des fonds 
+            Dans le cadre d'une démarche purement sociale, l'association LE KARA lance le volet « Entraide »,
+            qui est un contrat sous lequel l'association garantit des prestations destinées à octroyer des fonds
             monétaires à l'adhérent au cours de l'année.
           </Text>
 
           <Text style={styles.articleText}>
-            Au titre de la présente garantie, l'Association KARA s'engage en contrepartie d'une prime mensuelle 
-            (10000 FCFA, 20 000 FCFA, 30000 FCFA, 40 000 FCFA et 50000 FCFA), à octroyer à l'adhérent un montant 
-            compris entre 30 000 et 150 000 FCFA à taux nul (0%) remboursable dans une durée définie. Ce prêt est 
+            Au titre de la présente garantie, l'Association KARA s'engage en contrepartie d'une prime mensuelle
+            (10000 FCFA, 20 000 FCFA, 30000 FCFA, 40 000 FCFA et 50000 FCFA), à octroyer à l'adhérent un montant
+            compris entre 30 000 et 150 000 FCFA à taux nul (0%) remboursable dans une durée définie. Ce prêt est
             dit : accompagnement régulier.
           </Text>
 
@@ -354,8 +408,8 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.definitionItem}>
               <Text style={styles.definitionSymbol}>❖</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>L'accompagnement régulier :</Text> c'est un appui, une aide proportionnel au 
-                niveau de contribution du membre, dont le montant est compris entre 30 000 et 150 000 FCFA et qui a pour 
+                <Text style={styles.bold}>L'accompagnement régulier :</Text> c'est un appui, une aide proportionnel au
+                niveau de contribution du membre, dont le montant est compris entre 30 000 et 150 000 FCFA et qui a pour
                 objet la résolution des menues dépenses et urgentes.
               </Text>
             </View>
@@ -390,8 +444,8 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                Il est accordé à tout membre, à compter de la date d'échéance contractuellement prévue pour chaque 
-                versement mensuel, un délai de retard de trois (3) jours pour procéder à son versement. Le versement 
+                Il est accordé à tout membre, à compter de la date d'échéance contractuellement prévue pour chaque
+                versement mensuel, un délai de retard de trois (3) jours pour procéder à son versement. Le versement
                 intervenu dans ledit délai ne donne lieu à aucune pénalité.
               </Text>
             </View>
@@ -399,7 +453,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                À compter du quatrième jour jusqu'à septième jour succédant l'expiration du délai de retard, tout 
+                À compter du quatrième jour jusqu'à septième jour succédant l'expiration du délai de retard, tout
                 versement intervenu dans cet intervalle est passible de pénalités pécuniaires.
               </Text>
             </View>
@@ -413,7 +467,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.subBulletItem}>
               <Text style={styles.subBulletSymbol}>1)</Text>
               <Text style={styles.subBulletText}>
-                la résiliation du contrat à l'initiative du secrétaire exécutif pour manquement aux obligations 
+                la résiliation du contrat à l'initiative du secrétaire exécutif pour manquement aux obligations
                 contractuelles du membre;
               </Text>
             </View>
@@ -421,10 +475,10 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.subBulletItem}>
               <Text style={styles.subBulletSymbol}>2)</Text>
               <Text style={styles.subBulletText}>
-                la non prise en compte de ce versement pour le mois auquel il est normalement dû. Le versement de ce 
-                mois sera considéré comme non acquitté et le versement effectué sera compté pour le mois suivant. De 
-                plus, le membre perdra tous les avantages liés à la régularité dans les versements conformément aux 
-                dispositions du règlement intérieur.
+                la non prise en compte de ce versement pour le mois auquel il est normalement dû. Le versement de ce
+                mois sera considéré comme non acquitté et le versement effectué sera compté pour le mois suivant. De
+                plus, le membre perdra tous les avantages liés à la régularité dans les versements conformément aux
+                dispositions du règlement intérieur et statuaire.
               </Text>
             </View>
           </View>
@@ -438,24 +492,24 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Après le troisième mois, l'adhérent a la faculté de résilier son contrat de 
-                plein droit. Cette résiliation doit être obligatoirement écrite ; la date de résiliation est celle du 
-                jour de la notification de la demande de résiliation auprès du Secrétaire Exécutif ;</Text>
+                <Text style={styles.bold}>Après le troisième mois, l'adhérent a la faculté de résilier son contrat de
+                  plein droit. Cette résiliation doit être obligatoirement écrite ; la date de résiliation est celle du
+                  jour de la notification de la demande de résiliation auprès du Secrétaire Exécutif ;</Text>
               </Text>
             </View>
 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>À compter de cette date l'association dispose d'un délai de 30 jours pour 
-                procéder au remboursement des sommes versées;</Text>
+                <Text style={styles.bold}>À compter de cette date l'association dispose d'un délai de 30 jours pour
+                  procéder au remboursement des sommes versées;</Text>
               </Text>
             </View>
 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                KARA s'engage à <Text style={styles.bold}>restituer à l'adhérent le nominal au treizième mois</Text> correspondant 
+                KARA s'engage à <Text style={styles.bold}>restituer à l'adhérent le nominal au treizième mois</Text> correspondant
                 <Text style={styles.bold}> aux sommes versées</Text> par l'adhérent <Text style={styles.bold}>durant les 12 mois.</Text>
               </Text>
             </View>
@@ -469,9 +523,9 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                Aucune demande d'appui ne peut être réalisée dans un intervalle de <Text style={styles.bold}>trois mois (3)</Text> à 
-                compter de <Text style={styles.bold}>la date d'inscription à l'association</Text> jusqu'à <Text style={styles.bold}>la 
-                date du troisième versement mensuel effectif</Text>, effectué par l'adhérent ;
+                Aucune demande d'appui ne peut être réalisée dans un intervalle de <Text style={styles.bold}>trois mois (3)</Text> à
+                compter de <Text style={styles.bold}>la date d'inscription à l'association</Text> jusqu'à <Text style={styles.bold}>la
+                  date du troisième versement mensuel effectif</Text>, effectué par l'adhérent ;
               </Text>
             </View>
 
@@ -492,7 +546,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                Est éligible l'adhérent qui s'est acquitté de sa prime mensuelle pour le mois durant lequel il sollicite 
+                Est éligible l'adhérent qui s'est acquitté de sa prime mensuelle pour le mois durant lequel il sollicite
                 un accompagnement régulier ;
               </Text>
             </View>
@@ -500,7 +554,7 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                L'adhérent a droit à <Text style={styles.bold}>un accompagnement régulier par mois</Text> (six appuis maximum 
+                L'adhérent a droit à <Text style={styles.bold}>un accompagnement régulier par mois</Text> (six appuis maximum
                 pour toute l'année, de manière non consécutive), c'est le <Text style={styles.bold}>volet prévoyance</Text> ;
               </Text>
             </View>
@@ -515,16 +569,16 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>L'accompagnement régulier est remboursable au plus tard avant le payement de la 
-                prochaine contribution</Text> ;
+                <Text style={styles.bold}>L'accompagnement régulier est remboursable au plus tard avant le payement de la
+                  prochaine contribution</Text> ;
               </Text>
             </View>
 
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>❖</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>En cas de non remboursement de l'accompagnement par un adhérent dans le délai fixé 
-                à l'alinéa précédent, KARA se réserve la faculté de se</Text>
+                <Text style={styles.bold}>En cas de non remboursement de l'accompagnement par un adhérent dans le délai fixé
+                  à l'alinéa précédent, KARA se réserve la faculté de se</Text>
               </Text>
             </View>
           </View>
@@ -535,8 +589,8 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContainer}>
           <Text style={styles.articleText}>
-            <Text style={styles.bold}>désintéresser par prélèvement dans le nominal de l'adhérent à hauteur des sommes 
-            dues. Ce prélèvement est conditionné à une mise en demeure adressée à l'adhérent par le Secrétaire exécutif.</Text>
+            <Text style={styles.bold}>désintéresser par prélèvement dans le nominal de l'adhérent à hauteur des sommes
+              dues. Ce prélèvement est conditionné à une mise en demeure adressée à l'adhérent par le Secrétaire exécutif.</Text>
           </Text>
 
           <View style={styles.bulletList}>
