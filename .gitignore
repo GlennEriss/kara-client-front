@@ -51,6 +51,15 @@ firebase-export-*/
 # env files (can opt-in for committing if needed)
 .env*
 
+# local-only params (firebase extensions)
+documentation/firebase/extensions/algolia/*.local.txt
+
+# firebase extensions manifest env files (contain secrets)
+extensions/*.env
+extensions/*.env.*
+extensions/*.env.local
+extensions/*.secret.local
+
 # service accounts (sensitive data)
 service-accounts/*.json
 service-accounts/*.pem

@@ -32,4 +32,4 @@ pnpm test:e2e
 
 ---
 
-📚 Documentation complète : `documentation/refactoring/geography/RUN_TESTS.md`
+📚 Documentation complète : `refactoring/geography/RUN_TESTS.md`

@@ -1,0 +1,12 @@
+DATABASE_ID=(default)
+COLLECTION_PATH=users
+FIELDS=matricule,firstName,lastName,email,contacts,companyId,companyName,professionId,profession,address.province,address.city,address.district,address.arrondissement,membershipType,roles,isActive,gender,hasCar,birthDate,birthMonth,birthDay,birthDayOfYear,photoURL,createdAt,updatedAt
+FORCE_DATA_SYNC=no
+ALGOLIA_INDEX_NAME=members-dev
+ALGOLIA_APP_ID=YOUR_ALGOLIA_APP_ID
+ALGOLIA_API_KEY=YOUR_ALGOLIA_API_KEY
+ALT_OBJECT_ID=
+TRANSFORM_FUNCTION=transformMembersAlgoliaPayload
+DO_FULL_INDEXING=true
+LOCATION=us-central1
+

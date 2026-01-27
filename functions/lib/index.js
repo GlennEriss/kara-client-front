@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
+exports.transformMembershipRequestsAlgoliaPayload = exports.transformMembersAlgoliaPayload = exports.syncMembersToAlgolia = exports.syncToAlgolia = exports.deleteMembershipRequest = exports.updateMembershipRequest = exports.approveMembershipRequest = exports.renewSecurityCode = exports.submitCorrections = exports.verifySecurityCode = exports.dailyCaisseImprevueApprovedNotConvertedReminders = exports.dailyCaisseImprevuePendingReminders = exports.dailyCaisseSpecialeApprovedNotConvertedReminders = exports.dailyCaisseSpecialePendingReminders = exports.dailyTransformCreditSpeciale = exports.dailyVehicleInsuranceExpiring = exports.dailyCIPaymentDue = exports.dailyCreditPaymentDue = exports.dailyOverdueCommissions = exports.hourlyScheduledNotifications = exports.dailyBirthdayNotifications = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const birthdayNotifications_1 = require("./scheduled/birthdayNotifications");
 const scheduledNotifications_1 = require("./scheduled/scheduledNotifications");
@@ -21,6 +21,10 @@ const approveMembershipRequest_1 = require("./membership-requests/approveMembers
 Object.defineProperty(exports, "approveMembershipRequest", { enumerable: true, get: function () { return approveMembershipRequest_1.approveMembershipRequest; } });
 const updateMembershipRequest_1 = require("./membership-requests/updateMembershipRequest");
 Object.defineProperty(exports, "updateMembershipRequest", { enumerable: true, get: function () { return updateMembershipRequest_1.updateMembershipRequest; } });
+const transformMembersAlgoliaPayload_1 = require("./algolia/transformMembersAlgoliaPayload");
+Object.defineProperty(exports, "transformMembersAlgoliaPayload", { enumerable: true, get: function () { return transformMembersAlgoliaPayload_1.transformMembersAlgoliaPayload; } });
+const transformMembershipRequestsAlgoliaPayload_1 = require("./algolia/transformMembershipRequestsAlgoliaPayload");
+Object.defineProperty(exports, "transformMembershipRequestsAlgoliaPayload", { enumerable: true, get: function () { return transformMembershipRequestsAlgoliaPayload_1.transformMembershipRequestsAlgoliaPayload; } });
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
 exports.dailyBirthdayNotifications = (0, scheduler_1.onSchedule)({

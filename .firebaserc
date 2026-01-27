@@ -4,5 +4,20 @@
     "dev": "kara-gabon-dev",
     "preprod": "kara-gabon-preprod",
     "prod": "kara-gabon"
+  },
+  "targets": {},
+  "etags": {
+    "kara-gabon-dev": {
+      "extensionInstances": {
+        "algolia-members": "df6fff655ec55831ca9d7d1c82dd08feec1b692db28186fd515ff79889474456",
+        "algolia-membership-requests": "8328f03c2f8c897be0ecca35bbba2aa5e89f27e923ca470bc3e60e593136f5c1"
+      }
+    },
+    "kara-gabon": {
+      "extensionInstances": {
+        "algolia-members": "63e3fc38284838c92ae17fc7849cb3fbef3463081a18bca67104aec6debe453e",
+        "algolia-membership-requests": "ef261d2e4e4b1b4f88867bfacb785214b141a0343e1918ef16e939a58b7548bc"
+      }
+    }
   }
 }

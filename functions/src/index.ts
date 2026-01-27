@@ -13,6 +13,8 @@ import { submitCorrections } from './membership-requests/submitCorrections'
 import { renewSecurityCode } from './membership-requests/renewSecurityCode'
 import { approveMembershipRequest } from './membership-requests/approveMembershipRequest'
 import { updateMembershipRequest } from './membership-requests/updateMembershipRequest'
+import { transformMembersAlgoliaPayload } from './algolia/transformMembersAlgoliaPayload'
+import { transformMembershipRequestsAlgoliaPayload } from './algolia/transformMembershipRequestsAlgoliaPayload'
 
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
 // Format cron : "0 8 * * *" (tous les jours à 8h00)
@@ -207,3 +209,7 @@ export { syncToAlgolia } from './membership-requests/syncToAlgolia'
 
 // Cloud Function pour synchroniser les membres vers Algolia
 export { syncMembersToAlgolia } from './members/syncMembersToAlgolia'
+
+// ==================== ALGOLIA EXTENSION - TRANSFORM FUNCTIONS ====================
+// Fonctions HTTP appelées par l’extension Firebase Algolia (TRANSFORM_FUNCTION)
+export { transformMembersAlgoliaPayload, transformMembershipRequestsAlgoliaPayload }
