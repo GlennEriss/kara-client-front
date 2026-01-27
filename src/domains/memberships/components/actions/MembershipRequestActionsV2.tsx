@@ -77,6 +77,7 @@ interface MembershipRequestActionsV2Props {
   isDeleting?: boolean
 
   className?: string
+  hideDropdown?: boolean // Masquer le dropdown (utile quand le dropdown est ailleurs)
 }
 
 export function MembershipRequestActionsV2({
@@ -110,6 +111,7 @@ export function MembershipRequestActionsV2({
   isReopening = false,
   isDeleting = false,
   className,
+  hideDropdown = false,
 }: MembershipRequestActionsV2Props) {
   // Détecter mobile pour adapter l'affichage
   const isMobile = useIsMobile()
@@ -563,7 +565,7 @@ export function MembershipRequestActionsV2({
       )}
 
       {/* Menu contextuel pour les actions rares (mobile) ou toutes actions secondaires (desktop) */}
-      {hasMenuActions && (
+      {hasMenuActions && !hideDropdown && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

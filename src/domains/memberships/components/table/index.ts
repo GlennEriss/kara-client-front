@@ -4,3 +4,4 @@
 
 export * from './MembershipRequestRowV2'
 export * from './MembershipRequestsTableV2'
+export * from './MembershipsTableView'

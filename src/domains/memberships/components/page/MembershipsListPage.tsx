@@ -432,6 +432,8 @@ export function MembershipsListPage() {
         onViewModeChange={setViewMode}
         onRefresh={handleRefresh}
         onExport={handleExport}
+        pagination={membersData?.pagination}
+        onPageChange={handlePageChange}
       />
 
       {/* Liste des membres */}
@@ -445,6 +447,7 @@ export function MembershipsListPage() {
             onViewSubscriptions={handleViewSubscriptions}
             onViewDetails={handleViewDetails}
             onPreviewAdhesion={handlePreviewAdhesion}
+            isLoading={isLoading}
           />
 
           {/* Pagination moderne */}
