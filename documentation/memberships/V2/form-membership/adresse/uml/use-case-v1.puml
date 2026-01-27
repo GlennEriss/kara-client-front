@@ -1,0 +1,106 @@
+@startuml Use Case - Step2 Adresse V1 (Actuel)
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
+}
+
+title Use Case - Saisie de l'Adresse (V1 - Actuel avec bugs)
+
+actor "Admin KARA" as Admin
+
+package "Domaine Membership" {
+  package "Formulaire d'adhésion" {
+    usecase "UC-MEM-FORM-010: Ajouter un nouveau membre\n(formulaire administratif)" as UC_ADD_MEMBER
+    
+    package "Étape 2 : Adresse de résidence" {
+      usecase "UC-MEM-FORM-011: Sélectionner une province" as UC_SELECT_PROVINCE
+      usecase "UC-MEM-FORM-012: Sélectionner une ville (commune)" as UC_SELECT_COMMUNE
+      usecase "UC-MEM-FORM-013: Sélectionner un arrondissement (district)" as UC_SELECT_DISTRICT
+      usecase "UC-MEM-FORM-014: Sélectionner un quartier (quarter)" as UC_SELECT_QUARTER
+      usecase "UC-MEM-FORM-015: Créer une nouvelle commune\n(modal admin)" as UC_CREATE_COMMUNE_V1
+      usecase "UC-MEM-FORM-016: Créer un nouveau district\n(modal admin)" as UC_CREATE_DISTRICT_V1
+      usecase "UC-MEM-FORM-017: Créer un nouveau quarter\n(modal admin)" as UC_CREATE_QUARTER_V1
+    }
+  }
+  
+  package "Gestion Géographie" {
+    usecase "UC-GEO-001: Consulter la liste des communes" as UC_LIST_COMMUNES
+    usecase "UC-GEO-002: Créer une commune\n(page dédiée)" as UC_CREATE_COMMUNE_PAGE
+  }
+}
+
+' Relations principales
+UC_ADD_MEMBER ..> UC_SELECT_PROVINCE : <<include>>
+UC_SELECT_PROVINCE ..> UC_SELECT_COMMUNE : <<extend>>\n(dépendance cascade)
+UC_SELECT_COMMUNE ..> UC_SELECT_DISTRICT : <<extend>>\n(dépendance cascade)
+UC_SELECT_DISTRICT ..> UC_SELECT_QUARTER : <<extend>>\n(dépendance cascade)
+
+' Relations création (V1 - avec bugs)
+UC_SELECT_COMMUNE ..> UC_CREATE_COMMUNE_V1 : <<extend>>\n(commune manquante)
+UC_SELECT_DISTRICT ..> UC_CREATE_DISTRICT_V1 : <<extend>>\n(district manquant)
+UC_SELECT_QUARTER ..> UC_CREATE_QUARTER_V1 : <<extend>>\n(quarter manquant)
+
+' Note sur le flux actuel (V1)
+note right of UC_CREATE_COMMUNE_V1
+  **Flux actuel (V1) - BUGUÉ :**
+  
+  1. Admin sélectionne une province
+  2. Admin ouvre le CommuneCombobox
+  3. Admin ne trouve pas la commune souhaitée
+  4. Admin clique sur "Ajouter une nouvelle commune"
+  5. AddCommuneModal s'ouvre
+  6. Admin remplit le formulaire (nom, département, code postal)
+  7. Admin valide la création
+  8. ✅ Commune créée dans Firestore
+  9. ✅ Toast affiché "Commune créée et sélectionnée"
+  10. ❌ **BUG** : La commune n'apparaît PAS dans le CommuneCombobox
+  11. ❌ **BUG** : L'ID est dans le formulaire mais la commune n'est pas visible
+  12. Admin doit fermer/réouvrir le formulaire pour voir la commune
+  
+  **Causes des bugs :**
+  - Invalidation trop large (['communes'] au lieu de ['communes', deptId])
+  - setValue appelé avant que le cache soit rafraîchi
+  - Race condition entre cache React Query et formulaire
+  - Pas de mise à jour optimiste du cache
+  - Queries désactivées après invalidation
+end note
+
+' Note sur la cascade
+note bottom of UC_SELECT_PROVINCE
+  **Cascade de dépendances (V1) :**
+  
+  Province sélectionnée
+    ↓
+  Charge les départements
+    ↓
+  Charge les communes (par département)
+    ↓
+  Commune sélectionnée
+    ↓
+  Charge les districts
+    ↓
+  District sélectionné
+    ↓
+  Charge les quarters
+  
+  **Problème :** Si une commune est créée mais n'est pas
+  dans le cache des départements chargés, elle n'apparaît pas.
+end note
+
+' Note sur le workflow alternatif (page dédiée)
+note left of UC_CREATE_COMMUNE_PAGE
+  **Workflow alternatif (V1) :**
+  
+  Si la création via modal ne fonctionne pas :
+  1. Admin quitte le formulaire
+  2. Admin va dans /geographie
+  3. Admin crée la commune
+  4. Admin revient au formulaire
+  5. Admin perd le contexte de saisie
+  
+  **Problème :** Perte de contexte utilisateur
+end note
+
+@enduml
