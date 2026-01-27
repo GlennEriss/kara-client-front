@@ -40,7 +40,7 @@ export default function EditSubscriptionCIModal({
   const form = useForm<SubscriptionCIFormData>({
     resolver: zodResolver(subscriptionCISchema),
     defaultValues: subscription ? {
-      label: subscription.label,
+      label: subscription.label || '',
       code: subscription.code,
       amountPerMonth: subscription.amountPerMonth,
       nominal: subscription.nominal,
@@ -57,7 +57,7 @@ export default function EditSubscriptionCIModal({
   useEffect(() => {
     if (subscription) {
       form.reset({
-        label: subscription.label,
+        label: subscription.label || '',
         code: subscription.code,
         amountPerMonth: subscription.amountPerMonth,
         nominal: subscription.nominal,

@@ -149,11 +149,6 @@ const adminMenuItems: SidebarItem[] = [
             },
         ],
     },
-    {
-        title: "Géographie",
-        url: routes.admin.geographie,
-        icon: MapPin,
-    },
     /*{
         title: "Assurance",
         url: "/dashboard/insurance",
@@ -183,14 +178,14 @@ const systemMenuItems: any[] = [
         icon: Users,
     },
     {
-        title: "Métiers",
+        title: "Métiers/Entreprises",
         url: routes.admin.jobs,
         icon: Briefcase,
     },
     {
-        title: "Entreprises",
-        url: routes.admin.companies,
-        icon: Building,
+        title: "Géographie",
+        url: routes.admin.geographie,
+        icon: MapPin,
     },
     {
         title: "Paramètres Caisse",
@@ -259,6 +254,10 @@ export function AppSidebar() {
         }
         if (url === routes.admin.geographie) {
             return pathname === url || pathname.startsWith(url + '/')
+        }
+        // Cas particulier: Métiers/Entreprises (même page avec onglets différents)
+        if (url === routes.admin.jobs) {
+            return pathname === routes.admin.jobs || pathname === routes.admin.companies || pathname.startsWith(routes.admin.jobs + '/') || pathname.startsWith(routes.admin.companies + '/')
         }
         // Cas particulier: Crédit Spéciale
         if (url === routes.admin.creditSpeciale) {

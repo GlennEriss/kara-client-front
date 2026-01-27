@@ -364,6 +364,99 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // FORFAITS CAISSE IMPRÉVUE (SUBSCRIPTIONS CI)
+    // ==========================================
+    
+    match /subscriptionsCI/{subscriptionId} {
+      // LECTURE : Admin uniquement
+      allow read: if isAdmin();
+      
+      // CRÉATION : Admin uniquement avec validation
+      allow create: if isAdmin() &&
+        // Champs obligatoires présents
+        request.resource.data.keys().hasAll([
+          'id',
+          'code',
+          'amountPerMonth',
+          'nominal',
+          'durationInMonths',
+          'penaltyRate',
+          'penaltyDelayDays',
+          'supportMin',
+          'supportMax',
+          'status',
+          'createdBy',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        // Validation des types et valeurs
+        request.resource.data.code is string &&
+        request.resource.data.code.size() > 0 &&
+        request.resource.data.code.size() <= 10 &&
+        request.resource.data.amountPerMonth is number &&
+        request.resource.data.amountPerMonth > 0 &&
+        request.resource.data.nominal is number &&
+        request.resource.data.nominal > 0 &&
+        request.resource.data.durationInMonths is number &&
+        request.resource.data.durationInMonths > 0 &&
+        request.resource.data.penaltyRate is number &&
+        request.resource.data.penaltyRate >= 0 &&
+        request.resource.data.penaltyDelayDays is number &&
+        request.resource.data.penaltyDelayDays >= 0 &&
+        request.resource.data.supportMin is number &&
+        request.resource.data.supportMin >= 0 &&
+        request.resource.data.supportMax is number &&
+        request.resource.data.supportMax >= request.resource.data.supportMin &&
+        request.resource.data.status is string &&
+        request.resource.data.status in ['ACTIVE', 'INACTIVE'] &&
+        request.resource.data.createdBy is string &&
+        request.resource.data.createdBy == request.auth.uid &&
+        // L'ID du document doit correspondre à l'ID dans les données
+        request.resource.data.id == subscriptionId &&
+        // Timestamps serveur
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.updatedAt is timestamp;
+      
+      // MISE À JOUR : Admin uniquement avec validation
+      allow update: if isAdmin() &&
+        // Ne peut pas modifier l'ID
+        request.resource.data.id == resource.data.id &&
+        // Ne peut pas modifier le code (identifiant métier)
+        request.resource.data.code == resource.data.code &&
+        // Ne peut pas modifier createdBy et createdAt
+        request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        // updatedBy doit être présent et correspondre à l'utilisateur
+        request.resource.data.updatedBy is string &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        // updatedAt doit être un timestamp serveur
+        request.resource.data.updatedAt is timestamp &&
+        // Validation des types et valeurs (même que pour create)
+        request.resource.data.amountPerMonth is number &&
+        request.resource.data.amountPerMonth > 0 &&
+        request.resource.data.nominal is number &&
+        request.resource.data.nominal > 0 &&
+        request.resource.data.durationInMonths is number &&
+        request.resource.data.durationInMonths > 0 &&
+        request.resource.data.penaltyRate is number &&
+        request.resource.data.penaltyRate >= 0 &&
+        request.resource.data.penaltyDelayDays is number &&
+        request.resource.data.penaltyDelayDays >= 0 &&
+        request.resource.data.supportMin is number &&
+        request.resource.data.supportMin >= 0 &&
+        request.resource.data.supportMax is number &&
+        request.resource.data.supportMax >= request.resource.data.supportMin &&
+        request.resource.data.status is string &&
+        request.resource.data.status in ['ACTIVE', 'INACTIVE'];
+      
+      // SUPPRESSION : Admin uniquement
+      // Note: La suppression doit être effectuée avec précaution car les contrats existants
+      // peuvent référencer ce forfait. Il est recommandé de désactiver (status='INACTIVE')
+      // plutôt que de supprimer.
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
     // Refuser tout accès non explicitement autorisé
