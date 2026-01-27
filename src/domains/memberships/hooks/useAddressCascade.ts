@@ -9,10 +9,8 @@
 
 import { useEffect, useMemo } from 'react'
 import { UseFormReturn } from 'react-hook-form'
-import { useQueries } from '@tanstack/react-query'
 import { RegisterFormData } from '@/schemas/schemas'
-import { useProvinces, useDepartments, useDistricts, useQuarters } from '@/domains/infrastructure/geography/hooks/useGeographie'
-import { ServiceFactory } from '@/factories/ServiceFactory'
+import { useProvinces, useDepartments, useDistricts } from '@/domains/infrastructure/geography/hooks/useGeographie'
 import type { Province, Commune, District, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
 
 export interface UseAddressCascadeOptions {
@@ -51,6 +49,9 @@ export interface UseAddressCascadeReturn {
   
   /**
    * Toutes les communes disponibles pour la province sélectionnée
+   * NOTE: Depuis V2, les communes utilisent la recherche uniquement
+   * Cette propriété est conservée pour compatibilité mais sera vide
+   * Utiliser useCommuneSearch dans les Combobox pour la recherche
    */
   allCommunes: Commune[]
   
@@ -97,49 +98,22 @@ export function useAddressCascade({
   const { data: districts = [], isLoading: isLoadingDistricts } = useDistricts(
     selectedCommuneId || undefined
   )
-  const { data: quarters = [], isLoading: isLoadingQuarters } = useQuarters(
-    selectedDistrictId || undefined
-  )
 
-  // Charger toutes les communes de tous les départements de la province sélectionnée
-  const communeQueries = useQueries({
-    queries: departments.length > 0 && selectedProvinceId
-      ? departments.map(dept => ({
-          queryKey: ['communes', dept.id],
-          queryFn: async () => {
-            const service = ServiceFactory.getGeographieService()
-            return service.getCommunesByDepartmentId(dept.id)
-          },
-          enabled: !!selectedProvinceId && departments.length > 0,
-          staleTime: 5 * 60 * 1000,
-        }))
-      : []
-  })
-
-  const isLoadingCommunes = communeQueries.some(query => query.isLoading)
-
-  // Agrégation et tri des communes
-  const allCommunes = useMemo(() => {
-    const communes: Commune[] = []
-    communeQueries.forEach(query => {
-      if (query.data) {
-        communes.push(...query.data)
-      }
-    })
-    // Éliminer les doublons par ID et trier par nom
-    const uniqueCommunes = communes.filter((commune, index, self) =>
-      index === self.findIndex(c => c.id === commune.id)
-    )
-    return uniqueCommunes.sort((a, b) => 
-      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
-    )
-  }, [communeQueries])
+  // **IMPORTANT V2** : Les communes utilisent la recherche uniquement (pas de chargement complet)
+  // Ne plus charger toutes les communes ici
+  // Les Combobox utilisent useCommuneSearch pour la recherche
+  const allCommunes: Commune[] = [] // Vide car recherche uniquement
+  const isLoadingCommunes = false // Pas de chargement complet
 
   // Trouver les objets complets à partir des IDs
   const selectedProvince = provinces.find(p => p.id === selectedProvinceId)
-  const selectedCommune = allCommunes.find(c => c.id === selectedCommuneId)
+  // NOTE: selectedCommune ne peut plus être trouvé depuis allCommunes (vide)
+  // Le nom de la commune est stocké dans le formulaire (address.city)
+  const selectedCommune: Commune | undefined = undefined
   const selectedDistrict = districts.find(d => d.id === selectedDistrictId)
-  const selectedQuarter = quarters.find(q => q.id === selectedQuarterId)
+  // NOTE: selectedQuarter ne peut plus être trouvé depuis quarters (recherche uniquement)
+  // Le nom du quarter est stocké dans le formulaire (address.district)
+  const selectedQuarter: Quarter | undefined = undefined
 
   // Mise à jour automatique des champs texte quand les sélections changent
   useEffect(() => {
@@ -155,14 +129,14 @@ export function useAddressCascade({
   useEffect(() => {
     if (!autoUpdateTextFields) return
 
-    if (selectedCommune) {
-      setValue('address.city', selectedCommune.name, { shouldValidate: true })
-    } else if (!selectedCommuneId) {
+    // NOTE V2: selectedCommune est undefined car on ne charge plus toutes les communes
+    // Le nom de la commune est mis à jour directement lors de la sélection dans le Combobox
+    if (!selectedCommuneId) {
       setValue('address.city', '', { shouldValidate: true })
       setValue('address.district', '', { shouldValidate: true })
       setValue('address.arrondissement', '', { shouldValidate: true })
     }
-  }, [selectedCommune, selectedCommuneId, setValue, autoUpdateTextFields])
+  }, [selectedCommuneId, setValue, autoUpdateTextFields])
 
   useEffect(() => {
     if (!autoUpdateTextFields) return
@@ -178,12 +152,12 @@ export function useAddressCascade({
   useEffect(() => {
     if (!autoUpdateTextFields) return
 
-    if (selectedQuarter) {
-      setValue('address.district', selectedQuarter.name, { shouldValidate: true })
-    } else if (!selectedQuarterId) {
+    // NOTE V2: selectedQuarter est undefined car on ne charge plus tous les quarters
+    // Le nom du quarter est mis à jour directement lors de la sélection dans le Combobox
+    if (!selectedQuarterId) {
       setValue('address.district', '', { shouldValidate: true })
     }
-  }, [selectedQuarter, selectedQuarterId, setValue, autoUpdateTextFields])
+  }, [selectedQuarterId, setValue, autoUpdateTextFields])
 
   return {
     selectedIds: {
@@ -202,9 +176,9 @@ export function useAddressCascade({
     isLoading: {
       provinces: isLoadingProvinces,
       departments: isLoadingDepartments,
-      communes: isLoadingCommunes,
+      communes: isLoadingCommunes, // Toujours false (recherche uniquement)
       districts: isLoadingDistricts,
-      quarters: isLoadingQuarters,
+      quarters: false, // Toujours false (recherche uniquement)
     },
   }
 }
