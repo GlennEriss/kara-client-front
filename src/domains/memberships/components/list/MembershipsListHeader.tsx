@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Users, RefreshCw, FileDown, Plus, Grid3X3, List } from 'lucide-react'
 import routes from '@/constantes/routes'
+import { MembershipsListPagination } from './MembershipsListPagination'
+import type { PaginatedMembers } from '@/db/member.db'
 
 type ViewMode = 'grid' | 'list'
 
@@ -15,6 +17,8 @@ interface MembershipsListHeaderProps {
   onViewModeChange: (mode: ViewMode) => void
   onRefresh: () => void
   onExport: () => void
+  pagination?: PaginatedMembers['pagination']
+  onPageChange?: (page: number) => void
 }
 
 export function MembershipsListHeader({
@@ -25,16 +29,19 @@ export function MembershipsListHeader({
   onViewModeChange,
   onRefresh,
   onExport,
+  pagination,
+  onPageChange,
 }: MembershipsListHeaderProps) {
   return (
     <Card className="bg-gradient-to-r from-white via-gray-50/50 to-white border-0 shadow-xl">
       <CardContent className="p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg">
+        {/* Première ligne : Titre + Pagination en haut */}
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center space-x-4 flex-1 min-w-0">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#234D65] to-[#2c5a73] shadow-lg shrink-0">
               <Users className="h-6 w-6 text-white" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <h2 className="text-2xl font-black bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
                 Liste des Membres
               </h2>
@@ -44,7 +51,22 @@ export function MembershipsListHeader({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+          {/* Pagination en haut - alignée à droite */}
+          {pagination && onPageChange && pagination.totalPages > 1 && (
+            <div className="shrink-0">
+              <MembershipsListPagination
+                pagination={pagination}
+                onPageChange={onPageChange}
+                onItemsPerPageChange={() => {}} // Géré en bas
+                isLoading={isLoading}
+                compact={true}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Deuxième ligne : Boutons d'actions */}
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
             {/* Boutons de vue modernes - Cachés sur mobile */}
             <div className="hidden md:flex items-center bg-gray-100 rounded-xl p-1 shadow-inner">
               <Button
@@ -137,7 +159,6 @@ export function MembershipsListHeader({
                 Nouveau Membre
               </Button>
             </div>
-          </div>
         </div>
       </CardContent>
     </Card>

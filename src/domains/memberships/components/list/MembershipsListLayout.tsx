@@ -2,6 +2,7 @@
 
 import type { MemberWithSubscription } from '@/db/member.db'
 import MemberCard from '@/components/memberships/MemberCard'
+import { MembershipsTableView } from '../table/MembershipsTableView'
 
 type ViewMode = 'grid' | 'list'
 
@@ -11,6 +12,7 @@ interface MembershipsListLayoutProps {
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
   onPreviewAdhesion: (url: string | null) => void
+  isLoading?: boolean
 }
 
 export function MembershipsListLayout({
@@ -19,15 +21,26 @@ export function MembershipsListLayout({
   onViewSubscriptions,
   onViewDetails,
   onPreviewAdhesion,
+  isLoading = false,
 }: MembershipsListLayoutProps) {
+  // Vue liste : tableau
+  if (viewMode === 'list') {
+    return (
+      <MembershipsTableView
+        members={members}
+        isLoading={isLoading}
+        onViewSubscriptions={onViewSubscriptions}
+        onViewDetails={onViewDetails}
+        onPreviewAdhesion={onPreviewAdhesion}
+      />
+    )
+  }
+
+  // Vue grid : cartes
   return (
     <div
       data-testid="memberships-list-layout"
-      className={
-        viewMode === 'grid'
-          ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch'
-          : 'space-y-6'
-      }
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch"
     >
       {members.map((member, index) => (
         <div

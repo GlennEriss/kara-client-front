@@ -29,6 +29,8 @@ import {
   AlertCircle,
   Inbox,
   CheckCircle2,
+  Grid3x3,
+  List,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -36,6 +38,8 @@ import { toast } from 'sonner'
 // Composants V2
 import { MembershipRequestsTableV2 } from '../table'
 import { MembershipRequestMobileCardV2 } from '../cards'
+import { MembershipRequestsGridView } from '../grid'
+import { PaginationWithEllipses } from '@/components/ui/pagination/PaginationWithEllipses'
 import {
   ApprovalModalV2,
   RejectModalV2,
@@ -177,6 +181,15 @@ export function MembershipRequestsPageV2() {
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTab, setActiveTab] = useState<string>('all')
+  
+  // État pour le mode d'affichage (grid/liste)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('membership-requests-view-mode')
+      return (saved === 'grid' || saved === 'list') ? saved : 'grid'
+    }
+    return 'grid'
+  })
 
   // États des modals
   const [selectedRequest, setSelectedRequest] = useState<MembershipRequest | null>(null)
@@ -305,6 +318,16 @@ export function MembershipRequestsPageV2() {
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page)
+    // Scroll vers le haut de la page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  // Handler pour changer le mode d'affichage
+  const handleViewModeChange = useCallback((mode: 'grid' | 'list') => {
+    setViewMode(mode)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('membership-requests-view-mode', mode)
+    }
   }, [])
 
   // Actions sur les demandes
@@ -992,16 +1015,66 @@ export function MembershipRequestsPageV2() {
               {/* En-tête de liste avec titre, recherche et pagination - Pas de séparation avec tabs */}
               <div className="px-3 sm:px-4 md:px-6 py-3 md:py-4 border-b border-kara-neutral-100">
                 <div className="flex flex-col gap-3 md:gap-4">
-                  {/* Titre et compteur */}
-                  <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-kara-primary-dark/10 flex items-center justify-center shrink-0">
-                      <Users className="w-4 h-4 md:w-5 md:h-5 text-kara-primary-dark" />
+                  {/* Titre et compteur avec pagination en haut et switch grid/liste */}
+                  <div className="flex items-center justify-between gap-4 w-full">
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0 flex-1 min-w-0">
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-kara-primary-dark/10 flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4 md:w-5 md:h-5 text-kara-primary-dark" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h2 className="font-bold text-base md:text-lg text-kara-primary-dark truncate">Liste des demandes</h2>
+                        <p className="text-xs md:text-sm text-kara-neutral-500 truncate">
+                          {data?.pagination?.totalItems || 0} demande{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''} trouvée{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h2 className="font-bold text-base md:text-lg text-kara-primary-dark truncate">Liste des demandes</h2>
-                      <p className="text-xs md:text-sm text-kara-neutral-500 truncate">
-                        {data?.pagination?.totalItems || 0} demande{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''} trouvée{(data?.pagination?.totalItems || 0) > 1 ? 's' : ''}
-                      </p>
+                    
+                    {/* Pagination en haut + Bouton de switch grid/liste */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      {/* Bouton de switch grid/liste */}
+                      <div className="flex items-center gap-1 bg-kara-neutral-100 rounded-lg p-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewModeChange('grid')}
+                          className={cn(
+                            'h-7 px-2',
+                            viewMode === 'grid' 
+                              ? 'bg-white text-kara-primary-dark shadow-sm' 
+                              : 'text-kara-neutral-600 hover:text-kara-primary-dark'
+                          )}
+                          title="Vue en grille"
+                        >
+                          <Grid3x3 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewModeChange('list')}
+                          className={cn(
+                            'h-7 px-2',
+                            viewMode === 'list' 
+                              ? 'bg-white text-kara-primary-dark shadow-sm' 
+                              : 'text-kara-neutral-600 hover:text-kara-primary-dark'
+                          )}
+                          title="Vue en liste"
+                        >
+                          <List className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      
+                      {/* Pagination compacte en haut */}
+                      {data?.pagination && data.pagination.totalPages > 1 && (
+                        <PaginationWithEllipses
+                          currentPage={data.pagination.page}
+                          totalPages={data.pagination.totalPages}
+                          onPageChange={handlePageChange}
+                          hasNextPage={data.pagination.hasNextPage}
+                          hasPrevPage={data.pagination.hasPrevPage}
+                          isLoading={isLoading}
+                          compact={true}
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -1054,18 +1127,58 @@ export function MembershipRequestsPageV2() {
                       </div>
                     </div>
 
-                    {/* Pagination - Visible sur mobile aussi */}
-                    {data?.pagination && data.pagination.totalPages > 0 && (
-                      <span className="shrink-0 text-xs sm:text-sm font-medium text-kara-primary-light bg-kara-primary-light/10 px-2.5 sm:px-3 py-1.5 rounded-full self-start sm:self-auto">
-                        Page {data.pagination.page} / {data.pagination.totalPages}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
 
-              {isMobile ? (
-                // Vue mobile : Cards
+              {/* Affichage selon le mode sélectionné */}
+              {viewMode === 'grid' ? (
+                // Vue Grid : 4 colonnes sur desktop, 2 sur tablette, 1 sur mobile
+                <MembershipRequestsGridView
+                  requests={filteredRequests}
+                  isLoading={isLoading}
+                  onViewDetails={handleViewDetails}
+                  onApprove={openApproveModal}
+                  onReject={openRejectModal}
+                  onRequestCorrections={openCorrectionsModal}
+                  onPay={openPaymentModal}
+                  onReopen={openReopenModal}
+                  onDelete={openDeleteModal}
+                  onSendWhatsAppRejection={openRejectWhatsAppModal}
+                  onViewMembershipForm={handleViewMembershipForm}
+                  onViewApprovedMembershipPdf={(id: string) => handleViewApprovedMembershipPdf(id)}
+                  onViewIdentityDocument={handleViewIdentityDocument}
+                  onViewPaymentDetails={handleViewPaymentDetails}
+                  onExportPDF={(id) => handleExportPDF(id)}
+                  onExportExcel={(id) => handleExportExcel(id)}
+                  onEdit={handleEdit}
+                  onCopyCorrectionLink={handleCopyCorrectionLink}
+                  onSendWhatsAppCorrection={handleSendWhatsAppCorrection}
+                  onRenewSecurityCode={handleRenewSecurityCode}
+                  getProcessedByInfo={(requestId) => {
+                    const request = filteredRequests.find(r => r.id === requestId)
+                    if (!request?.processedBy) return null
+                    return {
+                      name: request.processedBy,
+                      matricule: undefined,
+                    }
+                  }}
+                  getApprovedByInfo={(requestId) => {
+                    const request = filteredRequests.find(r => r.id === requestId)
+                    if (!request?.approvedBy) return null
+                    const adminInfo = adminMap.get(request.approvedBy)
+                    if (adminInfo) {
+                      return adminInfo
+                    }
+                    return {
+                      name: request.approvedBy,
+                      matricule: undefined,
+                    }
+                  }}
+                  loadingActions={loadingActions}
+                />
+              ) : isMobile ? (
+                // Vue mobile : Cards (liste verticale)
                 <div className="divide-y divide-kara-neutral-100">
                   {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
@@ -1138,10 +1251,9 @@ export function MembershipRequestsPageV2() {
                         getProcessedByInfo={(requestId) => {
                           const request = filteredRequests.find(r => r.id === requestId)
                           if (!request?.processedBy) return null
-                          // TODO: Récupérer le nom et matricule depuis la collection users/admins
                           return {
-                            name: request.processedBy, // Pour l'instant, on utilise l'ID
-                            matricule: undefined, // À implémenter
+                            name: request.processedBy,
+                            matricule: undefined,
                           }
                         }}
                         getApprovedByInfo={(requestId) => {
@@ -1151,7 +1263,6 @@ export function MembershipRequestsPageV2() {
                           if (adminInfo) {
                             return adminInfo
                           }
-                          // Fallback si l'admin n'est pas encore chargé
                           return {
                             name: request.approvedBy,
                             matricule: undefined,
@@ -1214,7 +1325,7 @@ export function MembershipRequestsPageV2() {
                 />
               )}
 
-              {/* Pagination */}
+              {/* Pagination en bas avec ellipses */}
               {data?.pagination && data.pagination.totalPages > 1 && (
                 <div className="px-6 py-4 border-t border-kara-neutral-100 bg-kara-neutral-50/50">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -1232,62 +1343,15 @@ export function MembershipRequestsPageV2() {
                       {' '}demandes
                     </p>
 
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!data.pagination.hasPrevPage}
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        className="border-kara-neutral-200 text-kara-primary-dark hover:bg-kara-primary-dark hover:text-white hover:border-kara-primary-dark transition-all disabled:opacity-40"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-
-                      {/* Numéros de page */}
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, data.pagination.totalPages) }).map((_, i) => {
-                          // Calcul intelligent des numéros de page
-                          let pageNum: number
-                          const total = data.pagination.totalPages
-                          const current = currentPage
-
-                          if (total <= 5) {
-                            pageNum = i + 1
-                          } else if (current <= 3) {
-                            pageNum = i + 1
-                          } else if (current >= total - 2) {
-                            pageNum = total - 4 + i
-                          } else {
-                            pageNum = current - 2 + i
-                          }
-
-                          return (
-                            <button
-                              key={i}
-                              onClick={() => handlePageChange(pageNum)}
-                              className={cn(
-                                "w-9 h-9 rounded-lg font-semibold text-sm transition-all duration-200",
-                                pageNum === currentPage
-                                  ? "bg-kara-primary-dark text-white shadow-md"
-                                  : "bg-white border border-kara-neutral-200 text-kara-neutral-600 hover:bg-kara-primary-dark/10 hover:text-kara-primary-dark hover:border-kara-primary-dark/30"
-                              )}
-                            >
-                              {pageNum}
-                            </button>
-                          )
-                        })}
-                      </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!data.pagination.hasNextPage}
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        className="border-kara-neutral-200 text-kara-primary-dark hover:bg-kara-primary-dark hover:text-white hover:border-kara-primary-dark transition-all disabled:opacity-40"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <PaginationWithEllipses
+                      currentPage={data.pagination.page}
+                      totalPages={data.pagination.totalPages}
+                      onPageChange={handlePageChange}
+                      hasNextPage={data.pagination.hasNextPage}
+                      hasPrevPage={data.pagination.hasPrevPage}
+                      isLoading={isLoading}
+                      compact={false}
+                    />
                   </div>
                 </div>
               )}

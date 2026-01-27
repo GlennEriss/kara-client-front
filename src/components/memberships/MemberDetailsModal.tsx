@@ -23,10 +23,10 @@ const useIsMobile = () => {
     const checkDevice = () => {
       setIsMobile(window.innerWidth < 1024) // lg breakpoint
     }
-    
+
     checkDevice()
     window.addEventListener('resize', checkDevice)
-    
+
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
@@ -149,12 +149,12 @@ const styles = StyleSheet.create({
   modeReglementRow: {
     flexDirection: 'row',
     height: 50,
-    
+
     border: '1px solid black',
   },
   modeReglementCell: {
     flex: 1,
-    
+
     borderRight: '1px solid black',
     padding: 8,
     justifyContent: 'space-around',
@@ -176,14 +176,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 5,
-    
+
   },
   signatureTable: {
     width: '100%',
     border: '1px solid black',
     marginBottom: 8,
   },
-   signatureTableB: {
+  signatureTableB: {
     width: '100%',
     border: '1px solid black',
     marginBottom: 8,
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   articleHeader: {
-   backgroundColor: '#224d62',
+    backgroundColor: '#224d62',
     color: 'white',
     textAlign: 'center',
     padding: 5,
@@ -255,6 +255,28 @@ const Checkbox = ({ checked, label }: { checked: boolean; label: string }) => (
     <Text>{label}</Text>
   </View>
 )
+
+/**
+ * Formate les contacts par paires pour l'affichage
+ * - 2 numéros : num1/num2 sur une ligne
+ * - 3 numéros : num1/num2 sur une ligne, num3 en dessous
+ * - 4 numéros : num1/num2 sur une ligne, num3/num4 en dessous
+ */
+const formatContactsByPairs = (contacts: string[]): string[] => {
+  if (!contacts || contacts.length === 0) return []
+  
+  const pairs: string[] = []
+  for (let i = 0; i < contacts.length; i += 2) {
+    if (i + 1 < contacts.length) {
+      // Paire complète : num1/num2
+      pairs.push(`${contacts[i]}/${contacts[i + 1]}`)
+    } else {
+      // Numéro seul (impair) : num3
+      pairs.push(contacts[i])
+    }
+  }
+  return pairs
+}
 
 // Composant principal du document PDF
 const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
@@ -321,22 +343,22 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
           </View>
           <View style={styles.photoId}>
             {getPhotoURL() ? (
-              <Image 
-                src={getPhotoURL()!} 
+              <Image
+                src={getPhotoURL()!}
                 style={{ width: 60, height: 60, objectFit: 'cover' }}
                 cache={false}
               />
             ) : (
-              <View style={{ 
-                width: 60, 
-                height: 60, 
+              <View style={{
+                width: 60,
+                height: 60,
                 border: '2px solid #000',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: '#f8f9fa'
               }}>
-                <Text style={{ 
+                <Text style={{
                   fontSize: 9, // Augmenté de 7 à 9
                   textAlign: 'center',
                   color: '#666'
@@ -390,7 +412,18 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
             </View>
             <View style={styles.stripedRowEven}>
               <View style={styles.stripedCell}>
-                <Text><Text style={styles.boldText}>Téléphone:</Text> {request.identity.contacts[0] || 'Non renseigné'}</Text>
+                <View style={{ flexDirection: 'row' }}>
+                  <Text style={styles.boldText}>Téléphone: </Text>
+                  <View style={{ flexDirection: 'column' }}>
+                    {(request.identity.contacts && request.identity.contacts.length > 0) ? (
+                      formatContactsByPairs(request.identity.contacts).map((formattedContact: string, index: number) => (
+                        <Text key={index}>{formattedContact}</Text>
+                      ))
+                    ) : (
+                      <Text>-</Text>
+                    )}
+                  </View>
+                </View>
               </View>
               <View style={styles.stripedCell}>
                 <Text><Text style={styles.boldText}>Adresse:</Text> {formatFullAddress()}</Text>
@@ -438,7 +471,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
                 </View>
 
                 {/* fin test */}
-            
+
                 <View style={styles.rectangleRow}>
                   <View style={styles.rectangle}></View>
                   <Text>B</Text>
@@ -449,7 +482,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
                   <View style={styles.rectangle}></View>
                   <Text>C</Text>
                 </View>
-                 {/* test*/}
+                {/* test*/}
 
                 <View style={styles.rectangleRow}>
                   <View ></View>
@@ -472,6 +505,22 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
                   <View style={styles.rectangle}></View>
                   <Text>E</Text>
                 </View>
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+                <View style={styles.rectangleRow}>
+                  <View ></View>
+                </View>
+
+                {/* fin test */}
+
+                <View style={styles.rectangleRow}>
+                  <View style={styles.rectangle}></View>
+                  <Text>X</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -485,7 +534,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
               <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11 ,textAlign:'center'}}>Signature et cachet du Secrétariat Exécutif</Text>
+              <Text style={{ fontSize: 11, textAlign: 'center' }}>Signature et cachet du Secrétariat Exécutif</Text>
               <Text style={{ fontSize: 11 }}>Date : ................../...................../..................</Text>
             </View>
           </View>
@@ -493,9 +542,11 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
 
         {/* Texte d'engagement */}
         <Text style={styles.italic}>
-          J'adhère contractuellement à l'Association LE KARA conformément aux dispositions y afférentes,
-          je m'engage à respecter l'intégralité des dispositions Règlementaires qui la structurent
-          et pour lesquelles je confirme avoir pris connaissance avant d'apposer ma signature.
+          J'adhère contractuellement à l'Association LE KARA conformément aux dispositions y afférentes,{' '}
+          <Text style={styles.boldText}>
+            je m'engage à respecter l'intégralité des dispositions règlementaires et statuaires qui la structurent
+            et pour lesquelles je confirme avoir pris connaissance avant d'apposer ma signature.
+          </Text>
         </Text>
 
         {/* Pied de page */}
@@ -534,7 +585,15 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
             </View>
           </View>
           <View style={styles.stripedRowEven}>
-            <Text>N° de téléphone : {request.identity.contacts[0] || 'Non renseigné'}</Text>
+            <View style={{ flexDirection: 'column' }}>
+              {(request.identity.contacts && request.identity.contacts.length > 0) ? (
+                formatContactsByPairs(request.identity.contacts).map((formattedContact: string, index: number) => (
+                  <Text key={index}>N° de téléphone : {formattedContact}</Text>
+                ))
+              ) : (
+                <Text>N° de téléphone : Non renseigné</Text>
+              )}
+            </View>
           </View>
         </View>
 
@@ -547,21 +606,21 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         </Text>
 
         <Text style={styles.articleHeader}>Article 2</Text>
-         <Text style={styles.articleText}> </Text>
+        <Text style={styles.articleText}> </Text>
         <Text style={styles.articleText}>
           Le bénéficiaire des informations reconnaît que tous les droits relatifs à l'information
           obtenue existent et ne peuvent être divulgué et communiquer que par le donneur.
         </Text>
 
         <Text style={styles.articleHeader}>Article 3</Text>
-         <Text style={styles.articleText}> </Text>
+        <Text style={styles.articleText}> </Text>
         <Text style={styles.articleText}>
           Le bénéficiaire accepte les conditions de confidentialité des informations reçues
           et s'engage à les respecter.
         </Text>
 
         <Text style={styles.articleHeader}>Article 4</Text>
-         <Text style={styles.articleText}> </Text>
+        <Text style={styles.articleText}> </Text>
         <Text style={styles.articleText}>
           Cet engagement dans l'hypothèse d'une vulgarisation d'informations avérées ou à des fins
           diffamatoires faites par le receveur est passible d'une sanction pénale et vaut radiation
@@ -569,7 +628,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
         </Text>
 
         <Text style={styles.articleHeader}>Article 5</Text>
-         <Text style={styles.articleText}> </Text>
+        <Text style={styles.articleText}> </Text>
         <Text style={[styles.articleText, styles.redText]}>
           Il est interdit à tout bénéficiaire des services de l'Association LE KARA de contracter un service
           supplémentaire qui ne lui est pas accessible par un prête-nom ou toute autre personne qui
@@ -588,7 +647,7 @@ const MutuelleKaraPDF = ({ request }: { request: MembershipRequest }) => {
               <Text style={{ fontSize: 11 }}>Signature du BÉNÉFICIAIRE suivi de la mention "lu et approuvé"</Text>
             </View>
             <View style={styles.signatureCell}>
-              <Text style={{ fontSize: 11 ,textAlign:'center'}}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
+              <Text style={{ fontSize: 11, textAlign: 'center' }}>Signature du SECRÉTAIRE EXÉCUTIF</Text>
             </View>
           </View>
         </View>
@@ -756,7 +815,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                         Ouvrir dans le navigateur
                       </a>
                     </Button>
-                    
+
                     <Button
                       onClick={handleDownloadPDF}
                       disabled={isExporting}
@@ -790,7 +849,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                             Ouvrir dans le navigateur
                           </a>
                         </Button>
-                        
+
                         <Button
                           onClick={handleDownloadPDF}
                           disabled={isExporting || loading}
@@ -819,7 +878,7 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
                   <div className="flex items-start gap-2">
                     <Monitor className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-blue-700 leading-relaxed">
-                      <strong>Astuce:</strong> Pour une meilleure expérience de visualisation, 
+                      <strong>Astuce:</strong> Pour une meilleure expérience de visualisation,
                       utilisez un ordinateur ou une tablette.
                     </p>
                   </div>
@@ -831,14 +890,14 @@ const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
           {/* Version desktop */}
           <div className="hidden lg:block h-full rounded-xl overflow-hidden shadow-inner bg-white border">
             {hasUploadedPdf ? (
-              <iframe 
-                src={`${request.adhesionPdfURL}#toolbar=1`} 
+              <iframe
+                src={`${request.adhesionPdfURL}#toolbar=1`}
                 className="w-full h-full border-0"
                 title="Fiche d'adhésion"
               />
             ) : (
-              <PDFViewer style={{ 
-                width: '100%', 
+              <PDFViewer style={{
+                width: '100%',
                 height: '100%',
                 border: 'none',
                 borderRadius: '0.75rem'

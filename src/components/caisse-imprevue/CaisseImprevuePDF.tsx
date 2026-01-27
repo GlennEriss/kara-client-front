@@ -81,8 +81,15 @@ const styles = StyleSheet.create({
   },
   articleText: {
     fontSize: 12,
-    marginBottom: 6,
+    marginBottom: 10,
     textAlign: 'justify',
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 8,
+    textDecoration: 'underline',
   },
   bulletList: {
     marginBottom: 6,
@@ -221,6 +228,74 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
     return amount ? amount.toLocaleString('fr-FR') : '0'
   }
 
+  /**
+   * Génère les lignes de téléphones par paires pour l'affichage
+   * Retourne un tableau de tableaux : chaque sous-tableau contient [label1, value1, label2?, value2?]
+   * - 2 numéros : [TÉLÉPHONE 1, num1, TÉLÉPHONE 2, num2] (1 ligne)
+   * - 3 numéros : [TÉLÉPHONE 1, num1, TÉLÉPHONE 2, num2] (1 ligne), [TÉLÉPHONE 3, num3] (1 ligne)
+   * - 4 numéros : [TÉLÉPHONE 1, num1, TÉLÉPHONE 2, num2] (1 ligne), [TÉLÉPHONE 3, num3, TÉLÉPHONE 4, num4] (1 ligne)
+   */
+  const generatePhoneRows = (contacts: string[]): Array<[string, string, string?, string?]> => {
+    if (!contacts || contacts.length === 0) {
+      return [['TÉLÉPHONE 1 :', '—', 'TÉLÉPHONE 2 :', '—']]
+    }
+
+    const rows: Array<[string, string, string?, string?]> = []
+    let phoneIndex = 1
+
+    for (let i = 0; i < contacts.length; i += 2) {
+      if (i + 1 < contacts.length) {
+        // Paire complète : num1 et num2 sur la même ligne, chacun dans sa colonne
+        const label1 = `TÉLÉPHONE ${phoneIndex} :`
+        const value1 = contacts[i]
+        const label2 = `TÉLÉPHONE ${phoneIndex + 1} :`
+        const value2 = contacts[i + 1]
+        rows.push([label1, value1, label2, value2])
+        phoneIndex += 2
+      } else {
+        // Numéro seul (impair) : num3 seul sur une ligne
+        const label1 = `TÉLÉPHONE ${phoneIndex} :`
+        const value1 = contacts[i]
+        rows.push([label1, value1])
+        phoneIndex += 1
+      }
+    }
+
+    return rows
+  }
+
+  // Déterminer la liste des contacts à afficher
+  // On privilégie les contacts du membre (à jour), sinon ceux du contrat (snapshot)
+  const contacts = React.useMemo(() => {
+    if (contract?.member?.contacts && Array.isArray(contract.member.contacts) && contract.member.contacts.length > 0) {
+      return contract.member.contacts
+    }
+    return contract?.memberContacts || []
+  }, [contract])
+
+  // Générer les lignes de téléphones
+  const phoneRows = React.useMemo(() => {
+    return generatePhoneRows(contacts)
+  }, [contacts])
+
+  /**
+   * Récupère tous les numéros du contact urgent
+   */
+  const getEmergencyContactPhones = (): string[] => {
+    const phones: string[] = []
+    if (contract?.emergencyContact?.phone1) phones.push(contract.emergencyContact.phone1)
+    if (contract?.emergencyContact?.phone2) phones.push(contract.emergencyContact.phone2)
+    // Ajouter d'autres numéros si disponibles
+    //if (contract?.emergencyContact?.phone) phones.push(contract.emergencyContact.phone)
+    return phones
+  }
+
+  // Générer les lignes de téléphones du contact urgent
+  const emergencyPhoneRows = React.useMemo(() => {
+    const emergencyPhones = getEmergencyContactPhones()
+    return generatePhoneRows(emergencyPhones)
+  }, [contract?.emergencyContact])
+
 
   return (
     <Document>
@@ -268,12 +343,18 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
               <Text style={styles.cell}>N°CNI/PASS/CS :</Text>
               <Text style={styles.cell}>{contract?.member?.identityDocumentNumber || getMemberData('identityDocumentNumber')}</Text>
             </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
-              <Text style={styles.cell}>{contract?.member?.contacts?.[0] || contract?.memberContacts?.[0] || '—'}</Text>
-              <Text style={styles.cell}>TÉLÉPHONE 2 :</Text>
-              <Text style={styles.cell}>{contract?.member?.contacts?.[1] || contract?.memberContacts?.[1] || '—'}</Text>
-            </View>
+            {phoneRows.map((row, index) => (
+              <View key={index} style={styles.row}>
+                <Text style={styles.cell}>{row[0]}</Text>
+                <Text style={styles.cell}>{row[1] || '—'}</Text>
+                {row[2] && (
+                  <>
+                    <Text style={styles.cell}>{row[2]}</Text>
+                    <Text style={styles.cell}>{row[3] || '—'}</Text>
+                  </>
+                )}
+              </View>
+            ))}
             <View style={styles.row}>
               <Text style={styles.cell}>SEXE :</Text>
               <Text style={styles.cell}>{contract?.member?.gender || contract?.memberGender || '—'}</Text>
@@ -302,10 +383,18 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
               <Text style={styles.cell}>LIENS :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.relationship || '—'}</Text>
             </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE :</Text>
-              <Text style={styles.cell}>{contract?.emergencyContact?.phone1 || '—'}</Text>
-            </View>
+            {emergencyPhoneRows.map((row, index) => (
+              <View key={index} style={styles.row}>
+                <Text style={styles.cell}>{row[0]}</Text>
+                <Text style={styles.cell}>{row[1] || '—'}</Text>
+                {row[2] && (
+                  <>
+                    <Text style={styles.cell}>{row[2]}</Text>
+                    <Text style={styles.cell}>{row[3] || '—'}</Text>
+                  </>
+                )}
+              </View>
+            ))}
             <View style={styles.row}>
               <Text style={styles.cell}>N°CNI/PASS/CS :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.idNumber || '—'}</Text>
@@ -320,235 +409,193 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
           <Text style={styles.title}>VOLET ENTRAIDE</Text>
 
           <Text style={styles.articleText}>
-            Dans le cadre d'une démarche purement sociale, l'association LE KARA lance le volet « Entraide », 
-            qui est un contrat sous lequel l'association garantit des prestations destinées à octroyer des fonds 
-            monétaires à l'adhérent au cours de l'année.
+            Dans le cadre d'une démarche purement sociale, l'association LE KARA met en place le «Volet Entraide», un mécanisme inspiré de la solidarité qui fonde l'âme même de l'association. Ce dispositif est le pilier sur lequel sont fondées les actions solidaires telles que les appuis, les collectes, les dons que l'association réalise.
           </Text>
 
           <Text style={styles.articleText}>
-            Au titre de la présente garantie, l'Association KARA s'engage en contrepartie d'une prime mensuelle 
-            (10000 FCFA, 20 000 FCFA, 30000 FCFA, 40 000 FCFA et 50000 FCFA), à octroyer à l'adhérent un montant 
-            compris entre 30 000 et 150 000 FCFA à taux nul (0%) remboursable dans une durée définie. Ce prêt est 
-            dit : accompagnement régulier.
+            Le Volet Entraide constitue le système obligatoire de cotisations, garantissant la vie financière de l'association et la disponibilité des fonds nécessaires aux aides apportées aux membres en difficulté.
           </Text>
 
-          <Text style={[styles.articleText, { marginTop: 10, marginBottom: 10, fontWeight: 'bold' }]}>
-            Les clauses du contrat :
+          <Text style={styles.articleText}>
+            A ce titre, le KARA par le canal du Volet Entraide invite tous ses membres à verser mensuellement une cotisation de 10 000 FCFA, 20 000 FCFA, 30 000 FCFA, 40 000 FCFA, 50 000 FCFA ou plus, selon leurs disponibilités financières.
+          </Text>
+
+          <Text style={styles.articleText}>
+            Ces versements réguliers assurent la stabilité de la trésorerie, le financement des activités de l'association, la disponibilité des appuis et l'équité entre tous les membres.
+          </Text>
+
+          <Text style={styles.articleText}>
+            Concernant les appuis, c'est un système où chacun contribue selon ses moyens et reçoit selon ses besoins et permettent de bénéficier d'une somme comprise entre 30 000 FCFA à 150 000 FCFA ou plus selon le forfait souscrit, mais qui sera par la suite reverser dans la caisse de l'association après une durée déterminée.
+          </Text>
+
+          <Text style={styles.articleText}>
+            Toutefois, pour la bonne tenue de la trésorerie de l'association, les membres bénéficiaires sont tenus aux respects des règles suivantes :
+          </Text>
+
+          <Text style={styles.sectionTitle}>
+            I. Fonctionnement général du Volet Entraide
           </Text>
 
           <View style={styles.definitionList}>
             <View style={styles.definitionItem}>
-              <Text style={styles.definitionSymbol}>❖</Text>
+              <Text style={styles.definitionSymbol}>1.</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>L'adhérent :</Text> Est un membre de la mutuelle qui souscrit au Volet Entraide.
+                <Text style={styles.bold}>Début du contrat :</Text> Toute adhésion nouvelle ou renouvellement à l'association le KARA emporte systématiquement adhésion au Volet Entraide. En effet, le Volet Entraide assure la vie de l'association par le biais de cotisations volontaires conformément au règlement intérieur.
               </Text>
             </View>
 
             <View style={styles.definitionItem}>
-              <Text style={styles.definitionSymbol}>❖</Text>
+              <Text style={styles.definitionSymbol}>•</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>Le nominal :</Text> Correspond au versement mensuel de l'adhérent sous 12 mois.
+                Le refus ou l'abandon pour un membre du Volet Entraide entraine le retrait du membre de l'association car il est considéré comme la rupture de l'aspiration à l'idéologie de l'association.
               </Text>
             </View>
 
             <View style={styles.definitionItem}>
-              <Text style={styles.definitionSymbol}>❖</Text>
+              <Text style={styles.definitionSymbol}>2.</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>L'accompagnement régulier :</Text> c'est un appui, une aide proportionnel au 
-                niveau de contribution du membre, dont le montant est compris entre 30 000 et 150 000 FCFA et qui a pour 
-                objet la résolution des menues dépenses et urgentes.
+                <Text style={styles.bold}>Durée du contrat :</Text> L'adhésion au Volet Entraide dure aussi longtemps que dure l'adhésion à l'association Le KARA, soit sur une année.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>•</Text>
+              <Text style={styles.definitionText}>
+                Le retrait de l'association entraine automatiquement rupture du contrat du Volet Entraide et emporte remboursement des sommes versées.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>3.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Déroulement des versements :</Text> Le membre se doit de procéder aux versements des cotisations au plus tard le ________________ de chaque mois durant toute la durée du présent contrat.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>4.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Tolérance de retard :</Text> L'épargnant dispose d'un délai de grâce de trois jours après la date prévue pour son versement mensuel. Aucun frais ni pénalité ne s'applique dans ce délai.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>•</Text>
+              <Text style={styles.definitionText}>
+                À compter du quatrième jour jusqu'au septième jour succédant l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver l'équilibre et la bonne tenue de la caisse commune.
+              </Text>
+            </View>
+
+          </View>
+        </View>
+      </Page>
+
+      {/* PAGE 3 - Suite Fonctionnement général */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageContainer}>
+          <View style={styles.definitionList}>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>•</Text>
+              <Text style={styles.definitionText}>
+                A compter du septième jour les mesures disciplinaires ci-après, non cumulatives, sont applicables :
+              </Text>
+            </View>
+
+            <View style={styles.subBulletList}>
+              <View style={styles.subBulletItem}>
+                <Text style={styles.subBulletSymbol}>-</Text>
+                <Text style={styles.subBulletText}>
+                  La non prise en compte de ce versement pour le mois auquel il est normalement dû. Il sera considéré comme non acquitté et sera compté pour le mois suivant.
+                </Text>
+              </View>
+
+              <View style={styles.subBulletItem}>
+                <Text style={styles.subBulletSymbol}>-</Text>
+                <Text style={styles.subBulletText}>
+                  La perte de tous les avantages liés à la régularité dans les versements conformément aux dispositions du règlement intérieur.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>5.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Le retrait de l'association :</Text> À compter du troisième mois suivant l'adhésion à l'association, le membre a la faculté de la résilier. Cette résiliation doit être obligatoirement formulée par écrit et déposée auprès du Secrétaire Exécutif. À compter de la date de notification, l'association dispose de 30 jours pour rembourser les sommes versées au titre du Volet Entraide.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>6.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Terme du contrat :</Text> Le contrat Volet Entraide prend fin à l'expiration de l'adhésion annuelle à l'association. Il emporte l'obligation pour le KARA de restituer au membre l'intégralité des sommes versées par le membre au cours de l'année au titre du Volet Entraide.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>7.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Remboursement du nominal :</Text> Le remboursement des sommes visées au ci-dessus, intervient dans un délai maximal de 30 jours suivant la date du terme du contrat.
+              </Text>
+            </View>
+          </View>
+        
+          <Text style={styles.sectionTitle}>
+            II. Des accompagnements réguliers (appuis)
+          </Text>
+
+          <Text style={styles.articleText}>
+            Dans le respect des principes d'équité et de gestion saine de la caisse commune, l'octroi d'un appui suit les règles ci-après :
+          </Text>
+
+          <View style={styles.definitionList}>
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>8.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Délai avant première demande :</Text> Aucune demande d'appui ne peut être réalisée dans un intervalle de trois mois à compter de la date d'adhésion à l'association jusqu'à la date du troisième versement mensuel effectif, effectué par le membre. Ce délai permet de stabiliser la caisse et de garantir des appuis fiables pour tous.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>9.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Conditions d'éligibilité à un appui :</Text> Peut solliciter un accompagnement régulier, le membre qui, en plus d'être à jour dans ses cotisations mensuelles, s'est acquitté de sa prime mensuelle pour le mois durant lequel il sollicite un accompagnement régulier.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>10.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Nombre d'appuis autorisés :</Text> Tout membre a droit à un appui par mois dans la limite de six appuis maximum pour toute l'année, de manière non consécutive. Ce dispositif constitue le volet prévoyance du Volet Entraide.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>11.</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Remboursement des appuis :</Text> Tout appui accordé doit être remboursé au plus tard avant le versement de la prochaine contribution.
+              </Text>
+            </View>
+
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>•</Text>
+              <Text style={styles.definitionText}>
+                En cas de non remboursement de l'accompagnement par un adhérent dans le délai fixé à l'alinéa précédent, KARA se réserve la faculté de se désintéresser par prélèvement dans le nominal cumulé de l'adhérent à hauteur des sommes dues. Ce prélèvement est conditionné à une mise en demeure adressée à l'adhérent par le Secrétaire exécutif.
               </Text>
             </View>
           </View>
         </View>
       </Page>
 
-      {/* PAGE 3 - LES CONTRAINTES (Primes mensuelles) */}
+      {/* PAGE 4 - Catégorie des forfaits + Signatures */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContainer}>
-          <Text style={styles.title}>LES CONTRAINTES</Text>
-
-          <Text style={[styles.bold, { fontSize: 13, marginBottom: 10, marginTop: 10 }]}>
-            DES PRIMES MENSUELLES
+          <Text style={styles.sectionTitle}>
+            III. Catégorie des forfaits
           </Text>
-
-          <View style={styles.bulletList}>
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Toute adhésion vaut pour une année soit 12 mois à compter du mois de la signature du contrat d'adhésion ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Le contrat d'adhésion ne peut pas être résilié avant le troisième mois suivant l'adhésion ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Il est accordé à tout membre, à compter de la date d'échéance contractuellement prévue pour chaque 
-                versement mensuel, un délai de retard de trois (3) jours pour procéder à son versement. Le versement 
-                intervenu dans ledit délai ne donne lieu à aucune pénalité.
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                À compter du quatrième jour jusqu'à septième jour succédant l'expiration du délai de retard, tout 
-                versement intervenu dans cet intervalle est passible de pénalités pécuniaires.
-              </Text>
-            </View>
-          </View>
 
           <Text style={styles.articleText}>
-            Tout versement intervenu après le septième jour sus-mentionné donne lieu à deux options:
-          </Text>
-
-          <View style={styles.subBulletList}>
-            <View style={styles.subBulletItem}>
-              <Text style={styles.subBulletSymbol}>1)</Text>
-              <Text style={styles.subBulletText}>
-                la résiliation du contrat à l'initiative du secrétaire exécutif pour manquement aux obligations 
-                contractuelles du membre;
-              </Text>
-            </View>
-
-            <View style={styles.subBulletItem}>
-              <Text style={styles.subBulletSymbol}>2)</Text>
-              <Text style={styles.subBulletText}>
-                la non prise en compte de ce versement pour le mois auquel il est normalement dû. Le versement de ce 
-                mois sera considéré comme non acquitté et le versement effectué sera compté pour le mois suivant. De 
-                plus, le membre perdra tous les avantages liés à la régularité dans les versements conformément aux 
-                dispositions du règlement intérieur.
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Page>
-
-      {/* PAGE 4 - LES CONTRAINTES (Suite - Résiliation et Accompagnements) */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          <View style={styles.bulletList}>
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Après le troisième mois, l'adhérent a la faculté de résilier son contrat de 
-                plein droit. Cette résiliation doit être obligatoirement écrite ; la date de résiliation est celle du 
-                jour de la notification de la demande de résiliation auprès du Secrétaire Exécutif ;</Text>
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                <Text style={styles.bold}>À compter de cette date l'association dispose d'un délai de 30 jours pour 
-                procéder au remboursement des sommes versées;</Text>
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                KARA s'engage à <Text style={styles.bold}>restituer à l'adhérent le nominal au treizième mois</Text> correspondant 
-                <Text style={styles.bold}> aux sommes versées</Text> par l'adhérent <Text style={styles.bold}>durant les 12 mois.</Text>
-              </Text>
-            </View>
-          </View>
-
-          <Text style={[styles.bold, { fontSize: 13, marginBottom: 10, marginTop: 15 }]}>
-            Des accompagnements réguliers
-          </Text>
-
-          <View style={styles.bulletList}>
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Aucune demande d'appui ne peut être réalisée dans un intervalle de <Text style={styles.bold}>trois mois (3)</Text> à 
-                compter de <Text style={styles.bold}>la date d'inscription à l'association</Text> jusqu'à <Text style={styles.bold}>la 
-                date du troisième versement mensuel effectif</Text>, effectué par l'adhérent ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Pour bénéficier d'un accompagnement régulier, l'adhérent doit avoir versé au moins trois mois de cotisations ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Ne peut obtenir un accompagnement régulier que l'adhérent dont les cotisations sont à jour ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Est éligible l'adhérent qui s'est acquitté de sa prime mensuelle pour le mois durant lequel il sollicite 
-                un accompagnement régulier ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                L'adhérent a droit à <Text style={styles.bold}>un accompagnement régulier par mois</Text> (six appuis maximum 
-                pour toute l'année, de manière non consécutive), c'est le <Text style={styles.bold}>volet prévoyance</Text> ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                A chaque demande d'accompagnement régulier le nominal <Text style={styles.bold}>est pénalisé de 0%</Text> ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                <Text style={styles.bold}>L'accompagnement régulier est remboursable au plus tard avant le payement de la 
-                prochaine contribution</Text> ;
-              </Text>
-            </View>
-
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                <Text style={styles.bold}>En cas de non remboursement de l'accompagnement par un adhérent dans le délai fixé 
-                à l'alinéa précédent, KARA se réserve la faculté de se</Text>
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Page>
-
-      {/* PAGE 5 - Suite Accompagnements + Tableau forfaits */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          <Text style={styles.articleText}>
-            <Text style={styles.bold}>désintéresser par prélèvement dans le nominal de l'adhérent à hauteur des sommes 
-            dues. Ce prélèvement est conditionné à une mise en demeure adressée à l'adhérent par le Secrétaire exécutif.</Text>
-          </Text>
-
-          <View style={styles.bulletList}>
-            <View style={styles.bulletItem}>
-              <Text style={styles.bulletSymbol}>❖</Text>
-              <Text style={styles.bulletText}>
-                Les accompagnements réguliers octroyés sont plafonnés en fonction du forfait souscrit par le membre.
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.articleText}>
+            Les appuis octroyés sont plafonnés en fonction du forfait souscrit par le membre.
             Ces appuis sont détaillés dans le tableau ci-après :
           </Text>
 
@@ -579,72 +626,35 @@ const CaisseImprevuePDF = ({ contract, payments = [] }: CaisseImprevuePDFProps) 
               <Text style={styles.forfaitTableCell}>[0 ; 120 000]</Text>
             </View>
             <View style={styles.forfaitTableRow}>
-              <Text style={styles.forfaitTableCell}>E- 50 000</Text>
+              <Text style={styles.forfaitTableCell}>E-50 000</Text>
               <Text style={styles.forfaitTableCell}>600 000</Text>
               <Text style={styles.forfaitTableCell}>[0 ; 150 000]</Text>
+            </View>
+            <View style={styles.forfaitTableRow}>
+              <Text style={styles.forfaitTableCell}>X-XXXX</Text>
+              <Text style={styles.forfaitTableCell}>XXXX</Text>
+              <Text style={styles.forfaitTableCell}>[0 ; XXXX]</Text>
             </View>
           </View>
 
           <Text style={[styles.bold, { fontSize: 12, textAlign: 'center', marginTop: 15, marginBottom: 10 }]}>
-            NB : LE FORFAIT CHOISIT NE PEUT ÊTRE CHANGEABLE.
+            NB : LE FORFAIT CHOISIT NE PEUT ÊTRE CHANGEABLE
           </Text>
 
           <Text style={{ fontSize: 12, textAlign: 'right', marginTop: 20 }}>
             <Text style={styles.bold}>
-              [Signature membre « lu et approuvé »]
+              Signature membre précédée de la mention « lu et approuvé »
             </Text>
           </Text>
 
-          <View style={{ marginTop: 30 }}>
-            <Text style={[styles.bold, { fontSize: 12 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF :</Text>
+          <View>
+            <Text style={[styles.bold, { fontSize: 12 }]}>Signature du Secrétaire Exécutif</Text>
           </View>
         </View>
       </Page>
 
-      {/* PAGE 6 - Récapitulatif des versements */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          <Text style={styles.title}>RÉCAPITULATIF DES VERSEMENTS MENSUELS</Text>
-
-          <Text style={styles.articleText}>
-            CE DOCUMENT PREND ACTE DES DIFFÉRENTS VERSEMENTS MENSUELS EFFECTUÉS PAR L'ADHÉRENT.
-          </Text>
-
-          <Text style={[styles.bold, { fontSize: 13, textAlign: 'center', marginBottom: 10 }]}>
-            VOLET ENTRAIDE
-          </Text>
-
-          <View style={styles.table}>
-            <View style={styles.tableRow}>
-              <Text style={styles.tableHeader}>NOMBRE DE MOIS</Text>
-              <Text style={styles.tableHeader}>MONTANT VERSÉ</Text>
-              <Text style={styles.tableHeader}>DATE DE VERSEMENT</Text>
-              <Text style={styles.tableHeader}>SIGNATURE DE L'ÉPARGNANT</Text>
-              <Text style={styles.tableHeader}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
-            </View>
-            {[...Array(12)].map((_, i) => (
-              <View key={i} style={styles.tableRow}>
-                <Text style={styles.tableCell}>{i + 1}</Text>
-                <Text style={styles.tableCell}>
-                  {payments?.[i] ? formatAmount(payments[i].amount) : ''}
-                </Text>
-                <Text style={styles.tableCell}>
-                  {payments?.[i] ? formatDate(payments[i].paidAt) : ''}
-                </Text>
-                <Text style={styles.tableCell}>
-                  {payments?.[i] ? '✓' : ''}
-                </Text>
-                <Text style={styles.tableCell}>
-                  {payments?.[i] ? '✓' : ''}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </Page>
     </Document>
   )
 }
 
 export default CaisseImprevuePDF
-
