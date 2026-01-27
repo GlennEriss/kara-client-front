@@ -101,8 +101,7 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
       </Label>
       
       <div className="flex items-center gap-2 w-full min-w-0" data-testid="step2-address-commune-container">
-        <div data-testid="step2-address-commune-combobox" className="flex-1">
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={setOpen} data-testid="step2-address-commune-combobox">
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -211,7 +210,6 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
             </Command>
           </PopoverContent>
         </Popover>
-        </div>
         
         {onAddNew && (
           <Button

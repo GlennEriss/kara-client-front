@@ -82,8 +82,7 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
       </Label>
       
       <div className="flex items-center gap-2 w-full min-w-0">
-        <div data-testid="step2-address-quarter-combobox" className="flex-1">
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={setOpen} data-testid="step2-address-quarter-combobox">
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -109,7 +108,7 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
                 )}>
                   {!selectedDistrictId 
                     ? "Sélectionnez d'abord un arrondissement..." 
-                    : selectedQuarter?.name || watch('address.district') || "Rechercher un quartier (min 2 caractères)..."}
+                    : selectedQuarter?.name || watch('address.district') || "Rechercher un quartier"}
                 </span>
               </div>
               {isLoading ? (
@@ -187,7 +186,6 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
             </Command>
           </PopoverContent>
         </Popover>
-        </div>
         
         {onAddNew && (
           <Button
