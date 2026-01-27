@@ -110,8 +110,29 @@ export default function Step2({ form }: Step2Props) {
 
   const handleDistrictCreated = async (_newDistricts: any[]) => {
     // Après création en masse, rafraîchir la liste des arrondissements
-    queryClient.invalidateQueries({ queryKey: ['districts'] })
-    await queryClient.refetchQueries({ queryKey: ['districts'], type: 'active' })
+    // NOTE: useDistrictMutations invalide déjà les queries dans onSuccess avec exact: false
+    // Mais on force un refetch immédiat pour garantir l'affichage des nouveaux districts
+    
+    // Petit délai pour s'assurer que le modal est fermé et que le composant est prêt
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Forcer le refetch de la query pour la commune sélectionnée
+    // Utiliser type: 'all' pour forcer le refetch même si la query n'est pas "active"
+    if (selectedIds.communeId) {
+      // Invalider d'abord pour s'assurer que la query est marquée comme stale
+      queryClient.invalidateQueries({ 
+        queryKey: ['districts', selectedIds.communeId],
+        exact: true
+      })
+      
+      // Puis forcer le refetch
+      await queryClient.refetchQueries({ 
+        queryKey: ['districts', selectedIds.communeId],
+        exact: true,
+        type: 'all' // Force le refetch même si la query n'est pas active
+      })
+    }
+    
     // Ne pas sélectionner automatiquement car plusieurs arrondissements ont été créés
     // L'utilisateur pourra choisir parmi les nouveaux arrondissements créés
     toast.success('Arrondissements créés avec succès')

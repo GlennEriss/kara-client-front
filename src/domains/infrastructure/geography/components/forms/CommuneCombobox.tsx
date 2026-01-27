@@ -128,7 +128,7 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
                 )}>
                   {!selectedProvinceId 
                     ? "Sélectionnez d'abord une province..." 
-                    : selectedCommune?.name || watch('address.city') || "Rechercher une ville (min 2 caractères)..."}
+                    : selectedCommune?.name || watch('address.city') || "Rechercher une ville"}
                 </span>
               </div>
               {isLoading ? (
