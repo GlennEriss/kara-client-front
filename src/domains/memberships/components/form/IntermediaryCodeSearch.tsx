@@ -130,7 +130,9 @@ export default function IntermediaryCodeSearch() {
                 !hasError && !selectedCode && "border-rose-200 hover:border-rose-400",
                 !hasError && selectedCode && isValidCode && "border-kara-primary-light bg-kara-primary-light/5",
                 hasError && "border-red-500",
-                "bg-white"
+                "bg-white",
+                // Ajouter padding-right si bouton clear présent
+                selectedCode && "pr-10"
               )}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -150,22 +152,24 @@ export default function IntermediaryCodeSearch() {
                     className="w-5 h-5 text-green-500 animate-in zoom-in-50 duration-200"
                   />
                 )}
-                {selectedCode && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 hover:bg-gray-100"
-                    onClick={handleClear}
-                    data-testid="intermediary-code-search-clear"
-                  >
-                    <X className="w-3 h-3 text-gray-400" />
-                  </Button>
-                )}
                 <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
               </div>
             </Button>
           </PopoverTrigger>
+          
+          {/* Bouton clear en dehors du PopoverTrigger pour éviter le nesting */}
+          {selectedCode && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-10 top-1/2 transform -translate-y-1/2 h-6 w-6 hover:bg-gray-100 z-10"
+              onClick={handleClear}
+              data-testid="intermediary-code-search-clear"
+            >
+              <X className="w-3 h-3 text-gray-400" />
+            </Button>
+          )}
           
           <PopoverContent 
             data-testid="intermediary-code-search-results"
