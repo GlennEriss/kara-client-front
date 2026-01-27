@@ -16,7 +16,7 @@ import BirthPlaceIdentityForm from '@/components/identity-form/BirthPlaceIdentit
 import BirthCertificateNumberIdentityForm from '@/components/identity-form/BirthCertificateNumberIdentityForm'
 import PrayerPlaceIdentityForm from '@/components/identity-form/PrayerPlaceIdentityForm'
 import ReligionIdentityForm from '@/components/identity-form/ReligionIdentityForm'
-import IntermediaryCodeIdentityForm from '@/components/identity-form/IntermediaryCodeIdentityForm'
+import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
 import ContactsIdentityForm from '@/components/identity-form/ContactsIdentityForm'
 import MaritalStatusIdentityForm from '@/components/identity-form/MaritalStatusIdentityForm'
 import HasCarIdentityForm from '@/components/identity-form/HasCarIdentityForm'
@@ -75,7 +75,7 @@ export default function Step1({ requestId: _requestId }: Step1Props) {
           </div>
 
           {/* Code entremetteur */}
-          <IntermediaryCodeIdentityForm />
+          <IntermediaryCodeSearch />
 
           {/* Contacts */}
           <ContactsIdentityForm />

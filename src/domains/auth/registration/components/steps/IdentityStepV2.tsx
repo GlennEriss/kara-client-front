@@ -29,6 +29,7 @@ import type { RegisterFormData } from '@/schemas/schemas'
 import { GabonPhoneInputList } from '@/components/shared/GabonPhoneInput'
 import GabonPhoneInput from '@/components/shared/GabonPhoneInput'
 import { SelectCountry } from '@/components/ui/select-country'
+import IntermediaryCodeSearch from '@/domains/memberships/components/form/IntermediaryCodeSearch'
 
 const CIVILITIES = ['Monsieur', 'Madame', 'Mademoiselle'] as const
 const GENDERS = ['Homme', 'Femme'] as const
@@ -598,24 +599,7 @@ export default function IdentityStepV2() {
             </div>
 
             {/* Référent / Code entremetteur */}
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-semibold text-sm flex items-center gap-2">
-                <Hash className="w-4 h-4 text-rose-600" />
-                Qui vous a référé? *
-              </Label>
-              <Input
-                {...register('identity.intermediaryCode')}
-                placeholder="Ex: 1228.MK.0058"
-                className={cn(
-                  "h-12 rounded-xl border-2 border-rose-200 hover:border-rose-400 focus:border-rose-500 transition-all bg-white font-mono tracking-wider",
-                  errors.identity?.intermediaryCode && "border-red-300"
-                )}
-              />
-              <p className="text-xs text-rose-600">Format : XXXX.MK.XXXX</p>
-              {errors.identity?.intermediaryCode && (
-                <p className="text-xs text-red-500">{errors.identity.intermediaryCode.message}</p>
-              )}
-            </div>
+            <IntermediaryCodeSearch />
           </div>
         </div>
       </div>
