@@ -17,11 +17,16 @@ import {
   Calendar,
   UserCheck,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Download,
+  FileText
 } from 'lucide-react'
 import { Filleul } from '@/types/types'
 import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
+import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 export default function FilleulsList() {
   const params = useParams()
@@ -170,6 +175,81 @@ export default function FilleulsList() {
            filleulDate.getMonth() === now.getMonth()
   }).length
 
+  // Export Excel
+  const handleExportExcel = async () => {
+    if (filleulsData.length === 0) {
+      toast.info('Aucun filleul à exporter')
+      return
+    }
+
+    try {
+      const XLSX = await import('xlsx')
+      const rows = filleulsData.map((filleul) => ({
+        'Nom': filleul.lastName || '',
+        'Prénom': filleul.firstName || '',
+        'Matricule': filleul.matricule || '',
+        'Date d\'adhésion': format(new Date(filleul.createdAt), 'dd/MM/yyyy', { locale: fr }),
+      }))
+
+      const worksheet = XLSX.utils.json_to_sheet(rows)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Filleuls')
+      const filename = `filleuls_${memberData.matricule}_${format(new Date(), 'yyyy-MM-dd', { locale: fr })}.xlsx`
+      XLSX.writeFile(workbook, filename)
+      toast.success('Export Excel généré avec succès')
+    } catch (error) {
+      console.error('Erreur export Excel:', error)
+      toast.error("Erreur lors de l'export Excel")
+    }
+  }
+
+  // Export PDF
+  const handleExportPdf = async () => {
+    if (filleulsData.length === 0) {
+      toast.info('Aucun filleul à exporter')
+      return
+    }
+
+    try {
+      const { jsPDF } = await import('jspdf')
+      const autoTable = (await import('jspdf-autotable')).default
+      const doc = new jsPDF('landscape')
+
+      // En-tête
+      doc.setFontSize(16)
+      doc.text('Liste des Filleuls', 14, 14)
+      doc.setFontSize(10)
+      doc.text(`Parrain: ${memberData.firstName} ${memberData.lastName} (${memberData.matricule})`, 14, 20)
+      doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`, 14, 24)
+      doc.text(`Total: ${filleulsData.length} filleul${filleulsData.length > 1 ? 's' : ''}`, 14, 28)
+
+      // Tableau
+      const headers = ['Nom', 'Prénom', 'Matricule', 'Date d\'adhésion']
+      const bodyRows = filleulsData.map((filleul) => [
+        filleul.lastName || '',
+        filleul.firstName || '',
+        filleul.matricule || '',
+        format(new Date(filleul.createdAt), 'dd/MM/yyyy', { locale: fr }),
+      ])
+
+      autoTable(doc, {
+        head: [headers],
+        body: bodyRows,
+        startY: 35,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [35, 77, 101], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+      })
+
+      const filename = `filleuls_${memberData.matricule}_${format(new Date(), 'yyyy-MM-dd', { locale: fr })}.pdf`
+      doc.save(filename)
+      toast.success('Export PDF généré avec succès')
+    } catch (error) {
+      console.error('Erreur export PDF:', error)
+      toast.error("Erreur lors de l'export PDF")
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header avec informations du membre */}
@@ -199,6 +279,28 @@ export default function FilleulsList() {
         </div>
         
         <div className="flex items-center space-x-3">
+          {filleulsData.length > 0 && (
+            <>
+              <Button 
+                onClick={handleExportExcel}
+                variant="outline"
+                size="sm"
+                className="border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Excel
+              </Button>
+              <Button 
+                onClick={handleExportPdf}
+                variant="outline"
+                size="sm"
+                className="border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
+            </>
+          )}
           <Button 
             onClick={() => window.history.back()}
             variant="outline"
