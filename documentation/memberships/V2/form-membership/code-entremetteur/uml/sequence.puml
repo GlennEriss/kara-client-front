@@ -1,0 +1,81 @@
+@startuml Séquence - Code Entremetteur V2
+Title Séquence de recherche et sélection du code entremetteur (V2)
+
+actor Admin
+participant "IdentityStepV2" as Step
+participant "IntermediaryCodeSearch" as Search
+participant "useIntermediaryCodeSearch" as Hook
+participant "MembersAlgoliaSearchService" as AlgoliaService
+participant "Algolia" as Algolia
+participant "React Query Cache" as Cache
+participant "Form (react-hook-form)" as Form
+
+== Initialisation ==
+
+Admin -> Step: Accède à /memberships/add (étape 1)
+Step -> Form: Initialise le formulaire
+Step -> Search: Render IntermediaryCodeSearch
+Search -> Hook: useIntermediaryCodeSearch({ enabled: false })
+
+== Recherche en temps réel ==
+
+Admin -> Search: Tape "Jean" (2 caractères)
+Search -> Hook: setQuery("Jean")
+Hook -> Hook: Debounce 300ms
+Hook -> Hook: Vérifie query.length >= 2
+
+alt Query valide (>= 2 caractères)
+  Hook -> Cache: Vérifie cache ['members-search', { query: "Jean", filters: { isActive: true } }]
+  
+  alt Cache miss
+    Hook -> AlgoliaService: search({ query: "Jean", filters: { isActive: true }, hitsPerPage: 10 })
+    AlgoliaService -> Algolia: search({ indexName: "members-dev", query: "Jean", filters: "isActive:true", hitsPerPage: 10 })
+    Algolia --> AlgoliaService: { hits: [{ objectID, firstName, lastName, matricule, ... }] }
+    AlgoliaService -> AlgoliaService: Formater résultats : "Nom Prénom (Code)"
+    AlgoliaService -> Cache: Stocker résultat (staleTime: 30s)
+    Cache --> AlgoliaService: Cache mis à jour
+    AlgoliaService --> Hook: { items: [{ id, firstName, lastName, matricule, formattedDisplay }] }
+  else Cache hit
+    Cache --> Hook: Données depuis cache
+  end
+  
+  Hook --> Search: { data, isLoading, isError }
+  Search -> Admin: Affiche liste déroulante avec résultats
+  note right of Search
+    Format affiché:
+    "Dupont Jean (1228.MK.0058)"
+    "Martin Jean (1234.MK.0059)"
+  end note
+else Query invalide (< 2 caractères)
+  Hook --> Search: { data: [], isLoading: false }
+  Search -> Admin: Affiche "Tapez au moins 2 caractères"
+end
+
+== Sélection d'un membre ==
+
+Admin -> Search: Clique sur "Dupont Jean (1228.MK.0058)"
+Search -> Search: onSelectMember(member)
+Search -> Search: Extraire matricule: "1228.MK.0058"
+Search -> Form: setValue("identity.intermediaryCode", "1228.MK.0058")
+Form -> Form: Valide le format (regex: /^\d+\.MK\.\d+$/)
+Form -> Form: setValue("identity.intermediaryMemberId", member.id) // Optionnel
+
+alt Validation réussie
+  Form --> Search: { isValid: true, error: null }
+  Search -> Search: Afficher validation visuelle (✓)
+  Search -> Admin: Champ rempli et validé
+else Validation échouée
+  Form --> Search: { isValid: false, error: "Format invalide" }
+  Search -> Admin: Afficher message d'erreur
+end
+
+== Continuation du formulaire ==
+
+Admin -> Step: Continue avec les autres champs
+Admin -> Step: Valide l'étape 1
+Step -> Form: trigger("identity.intermediaryCode")
+Form -> Form: Validation complète de l'étape 1
+Form --> Step: { isValid: true }
+Step -> Step: Navigation vers étape 2
+
+@enduml

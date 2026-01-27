@@ -1,0 +1,63 @@
+@startuml Use Case - Code Entremetteur V1
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
+}
+
+title Use Case - Saisie du Code Entremetteur (V1 - Actuel)
+
+actor "Admin KARA" as Admin
+
+package "Domaine Membership" {
+  package "Formulaire d'adhésion" {
+    usecase "UC-MEM-FORM-001: Ajouter un nouveau membre\n(formulaire administratif)" as UC_ADD_MEMBER
+    
+    package "Étape 1 : Informations d'identité" {
+      usecase "UC-MEM-FORM-002: Saisir le code entremetteur\n(champ texte simple)" as UC_INTERMEDIARY_CODE_V1
+      usecase "UC-MEM-FORM-003: Valider le format du code\n(XXXX.MK.XXXX)" as UC_VALIDATE_FORMAT
+    }
+  }
+  
+  package "Gestion des Membres" {
+    usecase "UC-MEM-005: Consulter la liste des membres" as UC_LIST_MEMBERS
+    usecase "UC-MEM-006: Consulter le détail d'un membre" as UC_MEMBER_DETAIL
+  }
+}
+
+' Relations
+UC_ADD_MEMBER ..> UC_INTERMEDIARY_CODE_V1 : <<include>>
+UC_INTERMEDIARY_CODE_V1 ..> UC_VALIDATE_FORMAT : <<include>>
+
+' Note sur le flux actuel
+note right of UC_INTERMEDIARY_CODE_V1
+  **Flux actuel (V1) :**
+  
+  1. Admin ouvre /memberships/add
+  2. Admin arrive à l'étape 1 (Identité)
+  3. Admin voit le champ "Qui vous a référé?"
+  4. Admin ne connaît pas le code par cœur
+  5. Admin ouvre un nouvel onglet
+  6. Admin va dans la liste des membres
+  7. Admin recherche le membre entremetteur
+  8. Admin copie le code unique
+  9. Admin revient sur l'onglet du formulaire
+  10. Admin colle le code
+  11. Validation du format
+  
+  **Problèmes :**
+  - Navigation fastidieuse
+  - Risques d'erreurs de copie
+  - Perte de temps (30-60 secondes)
+end note
+
+note right of UC_LIST_MEMBERS
+  Utilisé pour trouver le code entremetteur
+  (navigation manuelle requise)
+end note
+
+Admin --> UC_ADD_MEMBER
+Admin --> UC_LIST_MEMBERS
+
+@enduml

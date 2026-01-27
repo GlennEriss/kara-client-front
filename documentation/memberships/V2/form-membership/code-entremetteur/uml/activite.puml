@@ -1,0 +1,98 @@
+@startuml Activité - Code Entremetteur V2
+Title Diagramme d'activité - Recherche et Saisie du Code Entremetteur (V2)
+
+|Admin|
+start
+
+:Accède à /memberships/add;
+
+:Arrive à l'étape 1 (Informations d'identité);
+
+:Voit le champ "Qui vous a référé?" (Combobox);
+
+:Commence à taper le nom/prénom de l'entremetteur;
+
+|Système|
+if (Nombre de caractères >= 2 ?) then (oui)
+  :Déclencher recherche Algolia;
+  
+  note right
+    Index: members-{env}
+    Query: nom/prénom saisi
+    Filtres: isActive: true
+    Limite: 10 résultats
+  end note
+  
+  :Appel Algolia avec query;
+  
+  |Algolia|
+  :Recherche dans firstName, lastName, matricule;
+  :Filtre isActive: true;
+  :Retourne résultats triés par pertinence;
+  
+  |Système|
+  :Formater les résultats : "Nom Prénom (Code)";
+  note right
+    Exemple:
+    "Dupont Jean (1228.MK.0058)"
+    "Martin Marie (1234.MK.0059)"
+  end note
+  
+  :Afficher la liste déroulante avec résultats;
+  
+  |Admin|
+  
+  if (Admin sélectionne un résultat ?) then (oui)
+    :Clique sur un membre dans la liste;
+    
+    |Système|
+    :Extraire le code entremetteur du membre sélectionné;
+    :Remplir automatiquement le champ intermediaryCode;
+    :Valider le format (XXXX.MK.XXXX);
+    
+    if (Format valide ?) then (oui)
+      :Afficher validation visuelle (✓);
+      :Stocker l'ID du membre entremetteur (optionnel);
+      
+      |Admin|
+      :Continue avec les autres champs de l'étape 1;
+      
+    else (non - erreur)
+      :Afficher message d'erreur;
+      :Demander à l'admin de réessayer;
+      
+      |Admin|
+      :Corriger la sélection;
+    endif
+    
+  else (non - continue à taper)
+    :Continuer la recherche en temps réel;
+    note right
+      La recherche se met à jour
+      à chaque caractère ajouté
+      (debounce: 300ms)
+    end note
+  endif
+  
+else (non - < 2 caractères)
+  :Afficher message : "Tapez au moins 2 caractères";
+  
+  |Admin|
+  :Continue à taper;
+endif
+
+|Admin|
+
+if (Admin continue le formulaire ?) then (oui)
+  :Remplit les autres champs de l'étape 1;
+  :Valide l'étape 1;
+  :Passe à l'étape 2;
+else (non - annule)
+  :Annule le formulaire;
+  stop
+endif
+
+|Admin|
+stop
+
+@enduml

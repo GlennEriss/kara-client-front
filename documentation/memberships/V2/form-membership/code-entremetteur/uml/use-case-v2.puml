@@ -1,0 +1,72 @@
+@startuml Use Case - Code Entremetteur V2
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor LightGreen
+  BorderColor DarkGreen
+}
+
+title Use Case - Saisie du Code Entremetteur (V2 - Nouvelle Solution)
+
+actor "Admin KARA" as Admin
+actor "Système" as System
+
+package "Domaine Membership" {
+  package "Formulaire d'adhésion" {
+    usecase "UC-MEM-FORM-001: Ajouter un nouveau membre\n(formulaire administratif)" as UC_ADD_MEMBER
+    
+    package "Étape 1 : Informations d'identité" {
+      usecase "UC-MEM-FORM-002-V2: Rechercher un membre entremetteur\n(autocomplétion)" as UC_SEARCH_INTERMEDIARY
+      usecase "UC-MEM-FORM-003-V2: Sélectionner un membre\n(dans les résultats)" as UC_SELECT_INTERMEDIARY
+      usecase "UC-MEM-FORM-004-V2: Remplir automatiquement le code\n(après sélection)" as UC_AUTO_FILL_CODE
+      usecase "UC-MEM-FORM-005-V2: Valider le format du code\n(automatique)" as UC_VALIDATE_FORMAT_V2
+    }
+  }
+  
+  package "Infrastructure - Recherche" {
+    usecase "UC-INFRA-SEARCH-001: Rechercher des membres\n(via Algolia)" as UC_SEARCH_MEMBERS
+    usecase "UC-INFRA-SEARCH-002: Filtrer les membres actifs\n(isActive: true)" as UC_FILTER_ACTIVE
+  }
+}
+
+' Relations
+UC_ADD_MEMBER ..> UC_SEARCH_INTERMEDIARY : <<include>>
+UC_SEARCH_INTERMEDIARY ..> UC_SEARCH_MEMBERS : <<include>>
+UC_SEARCH_MEMBERS ..> UC_FILTER_ACTIVE : <<include>>
+UC_SEARCH_INTERMEDIARY ..> UC_SELECT_INTERMEDIARY : <<extend>>\n(admin sélectionne un résultat)
+UC_SELECT_INTERMEDIARY ..> UC_AUTO_FILL_CODE : <<include>>
+UC_AUTO_FILL_CODE ..> UC_VALIDATE_FORMAT_V2 : <<include>>
+
+' Note sur le nouveau flux
+note right of UC_SEARCH_INTERMEDIARY
+  **Nouveau flux (V2) :**
+  
+  1. Admin ouvre /memberships/add
+  2. Admin arrive à l'étape 1 (Identité)
+  3. Admin voit le champ "Qui vous a référé?" (Combobox)
+  4. Admin commence à taper le nom/prénom
+  5. Système recherche en temps réel (Algolia)
+  6. Système affiche les résultats : "Nom Prénom (Code)"
+  7. Admin sélectionne le bon membre
+  8. Système remplit automatiquement le code
+  9. Validation automatique du format
+  
+  **Bénéfices :**
+  - Rapidité (2 secondes au lieu de 30-60)
+  - Fiabilité (pas d'erreur de copie)
+  - Confort (reste sur la même page)
+end note
+
+note right of UC_SEARCH_MEMBERS
+  Utilise l'index Algolia existant :
+  - Index: members-{env}
+  - Recherche: firstName, lastName, matricule
+  - Filtre: isActive: true
+end note
+
+Admin --> UC_ADD_MEMBER
+Admin --> UC_SEARCH_INTERMEDIARY
+System --> UC_SEARCH_MEMBERS
+System --> UC_FILTER_ACTIVE
+
+@enduml
