@@ -11,6 +11,7 @@ export { useBirthdaysByMonth } from './useBirthdaysByMonth'
 export { useBirthdaySearch } from './useBirthdaySearch'
 export { useMembershipStats } from './useMembershipStats'
 export { useMembershipRequest } from './useMembershipRequest'
+export { useIntermediaryCodeSearch } from './useIntermediaryCodeSearch'
 export type {
   UseMembershipsListV2Options,
   UseMembershipsListV2Result,
@@ -53,3 +54,8 @@ export type {
   UseMembershipStatsOptions,
   UseMembershipStatsResult,
 } from './useMembershipStats'
+export type {
+  UseIntermediaryCodeSearchOptions,
+  UseIntermediaryCodeSearchResult,
+  IntermediarySearchResult,
+} from './useIntermediaryCodeSearch'
