@@ -10,7 +10,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { User, Phone, Mail, Hash, FileText, DollarSign, Calendar, Clock, CheckCircle2, XCircle, RotateCcw, Trash2, Edit, FileCheck, BarChart3 } from 'lucide-react'
+import { User, Phone, Mail, Hash, FileText, DollarSign, Calendar, Clock, CheckCircle2, XCircle, RotateCcw, Trash2, Edit, FileCheck, BarChart3, Download, Loader2 } from 'lucide-react'
+import { useExportDemandDetails } from '../../hooks/useExportDemandDetails'
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useDemandSimulation } from '../../hooks/useDemandSimulation'
@@ -48,6 +50,19 @@ export function DemandDetailV2({
   const schedule = useDemandSimulation(demand)
   const statusInfo = statusConfig[demand.status] || statusConfig.PENDING
   const createdAt = demand.createdAt instanceof Date ? demand.createdAt : new Date(demand.createdAt)
+  const { exportDetails, isExporting } = useExportDemandDetails()
+  const [isExportingDetails, setIsExportingDetails] = useState(false)
+
+  const handleExportPDF = async () => {
+    setIsExportingDetails(true)
+    try {
+      await exportDetails(demand)
+    } catch (error) {
+      console.error('Erreur lors de l\'export:', error)
+    } finally {
+      setIsExportingDetails(false)
+    }
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -229,6 +244,26 @@ export function DemandDetailV2({
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-2">
+            {/* Bouton Export PDF */}
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              disabled={isExportingDetails || isExporting}
+              className="sm:mr-auto"
+              data-testid="export-demand-details-pdf"
+            >
+              {isExportingDetails || isExporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Génération...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export PDF
+                </>
+              )}
+            </Button>
             {(demand.status === 'PENDING' || demand.status === 'REOPENED') && (
               <>
                 {onAccept && (
