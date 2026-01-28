@@ -672,9 +672,9 @@ export default function EmergencyContactMemberSelector({
               </div>
             </div>
           ) : (
-            <div className="relative border-2 border-green-300 rounded-lg p-4 bg-green-50/50">
-              <div className="flex items-start gap-4">
-                <div className="relative w-32 h-40 flex-shrink-0 rounded-lg overflow-hidden border-2 border-green-400">
+            <div className="relative border-2 border-green-300 rounded-xl p-4 sm:p-6 bg-gradient-to-br from-green-50 to-emerald-50 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="relative w-full sm:w-32 h-48 sm:h-40 flex-shrink-0 rounded-lg overflow-hidden border-2 border-green-400 shadow-md">
                   <Image
                     src={documentPhotoUrl}
                     alt="Document"
@@ -682,23 +682,23 @@ export default function EmergencyContactMemberSelector({
                     className="object-cover"
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="flex-1 min-w-0 w-full sm:w-auto">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">Photo uploadée</span>
+                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <span className="text-sm font-semibold text-green-800">Photo uploadée</span>
                     </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={handleRemovePhoto}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-100 flex-shrink-0"
                     >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
-                  <p className="text-xs text-green-700 break-all">
+                  <p className="text-xs text-green-700 mb-3 break-words overflow-hidden text-ellipsis line-clamp-2">
                     {documentPhotoUrl.split('/').pop()?.split('?')[0] || 'document'}
                   </p>
                   <Button
@@ -707,7 +707,7 @@ export default function EmergencyContactMemberSelector({
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading || isCompressing}
-                    className="mt-2 text-orange-600 border-orange-300 hover:bg-orange-50"
+                    className="w-full sm:w-auto text-orange-600 border-orange-300 hover:bg-orange-50"
                   >
                     <ImageIcon className="w-3 h-3 mr-1" />
                     Changer la photo
@@ -732,32 +732,48 @@ export default function EmergencyContactMemberSelector({
 
         {/* Résumé du contact */}
         {(lastName || firstName || phone1 || relationship) && (
-          <div className="p-4 bg-orange-100 rounded-lg border border-orange-200 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
-            <div className="flex items-center space-x-2 mb-2">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-orange-800">Résumé du contact d&apos;urgence</span>
+          <div className="p-4 sm:p-5 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border-2 border-orange-200 shadow-sm animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
+            <div className="flex items-center space-x-2 mb-3">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <span className="text-sm sm:text-base font-semibold text-orange-800">Résumé du contact d&apos;urgence</span>
             </div>
-            <div className="text-sm text-orange-700 space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm text-orange-700">
               {lastName && (
-                <p><strong>Nom:</strong> {lastName} {firstName && `(${firstName})`}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                  <strong className="text-orange-800 min-w-[120px]">Nom:</strong>
+                  <span className="break-words">{lastName} {firstName && `(${firstName})`}</span>
+                </div>
               )}
               {phone1 && (
-                <p><strong>Téléphone:</strong> {phone1} {phone2 && ` / ${phone2}`}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                  <strong className="text-orange-800 min-w-[120px]">Téléphone:</strong>
+                  <span className="break-words">{phone1} {phone2 && ` / ${phone2}`}</span>
+                </div>
               )}
               {relationship && (
-                <p><strong>Lien:</strong> {relationship}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                  <strong className="text-orange-800 min-w-[120px]">Lien:</strong>
+                  <span>{relationship}</span>
+                </div>
               )}
               {typeId && (
-                <p><strong>Type de document:</strong> {getDocumentTypeLabel(typeId)}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                  <strong className="text-orange-800 min-w-[120px]">Type de document:</strong>
+                  <span>{getDocumentTypeLabel(typeId)}</span>
+                </div>
               )}
               {idNumber && (
-                <p><strong>N° Document:</strong> {idNumber}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                  <strong className="text-orange-800 min-w-[120px]">N° Document:</strong>
+                  <span className="break-all font-mono text-xs">{idNumber}</span>
+                </div>
               )}
               {documentPhotoUrl && (
-                <p className="flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3 text-green-600" />
-                  <strong>Photo du document:</strong> Uploadée
-                </p>
+                <div className="flex items-center gap-2 col-span-1 sm:col-span-2">
+                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <strong className="text-orange-800">Photo du document:</strong>
+                  <span className="text-green-700">Uploadée</span>
+                </div>
               )}
             </div>
           </div>
