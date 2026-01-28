@@ -1,0 +1,160 @@
+@startuml Use Case - Step2 Adresse V2 (Solution)
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor LightGreen
+  BorderColor DarkGreen
+}
+
+title Use Case - Saisie de l'Adresse (V2 - Solution avec Cascading Dependent Selection)
+
+actor "Admin KARA" as Admin
+
+package "Domaine Membership" {
+  package "Formulaire d'adhésion" {
+    usecase "UC-MEM-FORM-010: Ajouter un nouveau membre\n(formulaire administratif)" as UC_ADD_MEMBER
+    
+    package "Étape 2 : Adresse de résidence" {
+      usecase "UC-MEM-FORM-011: Sélectionner une province" as UC_SELECT_PROVINCE
+      usecase "UC-MEM-FORM-012: Sélectionner une ville (commune)" as UC_SELECT_COMMUNE
+      usecase "UC-MEM-FORM-013: Sélectionner un arrondissement (district)" as UC_SELECT_DISTRICT
+      usecase "UC-MEM-FORM-014: Sélectionner un quartier (quarter)" as UC_SELECT_QUARTER
+      
+      ' Création avec pattern optimisé
+      usecase "UC-MEM-FORM-015-V2: Créer une nouvelle commune\n(modal admin avec optimistic update)" as UC_CREATE_COMMUNE_V2
+      usecase "UC-MEM-FORM-016-V2: Créer un nouveau district\n(modal admin avec optimistic update)" as UC_CREATE_DISTRICT_V2
+      usecase "UC-MEM-FORM-017-V2: Créer un nouveau quarter\n(modal admin avec optimistic update)" as UC_CREATE_QUARTER_V2
+      
+      ' Nouvelles fonctionnalités
+      usecase "UC-MEM-FORM-018: Mise à jour optimiste du cache\n(context-aware)" as UC_OPTIMISTIC_UPDATE
+      usecase "UC-MEM-FORM-019: Réinitialisation en cascade\n(niveaux enfants)" as UC_CASCADE_RESET
+      usecase "UC-MEM-FORM-020: Synchronisation cache-formulaire\n(après création)" as UC_SYNC_CACHE_FORM
+    }
+  }
+  
+  package "Pattern Cascading Dependent Selection" {
+    usecase "UC-PATTERN-001: Context-Aware Cache Update\n(mise à jour dans le contexte du parent)" as UC_CONTEXT_UPDATE
+    usecase "UC-PATTERN-002: Optimistic Update\n(mise à jour immédiate avant confirmation)" as UC_OPTIMISTIC
+    usecase "UC-PATTERN-003: Invalidation ciblée\n(invalidation des queries spécifiques)" as UC_TARGETED_INVALIDATION
+    usecase "UC-PATTERN-004: Refetch explicite\n(refetch des queries actives)" as UC_EXPLICIT_REFETCH
+  }
+}
+
+' Relations principales
+UC_ADD_MEMBER ..> UC_SELECT_PROVINCE : <<include>>
+UC_SELECT_PROVINCE ..> UC_SELECT_COMMUNE : <<extend>>\n(dépendance cascade)
+UC_SELECT_COMMUNE ..> UC_SELECT_DISTRICT : <<extend>>\n(dépendance cascade)
+UC_SELECT_DISTRICT ..> UC_SELECT_QUARTER : <<extend>>\n(dépendance cascade)
+
+' Relations création (V2 - optimisé)
+UC_SELECT_COMMUNE ..> UC_CREATE_COMMUNE_V2 : <<extend>>\n(commune manquante)
+UC_SELECT_DISTRICT ..> UC_CREATE_DISTRICT_V2 : <<extend>>\n(district manquant)
+UC_SELECT_QUARTER ..> UC_CREATE_QUARTER_V2 : <<extend>>\n(quarter manquant)
+
+' Relations pattern
+UC_CREATE_COMMUNE_V2 ..> UC_OPTIMISTIC_UPDATE : <<include>>
+UC_CREATE_COMMUNE_V2 ..> UC_CASCADE_RESET : <<include>>
+UC_CREATE_COMMUNE_V2 ..> UC_SYNC_CACHE_FORM : <<include>>
+
+UC_OPTIMISTIC_UPDATE ..> UC_CONTEXT_UPDATE : <<include>>
+UC_OPTIMISTIC_UPDATE ..> UC_OPTIMISTIC : <<include>>
+UC_OPTIMISTIC_UPDATE ..> UC_TARGETED_INVALIDATION : <<include>>
+UC_OPTIMISTIC_UPDATE ..> UC_EXPLICIT_REFETCH : <<include>>
+
+' Note sur le flux V2
+note right of UC_CREATE_COMMUNE_V2
+  **Flux V2 - SOLUTION :**
+  
+  1. Admin sélectionne une province (ex: "Estuaire")
+  2. Admin ouvre le CommuneCombobox
+  3. Admin tape dans la recherche (min 2 caractères, debounce 300ms)
+  4. Admin ne trouve pas la commune souhaitée dans les résultats
+  5. Admin clique sur "Ajouter une nouvelle commune"
+  6. AddCommuneModal s'ouvre
+  7. Admin remplit le formulaire (nom, département, code postal)
+  8. Admin valide la création
+  9. ✅ Commune créée dans Firestore
+  
+  **Pattern Cascading Dependent Selection :**
+  
+  10. ✅ **Context Check** : Vérifie que la commune appartient au contexte (province)
+  11. ✅ **Optimistic Update** : Met à jour le cache de RECHERCHE IMMÉDIATEMENT
+     - setQueryData(['communes', 'search', searchTerm, departmentIds], [...old, newCommune])
+     - setQueriesData(['communes', 'search'], [...old, newCommune])
+  12. ✅ **Invalidation** : Invalide toutes les queries de recherche communes
+  13. ✅ **Refetch** : Force le refetch des queries de recherche actives (limit 50)
+  14. ✅ **Selection** : setValue('address.communeId', newCommune.id)
+  15. ✅ **Cascade Reset** : Réinitialise districts et quarters
+  16. ✅ **UI Update** : La commune apparaît IMMÉDIATEMENT dans les résultats de recherche
+  17. ✅ **Toast** : "Commune créée et sélectionnée"
+  
+  **Stratégies de cache :**
+  - Provinces : Chargement complet (9, cache 30 min)
+  - Départements : Chargement par province (~50-60, cache 30 min)
+  - Communes : **Recherche uniquement** (min 2 chars, limit 50, cache 5 min)
+  - Districts : Chargement complet (max 7, cache 30 min)
+  - Quarters : **Recherche uniquement** (min 2 chars, limit 50, cache 5 min)
+  
+  **Résultat :** UX fluide, pas de bugs, synchronisation parfaite, cache optimisé
+end note
+
+' Note sur la cascade V2
+note bottom of UC_SELECT_PROVINCE
+  **Cascade de dépendances (V2) avec stratégies de cache :**
+  
+  Province sélectionnée (ex: "Estuaire")
+    ↓
+  Charge les départements de l'Estuaire (chargement complet, cache 30 min)
+    ↓
+  Recherche de communes (min 2 chars, debounce 300ms, limit 50, cache 5 min)
+    ↓
+  **Création commune** → Optimistic update dans le cache de recherche
+    ↓
+  Commune visible IMMÉDIATEMENT dans les résultats de recherche
+    ↓
+  Commune sélectionnée automatiquement
+    ↓
+  Districts et quarters réinitialisés (cascade reset)
+    ↓
+  Charge les districts de la nouvelle commune (chargement complet, max 7, cache 30 min)
+    ↓
+  District sélectionné
+    ↓
+  Recherche de quarters (min 2 chars, debounce 300ms, limit 50, cache 5 min)
+  
+  **Avantages :**
+  - Synchronisation parfaite entre cache et UI
+  - Performance optimisée (pas de chargement complet pour communes/quarters)
+  - Cache réutilisé si recherche précédente (dans les 5 min)
+  - Tri alphabétique pour faciliter la sélection
+end note
+
+' Note sur le pattern
+note left of UC_CONTEXT_UPDATE
+  **Pattern : Cascading Dependent Selection avec Stratégies de Cache**
+  
+  **Composants :**
+  1. Context-Aware Update : Mise à jour dans le contexte du parent
+  2. Optimistic Update : Mise à jour immédiate du cache
+  3. Targeted Invalidation : Invalidation ciblée des queries
+  4. Explicit Refetch : Refetch explicite des queries actives
+  5. Cascade Reset : Réinitialisation des niveaux enfants
+  6. **Stratégies de chargement adaptées** : Chargement complet vs recherche selon le volume
+  
+  **Stratégies de cache :**
+  - Provinces (9) : Chargement complet, cache 30 min
+  - Départements (~50-60) : Chargement par province, cache 30 min
+  - Communes (très nombreuses) : **Recherche uniquement**, min 2 chars, limit 50, cache 5 min
+  - Districts (max 7) : Chargement complet, cache 30 min
+  - Quarters (très nombreux) : **Recherche uniquement**, min 2 chars, limit 50, cache 5 min
+  
+  **Avantages :**
+  - UX fluide (pas d'attente)
+  - Synchronisation parfaite
+  - Gestion correcte de la cascade
+  - Performance optimisée (pas de surcharge mémoire)
+  - Cache réutilisé intelligemment
+  - Réutilisable pour toutes les entités géographiques
+end note
+
+@enduml

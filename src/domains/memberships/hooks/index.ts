@@ -2,6 +2,7 @@ export { useMembershipsListV2 } from './useMembershipsListV2'
 export { useMembershipDetails } from './useMembershipDetails'
 export { useMembershipExport } from './useMembershipExport'
 export { useAddressCascade } from './useAddressCascade'
+export { useCascadingEntityCreation } from './useCascadingEntityCreation'
 export { useDocumentUpload } from './useDocumentUpload'
 export { useStepValidation } from './useStepValidation'
 export { useStep4Validation } from './useStep4Validation'
@@ -27,6 +28,10 @@ export type {
   UseAddressCascadeOptions,
   UseAddressCascadeReturn,
 } from './useAddressCascade'
+export type {
+  UseCascadingEntityCreationOptions,
+  UseCascadingEntityCreationReturn,
+} from './useCascadingEntityCreation'
 export type {
   UseDocumentUploadOptions,
   UseDocumentUploadReturn,

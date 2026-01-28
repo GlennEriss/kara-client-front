@@ -1,0 +1,12 @@
+DATABASE_ID=(default)
+COLLECTION_PATH=membership-requests
+FIELDS=matricule,identity.firstName,identity.lastName,identity.email,identity.contacts,status,isPaid,createdAt,updatedAt
+FORCE_DATA_SYNC=no
+ALGOLIA_INDEX_NAME=membership-requests-prod
+ALGOLIA_APP_ID=YOUR_ALGOLIA_APP_ID
+ALGOLIA_API_KEY=YOUR_ALGOLIA_API_KEY
+ALT_OBJECT_ID=
+TRANSFORM_FUNCTION=transformMembershipRequestsAlgoliaPayload
+DO_FULL_INDEXING=true
+LOCATION=us-central1
+

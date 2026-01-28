@@ -1,0 +1,234 @@
+@startuml USE_CASES_CAISSE_IMPREVUE_DEMANDES_V2
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
+}
+
+title Use Cases - Module Demandes Caisse Imprévue V2\n(Niveau Architecte Senior)
+
+left to right direction
+
+' ============================================
+' ACTEURS PRINCIPAUX
+' ============================================
+actor "Admin KARA" as Admin
+actor "Système" as System
+
+' ============================================
+' PACKAGE : GESTION DES DEMANDES
+' ============================================
+package "Gestion des Demandes" {
+  usecase "UC-DEM-001\nCréer une demande\n(3 étapes : Membre+Motif,\nForfait+Frequence, Contact)" as UC_CREATE
+  
+  usecase "UC-DEM-002\nLister les demandes\n(pagination serveur, tri,\nrecherche, filtres)" as UC_LIST
+  
+  usecase "UC-DEM-003\nVoir les détails\nd'une demande\n(infos complètes + simulation)" as UC_DETAIL
+  
+  usecase "UC-DEM-004\nModifier une demande\n(édition des champs)" as UC_EDIT
+  
+  usecase "UC-DEM-005\nSupprimer une demande\n(confirmation requise)" as UC_DELETE
+}
+
+' ============================================
+' PACKAGE : ACTIONS SUR DEMANDES
+' ============================================
+package "Actions sur Demandes" {
+  usecase "UC-DEM-006\nAccepter une demande\n(avec raison d'acceptation)" as UC_ACCEPT
+  
+  usecase "UC-DEM-007\nRefuser une demande\n(avec motif de refus)" as UC_REJECT
+  
+  usecase "UC-DEM-008\nRéouvrir une demande\n(refusée)" as UC_REOPEN
+  
+  usecase "UC-DEM-009\nCréer un contrat\ndepuis demande acceptée\n(confirmation requise)" as UC_CREATE_CONTRACT
+}
+
+' ============================================
+' PACKAGE : RECHERCHE ET FILTRES
+' ============================================
+package "Recherche et Filtres" {
+  usecase "UC-DEM-010\nRechercher des demandes\n(par nom, prénom)\navec cache" as UC_SEARCH
+  
+  usecase "UC-DEM-011\nFiltrer les demandes\n(statut, fréquence, forfait)" as UC_FILTER
+  
+  usecase "UC-DEM-012\nTrier les demandes\n(date, alphabétique)" as UC_SORT
+}
+
+' ============================================
+' PACKAGE : PAGINATION
+' ============================================
+package "Pagination" {
+  usecase "UC-DEM-013\nNaviguer entre pages\n(haut et bas de liste)" as UC_PAGINATE
+  
+  usecase "UC-DEM-014\nChanger nombre d'éléments\npar page (10, 25, 50, 100)" as UC_CHANGE_LIMIT
+}
+
+' ============================================
+' PACKAGE : PERSISTANCE ET CACHE
+' ============================================
+package "Persistance et Cache" {
+  usecase "UC-DEM-015\nSauvegarder formulaire\nlocalStorage (24h)" as UC_SAVE_FORM
+  
+  usecase "UC-DEM-016\nRestaurer formulaire\nlocalStorage" as UC_RESTORE_FORM
+  
+  usecase "UC-DEM-017\nMettre en cache forfaits\n(30 min staleTime)" as UC_CACHE_FORFAITS
+  
+  usecase "UC-DEM-018\nMettre en cache recherches\n(2 min staleTime)" as UC_CACHE_SEARCH
+  
+  usecase "UC-DEM-019\nMettre en cache listes\n(5 min staleTime)" as UC_CACHE_LIST
+  
+  usecase "UC-DEM-020\nMettre en cache détails\n(10 min staleTime + prefetch)" as UC_CACHE_DETAIL
+}
+
+' ============================================
+' PACKAGE : SIMULATION
+' ============================================
+package "Simulation" {
+  usecase "UC-DEM-021\nCalculer simulation\nversements\n(DAILY vs MONTHLY)" as UC_SIMULATE
+  
+  usecase "UC-DEM-022\nAfficher tableau récapitulatif\nversements mensuels" as UC_SCHEDULE
+}
+
+' ============================================
+' PACKAGE : EXPORT
+' ============================================
+package "Export" {
+  usecase "UC-DEM-023\nExporter les demandes\n(PDF ou Excel)\navec filtres avancés" as UC_EXPORT
+  
+  usecase "UC-DEM-024\nConfigurer périmètre export\n(Toutes / Période / Nombre)" as UC_EXPORT_SCOPE
+  
+  usecase "UC-DEM-025\nFiltrer export par statut\n(checkboxes multiples)" as UC_EXPORT_FILTER
+  
+  usecase "UC-DEM-026\nTrier export\n(date, alphabétique)" as UC_EXPORT_SORT
+  
+  usecase "UC-DEM-027\nAperçu nombre demandes\nà exporter" as UC_EXPORT_PREVIEW
+  
+  usecase "UC-DEM-028\nExporter détails d'une demande\nen PDF\n(export direct)" as UC_EXPORT_DETAIL
+}
+
+' ============================================
+' RELATIONS ACTEURS - USE CASES
+' ============================================
+Admin --> UC_CREATE
+Admin --> UC_LIST
+Admin --> UC_DETAIL
+Admin --> UC_EDIT
+Admin --> UC_DELETE
+Admin --> UC_ACCEPT
+Admin --> UC_REJECT
+Admin --> UC_REOPEN
+Admin --> UC_CREATE_CONTRACT
+Admin --> UC_SEARCH
+Admin --> UC_FILTER
+Admin --> UC_SORT
+Admin --> UC_PAGINATE
+Admin --> UC_CHANGE_LIMIT
+Admin --> UC_EXPORT
+Admin --> UC_EXPORT_SCOPE
+Admin --> UC_EXPORT_FILTER
+Admin --> UC_EXPORT_SORT
+Admin --> UC_EXPORT_PREVIEW
+Admin --> UC_EXPORT_DETAIL
+
+System --> UC_SAVE_FORM
+System --> UC_RESTORE_FORM
+System --> UC_CACHE_FORFAITS
+System --> UC_CACHE_SEARCH
+System --> UC_CACHE_LIST
+System --> UC_CACHE_DETAIL
+System --> UC_SIMULATE
+System --> UC_SCHEDULE
+
+' ============================================
+' RELATIONS ENTRE USE CASES
+' ============================================
+UC_CREATE ..> UC_SAVE_FORM : <<include>>
+UC_CREATE ..> UC_CACHE_FORFAITS : <<include>>
+UC_CREATE ..> UC_REJECT : <<extend>>\n(si erreur validation)
+
+UC_LIST ..> UC_PAGINATE : <<include>>
+UC_LIST ..> UC_FILTER : <<include>>
+UC_LIST ..> UC_SORT : <<include>>
+UC_LIST ..> UC_SEARCH : <<include>>
+UC_LIST ..> UC_CACHE_LIST : <<include>>
+
+UC_DETAIL ..> UC_SIMULATE : <<include>>
+UC_DETAIL ..> UC_SCHEDULE : <<include>>
+UC_DETAIL ..> UC_CACHE_DETAIL : <<include>>
+
+UC_SEARCH ..> UC_CACHE_SEARCH : <<include>>
+
+UC_ACCEPT ..> UC_CREATE_CONTRACT : <<extend>>\n(après acceptation)
+
+UC_REOPEN ..> UC_ACCEPT : <<extend>>\n(peut accepter après réouverture)
+
+UC_EXPORT ..> UC_EXPORT_SCOPE : <<include>>
+UC_EXPORT ..> UC_EXPORT_FILTER : <<include>>
+UC_EXPORT ..> UC_EXPORT_SORT : <<include>>
+UC_EXPORT ..> UC_EXPORT_PREVIEW : <<include>>
+UC_EXPORT ..> UC_LIST : <<extend>>\n(utilise filtres de la liste)
+
+UC_EXPORT_DETAIL ..> UC_DETAIL : <<extend>>\n(export depuis page détails)
+UC_EXPORT_DETAIL ..> UC_CACHE_DETAIL : <<include>>\n(utilise cache si disponible)
+
+' ============================================
+' NOTES
+' ============================================
+note right of UC_CREATE
+  **Préconditions** :
+  - Admin authentifié
+  - Membre sélectionné existe
+  - Forfait actif disponible
+  
+  **Postconditions** :
+  - Demande créée avec statut PENDING
+  - Formulaire sauvegardé dans localStorage
+  - Cache invalidé
+end note
+
+note right of UC_ACCEPT
+  **Préconditions** :
+  - Demande en statut PENDING
+  - Raison d'acceptation renseignée (min 10 caractères)
+  
+  **Postconditions** :
+  - Statut changé à APPROVED
+  - Bouton "Créer contrat" disponible
+  - Notification envoyée
+end note
+
+note right of UC_LIST
+  **Fonctionnalités** :
+  - Pagination serveur (cursor-based)
+  - Tri par date ou alphabétique
+  - Recherche avec cache
+  - Filtres multiples
+  - Ordre de priorité : PENDING → APPROVED → REJECTED
+end note
+
+note right of UC_EXPORT
+  **Fonctionnalités** :
+  - Format : PDF ou Excel
+  - Périmètre : Toutes / Période / Nombre
+  - Filtres statut (checkboxes)
+  - Tri personnalisable
+  - Aperçu nombre de demandes
+  - Avertissement si export volumineux (>1000)
+  - Validation dates et quantités
+  - Export avec contraintes pour éviter surcharge
+end note
+
+note right of UC_EXPORT_DETAIL
+  **Fonctionnalités** :
+  - Export direct (pas de modal)
+  - Format : PDF uniquement
+  - Génération côté client (jsPDF)
+  - Utilise cache React Query si disponible
+  - PDF complet avec toutes les informations
+  - Tableau de remboursement formaté
+  - Historique complet des actions
+  - Format A4 portrait professionnel
+end note
+
+@enduml

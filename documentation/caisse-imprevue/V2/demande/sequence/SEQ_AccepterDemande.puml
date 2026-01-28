@@ -1,0 +1,162 @@
+@startuml SEQ_AccepterDemande
+title Séquence : Accepter une Demande (V2)
+
+actor "Admin" as Admin
+participant "DemandCardV2\nou DemandTableV2" as Card
+participant "AcceptDemandModalV2\n(Component)" as Modal
+participant "useAcceptDemand\n(Hook)" as Hook
+participant "CaisseImprevueService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Card: Clique "Accepter" sur demande PENDING
+activate Card
+
+Card -> Modal: Ouvrir AcceptDemandModalV2(demand)
+activate Modal
+
+Modal -> Modal: Render toutes les sections :
+Modal -> Modal: - Informations demandeur
+Modal -> Modal: - Motif de la demande
+Modal -> Modal: - Contact d'urgence
+Modal -> Modal: - Résumé demande
+
+Modal --> Admin: Afficher modal avec toutes les infos
+
+Admin -> Modal: Saisit "Raison d'acceptation"
+Modal -> Modal: Valider longueur (min 10, max 500)
+
+alt Validation OK
+    Modal --> Admin: Bouton "Accepter" activé
+else Validation échouée
+    Modal --> Admin: Afficher erreur "Minimum 10 caractères"
+    Modal --> Admin: Bouton "Accepter" désactivé
+end
+
+Admin -> Modal: Clique "Accepter la demande"
+Modal -> Hook: useAcceptDemand({ demandId, reason })
+activate Hook
+
+' ============================================
+' OPTIMISTIC UPDATE
+' ============================================
+Hook -> QueryCache: cancelQueries(['caisse-imprevue-demands'])
+QueryCache --> Hook: Requêtes annulées
+
+Hook -> QueryCache: getQueryData(['caisse-imprevue-demands', ...])
+QueryCache --> Hook: previousDemands (snapshot)
+
+Hook -> QueryCache: setQueryData(['caisse-imprevue-demands', ...], (old) => {
+  return old.map(d => 
+    d.id === demandId 
+      ? { ...d, status: 'APPROVED', acceptedBy: currentAdminId, acceptedAt: now() }
+      : d
+  )
+})
+QueryCache --> Hook: UI mise à jour immédiatement
+
+Hook --> Admin: UI mise à jour (statut APPROVED immédiatement)
+
+' ============================================
+' MUTATION SERVEUR
+' ============================================
+Hook -> Service: acceptDemand(demandId, reason)
+activate Service
+
+Service -> Service: Valider données métier
+Service -> Repo: update(demandId, {
+  status: 'APPROVED',
+  decisionReason: reason,
+  acceptedBy: currentAdminId,
+  acceptedAt: now(),
+  decisionMadeBy: currentAdminId, (pour compatibilité)
+  decisionDate: now(), (pour compatibilité)
+  updatedAt: now()
+})
+activate Repo
+
+note right of Repo
+  **Traçabilité acceptation** :
+  - acceptedBy : ID de l'admin qui accepte
+  - acceptedAt : Date/heure précise d'acceptation
+  - Permet d'auditer qui a fait quoi et quand
+end note
+
+Repo -> Firestore: updateDoc(docRef, {
+  status: 'APPROVED',
+  decisionReason: reason,
+  acceptedBy: currentAdminId,
+  acceptedAt: serverTimestamp(),
+  decisionMadeBy: currentAdminId, (pour compatibilité)
+  decisionDate: serverTimestamp(), (pour compatibilité)
+  updatedAt: serverTimestamp()
+})
+Firestore --> Repo: OK
+
+Repo --> Service: CaisseImprevueDemand (mis à jour)
+deactivate Repo
+
+Service --> Hook: CaisseImprevueDemand
+deactivate Service
+
+' ============================================
+' INVALIDATION CACHE
+' ============================================
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands'])
+QueryCache -> QueryCache: Marquer comme stale
+
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands-stats'])
+QueryCache -> QueryCache: Marquer comme stale
+
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demand-detail', demandId])
+QueryCache -> QueryCache: Marquer comme stale
+
+Hook -> QueryCache: Refetch en arrière-plan
+QueryCache -> Repo: Refetch liste
+Repo -> Firestore: query(...)
+Firestore --> Repo: Nouvelles données
+Repo --> QueryCache: Mettre à jour cache
+QueryCache --> Hook: Cache mis à jour
+
+Hook --> Modal: Success
+deactivate Hook
+
+Modal -> Modal: Fermer modal
+Modal -> Card: toast.success('Demande acceptée avec succès')
+Card --> Admin: Toast affiché
+
+Card -> Card: Mettre à jour UI :
+Card -> Card: - Statut → APPROVED (badge vert)
+Card -> Card: - Bouton "Créer le contrat" apparaît
+Card --> Admin: UI mise à jour
+
+deactivate Modal
+deactivate Card
+
+alt Erreur serveur
+    Hook -> QueryCache: Rollback optimistic update
+    QueryCache -> QueryCache: setQueryData(previousDemands)
+    QueryCache --> Admin: UI restaurée à l'état précédent
+    
+    Hook --> Modal: Error
+    Modal --> Admin: toast.error('Erreur lors de l\'acceptation')
+end
+
+note right of QueryCache
+  **Optimistic Update** :
+  - Mise à jour UI immédiate
+  - Rollback en cas d'erreur
+  - Refetch en arrière-plan
+  - Invalidation intelligente
+end note
+
+note right of Service
+  **Validation métier** :
+  - Vérifier statut PENDING
+  - Vérifier raison >= 10 caractères
+  - Vérifier permissions admin
+  - Enregistrer acceptedBy et acceptedAt pour traçabilité
+end note
+
+@enduml

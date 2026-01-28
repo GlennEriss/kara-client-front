@@ -1,0 +1,208 @@
+@startuml SEQ_ExporterDetailsDemande
+title Séquence : Exporter les Détails d'une Demande en PDF (V2)
+
+actor "Admin" as Admin
+participant "DemandDetailV2\n(Component)" as Detail
+participant "useExportDemandDetails\n(Hook)" as ExportHook
+participant "DemandExportService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+participant "jsPDF\n(Library)" as PDFGen
+
+' ============================================
+' DÉCLENCHEMENT EXPORT
+' ============================================
+Admin -> Detail: Clique bouton "Export PDF"
+activate Detail
+
+Detail -> Detail: Vérifier que demand est chargé
+
+alt Demande non chargée
+    Detail --> Admin: toast.error("Impossible d'exporter : demande non chargée")
+    stop
+end
+
+Detail -> Detail: Afficher état loading (spinner + "Génération...")
+
+Detail -> ExportHook: useExportDemandDetails(demandId)
+activate ExportHook
+
+' ============================================
+' RÉCUPÉRATION DES DONNÉES
+' ============================================
+ExportHook -> Service: exportDemandDetails(demandId)
+activate Service
+
+Service -> QueryCache: queryKey: ['demand-detail', demandId]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 10 min)
+
+alt Cache présent et frais
+    QueryCache --> Service: Demand depuis cache
+else Cache absent ou stale
+    Service -> Repo: getById(demandId)
+    activate Repo
+    
+    Repo -> Firestore: getDoc(doc('caisseImprevueDemands', demandId))
+    Firestore --> Repo: DocumentSnapshot
+    
+    Repo -> Repo: Transformer document → CaisseImprevueDemand
+    
+    Repo --> Service: CaisseImprevueDemand
+    deactivate Repo
+    
+    Service -> QueryCache: Mettre en cache (10 min)
+    QueryCache --> Service: Cache mis à jour
+end
+
+' ============================================
+' CONSTRUCTION DES DONNÉES PDF
+' ============================================
+Service -> Service: Construire objet données PDF :
+Service -> Service: - En-tête (logo, titre, numéro)
+Service -> Service: - Statut (badge, dates, créateur)
+Service -> Service: - Informations demandeur
+Service -> Service: - Motif de la demande
+Service -> Service: - Forfait sélectionné
+Service -> Service: - Contact d'urgence
+Service -> Service: - Plan de remboursement (tableau)
+Service -> Service: - Historique (chronologie)
+
+' ============================================
+' GÉNÉRATION DU PDF
+' ============================================
+Service -> PDFGen: new jsPDF({ format: 'a4', orientation: 'portrait' })
+activate PDFGen
+
+PDFGen -> PDFGen: Créer document A4 portrait
+PDFGen --> Service: Document jsPDF
+
+Service -> PDFGen: setFontSize(14)
+Service -> PDFGen: text("DÉTAILS DE LA DEMANDE CAISSE IMPRÉVUE", x, y)
+
+Service -> PDFGen: addImage(logoKARA, 'PNG', x, y, width, height)
+note right of PDFGen: Si logo disponible
+
+Service -> PDFGen: text("Demande #" + demandId, x, y)
+
+Service -> PDFGen: setFontSize(12)
+Service -> PDFGen: text("📊 STATUT", x, y)
+Service -> PDFGen: text("Statut : " + demand.status, x, y)
+Service -> PDFGen: text("Date de création : " + formatDate(demand.createdAt), x, y)
+Service -> PDFGen: text("Créée par : " + demand.createdBy, x, y)
+
+alt demand.acceptedAt
+    Service -> PDFGen: text("Acceptée le : " + formatDate(demand.acceptedAt), x, y)
+    Service -> PDFGen: text("Par : " + demand.acceptedBy, x, y)
+end
+
+alt demand.rejectedAt
+    Service -> PDFGen: text("Refusée le : " + formatDate(demand.rejectedAt), x, y)
+    Service -> PDFGen: text("Par : " + demand.rejectedBy, x, y)
+    Service -> PDFGen: text("Motif : " + demand.decisionReason, x, y)
+end
+
+Service -> PDFGen: setFontSize(12)
+Service -> PDFGen: text("👤 INFORMATIONS DU DEMANDEUR", x, y)
+Service -> PDFGen: text("Nom : " + demand.memberLastName, x, y)
+Service -> PDFGen: text("Prénom : " + demand.memberFirstName, x, y)
+Service -> PDFGen: text("Téléphone : " + demand.memberPhone, x, y)
+Service -> PDFGen: text("Email : " + demand.memberEmail, x, y)
+Service -> PDFGen: text("Matricule : " + demand.memberMatricule, x, y)
+
+Service -> PDFGen: setFontSize(12)
+Service -> PDFGen: text("📝 MOTIF DE LA DEMANDE", x, y)
+Service -> PDFGen: text(demand.reason, x, y, { maxWidth: pageWidth - margins })
+
+Service -> PDFGen: setFontSize(12)
+Service -> PDFGen: text("💰 FORFAIT SÉLECTIONNÉ", x, y)
+Service -> PDFGen: text("Forfait : " + demand.subscriptionCI.name, x, y)
+Service -> PDFGen: text("Montant : " + demand.amount + " FCFA/" + frequency, x, y)
+Service -> PDFGen: text("Durée : " + demand.duration + " mois", x, y)
+Service -> PDFGen: text("Fréquence : " + demand.paymentFrequency, x, y)
+Service -> PDFGen: text("Date souhaitée : " + formatDate(demand.desiredStartDate), x, y)
+
+Service -> PDFGen: setFontSize(12)
+Service -> PDFGen: text("📞 CONTACT D'URGENCE", x, y)
+Service -> PDFGen: text("Nom : " + demand.emergencyContact.lastName, x, y)
+Service -> PDFGen: text("Prénom : " + demand.emergencyContact.firstName, x, y)
+Service -> PDFGen: text("Téléphone : " + demand.emergencyContact.phone, x, y)
+Service -> PDFGen: text("Lien : " + demand.emergencyContact.relationship, x, y)
+Service -> PDFGen: text("Type pièce : " + demand.emergencyContact.identityDocumentType, x, y)
+Service -> PDFGen: text("Numéro : " + demand.emergencyContact.identityDocumentNumber, x, y)
+
+Service -> PDFGen: setFontSize(12)
+Service -> PDFGen: text("💵 PLAN DE REMBOURSEMENT", x, y)
+
+Service -> PDFGen: autoTable({
+Service -> PDFGen:   head: [['Mois', 'Date', 'Montant', 'Cumulé']],
+Service -> PDFGen:   body: repaymentSchedule.map((v, i) => [
+Service -> PDFGen:     i + 1,
+Service -> PDFGen:     formatDate(v.date),
+Service -> PDFGen:     v.amount + ' FCFA',
+Service -> PDFGen:     v.cumulative + ' FCFA'
+Service -> PDFGen:   ]).concat([['Total', demand.duration + ' mois', totalAmount + ' FCFA', '']]),
+Service -> PDFGen:   startY: currentY,
+Service -> PDFGen:   styles: { fontSize: 10 }
+Service -> PDFGen: })
+
+Service -> PDFGen: setFontSize(12)
+Service -> PDFGen: text("📋 HISTORIQUE", x, y)
+
+loop Pour chaque action dans historique
+    Service -> PDFGen: text("• " + formatDate(action.date) + " - " + action.description, x, y)
+end
+
+Service -> PDFGen: setFontSize(10)
+Service -> PDFGen: text("Document généré le " + formatDate(now()), x, bottomY)
+Service -> PDFGen: text("KARA - Caisse Imprévue", x, bottomY + 5)
+
+PDFGen --> Service: Document PDF complet
+deactivate PDFGen
+
+Service -> Service: Générer Blob PDF
+Service --> ExportHook: Blob PDF
+deactivate Service
+
+ExportHook --> Detail: Blob PDF
+deactivate ExportHook
+
+' ============================================
+' TÉLÉCHARGEMENT
+' ============================================
+Detail -> Detail: Générer nom fichier :
+Detail -> Detail: "demande_" + demandId + "_" + YYYYMMDD_HHMMSS + ".pdf"
+
+Detail -> Detail: Créer lien <a> avec download
+Detail -> Detail: Déclencher click() programmatique
+Detail -> Detail: Supprimer lien après téléchargement
+
+Detail -> Detail: Restaurer état normal bouton (icône + "Export PDF")
+
+Detail -> Detail: toast.success("PDF généré avec succès")
+
+Detail --> Admin: Téléchargement fichier déclenché
+
+deactivate Detail
+
+note right of Service
+  **Fonctionnalités export** :
+  - Export direct (pas de modal)
+  - Génération côté client (jsPDF)
+  - Utilise cache React Query si disponible
+  - PDF complet avec toutes les informations
+  - Tableau formaté avec jspdf-autotable
+  - Historique complet
+  - Format A4 portrait professionnel
+end note
+
+note right of PDFGen
+  **Bibliothèque** :
+  - jsPDF pour génération PDF
+  - jspdf-autotable pour tableaux
+  - Format A4 portrait
+  - Marges 20mm
+  - Police Arial 10pt/12pt/14pt
+end note
+
+@enduml

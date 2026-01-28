@@ -1,0 +1,207 @@
+@startuml ListerDemandes
+title Workflow : Lister les Demandes avec Pagination, Tri, Recherche et Filtres (V2)
+
+start
+
+:Admin accède à /caisse-imprevue/demandes;
+
+:Initialisation :
+- filters = { status: 'all', page: 1, limit: 10 }
+- sortBy = 'date'
+- sortOrder = 'desc'
+- searchQuery = '';
+
+:Charger les statistiques :
+- useCaisseImprevueDemandsStats(filters)
+- Cache 15 min;
+
+:Afficher les statistiques AVANT les tabs :
+- Total, Pending, Approved, Rejected, etc.;
+
+:Afficher les tabs :
+- Toutes (avec count)
+- En attente (avec count)
+- Acceptées (avec count)
+- Refusées (avec count);
+
+:Charger la liste des demandes :
+- useCaisseImprevueDemands(filters, page, limit, sortBy, sortOrder)
+- Cache 5 min;
+
+if (Cache présent et frais ?) then (oui)
+  :Afficher données depuis cache;
+else (non)
+  :Repository.getPaginated() :
+  - Construire contraintes Firestore
+  - Calculer total avec getCountFromServer
+  - Paginer avec startAfter (cursor)
+  - Trier selon sortBy/sortOrder;
+  
+  :Retourner PaginatedDemands :
+  - items[]
+  - pagination { page, totalPages, hasNextPage, ... };
+  
+  :Mettre en cache React Query (5 min);
+endif
+
+' ============================================
+' ORDRE DE PRIORITÉ (Tab "Toutes")
+' ============================================
+if (Tab "Toutes" sélectionné ?) then (oui)
+  :Trier par priorité de statut :
+  - PENDING (1)
+  - APPROVED (2)
+  - REJECTED (3)
+  - CONVERTED (4)
+  - REOPENED (5);
+  
+  :Puis trier par date décroissante;
+endif
+
+:Afficher la liste :
+- Vue Grid (cards) OU
+- Vue Table (tableau);
+
+:Afficher pagination EN HAUT :
+- PaginationWithEllipses
+- Info "Page X sur Y • Z résultats";
+
+' ============================================
+' RECHERCHE
+' ============================================
+if (Admin saisit recherche ?) then (oui)
+  :Debounce 300ms;
+  
+  :Normaliser query :
+  - toLowerCase()
+  - trim();
+  
+  :Vérifier cache recherche :
+  - useDemandSearch(normalizedQuery, filters)
+  - Cache 2 min;
+  
+  if (Cache recherche présent ?) then (oui)
+    :Afficher résultats depuis cache;
+  else (non)
+    :Repository.search(query, filters) :
+    - Firestore where('memberLastName', '>=', query)
+    - where('memberLastName', '<=', query + '\uf8ff')
+    - Filtrer aussi par prénom côté client;
+    
+    :Mettre en cache (2 min);
+  endif
+  
+  :Afficher résultats recherche;
+  :Appliquer filtres sur résultats;
+endif
+
+' ============================================
+' FILTRES
+' ============================================
+if (Admin change filtre statut ?) then (oui)
+  :filters.status = nouvelle valeur;
+  :page = 1 (reset);
+  
+  :Refetch avec nouveaux filtres;
+  :Scroll vers le haut;
+endif
+
+if (Admin change filtre fréquence ?) then (oui)
+  :filters.paymentFrequency = nouvelle valeur;
+  :page = 1 (reset);
+  
+  :Refetch avec nouveaux filtres;
+endif
+
+if (Admin change filtre forfait ?) then (oui)
+  :filters.subscriptionCIID = nouvelle valeur;
+  :page = 1 (reset);
+  
+  :Refetch avec nouveaux filtres;
+endif
+
+' ============================================
+' TRI
+' ============================================
+if (Admin change tri ?) then (oui)
+  :sortBy = nouvelle valeur ('date' ou 'alphabetical');
+  :sortOrder = nouvelle valeur ('asc' ou 'desc');
+  
+  :Refetch avec nouveau tri;
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' PAGINATION
+' ============================================
+if (Admin clique "Précédent" ?) then (oui)
+  :page = page - 1;
+  
+  :Refetch avec nouvelle page;
+  :Scroll vers le haut;
+elseif (Admin clique "Suivant" ?) then (oui)
+  :page = page + 1;
+  
+  :Refetch avec nouvelle page;
+  :Scroll vers le haut;
+elseif (Admin clique numéro de page ?) then (oui)
+  :page = numéro cliqué;
+  
+  :Refetch avec nouvelle page;
+  :Scroll vers le haut;
+elseif (Admin change items par page ?) then (oui)
+  :limit = nouvelle valeur (10, 25, 50, 100);
+  :page = 1 (reset);
+  
+  :Refetch avec nouveau limit;
+  :Recalculer pagination;
+endif
+
+:Afficher pagination EN BAS :
+- PaginationWithEllipses
+- Même composant qu'en haut;
+
+' ============================================
+' ACTIONS SUR DEMANDES
+' ============================================
+if (Admin clique "Voir détails" ?) then (oui)
+  :Préfetch détails (optimisation) :
+  - queryClient.prefetchQuery(['demand-detail', demandId]);
+  
+  :Rediriger vers /caisse-imprevue/demandes/[id];
+  stop
+endif
+
+if (Admin clique "Accepter" ?) then (oui)
+  :Ouvrir AcceptDemandModalV2;
+  stop
+endif
+
+if (Admin clique "Refuser" ?) then (oui)
+  :Ouvrir RejectDemandModalV2;
+  stop
+endif
+
+if (Admin clique "Modifier" ?) then (oui)
+  :Ouvrir EditDemandModalV2;
+  stop
+endif
+
+if (Admin clique "Supprimer" ?) then (oui)
+  :Ouvrir DeleteDemandModalV2;
+  stop
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Pagination serveur (cursor-based)
+  - Cache différencié (liste 5 min, recherche 2 min, stats 15 min)
+  - Tri par date ou alphabétique
+  - Recherche avec cache et normalisation
+  - Filtres multiples
+  - Ordre de priorité dans tab "Toutes"
+  - Pagination haut et bas
+  - Préfetch détails au survol
+end note
+
+@enduml

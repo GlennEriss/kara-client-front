@@ -22,21 +22,11 @@ import {
 import { cn } from '@/lib/utils'
 import { useDocumentUpload } from '@/domains/memberships/hooks/useDocumentUpload'
 import { useStep4Validation } from '@/domains/memberships/hooks/useStep4Validation'
+import { DOCUMENT_TYPE_OPTIONS } from '@/domains/infrastructure/documents/constants/document-types'
 
 interface Step4Props {
   form: any // Type du form de react-hook-form
 }
-
-// Options pour les types de documents d'identité
-const IDENTITY_DOCUMENT_OPTIONS = [
-  { value: 'Passeport', label: 'Passeport' },
-  { value: 'Carte de séjour', label: 'Carte de séjour' },
-  { value: 'Carte scolaire', label: 'Carte scolaire' },
-  { value: 'Carte consulaire', label: 'Carte consulaire' },
-  { value: 'NIP', label: 'NIP' },
-  { value: 'CNI', label: 'CNI' },
-  { value: 'Autre', label: 'Autre' }
-]
 
 export default function Step4({ form }: Step4Props) {
   const [termsAccepted, setTermsAccepted] = useState(false)
@@ -94,7 +84,7 @@ export default function Step4({ form }: Step4Props) {
               <SelectValue placeholder="Sélectionner le type de document" />
             </SelectTrigger>
             <SelectContent>
-              {IDENTITY_DOCUMENT_OPTIONS.map((option) => (
+              {DOCUMENT_TYPE_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>

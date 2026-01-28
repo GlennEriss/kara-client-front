@@ -1,0 +1,267 @@
+@startuml Séquence - Création Commune avec Cascading Dependent Selection
+Title Séquence de création d'une commune (V2 - Solution)
+
+actor Admin
+participant "Step2" as Step2
+participant "CommuneCombobox" as Combobox
+participant "AddCommuneModal" as Modal
+participant "useCascadingEntityCreation" as Hook
+participant "useCommuneMutations" as Mutations
+participant "GeographieService" as Service
+participant "Firestore" as DB
+participant "React Query Cache" as Cache
+participant "useAddressCascade" as CascadeHook
+participant "Form (react-hook-form)" as Form
+
+== Initialisation ==
+
+Admin -> Step2: Accède à /memberships/add (étape 2)
+Step2 -> Form: Initialise le formulaire
+Step2 -> CascadeHook: useAddressCascade({ form })
+Step2 -> Combobox: Render CommuneCombobox
+note right of Combobox
+  **Stratégie de cache :**
+  - Provinces : Chargement complet (9 provinces)
+  - Départements : Chargement par province (~50-60)
+  - Communes : **Recherche uniquement** (trop nombreuses)
+  - Districts : Chargement complet (max 7/commune)
+  - Quarters : **Recherche uniquement** (trop nombreux)
+end note
+Combobox -> Cache: useQuery(['provinces'])
+Cache --> Combobox: { data: [province1, ..., province9], isLoading: false }
+note right of Cache
+  Provinces chargées complètement
+  Cache: 30 min, pas de recherche nécessaire
+end note
+
+== Sélection Province ==
+
+Admin -> Combobox: Sélectionne province "Estuaire"
+Combobox -> Form: setValue('address.provinceId', 'estuaire-id')
+Form -> CascadeHook: watch('address.provinceId') change
+CascadeHook -> Cache: useQuery(['departments', 'estuaire-id'])
+Cache --> CascadeHook: { data: [dept1, dept2, ...] }
+note right of Cache
+  Départements chargés par province
+  Cache: 30 min par province
+  Recherche optionnelle mais recommandée
+end note
+
+== Recherche Commune (Stratégie de cache) ==
+
+Admin -> Combobox: Ouvre CommuneCombobox
+note right of Combobox
+  **IMPORTANT :** Communes utilisent la RECHERCHE uniquement
+  Pas de chargement complet (trop nombreuses)
+end note
+Admin -> Combobox: Tape "Libreville" (recherche)
+Combobox -> Combobox: Debounce 300ms
+Combobox -> Cache: useQuery(['communes', 'search', 'Libreville', [dept1.id, dept2.id]])
+note right of Cache
+  Recherche avec :
+  - Terme: 'Libreville'
+  - Départements: [dept1.id, dept2.id]
+  - Limit: 50 résultats max
+  - Minimum: 2 caractères
+end note
+Cache -> Service: searchCommunes({ search: 'Libreville', departmentIds: [...], limit: 50 })
+Service -> DB: Query Firestore (recherche textuelle)
+DB --> Service: [commune1, commune2, ...] (max 50)
+Service --> Cache: Résultats triés alphabétiquement
+Cache --> Combobox: { data: [commune1, commune2, ...], isLoading: false }
+note right of Cache
+  Cache créé : ['communes', 'search', 'Libreville', [dept1.id, dept2.id]]
+  staleTime: 5 min
+  cacheTime: 10 min
+  Si on revient à cette recherche dans 5 min, utilise le cache
+end note
+Combobox -> Admin: Affiche résultats de recherche (max 50)
+
+== Création Commune (Commune manquante) ==
+
+Admin -> Combobox: Ne trouve pas la commune souhaitée
+Admin -> Combobox: Clique sur "Ajouter une nouvelle commune"
+Combobox -> Modal: setShowAddCommuneModal(true)
+Modal -> Admin: Affiche AddCommuneModal
+
+Admin -> Modal: Remplit le formulaire
+note right of Modal
+  - Nom: "Nouvelle Ville"
+  - Département: dept1
+  - Code postal: "24100"
+end note
+
+Admin -> Modal: Valide la création
+Modal -> Mutations: create.mutateAsync(data)
+Mutations -> Service: createCommune(data, userId)
+Service -> DB: addDoc(collection('communes'), data)
+DB --> Service: { id: 'new-commune-id', ... }
+Service --> Mutations: newCommune
+
+== Pattern Cascading Dependent Selection ==
+
+Mutations -> Modal: onSuccess(newCommune)
+Modal -> Step2: onSuccess(newCommune)
+Step2 -> Hook: handleCommuneCreatedOptimistic(newCommune, setValue)
+
+activate Hook
+
+== 1. CONTEXT CHECK ==
+
+Hook -> Hook: Vérifie parentContext
+note right of Hook
+  parentContext:
+  - key: 'provinceId'
+  - value: 'estuaire-id'
+  - getParentId: fonction qui retourne commune.departmentId
+end note
+
+Hook -> Hook: getParentId(newCommune) → 'dept1-id'
+Hook -> Hook: Vérifie que dept1 appartient à 'estuaire-id'
+note right of Hook
+  ✅ Contexte valide
+  La commune appartient à un département
+  de la province sélectionnée
+end note
+
+== 2. OPTIMISTIC UPDATE (Context-Aware) ==
+
+Hook -> Cache: setQueryData(['communes', 'search', searchTerm, departmentIds], callback)
+note right of Cache
+  **IMPORTANT :** Mise à jour de la query de RECHERCHE
+  (pas de chargement complet)
+  
+  Si l'utilisateur avait recherché "Libreville",
+  on met à jour cette query spécifique :
+  ['communes', 'search', 'Libreville', [dept1.id, dept2.id]]
+  
+  Callback:
+  - Si old est vide, retourne [newCommune]
+  - Si newCommune existe déjà, retourne old
+  - Sinon, ajoute newCommune et trie alphabétiquement
+end note
+Cache -> Cache: Cache de recherche mis à jour immédiatement
+
+Hook -> Cache: setQueriesData(['communes', 'search'], callback)
+note right of Cache
+  Mise à jour de toutes les queries de recherche communes
+  (exact: false pour toutes les sous-queries)
+  
+  Cela inclut :
+  - ['communes', 'search', 'Libreville', ...]
+  - ['communes', 'search', 'Port', ...]
+  - etc.
+  
+  Callback:
+  - Si old est vide, retourne [newCommune]
+  - Si newCommune existe déjà, retourne old
+  - Sinon, ajoute newCommune et trie alphabétiquement
+end note
+Cache -> Cache: Toutes les queries de recherche communes mises à jour
+
+== 3. INVALIDATION ==
+
+Hook -> Cache: invalidateQueries(['communes'], exact: false)
+Cache -> Cache: Marque toutes les queries comme invalides
+note right of Cache
+  Invalide toutes les queries communes :
+  - ['communes', 'search', ...] (recherches)
+  - Note: Pas de ['communes', deptId] car on utilise la recherche uniquement
+  
+  Les queries de recherche sont marquées comme stale
+  mais le cache reste disponible (stale-while-revalidate)
+end note
+
+== 4. REFETCH EXPLICITE ==
+
+Hook -> Cache: refetchQueries(['communes', 'search'], exact: false, type: 'active')
+Cache -> Service: Refetch des queries de recherche actives
+note right of Cache
+  Refetch seulement les queries de recherche actives
+  (celles utilisées par les composants montés)
+  
+  Si l'utilisateur avait recherché "Libreville",
+  on refetch cette query spécifique
+end note
+Service -> DB: searchCommunes({ search: searchTerm, departmentIds: [...], limit: 50 })
+DB --> Service: [commune1, commune2, ..., newCommune] (max 50, triés)
+Service --> Cache: Données mises à jour
+Cache --> Combobox: useQuery détecte le changement
+note right of Combobox
+  La query de recherche se met à jour automatiquement
+  La nouvelle commune apparaît dans les résultats
+end note
+
+== 5. SELECTION ==
+
+Hook -> Form: setValue('address.communeId', 'new-commune-id', options)
+Form -> CascadeHook: watch('address.communeId') change
+CascadeHook -> CascadeHook: Recalcule selectedCommune depuis allCommunes
+note right of CascadeHook
+  allCommunes contient maintenant newCommune
+  car le cache a été mis à jour
+end note
+
+== 6. CASCADE RESET ==
+
+Hook -> Form: setValue('address.districtId', '', options)
+Hook -> Form: setValue('address.quarterId', '', options)
+Form -> CascadeHook: watch('address.districtId') change
+Form -> CascadeHook: watch('address.quarterId') change
+CascadeHook -> CascadeHook: Réinitialise districts et quarters
+
+deactivate Hook
+
+== 7. UI UPDATE ==
+
+Combobox -> Combobox: useQuery recalcule les résultats de recherche
+note right of Combobox
+  La query de recherche a changé
+  → Les résultats se mettent à jour
+  → newCommune est maintenant dans la liste
+  → Tri alphabétique appliqué
+end note
+
+Combobox -> Admin: Affiche la nouvelle commune dans les résultats de recherche
+Combobox -> Admin: Sélectionne automatiquement "Nouvelle Ville"
+note right of Admin
+  ✅ La commune apparaît IMMÉDIATEMENT dans les résultats
+  ✅ La commune est sélectionnée
+  ✅ Cache utilisé si recherche précédente (dans les 5 min)
+  ✅ Pas de bug, UX fluide
+end note
+
+Step2 -> Admin: Toast : "Commune 'Nouvelle Ville' créée et sélectionnée"
+
+== 8. CASCADE CHILDREN UPDATE ==
+
+CascadeHook -> CascadeHook: selectedCommuneId = 'new-commune-id'
+CascadeHook -> Cache: useQuery(['districts', 'new-commune-id'])
+note right of Cache
+  Districts : Chargement complet (max 7 par commune)
+  Cache: 30 min par commune
+  Pas de recherche nécessaire
+end note
+Cache --> CascadeHook: { data: [] } (pas encore de districts)
+CascadeHook -> Form: setValue('address.city', 'Nouvelle Ville')
+CascadeHook -> Form: setValue('address.district', '')
+CascadeHook -> Form: setValue('address.arrondissement', '')
+
+note over Step2,Form
+  **Résultat :**
+  - ✅ Commune créée et visible immédiatement dans les résultats de recherche
+  - ✅ Commune sélectionnée automatiquement
+  - ✅ Districts et quarters réinitialisés
+  - ✅ Synchronisation parfaite cache ↔ formulaire
+  - ✅ Cache utilisé si recherche précédente (dans les 5 min)
+  - ✅ Pas de bugs, UX fluide
+  
+  **Stratégies de cache respectées :**
+  - Provinces : Chargement complet (9)
+  - Départements : Chargement par province (~50-60)
+  - Communes : Recherche uniquement (min 2 chars, limit 50)
+  - Districts : Chargement complet (max 7)
+  - Quarters : Recherche uniquement (min 2 chars, limit 50)
+end note
+
+@enduml

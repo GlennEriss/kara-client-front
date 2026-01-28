@@ -1,0 +1,140 @@
+@startuml ExporterDetailsDemande
+title Workflow : Exporter les Détails d'une Demande en PDF (V2)
+
+start
+
+:Admin clique sur bouton "Export PDF" dans la page de détails;
+
+:Vérifier que la demande est chargée :
+- demand !== null
+- demand !== undefined;
+
+if (Demande non chargée ?) then (oui)
+  :Afficher toast.error :
+  - "Impossible d'exporter : demande non chargée";
+  stop
+endif
+
+:Afficher état loading sur le bouton :
+- Remplacer icône par spinner
+- Texte "Génération...";
+
+:Service.exportDemandDetails(demandId) :
+- Récupérer demande complète depuis cache ou Firestore
+- Inclure toutes les informations nécessaires;
+
+' ============================================
+' RÉCUPÉRATION DES DONNÉES
+' ============================================
+:Repository.getById(demandId) :
+- Vérifier cache React Query d'abord
+- Si absent, requête Firestore;
+
+if (Cache présent ?) then (oui)
+  :Utiliser données depuis cache;
+else (non)
+  :Firestore.getDoc(demandId);
+  :Transformer document → CaisseImprevueDemand;
+  :Mettre en cache React Query;
+endif
+
+' ============================================
+' CONSTRUCTION DES DONNÉES PDF
+' ============================================
+:Construire objet données PDF :
+- En-tête (logo, titre, numéro demande)
+- Statut (badge, dates, créateur)
+- Informations demandeur (nom, prénom, téléphone, email, matricule)
+- Motif de la demande (texte complet)
+- Forfait sélectionné (nom, montant, durée, fréquence, date souhaitée)
+- Contact d'urgence (nom, prénom, téléphone, lien, type pièce, numéro pièce)
+- Plan de remboursement (tableau avec tous les versements)
+- Historique (chronologie des actions);
+
+' ============================================
+' GÉNÉRATION DU PDF
+' ============================================
+:Générer PDF avec jsPDF :
+- Créer document A4 portrait
+- Marges 20mm;
+
+:Ajouter en-tête :
+- Logo KARA (si disponible)
+- Titre "DÉTAILS DE LA DEMANDE CAISSE IMPRÉVUE"
+- Numéro de demande;
+
+:Ajouter section Statut :
+- Badge statut avec couleur
+- Date de création
+- Créateur
+- Dates de modification/acceptation/refus si applicable;
+
+:Ajouter section Informations demandeur :
+- Nom, prénom
+- Téléphone, email
+- Matricule;
+
+:Ajouter section Motif :
+- Texte complet du motif
+- Formatage multi-lignes;
+
+:Ajouter section Forfait :
+- Nom du forfait
+- Montant par période
+- Durée totale
+- Fréquence de paiement
+- Date souhaitée de début;
+
+:Ajouter section Contact d'urgence :
+- Nom, prénom
+- Téléphone
+- Lien avec le demandeur
+- Type et numéro de pièce d'identité;
+
+:Ajouter section Plan de remboursement :
+- Tableau avec jspdf-autotable
+- Colonnes : Mois, Date, Montant, Cumulé
+- Ligne total en bas;
+
+:Ajouter section Historique :
+- Chronologie des actions
+- Format : "Date - Action par Admin";
+
+:Ajouter pied de page :
+- Date de génération du PDF
+- Nom de l'organisation "KARA - Caisse Imprévue";
+
+' ============================================
+' TÉLÉCHARGEMENT
+' ============================================
+:Générer nom de fichier :
+- "demande_MK_DEMANDE_CI_8438_270126_2219_YYYYMMDD_HHMMSS.pdf";
+
+:Créer Blob PDF depuis jsPDF;
+
+:Télécharger le fichier :
+- Créer lien <a> avec download
+- Déclencher click() programmatique
+- Supprimer lien après téléchargement;
+
+:Restaurer état normal du bouton :
+- Remplacer spinner par icône
+- Texte "Export PDF";
+
+:Afficher toast.success :
+- "PDF généré avec succès";
+
+stop
+
+note right
+  **Fonctionnalités clés** :
+  - Export direct (pas de modal)
+  - Génération côté client (jsPDF)
+  - Utilise cache React Query si disponible
+  - PDF complet avec toutes les informations
+  - Tableau de remboursement formaté
+  - Historique complet des actions
+  - Format A4 portrait professionnel
+end note
+
+@enduml

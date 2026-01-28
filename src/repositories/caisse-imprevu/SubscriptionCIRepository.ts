@@ -40,7 +40,8 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
 
         } catch (error) {
             console.error("Erreur lors de la récupération des souscriptions CI:", error);
-            return [];
+            // Propager l'erreur au lieu de retourner un tableau vide
+            throw error;
         }
     }
 
@@ -79,7 +80,8 @@ export class SubscriptionCIRepository implements ISubscriptionCIRepository {
 
         } catch (error) {
             console.error("Erreur lors de la récupération des souscriptions actives CI:", error);
-            return [];
+            // Propager l'erreur au lieu de retourner un tableau vide
+            throw error;
         }
     }
 

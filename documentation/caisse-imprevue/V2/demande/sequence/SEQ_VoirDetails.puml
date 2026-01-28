@@ -1,0 +1,176 @@
+@startuml SEQ_VoirDetails
+title Séquence : Voir les Détails d'une Demande (V2)
+
+actor "Admin" as Admin
+participant "DemandDetailPage\n(/demandes/[id])" as Page
+participant "DemandDetailV2\n(Component)" as Detail
+participant "useCaisseImprevueDemand\n(Hook)" as Hook
+participant "useDemandSimulation\n(Hook)" as SimHook
+participant "PaymentScheduleTable\n(Component)" as Schedule
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Page: Accéder à /caisse-imprevue/demandes/[id]
+activate Page
+
+Page -> Detail: Render DemandDetailV2
+activate Detail
+
+Detail -> Hook: useCaisseImprevueDemand(demandId)
+activate Hook
+
+Hook -> QueryCache: queryKey: ['caisse-imprevue-demand-detail', demandId]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 10 min)
+
+alt Cache présent et frais (ou prefetch depuis liste)
+    QueryCache --> Hook: Demand depuis cache
+else Cache absent ou stale
+    Hook -> Repo: getById(demandId)
+    activate Repo
+    
+    Repo -> Firestore: getDoc(docRef(collection('caisseImprevueDemands'), demandId))
+    Firestore --> Repo: DocumentSnapshot
+    
+    Repo -> Repo: Transform document → CaisseImprevueDemand
+    Repo --> Hook: CaisseImprevueDemand
+    
+    deactivate Repo
+    
+    Hook -> QueryCache: Mettre en cache (10 min)
+    QueryCache --> Hook: Cache mis à jour
+end
+
+Hook --> Detail: { data: demand, isLoading: false }
+deactivate Hook
+
+' ============================================
+' AFFICHAGE INFORMATIONS GÉNÉRALES
+' ============================================
+Detail -> Detail: Render section "Informations générales"
+Detail --> Admin: Afficher :\n- Nom complet\n- Téléphone\n- Email\n- Matricule\n- Statut (badge)\n- Dates
+
+' ============================================
+' AFFICHAGE MOTIF
+' ============================================
+Detail -> Detail: Render section "Motif de la demande"
+Detail --> Admin: Afficher cause (textarea style)
+
+' ============================================
+' AFFICHAGE FORFAIT
+' ============================================
+Detail -> Detail: Render section "Forfait et fréquence"
+Detail --> Admin: Afficher :\n- Code forfait\n- Montant mensuel\n- Durée\n- Fréquence (badge)
+
+' ============================================
+' AFFICHAGE CONTACT D'URGENCE
+' ============================================
+alt Contact d'urgence présent
+    Detail -> Detail: Render section "Contact d'urgence"
+    Detail --> Admin: Afficher :\n- Nom complet\n- Téléphones\n- Lien parenté\n- Document (type + numéro)
+    
+    alt Photo document présente
+        Detail -> Detail: Render Image component
+        Detail --> Admin: Afficher image document (optimisée)
+    end
+else Aucun contact
+    Detail --> Admin: Afficher "Aucun contact d'urgence renseigné"
+end
+
+' ============================================
+' CALCUL ET AFFICHAGE SIMULATION
+' ============================================
+Detail -> Schedule: Render PaymentScheduleTable
+activate Schedule
+
+Schedule -> SimHook: useDemandSimulation(demand)
+activate SimHook
+
+SimHook -> SimHook: useMemo(() => { ... }, [demand])
+
+alt Fréquence MONTHLY
+    SimHook -> SimHook: Calculer versements mensuels :
+    SimHook -> SimHook: Pour chaque mois (0 à duration-1) :
+    SimHook -> SimHook: - date = addMonths(desiredDate, month)
+    SimHook -> SimHook: - amount = subscriptionCIAmountPerMonth
+    SimHook -> SimHook: - cumulative += amount
+else Fréquence DAILY
+    SimHook -> SimHook: Calculer versements quotidiens :
+    SimHook -> SimHook: Pour chaque jour (0 à duration*30-1) :
+    SimHook -> SimHook: - date = addDays(desiredDate, day)
+    SimHook -> SimHook: - amount = subscriptionCIAmountPerMonth / 30
+    SimHook -> SimHook: - cumulative += amount
+    SimHook -> SimHook: - Compter versements par mois
+end
+
+SimHook -> SimHook: Retourner { schedule[], totalAmount, totalMonths, totalPayments }
+SimHook --> Schedule: Simulation
+
+deactivate SimHook
+
+Schedule -> Schedule: Render Table avec schedule
+Schedule --> Admin: Afficher tableau récapitulatif :\n- Colonnes : #, Date, Montant, Cumul\n- Ligne total\n- Infos complémentaires (badges)
+
+deactivate Schedule
+
+' ============================================
+' AFFICHAGE HISTORIQUE
+' ============================================
+Detail -> Detail: Render section "Historique"
+Detail --> Admin: Afficher :\n- Dates création/modification\n- Statut actuel\n- Décisions précédentes
+
+alt Raison de décision présente
+    Detail --> Admin: Afficher "Raison de la décision" :\n- Texte\n- Date\n- Auteur
+end
+
+' ============================================
+' ACTIONS CONTEXTUELLES
+' ============================================
+alt Statut PENDING
+    Detail --> Admin: Afficher boutons :\n- Accepter (vert)\n- Refuser (rouge)\n- Modifier (outline)
+else Statut APPROVED
+    Detail --> Admin: Afficher boutons :\n- Créer le contrat (vert)\n- Modifier (outline)
+else Statut REJECTED
+    Detail --> Admin: Afficher boutons :\n- Réouvrir (outline)\n- Supprimer (rouge)\n- Modifier (outline)
+else Statut CONVERTED
+    Detail --> Admin: Afficher message :\n"Convertie en contrat" + lien
+end
+
+' ============================================
+' ACTION : ACCEPTER
+' ============================================
+alt Admin clique "Accepter"
+    Admin -> Detail: Clique "Accepter"
+    Detail -> Detail: Ouvrir AcceptDemandModalV2
+    Detail --> Admin: Modal avec toutes les infos
+end
+
+' ============================================
+' ACTION : CRÉER CONTRAT
+' ============================================
+alt Admin clique "Créer le contrat"
+    Admin -> Detail: Clique "Créer le contrat"
+    Detail -> Detail: Ouvrir ConfirmContractModalV2
+    Detail --> Admin: Modal de confirmation
+end
+
+deactivate Detail
+deactivate Page
+
+note right of QueryCache
+  **Cache détails** :
+  - staleTime: 10 min
+  - gcTime: 20 min
+  - Préfetch depuis liste (survol)
+  - Pas de refetch automatique si frais
+end note
+
+note right of SimHook
+  **Simulation** :
+  - Calcul côté client (useMemo)
+  - Distinction DAILY vs MONTHLY
+  - Performance optimisée
+  - Pas de requête serveur
+end note
+
+@enduml

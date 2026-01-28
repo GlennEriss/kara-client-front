@@ -1,0 +1,260 @@
+@startuml SEQ_CreerDemande
+title Séquence : Créer une Demande Caisse Imprévue (V2)
+
+actor "Admin" as Admin
+participant "CreateDemandPage\n(/add)" as Page
+participant "CreateDemandFormV2\n(Component)" as Form
+participant "useDemandForm\n(Hook)" as Hook
+participant "useDemandFormPersistence\n(Hook)" as Persistence
+participant "useSubscriptionsCICache\n(Hook)" as CacheHook
+participant "Step1Member\n(Component)" as Step1
+participant "Step2Forfait\n(Component)" as Step2
+participant "Step3Contact\n(Component)" as Step3
+participant "CaisseImprevueService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+database "localStorage" as Storage
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Page: Accéder à /caisse-imprevue/demandes/add
+activate Page
+
+Page -> Hook: useDemandForm()
+activate Hook
+
+Hook -> Persistence: useDemandFormPersistence(form, true)
+activate Persistence
+
+Persistence -> Storage: localStorage.getItem('caisse-imprevue-demand-form')
+Storage --> Persistence: storedData | null
+
+alt Données sauvegardées trouvées
+    Persistence -> Hook: form.reset(storedData)
+    Persistence -> Admin: toast.info('Données restaurées')
+else Aucune donnée
+    Hook -> Hook: form.reset(defaultValues)
+end
+
+Persistence -> Persistence: form.watch() → saveFormData (debounce 500ms)
+deactivate Persistence
+
+Page -> CacheHook: useSubscriptionsCICache()
+activate CacheHook
+
+CacheHook -> QueryCache: queryKey: ['subscriptions-ci', 'active']
+QueryCache -> QueryCache: Vérifier cache (staleTime: 30 min)
+
+alt Cache présent et frais
+    QueryCache --> CacheHook: Données depuis cache
+else Cache absent ou stale
+    CacheHook -> Service: getActiveSubscriptions()
+    activate Service
+    
+    Service -> Repo: getAllActive()
+    activate Repo
+    
+    Repo -> Firestore: query(where('status', '==', 'ACTIVE'))
+    Firestore --> Repo: SubscriptionCI[]
+    
+    Repo --> Service: SubscriptionCI[]
+    deactivate Repo
+    
+    Service --> CacheHook: SubscriptionCI[]
+    deactivate Service
+    
+    CacheHook -> QueryCache: Mettre en cache (30 min)
+    QueryCache --> CacheHook: Cache mis à jour
+end
+
+CacheHook --> Page: { data: subscriptions[], isLoading: false }
+deactivate CacheHook
+
+Page -> Form: Render CreateDemandFormV2
+activate Form
+
+Form -> Step1: Render Step 1 (currentStep === 1)
+activate Step1
+
+' ============================================
+' ÉTAPE 1 : RECHERCHE MEMBRE
+' ============================================
+Admin -> Step1: Tape "Glenn" dans recherche
+Step1 -> Step1: useDebounce(query, 300ms)
+
+Step1 -> Step1: useSearchMembers(debouncedQuery)
+Step1 -> Service: searchMembers(query)
+Service --> Step1: Member[]
+
+Step1 --> Admin: Afficher résultats recherche
+
+Admin -> Step1: Sélectionne "Glenn NDONG"
+Step1 -> Hook: form.setValue('memberId', 'member-123')
+Hook -> Persistence: Déclencher sauvegarde (debounce)
+Persistence -> Storage: localStorage.setItem(...)
+Storage --> Persistence: OK
+
+Admin -> Step1: Saisit motif (min 10, max 500)
+Step1 -> Hook: form.setValue('cause', 'Motif de test...')
+Hook -> Persistence: Déclencher sauvegarde
+Persistence -> Storage: localStorage.setItem(...)
+
+Step1 -> Hook: form.trigger('memberId', 'cause')
+Hook --> Step1: Validation OK
+
+Step1 --> Admin: Bouton "Suivant" activé
+deactivate Step1
+
+Admin -> Form: Clique "Suivant"
+Form -> Hook: form.trigger() (validation Step 1)
+Hook --> Form: Validation réussie
+
+Form -> Form: currentStep = 2
+Form -> Form: Scroll automatique vers le haut
+Form -> Step2: Render Step 2
+activate Step2
+
+' ============================================
+' ÉTAPE 2 : FORFAIT + FRÉQUENCE
+' ============================================
+Step2 -> CacheHook: useSubscriptionsCICache()
+CacheHook -> QueryCache: Vérifier cache
+QueryCache --> Step2: subscriptions[] (depuis cache, pas de refetch)
+
+Step2 --> Admin: Afficher forfaits (depuis cache)
+
+Admin -> Step2: Sélectionne forfait "Forfait A"
+Step2 -> Hook: form.setValue('subscriptionCIID', 'forfait-123')
+Hook -> Persistence: Sauvegarder
+Persistence -> Storage: localStorage.setItem(...)
+
+Admin -> Step2: Sélectionne fréquence "MONTHLY"
+Step2 -> Hook: form.setValue('paymentFrequency', 'MONTHLY')
+
+Admin -> Step2: Sélectionne date souhaitée
+Step2 -> Hook: form.setValue('desiredDate', '2026-02-01')
+
+Step2 -> Hook: form.trigger('subscriptionCIID', 'paymentFrequency', 'desiredDate')
+Hook --> Step2: Validation OK
+
+Step2 --> Admin: Bouton "Suivant" activé
+deactivate Step2
+
+Admin -> Form: Clique "Suivant"
+Form -> Hook: form.trigger() (validation Step 2)
+Hook --> Form: Validation réussie
+
+Form -> Form: currentStep = 3
+Form -> Form: Scroll automatique vers le haut
+Form -> Step3: Render Step 3
+activate Step3
+
+' ============================================
+' ÉTAPE 3 : CONTACT D'URGENCE
+' ============================================
+Step3 -> Hook: form.watch('memberId')
+Hook --> Step3: memberId = 'member-123'
+
+Step3 -> Step3: excludeMemberIds = [memberId]
+Step3 --> Admin: Afficher EmergencyContactMemberSelector\n(exclut membre sélectionné)
+
+Admin -> Step3: Recherche "Jean" (pas Glenn)
+Step3 -> Step3: useSearchMembers('Jean', { excludeMemberIds: ['member-123'] })
+Step3 -> Service: searchMembers('Jean', { exclude: ['member-123'] })
+Service --> Step3: Member[] (sans Glenn)
+
+Step3 --> Admin: Afficher résultats (Jean DUPONT uniquement)
+
+Admin -> Step3: Sélectionne "Jean DUPONT"
+Step3 -> Step3: Remplir automatiquement les champs
+Step3 -> Hook: form.setValue('emergencyContact', { lastName: 'DUPONT', ... })
+Hook -> Persistence: Sauvegarder
+Persistence -> Storage: localStorage.setItem(...)
+
+Admin -> Step3: Complète typeId, idNumber, documentPhotoUrl
+Step3 -> Hook: form.setValue('emergencyContact', completeData)
+Hook -> Persistence: Sauvegarder
+
+Step3 -> Hook: form.trigger('emergencyContact')
+Hook --> Step3: Validation OK
+
+Step3 --> Admin: Card contact devient vert\nBouton "Créer la demande" activé
+deactivate Step3
+
+' ============================================
+' SOUMISSION
+' ============================================
+Admin -> Form: Clique "Créer la demande"
+Form -> Hook: form.handleSubmit(onSubmit)
+activate Hook
+
+Hook -> Hook: form.trigger() (validation complète)
+Hook --> Hook: Validation réussie
+
+Hook -> Service: createDemand(formData)
+activate Service
+
+Service -> Service: Valider données métier
+Service -> Repo: create(demandData)\n(demandData.memberId contient l'ID du membre)
+activate Repo
+
+note right of Repo
+  **Génération ID (standard obligatoire)** :
+  Format: MK_DEMANDE_CI_{4 premiers chiffres matricule}_{DDMMYY}_{HHMM}
+  
+  Exemple:
+  - Matricule: 8438.MK.160126 → 4 premiers = 8438
+  - Date: 27/01/2026 → DDMMYY = 270126
+  - Heure: 22:19 → HHMM = 2219
+  - ID final: MK_DEMANDE_CI_8438_270126_2219
+  
+  ⚠️ Pas d'ID aléatoire (addDoc interdit)
+end note
+Repo -> Firestore: getDoc(doc('members', demandData.memberId))
+Firestore --> Repo: Member (avec matricule)
+Repo -> Repo: Extraire 4 premiers chiffres du matricule\nGénérer date DDMMYY et heure HHMM\nConstruire demandId selon standard
+Repo -> Firestore: setDoc(doc('caisseImprevueDemands', demandId), data)
+note right
+  Utilise setDoc avec ID explicite
+  au lieu de addDoc (qui génère un ID aléatoire)
+end note
+Firestore --> Repo: OK
+
+Repo --> Service: CaisseImprevueDemand
+deactivate Repo
+
+Service --> Hook: CaisseImprevueDemand
+deactivate Service
+
+Hook -> Persistence: clearFormData()
+Persistence -> Storage: localStorage.removeItem('caisse-imprevue-demand-form')
+Storage --> Persistence: OK
+
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands-stats'])
+QueryCache --> Hook: Cache invalidé
+
+Hook --> Form: Success
+deactivate Hook
+
+Form -> Page: toast.success('Demande créée avec succès')
+Page -> Page: router.push('/caisse-imprevue/demandes')
+Page --> Admin: Redirection vers liste
+
+deactivate Form
+deactivate Page
+
+note right of QueryCache
+  **Stratégie de cache** :
+  - Forfaits : staleTime 30 min, gcTime 1h
+  - Pas de refetch au focus/reconnect
+  - Cache utilisé directement si présent
+end note
+
+note right of Persistence
+  **Persistance** :
+  - Debounce 500ms pour éviter trop d'écritures
+  - Expiration 24h
+  - Versioning pour migrations futures
+end note
+
+@enduml

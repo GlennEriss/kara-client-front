@@ -1,0 +1,173 @@
+@startuml SEQ_ModifierDemande
+title Séquence : Modifier une Demande (V2)
+
+actor "Admin" as Admin
+participant "DemandCardV2\nou DemandDetailV2" as Card
+participant "EditDemandModalV2\n(Component)" as Modal
+participant "useCaisseImprevueDemand\n(Hook)" as DetailHook
+participant "useDemandForm\n(Hook)" as FormHook
+participant "useUpdateDemand\n(Hook)" as UpdateHook
+participant "useSubscriptionsCICache\n(Hook)" as CacheHook
+participant "CaisseImprevueService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Card: Clique "Modifier" sur demande
+activate Card
+
+Card -> Modal: Ouvrir EditDemandModalV2(demandId)
+activate Modal
+
+' ============================================
+' CHARGEMENT DONNÉES
+' ============================================
+Modal -> DetailHook: useCaisseImprevueDemand(demandId)
+activate DetailHook
+
+DetailHook -> QueryCache: queryKey: ['caisse-imprevue-demand-detail', demandId]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 10 min)
+
+alt Cache présent
+    QueryCache --> DetailHook: Demand depuis cache
+else Cache absent
+    DetailHook -> Repo: getById(demandId)
+    Repo -> Firestore: getDoc(demandId)
+    Firestore --> Repo: Demand
+    Repo --> DetailHook: Demand
+    DetailHook -> QueryCache: Mettre en cache
+end
+
+DetailHook --> Modal: { data: demand, isLoading: false }
+deactivate DetailHook
+
+Modal -> FormHook: useDemandForm()
+activate FormHook
+
+FormHook -> FormHook: form.reset(demand) // Préremplir
+FormHook --> Modal: form instance
+
+Modal -> CacheHook: useSubscriptionsCICache()
+CacheHook -> QueryCache: Vérifier cache forfaits
+QueryCache --> CacheHook: subscriptions[] (depuis cache)
+CacheHook --> Modal: { data: subscriptions[], isLoading: false }
+
+' ============================================
+' ÉTAPE 1 : MODIFICATION
+' ============================================
+Modal -> Modal: Render Step 1 (pré-rempli)
+Modal --> Admin: Afficher Step 1 avec données
+
+Admin -> Modal: Modifie le motif
+Modal -> FormHook: form.setValue('cause', newCause)
+FormHook -> FormHook: Valider (min 10, max 500)
+
+alt Validation OK
+    Modal --> Admin: Bouton "Suivant" activé
+else Validation échouée
+    Modal --> Admin: Afficher erreurs
+end
+
+Admin -> Modal: Clique "Suivant"
+Modal -> FormHook: form.trigger('memberId', 'cause')
+FormHook --> Modal: Validation réussie
+
+Modal -> Modal: currentStep = 2
+Modal -> Modal: Scroll automatique
+Modal -> Modal: Render Step 2
+
+' ============================================
+' ÉTAPE 2 : MODIFICATION
+' ============================================
+Modal --> Admin: Afficher Step 2 (pré-rempli)
+
+Admin -> Modal: Modifie forfait/fréquence/date
+Modal -> FormHook: form.setValue(...)
+FormHook -> FormHook: Valider Step 2
+
+Admin -> Modal: Clique "Suivant"
+Modal -> FormHook: form.trigger(...)
+FormHook --> Modal: Validation réussie
+
+Modal -> Modal: currentStep = 3
+Modal -> Modal: Render Step 3
+
+' ============================================
+' ÉTAPE 3 : MODIFICATION
+' ============================================
+Modal --> Admin: Afficher Step 3 (pré-rempli)
+
+Admin -> Modal: Modifie contact d'urgence
+Modal -> FormHook: form.setValue('emergencyContact', newContact)
+FormHook -> FormHook: Valider Step 3
+
+alt Validation OK
+    Modal --> Admin: Bouton "Enregistrer" activé
+end
+
+' ============================================
+' SAUVEGARDE
+' ============================================
+Admin -> Modal: Clique "Enregistrer les modifications"
+Modal -> FormHook: form.handleSubmit(onSubmit)
+FormHook -> FormHook: form.trigger() (validation complète)
+FormHook --> FormHook: Validation réussie
+
+FormHook -> UpdateHook: useUpdateDemand({ demandId, formData })
+activate UpdateHook
+
+UpdateHook -> Service: updateDemand(demandId, formData)
+activate Service
+
+Service -> Service: Valider données métier
+Service -> Repo: update(demandId, formData, updatedBy, updatedAt)
+activate Repo
+
+note right of Repo
+  **Traçabilité modification** :
+  - updatedBy : ID de l'admin qui modifie
+  - updatedAt : Date/heure précise de modification
+  - Permet d'auditer qui a modifié quoi et quand
+end note
+
+Repo -> Firestore: updateDoc(docRef, données modifiées + updatedBy + updatedAt)
+Firestore --> Repo: OK
+
+Repo --> Service: CaisseImprevueDemand (mis à jour)
+deactivate Repo
+
+Service --> UpdateHook: CaisseImprevueDemand
+deactivate Service
+
+' ============================================
+' INVALIDATION CACHE
+' ============================================
+UpdateHook -> QueryCache: invalidateQueries(['caisse-imprevue-demands'])
+UpdateHook -> QueryCache: invalidateQueries(['caisse-imprevue-demand-detail', demandId])
+
+UpdateHook -> QueryCache: Refetch en arrière-plan
+QueryCache --> UpdateHook: Cache mis à jour
+
+UpdateHook --> Modal: Success
+deactivate UpdateHook
+
+Modal -> Modal: Fermer modal
+Modal -> Card: toast.success('Demande modifiée avec succès')
+Card --> Admin: Toast affiché
+
+Card -> Card: Mettre à jour UI
+Card --> Admin: Liste et détails rafraîchis
+
+deactivate FormHook
+deactivate Modal
+deactivate Card
+
+note right of Service
+  **Validation métier** :
+  - Vérifier statut !== CONVERTED
+  - Vérifier permissions admin
+  - Valider tous les champs modifiés
+  - Enregistrer updatedBy et updatedAt pour traçabilité
+end note
+
+@enduml

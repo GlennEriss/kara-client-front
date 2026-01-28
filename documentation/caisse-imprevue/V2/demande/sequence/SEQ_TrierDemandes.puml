@@ -1,0 +1,92 @@
+@startuml SEQ_TrierDemandes
+title Séquence : Trier les Demandes (V2)
+
+actor "Admin" as Admin
+participant "DemandSortV2\n(Component)" as Sort
+participant "ListDemandesV2\n(Component)" as List
+participant "useCaisseImprevueDemands\n(Hook)" as Hook
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Sort: Change tri → "Alphabétique"
+activate Sort
+
+Sort -> List: onSortChange({ sortBy: 'alphabetical', sortOrder: 'asc' })
+activate List
+
+List -> List: sortBy = 'alphabetical'
+List -> List: sortOrder = 'asc'
+
+List -> Hook: useCaisseImprevueDemands(filters, page, limit, 'alphabetical', 'asc')
+activate Hook
+
+Hook -> QueryCache: queryKey: ['caisse-imprevue-demands', filters, page, limit, 'alphabetical', 'asc']
+QueryCache -> QueryCache: Vérifier cache (staleTime: 5 min)
+
+alt Cache présent pour ce tri
+    QueryCache --> Hook: Données depuis cache
+    Hook --> List: PaginatedDemands (depuis cache)
+    List --> Admin: Afficher résultats triés (immédiat)
+else Cache absent
+    Hook -> Repo: getPaginated(filters, page, limit, 'alphabetical', 'asc')
+    activate Repo
+    
+    Repo -> Repo: Construire contraintes :
+    Repo -> Repo: constraints.push(orderBy('memberLastName', 'asc'))
+    Repo -> Repo: constraints.push(orderBy('memberFirstName', 'asc'))
+    
+    Repo -> Firestore: getCountFromServer(query(collectionRef, ...constraints))
+    Firestore --> Repo: totalCount
+    
+    Repo -> Firestore: query(\n  collectionRef,\n  ...constraints,\n  limit(10)\n)
+    Firestore --> Repo: QuerySnapshot (trié alphabétiquement)
+    
+    Repo -> Repo: Transform → Demand[]
+    Repo --> Hook: PaginatedDemands
+    
+    deactivate Repo
+    
+    Hook -> QueryCache: Mettre en cache (5 min)
+    QueryCache --> Hook: Cache mis à jour
+    
+    Hook --> List: PaginatedDemands
+end
+
+deactivate Hook
+
+List -> List: Scroll vers le haut
+List --> Admin: Afficher demandes triées alphabétiquement
+deactivate List
+deactivate Sort
+
+' ============================================
+' TRI PAR DATE
+' ============================================
+alt Admin change tri → "Date"
+    Admin -> Sort: Change tri → "Date" + "Décroissant"
+    Sort -> List: onSortChange({ sortBy: 'date', sortOrder: 'desc' })
+    
+    List -> Hook: Refetch avec tri date
+    Hook -> Repo: getPaginated(filters, page, limit, 'date', 'desc')
+    
+    Repo -> Repo: constraints.push(orderBy('createdAt', 'desc'))
+    Repo -> Firestore: query avec orderBy('createdAt', 'desc')
+    Firestore --> Repo: Résultats triés par date
+    
+    Repo --> Hook: PaginatedDemands
+    Hook --> List: Nouvelles données
+    List --> Admin: Afficher demandes triées par date
+end
+
+' ============================================
+' ORDRE DE PRIORITÉ (Tab "Toutes")
+' ============================================
+alt Tab "Toutes" + tri par date
+    List -> List: Trier items par priorité statut :
+    List -> List: PENDING (1) → APPROVED (2) → REJECTED (3) → ...
+    List -> List: Puis trier par date décroissante
+    List --> Admin: Afficher demandes avec priorité
+end
+
+@enduml

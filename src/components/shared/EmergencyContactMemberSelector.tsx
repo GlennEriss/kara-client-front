@@ -170,6 +170,8 @@ export default function EmergencyContactMemberSelector({
           
           if (dossier.documents.identityDocument) {
             console.log('🆔 Type de document:', dossier.documents.identityDocument)
+            console.log('🔄 Appel onUpdate pour typeId avec:', dossier.documents.identityDocument)
+            // Mettre à jour immédiatement
             onUpdate('typeId', dossier.documents.identityDocument)
             validateField('typeId', dossier.documents.identityDocument)
           }
@@ -578,9 +580,11 @@ export default function EmergencyContactMemberSelector({
             <div className="relative">
               <IdCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-orange-500 z-10 pointer-events-none" />
               <SelectApp
+                key={`typeId-select-${typeId || 'empty'}`}
                 options={DOCUMENT_TYPE_OPTIONS}
                 value={typeId || ''}
                 onChange={(value) => {
+                  console.log('🔄 SelectApp onChange typeId:', value)
                   onUpdate('typeId', value)
                   validateField('typeId', value)
                 }}

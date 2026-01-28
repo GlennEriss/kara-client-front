@@ -373,6 +373,48 @@ cd functions
 npm install
 ```
 
+### Configuration des Variables d'Environnement
+
+**⚠️ IMPORTANT** : Les Cloud Functions Firebase utilisent **deux méthodes différentes** selon le contexte :
+
+#### 1. **Production (Déployé sur Firebase)** - `functions.config()`
+
+En production, les variables sont configurées via Firebase Functions Config :
+
+```bash
+# Se connecter au projet PROD
+firebase use kara-gabon
+
+# Configurer les variables Algolia
+firebase functions:config:set \
+  algolia.app_id="IYE83A0LRH" \
+  algolia.write_api_key="votre_admin_key" \
+  algolia.members_index_name="members" \
+  algolia.index_name="membership-requests-prod"
+```
+
+**Pour les autres environnements** (dev, preprod), voir :
+- `../documentation/firebase/CONFIGURATION_ENV_CLOUD_FUNCTIONS.md` : Guide complet de configuration
+- `../documentation/memberships/V2/algolia/STATUS.md` : Configuration complète pour les membres
+- `../documentation/membership-requests/recherche/DEPLOIEMENT_CLOUD_FUNCTIONS.md` : Configuration pour membership-requests
+
+#### 2. **Développement Local (Emulator)** - Fichier `.env`
+
+Pour le développement local avec l'émulateur Firebase, créer un fichier `.env` dans `functions/` :
+
+```env
+# .env (NE JAMAIS COMMITER - déjà dans .gitignore)
+ALGOLIA_APP_ID=IYE83A0LRH
+ALGOLIA_WRITE_API_KEY=votre_admin_key_ici
+ALGOLIA_MEMBERS_INDEX_NAME=members
+ALGOLIA_INDEX_NAME=membership-requests-dev
+```
+
+**Note** : 
+- Le fichier `.env` est ignoré par git (déjà dans `.gitignore`)
+- Ne pas inclure le suffixe d'environnement (`-dev`, `-prod`) dans `ALGOLIA_MEMBERS_INDEX_NAME`, il sera ajouté automatiquement
+- Si les variables ne sont pas définies, la fonction utilisera les valeurs par défaut ou échouera avec une erreur explicite
+
 ### Compilation
 
 ```bash
@@ -386,7 +428,7 @@ npm run build:watch
 ### Test local avec émulateurs
 
 ```bash
-# Démarrer les émulateurs avec les fonctions
+# Démarrer les émulateurs avec les fonctions (utilise les variables du .env si présent)
 npm run serve
 
 # Ou depuis la racine du projet

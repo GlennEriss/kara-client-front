@@ -1,0 +1,199 @@
+@startuml Activité - Création Commune avec Cascading Dependent Selection
+skinparam activity {
+  BackgroundColor LightGreen
+  BorderColor DarkGreen
+  FontSize 12
+}
+skinparam note {
+  BackgroundColor LightYellow
+  BorderColor Orange
+}
+
+title Diagramme d'Activité - Création d'une Commune (V2)
+
+start
+
+:Admin ouvre le formulaire /memberships/add;
+:Admin arrive à l'étape 2 (Adresse);
+:Admin sélectionne une province;
+note right
+  Exemple : "Estuaire"
+  Charge les départements de l'Estuaire
+end note
+
+:Admin ouvre le CommuneCombobox;
+note right
+  **Stratégie de cache :**
+  - Provinces : Chargement complet (9 provinces, cache 30 min)
+  - Départements : Chargement par province (~50-60, cache 30 min)
+  - Communes : **Recherche uniquement** (min 2 chars, limit 50, cache 5 min)
+  - Districts : Chargement complet (max 7/commune, cache 30 min)
+  - Quarters : **Recherche uniquement** (min 2 chars, limit 50, cache 5 min)
+end note
+
+:Admin tape dans la recherche (min 2 caractères);
+:Debounce 300ms;
+:Recherche dans Firestore (limit 50);
+:Tri alphabétique des résultats;
+note right
+  Cache créé : ['communes', 'search', searchTerm, departmentIds]
+  Si on revient à cette recherche dans 5 min, utilise le cache
+end note
+
+if (Commune souhaitée existe dans les résultats ?) then (oui)
+  :Admin sélectionne la commune;
+  :Commune sélectionnée dans le formulaire;
+  :Réinitialise districts et quarters (cascade);
+  stop
+else (non)
+  :Admin clique sur "Ajouter une nouvelle commune";
+  :AddCommuneModal s'ouvre;
+  
+  :Admin remplit le formulaire:
+  - Nom de la commune
+  - Département (sélection dans liste)
+  - Code postal (optionnel)
+  - Alias (optionnel);
+  
+  :Admin valide la création;
+  
+  partition "Pattern Cascading Dependent Selection" {
+    :Créer la commune dans Firestore;
+    note right
+      Service.createCommune(data, userId)
+      Retourne la nouvelle commune avec ID
+    end note
+    
+    :**1. CONTEXT CHECK**;
+    if (Province sélectionnée ?) then (oui)
+      :Vérifier que le département de la nouvelle commune
+      appartient à la province sélectionnée;
+      if (Appartient au contexte ?) then (oui)
+        :Continuer;
+      else (non)
+        :Avertir l'utilisateur;
+        :Ne pas sélectionner automatiquement;
+        stop
+      endif
+    else (non)
+      :Continuer sans contexte;
+    endif
+    
+    :**2. OPTIMISTIC UPDATE (Context-Aware)**;
+    
+    partition "Mise à jour cache spécifique (Recherche)" {
+      if (Terme de recherche actif ?) then (oui)
+        :Mettre à jour la query de recherche spécifique;
+        note right
+          **IMPORTANT :** Mise à jour de la query de RECHERCHE
+          (pas de chargement complet)
+          
+          Code:
+          setQueryData(['communes', 'search', searchTerm, departmentIds], callback)
+          
+          Callback:
+          - Si old est vide, retourne [newCommune]
+          - Si newCommune existe déjà, retourne old
+          - Sinon, ajoute newCommune et trie alphabétiquement
+          
+          Si l'utilisateur avait recherché "Libreville",
+          on met à jour cette query spécifique
+        end note
+      else (non)
+        :Passer à la mise à jour générique;
+      endif
+    }
+    
+    partition "Mise à jour cache générique (Recherche)" {
+      :Mettre à jour toutes les queries de recherche communes;
+      note right
+        Code:
+        setQueriesData(['communes', 'search'], callback)
+        
+        Callback:
+        - Si old est vide, retourne [newCommune]
+        - Si newCommune existe déjà, retourne old
+        - Sinon, ajoute newCommune et trie alphabétiquement
+        
+        Mise à jour de toutes les queries de recherche communes
+        (exact: false pour cibler toutes les sous-queries)
+        
+        Cela inclut toutes les recherches précédentes :
+        - ['communes', 'search', 'Libreville', ...]
+        - ['communes', 'search', 'Port', ...]
+        - etc.
+      end note
+    }
+    
+    :**3. INVALIDATION**;
+    :invalidateQueries(['communes'], exact: false);
+    note right
+      Invalide toutes les queries communes :
+      - ['communes', 'search', ...] (recherches)
+      - Note: Pas de ['communes', deptId] car on utilise la recherche uniquement
+      
+      Les queries sont marquées comme stale
+      mais le cache reste disponible (stale-while-revalidate)
+    end note
+    
+    :**4. REFETCH EXPLICITE**;
+    :refetchQueries(['communes', 'search'], exact: false, type: 'active');
+    note right
+      Force le refetch des queries de recherche actives
+      (celles utilisées par les composants montés)
+      
+      Si l'utilisateur avait recherché "Libreville",
+      on refetch cette query spécifique avec limit 50
+    end note
+    
+    :**5. SELECTION**;
+    :setValue('address.communeId', newCommune.id, { shouldValidate: true });
+    note right
+      Met à jour le formulaire APRÈS
+      la mise à jour du cache
+    end note
+    
+    :**6. CASCADE RESET**;
+    :setValue('address.districtId', '', { shouldValidate: true });
+    :setValue('address.quarterId', '', { shouldValidate: true });
+    note right
+      Réinitialise les niveaux enfants
+      car la commune a changé
+    end note
+  }
+  
+  :**7. UI UPDATE**;
+  :CommuneCombobox détecte le changement de cache;
+  :CommuneCombobox recalcule les résultats de recherche (useQuery);
+  :La nouvelle commune apparaît dans les résultats de recherche;
+  :La nouvelle commune est sélectionnée automatiquement;
+  :Tri alphabétique appliqué;
+  note right
+    La query de recherche se met à jour automatiquement
+    La nouvelle commune apparaît dans les résultats
+    
+    **Cache :** Si on revient à cette recherche dans 5 min,
+    utilise le cache (pas de requête)
+  end note
+  
+  :Toast affiché : "Commune [nom] créée et sélectionnée";
+  
+  :**8. CASCADE CHILDREN**;
+  :DistrictCombobox détecte que communeId a changé;
+  :DistrictCombobox charge tous les districts (max 7, chargement complet);
+  note right
+    Districts : Chargement complet (max 7 par commune)
+    Cache: 30 min par commune
+    Pas de recherche nécessaire
+  end note
+  :QuarterCombobox détecte que districtId est vide;
+  :QuarterCombobox se réinitialise (recherche requise);
+  note right
+    Quarters : Recherche uniquement (min 2 chars, limit 50)
+    Cache: 5 min par terme de recherche
+  end note
+  
+  stop
+endif
+
+@enduml

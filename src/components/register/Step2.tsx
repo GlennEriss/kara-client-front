@@ -14,7 +14,7 @@ import AddProvinceModal from '@/domains/infrastructure/geography/components/moda
 import AddCommuneModal from '@/domains/infrastructure/geography/components/modals/AddCommuneModal'
 import AddDistrictModal from '@/domains/infrastructure/geography/components/modals/AddDistrictModal'
 import AddQuarterModal from '@/domains/infrastructure/geography/components/modals/AddQuarterModal'
-import type { Province, Commune, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
+import type { Province, Commune, District, Quarter } from '@/domains/infrastructure/geography/entities/geography.types'
 import { cn } from '@/lib/utils'
 import {
   ProvinceCombobox,
@@ -23,6 +23,7 @@ import {
   QuarterCombobox,
 } from '@/domains/infrastructure/geography/components/forms'
 import { useAddressCascade } from '@/domains/memberships/hooks/useAddressCascade'
+import { useCascadingEntityCreation } from '@/domains/memberships/hooks/useCascadingEntityCreation'
 
 interface Step2Props {
   form: any // Type du form de react-hook-form
@@ -42,30 +43,118 @@ export default function Step2({ form }: Step2Props) {
   // Utiliser le hook centralisé pour la cascade d'adresse
   const { selectedIds } = useAddressCascade({ form })
 
+  // Utiliser le pattern Cascading Dependent Selection avec Optimistic Updates
+  const { handleEntityCreated: handleCommuneCreatedOptimistic } = 
+    useCascadingEntityCreation<Commune>({
+      queryKey: ['communes', 'search'], // Recherche uniquement
+      parentContext: {
+        key: 'provinceId',
+        value: selectedIds.provinceId,
+        getParentId: (commune) => commune.departmentId
+      },
+      sortFn: (a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }),
+      resetChildren: () => {
+        setValue('address.districtId', '', { shouldValidate: true })
+        setValue('address.quarterId', '', { shouldValidate: true })
+      }
+    })
+
+  const { handleEntityCreated: handleDistrictCreatedOptimistic } = 
+    useCascadingEntityCreation<District>({
+      queryKey: ['districts'], // Chargement complet (max 7)
+      parentContext: {
+        key: 'communeId',
+        value: selectedIds.communeId,
+        getParentId: (district) => district.communeId
+      },
+      sortFn: (a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }),
+      resetChildren: () => {
+        setValue('address.quarterId', '', { shouldValidate: true })
+      }
+    })
+
+  const { handleEntityCreated: handleQuarterCreatedOptimistic } = 
+    useCascadingEntityCreation<Quarter>({
+      queryKey: ['quarters', 'search'], // Recherche uniquement
+      parentContext: {
+        key: 'districtId',
+        value: selectedIds.districtId,
+        getParentId: (quarter) => quarter.districtId
+      },
+      sortFn: (a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    })
+
   // Handlers pour les modals de création
-  const handleProvinceCreated = (newProvince: Province) => {
+  const handleProvinceCreated = async (newProvince: Province) => {
+    // Pour les provinces : invalidation simple (chargement complet, pas de recherche)
     queryClient.invalidateQueries({ queryKey: ['provinces'] })
+    await queryClient.refetchQueries({ queryKey: ['provinces'], type: 'active' })
     setValue('address.provinceId', newProvince.id, { shouldValidate: true })
+    setValue('address.province', newProvince.name, { shouldValidate: true })
+    // Réinitialiser les niveaux enfants
+    setValue('address.communeId', '', { shouldValidate: true })
+    setValue('address.districtId', '', { shouldValidate: true })
+    setValue('address.quarterId', '', { shouldValidate: true })
     toast.success(`Province "${newProvince.name}" créée et sélectionnée`)
   }
 
-  const handleCommuneCreated = (newCommune: Commune) => {
-    queryClient.invalidateQueries({ queryKey: ['communes'] })
-    setValue('address.communeId', newCommune.id, { shouldValidate: true })
+  const handleCommuneCreated = async (newCommune: Commune) => {
+    await handleCommuneCreatedOptimistic(
+      newCommune,
+      (id) => setValue('address.communeId', id, { shouldValidate: true })
+    )
+    // Mettre à jour le champ texte
+    setValue('address.city', newCommune.name, { shouldValidate: true })
     toast.success(`Commune "${newCommune.name}" créée et sélectionnée`)
   }
 
-  const handleDistrictCreated = (_newDistricts: any[]) => {
+  const handleDistrictCreated = async (_newDistricts: any[]) => {
     // Après création en masse, rafraîchir la liste des arrondissements
-    queryClient.invalidateQueries({ queryKey: ['districts'] })
+    // NOTE: useDistrictMutations invalide déjà les queries dans onSuccess avec exact: false
+    // Mais on force un refetch immédiat pour garantir l'affichage des nouveaux districts
+    
+    // Petit délai pour s'assurer que le modal est fermé et que le composant est prêt
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Forcer le refetch de la query pour la commune sélectionnée
+    // Utiliser type: 'all' pour forcer le refetch même si la query n'est pas "active"
+    if (selectedIds.communeId) {
+      // Invalider d'abord pour s'assurer que la query est marquée comme stale
+      queryClient.invalidateQueries({ 
+        queryKey: ['districts', selectedIds.communeId],
+        exact: true
+      })
+      
+      // Puis forcer le refetch
+      await queryClient.refetchQueries({ 
+        queryKey: ['districts', selectedIds.communeId],
+        exact: true,
+        type: 'all' // Force le refetch même si la query n'est pas active
+      })
+    }
+    
     // Ne pas sélectionner automatiquement car plusieurs arrondissements ont été créés
     // L'utilisateur pourra choisir parmi les nouveaux arrondissements créés
     toast.success('Arrondissements créés avec succès')
   }
 
-  const handleQuarterCreated = (newQuarter: Quarter) => {
-    queryClient.invalidateQueries({ queryKey: ['quarters'] })
-    setValue('address.quarterId', newQuarter.id, { shouldValidate: true })
+  const handleDistrictCreatedSingle = async (newDistrict: District) => {
+    await handleDistrictCreatedOptimistic(
+      newDistrict,
+      (id) => setValue('address.districtId', id, { shouldValidate: true })
+    )
+    // Mettre à jour le champ texte
+    setValue('address.arrondissement', newDistrict.name, { shouldValidate: true })
+    toast.success(`Arrondissement "${newDistrict.name}" créé et sélectionné`)
+  }
+
+  const handleQuarterCreated = async (newQuarter: Quarter) => {
+    await handleQuarterCreatedOptimistic(
+      newQuarter,
+      (id) => setValue('address.quarterId', id, { shouldValidate: true })
+    )
+    // Mettre à jour le champ texte
+    setValue('address.district', newQuarter.name, { shouldValidate: true })
     toast.success(`Quartier "${newQuarter.name}" créé et sélectionné`)
   }
 
@@ -182,7 +271,7 @@ export default function Step2({ form }: Step2Props) {
           <AddDistrictModal
             open={showAddDistrictModal}
             onClose={() => setShowAddDistrictModal(false)}
-            onSuccess={handleDistrictCreated}
+            onSuccess={handleDistrictCreated} // Création en masse (retourne tableau vide)
             communeId={selectedIds.communeId || undefined}
           />
           <AddQuarterModal

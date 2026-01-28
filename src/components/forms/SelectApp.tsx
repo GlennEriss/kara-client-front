@@ -24,9 +24,17 @@ export default function SelectApp({
   className,
   disabled = false
 }: SelectAppProps) {
+  // Log pour déboguer les changements de valeur
+  React.useEffect(() => {
+    console.log('🔍 SelectApp value changed:', value)
+  }, [value])
+  
+  // Normaliser la valeur : utiliser undefined au lieu de chaîne vide pour le composant Select
+  const normalizedValue = value && value.trim() !== '' ? value : undefined
+  
   return (
     <Select
-      value={value}
+      value={normalizedValue}
       onValueChange={onChange}
       disabled={disabled}
     >

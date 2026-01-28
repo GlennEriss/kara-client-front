@@ -14,6 +14,30 @@ import * as admin from 'firebase-admin'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 import { algoliasearch } from 'algoliasearch'
 
+function isAlgoliaExtensionEnabled(): boolean {
+  // Priorité: functions.config().algolia.use_extension > process.env
+  let functionsConfig: any = {}
+  try {
+    const functions = require('firebase-functions')
+    if (functions.config && functions.config().algolia) {
+      functionsConfig = functions.config().algolia
+    }
+  } catch {
+    // ignore
+  }
+
+  const raw =
+    functionsConfig.use_extension ??
+    process.env.ALGOLIA_USE_EXTENSION ??
+    process.env.USE_ALGOLIA_EXTENSION
+
+  if (raw === true) return true
+  if (typeof raw === 'string') {
+    return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase())
+  }
+  return false
+}
+
 // Détection de l'environnement depuis le projet Firebase
 function getAlgoliaConfig() {
   const projectId = admin.app().options.projectId
@@ -163,6 +187,12 @@ export const syncToAlgolia = onDocumentWritten(
     timeoutSeconds: 60,
   },
   async (event) => {
+    // Si l’extension Algolia est installée, éviter la double indexation
+    if (isAlgoliaExtensionEnabled()) {
+      console.log('⏭️ syncToAlgolia ignorée (Algolia extension activée)')
+      return
+    }
+
     const requestId = event.params.requestId
     const beforeData = event.data?.before.exists ? event.data.before.data() : null
     const afterData = event.data?.after.exists ? event.data.after.data() : null

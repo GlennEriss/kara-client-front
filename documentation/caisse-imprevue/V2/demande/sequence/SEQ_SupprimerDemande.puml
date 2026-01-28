@@ -1,0 +1,106 @@
+@startuml SEQ_SupprimerDemande
+title Séquence : Supprimer une Demande (V2)
+
+actor "Admin" as Admin
+participant "DemandCardV2\nou DemandDetailV2" as Card
+participant "DeleteDemandModalV2\n(Component)" as Modal
+participant "useDeleteDemand\n(Hook)" as Hook
+participant "CaisseImprevueService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Card: Clique "Supprimer" sur demande REJECTED
+activate Card
+
+Card -> Modal: Ouvrir DeleteDemandModalV2(demand)
+activate Modal
+
+Modal -> Modal: Render toutes les sections :
+Modal -> Modal: - Informations demandeur
+Modal -> Modal: - Motif de la demande
+Modal -> Modal: - Motif de refus
+Modal -> Modal: - Alerte destructive
+Modal -> Modal: - Checkbox confirmation
+
+Modal --> Admin: Afficher modal avec confirmation
+
+Admin -> Modal: Coche "Je confirme la suppression"
+Modal -> Modal: isConfirmed = true
+Modal --> Admin: Bouton "Supprimer définitivement" activé
+
+Admin -> Modal: Clique "Supprimer définitivement"
+Modal -> Hook: useDeleteDemand(demandId)
+activate Hook
+
+Hook -> Service: deleteDemand(demandId)
+activate Service
+
+Service -> Service: Valider permissions
+Service -> Repo: delete(demandId)
+activate Repo
+
+note right of Repo
+  **Traçabilité suppression** :
+  - Enregistrer deletedBy et deletedAt AVANT suppression
+  - Ces informations permettent d'auditer qui a supprimé et quand
+  - Note : Pour conserver ces infos après suppression,
+    considérer un soft delete ou un log séparé
+end note
+
+Repo -> Firestore: updateDoc(docRef, {
+  deletedBy: currentAdminId,
+  deletedAt: serverTimestamp()
+})
+Firestore --> Repo: OK
+
+Repo -> Firestore: deleteDoc(docRef(collection('caisseImprevueDemands'), demandId))
+Firestore --> Repo: OK
+
+Repo --> Service: Success
+deactivate Repo
+
+Service --> Hook: Success
+deactivate Service
+
+' ============================================
+' INVALIDATION CACHE
+' ============================================
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands-stats'])
+
+Hook -> QueryCache: Refetch en arrière-plan
+QueryCache -> Repo: Refetch liste
+Repo -> Firestore: query(...)
+Firestore --> Repo: Nouvelles données (sans demande supprimée)
+Repo --> QueryCache: Mettre à jour cache
+
+Hook --> Modal: Success
+deactivate Hook
+
+Modal -> Modal: Fermer modal
+Modal -> Card: toast.success('Demande supprimée')
+Card --> Admin: Toast affiché
+
+Card -> Card: Mettre à jour UI :
+Card -> Card: - Retirer demande de la liste
+Card -> Card: - Mettre à jour stats
+Card --> Admin: UI mise à jour
+
+deactivate Modal
+deactivate Card
+
+alt Erreur serveur
+    Hook --> Modal: Error
+    Modal --> Admin: toast.error('Erreur lors de la suppression')
+end
+
+note right of Service
+  **Validation métier** :
+  - Vérifier statut REJECTED
+  - Vérifier permissions admin
+  - Enregistrer deletedBy et deletedAt avant suppression
+  - Suppression définitive du document
+end note
+
+@enduml

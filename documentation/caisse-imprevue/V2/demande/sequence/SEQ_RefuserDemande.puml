@@ -1,0 +1,136 @@
+@startuml SEQ_RefuserDemande
+title Séquence : Refuser une Demande (V2)
+
+actor "Admin" as Admin
+participant "DemandCardV2\nou DemandTableV2" as Card
+participant "RejectDemandModalV2\n(Component)" as Modal
+participant "useRejectDemand\n(Hook)" as Hook
+participant "CaisseImprevueService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Card: Clique "Refuser" sur demande PENDING
+activate Card
+
+Card -> Modal: Ouvrir RejectDemandModalV2(demand)
+activate Modal
+
+Modal -> Modal: Render toutes les sections :
+Modal -> Modal: - Informations demandeur
+Modal -> Modal: - Motif de la demande
+Modal -> Modal: - Contact d'urgence
+Modal -> Modal: - Résumé demande
+
+Modal --> Admin: Afficher modal avec toutes les infos
+
+Admin -> Modal: Saisit "Motif de refus"
+Modal -> Modal: Valider longueur (min 10, max 500)
+
+alt Validation OK
+    Modal --> Admin: Bouton "Refuser" activé
+else Validation échouée
+    Modal --> Admin: Afficher erreur "Minimum 10 caractères"
+    Modal --> Admin: Bouton "Refuser" désactivé
+end
+
+Admin -> Modal: Clique "Refuser la demande"
+Modal -> Hook: useRejectDemand(demandId, reason)
+activate Hook
+
+' ============================================
+' OPTIMISTIC UPDATE
+' ============================================
+Hook -> QueryCache: cancelQueries(['caisse-imprevue-demands'])
+QueryCache --> Hook: Requêtes annulées
+
+Hook -> QueryCache: getQueryData(['caisse-imprevue-demands', ...])
+QueryCache --> Hook: previousDemands (snapshot)
+
+note right of Hook
+  setQueryData avec fonction updater :
+  - Parcourir toutes les demandes
+  - Si d.id === demandId :
+    Mettre à jour status = 'REJECTED'
+    rejectedBy = currentAdminId
+    rejectedAt = now()
+  - Sinon : garder la demande inchangée
+end note
+
+Hook -> QueryCache: setQueryData(['caisse-imprevue-demands', ...], updater)
+QueryCache --> Hook: UI mise à jour immédiatement
+
+Hook --> Admin: UI mise à jour (statut REJECTED immédiatement)
+
+' ============================================
+' MUTATION SERVEUR
+' ============================================
+Hook -> Service: rejectDemand(demandId, reason)
+activate Service
+
+Service -> Service: Valider données métier
+Service -> Repo: update(demandId, status REJECTED, decisionReason, rejectedBy, rejectedAt, updatedAt)
+activate Repo
+
+note right of Repo
+  **Traçabilité refus** :
+  - rejectedBy : ID de l'admin qui refuse
+  - rejectedAt : Date/heure précise de refus
+  - decisionMadeBy et decisionDate : pour compatibilité
+  - Permet d'auditer qui a fait quoi et quand
+end note
+
+Repo -> Firestore: updateDoc(docRef, status REJECTED, decisionReason, rejectedBy, rejectedAt, updatedAt)
+Firestore --> Repo: OK
+
+Repo --> Service: CaisseImprevueDemand (mis à jour)
+deactivate Repo
+
+Service --> Hook: CaisseImprevueDemand
+deactivate Service
+
+' ============================================
+' INVALIDATION CACHE
+' ============================================
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands-stats'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demand-detail', demandId])
+
+Hook -> QueryCache: Refetch en arrière-plan
+QueryCache -> Repo: Refetch liste
+Repo -> Firestore: query(...)
+Firestore --> Repo: Nouvelles données
+Repo --> QueryCache: Mettre à jour cache
+
+Hook --> Modal: Success
+deactivate Hook
+
+Modal -> Modal: Fermer modal
+Modal -> Card: toast.success('Demande refusée')
+Card --> Admin: Toast affiché
+
+Card -> Card: Mettre à jour UI :
+Card -> Card: - Statut → REJECTED (badge rouge)
+Card -> Card: - Boutons "Réouvrir" et "Supprimer" apparaissent
+Card --> Admin: UI mise à jour
+
+deactivate Modal
+deactivate Card
+
+alt Erreur serveur
+    Hook -> QueryCache: Rollback optimistic update
+    QueryCache --> Admin: UI restaurée
+    
+    Hook --> Modal: Error
+    Modal --> Admin: toast.error('Erreur lors du refus')
+end
+
+note right of Service
+  **Validation métier** :
+  - Vérifier statut PENDING
+  - Vérifier motif >= 10 caractères
+  - Vérifier permissions admin
+  - Enregistrer rejectedBy et rejectedAt pour traçabilité
+end note
+
+@enduml

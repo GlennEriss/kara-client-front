@@ -17,6 +17,30 @@ import * as admin from 'firebase-admin'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 import { algoliasearch } from 'algoliasearch'
 
+function isAlgoliaExtensionEnabled(): boolean {
+  // Priorité: functions.config().algolia.use_extension > process.env
+  let functionsConfig: any = {}
+  try {
+    const functions = require('firebase-functions')
+    if (functions.config && functions.config().algolia) {
+      functionsConfig = functions.config().algolia
+    }
+  } catch {
+    // ignore
+  }
+
+  const raw =
+    functionsConfig.use_extension ??
+    process.env.ALGOLIA_USE_EXTENSION ??
+    process.env.USE_ALGOLIA_EXTENSION
+
+  if (raw === true) return true
+  if (typeof raw === 'string') {
+    return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase())
+  }
+  return false
+}
+
 // Rôles considérés comme membres (exclut Admin, SuperAdmin, Secretary)
 const MEMBER_ROLES = ['Adherant', 'Bienfaiteur', 'Sympathisant']
 
@@ -159,8 +183,17 @@ function getAlgoliaConfig() {
   }
 
   // Index members (différent de membership-requests)
-  const baseIndexName = functionsConfig.members_index_name || process.env.ALGOLIA_MEMBERS_INDEX_NAME || 'members'
-  const indexName = `${baseIndexName}-${env}`
+  // IMPORTANT: éviter le double suffixe (ex: "members-prod-prod") si la config contient déjà l'env
+  const baseIndexName =
+    functionsConfig.members_index_name || process.env.ALGOLIA_MEMBERS_INDEX_NAME || 'members'
+
+  const baseHasEnvSuffix =
+    typeof baseIndexName === 'string' &&
+    (baseIndexName.endsWith('-dev') ||
+      baseIndexName.endsWith('-preprod') ||
+      baseIndexName.endsWith('-prod'))
+
+  const indexName = baseHasEnvSuffix ? baseIndexName : `${baseIndexName}-${env}`
 
   const config = {
     appId: functionsConfig.app_id || process.env.ALGOLIA_APP_ID || '',
@@ -209,6 +242,12 @@ export const syncMembersToAlgolia = onDocumentWritten(
     timeoutSeconds: 60,
   },
   async (event) => {
+    // Si l’extension Algolia est installée, éviter la double indexation
+    if (isAlgoliaExtensionEnabled()) {
+      console.log('⏭️ syncMembersToAlgolia ignorée (Algolia extension activée)')
+      return
+    }
+
     const userId = event.params.userId
     const beforeData = event.data?.before.exists ? event.data.before.data() : null
     const afterData = event.data?.after.exists ? event.data.after.data() : null

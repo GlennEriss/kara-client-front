@@ -267,6 +267,55 @@ export class GeographieService implements IService {
     return this.communeRepository.searchByName(searchTerm, departmentId)
   }
 
+  /**
+   * Recherche des communes avec plusieurs départements et limite
+   * Utilisé pour la recherche dans les Combobox (pas de chargement complet)
+   */
+  async searchCommunesWithLimit(params: {
+    search: string
+    departmentIds?: string[]
+    limit?: number
+  }): Promise<Commune[]> {
+    const { search, departmentIds = [], limit = 50 } = params
+    
+    if (!search || search.trim().length < 2) {
+      return []
+    }
+
+    // Si des départements sont spécifiés, rechercher dans chacun
+    if (departmentIds.length > 0) {
+      const allResults: Commune[] = []
+      
+      // Rechercher dans chaque département
+      for (const deptId of departmentIds) {
+        const results = await this.communeRepository.searchByName(search, deptId)
+        allResults.push(...results)
+      }
+      
+      // Éliminer les doublons par ID
+      const uniqueResults = allResults.filter((commune, index, self) =>
+        index === self.findIndex(c => c.id === commune.id)
+      )
+      
+      // Trier alphabétiquement
+      const sorted = uniqueResults.sort((a, b) => 
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      )
+      
+      // Limiter les résultats
+      return sorted.slice(0, limit)
+    }
+    
+    // Si aucun département spécifié, rechercher dans toutes les communes
+    // (mais avec limite pour éviter de charger trop de données)
+    const allResults = await this.communeRepository.searchByName(search)
+    const sorted = allResults.sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+    
+    return sorted.slice(0, limit)
+  }
+
   // ================== ARRONDISSEMENTS ==================
 
   /**
@@ -467,6 +516,32 @@ export class GeographieService implements IService {
    */
   async searchQuarters(searchTerm: string, districtId?: string): Promise<Quarter[]> {
     return this.quarterRepository.searchByName(searchTerm, districtId)
+  }
+
+  /**
+   * Recherche des quartiers avec limite
+   * Utilisé pour la recherche dans les Combobox (pas de chargement complet)
+   */
+  async searchQuartersWithLimit(params: {
+    search: string
+    districtId?: string
+    limit?: number
+  }): Promise<Quarter[]> {
+    const { search, districtId, limit = 50 } = params
+    
+    if (!search || search.trim().length < 2) {
+      return []
+    }
+
+    const results = await this.quarterRepository.searchByName(search, districtId)
+    
+    // Trier alphabétiquement
+    const sorted = results.sort((a, b) => 
+      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    )
+    
+    // Limiter les résultats
+    return sorted.slice(0, limit)
   }
 }
 

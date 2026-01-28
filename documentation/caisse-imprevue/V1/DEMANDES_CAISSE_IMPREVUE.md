@@ -88,20 +88,23 @@ export interface CaisseImprevueDemand {
   firstPaymentDate?: string // Date du premier paiement (calculée ou définie)
   
   // Contact d'urgence (Step 3)
-  emergencyContact?: {
-    name: string
+  emergencyContact: {
+    lastName: string
     firstName?: string
-    phone: string
+    phone1: string
     phone2?: string
-    relationship?: string
-    idNumber?: string
-    typeId?: string
-    documentPhotoUrl?: string
+    relationship: string
+    idNumber: string
+    typeId: string
+    documentPhotoUrl: string
     memberId?: string // Si le contact est un membre de la mutuelle
   }
   
-  // Raison de la demande (optionnel)
-  cause?: string // Raison de la demande (optionnel)
+  // Motif de la demande (obligatoire)
+  cause: string // Motif de la demande (obligatoire, 10-500 caractères)
+  // Description : Le motif permet de justifier la demande de contrat Caisse Imprévue.
+  // Il doit contenir au minimum 10 caractères et au maximum 500 caractères.
+  // Ce champ est saisi dans l'étape 1 du formulaire de création de demande.
   
   // Statut et décision
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | 'REOPENED'
@@ -185,15 +188,14 @@ export interface CaisseImprevueDemandStats {
    - **Étape 1 - Informations du membre** :
      - Recherche et sélection du membre (obligatoire)
      - Les informations du membre sont préremplies automatiquement
+     - Motif de la demande (obligatoire, 10-500 caractères)
    - **Étape 2 - Informations du forfait** :
      - Sélection du forfait Caisse Imprévue (obligatoire)
      - Sélection de la fréquence de paiement : DAILY ou MONTHLY (obligatoire)
      - Date souhaitée pour le début du contrat (obligatoire)
      - Date du premier paiement (optionnel, calculée par défaut)
-     - Raison de la demande (optionnel)
    - **Étape 3 - Contact d'urgence** :
-     - Sélection d'un membre de la mutuelle comme contact d'urgence (optionnel)
-     - OU saisie manuelle des informations du contact d'urgence
+     - Sélection d'un membre de la mutuelle comme contact d'urgence OU saisie manuelle (obligatoire)
      - Si membre sélectionné, les informations sont préremplies depuis son dossier
 4. L'admin valide le formulaire
 5. La demande est créée avec le statut `PENDING`
@@ -454,7 +456,7 @@ export interface CaisseImprevueDemandStats {
      - Téléphones
      - Relation
      - Pièce d'identité (si disponible)
-   - **Raison de la demande** (si renseignée)
+   - **Motif de la demande** (obligatoire)
    - **Historique des décisions** :
      - Date et agent de la décision
      - Raison de la décision
@@ -498,7 +500,7 @@ export interface CaisseImprevueDemandStats {
 5. L'admin sélectionne un format
 6. Le fichier est généré avec :
    - Toutes les demandes correspondant aux filtres
-   - Les colonnes : ID, Statut, Membre, Forfait, Fréquence, Date souhaitée, Date de création, Agent décision, Raison
+   - Les colonnes : ID, Statut, Membre, Forfait, Fréquence, Date souhaitée, Date de création, Agent décision, Motif de la demande
 7. Le fichier est téléchargé
 
 **Scénarios alternatifs** :
@@ -562,7 +564,7 @@ export interface CaisseImprevueDemandStats {
 ├─────────────────────────────────────────────────────────┤
 │ Contact d'urgence                                        │
 ├─────────────────────────────────────────────────────────┤
-│ Raison de la demande                                     │
+│ Motif de la demande (obligatoire)                       │
 ├─────────────────────────────────────────────────────────┤
 │ Historique des décisions                                 │
 ├─────────────────────────────────────────────────────────┤
@@ -629,8 +631,8 @@ Exemple : `MK_DEMANDE_CI_2663_040126_1329`
   paymentFrequency: 'DAILY' | 'MONTHLY'
   desiredDate: string
   firstPaymentDate?: string
-  emergencyContact?: EmergencyContactCI
-  cause?: string
+  emergencyContact: EmergencyContactCI
+  cause: string // Motif de la demande (obligatoire, 10-500 caractères)
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | 'REOPENED'
   decisionMadeAt?: Timestamp
   decisionMadeBy?: string
@@ -703,6 +705,7 @@ Exemple : `MK_DEMANDE_CI_2663_040126_1329`
 - `caisseImprevueDemandStatusEnum`
 - `caisseImprevueDemandSchema`
 - `caisseImprevueDemandFormSchema`
+  - `cause`: string (obligatoire, 10-500 caractères) - Motif de la demande
 - `approveDemandSchema`
 - `rejectDemandSchema`
 - `reopenDemandSchema`

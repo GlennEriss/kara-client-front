@@ -1,0 +1,116 @@
+@startuml CreerContrat
+title Workflow : Créer un Contrat depuis une Demande Acceptée (V2)
+
+start
+
+:Admin clique "Créer le contrat" sur une demande APPROVED;
+
+:Ouvrir ConfirmContractModalV2 :
+- Modal responsive (max-w-2xl)
+- Style confirmation (orange/vert);
+
+:Afficher alerte de confirmation :
+- "Cette action est irréversible"
+- "Le contrat sera créé avec les informations suivantes"
+- Style Alert;
+
+:Afficher toutes les informations du demandeur :
+- Nom complet
+- Téléphone
+- Email
+- Matricule;
+
+:Afficher section "Résumé de la demande" :
+- Forfait sélectionné
+- Fréquence (DAILY / MONTHLY)
+- Montant mensuel
+- Durée totale
+- Date souhaitée
+- Montant total versé (simulation);
+
+:Afficher section "Contact d'urgence" :
+- Nom complet
+- Téléphones
+- Lien de parenté;
+
+:Demander confirmation explicite :
+- Checkbox "Je confirme la création du contrat"
+- Obligatoire pour activer le bouton;
+
+if (Admin coche confirmation ?) then (oui)
+  :Bouton "Confirmer la création" activé;
+else (non)
+  :Bouton "Confirmer" désactivé;
+endif
+
+if (Admin clique "Confirmer la création" ?) then (oui)
+  :Hook useCreateContract :
+  - Service.createContractFromDemand(demandId);
+  
+  :Service.createContract() :
+  - Créer document dans collection 'contractsCI'
+  - Copier toutes les données de la demande
+  - Ajouter champs spécifiques contrat
+  - status = 'ACTIVE'
+  - createdBy = currentAdminId
+  - createdAt = now();
+  
+  note right
+    createdBy : ID de l'admin qui autorise la création
+    createdAt : Date/heure de création du contrat
+    Permet de tracer qui a créé le contrat et quand
+  end note
+  
+  :Repository.update() (demande) :
+  - Firestore.updateDoc()
+  - status = 'CONVERTED'
+  - contractId = nouveau contrat ID
+  - convertedBy = currentAdminId
+  - convertedAt = now();
+  
+  note right
+    convertedBy : ID de l'admin qui a converti la demande
+    convertedAt : Date/heure de conversion
+    Permet de tracer qui a converti la demande en contrat
+  end note
+  
+  :Invalider cache :
+  - Invalider liste demandes
+  - Invalider stats
+  - Invalider détails
+  - Invalider liste contrats;
+  
+  :Fermer le modal;
+  
+  :Afficher toast "Contrat créé avec succès";
+  
+  :Mettre à jour l'UI :
+  - Statut demande changé à CONVERTED
+  - Badge bleu
+  - Lien vers le contrat disponible;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Modal de confirmation avec toutes les infos
+  - Confirmation explicite requise (checkbox)
+  - Création contrat + mise à jour demande
+  - Transaction atomique (si possible)
+  - Invalidation cache multiple
+  - Toast de confirmation
+  - Lien vers contrat créé
+  
+  **Traçabilité** :
+  - createdBy : ID de l'admin qui a autorisé la création du contrat
+  - createdAt : Date et heure précise de création du contrat
+  - convertedBy : ID de l'admin qui a converti la demande en contrat
+  - convertedAt : Date et heure précise de conversion
+  - Ces attributs permettent d'auditer qui a fait quoi et quand
+end note
+
+@enduml

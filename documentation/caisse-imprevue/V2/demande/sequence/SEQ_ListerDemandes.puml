@@ -1,0 +1,283 @@
+@startuml SEQ_ListerDemandes
+title Séquence : Lister les Demandes avec Pagination, Tri, Recherche (V2)
+
+actor "Admin" as Admin
+participant "ListDemandesPage\n(/demandes)" as Page
+participant "ListDemandesV2\n(Component)" as List
+participant "StatisticsV2\n(Component)" as Stats
+participant "useCaisseImprevueDemandsStats\n(Hook)" as StatsHook
+participant "useCaisseImprevueDemands\n(Hook)" as ListHook
+participant "DemandSearchV2\n(Component)" as Search
+participant "useDemandSearch\n(Hook)" as SearchHook
+participant "DemandFiltersV2\n(Component)" as Filters
+participant "DemandSortV2\n(Component)" as Sort
+participant "PaginationWithEllipses\n(Component)" as Pagination
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Page: Accéder à /caisse-imprevue/demandes
+activate Page
+
+Page -> List: Render ListDemandesV2
+activate List
+
+' ============================================
+' CHARGEMENT STATISTIQUES
+' ============================================
+List -> Stats: Render StatisticsV2
+activate Stats
+
+Stats -> StatsHook: useCaisseImprevueDemandsStats(filters)
+activate StatsHook
+
+StatsHook -> QueryCache: queryKey: ['caisse-imprevue-demands-stats', filters]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 15 min)
+
+alt Cache présent et frais
+    QueryCache --> StatsHook: Stats depuis cache
+else Cache absent ou stale
+    StatsHook -> Repo: getStats(filters)
+    activate Repo
+    
+    Repo -> Firestore: getCountFromServer(where('status', '==', 'PENDING'))
+    Firestore --> Repo: count
+    
+    Repo -> Firestore: getCountFromServer(where('status', '==', 'APPROVED'))
+    Firestore --> Repo: count
+    
+    Repo -> Firestore: getCountFromServer(where('status', '==', 'REJECTED'))
+    Firestore --> Repo: count
+    
+    Repo --> StatsHook: { total, pending, approved, rejected, ... }
+    deactivate Repo
+    
+    StatsHook -> QueryCache: Mettre en cache (15 min)
+    QueryCache --> StatsHook: Cache mis à jour
+end
+
+StatsHook --> Stats: { data: stats, isLoading: false }
+deactivate StatsHook
+
+Stats --> Admin: Afficher statistiques (AVANT tabs)
+deactivate Stats
+
+' ============================================
+' CHARGEMENT LISTE
+' ============================================
+List -> ListHook: useCaisseImprevueDemands(filters, page, limit, sortBy, sortOrder)
+activate ListHook
+
+ListHook -> QueryCache: queryKey: ['caisse-imprevue-demands', filters, page, limit, sortBy, sortOrder]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 5 min)
+
+alt Cache présent et frais
+    QueryCache --> ListHook: Données depuis cache
+else Cache absent ou stale
+    ListHook -> Repo: getPaginated(filters, page, limit, sortBy, sortOrder)
+    activate Repo
+    
+    ' Construire contraintes
+    Repo -> Repo: constraints = []
+    
+    alt Filtre statut
+        Repo -> Repo: constraints.push(where('status', '==', filters.status))
+    end
+    
+    alt Filtre fréquence
+        Repo -> Repo: constraints.push(where('paymentFrequency', '==', filters.paymentFrequency))
+    end
+    
+    ' Tri
+    alt Tri par date
+        Repo -> Repo: constraints.push(orderBy('createdAt', sortOrder))
+    else Tri alphabétique
+        Repo -> Repo: constraints.push(orderBy('memberLastName', sortOrder))
+        Repo -> Repo: constraints.push(orderBy('memberFirstName', sortOrder))
+    end
+    
+    ' Calculer total
+    Repo -> Firestore: getCountFromServer(query(collectionRef, ...constraints))
+    Firestore --> Repo: totalCount
+    
+    ' Pagination
+    alt Page > 1
+        Repo -> Firestore: query(..., limit(offset))
+        Firestore --> Repo: offsetDocs
+        
+        Repo -> Repo: lastDoc = offsetDocs[offsetDocs.length - 1]
+        Repo -> Repo: constraints.push(startAfter(lastDoc))
+    end
+    
+    Repo -> Repo: constraints.push(limit(pageLimit))
+    
+    ' Exécuter requête
+    Repo -> Firestore: query(collectionRef, ...constraints)
+    Firestore --> Repo: QuerySnapshot
+    
+    Repo -> Repo: Transform documents → CaisseImprevueDemand[]
+    
+    Repo --> ListHook: { items: Demand[], pagination: { page, totalPages, ... } }
+    deactivate Repo
+    
+    ListHook -> QueryCache: Mettre en cache (5 min)
+    QueryCache --> ListHook: Cache mis à jour
+end
+
+ListHook --> List: { data: PaginatedDemands, isLoading: false }
+deactivate ListHook
+
+' ============================================
+' ORDRE DE PRIORITÉ (Tab "Toutes")
+' ============================================
+alt Tab "Toutes" sélectionné
+    List -> List: Trier items par priorité statut :
+    List -> List: PENDING (1) → APPROVED (2) → REJECTED (3) → ...
+    List -> List: Puis trier par date décroissante
+end
+
+List --> Admin: Afficher liste (Grid ou Table)
+List -> Pagination: Render pagination (HAUT)
+activate Pagination
+Pagination --> Admin: Afficher contrôles pagination
+deactivate Pagination
+
+' ============================================
+' RECHERCHE
+' ============================================
+Admin -> Search: Tape "Glenn" dans recherche
+activate Search
+
+Search -> Search: useDebounce(query, 300ms)
+Search -> Search: Attendre 300ms
+
+Search -> SearchHook: useDemandSearch(debouncedQuery, filters)
+activate SearchHook
+
+SearchHook -> QueryCache: queryKey: ['demand-search', normalizedQuery, filters]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 2 min)
+
+alt Cache recherche présent
+    QueryCache --> SearchHook: Résultats depuis cache
+else Cache absent
+    SearchHook -> Repo: search(normalizedQuery, filters)
+    activate Repo
+    
+    Repo -> Firestore: query(\n  where('memberLastName', '>=', query),\n  where('memberLastName', '<=', query + '\uf8ff'),\n  orderBy('memberLastName'),\n  limit(50)\n)
+    Firestore --> Repo: QuerySnapshot
+    
+    Repo -> Repo: Filtrer aussi par prénom côté client
+    Repo --> SearchHook: Demand[]
+    
+    deactivate Repo
+    
+    SearchHook -> QueryCache: Mettre en cache (2 min)
+    QueryCache --> SearchHook: Cache mis à jour
+end
+
+SearchHook --> Search: { data: results[], isLoading: false }
+deactivate SearchHook
+
+Search -> List: onSearch(results)
+List -> List: Appliquer résultats recherche
+List --> Admin: Afficher résultats filtrés
+deactivate Search
+
+' ============================================
+' FILTRES
+' ============================================
+Admin -> Filters: Change filtre statut → "PENDING"
+activate Filters
+
+Filters -> List: onFilterChange({ status: 'PENDING' })
+List -> List: filters.status = 'PENDING'
+List -> List: page = 1 (reset)
+
+List -> ListHook: Refetch avec nouveaux filtres
+ListHook -> QueryCache: Invalider cache
+QueryCache -> QueryCache: Supprimer entrées obsolètes
+
+ListHook -> Repo: getPaginated(newFilters, 1, limit, ...)
+Repo -> Firestore: query avec nouveaux filtres
+Firestore --> Repo: Nouveaux résultats
+
+Repo --> ListHook: PaginatedDemands
+ListHook --> List: Nouvelles données
+List --> Admin: Afficher demandes filtrées
+deactivate Filters
+
+' ============================================
+' TRI
+' ============================================
+Admin -> Sort: Change tri → "Alphabétique"
+activate Sort
+
+Sort -> List: onSortChange({ sortBy: 'alphabetical', sortOrder: 'asc' })
+List -> List: sortBy = 'alphabetical'
+List -> List: sortOrder = 'asc'
+
+List -> ListHook: Refetch avec nouveau tri
+ListHook -> Repo: getPaginated(filters, page, limit, 'alphabetical', 'asc')
+Repo -> Firestore: query avec orderBy('memberLastName', 'asc')
+Firestore --> Repo: Résultats triés
+
+Repo --> ListHook: PaginatedDemands
+ListHook --> List: Nouvelles données
+List --> Admin: Afficher demandes triées
+deactivate Sort
+
+' ============================================
+' PAGINATION
+' ============================================
+Admin -> Pagination: Clique "Suivant"
+activate Pagination
+
+Pagination -> List: onPageChange(page + 1)
+List -> List: page = page + 1
+List -> List: Scroll vers le haut
+
+List -> ListHook: Refetch avec page + 1
+ListHook -> Repo: getPaginated(filters, page + 1, limit, ...)
+Repo -> Firestore: query avec startAfter(cursor)
+Firestore --> Repo: Page suivante
+
+Repo --> ListHook: PaginatedDemands
+ListHook --> List: Nouvelles données
+List --> Admin: Afficher page suivante
+deactivate Pagination
+
+List -> Pagination: Render pagination (BAS)
+Pagination --> Admin: Afficher contrôles pagination
+
+' ============================================
+' PRÉFETCH DÉTAILS (Optimisation)
+' ============================================
+Admin -> List: Survole une card
+List -> List: usePrefetchDemandDetail()
+List -> QueryCache: prefetchQuery(['demand-detail', demandId])
+QueryCache -> Repo: getById(demandId) (en arrière-plan)
+Repo -> Firestore: getDoc(demandId)
+Firestore --> Repo: Demand
+Repo --> QueryCache: Mettre en cache détails
+QueryCache --> List: Préchargé
+
+deactivate List
+deactivate Page
+
+note right of QueryCache
+  **Stratégie de cache** :
+  - Liste : staleTime 5 min, gcTime 10 min
+  - Recherche : staleTime 2 min, gcTime 5 min
+  - Stats : staleTime 15 min, gcTime 30 min
+  - Détails : staleTime 10 min, gcTime 20 min (avec prefetch)
+end note
+
+note right of Repo
+  **Pagination serveur** :
+  - Utilise startAfter (cursor-based)
+  - Calcul total avec getCountFromServer
+  - Support tri multi-critères
+  - Index Firestore requis
+end note
+
+@enduml
