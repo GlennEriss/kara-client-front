@@ -12,10 +12,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Download, Plus, List, Grid } from 'lucide-react'
-import { StatisticsV2, DemandSearchV2, DemandFiltersV2, DemandSortV2, DemandCardV2, DemandTableV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
-import { useCaisseImprevueDemands, useCaisseImprevueDemandsStats } from '@/domains/financial/caisse-imprevue/hooks'
-import { PaginationWithEllipses } from '@/components/ui/pagination/PaginationWithEllipses'
-import type { DemandFilters, PaginationParams, SortParams } from '@/domains/financial/caisse-imprevue/entities/demand-filters.types'
+import { ListDemandesV2 } from '@/domains/financial/caisse-imprevue/components/demandes/ListDemandesV2'
 import {
   ExportDemandsModalV2,
   AcceptDemandModalV2,
@@ -35,25 +32,10 @@ import {
 } from '@/domains/financial/caisse-imprevue/hooks'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import { useDemandDetail } from '@/domains/financial/caisse-imprevue/hooks'
-import { cn } from '@/lib/utils'
+import { useState } from 'react'
 
 export default function DemandesPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
-  const [filters, setFilters] = useState<DemandFilters>({
-    status: 'all',
-    paymentFrequency: 'all',
-  })
-  const [pagination, setPagination] = useState<PaginationParams>({
-    page: 1,
-    limit: 10,
-  })
-  const [sort, setSort] = useState<SortParams>({
-    sortBy: 'date',
-    sortOrder: 'desc',
-  })
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
   const [selectedDemandId, setSelectedDemandId] = useState<string | null>(null)
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false)
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
@@ -71,32 +53,6 @@ export default function DemandesPage() {
   const deleteMutation = useDeleteDemand()
   const updateMutation = useUpdateDemand()
   const createContractMutation = useCreateContractFromDemand()
-
-  // Mettre à jour le filtre de statut selon l'onglet actif
-  const effectiveFilters: DemandFilters = {
-    ...filters,
-    status: activeTab === 'all' ? 'all' : (activeTab as any),
-  }
-
-  const { data: demandsData, isLoading } = useCaisseImprevueDemands(
-    effectiveFilters,
-    pagination,
-    sort
-  )
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    setPagination({ ...pagination, page: 1 }) // Reset à la page 1
-  }
-
-  const handlePageChange = (page: number) => {
-    setPagination({ ...pagination, page })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleViewDetails = (id: string) => {
-    router.push(`/caisse-imprevue/demandes/${id}`)
-  }
 
   const handleAccept = (id: string) => {
     setSelectedDemandId(id)
