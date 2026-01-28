@@ -9,7 +9,8 @@
 import { useRouter } from 'next/navigation'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { ArrowLeft, FileText } from 'lucide-react'
 import { useDemandForm, useCreateDemand } from '@/domains/financial/caisse-imprevue/hooks'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import { toast } from 'sonner'
@@ -54,18 +55,34 @@ export default function CreateDemandPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black">Créer une demande</h1>
-          <p className="text-sm md:text-base text-kara-neutral-600">
-            Remplissez le formulaire en 3 étapes
-          </p>
-        </div>
-      </div>
+      {/* Header avec design moderne */}
+      <Card className="border-0 shadow-lg bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white">
+        <CardContent className="p-4 md:p-6 lg:p-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="text-white hover:bg-white/20 hover:text-white"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-3 flex-1">
+              <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm">
+                <FileText className="w-6 h-6 md:w-8 md:h-8" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-black">
+                  Créer une demande
+                </h1>
+                <p className="text-sm md:text-base text-white/80 mt-1">
+                  Remplissez le formulaire en 3 étapes
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Formulaire */}
       <CreateDemandFormV2
