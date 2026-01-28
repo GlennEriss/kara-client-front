@@ -240,4 +240,7 @@
 5. ✅ Prefetch détails au survol implémenté
 
 **Points restants** :
-- ⚠️ Intégration recherche dans liste (à clarifier avec l'utilisateur)
+- ⚠️ Intégration recherche dans liste : Le diagramme `SEQ_RechercherDemandes` montre `onSearch(results)` qui filtre la liste. Actuellement, la recherche est séparée via `useDemandSearch`. À clarifier si la recherche doit filtrer la liste principale ou rester séparée.
+
+**Corrections finales apportées** :
+- ✅ Ajout bouton Export PDF dans DemandDetailV2 (conforme SEQ_ExporterDetailsDemande)
