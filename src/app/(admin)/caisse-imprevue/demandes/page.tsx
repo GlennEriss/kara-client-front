@@ -10,9 +10,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Download, Plus, List, Grid } from 'lucide-react'
-import { ListDemandesV2 } from '@/domains/financial/caisse-imprevue/components/demandes/ListDemandesV2'
+import { Download, Plus } from 'lucide-react'
+import { ListDemandesV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
 import {
   ExportDemandsModalV2,
   AcceptDemandModalV2,
@@ -32,7 +31,6 @@ import {
 } from '@/domains/financial/caisse-imprevue/hooks'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import { useDemandDetail } from '@/domains/financial/caisse-imprevue/hooks'
-import { useState } from 'react'
 
 export default function DemandesPage() {
   const router = useRouter()
@@ -43,6 +41,7 @@ export default function DemandesPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isContractModalOpen, setIsContractModalOpen] = useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
   const { user } = useAuth()
   const { data: selectedDemand } = useDemandDetail(selectedDemandId || '')
@@ -170,7 +169,7 @@ export default function DemandesPage() {
           </Button>
           <Button
             onClick={() => router.push('/caisse-imprevue/demandes/add')}
-            className="bg-[#CBB171] hover:bg-[#B8A05F] text-white"
+            className="bg-kara-primary-light hover:bg-[#B8A05F] text-white"
             data-testid="create-demand-button"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -179,142 +178,16 @@ export default function DemandesPage() {
         </div>
       </div>
 
-      {/* Statistiques */}
-      <StatisticsV2 filters={effectiveFilters} />
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="w-full overflow-x-auto">
-          <TabsTrigger value="all" data-testid="tab-all">
-            Toutes
-          </TabsTrigger>
-          <TabsTrigger value="PENDING" data-testid="tab-pending">
-            En attente
-          </TabsTrigger>
-          <TabsTrigger value="APPROVED" data-testid="tab-approved">
-            Acceptées
-          </TabsTrigger>
-          <TabsTrigger value="REJECTED" data-testid="tab-rejected">
-            Refusées
-          </TabsTrigger>
-          <TabsTrigger value="REOPENED" data-testid="tab-reopened">
-            Réouvertes
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* Filtres et Recherche */}
-      <div className="space-y-3 md:space-y-0 md:flex md:items-start md:gap-4">
-        <div className="flex-1">
-          <DemandSearchV2
-            filters={effectiveFilters}
-            className="w-full"
-          />
-        </div>
-        <div className="md:w-auto">
-          <DemandSortV2 sort={sort} onSortChange={setSort} />
-        </div>
-      </div>
-
-      <DemandFiltersV2
-        filters={filters}
-        onFiltersChange={(newFilters) => {
-          setFilters(newFilters)
-          setPagination({ ...pagination, page: 1 })
-        }}
-      />
-
-      {/* Toggle vue */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={viewMode === 'grid' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('grid')}
-          >
-            <Grid className="w-4 h-4 mr-2" />
-            Cards
-          </Button>
-          <Button
-            variant={viewMode === 'table' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-          >
-            <List className="w-4 h-4 mr-2" />
-            Liste
-          </Button>
-        </div>
-      </div>
-
       {/* Liste des demandes */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-48 bg-gray-100 rounded-lg animate-pulse" />
-          ))}
-        </div>
-      ) : demandsData && demandsData.items.length > 0 ? (
-        <>
-          {/* Pagination haut */}
-          {demandsData.pagination.totalPages > 1 && (
-            <PaginationWithEllipses
-              currentPage={pagination.page}
-              totalPages={demandsData.pagination.totalPages}
-              onPageChange={handlePageChange}
-              hasNextPage={demandsData.pagination.hasNextPage}
-              hasPrevPage={demandsData.pagination.hasPreviousPage}
-            />
-          )}
-
-          {/* Vue Grid */}
-          {viewMode === 'grid' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {demandsData.items.map((demand) => (
-                <DemandCardV2
-                  key={demand.id}
-                  demand={demand}
-                  onViewDetails={handleViewDetails}
-                  onAccept={handleAccept}
-                  onReject={handleReject}
-                  onReopen={handleReopen}
-                  onDelete={handleDelete}
-                  onEdit={handleEdit}
-                  onCreateContract={handleCreateContract}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Vue Table */}
-          {viewMode === 'table' && (
-            <DemandTableV2
-              demands={demandsData.items}
-              onViewDetails={handleViewDetails}
-              onAccept={handleAccept}
-              onReject={handleReject}
-              onReopen={handleReopen}
-              onDelete={handleDelete}
-              onEdit={handleEdit}
-              onCreateContract={handleCreateContract}
-            />
-          )}
-
-          {/* Pagination bas */}
-          {demandsData.pagination.totalPages > 1 && (
-            <PaginationWithEllipses
-              currentPage={pagination.page}
-              totalPages={demandsData.pagination.totalPages}
-              onPageChange={handlePageChange}
-              hasNextPage={demandsData.pagination.hasNextPage}
-              hasPrevPage={demandsData.pagination.hasPreviousPage}
-            />
-          )}
-        </>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-kara-neutral-500">Aucune demande trouvée</p>
-        </div>
-      )}
+      <ListDemandesV2
+        onViewDetails={(id) => router.push(`/caisse-imprevue/demandes/${id}`)}
+        onAccept={handleAccept}
+        onReject={handleReject}
+        onReopen={handleReopen}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+        onCreateContract={handleCreateContract}
+      />
 
       {/* Modals */}
       <ExportDemandsModalV2
