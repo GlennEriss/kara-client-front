@@ -12,11 +12,29 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Download, Plus, List, Grid } from 'lucide-react'
-import { StatisticsV2, DemandSearchV2, DemandFiltersV2, DemandSortV2, DemandCardV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
+import { StatisticsV2, DemandSearchV2, DemandFiltersV2, DemandSortV2, DemandCardV2, DemandTableV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
 import { useCaisseImprevueDemands, useCaisseImprevueDemandsStats } from '@/domains/financial/caisse-imprevue/hooks'
 import { PaginationWithEllipses } from '@/components/ui/pagination/PaginationWithEllipses'
 import type { DemandFilters, PaginationParams, SortParams } from '@/domains/financial/caisse-imprevue/entities/demand-filters.types'
-import { ExportDemandsModalV2 } from '@/domains/financial/caisse-imprevue/components/modals/ExportDemandsModalV2'
+import {
+  ExportDemandsModalV2,
+  AcceptDemandModalV2,
+  RejectDemandModalV2,
+  ReopenDemandModalV2,
+  DeleteDemandModalV2,
+  EditDemandModalV2,
+  ConfirmContractModalV2,
+} from '@/domains/financial/caisse-imprevue/components/modals'
+import {
+  useAcceptDemand,
+  useRejectDemand,
+  useReopenDemand,
+  useDeleteDemand,
+  useUpdateDemand,
+  useCreateContractFromDemand,
+} from '@/domains/financial/caisse-imprevue/hooks'
+import { useAuth } from '@/domains/auth/hooks/useAuth'
+import { useDemandDetail } from '@/domains/financial/caisse-imprevue/hooks'
 import { cn } from '@/lib/utils'
 
 export default function DemandesPage() {
@@ -36,6 +54,23 @@ export default function DemandesPage() {
     sortOrder: 'desc',
   })
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+  const [selectedDemandId, setSelectedDemandId] = useState<string | null>(null)
+  const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false)
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+  const [isReopenModalOpen, setIsReopenModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false)
+
+  const { user } = useAuth()
+  const { data: selectedDemand } = useDemandDetail(selectedDemandId || '')
+
+  const acceptMutation = useAcceptDemand()
+  const rejectMutation = useRejectDemand()
+  const reopenMutation = useReopenDemand()
+  const deleteMutation = useDeleteDemand()
+  const updateMutation = useUpdateDemand()
+  const createContractMutation = useCreateContractFromDemand()
 
   // Mettre à jour le filtre de statut selon l'onglet actif
   const effectiveFilters: DemandFilters = {
@@ -61,6 +96,100 @@ export default function DemandesPage() {
 
   const handleViewDetails = (id: string) => {
     router.push(`/caisse-imprevue/demandes/${id}`)
+  }
+
+  const handleAccept = (id: string) => {
+    setSelectedDemandId(id)
+    setIsAcceptModalOpen(true)
+  }
+
+  const handleReject = (id: string) => {
+    setSelectedDemandId(id)
+    setIsRejectModalOpen(true)
+  }
+
+  const handleReopen = (id: string) => {
+    setSelectedDemandId(id)
+    setIsReopenModalOpen(true)
+  }
+
+  const handleDelete = (id: string) => {
+    setSelectedDemandId(id)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleEdit = (id: string) => {
+    setSelectedDemandId(id)
+    setIsEditModalOpen(true)
+  }
+
+  const handleCreateContract = (id: string) => {
+    setSelectedDemandId(id)
+    setIsContractModalOpen(true)
+  }
+
+  const handleConfirmAccept = async (reason: string) => {
+    if (!selectedDemandId || !user?.uid) return
+    await acceptMutation.mutateAsync({
+      id: selectedDemandId,
+      input: { reason },
+      acceptedBy: user.uid,
+    })
+    setIsAcceptModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmReject = async (reason: string) => {
+    if (!selectedDemandId || !user?.uid) return
+    await rejectMutation.mutateAsync({
+      id: selectedDemandId,
+      input: { reason },
+      rejectedBy: user.uid,
+    })
+    setIsRejectModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmReopen = async (reason?: string) => {
+    if (!selectedDemandId || !user?.uid) return
+    await reopenMutation.mutateAsync({
+      id: selectedDemandId,
+      input: { reason },
+      reopenedBy: user.uid,
+    })
+    setIsReopenModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!selectedDemandId || !user?.uid) return
+    await deleteMutation.mutateAsync({
+      id: selectedDemandId,
+      deletedBy: user.uid,
+    })
+    setIsDeleteModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmEdit = async (data: any) => {
+    if (!selectedDemandId || !user?.uid) return
+    await updateMutation.mutateAsync({
+      id: selectedDemandId,
+      data,
+      updatedBy: user.uid,
+    })
+    setIsEditModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmContract = async () => {
+    if (!selectedDemandId || !user?.uid) return
+    await createContractMutation.mutateAsync({
+      demandId: selectedDemandId,
+      convertedBy: user.uid,
+    })
+    setIsContractModalOpen(false)
+    setSelectedDemandId(null)
   }
 
   return (
@@ -189,18 +318,29 @@ export default function DemandesPage() {
                   key={demand.id}
                   demand={demand}
                   onViewDetails={handleViewDetails}
+                  onAccept={handleAccept}
+                  onReject={handleReject}
+                  onReopen={handleReopen}
+                  onDelete={handleDelete}
+                  onEdit={handleEdit}
+                  onCreateContract={handleCreateContract}
                 />
               ))}
             </div>
           )}
 
-          {/* Vue Table (à implémenter) */}
+          {/* Vue Table */}
           {viewMode === 'table' && (
-            <div className="bg-white rounded-lg border">
-              <p className="p-4 text-center text-kara-neutral-500">
-                Vue table à implémenter
-              </p>
-            </div>
+            <DemandTableV2
+              demands={demandsData.items}
+              onViewDetails={handleViewDetails}
+              onAccept={handleAccept}
+              onReject={handleReject}
+              onReopen={handleReopen}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+              onCreateContract={handleCreateContract}
+            />
           )}
 
           {/* Pagination bas */}
@@ -220,11 +360,86 @@ export default function DemandesPage() {
         </div>
       )}
 
-      {/* Modal Export */}
+      {/* Modals */}
       <ExportDemandsModalV2
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
       />
+
+      {selectedDemand && (
+        <>
+          <AcceptDemandModalV2
+            isOpen={isAcceptModalOpen}
+            onClose={() => {
+              setIsAcceptModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmAccept}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            isLoading={acceptMutation.isPending}
+          />
+
+          <RejectDemandModalV2
+            isOpen={isRejectModalOpen}
+            onClose={() => {
+              setIsRejectModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmReject}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            isLoading={rejectMutation.isPending}
+          />
+
+          <ReopenDemandModalV2
+            isOpen={isReopenModalOpen}
+            onClose={() => {
+              setIsReopenModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmReopen}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            previousRejectReason={selectedDemand.decisionReason}
+            isLoading={reopenMutation.isPending}
+          />
+
+          <DeleteDemandModalV2
+            isOpen={isDeleteModalOpen}
+            onClose={() => {
+              setIsDeleteModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmDelete}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            isLoading={deleteMutation.isPending}
+          />
+
+          <EditDemandModalV2
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmEdit}
+            demand={selectedDemand}
+            isLoading={updateMutation.isPending}
+          />
+
+          <ConfirmContractModalV2
+            isOpen={isContractModalOpen}
+            onClose={() => {
+              setIsContractModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmContract}
+            demand={selectedDemand}
+            isLoading={createContractMutation.isPending}
+          />
+        </>
+      )}
     </div>
   )
 }
