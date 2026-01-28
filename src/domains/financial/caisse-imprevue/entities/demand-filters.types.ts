@@ -52,7 +52,7 @@ export interface PaginatedDemands {
 }
 
 /**
- * Statistiques des demandes
+ * Statistiques des demandes (globales, indépendantes des filtres de statut)
  */
 export interface DemandStats {
   total: number
@@ -61,4 +61,7 @@ export interface DemandStats {
   rejected: number
   converted: number
   reopened: number
+  // Stats par fréquence de paiement
+  daily: number // Nombre de demandes avec fréquence DAILY (quotidienne)
+  monthly: number // Nombre de demandes avec fréquence MONTHLY (mensuelle)
 }

@@ -534,16 +534,19 @@ export class DemandCIRepository implements IDemandCIRepository {
       const collectionRef = collection(db, this.collectionName)
       const constraints: any[] = []
 
-      // Appliquer les filtres
-      if (filters.paymentFrequency && filters.paymentFrequency !== 'all') {
-        constraints.push(where('paymentFrequency', '==', filters.paymentFrequency))
-      }
-
+      // ⚠️ IMPORTANT : Les stats sont GLOBALES, on n'applique PAS le filtre de statut
+      // Les stats doivent afficher les valeurs globales indépendamment du tab actif
+      
+      // Appliquer seulement les filtres non-statut (forfait, membre, etc.)
       if (filters.subscriptionCIID) {
         constraints.push(where('subscriptionCIID', '==', filters.subscriptionCIID))
       }
 
-      // Compter par statut
+      if (filters.memberId) {
+        constraints.push(where('memberId', '==', filters.memberId))
+      }
+
+      // Compter par statut (TOUS les statuts, sans filtre)
       const statuses: CaisseImprevueDemandStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'CONVERTED', 'REOPENED']
       const counts: Record<string, number> = {
         total: 0,
@@ -552,9 +555,11 @@ export class DemandCIRepository implements IDemandCIRepository {
         rejected: 0,
         converted: 0,
         reopened: 0,
+        daily: 0,
+        monthly: 0,
       }
 
-      // Compter le total
+      // Compter le total (sans filtre de statut)
       const totalQuery = query(collectionRef, ...constraints)
       const totalSnapshot = await getCountFromServer(totalQuery)
       counts.total = totalSnapshot.data().count
@@ -566,6 +571,15 @@ export class DemandCIRepository implements IDemandCIRepository {
         counts[status.toLowerCase()] = statusSnapshot.data().count
       }
 
+      // Compter par fréquence de paiement (DAILY vs MONTHLY)
+      const dailyQuery = query(collectionRef, ...constraints, where('paymentFrequency', '==', 'DAILY'))
+      const dailySnapshot = await getCountFromServer(dailyQuery)
+      counts.daily = dailySnapshot.data().count
+
+      const monthlyQuery = query(collectionRef, ...constraints, where('paymentFrequency', '==', 'MONTHLY'))
+      const monthlySnapshot = await getCountFromServer(monthlyQuery)
+      counts.monthly = monthlySnapshot.data().count
+
       return {
         total: counts.total,
         pending: counts.pending,
@@ -573,6 +587,8 @@ export class DemandCIRepository implements IDemandCIRepository {
         rejected: counts.rejected,
         converted: counts.converted,
         reopened: counts.reopened,
+        daily: counts.daily,
+        monthly: counts.monthly,
       }
     } catch (error) {
       console.error('Erreur lors du calcul des statistiques:', error)
