@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod'
-import { emergencyContactCISchema } from '@/schemas/caisse-imprevue.schema'
+import { emergencyContactCISchema } from '@/schemas/emergency-contact.schema'
 
 /**
  * Schema pour Step 1 : Membre + Motif
