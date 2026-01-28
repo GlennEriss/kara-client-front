@@ -12,8 +12,9 @@ import { UseFormReturn } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Step1Member, Step2Forfait, Step3Contact } from './steps'
-import { ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { CaisseImprevueDemandFormInput } from '../../hooks/useDemandForm'
 
 interface CreateDemandFormV2Props {
@@ -164,7 +165,52 @@ export function CreateDemandFormV2({
             ) : (
               <Button
                 type="button"
-                onClick={handleSubmit}
+                onClick={async (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  
+                  try {
+                    // Valider d'abord l'étape 3 (contact d'urgence)
+                    const isStep3Valid = await form.trigger('emergencyContact' as any)
+                    
+                    if (!isStep3Valid) {
+                      const errors = form.formState.errors.emergencyContact
+                      console.error('Erreurs de validation Step 3:', errors)
+                      toast.error('Veuillez compléter tous les champs du contact d\'urgence', {
+                        description: 'Tous les champs marqués d\'un astérisque (*) sont obligatoires.',
+                      })
+                      // Faire défiler vers le haut pour voir les erreurs
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                      return
+                    }
+                    
+                    // Valider tout le formulaire avant de soumettre
+                    const isValid = await form.trigger()
+                    
+                    if (!isValid) {
+                      const errors = form.formState.errors
+                      console.error('Erreurs de validation:', errors)
+                      
+                      // Compter les erreurs
+                      const errorCount = Object.keys(errors).length
+                      toast.error(`Veuillez corriger ${errorCount} erreur${errorCount > 1 ? 's' : ''} dans le formulaire`, {
+                        description: 'Vérifiez que tous les champs obligatoires sont remplis correctement.',
+                      })
+                      
+                      // Faire défiler vers le haut pour voir les erreurs
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                      return
+                    }
+                    
+                    // Si tout est valide, soumettre
+                    await handleSubmit(e)
+                  } catch (error) {
+                    console.error('Erreur lors de la soumission:', error)
+                    toast.error('Une erreur est survenue', {
+                      description: error instanceof Error ? error.message : 'Veuillez réessayer.',
+                    })
+                  }
+                }}
                 disabled={isSubmitting}
                 className="w-full sm:w-auto sm:min-w-[160px] bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >

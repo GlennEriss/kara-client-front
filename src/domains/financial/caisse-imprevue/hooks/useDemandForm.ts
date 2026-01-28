@@ -70,25 +70,22 @@ export function useDemandForm() {
     // Validation de l'étape actuelle avec les champs spécifiques
     const fieldsToValidate = getFieldsForStep(currentStep)
     
-    // Pour Step 3, valider le sous-objet emergencyContact
+    // Pour Step 3, on ne peut pas aller plus loin (c'est la dernière étape)
     if (currentStep === 3) {
-      const isValid = await form.trigger('emergencyContact' as any)
-      if (isValid && currentStep < 3) {
-        setCurrentStep(currentStep + 1)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      } else if (!isValid) {
-        console.log('Erreurs de validation Step 3:', form.formState.errors.emergencyContact)
-      }
-    } else {
-      const isValid = await form.trigger(fieldsToValidate as any)
-      if (isValid && currentStep < 3) {
-        setCurrentStep(currentStep + 1)
-        // Scroll vers le haut
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      } else if (!isValid) {
-        // Afficher les erreurs si la validation échoue
-        console.log('Erreurs de validation:', form.formState.errors)
-      }
+      console.log('Étape 3 : Utiliser le bouton "Créer la demande" pour soumettre')
+      return
+    }
+    
+    // Pour les étapes 1 et 2, valider et passer à l'étape suivante
+    const isValid = await form.trigger(fieldsToValidate as any)
+    
+    if (isValid && currentStep < 3) {
+      setCurrentStep(currentStep + 1)
+      // Scroll vers le haut
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else if (!isValid) {
+      // Afficher les erreurs si la validation échoue
+      console.log('Erreurs de validation:', form.formState.errors)
     }
   }
 
