@@ -6,7 +6,6 @@
 
 'use client'
 
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -14,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ArrowUpDown, ArrowDown, ArrowUp, ArrowDownAZ, ArrowUpAZ } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SortParams } from '../../../entities/demand-filters.types'
 
@@ -22,6 +22,13 @@ interface DemandSortV2Props {
   onSortChange: (sort: SortParams) => void
   className?: string
 }
+
+const sortOptions = [
+  { value: 'date_desc', label: 'Plus récentes', icon: ArrowDown },
+  { value: 'date_asc', label: 'Plus anciennes', icon: ArrowUp },
+  { value: 'alphabetical_asc', label: 'Nom A→Z', icon: ArrowDownAZ },
+  { value: 'alphabetical_desc', label: 'Nom Z→A', icon: ArrowUpAZ },
+]
 
 export function DemandSortV2({ sort, onSortChange, className }: DemandSortV2Props) {
   const handleSortChange = (value: string) => {
@@ -33,21 +40,39 @@ export function DemandSortV2({ sort, onSortChange, className }: DemandSortV2Prop
   }
 
   const currentValue = `${sort.sortBy}_${sort.sortOrder}`
+  const currentOption = sortOptions.find((opt) => opt.value === currentValue)
 
   return (
-    <div className={cn('w-full sm:w-auto flex-shrink-0', className)}>
-      <Label htmlFor="sort-filter" className="text-xs sm:text-sm mb-1.5 block">
-        Tri
-      </Label>
+    <div className={cn('flex-shrink-0', className)}>
       <Select value={currentValue} onValueChange={handleSortChange}>
-        <SelectTrigger id="sort-filter" className="w-full sm:w-[200px]">
-          <SelectValue />
+        <SelectTrigger
+          className={cn(
+            'w-full sm:w-auto min-w-[160px] h-10 px-3 rounded-xl border-2 border-gray-200',
+            'hover:border-gray-300 focus:border-[#234D65] focus:ring-0',
+            'bg-white transition-all duration-200'
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-gray-500" />
+            <SelectValue placeholder="Trier par" />
+          </div>
         </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="date_desc">Date décroissante</SelectItem>
-          <SelectItem value="date_asc">Date croissante</SelectItem>
-          <SelectItem value="alphabetical_asc">Nom A→Z</SelectItem>
-          <SelectItem value="alphabetical_desc">Nom Z→A</SelectItem>
+        <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
+          {sortOptions.map((option) => {
+            const Icon = option.icon
+            return (
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                className="rounded-lg focus:bg-[#234D65]/10 cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-gray-500" />
+                  <span>{option.label}</span>
+                </div>
+              </SelectItem>
+            )
+          })}
         </SelectContent>
       </Select>
     </div>

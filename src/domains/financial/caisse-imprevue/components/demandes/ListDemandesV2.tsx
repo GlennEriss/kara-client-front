@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Download, List, Grid } from 'lucide-react'
+import { Download, List, Grid, LayoutGrid, Table2 } from 'lucide-react'
 import {
   StatisticsV2,
   DemandSearchV2,
@@ -122,51 +122,62 @@ export function ListDemandesV2({
         </TabsList>
       </Tabs>
 
-      {/* Card Header : Recherche, Filtres, Tri, Vue */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-4 md:p-6">
-          {/* Première ligne : Recherche + Tri + Boutons Vue */}
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
-            {/* Recherche - Prend toute la largeur sur mobile, flex-1 sur desktop */}
-            <div className="flex-1 min-w-0">
-              <DemandSearchV2 filters={effectiveFilters} className="w-full" />
-            </div>
-
-            {/* Tri + Vue - Alignés à droite sur desktop */}
-            <div className="flex flex-col sm:flex-row gap-3 lg:shrink-0">
-              {/* Tri */}
-              <div className="w-full sm:w-auto">
-                <DemandSortV2 sort={sort} onSortChange={setSort} />
+      {/* Toolbar moderne : Recherche, Filtres, Tri, Vue */}
+      <Card className="border-0 shadow-lg overflow-hidden">
+        <CardContent className="p-0">
+          {/* Barre supérieure avec fond gradient subtil */}
+          <div className="bg-gradient-to-r from-gray-50 via-white to-gray-50 p-4 md:p-5">
+            <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+              {/* Recherche - Prend plus d'espace */}
+              <div className="flex-1 min-w-0 lg:max-w-xl">
+                <DemandSearchV2 filters={effectiveFilters} className="w-full" />
               </div>
 
-              {/* Boutons Vue */}
-              <div className="flex items-end gap-2">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className="flex-1 sm:flex-none"
-                  data-testid="view-mode-grid"
-                >
-                  <Grid className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Cards</span>
-                </Button>
-                <Button
-                  variant={viewMode === 'table' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('table')}
-                  className="flex-1 sm:flex-none"
-                  data-testid="view-mode-table"
-                >
-                  <List className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Liste</span>
-                </Button>
+              {/* Actions : Tri + Vue */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Tri */}
+                <DemandSortV2 sort={sort} onSortChange={setSort} />
+
+                {/* Séparateur vertical */}
+                <div className="hidden sm:block h-8 w-px bg-gray-200" />
+
+                {/* Toggle Vue - Design moderne */}
+                <div className="flex items-center p-1 bg-gray-100 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('grid')}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                      viewMode === 'grid'
+                        ? 'bg-white text-[#234D65] shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    )}
+                    data-testid="view-mode-grid"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    <span className="hidden sm:inline">Cards</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('table')}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                      viewMode === 'table'
+                        ? 'bg-white text-[#234D65] shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    )}
+                    data-testid="view-mode-table"
+                  >
+                    <Table2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Table</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Deuxième ligne : Filtres */}
-          <div className="border-t pt-4">
+          {/* Barre de filtres avec séparateur élégant */}
+          <div className="border-t border-gray-100 bg-white px-4 md:px-5 py-4">
             <DemandFiltersV2
               filters={filters}
               onFiltersChange={(newFilters) => {
