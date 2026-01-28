@@ -19,7 +19,6 @@ import {
   useRejectDemand,
   useReopenDemand,
   useDeleteDemand,
-  useUpdateDemand,
   useCreateContractFromDemand,
 } from '@/domains/financial/caisse-imprevue/hooks'
 import {
@@ -27,7 +26,6 @@ import {
   RejectDemandModalV2,
   ReopenDemandModalV2,
   DeleteDemandModalV2,
-  EditDemandModalV2,
   ConfirmContractModalV2,
 } from '@/domains/financial/caisse-imprevue/components/modals'
 import { DemandDetailV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
@@ -102,7 +100,6 @@ export default function DemandDetailPage() {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isContractModalOpen, setIsContractModalOpen] = useState(false)
 
   const { data: demand, isLoading } = useDemandDetail(demandId)
@@ -112,7 +109,6 @@ export default function DemandDetailPage() {
   const rejectMutation = useRejectDemand()
   const reopenMutation = useReopenDemand()
   const deleteMutation = useDeleteDemand()
-  const updateMutation = useUpdateDemand()
   const createContractMutation = useCreateContractFromDemand()
 
   const handleExportPDF = async () => {
@@ -128,7 +124,7 @@ export default function DemandDetailPage() {
   const handleReject = () => setIsRejectModalOpen(true)
   const handleReopen = () => setIsReopenModalOpen(true)
   const handleDelete = () => setIsDeleteModalOpen(true)
-  const handleEdit = () => setIsEditModalOpen(true)
+  const handleEdit = () => router.push(`/caisse-imprevue/demandes/${demandId}/edit`)
   const handleCreateContract = () => setIsContractModalOpen(true)
 
   const handleConfirmAccept = async (reason: string) => {
@@ -168,16 +164,6 @@ export default function DemandDetailPage() {
       deletedBy: user.uid,
     })
     router.push('/caisse-imprevue/demandes')
-  }
-
-  const handleConfirmEdit = async (data: any) => {
-    if (!demand || !user?.uid) return
-    await updateMutation.mutateAsync({
-      id: demand.id,
-      data,
-      updatedBy: user.uid,
-    })
-    setIsEditModalOpen(false)
   }
 
   const handleConfirmContract = async () => {
@@ -381,14 +367,6 @@ export default function DemandDetailPage() {
         demandId={demand.id}
         memberName={`${demand.memberFirstName} ${demand.memberLastName}`}
         isLoading={deleteMutation.isPending}
-      />
-
-      <EditDemandModalV2
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onConfirm={handleConfirmEdit}
-        demand={demand}
-        isLoading={updateMutation.isPending}
       />
 
       <ConfirmContractModalV2

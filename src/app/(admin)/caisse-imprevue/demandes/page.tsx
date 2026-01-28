@@ -18,7 +18,6 @@ import {
   RejectDemandModalV2,
   ReopenDemandModalV2,
   DeleteDemandModalV2,
-  EditDemandModalV2,
   ConfirmContractModalV2,
 } from '@/domains/financial/caisse-imprevue/components/modals'
 import {
@@ -26,7 +25,6 @@ import {
   useRejectDemand,
   useReopenDemand,
   useDeleteDemand,
-  useUpdateDemand,
   useCreateContractFromDemand,
 } from '@/domains/financial/caisse-imprevue/hooks'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
@@ -39,7 +37,6 @@ export default function DemandesPage() {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
   const [isReopenModalOpen, setIsReopenModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isContractModalOpen, setIsContractModalOpen] = useState(false)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
@@ -50,7 +47,6 @@ export default function DemandesPage() {
   const rejectMutation = useRejectDemand()
   const reopenMutation = useReopenDemand()
   const deleteMutation = useDeleteDemand()
-  const updateMutation = useUpdateDemand()
   const createContractMutation = useCreateContractFromDemand()
 
   const handleAccept = (id: string) => {
@@ -74,8 +70,7 @@ export default function DemandesPage() {
   }
 
   const handleEdit = (id: string) => {
-    setSelectedDemandId(id)
-    setIsEditModalOpen(true)
+    router.push(`/caisse-imprevue/demandes/${id}/edit`)
   }
 
   const handleCreateContract = (id: string) => {
@@ -123,17 +118,6 @@ export default function DemandesPage() {
       deletedBy: user.uid,
     })
     setIsDeleteModalOpen(false)
-    setSelectedDemandId(null)
-  }
-
-  const handleConfirmEdit = async (data: any) => {
-    if (!selectedDemandId || !user?.uid) return
-    await updateMutation.mutateAsync({
-      id: selectedDemandId,
-      data,
-      updatedBy: user.uid,
-    })
-    setIsEditModalOpen(false)
     setSelectedDemandId(null)
   }
 
@@ -251,17 +235,6 @@ export default function DemandesPage() {
             demandId={selectedDemand.id}
             memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
             isLoading={deleteMutation.isPending}
-          />
-
-          <EditDemandModalV2
-            isOpen={isEditModalOpen}
-            onClose={() => {
-              setIsEditModalOpen(false)
-              setSelectedDemandId(null)
-            }}
-            onConfirm={handleConfirmEdit}
-            demand={selectedDemand}
-            isLoading={updateMutation.isPending}
           />
 
           <ConfirmContractModalV2

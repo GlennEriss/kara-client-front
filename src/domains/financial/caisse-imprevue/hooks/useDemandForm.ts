@@ -52,15 +52,26 @@ const defaultValues: Partial<CaisseImprevueDemandFormInput> = {
   },
 }
 
-export function useDemandForm() {
+export function useDemandForm(initialValues?: Partial<CaisseImprevueDemandFormInput>) {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Fusionner les valeurs par défaut avec les valeurs initiales (pour édition)
+  const mergedDefaultValues = {
+    ...defaultValues,
+    ...initialValues,
+    // S'assurer que emergencyContact est bien fusionné
+    emergencyContact: {
+      ...defaultValues.emergencyContact,
+      ...(initialValues?.emergencyContact || {}),
+    },
+  } as CaisseImprevueDemandFormInput
 
   // Utiliser zodResolver avec le schema complet pour la validation
   const form = useForm<CaisseImprevueDemandFormInput>({
     resolver: zodResolver(createDemandSchema),
     mode: 'onChange', // Validation en temps réel
-    defaultValues: defaultValues as CaisseImprevueDemandFormInput,
+    defaultValues: mergedDefaultValues,
   })
 
   // Persistance localStorage
