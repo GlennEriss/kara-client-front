@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ScrollableTabs, ScrollableTabsList, ScrollableTabsTrigger } from './ScrollableTabs'
 import { Download, List, Grid, LayoutGrid, Table2 } from 'lucide-react'
 import {
   StatisticsV2,
@@ -101,26 +101,26 @@ export function ListDemandesV2({
       {/* Statistiques */}
       <StatisticsV2 filters={effectiveFilters} />
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="w-full overflow-x-auto">
-          <TabsTrigger value="all" data-testid="tab-all">
+      {/* Tabs scrollables sans barre de scroll visible */}
+      <ScrollableTabs value={activeTab} onValueChange={handleTabChange}>
+        <ScrollableTabsList>
+          <ScrollableTabsTrigger value="all" data-testid="tab-all">
             Toutes
-          </TabsTrigger>
-          <TabsTrigger value="PENDING" data-testid="tab-pending">
+          </ScrollableTabsTrigger>
+          <ScrollableTabsTrigger value="PENDING" data-testid="tab-pending">
             En attente
-          </TabsTrigger>
-          <TabsTrigger value="APPROVED" data-testid="tab-approved">
+          </ScrollableTabsTrigger>
+          <ScrollableTabsTrigger value="APPROVED" data-testid="tab-approved">
             Acceptées
-          </TabsTrigger>
-          <TabsTrigger value="REJECTED" data-testid="tab-rejected">
+          </ScrollableTabsTrigger>
+          <ScrollableTabsTrigger value="REJECTED" data-testid="tab-rejected">
             Refusées
-          </TabsTrigger>
-          <TabsTrigger value="REOPENED" data-testid="tab-reopened">
+          </ScrollableTabsTrigger>
+          <ScrollableTabsTrigger value="REOPENED" data-testid="tab-reopened">
             Réouvertes
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+          </ScrollableTabsTrigger>
+        </ScrollableTabsList>
+      </ScrollableTabs>
 
       {/* Toolbar moderne : Recherche, Filtres, Tri, Vue */}
       <Card className="border-0 shadow-lg overflow-hidden">
