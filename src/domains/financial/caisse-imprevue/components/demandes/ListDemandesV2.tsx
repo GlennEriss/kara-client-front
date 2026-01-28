@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ScrollableTabs, ScrollableTabsList, ScrollableTabsTrigger } from './ScrollableTabs'
+import { StatusFilterChips } from './StatusFilterChips'
 import { Download, List, Grid, LayoutGrid, Table2 } from 'lucide-react'
 import {
   StatisticsV2,
@@ -101,26 +101,11 @@ export function ListDemandesV2({
       {/* Statistiques */}
       <StatisticsV2 filters={effectiveFilters} />
 
-      {/* Tabs scrollables sans barre de scroll visible */}
-      <ScrollableTabs value={activeTab} onValueChange={handleTabChange}>
-        <ScrollableTabsList>
-          <ScrollableTabsTrigger value="all" data-testid="tab-all">
-            Toutes
-          </ScrollableTabsTrigger>
-          <ScrollableTabsTrigger value="PENDING" data-testid="tab-pending">
-            En attente
-          </ScrollableTabsTrigger>
-          <ScrollableTabsTrigger value="APPROVED" data-testid="tab-approved">
-            Acceptées
-          </ScrollableTabsTrigger>
-          <ScrollableTabsTrigger value="REJECTED" data-testid="tab-rejected">
-            Refusées
-          </ScrollableTabsTrigger>
-          <ScrollableTabsTrigger value="REOPENED" data-testid="tab-reopened">
-            Réouvertes
-          </ScrollableTabsTrigger>
-        </ScrollableTabsList>
-      </ScrollableTabs>
+      {/* Filtres de statut avec badges cliquables */}
+      <StatusFilterChips 
+        value={activeTab} 
+        onChange={handleTabChange}
+      />
 
       {/* Toolbar moderne : Recherche, Filtres, Tri, Vue */}
       <Card className="border-0 shadow-lg overflow-hidden">
