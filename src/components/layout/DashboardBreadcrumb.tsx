@@ -34,7 +34,7 @@ const routeLabels: Record<string, string> = {
   '/caisse-imprevue/create': 'Créer',
   '/caisse-imprevue/contrats': 'Contrats',
   '/caisse-imprevue/settings': 'Paramètres Caisse',
-  '/caisse-imprevue/demandes': 'Demandes',
+  '/caisse-imprevue/demandes': 'Liste des demandes',
   '/caisse-imprevue/demandes/add': 'Créer une demande',
   '/bienfaiteur': 'Bienfaiteur',
   '/bienfaiteur/create': 'Créer',
