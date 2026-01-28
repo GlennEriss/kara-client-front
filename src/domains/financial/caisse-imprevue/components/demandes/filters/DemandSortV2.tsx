@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import type { SortParams } from '../../../entities/demand-filters.types'
 
 interface DemandSortV2Props {
@@ -34,12 +35,12 @@ export function DemandSortV2({ sort, onSortChange, className }: DemandSortV2Prop
   const currentValue = `${sort.sortBy}_${sort.sortOrder}`
 
   return (
-    <div className={`w-full md:w-auto ${className}`}>
-      <Label htmlFor="sort-filter" className="text-xs md:text-sm">
+    <div className={cn('w-full sm:w-auto flex-shrink-0', className)}>
+      <Label htmlFor="sort-filter" className="text-xs sm:text-sm mb-1.5 block">
         Tri
       </Label>
       <Select value={currentValue} onValueChange={handleSortChange}>
-        <SelectTrigger id="sort-filter" className="w-full md:w-[200px]">
+        <SelectTrigger id="sort-filter" className="w-full sm:w-[200px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

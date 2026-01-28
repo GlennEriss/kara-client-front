@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { RotateCcw } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { DemandFilters } from '../../../entities/demand-filters.types'
 import type { CaisseImprevuePaymentFrequency } from '../../../entities/demand.types'
 
@@ -48,10 +49,10 @@ export function DemandFiltersV2({
   }
 
   return (
-    <div className={`space-y-3 md:space-y-0 md:flex md:items-center md:gap-4 ${className}`}>
+    <div className={cn('flex flex-col sm:flex-row items-start sm:items-end gap-3 sm:gap-4', className)}>
       {/* Filtre fréquence */}
-      <div className="w-full md:w-auto">
-        <Label htmlFor="frequency-filter" className="text-xs md:text-sm">
+      <div className="w-full sm:w-auto flex-shrink-0">
+        <Label htmlFor="frequency-filter" className="text-xs sm:text-sm mb-1.5 block">
           Fréquence
         </Label>
         <Select
@@ -60,7 +61,7 @@ export function DemandFiltersV2({
             handleFilterChange('paymentFrequency', value === 'all' ? 'all' : (value as CaisseImprevuePaymentFrequency))
           }
         >
-          <SelectTrigger id="frequency-filter" className="w-full md:w-[180px]">
+          <SelectTrigger id="frequency-filter" className="w-full sm:w-[180px]">
             <SelectValue placeholder="Toutes" />
           </SelectTrigger>
           <SelectContent>
@@ -73,8 +74,8 @@ export function DemandFiltersV2({
 
       {/* Filtre forfait */}
       {subscriptions && subscriptions.length > 0 && (
-        <div className="w-full md:w-auto">
-          <Label htmlFor="subscription-filter" className="text-xs md:text-sm">
+        <div className="w-full sm:w-auto flex-shrink-0">
+          <Label htmlFor="subscription-filter" className="text-xs sm:text-sm mb-1.5 block">
             Forfait
           </Label>
           <Select
@@ -83,7 +84,7 @@ export function DemandFiltersV2({
               handleFilterChange('subscriptionCIID', value === 'all' ? undefined : value)
             }
           >
-            <SelectTrigger id="subscription-filter" className="w-full md:w-[200px]">
+            <SelectTrigger id="subscription-filter" className="w-full sm:w-[200px]">
               <SelectValue placeholder="Tous" />
             </SelectTrigger>
             <SelectContent>
@@ -99,11 +100,11 @@ export function DemandFiltersV2({
       )}
 
       {/* Bouton réinitialiser */}
-      <div className="w-full md:w-auto md:flex md:items-end">
+      <div className="w-full sm:w-auto flex-shrink-0 sm:ml-auto">
         <Button
           variant="outline"
           onClick={handleReset}
-          className="w-full md:w-auto"
+          className="w-full sm:w-auto"
           data-testid="demand-filters-reset"
         >
           <RotateCcw className="w-4 h-4 mr-2" />

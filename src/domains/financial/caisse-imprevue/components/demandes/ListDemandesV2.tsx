@@ -3,6 +3,7 @@
  * 
  * Responsive : Mobile, Tablette, Desktop
  * Intègre : Stats, Tabs, Filtres, Recherche, Tri, Pagination, Vue Grid/Table
+ * Layout moderne et bien structuré avec Card header
  */
 
 'use client'
@@ -10,8 +11,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Download, Plus, List, Grid } from 'lucide-react'
+import { Download, List, Grid } from 'lucide-react'
 import {
   StatisticsV2,
   DemandSearchV2,
@@ -24,6 +26,7 @@ import { useCaisseImprevueDemands } from '@/domains/financial/caisse-imprevue/ho
 import { PaginationWithEllipses } from '@/components/ui/pagination/PaginationWithEllipses'
 import { ExportDemandsModalV2 } from '../modals/ExportDemandsModalV2'
 import type { DemandFilters, PaginationParams, SortParams } from '../../entities/demand-filters.types'
+import { cn } from '@/lib/utils'
 
 interface ListDemandesV2Props {
   onViewDetails?: (id: string) => void
@@ -119,48 +122,62 @@ export function ListDemandesV2({
         </TabsList>
       </Tabs>
 
-      {/* Filtres et Recherche */}
-      <div className="space-y-3 md:space-y-0 md:flex md:items-start md:gap-4">
-        <div className="flex-1">
-          <DemandSearchV2 filters={effectiveFilters} className="w-full" />
-        </div>
-        <div className="md:w-auto">
-          <DemandSortV2 sort={sort} onSortChange={setSort} />
-        </div>
-      </div>
+      {/* Card Header : Recherche, Filtres, Tri, Vue */}
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-4 md:p-6">
+          {/* Première ligne : Recherche + Tri + Boutons Vue */}
+          <div className="flex flex-col lg:flex-row gap-4 mb-4">
+            {/* Recherche - Prend toute la largeur sur mobile, flex-1 sur desktop */}
+            <div className="flex-1 min-w-0">
+              <DemandSearchV2 filters={effectiveFilters} className="w-full" />
+            </div>
 
-      <DemandFiltersV2
-        filters={filters}
-        onFiltersChange={(newFilters) => {
-          setFilters(newFilters)
-          setPagination({ ...pagination, page: 1 })
-        }}
-        subscriptions={subscriptions}
-      />
+            {/* Tri + Vue - Alignés à droite sur desktop */}
+            <div className="flex flex-col sm:flex-row gap-3 lg:shrink-0">
+              {/* Tri */}
+              <div className="w-full sm:w-auto">
+                <DemandSortV2 sort={sort} onSortChange={setSort} />
+              </div>
 
-      {/* Toggle vue */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={viewMode === 'grid' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('grid')}
-            data-testid="view-mode-grid"
-          >
-            <Grid className="w-4 h-4 mr-2" />
-            Cards
-          </Button>
-          <Button
-            variant={viewMode === 'table' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-            data-testid="view-mode-table"
-          >
-            <List className="w-4 h-4 mr-2" />
-            Liste
-          </Button>
-        </div>
-      </div>
+              {/* Boutons Vue */}
+              <div className="flex items-end gap-2">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="flex-1 sm:flex-none"
+                  data-testid="view-mode-grid"
+                >
+                  <Grid className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Cards</span>
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="flex-1 sm:flex-none"
+                  data-testid="view-mode-table"
+                >
+                  <List className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Liste</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Deuxième ligne : Filtres */}
+          <div className="border-t pt-4">
+            <DemandFiltersV2
+              filters={filters}
+              onFiltersChange={(newFilters) => {
+                setFilters(newFilters)
+                setPagination({ ...pagination, page: 1 })
+              }}
+              subscriptions={subscriptions}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Liste des demandes */}
       {isLoading ? (
@@ -173,13 +190,15 @@ export function ListDemandesV2({
         <>
           {/* Pagination haut */}
           {demandsData.pagination.totalPages > 1 && (
-            <PaginationWithEllipses
-              currentPage={pagination.page}
-              totalPages={demandsData.pagination.totalPages}
-              onPageChange={handlePageChange}
-              hasNextPage={demandsData.pagination.hasNextPage}
-              hasPrevPage={demandsData.pagination.hasPreviousPage}
-            />
+            <div className="flex justify-center">
+              <PaginationWithEllipses
+                currentPage={pagination.page}
+                totalPages={demandsData.pagination.totalPages}
+                onPageChange={handlePageChange}
+                hasNextPage={demandsData.pagination.hasNextPage}
+                hasPrevPage={demandsData.pagination.hasPreviousPage}
+              />
+            </div>
           )}
 
           {/* Vue Grid */}
@@ -217,19 +236,30 @@ export function ListDemandesV2({
 
           {/* Pagination bas */}
           {demandsData.pagination.totalPages > 1 && (
-            <PaginationWithEllipses
-              currentPage={pagination.page}
-              totalPages={demandsData.pagination.totalPages}
-              onPageChange={handlePageChange}
-              hasNextPage={demandsData.pagination.hasNextPage}
-              hasPrevPage={demandsData.pagination.hasPreviousPage}
-            />
+            <div className="flex justify-center">
+              <PaginationWithEllipses
+                currentPage={pagination.page}
+                totalPages={demandsData.pagination.totalPages}
+                onPageChange={handlePageChange}
+                hasNextPage={demandsData.pagination.hasNextPage}
+                hasPrevPage={demandsData.pagination.hasPreviousPage}
+              />
+            </div>
           )}
         </>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-kara-neutral-500">Aucune demande trouvée</p>
-        </div>
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <p className="text-kara-neutral-500 text-lg">Aucune demande trouvée</p>
+              <p className="text-kara-neutral-400 text-sm mt-2">
+                {effectiveFilters.status !== 'all'
+                  ? 'Essayez de changer de filtre ou de créer une nouvelle demande.'
+                  : 'Créez votre première demande pour commencer.'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Modal Export */}
