@@ -8,9 +8,9 @@
 import { useForm, UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useDemandFormPersistence } from './useDemandFormPersistence'
 import { createDemandSchema } from '../schemas/demand-steps.schema'
 import type { z } from 'zod'
+import { useDemandFormPersistence } from './useDemandFormPersistence'
 
 // Type dérivé du schema Zod pour garantir la cohérence
 export type CaisseImprevueDemandFormInput = z.infer<typeof createDemandSchema>

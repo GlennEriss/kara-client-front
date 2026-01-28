@@ -9,7 +9,11 @@
 import { useEffect, useCallback } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { toast } from 'sonner'
-import type { CaisseImprevueDemandFormInput } from './useDemandForm'
+import { createDemandSchema } from '../schemas/demand-steps.schema'
+import type { z } from 'zod'
+
+// Type dérivé du schema pour éviter la dépendance circulaire
+type CaisseImprevueDemandFormInput = z.infer<typeof createDemandSchema>
 
 const FORM_STORAGE_KEY = 'caisse-imprevue-demand-form-v2'
 const STORAGE_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 heures
@@ -84,7 +88,9 @@ export function useDemandFormPersistence(
     const subscription = form.watch((data) => {
       // Debounce pour éviter trop d'écritures
       const timeoutId = setTimeout(() => {
-        saveFormData(data)
+        // form.watch() peut retourner des valeurs partielles avec des propriétés undefined
+        // On convertit en Partial pour la sauvegarde
+        saveFormData(data as Partial<CaisseImprevueDemandFormInput>)
       }, 500)
 
       return () => clearTimeout(timeoutId)
