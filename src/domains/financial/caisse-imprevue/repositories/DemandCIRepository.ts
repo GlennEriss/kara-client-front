@@ -32,6 +32,7 @@ import type {
   AcceptDemandInput,
   RejectDemandInput,
   ReopenDemandInput,
+  ConvertDemandInput,
   CaisseImprevueDemandStatus,
 } from '../entities/demand.types'
 import type {
@@ -424,6 +425,39 @@ export class DemandCIRepository implements IDemandCIRepository {
     }
   }
 
+  async convert(
+    id: string,
+    input: ConvertDemandInput,
+    convertedBy: string
+  ): Promise<CaisseImprevueDemand> {
+    try {
+      const demandRef = doc(db, this.collectionName, id)
+      const now = Timestamp.now()
+
+      await updateDoc(demandRef, {
+        status: 'CONVERTED' as CaisseImprevueDemandStatus,
+        priority: this.getStatusPriority('CONVERTED'),
+        contractId: input.contractId,
+        // Traçabilité V2
+        convertedBy,
+        convertedAt: now,
+        convertedDate: now,
+        updatedBy: convertedBy,
+        updatedAt: serverTimestamp(),
+      })
+
+      const updated = await this.getById(id)
+      if (!updated) {
+        throw new Error('Erreur lors de la récupération de la demande convertie')
+      }
+
+      return updated
+    } catch (error) {
+      console.error('Erreur lors de la conversion de la demande:', error)
+      throw error
+    }
+  }
+
   async delete(id: string, deletedBy: string): Promise<void> {
     try {
       const demandRef = doc(db, this.collectionName, id)
@@ -446,13 +480,13 @@ export class DemandCIRepository implements IDemandCIRepository {
   }
 
   async search(
-    query: string,
+    searchQuery: string,
     filters: DemandFilters = {},
     limit: number = 50
   ): Promise<CaisseImprevueDemand[]> {
     try {
       const collectionRef = collection(db, this.collectionName)
-      const normalizedQuery = query.trim().toLowerCase()
+      const normalizedQuery = searchQuery.trim().toLowerCase()
       const constraints: any[] = []
 
       // Recherche par préfixe sur nom de famille

@@ -207,11 +207,11 @@ export class CaisseImprevueService {
    * Recherche des demandes par nom/prénom
    */
   async searchDemands(
-    query: string,
+    searchQuery: string,
     filters?: DemandFilters,
     limit?: number
   ): Promise<CaisseImprevueDemand[]> {
-    return await this.demandRepository.search(query, filters, limit)
+    return await this.demandRepository.search(searchQuery, filters, limit)
   }
 
   /**
@@ -241,28 +241,18 @@ export class CaisseImprevueService {
 
     // TODO: Implémenter la création du contrat
     // Pour l'instant, on marque juste la demande comme convertie
-    const now = new Date()
-    await this.demandRepository.update(
+    const converted = await this.demandRepository.convert(
       demandId,
       {
-        status: 'CONVERTED',
-        priority: 4,
-        convertedBy,
-        convertedAt: now,
-        convertedDate: now,
+        contractId: undefined, // TODO: Remplacer par l'ID réel du contrat créé
       },
       convertedBy
     )
 
-    const updated = await this.demandRepository.getById(demandId)
-    if (!updated) {
-      throw new Error('Erreur lors de la mise à jour de la demande')
-    }
-
     // TODO: Retourner le contractId réel une fois la création de contrat implémentée
     return {
-      contractId: updated.contractId || '',
-      demand: updated,
+      contractId: converted.contractId || '',
+      demand: converted,
     }
   }
 }

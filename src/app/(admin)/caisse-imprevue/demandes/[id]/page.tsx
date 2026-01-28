@@ -11,7 +11,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, FileText, Loader2 } from 'lucide-react'
 import { useDemandDetail, useExportDemandDetails } from '@/domains/financial/caisse-imprevue/hooks'
-import { DemandDetailV2 } from '@/domains/financial/caisse-imprevue/components/demandes/DemandDetailV2'
+import { DemandDetailV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function DemandDetailPage() {

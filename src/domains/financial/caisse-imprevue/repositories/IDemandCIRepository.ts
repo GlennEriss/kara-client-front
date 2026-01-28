@@ -9,6 +9,7 @@ import type {
   AcceptDemandInput,
   RejectDemandInput,
   ReopenDemandInput,
+  ConvertDemandInput,
 } from '../entities/demand.types'
 import type {
   DemandFilters,
@@ -79,6 +80,15 @@ export interface IDemandCIRepository {
   ): Promise<CaisseImprevueDemand>
 
   /**
+   * Convertit une demande acceptée en contrat avec traçabilité
+   */
+  convert(
+    id: string,
+    input: ConvertDemandInput,
+    convertedBy: string
+  ): Promise<CaisseImprevueDemand>
+
+  /**
    * Supprime une demande avec traçabilité (enregistre deletedBy/deletedAt avant suppression)
    */
   delete(id: string, deletedBy: string): Promise<void>
@@ -86,7 +96,7 @@ export interface IDemandCIRepository {
   /**
    * Recherche des demandes par nom/prénom du membre
    */
-  search(query: string, filters?: DemandFilters, limit?: number): Promise<CaisseImprevueDemand[]>
+  search(searchQuery: string, filters?: DemandFilters, limit?: number): Promise<CaisseImprevueDemand[]>
 
   /**
    * Récupère les statistiques des demandes

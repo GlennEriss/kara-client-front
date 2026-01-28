@@ -10,9 +10,7 @@
 import { UseFormReturn } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Step1Member } from './steps/Step1Member'
-import { Step2Forfait } from './steps/Step2Forfait'
-import { Step3Contact } from './steps/Step3Contact'
+import { Step1Member, Step2Forfait, Step3Contact } from './steps'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { CaisseImprevueDemandFormInput } from '../../hooks/useDemandForm'
 

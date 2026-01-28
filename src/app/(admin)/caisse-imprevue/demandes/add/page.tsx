@@ -13,7 +13,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useDemandForm, useCreateDemand } from '@/domains/financial/caisse-imprevue/hooks'
 import { useAuth } from '@/domains/auth/hooks/useAuth'
 import { toast } from 'sonner'
-import { CreateDemandFormV2 } from '@/domains/financial/caisse-imprevue/components/forms/CreateDemandFormV2'
+import { CreateDemandFormV2 } from '@/domains/financial/caisse-imprevue/components/forms'
 
 export default function CreateDemandPage() {
   const router = useRouter()
@@ -22,7 +22,7 @@ export default function CreateDemandPage() {
   const createMutation = useCreateDemand()
 
   const handleSubmit = async (data: any) => {
-    if (!user?.id) {
+    if (!user?.uid) {
       toast.error('Vous devez être connecté pour créer une demande')
       return
     }
@@ -31,7 +31,7 @@ export default function CreateDemandPage() {
     try {
       await createMutation.mutateAsync({
         data,
-        createdBy: user.id,
+        createdBy: user.uid,
       })
       router.push('/caisse-imprevue/demandes')
     } catch (error) {

@@ -151,3 +151,10 @@ export interface RejectDemandInput {
 export interface ReopenDemandInput {
   reason?: string
 }
+
+/**
+ * Type pour la conversion d'une demande en contrat
+ */
+export interface ConvertDemandInput {
+  contractId?: string // ID du contrat créé
+}

@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
 import { useDebounce } from '@/hooks/shared/useDebounce'
-import { useDemandSearch } from '../../hooks/useDemandSearch'
+import { useDemandSearch } from '@/domains/financial/caisse-imprevue/hooks'
 import type { DemandFilters } from '../../../entities/demand-filters.types'
 
 interface DemandSearchV2Props {

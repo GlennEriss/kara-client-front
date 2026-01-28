@@ -7,13 +7,50 @@
 import { UseFormReturn } from 'react-hook-form'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import MemberSearchInput from '@/components/vehicule/MemberSearchInput'
+import { RepositoryFactory } from '@/factories/RepositoryFactory'
+import { useEffect } from 'react'
 import type { CaisseImprevueDemandFormInput } from '../../../hooks/useDemandForm'
+import type { User } from '@/types/types'
 
 interface Step1MemberProps {
   form: UseFormReturn<CaisseImprevueDemandFormInput>
 }
 
 export function Step1Member({ form }: Step1MemberProps) {
+  const memberId = form.watch('memberId')
+  const memberRepository = RepositoryFactory.getMemberRepository()
+
+  // Charger les infos du membre sélectionné
+  useEffect(() => {
+    const loadMemberInfo = async () => {
+      if (memberId) {
+        const member = await memberRepository.getMemberById(memberId)
+        if (member) {
+          form.setValue('memberFirstName', member.firstName || '')
+          form.setValue('memberLastName', member.lastName || '')
+          form.setValue('memberEmail', member.email || '')
+          form.setValue('memberContacts', member.contacts || [])
+          form.setValue('memberMatricule', member.matricule || '')
+          form.setValue('memberPhone', member.contacts?.[0] || '')
+        }
+      }
+    }
+    loadMemberInfo()
+  }, [memberId, form, memberRepository])
+
+  const handleMemberSelect = (selectedMemberId: string, member: User | null) => {
+    form.setValue('memberId', selectedMemberId)
+    if (member) {
+      form.setValue('memberFirstName', member.firstName || '')
+      form.setValue('memberLastName', member.lastName || '')
+      form.setValue('memberEmail', member.email || '')
+      form.setValue('memberContacts', member.contacts || [])
+      form.setValue('memberMatricule', member.matricule || '')
+      form.setValue('memberPhone', member.contacts?.[0] || '')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -21,10 +58,19 @@ export function Step1Member({ form }: Step1MemberProps) {
         <p className="text-xs text-kara-neutral-500 mb-2">
           Recherchez et sélectionnez le membre pour qui créer la demande
         </p>
-        {/* TODO: Intégrer composant de recherche membre avec autocomplétion */}
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <p className="text-sm text-kara-neutral-500">Composant de recherche membre à implémenter</p>
-        </div>
+        <MemberSearchInput
+          value={memberId}
+          onChange={handleMemberSelect}
+          selectedMemberId={memberId}
+          error={form.formState.errors.memberId?.message}
+          label=""
+          placeholder="Rechercher par nom, prénom ou matricule..."
+          isRequired
+          data-testid="step1-member-search"
+        />
+        {form.formState.errors.memberId && (
+          <p className="text-xs text-red-500 mt-1">{form.formState.errors.memberId.message}</p>
+        )}
       </div>
 
       <div>

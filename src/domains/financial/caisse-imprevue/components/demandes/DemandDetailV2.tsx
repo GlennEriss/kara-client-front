@@ -14,7 +14,7 @@ import { User, Phone, Mail, Hash, FileText, DollarSign, Calendar, Clock, CheckCi
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useDemandSimulation } from '../../hooks/useDemandSimulation'
-import { PaymentScheduleTable } from './PaymentScheduleTable'
+import { PaymentScheduleTable } from '@/domains/financial/caisse-imprevue/components/demandes'
 import type { CaisseImprevueDemand } from '../../entities/demand.types'
 import { cn } from '@/lib/utils'
 
