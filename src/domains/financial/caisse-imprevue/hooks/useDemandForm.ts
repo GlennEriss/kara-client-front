@@ -64,7 +64,24 @@ export function useDemandForm() {
   })
 
   // Persistance localStorage
-  useDemandFormPersistence(form)
+  const { clearFormData } = useDemandFormPersistence(form)
+
+  // Réinitialiser le formulaire et le localStorage
+  const resetForm = () => {
+    form.reset(defaultValues as CaisseImprevueDemandFormInput)
+    clearFormData()
+    setCurrentStep(1)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Réinitialiser uniquement l'étape en cours
+  const resetCurrentStep = () => {
+    const fieldsToReset = getFieldsForStep(currentStep)
+    fieldsToReset.forEach((field) => {
+      const defaultValue = getDefaultValueForField(field)
+      form.setValue(field as any, defaultValue as any)
+    })
+  }
 
   const nextStep = async () => {
     // Validation de l'étape actuelle avec les champs spécifiques
@@ -113,6 +130,9 @@ export function useDemandForm() {
     goToStep,
     isSubmitting,
     setIsSubmitting,
+    resetForm,
+    resetCurrentStep,
+    clearFormData,
   }
 }
 
@@ -153,5 +173,44 @@ function getFieldsForStep(step: number): (keyof CaisseImprevueDemandFormInput)[]
       ] as any
     default:
       return []
+  }
+}
+
+/**
+ * Retourne la valeur par défaut pour un champ donné
+ */
+function getDefaultValueForField(field: string): any {
+  const fieldPath = field.split('.')
+  
+  if (fieldPath[0] === 'emergencyContact') {
+    return ''
+  }
+  
+  switch (field) {
+    case 'memberId':
+    case 'memberFirstName':
+    case 'memberLastName':
+    case 'memberEmail':
+    case 'memberMatricule':
+    case 'memberPhone':
+    case 'cause':
+    case 'subscriptionCIID':
+    case 'subscriptionCICode':
+    case 'subscriptionCILabel':
+    case 'desiredStartDate':
+      return ''
+    case 'memberContacts':
+      return []
+    case 'subscriptionCIAmountPerMonth':
+    case 'subscriptionCINominal':
+    case 'subscriptionCISupportMin':
+    case 'subscriptionCISupportMax':
+      return 0
+    case 'subscriptionCIDuration':
+      return 12
+    case 'paymentFrequency':
+      return 'MONTHLY'
+    default:
+      return ''
   }
 }

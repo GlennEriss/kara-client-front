@@ -194,44 +194,54 @@ export function DemandCardV2({
           </DropdownMenu>
         </div>
 
-        {/* Infos Membre */}
+        {/* Infos Membre - Nom et prénom sur lignes séparées en mobile */}
         <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="font-semibold text-gray-900 text-base truncate">
-              {demand.memberFirstName} {demand.memberLastName}
-            </span>
+          <div className="flex items-start gap-2">
+            <User className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              {/* Mobile: prénom et nom sur 2 lignes, Desktop: sur 1 ligne */}
+              <span className="font-semibold text-gray-900 text-base block sm:hidden">
+                {demand.memberFirstName}
+              </span>
+              <span className="font-semibold text-gray-900 text-base block sm:hidden">
+                {demand.memberLastName}
+              </span>
+              <span className="font-semibold text-gray-900 text-base hidden sm:block truncate">
+                {demand.memberFirstName} {demand.memberLastName}
+              </span>
+            </div>
           </div>
           {demand.memberPhone && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <span>{demand.memberPhone}</span>
+              <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+              <span className="break-all">{demand.memberPhone}</span>
             </div>
           )}
         </div>
 
-        {/* Infos Financières */}
-        <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm">
-              <Banknote className="w-4 h-4 text-green-600 flex-shrink-0" />
-              <span className="font-semibold text-gray-900">
+        {/* Infos Financières - Layout adaptatif pour éviter le débordement */}
+        <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-lg">
+          {/* Montant et fréquence - Stack en mobile, flex en desktop */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Banknote className="w-4 h-4 text-green-600 shrink-0" />
+              <span className="font-semibold text-gray-900 text-sm sm:text-base">
                 {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA
               </span>
-              <span className="text-gray-500">/{frequencyInfo.shortLabel}</span>
+              <span className="text-gray-500 text-sm">/{frequencyInfo.shortLabel}</span>
             </div>
-            <Badge variant="outline" className="text-xs font-medium bg-white">
+            <Badge variant="outline" className="text-xs font-medium bg-white w-fit">
               <Repeat className="w-3 h-3 mr-1" />
               {frequencyInfo.label}
             </Badge>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <CalendarDays className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
             <span>{demand.subscriptionCIDuration} mois de cotisation</span>
           </div>
           {demand.subscriptionCINominal && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Banknote className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
               <span>Nominal: {demand.subscriptionCINominal.toLocaleString('fr-FR')} FCFA</span>
             </div>
           )}
@@ -255,16 +265,15 @@ export function DemandCardV2({
         {/* Séparateur */}
         <div className="border-t border-gray-200 my-4" />
 
-        {/* Boutons d'action principaux */}
+        {/* Boutons d'action principaux - Taille uniforme mobile/desktop */}
         <div className="space-y-2">
           {/* Actions selon le statut */}
           {canAcceptOrReject && (
             <div className="flex flex-col sm:flex-row gap-2">
               {onAccept && (
                 <Button
-                  size="sm"
                   onClick={() => onAccept(demand.id)}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  className="flex-1 h-11 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Accepter
@@ -272,10 +281,9 @@ export function DemandCardV2({
               )}
               {onReject && (
                 <Button
-                  size="sm"
                   variant="outline"
                   onClick={() => onReject(demand.id)}
-                  className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  className="flex-1 h-11 text-sm font-medium border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                 >
                   <XCircle className="w-4 h-4 mr-2" />
                   Refuser
@@ -286,10 +294,9 @@ export function DemandCardV2({
 
           {canReopen && onReopen && (
             <Button
-              size="sm"
               variant="outline"
               onClick={() => onReopen(demand.id)}
-              className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+              className="w-full h-11 text-sm font-medium border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Réouvrir la demande
@@ -298,9 +305,8 @@ export function DemandCardV2({
 
           {canCreateContract && onCreateContract && (
             <Button
-              size="sm"
               onClick={() => onCreateContract(demand.id)}
-              className="w-full bg-[#234D65] hover:bg-[#2c5a73] text-white"
+              className="w-full h-11 text-sm font-medium bg-[#234D65] hover:bg-[#2c5a73] text-white"
             >
               <FileSignature className="w-4 h-4 mr-2" />
               Créer le contrat
@@ -310,10 +316,9 @@ export function DemandCardV2({
           {/* Bouton Voir détails toujours présent */}
           {onViewDetails && (
             <Button
-              size="sm"
               variant="ghost"
               onClick={() => onViewDetails(demand.id)}
-              className="w-full text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="w-full h-11 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             >
               <Eye className="w-4 h-4 mr-2" />
               Voir les détails

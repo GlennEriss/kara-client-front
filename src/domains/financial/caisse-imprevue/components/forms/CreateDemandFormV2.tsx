@@ -12,7 +12,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Step1Member, Step2Forfait, Step3Contact } from './steps'
-import { ChevronLeft, ChevronRight, Check, Loader2, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Loader2, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { CaisseImprevueDemandFormInput } from '../../hooks/useDemandForm'
@@ -24,6 +24,8 @@ interface CreateDemandFormV2Props {
   onPrevious: () => void
   onSubmit: (data: CaisseImprevueDemandFormInput) => Promise<void>
   isSubmitting: boolean
+  onResetStep?: () => void
+  onResetAll?: () => void
 }
 
 const steps = [
@@ -39,8 +41,18 @@ export function CreateDemandFormV2({
   onPrevious,
   onSubmit,
   isSubmitting,
+  onResetStep,
+  onResetAll,
 }: CreateDemandFormV2Props) {
   const handleSubmit = form.handleSubmit(onSubmit)
+
+  // Gérer la réinitialisation de l'étape
+  const handleResetStep = () => {
+    if (onResetStep) {
+      onResetStep()
+      toast.info('Étape réinitialisée', { description: 'Les champs de cette étape ont été vidés.' })
+    }
+  }
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -135,109 +147,119 @@ export function CreateDemandFormV2({
             </div>
           </div>
 
-          {/* Navigation - Boutons bien visibles et responsive */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 mt-6 border-t border-gray-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onPrevious}
-              disabled={currentStep === 1}
-              className={cn(
-                'w-full sm:w-auto sm:min-w-[120px]',
-                currentStep === 1
-                  ? 'opacity-50 cursor-not-allowed'
-                  : 'hover:bg-gray-50 border-gray-300',
-              )}
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Précédent
-            </Button>
-
-            {currentStep < 3 ? (
+          {/* Navigation - Boutons avec taille uniforme mobile/desktop */}
+          <div className="flex flex-col gap-3 pt-6 mt-6 border-t border-gray-200">
+            {/* Ligne des boutons principaux */}
+            <div className="flex flex-col sm:flex-row items-stretch gap-3">
+              {/* Bouton Précédent */}
               <Button
                 type="button"
-                onClick={onNext}
-                className="w-full sm:w-auto sm:min-w-[120px] bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-md hover:shadow-lg transition-all duration-200"
+                variant="outline"
+                onClick={onPrevious}
+                disabled={currentStep === 1}
+                className={cn(
+                  'h-12 px-6 text-base font-medium',
+                  'sm:flex-1 sm:max-w-[180px]',
+                  currentStep === 1
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:bg-gray-50 border-gray-300',
+                )}
               >
-                Suivant
-                <ChevronRight className="w-4 h-4 ml-2" />
+                <ChevronLeft className="w-5 h-5 mr-2" />
+                Précédent
               </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={async (e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  
-                  try {
-                    // Valider tout le formulaire d'un coup
-                    const isValid = await form.trigger()
+
+              {/* Bouton Réinitialiser l'étape */}
+              {onResetStep && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleResetStep}
+                  className="h-12 px-6 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 sm:flex-1 sm:max-w-[180px]"
+                >
+                  <RotateCcw className="w-5 h-5 mr-2" />
+                  Réinitialiser
+                </Button>
+              )}
+
+              {/* Bouton Suivant ou Créer */}
+              {currentStep < 3 ? (
+                <Button
+                  type="button"
+                  onClick={onNext}
+                  className="h-12 px-6 text-base font-medium bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-md hover:shadow-lg transition-all duration-200 sm:flex-1 sm:max-w-[180px] sm:ml-auto"
+                >
+                  Suivant
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
                     
-                    if (!isValid) {
-                      const errors = form.formState.errors
-                      console.log('Erreurs de validation complètes:', JSON.stringify(errors, null, 2))
+                    try {
+                      const isValid = await form.trigger()
                       
-                      // Construire un message d'erreur détaillé
-                      const errorMessages: string[] = []
-                      
-                      // Erreurs Step 1
-                      if (errors.memberId) errorMessages.push('Membre non sélectionné')
-                      if (errors.cause) errorMessages.push('Motif invalide')
-                      
-                      // Erreurs Step 2
-                      if (errors.subscriptionCIID) errorMessages.push('Forfait non sélectionné')
-                      if (errors.paymentFrequency) errorMessages.push('Fréquence non sélectionnée')
-                      if (errors.desiredStartDate) errorMessages.push('Date de début non sélectionnée')
-                      
-                      // Erreurs Step 3 (contact d'urgence)
-                      if (errors.emergencyContact) {
-                        const ecErrors = errors.emergencyContact as any
-                        if (ecErrors.lastName) errorMessages.push('Nom du contact manquant')
-                        if (ecErrors.phone1) errorMessages.push('Téléphone du contact invalide')
-                        if (ecErrors.relationship) errorMessages.push('Lien de parenté manquant')
-                        if (ecErrors.typeId) errorMessages.push('Type de document manquant')
-                        if (ecErrors.idNumber) errorMessages.push('N° de document manquant')
-                        if (ecErrors.documentPhotoUrl) errorMessages.push('Photo du document manquante')
+                      if (!isValid) {
+                        const errors = form.formState.errors
+                        console.log('Erreurs de validation complètes:', JSON.stringify(errors, null, 2))
+                        
+                        const errorMessages: string[] = []
+                        
+                        if (errors.memberId) errorMessages.push('Membre non sélectionné')
+                        if (errors.cause) errorMessages.push('Motif invalide')
+                        if (errors.subscriptionCIID) errorMessages.push('Forfait non sélectionné')
+                        if (errors.paymentFrequency) errorMessages.push('Fréquence non sélectionnée')
+                        if (errors.desiredStartDate) errorMessages.push('Date de début non sélectionnée')
+                        
+                        if (errors.emergencyContact) {
+                          const ecErrors = errors.emergencyContact as any
+                          if (ecErrors.lastName) errorMessages.push('Nom du contact manquant')
+                          if (ecErrors.phone1) errorMessages.push('Téléphone du contact invalide')
+                          if (ecErrors.relationship) errorMessages.push('Lien de parenté manquant')
+                          if (ecErrors.typeId) errorMessages.push('Type de document manquant')
+                          if (ecErrors.idNumber) errorMessages.push('N° de document manquant')
+                          if (ecErrors.documentPhotoUrl) errorMessages.push('Photo du document manquante')
+                        }
+                        
+                        const description = errorMessages.length > 0 
+                          ? errorMessages.slice(0, 3).join(', ') + (errorMessages.length > 3 ? '...' : '')
+                          : 'Vérifiez que tous les champs obligatoires sont remplis.'
+                        
+                        toast.error('Formulaire incomplet', { description })
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                        return
                       }
                       
-                      const description = errorMessages.length > 0 
-                        ? errorMessages.slice(0, 3).join(', ') + (errorMessages.length > 3 ? '...' : '')
-                        : 'Vérifiez que tous les champs obligatoires sont remplis.'
-                      
-                      toast.error('Formulaire incomplet', { description })
-                      
-                      // Faire défiler vers le haut pour voir les erreurs
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                      return
+                      const formData = form.getValues()
+                      console.log('Données du formulaire à soumettre:', formData)
+                      await onSubmit(formData)
+                    } catch (error) {
+                      console.error('Erreur lors de la soumission:', error)
+                      toast.error('Une erreur est survenue', {
+                        description: error instanceof Error ? error.message : 'Veuillez réessayer.',
+                      })
                     }
-                    
-                    // Si tout est valide, soumettre directement avec les données du formulaire
-                    const formData = form.getValues()
-                    console.log('Données du formulaire à soumettre:', formData)
-                    await onSubmit(formData)
-                  } catch (error) {
-                    console.error('Erreur lors de la soumission:', error)
-                    toast.error('Une erreur est survenue', {
-                      description: error instanceof Error ? error.message : 'Veuillez réessayer.',
-                    })
-                  }
-                }}
-                disabled={isSubmitting}
-                className="w-full sm:w-auto sm:min-w-[160px] bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Création...
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4 mr-2" />
-                    Créer la demande
-                  </>
-                )}
-              </Button>
-            )}
+                  }}
+                  disabled={isSubmitting}
+                  className="h-12 px-6 text-base font-medium bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed sm:flex-1 sm:max-w-[200px] sm:ml-auto"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Création...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5 mr-2" />
+                      Créer la demande
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
