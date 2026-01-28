@@ -226,13 +226,18 @@ export function DemandDetailV2({
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4 space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg group-hover:bg-[#234D65]/5 transition-colors">
-              <div className="w-10 h-10 rounded-full bg-[#234D65]/10 flex items-center justify-center">
+            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg group-hover:bg-[#234D65]/5 transition-colors">
+              <div className="w-10 h-10 rounded-full bg-[#234D65]/10 flex items-center justify-center shrink-0">
                 <User className="w-5 h-5 text-[#234D65]" />
               </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Nom complet</p>
-                <p className="font-semibold text-gray-900">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Nom complet</p>
+                {/* Mobile: prénom et nom sur 2 lignes, Desktop: sur 1 ligne */}
+                <div className="block sm:hidden">
+                  <p className="font-semibold text-gray-900">{demand.memberFirstName}</p>
+                  <p className="font-semibold text-gray-900">{demand.memberLastName}</p>
+                </div>
+                <p className="font-semibold text-gray-900 hidden sm:block">
                   {demand.memberFirstName} {demand.memberLastName}
                 </p>
               </div>
@@ -352,13 +357,18 @@ export function DemandDetailV2({
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-red-600" />
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Nom complet</p>
-                  <p className="font-semibold text-gray-900">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Nom complet</p>
+                  {/* Mobile: prénom et nom sur 2 lignes, Desktop: sur 1 ligne */}
+                  <div className="block sm:hidden">
+                    <p className="font-semibold text-gray-900">{demand.emergencyContact.firstName || ''}</p>
+                    <p className="font-semibold text-gray-900">{demand.emergencyContact.lastName || ''}</p>
+                  </div>
+                  <p className="font-semibold text-gray-900 hidden sm:block">
                     {demand.emergencyContact.firstName} {demand.emergencyContact.lastName}
                   </p>
                 </div>
