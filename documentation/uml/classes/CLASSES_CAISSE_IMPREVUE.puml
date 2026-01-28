@@ -236,6 +236,51 @@ class EmergencyContactCI {
 }
 
 ' ============================================
+' CLASSE : CAISSE_IMPREVUE_DEMAND (Demande V2)
+' ============================================
+class CaisseImprevueDemand {
+  + id: string
+  + memberId: string
+  + memberFirstName: string
+  + memberLastName: string
+  + memberEmail?: string
+  + memberContacts?: string[]
+  + memberMatricule: string
+  + memberPhone?: string
+  + cause: string
+  + subscriptionCIID: string
+  + subscriptionCICode: string
+  + subscriptionCIAmountPerMonth: number
+  + subscriptionCIDuration: number
+  + subscriptionCISupportMax?: number
+  + paymentFrequency: CaisseImprevuePaymentFrequency
+  + desiredStartDate: string
+  + emergencyContact: EmergencyContactCI
+  + status: CaisseImprevueDemandStatus
+  + decisionReason?: string
+  + decisionMadeBy?: string
+  + decisionDate?: Date
+  + priority: number
+  + contractId?: string
+  + convertedDate?: Date
+  ' Traçabilité complète V2
+  + createdBy: string
+  + createdAt: Date
+  + updatedBy?: string
+  + updatedAt?: Date
+  + acceptedBy?: string
+  + acceptedAt?: Date
+  + rejectedBy?: string
+  + rejectedAt?: Date
+  + reopenedBy?: string
+  + reopenedAt?: Date
+  + deletedBy?: string
+  + deletedAt?: Date
+  + convertedBy?: string
+  + convertedAt?: Date
+}
+
+' ============================================
 ' TYPES ENUMERÉS
 ' ============================================
 enum CaisseImprevuePaymentFrequency {
@@ -279,6 +324,14 @@ enum SubscriptionStatus {
   INACTIVE
 }
 
+enum CaisseImprevueDemandStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONVERTED
+  REOPENED
+}
+
 enum PaymentMode {
   airtel_money
   mobicash
@@ -314,6 +367,18 @@ SubscriptionCI "1" --> "*" ContractCI : used_in_contracts
 
 ' ContractCI contient EmergencyContactCI (composition)
 ContractCI *-- EmergencyContactCI : has
+
+' CaisseImprevueDemand référence User (agrégation)
+User "1" --> "*" CaisseImprevueDemand : has_demands
+
+' CaisseImprevueDemand référence SubscriptionCI (agrégation)
+SubscriptionCI "1" --> "*" CaisseImprevueDemand : used_in_demands
+
+' CaisseImprevueDemand contient EmergencyContactCI (composition)
+CaisseImprevueDemand *-- EmergencyContactCI : has
+
+' CaisseImprevueDemand peut créer ContractCI (agrégation)
+CaisseImprevueDemand "1" --> "0..1" ContractCI : converts_to
 
 ' ContractCI a plusieurs PaymentCI (agrégation - sous-collection)
 ContractCI "1" --> "*" PaymentCI : has_payments
@@ -371,6 +436,15 @@ note right of SupportCI
   **Sous-collection:** contractsCI/{contractId}/supports
   Éligibilité: totalMonthsPaid >= 3 && !currentSupportId
   Remboursement déduit des 3 derniers mois
+end note
+
+note right of CaisseImprevueDemand
+  **Collection Firestore:** caisseImprevueDemands
+  Clé primaire: id
+  Format ID: MK_DEMANDE_CI_{matricule}_{date}_{heure}
+  Index sur: status, createdAt, memberLastName, memberFirstName
+  Traçabilité complète V2: createdBy, acceptedBy, rejectedBy, etc.
+  Conversion: Peut créer un ContractCI si status = APPROVED
 end note
 
 @enduml
