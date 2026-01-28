@@ -7,7 +7,6 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ArrowLeft, FileText } from 'lucide-react'
@@ -45,17 +44,6 @@ export default function CreateDemandPage() {
   return (
     <div className="container mx-auto p-3 sm:p-4 md:p-6 max-w-7xl w-full">
       <div className="space-y-4 sm:space-y-6">
-        {/* Breadcrumb */}
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/caisse-imprevue/demandes">Demandes</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbPage>Créer une demande</BreadcrumbPage>
-          </BreadcrumbList>
-        </Breadcrumb>
-
         {/* Header avec design moderne */}
         <Card className="border-0 shadow-lg bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white overflow-hidden">
           <CardContent className="p-4 sm:p-6 lg:p-8">
