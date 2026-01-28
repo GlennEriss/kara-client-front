@@ -67,11 +67,14 @@ export function useAcceptDemand() {
       acceptedBy: string
     }) => service.acceptDemand(id, input, acceptedBy),
     onMutate: async ({ id, input, acceptedBy }) => {
-      // Optimistic update
+      // Optimistic update : annuler les requêtes en cours
       await queryClient.cancelQueries({ queryKey: ['demand-detail', id] })
+      await queryClient.cancelQueries({ queryKey: ['caisse-imprevue-demands'] })
       
+      // Snapshot des données précédentes
       const previousDemand = queryClient.getQueryData<CaisseImprevueDemand | null>(['demand-detail', id])
       
+      // Mettre à jour les détails
       if (previousDemand) {
         queryClient.setQueryData<CaisseImprevueDemand>(['demand-detail', id], {
           ...previousDemand,
@@ -84,13 +87,40 @@ export function useAcceptDemand() {
         })
       }
 
+      // Mettre à jour la liste (optimistic update)
+      queryClient.setQueriesData<{ items: CaisseImprevueDemand[] }>(
+        { queryKey: ['caisse-imprevue-demands'] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            items: old.items.map((d) =>
+              d.id === id
+                ? {
+                    ...d,
+                    status: 'APPROVED' as const,
+                    acceptedBy,
+                    acceptedAt: new Date(),
+                    decisionReason: input.reason,
+                    updatedBy: acceptedBy,
+                    updatedAt: new Date(),
+                  }
+                : d
+            ),
+          }
+        }
+      )
+
       return { previousDemand }
     },
     onError: (error, variables, context) => {
-      // Rollback
+      // Rollback détails
       if (context?.previousDemand) {
         queryClient.setQueryData(['demand-detail', variables.id], context.previousDemand)
       }
+      
+      // Rollback liste (restaurer état précédent)
+      queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
       
       toast.error('Erreur lors de l\'acceptation de la demande', {
         description: error.message,
@@ -126,11 +156,14 @@ export function useRejectDemand() {
       rejectedBy: string
     }) => service.rejectDemand(id, input, rejectedBy),
     onMutate: async ({ id, input, rejectedBy }) => {
-      // Optimistic update
+      // Optimistic update : annuler les requêtes en cours
       await queryClient.cancelQueries({ queryKey: ['demand-detail', id] })
+      await queryClient.cancelQueries({ queryKey: ['caisse-imprevue-demands'] })
       
+      // Snapshot des données précédentes
       const previousDemand = queryClient.getQueryData<CaisseImprevueDemand | null>(['demand-detail', id])
       
+      // Mettre à jour les détails
       if (previousDemand) {
         queryClient.setQueryData<CaisseImprevueDemand>(['demand-detail', id], {
           ...previousDemand,
@@ -143,13 +176,40 @@ export function useRejectDemand() {
         })
       }
 
+      // Mettre à jour la liste (optimistic update)
+      queryClient.setQueriesData<{ items: CaisseImprevueDemand[] }>(
+        { queryKey: ['caisse-imprevue-demands'] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            items: old.items.map((d) =>
+              d.id === id
+                ? {
+                    ...d,
+                    status: 'REJECTED' as const,
+                    rejectedBy,
+                    rejectedAt: new Date(),
+                    decisionReason: input.reason,
+                    updatedBy: rejectedBy,
+                    updatedAt: new Date(),
+                  }
+                : d
+            ),
+          }
+        }
+      )
+
       return { previousDemand }
     },
     onError: (error, variables, context) => {
-      // Rollback
+      // Rollback détails
       if (context?.previousDemand) {
         queryClient.setQueryData(['demand-detail', variables.id], context.previousDemand)
       }
+      
+      // Rollback liste (restaurer état précédent)
+      queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
       
       toast.error('Erreur lors du refus de la demande', {
         description: error.message,
@@ -185,11 +245,14 @@ export function useReopenDemand() {
       reopenedBy: string
     }) => service.reopenDemand(id, input, reopenedBy),
     onMutate: async ({ id, input, reopenedBy }) => {
-      // Optimistic update
+      // Optimistic update : annuler les requêtes en cours
       await queryClient.cancelQueries({ queryKey: ['demand-detail', id] })
+      await queryClient.cancelQueries({ queryKey: ['caisse-imprevue-demands'] })
       
+      // Snapshot des données précédentes
       const previousDemand = queryClient.getQueryData<CaisseImprevueDemand | null>(['demand-detail', id])
       
+      // Mettre à jour les détails
       if (previousDemand) {
         queryClient.setQueryData<CaisseImprevueDemand>(['demand-detail', id], {
           ...previousDemand,
@@ -202,13 +265,40 @@ export function useReopenDemand() {
         })
       }
 
+      // Mettre à jour la liste (optimistic update)
+      queryClient.setQueriesData<{ items: CaisseImprevueDemand[] }>(
+        { queryKey: ['caisse-imprevue-demands'] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            items: old.items.map((d) =>
+              d.id === id
+                ? {
+                    ...d,
+                    status: 'REOPENED' as const,
+                    reopenedBy,
+                    reopenedAt: new Date(),
+                    reopenReason: input.reason,
+                    updatedBy: reopenedBy,
+                    updatedAt: new Date(),
+                  }
+                : d
+            ),
+          }
+        }
+      )
+
       return { previousDemand }
     },
     onError: (error, variables, context) => {
-      // Rollback
+      // Rollback détails
       if (context?.previousDemand) {
         queryClient.setQueryData(['demand-detail', variables.id], context.previousDemand)
       }
+      
+      // Rollback liste (restaurer état précédent)
+      queryClient.invalidateQueries({ queryKey: ['caisse-imprevue-demands'] })
       
       toast.error('Erreur lors de la réouverture de la demande', {
         description: error.message,

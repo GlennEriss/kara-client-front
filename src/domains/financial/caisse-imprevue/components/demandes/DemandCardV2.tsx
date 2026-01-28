@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import type { CaisseImprevueDemand } from '../../entities/demand.types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { usePrefetchDemandDetail } from '../../hooks/useDemandDetail'
 
 interface DemandCardV2Props {
   demand: CaisseImprevueDemand
@@ -54,9 +55,14 @@ export function DemandCardV2({
 }: DemandCardV2Props) {
   const statusInfo = statusConfig[demand.status] || statusConfig.PENDING
   const createdAt = demand.createdAt instanceof Date ? demand.createdAt : new Date(demand.createdAt)
+  const prefetchDetail = usePrefetchDemandDetail()
 
   return (
-    <Card className={cn('hover:shadow-lg transition-shadow', className)} data-testid={`demand-card-${demand.id}`}>
+    <Card
+      className={cn('hover:shadow-lg transition-shadow', className)}
+      data-testid={`demand-card-${demand.id}`}
+      onMouseEnter={() => prefetchDetail(demand.id)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">

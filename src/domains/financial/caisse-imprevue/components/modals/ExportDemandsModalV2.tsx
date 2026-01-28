@@ -28,12 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Download, Loader2, Calendar, FileSpreadsheet, FileText, RefreshCw, Upload, BarChart3 } from 'lucide-react'
+import { Download, Loader2, Calendar, FileSpreadsheet, FileText, RefreshCw, Upload, BarChart3, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { useExportDemands } from '../../hooks/useExportDemands'
-import { DemandCIRepository } from '../../repositories/DemandCIRepository'
+import { DemandExportService } from '../../services/DemandExportService'
 import type { ExportDemandsOptions } from '../../services/DemandExportService'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert'
 
 interface ExportDemandsModalV2Props {
   isOpen: boolean
@@ -57,27 +62,17 @@ export function ExportDemandsModalV2({ isOpen, onClose }: ExportDemandsModalV2Pr
     REOPENED: false,
   })
   const [previewCount, setPreviewCount] = useState<number | null>(null)
+  const [isCalculatingPreview, setIsCalculatingPreview] = useState(false)
+  const [showLargeExportWarning, setShowLargeExportWarning] = useState(false)
 
   const { exportDemands, isExporting } = useExportDemands()
+  const exportService = DemandExportService.getInstance()
 
-  // Calculer l'aperçu
+  // Calculer l'aperçu selon le diagramme SEQ_ExporterDemandes
   const calculatePreview = useCallback(async () => {
-    try {
-      const repository = DemandCIRepository.getInstance()
-      // TODO: Implémenter le calcul d'aperçu
-      setPreviewCount(null)
-    } catch (error) {
-      console.error('Erreur lors du calcul de l\'aperçu:', error)
-    }
-  }, [scopeMode, dateStart, dateEnd, quantity, statusFilters])
-
-  useEffect(() => {
-    if (isOpen) {
-      calculatePreview()
-    }
-  }, [isOpen, calculatePreview])
-
-  const handleExport = async () => {
+    if (!isOpen) return
+    
+    setIsCalculatingPreview(true)
     try {
       const options: ExportDemandsOptions = {
         format: exportFormat,
@@ -89,8 +84,54 @@ export function ExportDemandsModalV2({ isOpen, onClose }: ExportDemandsModalV2Pr
         sortBy,
       }
 
+      // Récupérer les demandes selon les options (comme dans fetchDemandsForExport)
+      const demands = await exportService.fetchDemandsForExport(options)
+      
+      // Appliquer filtres de statut
+      const filtered = demands.filter((d) => {
+        const activeFilters = Object.entries(statusFilters).filter(([_, checked]) => checked)
+        if (activeFilters.length === 0) return true
+        return activeFilters.some(([status]) => d.status === status)
+      })
+
+      setPreviewCount(filtered.length)
+    } catch (error) {
+      console.error('Erreur lors du calcul de l\'aperçu:', error)
+      setPreviewCount(null)
+    } finally {
+      setIsCalculatingPreview(false)
+    }
+  }, [isOpen, scopeMode, dateStart, dateEnd, quantity, statusFilters, sortBy, exportFormat, exportService])
+
+  useEffect(() => {
+    if (isOpen) {
+      calculatePreview()
+    }
+  }, [isOpen, calculatePreview])
+
+  const handleExport = async () => {
+    try {
+      // Vérifier si l'export est volumineux (selon diagramme)
+      const estimatedCount = previewCount || 0
+      const isLargeExport = estimatedCount > 1000 || scopeMode === 'all'
+
+      if (isLargeExport && !showLargeExportWarning) {
+        setShowLargeExportWarning(true)
+        return
+      }
+
+      const options: ExportDemandsOptions = {
+        format: exportFormat,
+        scopeMode,
+        dateStart: scopeMode === 'period' ? dateStart : undefined,
+        dateEnd: scopeMode === 'period' ? dateEnd : undefined,
+        quantity: scopeMode === 'quantity' ? quantity : undefined,
+        statusFilters,
+        sortBy,
+      }
+
       await exportDemands(options)
-      toast.success('Export généré avec succès')
+      toast.success(`Export généré avec succès (${estimatedCount} demandes)`)
       onClose()
     } catch (error) {
       toast.error('Erreur lors de la génération de l\'export')
@@ -243,11 +284,50 @@ export function ExportDemandsModalV2({ isOpen, onClose }: ExportDemandsModalV2Pr
           </div>
 
           {/* Aperçu */}
-          {previewCount !== null && (
+          {isCalculatingPreview ? (
+            <div className="bg-kara-primary/10 text-kara-primary p-3 rounded-lg flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Calcul de l'aperçu...</span>
+            </div>
+          ) : previewCount !== null ? (
             <div className="bg-kara-primary/10 text-kara-primary p-3 rounded-lg flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span>{previewCount} demandes seront exportées</span>
             </div>
+          ) : null}
+
+          {/* Avertissement export volumineux */}
+          {showLargeExportWarning && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-800">Export volumineux</AlertTitle>
+              <AlertDescription className="text-amber-700">
+                <p className="mb-2">
+                  Vous êtes sur le point d'exporter {previewCount || 'un grand nombre de'} demandes.
+                </p>
+                <p className="mb-3">
+                  Cela peut prendre plusieurs minutes. Voulez-vous continuer ?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setShowLargeExportWarning(false)
+                      handleExport()
+                    }}
+                  >
+                    Confirmer
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowLargeExportWarning(false)}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
 
