@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Download, Plus } from 'lucide-react'
+import { Download, Plus, ClipboardList } from 'lucide-react'
 import { ListDemandesV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
 import {
   ExportDemandsModalV2,
@@ -151,9 +151,12 @@ export default function DemandesPage() {
     <div className="container mx-auto p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6 lg:space-y-8">
       {/* Header */}
       <div className="bg-[#234D65] rounded-lg p-4 md:p-6 lg:p-8 text-white">
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-black mb-2">
-          📋 Demandes Caisse Imprévue
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <ClipboardList className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12" />
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black">
+            Demandes Caisse Imprévue
+          </h1>
+        </div>
         <p className="text-sm md:text-base lg:text-lg text-kara-primary-light/80 mb-4">
           Gérez les demandes de contrats Caisse Imprévue
         </p>

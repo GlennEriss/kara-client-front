@@ -287,7 +287,8 @@ export class DemandExportService {
 
     // Statut
     doc.setFontSize(12)
-    doc.text('📊 STATUT', 20, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text('STATUT', 20, y)
     y += 8
     doc.setFontSize(10)
     doc.text(`Statut : ${demand.status}`, 20, y)

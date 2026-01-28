@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Download, Loader2, Calendar, FileSpreadsheet, FileText, RefreshCw } from 'lucide-react'
+import { Download, Loader2, Calendar, FileSpreadsheet, FileText, RefreshCw, Upload, BarChart3 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { useExportDemands } from '../../hooks/useExportDemands'
@@ -116,7 +116,10 @@ export function ExportDemandsModalV2({ isOpen, onClose }: ExportDemandsModalV2Pr
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>📤 Exporter les demandes</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5" />
+            Exporter les demandes
+          </DialogTitle>
           <DialogDescription>
             Configurez les paramètres d'export
           </DialogDescription>
@@ -241,8 +244,9 @@ export function ExportDemandsModalV2({ isOpen, onClose }: ExportDemandsModalV2Pr
 
           {/* Aperçu */}
           {previewCount !== null && (
-            <div className="bg-kara-primary/10 text-kara-primary p-3 rounded-lg">
-              📊 {previewCount} demandes seront exportées
+            <div className="bg-kara-primary/10 text-kara-primary p-3 rounded-lg flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              <span>{previewCount} demandes seront exportées</span>
             </div>
           )}
         </div>

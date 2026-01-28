@@ -10,7 +10,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { User, Phone, Mail, Hash, FileText, DollarSign, Calendar, Clock, CheckCircle2, XCircle, RotateCcw, Trash2, Edit, FileCheck } from 'lucide-react'
+import { User, Phone, Mail, Hash, FileText, DollarSign, Calendar, Clock, CheckCircle2, XCircle, RotateCcw, Trash2, Edit, FileCheck, BarChart3 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useDemandSimulation } from '../../hooks/useDemandSimulation'
@@ -55,7 +55,10 @@ export function DemandDetailV2({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg md:text-xl">📊 Statut</CardTitle>
+            <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Statut
+            </CardTitle>
             <Badge variant={statusInfo.variant} className={cn('text-xs md:text-sm', statusInfo.color)}>
               {statusInfo.label}
             </Badge>

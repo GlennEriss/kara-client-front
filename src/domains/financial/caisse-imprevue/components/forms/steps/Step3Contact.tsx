@@ -22,7 +22,7 @@ import { ImageCompressionService } from '@/services/imageCompressionService'
 import { getStorageInstance } from '@/firebase/storage'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { toast } from 'sonner'
-import { Upload, X, Loader2 } from 'lucide-react'
+import { Upload, X, Loader2, Info } from 'lucide-react'
 import type { CaisseImprevueDemandFormInput } from '../../../hooks/useDemandForm'
 import { DOCUMENT_TYPE_OPTIONS } from '@/constantes/document-types'
 
@@ -246,8 +246,9 @@ export function Step3Contact({ form }: Step3ContactProps) {
       </div>
 
       {memberId && (
-        <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800">
-          ℹ️ Le membre sélectionné ({memberId}) sera automatiquement exclu de la recherche de contact
+        <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 flex items-start gap-2">
+          <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>Le membre sélectionné ({memberId}) sera automatiquement exclu de la recherche de contact</span>
         </div>
       )}
     </div>
