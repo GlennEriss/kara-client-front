@@ -492,9 +492,11 @@ service cloud.firestore {
         // Validation fréquence
         request.resource.data.paymentFrequency in ['DAILY', 'MONTHLY'] &&
         
-        // Validation date souhaitée
-        request.resource.data.desiredStartDate is string &&
-        request.resource.data.desiredStartDate.size() > 0 &&
+        // Validation date souhaitée (desiredStartDate ou desiredDate)
+        ((request.resource.data.desiredStartDate is string &&
+          request.resource.data.desiredStartDate.size() > 0) ||
+         (request.resource.data.desiredDate is string &&
+          request.resource.data.desiredDate.size() > 0)) &&
         
         // ✅ Validation contact d'urgence (obligatoire) - NOUVEAU V2
         request.resource.data.emergencyContact is map &&
