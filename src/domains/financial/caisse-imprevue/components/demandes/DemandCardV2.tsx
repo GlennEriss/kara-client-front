@@ -1,19 +1,44 @@
 /**
  * Composant Card pour afficher une demande (vue Grid)
  * 
- * Responsive : Mobile (pleine largeur), Tablette/Desktop (grille)
+ * Design selon WIREFRAME_LISTE.md :
+ * - Badge statut en haut
+ * - Infos membre (nom, téléphone)
+ * - Infos financières (montant, durée, fréquence)
+ * - Motif de la demande
+ * - Boutons d'action visibles
+ * 
+ * Responsive : Mobile (boutons empilés), Tablette+ (boutons côte à côte)
  */
 
 'use client'
 
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MoreVertical, User, Phone, DollarSign, Calendar, Eye, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
+import { 
+  User, 
+  Phone, 
+  Banknote, 
+  Calendar, 
+  Clock,
+  Eye, 
+  CheckCircle2, 
+  XCircle, 
+  RotateCcw,
+  FileText,
+  Repeat,
+  CalendarDays,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  FileSignature
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
@@ -34,12 +59,53 @@ interface DemandCardV2Props {
   className?: string
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; color: string }> = {
-  PENDING: { label: 'En attente', variant: 'secondary', color: 'bg-amber-100 text-amber-800' },
-  APPROVED: { label: 'Acceptée', variant: 'default', color: 'bg-green-100 text-green-800' },
-  REJECTED: { label: 'Refusée', variant: 'destructive', color: 'bg-red-100 text-red-800' },
-  CONVERTED: { label: 'Convertie', variant: 'default', color: 'bg-blue-100 text-blue-800' },
-  REOPENED: { label: 'Réouverte', variant: 'secondary', color: 'bg-purple-100 text-purple-800' },
+const statusConfig: Record<string, { 
+  label: string
+  icon: React.ReactNode
+  bgColor: string
+  textColor: string
+  borderColor: string
+}> = {
+  PENDING: { 
+    label: 'En attente', 
+    icon: <Clock className="w-3.5 h-3.5" />,
+    bgColor: 'bg-amber-50',
+    textColor: 'text-amber-700',
+    borderColor: 'border-amber-200'
+  },
+  APPROVED: { 
+    label: 'Acceptée', 
+    icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+    bgColor: 'bg-green-50',
+    textColor: 'text-green-700',
+    borderColor: 'border-green-200'
+  },
+  REJECTED: { 
+    label: 'Refusée', 
+    icon: <XCircle className="w-3.5 h-3.5" />,
+    bgColor: 'bg-red-50',
+    textColor: 'text-red-700',
+    borderColor: 'border-red-200'
+  },
+  CONVERTED: { 
+    label: 'Convertie', 
+    icon: <FileSignature className="w-3.5 h-3.5" />,
+    bgColor: 'bg-emerald-50',
+    textColor: 'text-emerald-700',
+    borderColor: 'border-emerald-200'
+  },
+  REOPENED: { 
+    label: 'Réouverte', 
+    icon: <RotateCcw className="w-3.5 h-3.5" />,
+    bgColor: 'bg-blue-50',
+    textColor: 'text-blue-700',
+    borderColor: 'border-blue-200'
+  },
+}
+
+const frequencyConfig: Record<string, { label: string; shortLabel: string }> = {
+  MONTHLY: { label: 'Mensuel', shortLabel: 'mois' },
+  DAILY: { label: 'Journalier', shortLabel: 'jour' },
 }
 
 export function DemandCardV2({
@@ -54,107 +120,211 @@ export function DemandCardV2({
   className,
 }: DemandCardV2Props) {
   const statusInfo = statusConfig[demand.status] || statusConfig.PENDING
+  const frequencyInfo = frequencyConfig[demand.paymentFrequency] || frequencyConfig.MONTHLY
   const createdAt = demand.createdAt instanceof Date ? demand.createdAt : new Date(demand.createdAt)
   const prefetchDetail = usePrefetchDemandDetail()
 
+  // Déterminer les actions disponibles selon le statut
+  const canAcceptOrReject = demand.status === 'PENDING' || demand.status === 'REOPENED'
+  const canReopen = demand.status === 'REJECTED'
+  const canCreateContract = demand.status === 'APPROVED'
+
   return (
     <Card
-      className={cn('hover:shadow-lg transition-shadow', className)}
+      className={cn(
+        'group relative overflow-hidden border-2 transition-all duration-200',
+        'hover:shadow-lg hover:border-gray-300',
+        statusInfo.borderColor,
+        className
+      )}
       data-testid={`demand-card-${demand.id}`}
       onMouseEnter={() => prefetchDetail(demand.id)}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant={statusInfo.variant} className={cn('text-xs', statusInfo.color)}>
-                {statusInfo.label}
-              </Badge>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-kara-neutral-500" />
-                <span className="font-semibold text-sm md:text-base">
-                  {demand.memberFirstName} {demand.memberLastName}
-                </span>
-              </div>
-              {demand.memberPhone && (
-                <div className="flex items-center gap-2 text-sm text-kara-neutral-600">
-                  <Phone className="w-4 h-4" />
-                  <span>{demand.memberPhone}</span>
-                </div>
-              )}
-            </div>
-          </div>
+      <CardContent className="p-4 md:p-5">
+        {/* Header : Badge Statut + Menu */}
+        <div className="flex items-start justify-between mb-4">
+          <Badge 
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 font-medium',
+              statusInfo.bgColor,
+              statusInfo.textColor,
+              'border',
+              statusInfo.borderColor
+            )}
+          >
+            {statusInfo.icon}
+            {statusInfo.label}
+          </Badge>
+
+          {/* Menu des actions secondaires */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="w-4 h-4" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 opacity-60 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48">
               {onViewDetails && (
                 <DropdownMenuItem onClick={() => onViewDetails(demand.id)}>
                   <Eye className="w-4 h-4 mr-2" />
                   Voir détails
                 </DropdownMenuItem>
               )}
-              {demand.status === 'PENDING' || demand.status === 'REOPENED' ? (
-                <>
-                  {onAccept && (
-                    <DropdownMenuItem onClick={() => onAccept(demand.id)}>
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Accepter
-                    </DropdownMenuItem>
-                  )}
-                  {onReject && (
-                    <DropdownMenuItem onClick={() => onReject(demand.id)}>
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Refuser
-                    </DropdownMenuItem>
-                  )}
-                </>
-              ) : null}
-              {demand.status === 'REJECTED' && onReopen && (
-                <DropdownMenuItem onClick={() => onReopen(demand.id)}>
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Réouvrir
-                </DropdownMenuItem>
-              )}
-              {demand.status === 'APPROVED' && onCreateContract && (
-                <DropdownMenuItem onClick={() => onCreateContract(demand.id)}>
-                  <DollarSign className="w-4 h-4 mr-2" />
-                  Créer contrat
-                </DropdownMenuItem>
-              )}
               {onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(demand.id)}>
+                  <Pencil className="w-4 h-4 mr-2" />
                   Modifier
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
               {onDelete && (
-                <DropdownMenuItem onClick={() => onDelete(demand.id)} className="text-red-600">
+                <DropdownMenuItem 
+                  onClick={() => onDelete(demand.id)} 
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
                   Supprimer
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center gap-2 text-sm">
-          <DollarSign className="w-4 h-4 text-kara-neutral-500" />
-          <span>
-            {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA/
-            {demand.paymentFrequency === 'DAILY' ? 'jour' : 'mois'}
-          </span>
+
+        {/* Infos Membre */}
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span className="font-semibold text-gray-900 text-base truncate">
+              {demand.memberFirstName} {demand.memberLastName}
+            </span>
+          </div>
+          {demand.memberPhone && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span>{demand.memberPhone}</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="w-4 h-4 text-kara-neutral-500" />
-          <span>{demand.subscriptionCIDuration} mois</span>
+
+        {/* Infos Financières */}
+        <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <Banknote className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <span className="font-semibold text-gray-900">
+                {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA
+              </span>
+              <span className="text-gray-500">/{frequencyInfo.shortLabel}</span>
+            </div>
+            <Badge variant="outline" className="text-xs font-medium bg-white">
+              <Repeat className="w-3 h-3 mr-1" />
+              {frequencyInfo.label}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <CalendarDays className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span>{demand.subscriptionCIDuration} mois de cotisation</span>
+          </div>
+          {demand.subscriptionCINominal && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Banknote className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span>Nominal: {demand.subscriptionCINominal.toLocaleString('fr-FR')} FCFA</span>
+            </div>
+          )}
         </div>
-        <div className="text-xs text-kara-neutral-500 pt-2 border-t">
-          Créée le {format(createdAt, 'dd MMM yyyy à HH:mm', { locale: fr })}
+
+        {/* Motif */}
+        {demand.cause && (
+          <div className="mb-4">
+            <div className="flex items-start gap-2">
+              <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Motif</span>
+                <p className="text-sm text-gray-700 line-clamp-2 mt-0.5">
+                  {demand.cause}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Séparateur */}
+        <div className="border-t border-gray-200 my-4" />
+
+        {/* Boutons d'action principaux */}
+        <div className="space-y-2">
+          {/* Actions selon le statut */}
+          {canAcceptOrReject && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              {onAccept && (
+                <Button
+                  size="sm"
+                  onClick={() => onAccept(demand.id)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Accepter
+                </Button>
+              )}
+              {onReject && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onReject(demand.id)}
+                  className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Refuser
+                </Button>
+              )}
+            </div>
+          )}
+
+          {canReopen && onReopen && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onReopen(demand.id)}
+              className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Réouvrir la demande
+            </Button>
+          )}
+
+          {canCreateContract && onCreateContract && (
+            <Button
+              size="sm"
+              onClick={() => onCreateContract(demand.id)}
+              className="w-full bg-[#234D65] hover:bg-[#2c5a73] text-white"
+            >
+              <FileSignature className="w-4 h-4 mr-2" />
+              Créer le contrat
+            </Button>
+          )}
+
+          {/* Bouton Voir détails toujours présent */}
+          {onViewDetails && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onViewDetails(demand.id)}
+              className="w-full text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Voir les détails
+            </Button>
+          )}
+        </div>
+
+        {/* Date de création */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100">
+          <Calendar className="w-3.5 h-3.5" />
+          <span>Créée le {format(createdAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}</span>
         </div>
       </CardContent>
     </Card>
