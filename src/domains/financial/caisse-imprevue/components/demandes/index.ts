@@ -1,0 +1,9 @@
+/**
+ * Exports des composants pour les Demandes Caisse Imprévue V2
+ */
+
+export * from './StatisticsV2'
+export * from './filters/DemandSearchV2'
+export * from './filters/DemandFiltersV2'
+export * from './filters/DemandSortV2'
+export * from './DemandCardV2'
