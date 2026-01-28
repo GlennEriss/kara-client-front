@@ -78,12 +78,16 @@ export function Step1Member({ form }: Step1MemberProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <Label htmlFor="member-search">Rechercher un membre</Label>
-        <p className="text-xs text-kara-neutral-500 mb-2">
-          Recherchez et sélectionnez le membre pour qui créer la demande
-        </p>
+        <div className="mb-3">
+          <Label htmlFor="member-search" className="text-base font-semibold text-gray-900">
+            Rechercher un membre
+          </Label>
+          <p className="text-sm text-gray-500 mt-1">
+            Recherchez et sélectionnez le membre pour qui créer la demande
+          </p>
+        </div>
         <MemberSearchInput
           value={memberId}
           onChange={handleMemberSelect}
@@ -95,49 +99,53 @@ export function Step1Member({ form }: Step1MemberProps) {
           data-testid="step1-member-search"
         />
         {form.formState.errors.memberId && (
-          <p className="text-xs text-red-500 mt-1">{form.formState.errors.memberId.message}</p>
+          <p className="text-xs text-red-500 mt-2">{form.formState.errors.memberId.message}</p>
         )}
 
         {/* Affichage du membre sélectionné */}
         {memberId && (selectedMemberData || (memberFirstName && memberLastName)) && (
-          <Card className="mt-3 bg-blue-50 border-blue-200">
+          <Card className="mt-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 shadow-sm">
             <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <Avatar className="h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0 border-2 border-blue-300">
                   {selectedMemberData?.photoURL ? (
                     <AvatarImage
                       src={selectedMemberData.photoURL}
                       alt={`Photo de ${memberFirstName} ${memberLastName}`}
                     />
                   ) : (
-                    <AvatarFallback className="bg-[#234D65] text-white">
+                    <AvatarFallback className="bg-[#234D65] text-white text-sm sm:text-base">
                       {`${memberFirstName?.[0] || ''}${memberLastName?.[0] || ''}`.toUpperCase()}
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-900 text-base sm:text-lg truncate">
                     {memberFirstName} {memberLastName}
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 text-xs sm:text-sm text-gray-600">
                     {memberMatricule && (
-                      <span className="font-mono">Matricule: {memberMatricule}</span>
+                      <span className="font-mono bg-white px-2 py-1 rounded border border-gray-200">
+                        {memberMatricule}
+                      </span>
                     )}
                     {memberPhone && (
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        <span>{memberPhone}</span>
+                      <div className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-gray-200">
+                        <Phone className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate max-w-[150px] sm:max-w-none">{memberPhone}</span>
                       </div>
                     )}
                     {memberEmail && (
-                      <span className="text-xs">{memberEmail}</span>
+                      <span className="truncate max-w-[200px] sm:max-w-none bg-white px-2 py-1 rounded border border-gray-200">
+                        {memberEmail}
+                      </span>
                     )}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleClearMember}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-red-600 transition-colors flex-shrink-0 p-1 rounded-full hover:bg-red-50"
                   aria-label="Supprimer la sélection"
                 >
                   <X className="h-5 w-5" />
@@ -149,12 +157,14 @@ export function Step1Member({ form }: Step1MemberProps) {
       </div>
 
       <div>
-        <Label htmlFor="cause">
-          Motif de la demande <span className="text-red-500">*</span>
-        </Label>
-        <p className="text-xs text-kara-neutral-500 mb-2">
-          Décrivez la raison de la demande (10-500 caractères)
-        </p>
+        <div className="mb-3">
+          <Label htmlFor="cause" className="text-base font-semibold text-gray-900">
+            Motif de la demande <span className="text-red-500">*</span>
+          </Label>
+          <p className="text-sm text-gray-500 mt-1">
+            Décrivez la raison de la demande (10-500 caractères)
+          </p>
+        </div>
         <Textarea
           id="cause"
           {...form.register('cause', {
@@ -163,15 +173,20 @@ export function Step1Member({ form }: Step1MemberProps) {
             maxLength: { value: 500, message: 'Le motif ne peut pas dépasser 500 caractères' },
           })}
           placeholder="Ex: Aide pour frais médicaux urgents suite à une hospitalisation..."
-          className="min-h-[120px]"
+          className="min-h-[120px] resize-y border-2 focus:border-[#234D65] focus:ring-[#234D65]/20"
           data-testid="demand-cause-textarea"
         />
         {form.formState.errors.cause && (
-          <p className="text-xs text-red-500 mt-1">{form.formState.errors.cause.message}</p>
+          <p className="text-xs text-red-500 mt-2">{form.formState.errors.cause.message}</p>
         )}
-        <p className="text-xs text-kara-neutral-500 mt-1">
-          {form.watch('cause')?.length || 0} / 500 caractères
-        </p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs text-gray-500">
+            {form.watch('cause')?.length || 0} / 500 caractères
+          </p>
+          {form.watch('cause') && form.watch('cause').length >= 10 && (
+            <span className="text-xs text-green-600 font-medium">✓ Longueur valide</span>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -123,24 +123,26 @@ export function CreateDemandFormV2({
       </Card>
 
       {/* Contenu du formulaire dans une Card */}
-      <Card className="border-0 shadow-xl">
-        <CardContent className="p-4 md:p-6 lg:p-8">
+      <Card className="border-0 shadow-xl overflow-hidden">
+        <CardContent className="p-4 sm:p-6 lg:p-8">
           {/* Étapes */}
-          <div className="min-h-[400px]">
-            {currentStep === 1 && <Step1Member form={form} />}
-            {currentStep === 2 && <Step2Forfait form={form} />}
-            {currentStep === 3 && <Step3Contact form={form} />}
+          <div className="min-h-[400px] w-full overflow-x-hidden">
+            <div className="max-w-full">
+              {currentStep === 1 && <Step1Member form={form} />}
+              {currentStep === 2 && <Step2Forfait form={form} />}
+              {currentStep === 3 && <Step3Contact form={form} />}
+            </div>
           </div>
 
-          {/* Navigation - Boutons bien visibles */}
-          <div className="flex items-center justify-between pt-6 mt-6 border-t border-gray-200">
+          {/* Navigation - Boutons bien visibles et responsive */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-6 mt-6 border-t border-gray-200">
             <Button
               type="button"
               variant="outline"
               onClick={onPrevious}
               disabled={currentStep === 1}
               className={cn(
-                'min-w-[120px]',
+                'w-full sm:w-auto sm:min-w-[120px]',
                 currentStep === 1
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-gray-50 border-gray-300',
@@ -154,7 +156,7 @@ export function CreateDemandFormV2({
               <Button
                 type="button"
                 onClick={onNext}
-                className="min-w-[120px] bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-md hover:shadow-lg transition-all duration-200"
+                className="w-full sm:w-auto sm:min-w-[120px] bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-md hover:shadow-lg transition-all duration-200"
               >
                 Suivant
                 <ChevronRight className="w-4 h-4 ml-2" />
@@ -164,7 +166,7 @@ export function CreateDemandFormV2({
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="min-w-[160px] bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto sm:min-w-[160px] bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
