@@ -171,8 +171,12 @@ export default function DemandesPage() {
             Exporter
           </Button>
           <Button
-            onClick={() => router.push('/caisse-imprevue/demandes/add')}
-            className="bg-kara-primary-light hover:bg-[#B8A05F] text-white"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              router.push('/caisse-imprevue/demandes/add')
+            }}
+            className="bg-kara-primary-light hover:bg-[#B8A05F] text-white shadow-md hover:shadow-lg transition-all"
             data-testid="create-demand-button"
           >
             <Plus className="w-4 h-4 mr-2" />
