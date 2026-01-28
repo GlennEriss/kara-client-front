@@ -241,217 +241,233 @@ src/
 
 #### 1.1 Types et Entités
 
-- [ ] Créer `entities/demand.types.ts`
-  - [ ] Interface `CaisseImprevueDemand` avec tous les attributs
-  - [ ] Types pour statuts, fréquences, etc.
-  - [ ] Types pour traçabilité (acceptedBy, rejectedBy, etc.)
+- [x] Créer `entities/demand.types.ts`
+  - [x] Interface `CaisseImprevueDemand` avec tous les attributs
+  - [x] Types pour statuts, fréquences, etc.
+  - [x] Types pour traçabilité (acceptedBy, rejectedBy, etc.)
 
-- [ ] Créer `entities/demand-filters.types.ts`
-  - [ ] Interface `DemandFilters`
-  - [ ] Interface `PaginationParams`
-  - [ ] Interface `SortParams`
+- [x] Créer `entities/demand-filters.types.ts`
+  - [x] Interface `DemandFilters`
+  - [x] Interface `PaginationParams`
+  - [x] Interface `SortParams`
 
 #### 1.2 Repository
 
-- [ ] Créer `repositories/DemandCIRepository.ts`
-  - [ ] Méthode `getPaginated()` avec cursor-based pagination
-  - [ ] Méthode `getById()` avec cache
-  - [ ] Méthode `create()` avec génération ID standardisé
-  - [ ] Méthode `update()` avec traçabilité
-  - [ ] Méthode `delete()` avec traçabilité pré-suppression
-  - [ ] Méthode `search()` pour recherche par nom/prénom
-  - [ ] Méthode `getStats()` pour statistiques
+- [x] Créer `repositories/DemandCIRepository.ts`
+  - [x] Méthode `getPaginated()` avec cursor-based pagination
+  - [x] Méthode `getById()` avec cache
+  - [x] Méthode `create()` avec génération ID standardisé
+  - [x] Méthode `update()` avec traçabilité
+  - [x] Méthode `delete()` avec traçabilité pré-suppression
+  - [x] Méthode `search()` pour recherche par nom/prénom
+  - [x] Méthode `getStats()` pour statistiques
+  - [x] Méthode `convert()` pour conversion en contrat
 
-- [ ] Créer `repositories/SubscriptionCIRepository.ts` (si nécessaire)
-  - [ ] Méthode `getAll()` avec cache
+- [x] Créer `repositories/SubscriptionCIRepository.ts` (si nécessaire)
+  - [x] Méthode `getAll()` avec cache
 
 ### Phase 2 : Services
 
 #### 2.1 Service métier
 
-- [ ] Créer/Étendre `services/CaisseImprevueService.ts`
-  - [ ] Méthode `createDemand()` avec validation
-  - [ ] Méthode `acceptDemand()` avec traçabilité
-  - [ ] Méthode `rejectDemand()` avec traçabilité
-  - [ ] Méthode `reopenDemand()` avec traçabilité
-  - [ ] Méthode `updateDemand()` avec traçabilité
-  - [ ] Méthode `deleteDemand()` avec traçabilité
-  - [ ] Méthode `createContractFromDemand()` avec traçabilité
+- [x] Créer/Étendre `services/CaisseImprevueService.ts`
+  - [x] Méthode `createDemand()` avec validation
+  - [x] Méthode `acceptDemand()` avec traçabilité
+  - [x] Méthode `rejectDemand()` avec traçabilité
+  - [x] Méthode `reopenDemand()` avec traçabilité
+  - [x] Méthode `updateDemand()` avec traçabilité
+  - [x] Méthode `deleteDemand()` avec traçabilité
+  - [x] Méthode `createContractFromDemand()` avec traçabilité
 
 #### 2.2 Service simulation
 
-- [ ] Créer `services/DemandSimulationService.ts`
-  - [ ] Méthode `calculatePaymentSchedule()` (DAILY vs MONTHLY)
-  - [ ] Méthode `formatScheduleForDisplay()`
+- [x] Créer `services/DemandSimulationService.ts`
+  - [x] Méthode `calculatePaymentSchedule()` (DAILY vs MONTHLY)
+  - [x] Méthode `formatScheduleForDisplay()`
 
 #### 2.3 Service export
 
-- [ ] Créer `services/DemandExportService.ts`
-  - [ ] Méthode `exportToPDF()` pour liste
-  - [ ] Méthode `exportToExcel()` pour liste
-  - [ ] Méthode `exportDemandDetailsToPDF()` pour détails
+- [x] Créer `services/DemandExportService.ts`
+  - [x] Méthode `exportToPDF()` pour liste
+  - [x] Méthode `exportToExcel()` pour liste
+  - [x] Méthode `exportDemandDetailsToPDF()` pour détails
 
 ### Phase 3 : Hooks React Query
 
 #### 3.1 Hooks de données
 
-- [ ] Créer `hooks/useCaisseImprevueDemands.ts`
-  - [ ] Cache : `staleTime: 5 min`, `gcTime: 10 min`
-  - [ ] Support pagination, tri, filtres
+- [x] Créer `hooks/useCaisseImprevueDemands.ts`
+  - [x] Cache : `staleTime: 5 min`, `gcTime: 10 min`
+  - [x] Support pagination, tri, filtres
 
-- [ ] Créer `hooks/useCaisseImprevueDemandsStats.ts`
-  - [ ] Cache : `staleTime: 15 min`, `gcTime: 30 min`
+- [x] Créer `hooks/useCaisseImprevueDemandsStats.ts`
+  - [x] Cache : `staleTime: 15 min`, `gcTime: 30 min`
 
-- [ ] Créer `hooks/useDemandDetail.ts`
-  - [ ] Cache : `staleTime: 10 min`, `gcTime: 20 min`
-  - [ ] Prefetch au survol
+- [x] Créer `hooks/useDemandDetail.ts`
+  - [x] Cache : `staleTime: 10 min`, `gcTime: 20 min`
+  - [x] Prefetch au survol
 
-- [ ] Créer `hooks/useDemandSearch.ts`
-  - [ ] Cache : `staleTime: 2 min`, `gcTime: 5 min`
-  - [ ] Debounce : 300ms
+- [x] Créer `hooks/useDemandSearch.ts`
+  - [x] Cache : `staleTime: 2 min`, `gcTime: 5 min`
+  - [x] Debounce : 300ms
 
-- [ ] Créer `hooks/useSubscriptionsCICache.ts`
-  - [ ] Cache : `staleTime: 30 min`, `gcTime: 60 min`
+- [x] Créer `hooks/useSubscriptionsCICache.ts`
+  - [x] Cache : `staleTime: 30 min`, `gcTime: 60 min`
 
 #### 3.2 Hooks formulaires
 
-- [ ] Créer `hooks/useDemandForm.ts`
-  - [ ] Gestion formulaire multi-étapes
-  - [ ] Validation Zod par étape
+- [x] Créer `hooks/useDemandForm.ts`
+  - [x] Gestion formulaire multi-étapes
+  - [x] Validation Zod par étape
 
-- [ ] Créer `hooks/useDemandFormPersistence.ts`
-  - [ ] Sauvegarde localStorage (debounce 500ms)
-  - [ ] Restauration automatique
-  - [ ] Expiration 24h
+- [x] Créer `hooks/useDemandFormPersistence.ts`
+  - [x] Sauvegarde localStorage (debounce 500ms)
+  - [x] Restauration automatique
+  - [x] Expiration 24h
 
 #### 3.3 Hooks export
 
-- [ ] Créer `hooks/useExportDemands.ts`
-  - [ ] Export liste avec filtres
+- [x] Créer `hooks/useExportDemands.ts`
+  - [x] Export liste avec filtres
 
-- [ ] Créer `hooks/useExportDemandDetails.ts`
-  - [ ] Export détails PDF
+- [x] Créer `hooks/useExportDemandDetails.ts`
+  - [x] Export détails PDF
+
+#### 3.4 Hooks mutations
+
+- [x] Créer `hooks/useDemandMutations.ts`
+  - [x] `useAcceptDemand()`
+  - [x] `useRejectDemand()`
+  - [x] `useReopenDemand()`
+  - [x] `useDeleteDemand()`
+  - [x] `useUpdateDemand()`
+  - [x] `useCreateContractFromDemand()`
+
+#### 3.5 Hooks simulation
+
+- [x] Créer `hooks/useDemandSimulation.ts`
+  - [x] Calcul plan de remboursement
 
 ### Phase 4 : Composants UI
 
 #### 4.1 Liste des demandes
 
-- [ ] Créer `components/demandes/ListDemandesV2.tsx`
-  - [ ] Responsive (mobile, tablette, desktop)
-  - [ ] Toggle vue Grid/Table
-  - [ ] Intégration pagination haut et bas
+- [x] Créer `components/demandes/ListDemandesV2.tsx`
+  - [x] Responsive (mobile, tablette, desktop)
+  - [x] Toggle vue Grid/Table
+  - [x] Intégration pagination haut et bas
 
-- [ ] Créer `components/demandes/DemandCardV2.tsx`
-  - [ ] Responsive
-  - [ ] Badge statut
-  - [ ] Actions contextuelles
+- [x] Créer `components/demandes/DemandCardV2.tsx`
+  - [x] Responsive
+  - [x] Badge statut
+  - [x] Actions contextuelles
 
-- [ ] Créer `components/demandes/DemandTableV2.tsx`
-  - [ ] Responsive
-  - [ ] Colonnes adaptatives
-  - [ ] Actions dropdown
+- [x] Créer `components/demandes/DemandTableV2.tsx`
+  - [x] Responsive
+  - [x] Colonnes adaptatives
+  - [x] Actions dropdown
 
-- [ ] Créer `components/demandes/StatisticsV2.tsx`
-  - [ ] Stats avec cache
+- [x] Créer `components/demandes/StatisticsV2.tsx`
+  - [x] Stats avec cache
 
-- [ ] Créer `components/demandes/filters/DemandFiltersV2.tsx`
-  - [ ] Filtres statut, fréquence, forfait
+- [x] Créer `components/demandes/filters/DemandFiltersV2.tsx`
+  - [x] Filtres statut, fréquence, forfait
 
-- [ ] Créer `components/demandes/filters/DemandSearchV2.tsx`
-  - [ ] Recherche avec cache
+- [x] Créer `components/demandes/filters/DemandSearchV2.tsx`
+  - [x] Recherche avec cache
 
-- [ ] Créer `components/demandes/filters/DemandSortV2.tsx`
-  - [ ] Tri date, alphabétique
+- [x] Créer `components/demandes/filters/DemandSortV2.tsx`
+  - [x] Tri date, alphabétique
 
 #### 4.2 Détails
 
-- [ ] Créer `components/demandes/DemandDetailV2.tsx`
-  - [ ] Responsive
-  - [ ] Toutes les sections
-  - [ ] Actions contextuelles
+- [x] Créer `components/demandes/DemandDetailV2.tsx`
+  - [x] Responsive
+  - [x] Toutes les sections
+  - [x] Actions contextuelles
 
-- [ ] Créer `components/demandes/PaymentScheduleTable.tsx`
-  - [ ] Tableau versements formaté
-  - [ ] Responsive
+- [x] Créer `components/demandes/PaymentScheduleTable.tsx`
+  - [x] Tableau versements formaté
+  - [x] Responsive
 
 #### 4.3 Formulaire création
 
-- [ ] Créer `components/forms/CreateDemandFormV2.tsx`
-  - [ ] Multi-étapes avec stepper
-  - [ ] Persistance localStorage
-  - [ ] Responsive
+- [x] Créer `components/forms/CreateDemandFormV2.tsx`
+  - [x] Multi-étapes avec stepper
+  - [x] Persistance localStorage
+  - [x] Responsive
 
-- [ ] Créer `components/forms/steps/Step1Member.tsx`
-  - [ ] Recherche membre avec autocomplétion
-  - [ ] Champ motif (textarea)
+- [x] Créer `components/forms/steps/Step1Member.tsx`
+  - [x] Recherche membre avec autocomplétion
+  - [x] Champ motif (textarea)
 
-- [ ] Créer `components/forms/steps/Step2Forfait.tsx`
-  - [ ] Sélection forfait (cache 30 min)
-  - [ ] Sélection fréquence
-  - [ ] Date souhaitée
+- [x] Créer `components/forms/steps/Step2Forfait.tsx`
+  - [x] Sélection forfait (cache 30 min)
+  - [x] Sélection fréquence
+  - [x] Date souhaitée
 
-- [ ] Créer `components/forms/steps/Step3Contact.tsx`
-  - [ ] Contact d'urgence
-  - [ ] Exclusion membre sélectionné
-  - [ ] Upload photo pièce identité
+- [x] Créer `components/forms/steps/Step3Contact.tsx`
+  - [x] Contact d'urgence
+  - [x] Exclusion membre sélectionné
+  - [x] Upload photo pièce identité
 
 #### 4.4 Modals
 
-- [ ] Créer `components/modals/AcceptDemandModalV2.tsx`
-  - [ ] Responsive
-  - [ ] Validation raison
+- [x] Créer `components/modals/AcceptDemandModalV2.tsx`
+  - [x] Responsive
+  - [x] Validation raison
 
-- [ ] Créer `components/modals/RejectDemandModalV2.tsx`
-  - [ ] Responsive
-  - [ ] Validation motif
+- [x] Créer `components/modals/RejectDemandModalV2.tsx`
+  - [x] Responsive
+  - [x] Validation motif
 
-- [ ] Créer `components/modals/ReopenDemandModalV2.tsx`
-  - [ ] Responsive
+- [x] Créer `components/modals/ReopenDemandModalV2.tsx`
+  - [x] Responsive
 
-- [ ] Créer `components/modals/DeleteDemandModalV2.tsx`
-  - [ ] Responsive
-  - [ ] Confirmation
+- [x] Créer `components/modals/DeleteDemandModalV2.tsx`
+  - [x] Responsive
+  - [x] Confirmation
 
-- [ ] Créer `components/modals/EditDemandModalV2.tsx`
-  - [ ] Responsive
-  - [ ] Édition champs
+- [x] Créer `components/modals/EditDemandModalV2.tsx`
+  - [x] Responsive
+  - [x] Édition champs
 
-- [ ] Créer `components/modals/ConfirmContractModalV2.tsx`
-  - [ ] Responsive
-  - [ ] Confirmation création contrat
+- [x] Créer `components/modals/ConfirmContractModalV2.tsx`
+  - [x] Responsive
+  - [x] Confirmation création contrat
 
-- [ ] Créer `components/modals/ExportDemandsModalV2.tsx`
-  - [ ] Responsive
-  - [ ] Configuration export (format, périmètre, filtres, tri)
-  - [ ] Aperçu nombre demandes
+- [x] Créer `components/modals/ExportDemandsModalV2.tsx`
+  - [x] Responsive
+  - [x] Configuration export (format, périmètre, filtres, tri)
+  - [x] Aperçu nombre demandes
 
 #### 4.5 Export
 
-- [ ] Créer `components/exports/DemandPDFGenerator.ts`
-  - [ ] Génération PDF liste
-  - [ ] Génération PDF détails
+- [x] Créer `components/exports/DemandPDFGenerator.ts`
+  - [x] Génération PDF liste
+  - [x] Génération PDF détails
 
 ### Phase 5 : Pages Next.js
 
-- [ ] Créer `app/(admin)/caisse-imprevue/demandes/page.tsx`
-  - [ ] Page liste avec `ListDemandesV2`
+- [x] Créer `app/(admin)/caisse-imprevue/demandes/page.tsx`
+  - [x] Page liste avec `ListDemandesV2`
 
-- [ ] Créer `app/(admin)/caisse-imprevue/demandes/add/page.tsx`
-  - [ ] Page création avec `CreateDemandFormV2`
+- [x] Créer `app/(admin)/caisse-imprevue/demandes/add/page.tsx`
+  - [x] Page création avec `CreateDemandFormV2`
 
-- [ ] Créer `app/(admin)/caisse-imprevue/demandes/[id]/page.tsx`
-  - [ ] Page détails avec `DemandDetailV2`
+- [x] Créer `app/(admin)/caisse-imprevue/demandes/[id]/page.tsx`
+  - [x] Page détails avec `DemandDetailV2`
 
 ### Phase 6 : Schemas Zod
 
-- [ ] Créer/Étendre `schemas/caisse-imprevue.schema.ts`
-  - [ ] Schema validation demande complète
-  - [ ] Schema validation par étape
+- [x] Créer/Étendre `schemas/caisse-imprevue.schema.ts`
+  - [x] Schema validation demande complète
+  - [x] Schema validation par étape
 
-- [ ] Créer `schemas/demand-steps.schema.ts`
-  - [ ] Schema étape 1
-  - [ ] Schema étape 2
-  - [ ] Schema étape 3
+- [x] Créer `schemas/demand-steps.schema.ts`
+  - [x] Schema étape 1
+  - [x] Schema étape 2
+  - [x] Schema étape 3
 
 ---
 
@@ -613,11 +629,14 @@ firebase deploy --only firestore:rules
 ### 5.2 Indexes Firestore
 
 **Indexes requis** :
-- [ ] Index pour pagination avec statut + createdAt
+- [x] Index pour pagination avec statut + createdAt
 - [ ] Index pour pagination avec statut + memberLastName
 - [ ] Index pour recherche par memberLastName
 - [ ] Index pour recherche par memberFirstName
-- [ ] Index pour filtres multiples (statut + paymentFrequency + subscriptionCIID)
+- [x] Index pour filtres multiples (statut + paymentFrequency + subscriptionCIID)
+- [x] Index pour filtres par membre (memberId + createdAt)
+- [x] Index pour filtres par forfait (subscriptionCIID + createdAt)
+- [x] Index pour filtres par décideur (decisionMadeBy + createdAt)
 
 **Déploiement** :
 ```bash

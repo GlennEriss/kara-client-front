@@ -150,6 +150,28 @@ service firebase.storage {
       allow delete: if true;
     }
     
+    // ============================================
+    // CAISSE IMPRÉVUE - DOCUMENTS CONTACTS D'URGENCE (V2)
+    // ============================================
+    // Photos de pièces d'identité des contacts d'urgence
+    // Chemin : emergency-contacts-ci/{fileName}
+    
+    match /emergency-contacts-ci/{fileName} {
+      // Lecture : Publique (nécessaire pour afficher dans les formulaires et détails)
+      // La sécurité est gérée côté application (seuls les admins accèdent)
+      allow read: if true;
+      
+      // Écriture : Admins uniquement avec validation
+      // - Type : image (jpeg, jpg, png, webp)
+      // - Taille max : 5 MB
+      allow write: if isAdmin() && 
+        request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
+        request.resource.size < 5 * 1024 * 1024;
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
     // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
