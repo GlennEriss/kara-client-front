@@ -170,40 +170,51 @@ export function CreateDemandFormV2({
                   e.stopPropagation()
                   
                   try {
-                    // Valider d'abord l'étape 3 (contact d'urgence)
-                    const isStep3Valid = await form.trigger('emergencyContact' as any)
-                    
-                    if (!isStep3Valid) {
-                      const errors = form.formState.errors.emergencyContact
-                      console.error('Erreurs de validation Step 3:', errors)
-                      toast.error('Veuillez compléter tous les champs du contact d\'urgence', {
-                        description: 'Tous les champs marqués d\'un astérisque (*) sont obligatoires.',
-                      })
-                      // Faire défiler vers le haut pour voir les erreurs
-                      window.scrollTo({ top: 0, behavior: 'smooth' })
-                      return
-                    }
-                    
-                    // Valider tout le formulaire avant de soumettre
+                    // Valider tout le formulaire d'un coup
                     const isValid = await form.trigger()
                     
                     if (!isValid) {
                       const errors = form.formState.errors
-                      console.error('Erreurs de validation:', errors)
+                      console.log('Erreurs de validation complètes:', JSON.stringify(errors, null, 2))
                       
-                      // Compter les erreurs
-                      const errorCount = Object.keys(errors).length
-                      toast.error(`Veuillez corriger ${errorCount} erreur${errorCount > 1 ? 's' : ''} dans le formulaire`, {
-                        description: 'Vérifiez que tous les champs obligatoires sont remplis correctement.',
-                      })
+                      // Construire un message d'erreur détaillé
+                      const errorMessages: string[] = []
+                      
+                      // Erreurs Step 1
+                      if (errors.memberId) errorMessages.push('Membre non sélectionné')
+                      if (errors.cause) errorMessages.push('Motif invalide')
+                      
+                      // Erreurs Step 2
+                      if (errors.subscriptionCIID) errorMessages.push('Forfait non sélectionné')
+                      if (errors.paymentFrequency) errorMessages.push('Fréquence non sélectionnée')
+                      if (errors.desiredStartDate) errorMessages.push('Date de début non sélectionnée')
+                      
+                      // Erreurs Step 3 (contact d'urgence)
+                      if (errors.emergencyContact) {
+                        const ecErrors = errors.emergencyContact as any
+                        if (ecErrors.lastName) errorMessages.push('Nom du contact manquant')
+                        if (ecErrors.phone1) errorMessages.push('Téléphone du contact invalide')
+                        if (ecErrors.relationship) errorMessages.push('Lien de parenté manquant')
+                        if (ecErrors.typeId) errorMessages.push('Type de document manquant')
+                        if (ecErrors.idNumber) errorMessages.push('N° de document manquant')
+                        if (ecErrors.documentPhotoUrl) errorMessages.push('Photo du document manquante')
+                      }
+                      
+                      const description = errorMessages.length > 0 
+                        ? errorMessages.slice(0, 3).join(', ') + (errorMessages.length > 3 ? '...' : '')
+                        : 'Vérifiez que tous les champs obligatoires sont remplis.'
+                      
+                      toast.error('Formulaire incomplet', { description })
                       
                       // Faire défiler vers le haut pour voir les erreurs
                       window.scrollTo({ top: 0, behavior: 'smooth' })
                       return
                     }
                     
-                    // Si tout est valide, soumettre
-                    await handleSubmit(e)
+                    // Si tout est valide, soumettre directement avec les données du formulaire
+                    const formData = form.getValues()
+                    console.log('Données du formulaire à soumettre:', formData)
+                    await onSubmit(formData)
                   } catch (error) {
                     console.error('Erreur lors de la soumission:', error)
                     toast.error('Une erreur est survenue', {
