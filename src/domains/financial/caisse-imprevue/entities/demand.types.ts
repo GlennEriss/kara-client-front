@@ -78,6 +78,9 @@ export interface CaisseImprevueDemand {
   contractId?: string
   convertedDate?: Date
   
+  // Raison de réouverture (si réouverte après refus)
+  reopenReason?: string // Min 10 caractères
+  
   // Traçabilité complète V2
   createdBy: string // ID admin qui a créé
   createdAt: Date

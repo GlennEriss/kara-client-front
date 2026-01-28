@@ -35,7 +35,7 @@ export const demandStep2Schema = z.object({
   subscriptionCISupportMin: z.number().min(0).optional(),
   subscriptionCISupportMax: z.number().positive().optional(),
   paymentFrequency: z.enum(['DAILY', 'MONTHLY'], {
-    errorMap: () => ({ message: 'La fréquence de paiement est requise' }),
+    message: 'La fréquence de paiement est requise',
   }),
   desiredStartDate: z.string().min(1, 'La date souhaitée est requise'),
 })

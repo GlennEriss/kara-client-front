@@ -26,7 +26,7 @@ export function useCaisseImprevueDemandsStats(filters?: DemandFilters) {
         dateEnd: filters.dateEnd,
         // Ne pas inclure status ni paymentFrequency
       }
-    : undefined
+    : {}
 
   return useQuery<DemandStats>({
     queryKey: ['caisse-imprevue-demands-stats', statsFilters],

@@ -43,11 +43,12 @@ export class DemandSimulationService {
 
     // Convertir desiredStartDate en Date valide
     let startDate: Date
-    if (desiredStartDate instanceof Date) {
-      startDate = desiredStartDate
-    } else if (desiredStartDate && typeof (desiredStartDate as any).toDate === 'function') {
+    const dateValue = desiredStartDate as unknown
+    if (dateValue instanceof Date) {
+      startDate = dateValue
+    } else if (dateValue && typeof (dateValue as { toDate?: () => Date }).toDate === 'function') {
       // Timestamp Firestore
-      startDate = (desiredStartDate as any).toDate()
+      startDate = (dateValue as { toDate: () => Date }).toDate()
     } else {
       // String ou autre
       startDate = new Date(desiredStartDate)
