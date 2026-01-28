@@ -2,103 +2,93 @@
  * Hook pour gérer le formulaire multi-étapes de création de demande
  * 
  * Utilise react-hook-form avec validation Zod par étape
+ * Conforme à la documentation WORKFLOW.md et SOLUTIONS_PROPOSEES.md
  */
 
 import { useForm, UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import type { CreateCaisseImprevueDemandInput } from '../entities/demand.types'
 import { useDemandFormPersistence } from './useDemandFormPersistence'
+import { createDemandSchema } from '../schemas/demand-steps.schema'
+import type { z } from 'zod'
 
-// Schemas seront importés depuis schemas/
-// Pour l'instant, on définit un type de base
-export interface CaisseImprevueDemandFormInput {
+// Type dérivé du schema Zod pour garantir la cohérence
+export type CaisseImprevueDemandFormInput = z.infer<typeof createDemandSchema>
+
+// Valeurs par défaut du formulaire
+const defaultValues: Partial<CaisseImprevueDemandFormInput> = {
   // Step 1
-  memberId: string
-  memberFirstName: string
-  memberLastName: string
-  memberEmail?: string
-  memberContacts?: string[]
-  memberMatricule: string
-  memberPhone?: string
-  cause: string
+  memberId: '',
+  memberFirstName: '',
+  memberLastName: '',
+  memberEmail: '',
+  memberContacts: [],
+  memberMatricule: '',
+  memberPhone: '',
+  cause: '',
 
   // Step 2
-  subscriptionCIID: string
-  subscriptionCICode: string
-  subscriptionCILabel?: string
-  subscriptionCIAmountPerMonth: number
-  subscriptionCINominal?: number
-  subscriptionCIDuration: number
-  subscriptionCISupportMin?: number
-  subscriptionCISupportMax?: number
-  paymentFrequency: 'DAILY' | 'MONTHLY'
-  desiredStartDate: string
+  subscriptionCIID: '',
+  subscriptionCICode: '',
+  subscriptionCILabel: '',
+  subscriptionCIAmountPerMonth: 0,
+  subscriptionCINominal: 0,
+  subscriptionCIDuration: 12,
+  subscriptionCISupportMin: 0,
+  subscriptionCISupportMax: 0,
+  paymentFrequency: 'MONTHLY',
+  desiredStartDate: '',
 
   // Step 3
   emergencyContact: {
-    memberId?: string
-    lastName: string
-    firstName?: string
-    phone1: string
-    phone2?: string
-    relationship: string
-    idNumber: string
-    typeId: string
-    documentPhotoUrl?: string
-  }
+    lastName: '',
+    firstName: '',
+    phone1: '',
+    phone2: '',
+    relationship: '',
+    idNumber: '',
+    typeId: '',
+    documentPhotoUrl: '',
+  },
 }
 
 export function useDemandForm() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Utiliser zodResolver avec le schema complet pour la validation
   const form = useForm<CaisseImprevueDemandFormInput>({
-    mode: 'onChange',
-    defaultValues: {
-      memberId: '',
-      memberFirstName: '',
-      memberLastName: '',
-      memberEmail: '',
-      memberContacts: [],
-      memberMatricule: '',
-      memberPhone: '',
-      cause: '',
-      subscriptionCIID: '',
-      subscriptionCICode: '',
-      subscriptionCILabel: '',
-      subscriptionCIAmountPerMonth: 0,
-      subscriptionCINominal: 0,
-      subscriptionCIDuration: 12,
-      subscriptionCISupportMin: 0,
-      subscriptionCISupportMax: 0,
-      paymentFrequency: 'MONTHLY',
-      desiredStartDate: '',
-      emergencyContact: {
-        lastName: '',
-        firstName: '',
-        phone1: '',
-        phone2: '',
-        relationship: '',
-        idNumber: '',
-        typeId: '',
-        documentPhotoUrl: '',
-      },
-    },
+    resolver: zodResolver(createDemandSchema),
+    mode: 'onChange', // Validation en temps réel
+    defaultValues: defaultValues as CaisseImprevueDemandFormInput,
   })
 
   // Persistance localStorage
   useDemandFormPersistence(form)
 
   const nextStep = async () => {
-    // Validation de l'étape actuelle
+    // Validation de l'étape actuelle avec les champs spécifiques
     const fieldsToValidate = getFieldsForStep(currentStep)
-    const isValid = await form.trigger(fieldsToValidate as any)
-
-    if (isValid && currentStep < 3) {
-      setCurrentStep(currentStep + 1)
-      // Scroll vers le haut
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+    
+    // Pour Step 3, valider le sous-objet emergencyContact
+    if (currentStep === 3) {
+      const isValid = await form.trigger('emergencyContact' as any)
+      if (isValid && currentStep < 3) {
+        setCurrentStep(currentStep + 1)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } else if (!isValid) {
+        console.log('Erreurs de validation Step 3:', form.formState.errors.emergencyContact)
+      }
+    } else {
+      const isValid = await form.trigger(fieldsToValidate as any)
+      if (isValid && currentStep < 3) {
+        setCurrentStep(currentStep + 1)
+        // Scroll vers le haut
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } else if (!isValid) {
+        // Afficher les erreurs si la validation échoue
+        console.log('Erreurs de validation:', form.formState.errors)
+      }
     }
   }
 
@@ -131,15 +121,39 @@ export function useDemandForm() {
 
 /**
  * Retourne les champs à valider pour une étape donnée
+ * Conforme à la documentation : validation stricte par étape
  */
 function getFieldsForStep(step: number): (keyof CaisseImprevueDemandFormInput)[] {
   switch (step) {
     case 1:
-      return ['memberId', 'cause']
+      // Step 1 : Membre + Motif (tous les champs requis)
+      return [
+        'memberId',
+        'memberFirstName',
+        'memberLastName',
+        'memberMatricule',
+        'cause',
+      ]
     case 2:
-      return ['subscriptionCIID', 'paymentFrequency', 'desiredStartDate']
+      // Step 2 : Forfait + Fréquence + Date
+      return [
+        'subscriptionCIID',
+        'subscriptionCICode',
+        'subscriptionCIAmountPerMonth',
+        'subscriptionCIDuration',
+        'paymentFrequency',
+        'desiredStartDate',
+      ]
     case 3:
-      return ['emergencyContact']
+      // Step 3 : Contact d'urgence (tous les champs requis)
+      return [
+        'emergencyContact.lastName',
+        'emergencyContact.phone1',
+        'emergencyContact.relationship',
+        'emergencyContact.idNumber',
+        'emergencyContact.typeId',
+        'emergencyContact.documentPhotoUrl',
+      ] as any
     default:
       return []
   }
