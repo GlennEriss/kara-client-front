@@ -1,38 +1,254 @@
-import React, { Suspense } from 'react'
-import ListDemandes from '@/components/caisse-imprevue/ListDemandes'
-import { Skeleton } from '@/components/ui/skeleton'
+/**
+ * Page de liste des demandes Caisse Imprévue V2
+ * 
+ * Responsive : Mobile, Tablette, Desktop
+ * Pagination serveur, tri, recherche, filtres
+ */
 
-function ListDemandesSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="h-12 bg-gray-200 rounded animate-pulse" />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Skeleton key={i} className="h-48 w-full" />
-        ))}
-      </div>
-    </div>
-  )
-}
+'use client'
 
-export default function CaisseImprevueDemandesPage() {
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Download, Plus, ClipboardList } from 'lucide-react'
+import { ListDemandesV2 } from '@/domains/financial/caisse-imprevue/components/demandes'
+import {
+  ExportDemandsModalV2,
+  AcceptDemandModalV2,
+  RejectDemandModalV2,
+  ReopenDemandModalV2,
+  DeleteDemandModalV2,
+  ConfirmContractModalV2,
+} from '@/domains/financial/caisse-imprevue/components/modals'
+import {
+  useAcceptDemand,
+  useRejectDemand,
+  useReopenDemand,
+  useDeleteDemand,
+  useCreateContractFromDemand,
+} from '@/domains/financial/caisse-imprevue/hooks'
+import { useAuth } from '@/domains/auth/hooks/useAuth'
+import { useDemandDetail } from '@/domains/financial/caisse-imprevue/hooks'
+
+export default function DemandesPage() {
+  const router = useRouter()
+  const [selectedDemandId, setSelectedDemandId] = useState<string | null>(null)
+  const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false)
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+  const [isReopenModalOpen, setIsReopenModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+
+  const { user } = useAuth()
+  const { data: selectedDemand } = useDemandDetail(selectedDemandId || '')
+
+  const acceptMutation = useAcceptDemand()
+  const rejectMutation = useRejectDemand()
+  const reopenMutation = useReopenDemand()
+  const deleteMutation = useDeleteDemand()
+  const createContractMutation = useCreateContractFromDemand()
+
+  const handleAccept = (id: string) => {
+    setSelectedDemandId(id)
+    setIsAcceptModalOpen(true)
+  }
+
+  const handleReject = (id: string) => {
+    setSelectedDemandId(id)
+    setIsRejectModalOpen(true)
+  }
+
+  const handleReopen = (id: string) => {
+    setSelectedDemandId(id)
+    setIsReopenModalOpen(true)
+  }
+
+  const handleDelete = (id: string) => {
+    setSelectedDemandId(id)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleEdit = (id: string) => {
+    router.push(`/caisse-imprevue/demandes/${id}/edit`)
+  }
+
+  const handleCreateContract = (id: string) => {
+    setSelectedDemandId(id)
+    setIsContractModalOpen(true)
+  }
+
+  const handleConfirmAccept = async (reason: string) => {
+    if (!selectedDemandId || !user?.uid) return
+    await acceptMutation.mutateAsync({
+      id: selectedDemandId,
+      input: { reason },
+      acceptedBy: user.uid,
+    })
+    setIsAcceptModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmReject = async (reason: string) => {
+    if (!selectedDemandId || !user?.uid) return
+    await rejectMutation.mutateAsync({
+      id: selectedDemandId,
+      input: { reason },
+      rejectedBy: user.uid,
+    })
+    setIsRejectModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmReopen = async (reason?: string) => {
+    if (!selectedDemandId || !user?.uid) return
+    await reopenMutation.mutateAsync({
+      id: selectedDemandId,
+      input: { reason },
+      reopenedBy: user.uid,
+    })
+    setIsReopenModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!selectedDemandId || !user?.uid) return
+    await deleteMutation.mutateAsync({
+      id: selectedDemandId,
+      deletedBy: user.uid,
+    })
+    setIsDeleteModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
+  const handleConfirmContract = async () => {
+    if (!selectedDemandId || !user?.uid) return
+    await createContractMutation.mutateAsync({
+      demandId: selectedDemandId,
+      convertedBy: user.uid,
+    })
+    setIsContractModalOpen(false)
+    setSelectedDemandId(null)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-              Demandes de Caisse Imprévue
-            </h1>
-            <p className="text-gray-600 text-base md:text-lg">Gestion des demandes de contrats Caisse Imprévue</p>
-          </div>
+    <div className="container mx-auto p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6 lg:space-y-8">
+      {/* Header */}
+      <div className="bg-[#234D65] rounded-lg p-4 md:p-6 lg:p-8 text-white">
+        <div className="flex items-center gap-3 mb-2">
+          <ClipboardList className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12" />
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-black">
+            Demandes Caisse Imprévue
+          </h1>
         </div>
-
-        <Suspense fallback={<ListDemandesSkeleton />}>
-          <ListDemandes />
-        </Suspense>
+        <p className="text-sm md:text-base lg:text-lg text-kara-primary-light/80 mb-4">
+          Gérez les demandes de contrats Caisse Imprévue
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3 lg:gap-4">
+          <Button
+            variant="outline"
+            onClick={() => setIsExportModalOpen(true)}
+            className="bg-white/10 hover:bg-white/20 border-white/20 text-white"
+            data-testid="export-demands-button"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Exporter
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              router.push('/caisse-imprevue/demandes/add')
+            }}
+            className="bg-kara-primary-light hover:bg-[#B8A05F] text-white shadow-md hover:shadow-lg transition-all"
+            data-testid="create-demand-button"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nouvelle demande
+          </Button>
+        </div>
       </div>
+
+      {/* Liste des demandes */}
+      <ListDemandesV2
+        onViewDetails={(id) => router.push(`/caisse-imprevue/demandes/${id}`)}
+        onAccept={handleAccept}
+        onReject={handleReject}
+        onReopen={handleReopen}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+        onCreateContract={handleCreateContract}
+      />
+
+      {/* Modals */}
+      <ExportDemandsModalV2
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+      />
+
+      {selectedDemand && (
+        <>
+          <AcceptDemandModalV2
+            isOpen={isAcceptModalOpen}
+            onClose={() => {
+              setIsAcceptModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmAccept}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            isLoading={acceptMutation.isPending}
+          />
+
+          <RejectDemandModalV2
+            isOpen={isRejectModalOpen}
+            onClose={() => {
+              setIsRejectModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmReject}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            isLoading={rejectMutation.isPending}
+          />
+
+          <ReopenDemandModalV2
+            isOpen={isReopenModalOpen}
+            onClose={() => {
+              setIsReopenModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmReopen}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            previousRejectReason={selectedDemand.decisionReason}
+            isLoading={reopenMutation.isPending}
+          />
+
+          <DeleteDemandModalV2
+            isOpen={isDeleteModalOpen}
+            onClose={() => {
+              setIsDeleteModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmDelete}
+            demandId={selectedDemand.id}
+            memberName={`${selectedDemand.memberFirstName} ${selectedDemand.memberLastName}`}
+            isLoading={deleteMutation.isPending}
+          />
+
+          <ConfirmContractModalV2
+            isOpen={isContractModalOpen}
+            onClose={() => {
+              setIsContractModalOpen(false)
+              setSelectedDemandId(null)
+            }}
+            onConfirm={handleConfirmContract}
+            demand={selectedDemand}
+            isLoading={createContractMutation.isPending}
+          />
+        </>
+      )}
     </div>
   )
 }
-

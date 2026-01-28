@@ -34,6 +34,8 @@ const routeLabels: Record<string, string> = {
   '/caisse-imprevue/create': 'Créer',
   '/caisse-imprevue/contrats': 'Contrats',
   '/caisse-imprevue/settings': 'Paramètres Caisse',
+  '/caisse-imprevue/demandes': 'Liste des demandes',
+  '/caisse-imprevue/demandes/add': 'Créer une demande',
   '/bienfaiteur': 'Bienfaiteur',
   '/bienfaiteur/create': 'Créer',
   '/vehicules': 'Véhicules',
@@ -77,6 +79,9 @@ const getRouteLabel = (path: string): string => {
   }
   if (path.match(/^\/caisse-imprevue\/contrats\/[^\/]+\/versements$/)) {
     return 'Versements'
+  }
+  if (path.match(/^\/caisse-imprevue\/demandes\/[^\/]+$/)) {
+    return 'Détails'
   }
   if (path.match(/^\/bienfaiteur\/[^\/]+$/)) {
     return 'Détails'

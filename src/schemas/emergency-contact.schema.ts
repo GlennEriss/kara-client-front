@@ -116,6 +116,10 @@ export const emergencyContactDefaultValues = {
   documentPhotoUrl: ''
 }
 
+// Regex pour les numéros de téléphone gabonais (avec ou sans espaces)
+// Formats acceptés: +241 77 89 89 09, +24177898909, 77898909, etc.
+const gabonPhoneRegex = /^(\+241\s?|241\s?)?(60|62|65|66|74|76|77)\s?[0-9]{2}\s?[0-9]{2}\s?[0-9]{2}$/
+
 // Schéma pour un contact d'urgence Caisse Imprévue (structure différente)
 export const emergencyContactCISchema = z.object({
   // ID du membre si le contact d'urgence est un membre (optionnel)
@@ -135,13 +139,11 @@ export const emergencyContactCISchema = z.object({
   // Téléphone 1 obligatoire (phone1 dans EmergencyContactCI)
   phone1: z.string()
     .min(1, 'Le numéro de téléphone principal est obligatoire')
-    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)'),
+    .regex(gabonPhoneRegex, 'Format de téléphone invalide. Ex: +241 77 89 89 09'),
   
   // Téléphone 2 optionnel (phone2 dans EmergencyContactCI)
   phone2: z.string()
-    .max(12, 'Le numéro de téléphone ne peut pas dépasser 12 caractères')
-    .regex(/^(\+241|241)?(60|62|65|66|74|76|77)[0-9]{6}$/, 'Format de téléphone invalide. Les numéros gabonais commencent par +241 60, 62, 65, 66, 74, 76 ou 77 (ex: +241 65 34 56 78)')
+    .regex(gabonPhoneRegex, 'Format de téléphone invalide. Ex: +241 77 89 89 09')
     .optional()
     .or(z.literal('')),
   
