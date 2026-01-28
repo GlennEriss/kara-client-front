@@ -1,0 +1,320 @@
+@startuml SEQ_ExporterDemandes
+title Séquence : Exporter les Demandes en PDF ou Excel avec Filtres Avancés (V2)
+
+actor "Admin" as Admin
+participant "ListDemandesV2\n(Component)" as List
+participant "ExportDemandsModalV2\n(Modal)" as Modal
+participant "useExportPreview\n(Hook)" as PreviewHook
+participant "useExportDemands\n(Hook)" as ExportHook
+participant "DemandExportService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "PDF/Excel Generator\n(Library)" as Generator
+
+' ============================================
+' OUVERTURE MODAL
+' ============================================
+Admin -> List: Clique bouton "Exporter"
+activate List
+
+List -> Modal: Ouvrir ExportDemandsModalV2
+activate Modal
+
+Modal -> Modal: Initialisation :
+Modal -> Modal: exportFormat = 'excel'
+Modal -> Modal: scopeMode = 'period'
+Modal -> Modal: dateStart = 1er janvier année en cours
+Modal -> Modal: dateEnd = aujourd'hui
+Modal -> Modal: quantity = 100
+Modal -> Modal: sortBy = 'date_desc'
+Modal -> Modal: statusFilters = { tous à false }
+
+' ============================================
+' CALCUL APERÇU
+' ============================================
+Modal -> PreviewHook: useExportPreview(scopeMode, dateStart, dateEnd, quantity, statusFilters)
+activate PreviewHook
+
+PreviewHook -> Repo: getAll({}, page, pageSize)
+activate Repo
+
+alt scopeMode == 'all'
+    Repo -> Firestore: query(collection('caisseImprevueDemands'), limit(100))
+    Firestore --> Repo: QuerySnapshot (page 1)
+    
+    loop Tant que hasNextPage
+        Repo -> Firestore: query(..., startAfter(lastDoc), limit(100))
+        Firestore --> Repo: QuerySnapshot (page suivante)
+    end
+    
+else scopeMode == 'period'
+    Repo -> Firestore: query(collection('caisseImprevueDemands'), limit(100))
+    Firestore --> Repo: QuerySnapshot
+    
+    Repo -> Repo: Filtrer côté client par createdAt entre dateStart et dateEnd
+    
+    loop Tant que hasNextPage
+        Repo -> Firestore: query(..., startAfter(lastDoc), limit(100))
+        Firestore --> Repo: QuerySnapshot
+        Repo -> Repo: Filtrer côté client
+    end
+    
+else scopeMode == 'quantity'
+    Repo -> Firestore: query(collection('caisseImprevueDemands'), limit(100))
+    Firestore --> Repo: QuerySnapshot
+    
+    loop Tant que collected.length < quantity ET hasNextPage
+        Repo -> Firestore: query(..., startAfter(lastDoc), limit(100))
+        Firestore --> Repo: QuerySnapshot
+        Repo -> Repo: collected.push(...items)
+    end
+    
+    Repo -> Repo: Limiter à quantity
+end
+
+Repo --> PreviewHook: Demand[]
+deactivate Repo
+
+PreviewHook -> PreviewHook: Appliquer filtres de statut (statusFilters)
+
+PreviewHook --> Modal: previewCount = X demandes
+deactivate PreviewHook
+
+Modal --> Admin: Afficher aperçu "X demandes seront exportées"
+
+' ============================================
+' CONFIGURATION EXPORT
+' ============================================
+Admin -> Modal: Change format → "PDF"
+Modal -> Modal: exportFormat = 'pdf'
+Modal -> Modal: Recalculer aperçu si nécessaire
+
+Admin -> Modal: Change périmètre → "Toutes"
+Modal -> Modal: scopeMode = 'all'
+Modal -> PreviewHook: Recalculer aperçu
+PreviewHook -> Repo: getAll({}, ...)
+Repo -> Firestore: query(...)
+Firestore --> Repo: Toutes les demandes
+Repo --> PreviewHook: Demand[]
+PreviewHook --> Modal: Nouveau previewCount
+Modal --> Admin: Afficher nouvel aperçu
+
+Admin -> Modal: Change dates période
+Modal -> Modal: dateStart = nouvelle date
+Modal -> Modal: dateEnd = nouvelle date
+
+Modal -> Modal: Valider dates (dateStart <= dateEnd, etc.)
+
+alt Dates invalides
+    Modal --> Admin: Désactiver bouton "Générer"
+    Modal --> Admin: Afficher message erreur
+else Dates valides
+    Modal -> PreviewHook: Recalculer aperçu
+    PreviewHook -> Repo: getAll({}, ...)
+    Repo -> Firestore: query(...)
+    Firestore --> Repo: Demand[]
+    Repo --> PreviewHook: Demand[]
+    PreviewHook --> Modal: Nouveau previewCount
+    Modal --> Admin: Afficher nouvel aperçu
+end
+
+Admin -> Modal: Change quantité → 500
+Modal -> Modal: quantity = 500
+
+Modal -> Modal: Valider quantité (1 <= quantity <= 10000)
+
+alt Quantité invalide
+    Modal --> Admin: Désactiver bouton "Générer"
+    Modal --> Admin: Afficher message erreur
+else Quantité valide
+    Modal -> PreviewHook: Recalculer aperçu
+    PreviewHook --> Modal: Nouveau previewCount
+    Modal --> Admin: Afficher nouvel aperçu
+end
+
+Admin -> Modal: Active filtre statut "En attente"
+Modal -> Modal: statusFilters.pending = true
+Modal -> PreviewHook: Recalculer aperçu
+PreviewHook -> PreviewHook: Filtrer par statusFilters actifs
+PreviewHook --> Modal: Nouveau previewCount
+Modal --> Admin: Afficher nouvel aperçu
+
+Admin -> Modal: Change tri → "Nom A→Z"
+Modal -> Modal: sortBy = 'name_asc'
+
+Admin -> Modal: Clique "Réinitialiser"
+Modal -> Modal: Réinitialiser tous les champs aux valeurs par défaut
+Modal -> PreviewHook: Recalculer aperçu
+PreviewHook --> Modal: previewCount initial
+Modal --> Admin: Afficher valeurs par défaut
+
+' ============================================
+' VALIDATION ET AVERTISSEMENT
+' ============================================
+Admin -> Modal: Clique "Générer l'export"
+activate Modal
+
+Modal -> Modal: Estimer nombre de demandes (previewCount ou estimation)
+
+alt estimatedCount > 1000 OU scopeMode == 'all'
+    Modal --> Admin: Afficher avertissement :
+    Modal --> Admin: "Vous êtes sur le point d'exporter X demandes."
+    Modal --> Admin: "Cela peut prendre plusieurs minutes."
+    Modal --> Admin: "Voulez-vous continuer ?"
+    
+    alt Admin confirme
+        Admin -> Modal: Confirmer
+    else Admin annule
+        Admin -> Modal: Annuler
+        Modal --> Admin: Fermer avertissement
+        stop
+    end
+end
+
+alt Aucune demande à exporter
+    Modal --> Admin: toast.info("Aucune demande à exporter selon les critères sélectionnés")
+    stop
+end
+
+' ============================================
+' EXPORT DES DONNÉES
+' ============================================
+Modal -> ExportHook: useExportDemands(options)
+activate ExportHook
+
+ExportHook -> Service: exportDemands(options)
+activate Service
+
+Service -> Repo: getAll({}, page, pageSize)
+activate Repo
+
+alt scopeMode == 'all'
+    Repo -> Firestore: query(collection('caisseImprevueDemands'), limit(100))
+    Firestore --> Repo: QuerySnapshot (page 1)
+    
+    loop Tant que hasNextPage
+        Repo -> Firestore: query(..., startAfter(lastDoc), limit(100))
+        Firestore --> Repo: QuerySnapshot (page suivante)
+    end
+    
+else scopeMode == 'period'
+    Repo -> Firestore: query(collection('caisseImprevueDemands'), limit(100))
+    Firestore --> Repo: QuerySnapshot
+    
+    Repo -> Repo: Filtrer côté client par createdAt entre dateStart et dateEnd
+    
+    loop Tant que hasNextPage
+        Repo -> Firestore: query(..., startAfter(lastDoc), limit(100))
+        Firestore --> Repo: QuerySnapshot
+        Repo -> Repo: Filtrer côté client
+    end
+    
+else scopeMode == 'quantity'
+    Repo -> Firestore: query(collection('caisseImprevueDemands'), limit(100))
+    Firestore --> Repo: QuerySnapshot
+    
+    loop Tant que collected.length < quantity ET hasNextPage
+        Repo -> Firestore: query(..., startAfter(lastDoc), limit(100))
+        Firestore --> Repo: QuerySnapshot
+        Repo -> Repo: collected.push(...items)
+    end
+    
+    Repo -> Repo: Limiter à quantity
+end
+
+Repo --> Service: Demand[]
+deactivate Repo
+
+Service -> Service: Appliquer filtres de statut (statusFilters)
+
+Service -> Service: Trier les demandes selon sortBy
+
+alt sortBy == 'date_desc'
+    Service -> Service: Trier par createdAt décroissant
+else sortBy == 'date_asc'
+    Service -> Service: Trier par createdAt croissant
+else sortBy == 'name_asc'
+    Service -> Service: Trier par nom/prénom A→Z
+else sortBy == 'name_desc'
+    Service -> Service: Trier par nom/prénom Z→A
+end
+
+' ============================================
+' GÉNÉRATION FICHIER
+' ============================================
+alt exportFormat == 'pdf'
+    Service -> Generator: generatePDF(demands)
+    activate Generator
+    
+    Generator -> Generator: Créer document PDF (jsPDF)
+    Generator -> Generator: Ajouter en-tête avec logo KARA
+    Generator -> Generator: Ajouter colonnes : Statut, Nom, Prénom, Téléphone, Montant, Durée, Fréquence, Date création, Motif
+    Generator -> Generator: Ajouter données (jspdf-autotable)
+    Generator -> Generator: Ajouter pied de page avec date export
+    
+    Generator --> Service: Blob PDF
+    deactivate Generator
+    
+else exportFormat == 'excel'
+    Service -> Generator: generateExcel(demands)
+    activate Generator
+    
+    Generator -> Generator: Créer workbook Excel (xlsx)
+    Generator -> Generator: Créer feuille "Demandes"
+    Generator -> Generator: Ajouter en-têtes : Statut, Nom, Prénom, Téléphone, Montant, Durée, Fréquence, Date création, Motif
+    Generator -> Generator: Ajouter données
+    Generator -> Generator: Formater colonnes (largeur automatique, en-têtes gras)
+    
+    Generator --> Service: Blob Excel
+    deactivate Generator
+end
+
+Service --> ExportHook: Blob fichier
+deactivate Service
+
+ExportHook --> Modal: Blob fichier
+deactivate ExportHook
+
+' ============================================
+' TÉLÉCHARGEMENT
+' ============================================
+Modal -> Modal: Générer nom fichier :
+Modal -> Modal: "demandes_caisse_imprevue_YYYYMMDD_HHMMSS.{pdf|xlsx}"
+
+Modal -> Modal: Créer lien <a> avec download
+Modal -> Modal: Déclencher click() programmatique
+Modal -> Modal: Supprimer lien après téléchargement
+
+Modal --> Admin: Téléchargement fichier déclenché
+
+Modal -> Modal: toast.success("Export généré avec succès (X demandes)")
+
+Modal -> Modal: Fermer le modal
+deactivate Modal
+
+deactivate List
+
+note right of Service
+  **Fonctionnalités export** :
+  - Format : PDF ou Excel
+  - Périmètre : Toutes / Période / Nombre
+  - Filtres statut multiples
+  - Tri personnalisable
+  - Pagination pour récupération données
+  - Avertissement si export volumineux
+end note
+
+note right of Generator
+  **Colonnes exportées** :
+  - Statut (PENDING, APPROVED, REJECTED, etc.)
+  - Nom (memberLastName)
+  - Prénom (memberFirstName)
+  - Téléphone (memberPhone)
+  - Montant (amount)
+  - Durée (duration)
+  - Fréquence (paymentFrequency)
+  - Date création (createdAt)
+  - Motif (reason)
+end note
+
+@enduml

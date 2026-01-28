@@ -1,0 +1,115 @@
+@startuml FiltrerDemandes
+title Workflow : Filtrer les Demandes (V2)
+
+start
+
+:Admin accède à la liste des demandes;
+
+:Afficher composant DemandFiltersV2 :
+- Filtre par statut (Select)
+- Filtre par fréquence (Select)
+- Filtre par forfait (Select)
+- Filtres de date (DatePicker);
+
+:Initialiser filtres :
+- filters = { status: 'all', paymentFrequency: 'all', ... };
+
+' ============================================
+' FILTRE PAR STATUT
+' ============================================
+if (Admin change filtre statut ?) then (oui)
+  :filters.status = nouvelle valeur;
+  :page = 1 (reset pagination);
+  
+  :Refetch avec nouveaux filtres :
+  - useCaisseImprevueDemands(newFilters, 1, limit, ...);
+  
+  :Repository.getPaginated() :
+  - Ajouter where('status', '==', filters.status)
+  - Recalculer total
+  - Paginer;
+  
+  :Mettre en cache (5 min);
+  
+  :Afficher résultats filtrés;
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' FILTRE PAR FRÉQUENCE
+' ============================================
+if (Admin change filtre fréquence ?) then (oui)
+  :filters.paymentFrequency = nouvelle valeur;
+  :page = 1 (reset);
+  
+  :Refetch avec nouveaux filtres;
+  :Afficher résultats filtrés;
+endif
+
+' ============================================
+' FILTRE PAR FORFAIT
+' ============================================
+if (Admin change filtre forfait ?) then (oui)
+  :filters.subscriptionCIID = nouvelle valeur;
+  :page = 1 (reset);
+  
+  :Refetch avec nouveaux filtres;
+  :Afficher résultats filtrés;
+endif
+
+' ============================================
+' FILTRES DE DATE
+' ============================================
+if (Admin change filtre date début ?) then (oui)
+  :filters.createdAtFrom = nouvelle date;
+  :page = 1 (reset);
+  
+  :Refetch avec nouveaux filtres;
+  :Afficher résultats filtrés;
+endif
+
+if (Admin change filtre date fin ?) then (oui)
+  :filters.createdAtTo = nouvelle date;
+  :page = 1 (reset);
+  
+  :Refetch avec nouveaux filtres;
+  :Afficher résultats filtrés;
+endif
+
+' ============================================
+' COMBINAISON DE FILTRES
+' ============================================
+if (Plusieurs filtres actifs ?) then (oui)
+  :Combiner tous les filtres :
+  - where('status', '==', filters.status)
+  - where('paymentFrequency', '==', filters.paymentFrequency)
+  - where('subscriptionCIID', '==', filters.subscriptionCIID)
+  - where('createdAt', '>=', filters.createdAtFrom)
+  - where('createdAt', '<=', filters.createdAtTo);
+  
+  :Refetch avec tous les filtres combinés;
+  :Afficher résultats;
+endif
+
+' ============================================
+' RÉINITIALISER FILTRES
+' ============================================
+if (Admin clique "Réinitialiser filtres" ?) then (oui)
+  :filters = { status: 'all', paymentFrequency: 'all', ... };
+  :page = 1;
+  
+  :Refetch sans filtres;
+  :Afficher liste complète;
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Filtres multiples combinables
+  - Reset pagination à chaque changement
+  - Cache 5 min par combinaison de filtres
+  - Index Firestore requis pour filtres combinés
+  - Scroll automatique vers le haut
+  - Badge "X filtres actifs"
+end note
+
+@enduml

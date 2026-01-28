@@ -1,0 +1,234 @@
+@startuml CreerDemande
+title Workflow : Créer une Demande Caisse Imprévue (V2)
+
+start
+
+:Admin accède à /caisse-imprevue/demandes/add;
+
+:Chargement de la page :
+- useDemandForm() initialisé
+- useDemandFormPersistence() activé;
+
+:Vérifier localStorage :
+- Données sauvegardées existantes ?;
+
+if (Données sauvegardées trouvées ?) then (oui)
+  :Restaurer les données du formulaire;
+  :Afficher toast "Données restaurées";
+  :Initialiser currentStep selon données;
+else (non)
+  :Initialiser formulaire vide;
+  :currentStep = 1;
+endif
+
+:Charger les forfaits :
+- useSubscriptionsCICache()
+- Cache 30 min (pas de refetch si présent);
+
+:Scroll automatique vers le haut;
+
+' ============================================
+' ÉTAPE 1 : MEMBRE + MOTIF
+' ============================================
+:Étape 1 affichée;
+
+:Admin recherche un membre :
+- Input avec debounce 300ms
+- useSearchMembers(query);
+
+if (Membre trouvé ?) then (oui)
+  :Sélectionner le membre;
+  :form.setValue('memberId', memberId);
+  :Sauvegarder dans localStorage (debounce 500ms);
+  
+  :Admin saisit le motif :
+  - Textarea (min 10, max 500 caractères)
+  - Compteur de caractères affiché;
+  
+  :form.setValue('cause', cause);
+  :Sauvegarder dans localStorage;
+  
+  if (Validation Step 1 OK ?) then (oui)
+    :Bouton "Suivant" activé;
+  else (non)
+    :Afficher erreurs de validation;
+    :Bouton "Suivant" désactivé;
+  endif
+else (non)
+  :Afficher "Aucun membre trouvé";
+  :Bouton "Suivant" désactivé;
+endif
+
+if (Admin clique "Suivant" ?) then (oui)
+  :Valider Step 1 avec form.trigger();
+  
+  if (Validation réussie ?) then (oui)
+    :currentStep = 2;
+    :Scroll automatique vers le haut;
+    :Focus sur premier champ Step 2;
+  else (non)
+    :Afficher erreurs;
+    :Rester sur Step 1;
+  endif
+elseif (Admin clique "Réinitialiser" ?) then (oui)
+  if (Confirmation ?) then (oui)
+    :form.reset(defaultValues);
+    :localStorage.clear();
+    :currentStep = 1;
+    :Scroll vers le haut;
+  endif
+endif
+
+' ============================================
+' ÉTAPE 2 : FORFAIT + FRÉQUENCE
+' ============================================
+:Étape 2 affichée;
+
+:Forfaits chargés depuis cache :
+- Si cache présent → affichage immédiat
+- Sinon → fetch puis cache 30 min;
+
+:Admin sélectionne un forfait :
+- form.setValue('subscriptionCIID', id);
+
+:Admin sélectionne la fréquence :
+- DAILY ou MONTHLY
+- form.setValue('paymentFrequency', freq);
+
+:Admin sélectionne date souhaitée :
+- form.setValue('desiredDate', date);
+
+:Sauvegarder dans localStorage;
+
+if (Validation Step 2 OK ?) then (oui)
+  :Bouton "Suivant" activé;
+else (non)
+  :Afficher erreurs;
+  :Bouton "Suivant" désactivé;
+endif
+
+if (Admin clique "Suivant" ?) then (oui)
+  :Valider Step 2;
+  
+  if (Validation réussie ?) then (oui)
+    :currentStep = 3;
+    :Scroll automatique vers le haut;
+    :Focus sur premier champ Step 3;
+  else (non)
+    :Afficher erreurs;
+    :Rester sur Step 2;
+  endif
+elseif (Admin clique "Précédent" ?) then (oui)
+  :currentStep = 1;
+  :Scroll automatique vers le haut;
+elseif (Admin clique "Réinitialiser" ?) then (oui)
+  if (Confirmation ?) then (oui)
+    :form.reset();
+    :localStorage.clear();
+    :currentStep = 1;
+  endif
+endif
+
+' ============================================
+' ÉTAPE 3 : CONTACT D'URGENCE
+' ============================================
+:Étape 3 affichée;
+
+:Exclure le membre sélectionné :
+- excludeMemberIds = [memberId]
+- EmergencyContactMemberSelector;
+
+:Admin recherche contact d'urgence :
+- Input avec debounce
+- Membre exclu automatiquement;
+
+if (Contact sélectionné depuis membre ?) then (oui)
+  :Remplir automatiquement :
+  - lastName, firstName
+  - phone1, phone2
+  - relationship
+  - typeId, idNumber;
+  
+  :form.setValue('emergencyContact', data);
+  :Sauvegarder dans localStorage;
+elseif (Contact saisi manuellement ?) then (oui)
+  :Admin saisit les champs :
+  - Nom, prénom
+  - Téléphones
+  - Lien de parenté
+  - Type de pièce
+  - Numéro de pièce
+  - Photo du document;
+  
+  :form.setValue('emergencyContact', data);
+  :Sauvegarder dans localStorage;
+endif
+
+:Vérifier validation Step 3 :
+- Tous les champs requis remplis ?;
+
+if (Validation Step 3 OK ?) then (oui)
+  :Card contact devient vert (visuel);
+  :Bouton "Créer la demande" activé;
+else (non)
+  :Afficher erreurs;
+  :Bouton "Créer la demande" désactivé;
+endif
+
+if (Admin clique "Créer la demande" ?) then (oui)
+  :Valider formulaire complet avec form.trigger();
+  
+  if (Validation complète réussie ?) then (oui)
+    :Appeler form.handleSubmit(onSubmit);
+    
+    :Hook useCreateDemand :
+    - Service.createDemand(data);
+    
+    :Repository.create() :
+    - Générer ID selon standard :
+      **MK_DEMANDE_CI_** + 4 premiers chiffres matricule + **_DDMMYY_HHMM**
+      Ex: MK_DEMANDE_CI_8438_270126_2219
+      (Matricule 8438.MK.160126, Date 27/01/2026, Heure 22:19);
+    - Firestore.addDoc() avec cet ID (pas d'ID aléatoire);
+    
+    :Nettoyer localStorage :
+    - clearFormData();
+    
+    :Invalider cache :
+    - Invalider liste demandes
+    - Invalider stats;
+    
+    :Afficher toast "Demande créée avec succès";
+    
+    :Rediriger vers /caisse-imprevue/demandes;
+    
+    stop
+  else (non)
+    :Afficher erreurs de validation;
+    :Rester sur Step 3;
+  endif
+elseif (Admin clique "Précédent" ?) then (oui)
+  :currentStep = 2;
+  :Scroll automatique vers le haut;
+elseif (Admin clique "Annuler" ?) then (oui)
+  if (Confirmation ?) then (oui)
+    :Nettoyer localStorage;
+    :Rediriger vers /caisse-imprevue/demandes;
+    stop
+  endif
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Persistance automatique localStorage (debounce 500ms)
+  - Cache forfaits 30 min (pas de refetch)
+  - Exclusion automatique membre dans contact
+  - Scroll automatique à chaque changement d'étape
+  - Validation en temps réel
+  - Réinitialisation avec confirmation
+  **ID demande (standard)** :
+  MK_DEMANDE_CI_{4 premiers chiffres matricule}_{DDMMYY}_{HHMM}
+  Ex: MK_DEMANDE_CI_8438_270126_2219
+end note
+
+@enduml

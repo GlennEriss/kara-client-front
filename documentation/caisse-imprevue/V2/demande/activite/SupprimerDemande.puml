@@ -1,0 +1,91 @@
+@startuml SupprimerDemande
+title Workflow : Supprimer une Demande (V2)
+
+start
+
+:Admin clique "Supprimer" sur une demande REJECTED;
+
+:Ouvrir DeleteDemandModalV2 :
+- Modal responsive (max-w-2xl)
+- Style destructive (rouge);
+
+:Afficher toutes les informations du demandeur :
+- Nom complet
+- Téléphone
+- Email
+- Matricule;
+
+:Afficher section "Motif de la demande" :
+- Texte complet du motif;
+
+:Afficher section "Motif de refus" :
+- Texte du motif de refus
+- Date de refus;
+
+:Afficher alerte de confirmation :
+- "Cette action est irréversible"
+- "La demande sera définitivement supprimée"
+- Style Alert destructive;
+
+:Demander confirmation explicite :
+- Checkbox "Je confirme la suppression"
+- Obligatoire pour activer le bouton;
+
+if (Admin coche confirmation ?) then (oui)
+  :Bouton "Supprimer définitivement" activé;
+else (non)
+  :Bouton "Supprimer" désactivé;
+endif
+
+if (Admin clique "Supprimer définitivement" ?) then (oui)
+  :Hook useDeleteDemand :
+  - Service.deleteDemand(demandId);
+  
+  :Repository.delete() :
+  - updateDoc() : Enregistrer deletedBy et deletedAt
+  - deleteDoc() : Supprimer le document;
+  
+  note right
+    deletedBy : ID de l'admin qui supprime
+    deletedAt : Date/heure de suppression
+    ⚠️ Important : Enregistrer AVANT deleteDoc()
+    Pour conserver ces infos, considérer un soft delete
+    (status = 'DELETED') ou un log séparé
+  end note
+  
+  :Invalider cache :
+  - Invalider liste demandes
+  - Invalider stats;
+  
+  :Fermer le modal;
+  
+  :Afficher toast "Demande supprimée";
+  
+  :Mettre à jour l'UI :
+  - Retirer la demande de la liste
+  - Mettre à jour les stats;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Modal avec toutes les informations
+  - Confirmation explicite requise (checkbox)
+  - Style destructive (rouge)
+  - Action irréversible
+  - Invalidation cache
+  - Toast de confirmation
+  
+  **Traçabilité** :
+  - deletedBy : ID de l'admin qui a supprimé la demande
+  - deletedAt : Date et heure précise de la suppression
+  - Ces attributs sont enregistrés avant suppression définitive
+  - Note : Pour conserver ces informations, considérer un soft delete
+    (marquer comme supprimé) ou un log séparé
+end note
+
+@enduml

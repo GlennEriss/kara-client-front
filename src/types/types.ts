@@ -2092,8 +2092,8 @@ export interface CaisseImprevueDemand {
   // Contact d'urgence (Step 3)
   emergencyContact?: EmergencyContactCI
   
-  // Raison de la demande (optionnel)
-  cause?: string // Raison de la demande (optionnel)
+  // Motif de la demande (obligatoire)
+  cause: string // Motif de la demande (obligatoire, 10-500 caractères)
   
   // Statut et décision
   status: CaisseImprevueDemandStatus

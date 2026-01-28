@@ -1,0 +1,117 @@
+@startuml AccepterDemande
+title Workflow : Accepter une Demande (V2)
+
+start
+
+:Admin clique "Accepter" sur une demande PENDING;
+
+:Ouvrir AcceptDemandModalV2 :
+- Modal responsive (max-w-3xl)
+- Scroll si contenu long;
+
+:Afficher toutes les informations du demandeur :
+- Nom complet
+- Téléphone
+- Email
+- Matricule;
+
+:Afficher section "Motif de la demande" :
+- Texte complet du motif
+- Style textarea (readonly);
+
+:Afficher section "Contact d'urgence" :
+- Nom complet
+- Téléphones
+- Lien de parenté
+- Type et numéro de document
+- Photo document (si présente);
+
+:Afficher section "Résumé de la demande" :
+- Forfait sélectionné
+- Fréquence (DAILY / MONTHLY)
+- Montant mensuel
+- Durée totale
+- Date souhaitée;
+
+:Champ "Raison d'acceptation" :
+- Textarea obligatoire
+- Min 10 caractères
+- Max 500 caractères
+- Compteur de caractères;
+
+if (Admin saisit raison ?) then (oui)
+  :Valider longueur :
+  - Min 10 caractères ?;
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Accepter la demande" activé;
+  else (non)
+    :Afficher erreur "Minimum 10 caractères";
+    :Bouton "Accepter" désactivé;
+  endif
+endif
+
+if (Admin clique "Accepter la demande" ?) then (oui)
+  :Valider formulaire modal :
+  - Raison d'acceptation remplie
+  - Longueur >= 10 caractères;
+  
+  if (Validation réussie ?) then (oui)
+    :Hook useAcceptDemand :
+    - Optimistic update (mise à jour immédiate UI)
+    - Service.acceptDemand(demandId, reason);
+    
+    :Repository.update() :
+    - Firestore.updateDoc()
+    - status = 'APPROVED'
+    - decisionReason = reason
+    - acceptedBy = currentAdminId
+    - acceptedAt = now()
+    - decisionMadeBy = currentAdminId
+    - decisionDate = now();
+    
+    note right
+      acceptedBy : ID de l'admin qui accepte
+      acceptedAt : Date/heure d'acceptation
+      decisionMadeBy et decisionDate : pour compatibilité
+    end note
+    
+    :Invalider cache :
+    - Invalider liste demandes
+    - Invalider stats
+    - Invalider détails;
+    
+    :Fermer le modal;
+    
+    :Afficher toast "Demande acceptée avec succès";
+    
+    :Mettre à jour l'UI :
+    - Statut changé à APPROVED
+    - Badge vert
+    - Bouton "Créer le contrat" apparaît;
+    
+    stop
+  else (non)
+    :Afficher erreurs de validation;
+    :Rester dans le modal;
+  endif
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Modal avec toutes les informations
+  - Validation stricte raison (min 10 caractères)
+  - Optimistic update pour UX fluide
+  - Invalidation cache intelligente
+  - Toast de confirmation
+  
+  **Traçabilité** :
+  - acceptedBy : ID de l'admin qui a accepté la demande
+  - acceptedAt : Date et heure précise de l'acceptation
+  - Ces attributs permettent d'auditer qui a fait quoi et quand
+end note
+
+@enduml

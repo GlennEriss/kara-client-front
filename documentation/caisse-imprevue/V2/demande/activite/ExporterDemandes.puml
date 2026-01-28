@@ -1,0 +1,228 @@
+@startuml ExporterDemandes
+title Workflow : Exporter les Demandes en PDF ou Excel avec Filtres Avancés (V2)
+
+start
+
+:Admin clique sur bouton "Exporter" dans la liste;
+
+:Ouvrir ExportDemandsModalV2;
+
+:Initialisation du modal :
+- exportFormat = 'excel' (par défaut)
+- scopeMode = 'period' (par défaut)
+- dateStart = 1er janvier année en cours
+- dateEnd = aujourd'hui
+- quantity = 100
+- sortBy = 'date_desc'
+- statusFilters = { tous à false };
+
+:Calculer aperçu nombre de demandes :
+- useExportPreview(scopeMode, dateStart, dateEnd, quantity, statusFilters);
+
+if (scopeMode == 'all' ?) then (oui)
+  :Récupérer toutes les demandes :
+  - Repository.getAll({}, page, pageSize)
+  - Boucle pagination jusqu'à épuisement;
+elseif (scopeMode == 'period' ?) then (oui)
+  :Récupérer demandes par période :
+  - Repository.getAll({}, page, pageSize)
+  - Filtrer côté client par createdAt entre dateStart et dateEnd
+  - Boucle pagination;
+elseif (scopeMode == 'quantity' ?) then (oui)
+  :Récupérer N premières demandes :
+  - Repository.getAll({}, page, pageSize)
+  - Limiter à quantity
+  - Boucle pagination jusqu'à atteindre quantity;
+endif
+
+:Appliquer filtres de statut :
+- Filtrer par statusFilters actifs (checkboxes);
+
+:Afficher aperçu :
+- "X demandes seront exportées";
+
+' ============================================
+' CONFIGURATION EXPORT
+' ============================================
+if (Admin change format ?) then (oui)
+  :exportFormat = nouvelle valeur ('pdf' ou 'excel');
+endif
+
+if (Admin change périmètre ?) then (oui)
+  :scopeMode = nouvelle valeur ('all', 'period', 'quantity');
+  
+  :Recalculer aperçu;
+endif
+
+if (Admin change dates période ?) then (oui)
+  :dateStart = nouvelle date début;
+  :dateEnd = nouvelle date fin;
+  
+  :Valider dates :
+  - dateStart <= dateEnd
+  - dateStart <= aujourd'hui
+  - dateEnd <= aujourd'hui;
+  
+  if (Dates invalides ?) then (oui)
+    :Désactiver bouton "Générer l'export";
+    :Afficher message erreur;
+    stop
+  endif
+  
+  :Recalculer aperçu;
+endif
+
+if (Admin change quantité ?) then (oui)
+  :quantity = nouvelle valeur;
+  
+  :Valider quantité :
+  - quantity >= 1
+  - quantity <= 10000;
+  
+  if (Quantité invalide ?) then (oui)
+    :Désactiver bouton "Générer l'export";
+    :Afficher message erreur;
+    stop
+  endif
+  
+  :Recalculer aperçu;
+endif
+
+if (Admin change filtres statut ?) then (oui)
+  :statusFilters[status] = checked/unchecked;
+  
+  :Recalculer aperçu;
+endif
+
+if (Admin change tri ?) then (oui)
+  :sortBy = nouvelle valeur ('date_desc', 'date_asc', 'name_asc', 'name_desc');
+endif
+
+if (Admin clique "Réinitialiser" ?) then (oui)
+  :Réinitialiser tous les champs aux valeurs par défaut;
+  :Recalculer aperçu;
+endif
+
+' ============================================
+' VALIDATION AVANT EXPORT
+' ============================================
+if (Admin clique "Générer l'export" ?) then (non)
+  stop
+endif
+
+:Estimer nombre de demandes à exporter :
+- Utiliser previewCount si disponible
+- Sinon estimer selon scopeMode;
+
+if (estimatedCount > 1000 OU scopeMode == 'all' ?) then (oui)
+  :Afficher avertissement :
+  - "Vous êtes sur le point d'exporter X demandes."
+  - "Cela peut prendre plusieurs minutes."
+  - "Voulez-vous continuer ?";
+  
+  if (Admin confirme ?) then (non)
+    stop
+  endif
+endif
+
+if (Aucune demande à exporter ?) then (oui)
+  :Afficher toast.info :
+  - "Aucune demande à exporter selon les critères sélectionnés";
+  stop
+endif
+
+' ============================================
+' RÉCUPÉRATION DES DONNÉES
+' ============================================
+:Service.exportDemands(options) :
+- exportFormat
+- scopeMode
+- dateStart, dateEnd
+- quantity
+- statusFilters
+- sortBy;
+
+if (scopeMode == 'all' ?) then (oui)
+  :Récupérer toutes les demandes :
+  - Repository.getAll({}, page, pageSize)
+  - Boucle pagination jusqu'à épuisement;
+elseif (scopeMode == 'period' ?) then (oui)
+  :Récupérer demandes par période :
+  - Repository.getAll({}, page, pageSize)
+  - Filtrer côté client par createdAt entre dateStart et dateEnd
+  - Boucle pagination;
+elseif (scopeMode == 'quantity' ?) then (oui)
+  :Récupérer N premières demandes :
+  - Repository.getAll({}, page, pageSize)
+  - Limiter à quantity
+  - Boucle pagination jusqu'à atteindre quantity;
+endif
+
+:Appliquer filtres de statut :
+- Filtrer par statusFilters actifs;
+
+:Trier les demandes :
+if (sortBy == 'date_desc' ?) then (oui)
+  :Trier par createdAt décroissant;
+elseif (sortBy == 'date_asc' ?) then (oui)
+  :Trier par createdAt croissant;
+elseif (sortBy == 'name_asc' ?) then (oui)
+  :Trier par nom/prénom A→Z;
+elseif (sortBy == 'name_desc' ?) then (oui)
+  :Trier par nom/prénom Z→A;
+endif
+
+' ============================================
+' GÉNÉRATION DU FICHIER
+' ============================================
+if (exportFormat == 'pdf' ?) then (oui)
+  :Générer PDF :
+  - ExportService.generatePDF(demands)
+  - Colonnes : Statut, Nom, Prénom, Téléphone, Montant, Durée, Fréquence, Date création, Motif
+  - En-tête avec logo KARA
+  - Pied de page avec date export
+  - Format A4 portrait;
+  
+  :Créer Blob PDF;
+else (excel)
+  :Générer Excel :
+  - ExportService.generateExcel(demands)
+  - Colonnes : Statut, Nom, Prénom, Téléphone, Montant, Durée, Fréquence, Date création, Motif
+  - Feuille "Demandes"
+  - Formatage automatique (largeur colonnes, en-têtes gras);
+  
+  :Créer Blob Excel;
+endif
+
+' ============================================
+' TÉLÉCHARGEMENT
+' ============================================
+:Générer nom de fichier :
+- "demandes_caisse_imprevue_YYYYMMDD_HHMMSS.{pdf|xlsx}";
+
+:Télécharger le fichier :
+- Créer lien <a> avec download
+- Déclencher click() programmatique
+- Supprimer lien après téléchargement;
+
+:Afficher toast.success :
+- "Export généré avec succès (X demandes)";
+
+:Fermer le modal;
+
+stop
+
+note right
+  **Fonctionnalités clés** :
+  - Format : PDF ou Excel
+  - Périmètre : Toutes / Période / Nombre
+  - Filtres statut multiples (checkboxes)
+  - Tri personnalisable
+  - Aperçu nombre de demandes en temps réel
+  - Avertissement si export volumineux (>1000)
+  - Validation dates et quantités
+  - Export avec contraintes pour éviter surcharge
+  - Pagination pour récupération données
+end note
+
+@enduml

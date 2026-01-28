@@ -1,0 +1,191 @@
+@startuml VoirDetails
+title Workflow : Voir les Détails d'une Demande (V2)
+
+start
+
+:Admin clique "Voir détails" sur une demande;
+
+:Vérifier cache détails :
+- useCaisseImprevueDemand(demandId)
+- Cache 10 min;
+
+if (Cache présent et frais ?) then (oui)
+  :Afficher données depuis cache;
+else (non)
+  :Repository.getById(demandId) :
+  - Firestore.getDoc();
+  
+  :Mettre en cache (10 min);
+endif
+
+:Rediriger vers /caisse-imprevue/demandes/[id];
+
+:Charger la page de détails :
+- DemandDetailV2 component;
+
+:Scroll automatique vers le haut;
+
+' ============================================
+' SECTION : INFORMATIONS GÉNÉRALES
+' ============================================
+:Afficher informations générales :
+- Nom complet membre
+- Téléphone
+- Email
+- Matricule
+- Statut (badge coloré)
+- Date de création
+- Date souhaitée;
+
+' ============================================
+' SECTION : MOTIF DE LA DEMANDE
+' ============================================
+:Afficher section "Motif de la demande" :
+- Texte complet (textarea style)
+- Caractères : X / 500;
+
+' ============================================
+' SECTION : FORFAIT ET FRÉQUENCE
+' ============================================
+:Afficher informations forfait :
+- Code forfait
+- Montant mensuel
+- Durée totale (mois)
+- Fréquence (DAILY / MONTHLY)
+- Badge fréquence;
+
+' ============================================
+' SECTION : CONTACT D'URGENCE
+' ============================================
+if (Contact d'urgence présent ?) then (oui)
+  :Afficher section "Contact d'urgence" :
+  - Nom complet
+  - Téléphone principal
+  - Téléphone secondaire
+  - Lien de parenté
+  - Type de document
+  - Numéro de document;
+  
+  if (Photo document présente ?) then (oui)
+    :Afficher image document :
+    - Image avec preview
+    - Taille optimisée;
+  endif
+else (non)
+  :Afficher "Aucun contact d'urgence renseigné";
+endif
+
+' ============================================
+' SECTION : SIMULATION VERSEMENTS
+' ============================================
+:Calculer simulation :
+- useDemandSimulation(demand);
+
+if (Fréquence MONTHLY ?) then (oui)
+  :Calculer versements mensuels :
+  - Pour chaque mois (0 à duration-1)
+  - Date = desiredDate + N mois
+  - Montant = subscriptionCIAmountPerMonth
+  - Cumul = somme progressive;
+else (Fréquence DAILY ?) then (oui)
+  :Calculer versements quotidiens :
+  - Pour chaque jour (0 à duration*30-1)
+  - Date = desiredDate + N jours
+  - Montant = subscriptionCIAmountPerMonth / 30
+  - Cumul = somme progressive
+  - Compter versements par mois;
+endif
+
+:Afficher tableau récapitulatif :
+- Colonnes : #, Date, Montant, Cumul
+- Colonne supplémentaire si DAILY : Versements/mois
+- Ligne total : Total (X mois), Montant total, Versements totaux;
+
+:Afficher informations complémentaires :
+- Montant mensuel (badge bleu)
+- Durée totale (badge vert)
+- Fréquence (badge violet);
+
+' ============================================
+' SECTION : HISTORIQUE
+' ============================================
+:Afficher section "Historique" :
+- Date de création
+- Date de dernière modification
+- Statut actuel
+- Décisions précédentes;
+
+if (Raison de décision présente ?) then (oui)
+  :Afficher "Raison de la décision" :
+  - Texte complet
+  - Date de décision
+  - Auteur de la décision;
+endif
+
+' ============================================
+' ACTIONS SELON STATUT
+' ============================================
+if (Statut PENDING ?) then (oui)
+  :Afficher boutons :
+  - "Accepter" (vert)
+  - "Refuser" (rouge)
+  - "Modifier" (outline);
+elseif (Statut APPROVED ?) then (oui)
+  :Afficher boutons :
+  - "Créer le contrat" (vert)
+  - "Modifier" (outline);
+elseif (Statut REJECTED ?) then (oui)
+  :Afficher boutons :
+  - "Réouvrir" (outline)
+  - "Supprimer" (rouge)
+  - "Modifier" (outline);
+elseif (Statut CONVERTED ?) then (oui)
+  :Afficher message :
+  - "Cette demande a été convertie en contrat"
+  - Lien vers le contrat;
+endif
+
+' ============================================
+' ACTIONS
+' ============================================
+if (Admin clique "Accepter" ?) then (oui)
+  :Ouvrir AcceptDemandModalV2;
+  stop
+endif
+
+if (Admin clique "Refuser" ?) then (oui)
+  :Ouvrir RejectDemandModalV2;
+  stop
+endif
+
+if (Admin clique "Créer le contrat" ?) then (oui)
+  :Ouvrir ConfirmContractModalV2;
+  stop
+endif
+
+if (Admin clique "Réouvrir" ?) then (oui)
+  :Ouvrir ReopenDemandModalV2;
+  stop
+endif
+
+if (Admin clique "Supprimer" ?) then (oui)
+  :Ouvrir DeleteDemandModalV2;
+  stop
+endif
+
+if (Admin clique "Modifier" ?) then (oui)
+  :Ouvrir EditDemandModalV2;
+  stop
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Cache détails 10 min (avec prefetch depuis liste)
+  - Simulation calculée côté client (useMemo)
+  - Distinction DAILY vs MONTHLY
+  - Tableau récapitulatif complet
+  - Toutes les informations affichées
+  - Actions contextuelles selon statut
+end note
+
+@enduml

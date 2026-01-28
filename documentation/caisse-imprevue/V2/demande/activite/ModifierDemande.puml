@@ -1,0 +1,162 @@
+@startuml ModifierDemande
+title Workflow : Modifier une Demande (V2)
+
+start
+
+:Admin clique "Modifier" sur une demande (non CONVERTED);
+
+:Vérifier que la demande peut être modifiée :
+- Statut !== 'CONVERTED'
+- Permissions admin;
+
+if (Modification autorisée ?) then (non)
+  :Afficher erreur "Impossible de modifier";
+  stop
+endif
+
+:Ouvrir EditDemandModalV2 :
+- Modal responsive (max-w-4xl)
+- Formulaire multi-étapes (même structure que création);
+
+:Charger les données de la demande :
+- useCaisseImprevueDemand(demandId)
+- Cache 10 min;
+
+:Préremplir le formulaire :
+- form.reset(demandData)
+- currentStep = 1;
+
+:Charger les forfaits :
+- useSubscriptionsCICache()
+- Cache 30 min;
+
+' ============================================
+' ÉTAPE 1 : MEMBRE + MOTIF
+' ============================================
+:Afficher Step 1 :
+- Membre pré-sélectionné (readonly ou modifiable selon besoin)
+- Motif pré-rempli (modifiable);
+
+if (Admin modifie le motif ?) then (oui)
+  :Valider longueur (min 10, max 500);
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Suivant" activé;
+  else (non)
+    :Afficher erreurs;
+    :Bouton "Suivant" désactivé;
+  endif
+endif
+
+if (Admin clique "Suivant" ?) then (oui)
+  :Valider Step 1;
+  
+  if (Validation réussie ?) then (oui)
+    :currentStep = 2;
+    :Scroll automatique;
+  endif
+endif
+
+' ============================================
+' ÉTAPE 2 : FORFAIT + FRÉQUENCE
+' ============================================
+:Afficher Step 2 :
+- Forfait pré-sélectionné
+- Fréquence pré-sélectionnée
+- Date souhaitée pré-remplie;
+
+if (Admin modifie forfait/fréquence/date ?) then (oui)
+  :Valider Step 2;
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Suivant" activé;
+  else (non)
+    :Afficher erreurs;
+    :Bouton "Suivant" désactivé;
+  endif
+endif
+
+if (Admin clique "Suivant" ?) then (oui)
+  :Valider Step 2;
+  
+  if (Validation réussie ?) then (oui)
+    :currentStep = 3;
+    :Scroll automatique;
+  endif
+endif
+
+' ============================================
+' ÉTAPE 3 : CONTACT D'URGENCE
+' ============================================
+:Afficher Step 3 :
+- Contact d'urgence pré-rempli
+- Exclusion du membre (si modifiable);
+
+if (Admin modifie contact ?) then (oui)
+  :Valider Step 3;
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Enregistrer les modifications" activé;
+  else (non)
+    :Afficher erreurs;
+    :Bouton "Enregistrer" désactivé;
+  endif
+endif
+
+if (Admin clique "Enregistrer les modifications" ?) then (oui)
+  :Valider formulaire complet;
+  
+  if (Validation réussie ?) then (oui)
+    :Hook useUpdateDemand :
+    - Service.updateDemand(demandId, formData);
+    
+    :Repository.update() :
+    - Firestore.updateDoc()
+    - Mettre à jour tous les champs modifiés
+    - updatedBy = currentAdminId
+    - updatedAt = now();
+    
+    note right
+      updatedBy : ID de l'admin qui modifie
+      updatedAt : Date/heure de modification
+      Permet de tracer qui a modifié quoi et quand
+    end note
+    
+    :Invalider cache :
+    - Invalider liste demandes
+    - Invalider détails;
+    
+    :Fermer le modal;
+    
+    :Afficher toast "Demande modifiée avec succès";
+    
+    :Mettre à jour l'UI :
+    - Rafraîchir la liste
+    - Rafraîchir les détails;
+    
+    stop
+  else (non)
+    :Afficher erreurs de validation;
+    :Rester dans le modal;
+  endif
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Formulaire pré-rempli avec données existantes
+  - Même structure que création (3 étapes)
+  - Validation en temps réel
+  - Exclusion membre dans contact
+  - Scroll automatique
+  - Invalidation cache
+  
+  **Traçabilité** :
+  - updatedBy : ID de l'admin qui a modifié la demande
+  - updatedAt : Date et heure précise de la modification
+  - Ces attributs permettent d'auditer qui a fait quoi et quand
+end note
+
+@enduml

@@ -1,0 +1,136 @@
+@startuml SEQ_CreerContrat
+title Séquence : Créer un Contrat depuis une Demande Acceptée (V2)
+
+actor "Admin" as Admin
+participant "DemandDetailV2\n(Component)" as Detail
+participant "ConfirmContractModalV2\n(Component)" as Modal
+participant "useCreateContract\n(Hook)" as Hook
+participant "CaisseImprevueService\n(Service)" as Service
+participant "ContractCIRepository\n(Repository)" as ContractRepo
+participant "DemandCIRepository\n(Repository)" as DemandRepo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Detail: Clique "Créer le contrat" sur demande APPROVED
+activate Detail
+
+Detail -> Modal: Ouvrir ConfirmContractModalV2(demand)
+activate Modal
+
+Modal -> Modal: Render toutes les sections :
+Modal -> Modal: - Alerte confirmation
+Modal -> Modal: - Informations demandeur
+Modal -> Modal: - Résumé demande
+Modal -> Modal: - Contact d'urgence
+Modal -> Modal: - Checkbox confirmation
+
+Modal --> Admin: Afficher modal avec confirmation
+
+Admin -> Modal: Coche "Je confirme la création"
+Modal -> Modal: isConfirmed = true
+Modal --> Admin: Bouton "Confirmer la création" activé
+
+Admin -> Modal: Clique "Confirmer la création"
+Modal -> Hook: useCreateContract(demandId)
+activate Hook
+
+Hook -> Service: createContractFromDemand(demandId)
+activate Service
+
+Service -> Service: Valider données métier :
+Service -> Service: - Vérifier statut APPROVED
+Service -> Service: - Vérifier données complètes
+
+' ============================================
+' CRÉATION CONTRAT
+' ============================================
+Service -> ContractRepo: create(demandData, status ACTIVE, startDate, createdBy, createdAt)
+activate ContractRepo
+
+note right of ContractRepo
+  **Traçabilité création contrat** :
+  - createdBy : ID de l'admin qui autorise la création
+  - createdAt : Date/heure précise de création
+  - Permet d'auditer qui a créé le contrat et quand
+end note
+
+ContractRepo -> Firestore: addDoc(collection('contractsCI'), contractData avec createdBy et createdAt)
+Firestore --> ContractRepo: contractId
+
+ContractRepo --> Service: ContractCI avec id contractId
+deactivate ContractRepo
+
+' ============================================
+' MISE À JOUR DEMANDE
+' ============================================
+Service -> DemandRepo: update(demandId, status CONVERTED, contractId, convertedBy, convertedAt, updatedAt)
+activate DemandRepo
+
+note right of DemandRepo
+  **Traçabilité conversion** :
+  - convertedBy : ID de l'admin qui a converti la demande
+  - convertedAt : Date/heure précise de conversion
+  - Permet d'auditer qui a converti la demande en contrat et quand
+end note
+
+DemandRepo -> Firestore: updateDoc(docRef, status CONVERTED, contractId, convertedBy, convertedAt, updatedAt)
+Firestore --> DemandRepo: OK
+
+DemandRepo --> Service: CaisseImprevueDemand (mis à jour)
+deactivate DemandRepo
+
+Service --> Hook: contract ContractCI et demand CaisseImprevueDemand
+deactivate Service
+
+' ============================================
+' INVALIDATION CACHE
+' ============================================
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands-stats'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demand-detail', demandId])
+Hook -> QueryCache: invalidateQueries(['contracts-ci'])
+
+Hook -> QueryCache: Refetch en arrière-plan
+QueryCache --> Hook: Cache mis à jour
+
+Hook --> Modal: Success
+deactivate Hook
+
+Modal -> Modal: Fermer modal
+Modal -> Detail: toast.success('Contrat créé avec succès')
+Detail --> Admin: Toast affiché
+
+Detail -> Detail: Mettre à jour UI :
+Detail -> Detail: - Statut → CONVERTED (badge bleu)
+Detail -> Detail: - Afficher lien vers contrat
+Detail --> Admin: UI mise à jour
+
+deactivate Modal
+deactivate Detail
+
+alt Erreur serveur
+    Hook --> Modal: Error
+    Modal --> Admin: toast.error('Erreur lors de la création du contrat')
+end
+
+note right of Service
+  **Transaction** :
+  - Création contrat + mise à jour demande
+  - Si erreur → rollback (si transaction Firestore)
+  - Sinon → gestion erreur manuelle
+  
+  **Traçabilité** :
+  - Enregistrer createdBy et createdAt pour le contrat
+  - Enregistrer convertedBy et convertedAt pour la demande
+  - Permet d'auditer qui a autorisé la création et quand
+end note
+
+note right of QueryCache
+  **Invalidation** :
+  - Liste demandes
+  - Stats demandes
+  - Détails demande
+  - Liste contrats (nouveau)
+end note
+
+@enduml

@@ -335,10 +335,10 @@ export const caisseImprevueDemandFormSchema = z.object({
   paymentFrequency: z.enum(['DAILY', 'MONTHLY']),
   desiredDate: z.string().min(1, 'La date souhaitée est requise'),
   firstPaymentDate: z.string().optional(),
-  cause: z.string().max(500).optional(),
+  cause: z.string().min(10, 'Le motif de la demande doit contenir au moins 10 caractères').max(500, 'Le motif ne peut pas dépasser 500 caractères'),
   
-  // Step 3: Contact d'urgence
-  emergencyContact: emergencyContactCISchema.optional(),
+  // Step 3: Contact d'urgence (obligatoire)
+  emergencyContact: emergencyContactCISchema,
 })
 
 export type CaisseImprevueDemandFormInput = z.infer<typeof caisseImprevueDemandFormSchema>

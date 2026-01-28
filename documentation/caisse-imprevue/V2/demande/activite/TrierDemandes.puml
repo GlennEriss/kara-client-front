@@ -1,0 +1,90 @@
+@startuml TrierDemandes
+title Workflow : Trier les Demandes (V2)
+
+start
+
+:Admin accède à la liste des demandes;
+
+:Afficher composant DemandSortV2 :
+- Select "Trier par" : Date / Alphabétique
+- Select "Ordre" : Croissant / Décroissant;
+
+:Initialiser tri :
+- sortBy = 'date'
+- sortOrder = 'desc';
+
+' ============================================
+' TRI PAR DATE
+' ============================================
+if (Admin sélectionne "Trier par Date" ?) then (oui)
+  :sortBy = 'date';
+  
+  :Refetch avec nouveau tri :
+  - useCaisseImprevueDemands(filters, page, limit, 'date', sortOrder);
+  
+  :Repository.getPaginated() :
+  - orderBy('createdAt', sortOrder);
+  
+  :Mettre en cache (5 min);
+  
+  :Afficher résultats triés;
+  :Scroll vers le haut;
+endif
+
+if (Admin change ordre Date ?) then (oui)
+  :sortOrder = nouvelle valeur ('asc' ou 'desc');
+  
+  :Refetch avec nouveau tri;
+  :Afficher résultats triés;
+endif
+
+' ============================================
+' TRI ALPHABÉTIQUE
+' ============================================
+if (Admin sélectionne "Trier par Alphabétique" ?) then (oui)
+  :sortBy = 'alphabetical';
+  
+  :Refetch avec nouveau tri :
+  - useCaisseImprevueDemands(filters, page, limit, 'alphabetical', sortOrder);
+  
+  :Repository.getPaginated() :
+  - orderBy('memberLastName', sortOrder)
+  - orderBy('memberFirstName', sortOrder);
+  
+  :Mettre en cache (5 min);
+  
+  :Afficher résultats triés;
+  :Scroll vers le haut;
+endif
+
+if (Admin change ordre Alphabétique ?) then (oui)
+  :sortOrder = nouvelle valeur ('asc' ou 'desc');
+  
+  :Refetch avec nouveau tri;
+  :Afficher résultats triés;
+endif
+
+' ============================================
+' ORDRE DE PRIORITÉ (Tab "Toutes")
+' ============================================
+if (Tab "Toutes" ET sortBy = 'date' ?) then (oui)
+  :Trier par priorité de statut :
+  - PENDING (1) → APPROVED (2) → REJECTED (3) → ...;
+  
+  :Puis trier par date décroissante;
+  
+  :Afficher résultats triés;
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Tri par date (createdAt)
+  - Tri alphabétique (nom puis prénom)
+  - Ordre croissant/décroissant
+  - Ordre de priorité dans tab "Toutes"
+  - Cache 5 min par combinaison tri
+  - Index Firestore requis
+  - Scroll automatique
+end note
+
+@enduml

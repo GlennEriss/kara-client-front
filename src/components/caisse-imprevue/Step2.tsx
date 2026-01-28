@@ -18,7 +18,7 @@ export default function Step2() {
   const selectedSubscriptionId = step2Values?.subscriptionCIID
 
   // Récupération des forfaits actifs avec React Query
-  const { data: activeSubscriptions, isLoading, isError } = useActiveSubscriptionsCI()
+  const { data: activeSubscriptions, isLoading, isError, error } = useActiveSubscriptionsCI()
 
   // Fonction de sélection d'un forfait
   const handleSelectSubscription = useCallback((subscription: SubscriptionCI) => {
@@ -101,7 +101,17 @@ export default function Step2() {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Une erreur est survenue lors du chargement des forfaits. Veuillez réessayer.
+                <div className="space-y-2">
+                  <p>Une erreur est survenue lors du chargement des forfaits.</p>
+                  {error && (
+                    <p className="text-xs font-mono bg-red-50 p-2 rounded">
+                      {error.message || String(error)}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Vérifiez que vous êtes bien authentifié en tant qu'admin et que les règles Firestore sont correctement déployées.
+                  </p>
+                </div>
               </AlertDescription>
             </Alert>
           )}

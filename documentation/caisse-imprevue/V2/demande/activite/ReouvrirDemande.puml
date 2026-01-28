@@ -1,0 +1,123 @@
+@startuml ReouvrirDemande
+title Workflow : Réouvrir une Demande Refusée (V2)
+
+start
+
+:Admin clique "Réouvrir" sur une demande REJECTED;
+
+:Ouvrir ReopenDemandModalV2 :
+- Modal responsive (max-w-3xl)
+- Scroll si contenu long;
+
+:Afficher toutes les informations du demandeur :
+- Nom complet
+- Téléphone
+- Email
+- Matricule;
+
+:Afficher section "Motif de la demande" :
+- Texte complet du motif original;
+
+:Afficher section "Motif de refus précédent" :
+- Texte du motif de refus
+- Date de refus
+- Auteur du refus
+- Style alert (rouge);
+
+:Afficher section "Contact d'urgence" :
+- Nom complet
+- Téléphones
+- Lien de parenté
+- Type et numéro de document
+- Photo document (si présente);
+
+:Afficher section "Résumé de la demande" :
+- Forfait sélectionné
+- Fréquence (DAILY / MONTHLY)
+- Montant mensuel
+- Durée totale
+- Date souhaitée;
+
+:Champ "Raison de réouverture" :
+- Textarea obligatoire
+- Min 10 caractères
+- Max 500 caractères
+- Compteur de caractères;
+
+if (Admin saisit raison ?) then (oui)
+  :Valider longueur :
+  - Min 10 caractères ?;
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Réouvrir la demande" activé;
+  else (non)
+    :Afficher erreur "Minimum 10 caractères";
+    :Bouton "Réouvrir" désactivé;
+  endif
+endif
+
+if (Admin clique "Réouvrir la demande" ?) then (oui)
+  :Valider formulaire modal :
+  - Raison de réouverture remplie
+  - Longueur >= 10 caractères;
+  
+  if (Validation réussie ?) then (oui)
+    :Hook useReopenDemand :
+    - Optimistic update
+    - Service.reopenDemand(demandId, reason);
+    
+    :Repository.update() :
+    - Firestore.updateDoc()
+    - status = 'REOPENED'
+    - reopenReason = reason
+    - reopenedBy = currentAdminId
+    - reopenedAt = now()
+    - previousStatus = 'REJECTED';
+    
+    note right
+      reopenedBy : ID de l'admin qui réouvre
+      reopenedAt : Date/heure de réouverture
+      previousStatus : Historique du statut précédent
+    end note
+    
+    :Invalider cache :
+    - Invalider liste demandes
+    - Invalider stats
+    - Invalider détails;
+    
+    :Fermer le modal;
+    
+    :Afficher toast "Demande réouverte";
+    
+    :Mettre à jour l'UI :
+    - Statut changé à REOPENED
+    - Badge violet
+    - Boutons "Accepter" et "Refuser" réapparaissent;
+    
+    stop
+  else (non)
+    :Afficher erreurs de validation;
+    :Rester dans le modal;
+  endif
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - Modal avec toutes les informations
+  - Affichage du motif de refus précédent
+  - Validation stricte raison (min 10 caractères)
+  - Optimistic update
+  - Invalidation cache
+  - Historique des statuts conservé
+  
+  **Traçabilité** :
+  - reopenedBy : ID de l'admin qui a réouvert la demande
+  - reopenedAt : Date et heure précise de la réouverture
+  - previousStatus : Statut précédent (REJECTED) pour historique
+  - Ces attributs permettent d'auditer qui a fait quoi et quand
+end note
+
+@enduml

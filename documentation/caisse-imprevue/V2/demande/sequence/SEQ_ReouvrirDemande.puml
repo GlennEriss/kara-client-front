@@ -1,0 +1,138 @@
+@startuml SEQ_ReouvrirDemande
+title Séquence : Réouvrir une Demande Refusée (V2)
+
+actor "Admin" as Admin
+participant "DemandCardV2\nou DemandDetailV2" as Card
+participant "ReopenDemandModalV2\n(Component)" as Modal
+participant "useReopenDemand\n(Hook)" as Hook
+participant "CaisseImprevueService\n(Service)" as Service
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Card: Clique "Réouvrir" sur demande REJECTED
+activate Card
+
+Card -> Modal: Ouvrir ReopenDemandModalV2(demand)
+activate Modal
+
+Modal -> Modal: Render toutes les sections :
+Modal -> Modal: - Informations demandeur
+Modal -> Modal: - Motif de la demande original
+Modal -> Modal: - Motif de refus précédent (alert rouge)
+Modal -> Modal: - Contact d'urgence
+Modal -> Modal: - Résumé demande
+
+Modal --> Admin: Afficher modal avec toutes les infos\n+ motif de refus précédent
+
+Admin -> Modal: Saisit "Raison de réouverture"
+Modal -> Modal: Valider longueur (min 10, max 500)
+
+alt Validation OK
+    Modal --> Admin: Bouton "Réouvrir" activé
+else Validation échouée
+    Modal --> Admin: Afficher erreur "Minimum 10 caractères"
+    Modal --> Admin: Bouton "Réouvrir" désactivé
+end
+
+Admin -> Modal: Clique "Réouvrir la demande"
+Modal -> Hook: useReopenDemand({ demandId, reason })
+activate Hook
+
+' ============================================
+' OPTIMISTIC UPDATE
+' ============================================
+Hook -> QueryCache: cancelQueries(['caisse-imprevue-demands'])
+Hook -> QueryCache: getQueryData(['caisse-imprevue-demands', ...])
+QueryCache --> Hook: previousDemands
+
+note right of Hook
+  setQueryData avec fonction updater :
+  - Parcourir toutes les demandes
+  - Si d.id === demandId :
+    Mettre à jour status = 'REOPENED'
+    reopenedBy = currentAdminId
+    reopenedAt = now()
+  - Sinon : garder la demande inchangée
+end note
+
+Hook -> QueryCache: setQueryData(['caisse-imprevue-demands', ...], updater)
+QueryCache --> Hook: UI mise à jour
+
+Hook --> Admin: UI mise à jour (statut REOPENED)
+
+' ============================================
+' MUTATION SERVEUR
+' ============================================
+Hook -> Service: reopenDemand(demandId, reason)
+activate Service
+
+Service -> Service: Valider données métier
+Service -> Repo: update(demandId, {
+  status: 'REOPENED',
+  reopenReason: reason,
+  reopenedBy: currentAdminId,
+  reopenedAt: now(),
+  previousStatus: 'REJECTED',
+  updatedAt: now()
+})
+activate Repo
+
+note right of Repo
+  **Traçabilité réouverture** :
+  - reopenedBy : ID de l'admin qui réouvre
+  - reopenedAt : Date/heure précise de réouverture
+  - previousStatus : Statut précédent pour historique
+  - Permet d'auditer qui a fait quoi et quand
+end note
+
+Repo -> Firestore: updateDoc(docRef, {
+  status: 'REOPENED',
+  reopenReason: reason,
+  reopenedBy: currentAdminId,
+  reopenedAt: serverTimestamp(),
+  previousStatus: 'REJECTED',
+  updatedAt: serverTimestamp()
+})
+Firestore --> Repo: OK
+
+Repo --> Service: CaisseImprevueDemand (mis à jour)
+deactivate Repo
+
+Service --> Hook: CaisseImprevueDemand
+deactivate Service
+
+' ============================================
+' INVALIDATION CACHE
+' ============================================
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demands-stats'])
+Hook -> QueryCache: invalidateQueries(['caisse-imprevue-demand-detail', demandId])
+
+Hook -> QueryCache: Refetch en arrière-plan
+QueryCache --> Hook: Cache mis à jour
+
+Hook --> Modal: Success
+deactivate Hook
+
+Modal -> Modal: Fermer modal
+Modal -> Card: toast.success('Demande réouverte')
+Card --> Admin: Toast affiché
+
+Card -> Card: Mettre à jour UI :
+Card -> Card: - Statut → REOPENED (badge violet)
+Card -> Card: - Boutons "Accepter" et "Refuser" réapparaissent
+Card --> Admin: UI mise à jour
+
+deactivate Modal
+deactivate Card
+
+note right of Service
+  **Validation métier** :
+  - Vérifier statut REJECTED
+  - Vérifier raison >= 10 caractères
+  - Vérifier permissions admin
+  - Enregistrer reopenedBy et reopenedAt pour traçabilité
+end note
+
+@enduml

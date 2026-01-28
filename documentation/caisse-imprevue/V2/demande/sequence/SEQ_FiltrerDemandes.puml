@@ -1,0 +1,122 @@
+@startuml SEQ_FiltrerDemandes
+title Séquence : Filtrer les Demandes (V2)
+
+actor "Admin" as Admin
+participant "DemandFiltersV2\n(Component)" as Filters
+participant "ListDemandesV2\n(Component)" as List
+participant "useCaisseImprevueDemands\n(Hook)" as Hook
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Filters: Change filtre statut → "PENDING"
+activate Filters
+
+Filters -> List: onFilterChange(status PENDING)
+activate List
+
+List -> List: filters.status = PENDING
+List -> List: page = 1 (reset pagination)
+
+List -> Hook: useCaisseImprevueDemands(newFilters, 1, limit, ...)
+activate Hook
+
+Hook -> QueryCache: queryKey: ['caisse-imprevue-demands', newFilters, 1, limit, ...]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 5 min)
+
+alt Cache présent pour cette combinaison de filtres
+    QueryCache --> Hook: Données depuis cache
+    Hook --> List: PaginatedDemands (depuis cache)
+    List --> Admin: Afficher résultats filtrés (immédiat)
+else Cache absent
+    Hook -> Repo: getPaginated(newFilters, 1, limit, ...)
+    activate Repo
+    
+    Repo -> Repo: Construire contraintes :
+    Repo -> Repo: constraints.push(where('status', '==', 'PENDING'))
+    Repo -> Repo: constraints.push(orderBy('createdAt', 'desc'))
+    
+    Repo -> Firestore: getCountFromServer(query(collectionRef, ...constraints))
+    Firestore --> Repo: totalCount
+    
+    Repo -> Firestore: query(collectionRef, ...constraints, limit(10))
+    Firestore --> Repo: QuerySnapshot
+    
+    Repo -> Repo: Transform → Demand[]
+    Repo --> Hook: PaginatedDemands
+    
+    deactivate Repo
+    
+    Hook -> QueryCache: Mettre en cache (5 min)
+    QueryCache --> Hook: Cache mis à jour
+    
+    Hook --> List: PaginatedDemands
+end
+
+deactivate Hook
+
+List -> List: Scroll vers le haut
+List --> Admin: Afficher demandes PENDING
+deactivate List
+deactivate Filters
+
+' ============================================
+' COMBINAISON DE FILTRES
+' ============================================
+alt Admin ajoute filtre fréquence
+    Admin -> Filters: Change fréquence → "MONTHLY"
+    Filters -> List: onFilterChange(status PENDING, paymentFrequency MONTHLY)
+    
+    List -> List: filters = status PENDING, paymentFrequency MONTHLY
+    List -> List: page = 1
+    
+    List -> Hook: Refetch avec filtres combinés
+    Hook -> Repo: getPaginated(status PENDING, paymentFrequency MONTHLY, page 1, limit)
+    
+    Repo -> Repo: constraints.push(where('status', '==', 'PENDING'))
+    Repo -> Repo: constraints.push(where('paymentFrequency', '==', 'MONTHLY'))
+    
+    Repo -> Firestore: query avec filtres combinés
+    Firestore --> Repo: Résultats filtrés
+    
+    Repo --> Hook: PaginatedDemands
+    Hook --> List: Nouvelles données
+    List --> Admin: Afficher demandes PENDING + MONTHLY
+end
+
+' ============================================
+' RÉINITIALISER FILTRES
+' ============================================
+alt Admin clique "Réinitialiser"
+    Admin -> Filters: Clique "Réinitialiser filtres"
+    Filters -> List: onFilterReset()
+    
+    List -> List: filters = status all, paymentFrequency all, etc.
+    List -> List: page = 1
+    
+    List -> Hook: Refetch sans filtres
+    Hook -> Repo: getPaginated(sans filtres, page 1, limit)
+    Repo -> Firestore: query sans filtres
+    Firestore --> Repo: Toutes les demandes
+    
+    Repo --> Hook: PaginatedDemands
+    Hook --> List: Nouvelles données
+    List --> Admin: Afficher liste complète
+end
+
+note right of QueryCache
+  **Cache par combinaison** :
+  - Chaque combinaison de filtres = clé de cache unique
+  - staleTime: 5 min
+  - Réutilisé si même combinaison
+end note
+
+note right of Repo
+  **Index Firestore requis** :
+  - status + createdAt
+  - status + paymentFrequency + createdAt
+  - status + subscriptionCIID + createdAt
+  - etc. (toutes les combinaisons)
+end note
+
+@enduml
