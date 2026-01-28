@@ -107,6 +107,7 @@ export class DemandCIRepository implements IDemandCIRepository {
       convertedAt: toDate(data.convertedAt),
       decisionDate: toDate(data.decisionDate),
       convertedDate: toDate(data.convertedDate),
+      desiredStartDate: toDate(data.desiredStartDate) || new Date(), // Convertir desiredStartDate
     } as CaisseImprevueDemand
   }
 

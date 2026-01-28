@@ -41,7 +41,23 @@ export class DemandSimulationService {
   ): PaymentSchedule {
     const { paymentFrequency, subscriptionCIAmountPerMonth, subscriptionCIDuration, desiredStartDate } = demand
 
-    const startDate = new Date(desiredStartDate)
+    // Convertir desiredStartDate en Date valide
+    let startDate: Date
+    if (desiredStartDate instanceof Date) {
+      startDate = desiredStartDate
+    } else if (desiredStartDate && typeof (desiredStartDate as any).toDate === 'function') {
+      // Timestamp Firestore
+      startDate = (desiredStartDate as any).toDate()
+    } else {
+      // String ou autre
+      startDate = new Date(desiredStartDate)
+    }
+
+    // Vérifier que la date est valide
+    if (isNaN(startDate.getTime())) {
+      console.error('Date de début invalide:', desiredStartDate)
+      startDate = new Date() // Utiliser la date actuelle comme fallback
+    }
     const items: PaymentScheduleItem[] = []
     let cumulative = 0
 
