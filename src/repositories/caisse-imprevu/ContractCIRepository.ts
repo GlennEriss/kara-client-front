@@ -8,6 +8,16 @@ export class ContractCIRepository implements IContractCIRepository {
     readonly name = "ContractCIRepository";
 
     /**
+     * Convertit firstPaymentDate (Firestore Timestamp, Date, string) en string YYYY-MM-DD
+     */
+    private toDateString(value: any): string {
+        if (!value) return "";
+        if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.split("T")[0];
+        const date = value instanceof Date ? value : value?.toDate?.() ?? new Date(value);
+        return isNaN(date.getTime()) ? "" : date.toISOString().split("T")[0];
+    }
+
+    /**
      * Crée un nouveau contrat CI avec un ID personnalisé
      * @param {Omit<ContractCI, 'createdAt' | 'updatedAt'>} data - Données du contrat (incluant l'ID personnalisé)
      * @returns {Promise<ContractCI>} - Le contrat créé
@@ -66,12 +76,12 @@ export class ContractCIRepository implements IContractCIRepository {
             }
             
             const data = docSnap.data();
-            
             const contract: ContractCI = {
                 id: docSnap.id,
                 ...(data as any),
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                firstPaymentDate: this.toDateString(data.firstPaymentDate),
             };
             
             return contract;
@@ -106,6 +116,7 @@ export class ContractCIRepository implements IContractCIRepository {
                     ...(data as any),
                     createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                     updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                    firstPaymentDate: this.toDateString(data.firstPaymentDate),
                 };
 
                 contracts.push(contract);
@@ -144,6 +155,7 @@ export class ContractCIRepository implements IContractCIRepository {
                     ...(data as any),
                     createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                     updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                    firstPaymentDate: this.toDateString(data.firstPaymentDate),
                 };
 
                 contracts.push(contract);
@@ -250,6 +262,7 @@ export class ContractCIRepository implements IContractCIRepository {
                     ...(data as any),
                     createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                     updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                    firstPaymentDate: this.toDateString(data.firstPaymentDate),
                 };
 
                 contracts.push(contract);
@@ -312,6 +325,7 @@ export class ContractCIRepository implements IContractCIRepository {
                     ...(data as any),
                     createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                     updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                    firstPaymentDate: this.toDateString(data.firstPaymentDate),
                 });
             });
 

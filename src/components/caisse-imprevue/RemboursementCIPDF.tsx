@@ -384,7 +384,7 @@ const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: {
           <Text style={[styles.title, { fontSize: 14, marginTop: 10, marginBottom: 20 }]}>VOLET ENTRAIDE</Text>
 
           <Text style={styles.articleText}>
-            L'association LE KARA, ayant son siège social à Awoungou/Owendo, immatriculée au registre du Ministère de l'Intérieur, sous le numéro n° 0650/MIS/SG/DGELP/DPPALC/KMOG, atteste avoir procédé au remboursement de la totalité des versements annuels du membre , {member.firstName} {member.lastName.toUpperCase()}
+            L'association LE KARA, ayant son siège social à Awoungou/Owendo, immatriculée au régistre du Ministère de l'Intérieur, sous le numéro n° 0650/MIS/SG/DGELP/DPPALC/KMOG, atteste avoir procédé au remboursement de la totalité des versements du membre , {member.firstName} {member.lastName.toUpperCase()}
           </Text>
 
           <Text style={styles.articleText}>
@@ -400,23 +400,18 @@ const RemboursementCIPDF = ({ contract, refund, memberData, totalAmountPaid }: {
           </Text>
 
           <Text style={[styles.articleText, { marginLeft: 20, marginBottom: 15 }]}>
-            {numberToWords(nominalAmount)} francs CFA (lettres).
+            {numberToWords(nominalAmount)} FCFA (lettres).
           </Text>
 
           <Text style={[styles.articleText, { marginTop: 20 }]}>
-            Cette quittance est libératoire de tout engagement de l'association Kara vis-à-vis du membre. Elle est établie pour faire valoir ce que de droit.
+            Cette quittance est libératoire de tout engagement de l'Association Kara vis-à-vis du membre. Elle est établie pour faire valoir ce que de droit.
           </Text>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 50, minHeight: 100, border: '1px solid black', padding: 15 }}>
-            <View style={{ width: '48%', justifyContent: 'space-between' }}>
-              <Text style={styles.bold}>Signature du Secrétaire exécutif</Text>
-              <Text style={{ fontSize: 10, marginTop: 60 }}>Date : ____/____/________</Text>
-            </View>
-            <View style={{ width: '48%', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <Text style={styles.bold}>
-                Signature de l'épargnant{'\n'}(Précédée de la mention Lu et Approuvé)
-              </Text>
-              <Text style={{ fontSize: 10, marginTop: 60 }}>Date : ____/____/________</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 50, alignItems: 'flex-start' }}>
+            <Text style={styles.bold}>Signature du Secrétaire exécutif.</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.bold}>Signature de l'épargnant</Text>
+              <Text style={{ fontSize: 11, marginTop: 5 }}>(Précédée de la mention Lu et Approuvé)</Text>
             </View>
           </View>
         </View>
