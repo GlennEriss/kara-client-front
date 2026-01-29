@@ -1,39 +1,32 @@
 /**
- * Composant de recherche avec cache et debounce
- * 
- * Responsive : Mobile (pleine largeur), Desktop (max-width)
+ * Composant de recherche contrôlé avec debounce
+ *
+ * Utilisé par ListDemandesV2 — la recherche filtre la liste via searchQuery dans effectiveFilters.
+ * Une seule source de données : useCaisseImprevueDemands avec searchQuery.
+ *
+ * @see documentation/caisse-imprevue/V2/recherche-demande/sequence/SEQ_RechercherDemandes.puml
  */
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Search, X } from 'lucide-react'
-import { useDebounce } from '@/hooks/shared/useDebounce'
-import { useDemandSearch } from '@/domains/financial/caisse-imprevue/hooks'
-import type { DemandFilters } from '../../../entities/demand-filters.types'
 import { cn } from '@/lib/utils'
 
 interface DemandSearchV2Props {
-  onResultsChange?: (results: import('../../../entities/demand.types').CaisseImprevueDemand[]) => void
-  filters?: DemandFilters
+  /** Valeur contrôlée (searchQuery de ListDemandesV2) */
+  value: string
+  /** Callback quand l'utilisateur tape (ListDemandesV2 met à jour searchQuery et reset pagination) */
+  onChange: (value: string) => void
+  /** Debounce en ms — géré par le parent via useDebounce sur value */
   className?: string
 }
 
-export function DemandSearchV2({ onResultsChange, filters, className }: DemandSearchV2Props) {
-  const [query, setQuery] = useState('')
+export function DemandSearchV2({ value, onChange, className }: DemandSearchV2Props) {
   const [isFocused, setIsFocused] = useState(false)
-  const debouncedQuery = useDebounce(query, 300)
-
-  const { data: results, isLoading } = useDemandSearch(debouncedQuery, filters, 50)
-
-  useEffect(() => {
-    if (onResultsChange && results) {
-      onResultsChange(results)
-    }
-  }, [results, onResultsChange])
 
   const handleClear = () => {
-    setQuery('')
+    onChange('')
   }
 
   return (
@@ -55,16 +48,14 @@ export function DemandSearchV2({ onResultsChange, filters, className }: DemandSe
         <input
           type="text"
           placeholder="Rechercher par nom, prénom ou matricule..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className="flex-1 bg-transparent border-none outline-none text-gray-900 placeholder:text-gray-400 text-sm"
           data-testid="demand-search-input"
         />
-        {isLoading ? (
-          <div className="w-5 h-5 border-2 border-[#234D65] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-        ) : query ? (
+        {value ? (
           <button
             type="button"
             onClick={handleClear}

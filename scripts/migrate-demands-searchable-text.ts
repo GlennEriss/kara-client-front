@@ -21,7 +21,7 @@ import { initializeApp, cert, getApps } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import * as path from 'path'
 import * as fs from 'fs'
-import { generateDemandSearchableText } from '../src/utils/demandSearchableText'
+import { generateAllDemandSearchableTexts } from '../src/utils/demandSearchableText'
 
 // Configuration des environnements
 const ENV_CONFIG: Record<string, { projectId: string; description: string }> = {
@@ -108,16 +108,25 @@ async function migrate() {
       const memberFirstName = data.memberFirstName ?? ''
       const memberMatricule = data.memberMatricule ?? ''
 
-      const searchableText = generateDemandSearchableText(memberLastName, memberFirstName, memberMatricule)
+      const searchableTexts = generateAllDemandSearchableTexts(
+        memberLastName,
+        memberFirstName,
+        memberMatricule
+      )
 
-      // Vérifier si la mise à jour est nécessaire
-      if (data.searchableText === searchableText) {
+      // Vérifier si la mise à jour est nécessaire (tous les champs déjà présents et corrects)
+      const needsUpdate =
+        data.searchableText !== searchableTexts.searchableText ||
+        data.searchableTextFirstNameFirst !== searchableTexts.searchableTextFirstNameFirst ||
+        data.searchableTextMatriculeFirst !== searchableTexts.searchableTextMatriculeFirst
+
+      if (!needsUpdate) {
         skipped++
         continue
       }
 
       try {
-        batch.update(doc.ref, { searchableText })
+        batch.update(doc.ref, searchableTexts)
         batchCount++
         updated++
 
