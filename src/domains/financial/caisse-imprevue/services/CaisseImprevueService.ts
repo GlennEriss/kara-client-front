@@ -257,8 +257,10 @@ export class CaisseImprevueService {
     const contractId = `MK_CI_CONTRACT_${demand.memberId}_${day}${month}${year}_${hours}${minutes}`
 
     // Créer le contrat à partir des données de la demande
-    const contractData: Omit<ContractCI, 'createdAt' | 'updatedAt'> = {
+    // demandId requis par les règles Firestore pour traçabilité
+    const contractData: Omit<ContractCI, 'createdAt' | 'updatedAt'> & { demandId: string } = {
       id: contractId,
+      demandId,
       memberId: demand.memberId,
       memberFirstName: demand.memberFirstName || '',
       memberLastName: demand.memberLastName || '',

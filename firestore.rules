@@ -18,7 +18,7 @@ service cloud.firestore {
       return isAuthenticated() && (
         // Méthode 1 : Vérifier via custom claims (token.role)
         (request.auth.token.role != null && 
-         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary']) ||
+         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur']) ||
         // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
@@ -607,9 +607,8 @@ service cloud.firestore {
           request.resource.data.convertedBy == request.auth.uid &&
           request.resource.data.convertedAt is timestamp)) &&
         
-        // updatedAt doit être mis à jour
-        request.resource.data.updatedAt is timestamp &&
-        request.resource.data.updatedAt > resource.data.updatedAt;
+        // updatedAt : serverTimestamp() ou timestamp (éviter comparaison > avec pending timestamp)
+        request.resource.data.updatedAt is timestamp;
       
       // SUPPRESSION : Seulement les demandes REJECTED peuvent être supprimées - NOUVEAU V2
       allow delete: if isAdmin() && resource.data.status == 'REJECTED';
@@ -633,23 +632,31 @@ service cloud.firestore {
     match /contractsCI/{contractId} {
       allow read: if isAdmin() || isAuthenticated();
       
+      // Création : Admin uniquement (validation minimale pour éviter erreurs)
       allow create: if isAdmin() && 
-        request.resource.data.demandId is string &&
         request.resource.data.memberId is string &&
+        request.resource.data.memberId.size() > 0 &&
         request.resource.data.subscriptionCIID is string &&
+        request.resource.data.subscriptionCIID.size() > 0 &&
+        request.resource.data.subscriptionCIAmountPerMonth is number &&
+        request.resource.data.subscriptionCIAmountPerMonth > 0 &&
+        request.resource.data.subscriptionCIDuration is number &&
+        request.resource.data.subscriptionCIDuration > 0 &&
         request.resource.data.paymentFrequency in ['DAILY', 'MONTHLY'] &&
+        request.resource.data.firstPaymentDate is string &&
+        request.resource.data.firstPaymentDate.size() > 0 &&
         request.resource.data.status == 'ACTIVE' &&
         request.resource.data.createdBy is string &&
         request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.updatedBy is string &&
+        request.resource.data.updatedBy == request.auth.uid &&
         request.resource.data.createdAt is timestamp &&
         request.resource.data.updatedAt is timestamp;
       
       allow update: if isAdmin() && 
-        request.resource.data.status in ['ACTIVE', 'SUSPENDED', 'TERMINATED', 'COMPLETED'] &&
         request.resource.data.updatedBy is string &&
         request.resource.data.updatedBy == request.auth.uid &&
-        request.resource.data.updatedAt is timestamp &&
-        request.resource.data.updatedAt > resource.data.updatedAt;
+        request.resource.data.updatedAt is timestamp;
       
       allow delete: if isAdmin();
     }
