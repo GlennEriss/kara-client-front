@@ -1,6 +1,6 @@
 /**
  * Composant principal de liste des demandes Caisse Imprévue V2
- * 
+ *
  * Responsive : Mobile, Tablette, Desktop
  * Intègre : Stats, Tabs, Filtres, Recherche, Tri, Pagination, Vue Grid/Table
  * Layout moderne et bien structuré avec Card header
