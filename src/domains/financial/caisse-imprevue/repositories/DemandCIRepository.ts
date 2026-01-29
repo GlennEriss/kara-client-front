@@ -24,6 +24,7 @@ import {
   Timestamp,
 } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
+import { generateDemandSearchableText } from '@/utils/demandSearchableText'
 import type { IDemandCIRepository } from './IDemandCIRepository'
 import type {
   CaisseImprevueDemand,
@@ -247,10 +248,18 @@ export class DemandCIRepository implements IDemandCIRepository {
       // Générer l'ID standardisé
       const demandId = this.generateDemandId(memberMatricule)
 
+      // Générer searchableText pour la recherche (lastName + firstName + matricule)
+      const searchableText = generateDemandSearchableText(
+        data.memberLastName ?? '',
+        data.memberFirstName ?? '',
+        memberMatricule
+      )
+
       // Préparer les données avec traçabilité
       const demandData: any = {
         ...data,
         id: demandId,
+        searchableText,
         status: 'PENDING' as CaisseImprevueDemandStatus,
         priority: this.getStatusPriority('PENDING'),
         createdAt: serverTimestamp(),

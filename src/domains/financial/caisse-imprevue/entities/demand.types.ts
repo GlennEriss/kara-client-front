@@ -39,6 +39,9 @@ export interface CaisseImprevueDemand {
   memberContacts?: string[]
   memberMatricule: string
   memberPhone?: string
+
+  /** Texte de recherche normalisé (lastName + firstName + matricule) pour recherche par préfixe Firestore */
+  searchableText?: string
   
   // Motif de la demande (obligatoire, min 10, max 500 caractères)
   cause: string

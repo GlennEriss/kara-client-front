@@ -247,6 +247,7 @@ class CaisseImprevueDemand {
   + memberContacts?: string[]
   + memberMatricule: string
   + memberPhone?: string
+  + searchableText?: string
   + cause: string
   + subscriptionCIID: string
   + subscriptionCICode: string
@@ -442,7 +443,10 @@ note right of CaisseImprevueDemand
   **Collection Firestore:** caisseImprevueDemands
   Clé primaire: id
   Format ID: MK_DEMANDE_CI_{matricule}_{date}_{heure}
-  Index sur: status, createdAt, memberLastName, memberFirstName
+  Index sur: status, createdAt, memberLastName, memberFirstName, searchableText
+  **searchableText** : lastName + firstName + matricule (lowercase, sans accents)
+  Format: normalize(lastName + ' ' + firstName + ' ' + matricule)
+  Utilisé pour recherche par préfixe Firestore
   Traçabilité complète V2: createdBy, acceptedBy, rejectedBy, etc.
   Conversion: Peut créer un ContractCI si status = APPROVED
 end note

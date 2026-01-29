@@ -41,6 +41,10 @@
     "migrate-searchable-text": "tsx scripts/migrate-searchable-text.ts",
     "migrate-searchable-text:dev": "tsx scripts/migrate-searchable-text.ts dev",
     "migrate-searchable-text:prod": "tsx scripts/migrate-searchable-text.ts prod",
+    "migrate-demands-searchable-text": "tsx scripts/migrate-demands-searchable-text.ts",
+    "migrate-demands-searchable-text:dev": "tsx scripts/migrate-demands-searchable-text.ts dev",
+    "migrate-demands-searchable-text:preprod": "tsx scripts/migrate-demands-searchable-text.ts preprod",
+    "migrate-demands-searchable-text:prod": "tsx scripts/migrate-demands-searchable-text.ts prod",
     "sync-vercel-env:preview": "tsx scripts/sync-vercel-env.ts preview",
     "sync-vercel-env:prod": "tsx scripts/sync-vercel-env.ts production"
   },
