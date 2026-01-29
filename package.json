@@ -38,6 +38,9 @@
     "create-preprod-admin": "tsx scripts/create-preprod-admin-user.ts",
     "copy-user-to-admin": "tsx scripts/copy-user-to-admin.ts",
     "seed-geography": "tsx scripts/seed-geography-test-data.ts",
+    "migrate-searchable-text": "tsx scripts/migrate-searchable-text.ts",
+    "migrate-searchable-text:dev": "tsx scripts/migrate-searchable-text.ts dev",
+    "migrate-searchable-text:prod": "tsx scripts/migrate-searchable-text.ts prod",
     "sync-vercel-env:preview": "tsx scripts/sync-vercel-env.ts preview",
     "sync-vercel-env:prod": "tsx scripts/sync-vercel-env.ts production"
   },

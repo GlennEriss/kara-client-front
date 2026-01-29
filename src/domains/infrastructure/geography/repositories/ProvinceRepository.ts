@@ -12,10 +12,9 @@ export class ProvinceRepository implements IRepository {
    */
   async create(data: Omit<Province, 'id' | 'createdAt' | 'updatedAt'>): Promise<Province> {
     try {
-      const { collection, addDoc, db, Timestamp, serverTimestamp } = await getFirestore()
+      const { collection, addDoc, db, serverTimestamp } = await getFirestore()
       const collectionRef = collection(db, firebaseCollectionNames.provinces || 'provinces')
 
-      const now = new Date()
       const docData: any = {
         ...data,
         createdAt: serverTimestamp(),

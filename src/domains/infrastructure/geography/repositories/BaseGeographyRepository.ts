@@ -35,6 +35,82 @@ export abstract class BaseGeographyRepository<T extends { id: string; name: stri
   }
 
   /**
+   * Normalise le texte pour la recherche (lowercase, sans accents)
+   */
+  private normalizeSearchQuery(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+  }
+
+  /**
+   * Vérifie si un item matche la recherche (sur name et champs additionnels)
+   */
+  protected matchesSearch(item: T, searchLower: string): boolean {
+    const nameNorm = this.normalizeSearchQuery(item.name)
+    if (nameNorm.includes(searchLower)) return true
+    const code = (item as any).code
+    if (code && this.normalizeSearchQuery(code).includes(searchLower)) return true
+    return false
+  }
+
+  /**
+   * Fallback : charge sans filtre searchableText et filtre côté client
+   * Utilisé quand index en cours de build ou searchableText manquant
+   */
+  private async getPaginatedWithClientFilter(options: QueryOptions): Promise<PaginatedResult<T>> {
+    const { pageSize = 20, search, parentId, orderBy = 'name', orderDirection = 'asc' } = options
+    const searchLower = search ? this.normalizeSearchQuery(search) : ''
+
+    const {
+      collection,
+      query,
+      where,
+      orderBy: firestoreOrderBy,
+      limit,
+      getDocs,
+      db,
+    } = await getFirestore()
+
+    const collectionRef = collection(db, this.collectionName)
+    const constraints: any[] = []
+
+    if (parentId) {
+      constraints.push(where(this.getParentIdField(), '==', parentId))
+    }
+    constraints.push(firestoreOrderBy(orderBy, orderDirection))
+    constraints.push(limit(500)) // Charger plus pour filtrer (géographie = petit volume)
+
+    const q = query(collectionRef, ...constraints)
+    const snapshot = await getDocs(q)
+
+    const allItems: T[] = []
+    snapshot.forEach((doc) => {
+      allItems.push(this.mapDocToEntity(doc.id, doc.data()))
+    })
+
+    const filtered = searchLower
+      ? allItems.filter((item) => this.matchesSearch(item, searchLower))
+      : allItems
+
+    const pageSizeNum = typeof pageSize === 'number' ? pageSize : 20
+    const page = filtered.slice(0, pageSizeNum)
+    const hasNextPage = filtered.length > pageSizeNum
+
+    return {
+      data: page,
+      pagination: {
+        nextCursor: hasNextPage ? page[page.length - 1]?.id : null,
+        prevCursor: null,
+        hasNextPage,
+        hasPrevPage: false,
+        pageSize: pageSizeNum,
+      },
+    }
+  }
+
+  /**
    * Récupère les données paginées avec recherche côté serveur
    */
   async getPaginated(options: QueryOptions = {}): Promise<PaginatedResult<T>> {
@@ -47,7 +123,7 @@ export abstract class BaseGeographyRepository<T extends { id: string; name: stri
       orderDirection = 'asc',
     } = options
 
-    try {
+    const runServerSearch = async (): Promise<PaginatedResult<T>> => {
       const {
         collection,
         query,
@@ -64,22 +140,18 @@ export abstract class BaseGeographyRepository<T extends { id: string; name: stri
       const collectionRef = collection(db, this.collectionName)
       const constraints: any[] = []
 
-      // Filtre par parent si spécifié
       if (parentId) {
         constraints.push(where(this.getParentIdField(), '==', parentId))
       }
 
-      // Recherche par préfixe sur searchableText
       if (search && search.trim()) {
-        const searchLower = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        const searchLower = this.normalizeSearchQuery(search)
         constraints.push(where('searchableText', '>=', searchLower))
         constraints.push(where('searchableText', '<=', searchLower + '\uf8ff'))
       }
 
-      // Tri
       constraints.push(firestoreOrderBy(orderBy, orderDirection))
 
-      // Pagination avec cursor
       if (cursor) {
         const cursorDoc = await getDoc(doc(db, this.collectionName, cursor))
         if (cursorDoc.exists()) {
@@ -87,7 +159,6 @@ export abstract class BaseGeographyRepository<T extends { id: string; name: stri
         }
       }
 
-      // Limiter à pageSize + 1 pour savoir s'il y a une page suivante
       constraints.push(limit(pageSize + 1))
 
       const q = query(collectionRef, ...constraints)
@@ -98,13 +169,11 @@ export abstract class BaseGeographyRepository<T extends { id: string; name: stri
         items.push(this.mapDocToEntity(doc.id, doc.data()))
       })
 
-      // Vérifier s'il y a une page suivante
       const hasNextPage = items.length > pageSize
       if (hasNextPage) {
-        items.pop() // Retirer l'élément en trop
+        items.pop()
       }
 
-      // Curseurs
       const lastItem = items[items.length - 1]
       const firstItem = items[0]
 
@@ -118,7 +187,33 @@ export abstract class BaseGeographyRepository<T extends { id: string; name: stri
           pageSize,
         },
       }
-    } catch (error) {
+    }
+
+    try {
+      const result = await runServerSearch()
+
+      // Fallback : si recherche avec 0 résultats, peut-être searchableText manquant
+      if (search && search.trim() && result.data.length === 0) {
+        console.warn(
+          `[${this.name}] Recherche sur searchableText retourne 0 résultats, fallback recherche côté client (name/code)`
+        )
+        return this.getPaginatedWithClientFilter(options)
+      }
+
+      return result
+    } catch (error: any) {
+      const msg = error?.message || ''
+      const isIndexBuilding =
+        msg.includes('index is currently building') ||
+        msg.includes('requires an index') ||
+        msg.includes('The query requires an index')
+
+      if (isIndexBuilding && search && search.trim()) {
+        console.warn(
+          `[${this.name}] Index Firestore en cours de build, fallback recherche côté client`
+        )
+        return this.getPaginatedWithClientFilter(options)
+      }
       console.error(`Erreur lors de la récupération paginée de ${this.name}:`, error)
       throw error
     }
