@@ -202,13 +202,15 @@ export { updateMembershipRequest }
 // Cloud Function pour supprimer définitivement une demande rejetée
 export { deleteMembershipRequest } from './membership-requests/deleteMembershipRequest'
 
+// ⚠️ DÉSACTIVÉ : On utilise maintenant l'extension Firebase Algolia
 // Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
-export { syncToAlgolia } from './membership-requests/syncToAlgolia'
+// export { syncToAlgolia } from './membership-requests/syncToAlgolia'
 
 // ==================== CLOUD FUNCTIONS - MEMBERS ====================
 
+// ⚠️ DÉSACTIVÉ : On utilise maintenant l'extension Firebase Algolia
 // Cloud Function pour synchroniser les membres vers Algolia
-export { syncMembersToAlgolia } from './members/syncMembersToAlgolia'
+// export { syncMembersToAlgolia } from './members/syncMembersToAlgolia'
 
 // ==================== ALGOLIA EXTENSION - TRANSFORM FUNCTIONS ====================
 // Fonctions HTTP appelées par l’extension Firebase Algolia (TRANSFORM_FUNCTION)

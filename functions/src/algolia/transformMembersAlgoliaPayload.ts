@@ -67,7 +67,7 @@ function generateMemberSearchableText(userId: string, data: any): string {
  * https://{LOCATION}-{PROJECT_ID}.cloudfunctions.net/{TRANSFORM_FUNCTION}
  *
  * Payload: { data: <record> }
- * Response attendu: { result: <record_transformé> }
+ * Response attendu: { data: <record_transformé> }
  */
 export const transformMembersAlgoliaPayload = onRequest(
   { cors: false },
@@ -99,7 +99,8 @@ export const transformMembersAlgoliaPayload = onRequest(
       // Champ central de recherche (utilisé par le front)
       result.searchableText = generateMemberSearchableText(userId, result)
 
-      res.json({ result })
+      // IMPORTANT: L'extension Firebase Algolia attend { data: ... } et non { result: ... }
+      res.json({ data: result })
     } catch (e: any) {
       res.status(500).json({ error: e?.message || 'Unexpected error' })
     }

@@ -14,7 +14,16 @@ import * as admin from 'firebase-admin'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
 import { algoliasearch } from 'algoliasearch'
 
+// ⚠️ BYPASS TEMPORAIRE : L'extension Algolia semble avoir des problèmes
+// Mettre à true pour forcer l'utilisation de cette fonction custom
+const FORCE_CUSTOM_SYNC = true
+
 function isAlgoliaExtensionEnabled(): boolean {
+  // Si on force la sync custom, retourner false
+  if (FORCE_CUSTOM_SYNC) {
+    return false
+  }
+
   // Priorité: functions.config().algolia.use_extension > process.env
   let functionsConfig: any = {}
   try {
@@ -187,11 +196,13 @@ export const syncToAlgolia = onDocumentWritten(
     timeoutSeconds: 60,
   },
   async (event) => {
-    // Si l’extension Algolia est installée, éviter la double indexation
+    // Si l'extension Algolia est activée et fonctionne, éviter la double indexation
     if (isAlgoliaExtensionEnabled()) {
       console.log('⏭️ syncToAlgolia ignorée (Algolia extension activée)')
       return
     }
+
+    console.log('🔄 syncToAlgolia déclenché (FORCE_CUSTOM_SYNC=true)')
 
     const requestId = event.params.requestId
     const beforeData = event.data?.before.exists ? event.data.before.data() : null
@@ -260,7 +271,7 @@ export const syncToAlgolia = onDocumentWritten(
           indexName,
           body: algoliaObject,
         })
-        console.log(`✅ Document ${requestId} synchronisé vers Algolia`)
+        console.log(`✅ Document ${requestId} synchronisé vers Algolia (index: ${indexName})`)
       }
     } catch (error) {
       console.error(`❌ Erreur lors de la synchronisation vers Algolia pour ${requestId}:`, error)

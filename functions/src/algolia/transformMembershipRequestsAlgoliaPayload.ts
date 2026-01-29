@@ -49,7 +49,7 @@ function generateMembershipRequestSearchableText(requestId: string, data: any): 
  * Transform HTTP function for Algolia Firebase Extension (membership-requests).
  *
  * Payload: { data: <record> }
- * Response: { result: <record_transformé> }
+ * Response: { data: <record_transformé> }
  */
 export const transformMembershipRequestsAlgoliaPayload = onRequest(
   { cors: false },
@@ -73,7 +73,8 @@ export const transformMembershipRequestsAlgoliaPayload = onRequest(
       // Champ central de recherche (utilisé par le front)
       result.searchableText = generateMembershipRequestSearchableText(requestId, result)
 
-      res.json({ result })
+      // IMPORTANT: L'extension Firebase Algolia attend { data: ... } et non { result: ... }
+      res.json({ data: result })
     } catch (e: any) {
       res.status(500).json({ error: e?.message || 'Unexpected error' })
     }
