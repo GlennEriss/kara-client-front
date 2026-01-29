@@ -145,39 +145,43 @@ const { data: districts } = useQuery({
 - ✅ Tri alphabétique
 - ✅ Affichage direct dans le Combobox
 
-### 5. Quarters (Volume très élevé)
+### 5. Quarters (Volume variable par arrondissement)
 
-**Volume** : Très élevé (plusieurs centaines/milliers)  
-**Stratégie** : **Recherche uniquement (pas de chargement complet)**
+**Volume** : Variable par arrondissement (quelques dizaines à centaines)  
+**Stratégie** : **Chargement initial par arrondissement + Recherche pour filtrer** (approche hybride)
+
+> ⚠️ **Même problème que Communes** : Avec "recherche uniquement", le combobox Quartier restait vide à l'ouverture. Voir [COMMUNES-COMBOBOX-VIDE.md](./COMMUNES-COMBOBOX-VIDE.md).
 
 ```typescript
-// Recherche avec debounce : Pas de chargement initial
-const [searchTerm, setSearchTerm] = useState('')
-const debouncedSearch = useDebounce(searchTerm, 300)
+// APPROCHE HYBRIDE : Chargement initial + Recherche
 
-const { data: quarters, isLoading } = useQuery({
-  queryKey: ['quarters', 'search', debouncedSearch, districtId],
-  queryFn: () => geographieService.searchQuarters({
-    search: debouncedSearch,
-    districtId: districtId,
-    limit: 50 // Limiter les résultats
-  }),
-  enabled: debouncedSearch.length >= 2 && !!districtId, // Minimum 2 caractères
-  staleTime: 5 * 60 * 1000, // 5 minutes
-  cacheTime: 10 * 60 * 1000, // 10 minutes
+// 1. Chargement initial : Quartiers de l'arrondissement sélectionné
+const { data: initialQuarters = [] } = useQuery({
+  queryKey: ['quarters', districtId],
+  queryFn: () => geographieService.getQuartersByDistrictId(districtId),
+  enabled: !!districtId,
+  staleTime: 5 * 60 * 1000,
 })
 
-// Tri : Alphabétique par nom
+// 2. Recherche : Pour filtrer quand l'utilisateur tape (optionnel)
+const { quarters: searchResults } = useQuarterSearch({
+  districtId,
+  debounceDelay: 300,
+  limit: 50,
+})
+
+// 3. Affichage : Initiales si pas de recherche, sinon résultats de recherche
+const quartersToDisplay = searchTerm.trim().length >= 2 ? searchResults : initialQuarters
 ```
 
 **Caractéristiques** :
-- ❌ **Pas de chargement complet** (trop de quarters)
-- ✅ Recherche obligatoire (minimum 2 caractères)
-- ✅ Debounce de 300ms
-- ✅ Limite de résultats (50 max)
-- ✅ Cache par terme de recherche
+- ✅ **Chargement initial par arrondissement** (quartiers du district)
+- ✅ **Combobox rempli à l'ouverture** (liste visible sans taper)
+- ✅ Recherche optionnelle (pour filtrer/affiner)
+- ✅ Debounce de 300ms pour la recherche
+- ✅ Cache par arrondissement (5 min)
 - ✅ Tri alphabétique
-- ✅ Affichage uniquement après recherche
+- ✅ Affichage direct dans le Combobox
 
 ## 🔄 Gestion du cache React Query
 

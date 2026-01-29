@@ -1,6 +1,8 @@
-# Problème : Combobox Communes (Ville) vide à l'ouverture
+# Problème : Combobox Communes (Ville) et Quartiers vides à l'ouverture
 
-## 📋 Symptôme
+> **Note** : Ce document couvre le même problème pour les **Communes** (Ville) et les **Quartiers**. La solution est identique : approche hybride (chargement initial + recherche).
+
+## 📋 Symptôme - Communes
 
 Quand l'utilisateur sélectionne une province (ex. **ESTUAIRE**), le combobox **Ville** (communes) reste **vide** à l'ouverture. L'utilisateur doit obligatoirement taper au moins 2 caractères dans la recherche pour voir des communes s'afficher.
 
@@ -134,8 +136,14 @@ Le `CommuneCombobox` du formulaire d'adhésion devrait adopter la **même strat�
 | Recherche obligatoire (min 2 chars) | Recherche optionnelle (pour filtrer) |
 | UX frustrante | UX fluide, cohérente avec Province/Département |
 
+## 📋 Symptôme - Quartiers (même problème)
+
+Quand l'utilisateur sélectionne un arrondissement (ex. **1er arrondissement** de Libreville), le combobox **Quartier** reste **vide** à l'ouverture. L'utilisateur doit taper au moins 2 caractères pour voir des quartiers.
+
+**Solution appliquée** : Même approche hybride dans `QuarterCombobox.tsx` — chargement initial via `getQuartersByDistrictId(districtId)` + recherche optionnelle pour filtrer.
+
 ## 🔗 Références
 
-- [CACHE-ET-CAS-CRITIQUES.md](./CACHE-ET-CAS-CRITIQUES.md) - Stratégies de chargement (section Communes mise à jour)
+- [CACHE-ET-CAS-CRITIQUES.md](./CACHE-ET-CAS-CRITIQUES.md) - Stratégies de chargement (sections Communes et Quarters mises à jour)
 - [README.md](./README.md) - Vue d'ensemble du Step2 Adresse
 - `src/domains/auth/registration/components/steps/AddressStepV2.tsx` - Implémentation de référence
