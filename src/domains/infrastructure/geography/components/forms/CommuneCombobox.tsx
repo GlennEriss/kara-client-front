@@ -2,7 +2,9 @@
 
 import React, { useState, useMemo } from 'react'
 import { UseFormReturn } from 'react-hook-form'
+import { useQueries } from '@tanstack/react-query'
 import { RegisterFormData } from '@/schemas/schemas'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useDepartments } from '../../hooks/useGeographie'
 import { useCommuneSearch } from '../../hooks/useCommuneSearch'
 import { Button } from '@/components/ui/button'
@@ -43,36 +45,62 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
     selectedProvinceId || undefined
   )
 
-  // **IMPORTANT** : Recherche uniquement (pas de chargement complet)
-  // Stratégie : min 2 chars, debounce 300ms, limit 50, cache 5 min
-  const departmentIds = useMemo(() => departments.map(d => d.id), [departments])
-  const { 
-    searchTerm, 
-    setSearchTerm, 
-    communes: searchResults, 
-    isLoading: isLoadingSearch 
+  // Chargement initial : Communes des départements de la province (approche hybride)
+  // Permet d'afficher la liste à l'ouverture du combobox sans taper
+  const communeQueries = useQueries({
+    queries: departments.length > 0 && selectedProvinceId
+      ? departments.map((dept) => ({
+          queryKey: ['communes', dept.id],
+          queryFn: () => ServiceFactory.getGeographieService().getCommunesByDepartmentId(dept.id),
+          enabled: !!selectedProvinceId && departments.length > 0,
+          staleTime: 5 * 60 * 1000,
+        }))
+      : [],
+  })
+
+  const initialCommunes = useMemo(() => {
+    const all: Commune[] = []
+    communeQueries.forEach((q) => {
+      if (q.data) all.push(...q.data)
+    })
+    const unique = all.filter((c, i, arr) => i === arr.findIndex((x) => x.id === c.id))
+    return unique.sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+  }, [communeQueries])
+
+  const isLoadingInitialCommunes = communeQueries.some((q) => q.isLoading)
+
+  // Recherche : Pour filtrer quand l'utilisateur tape (optionnel)
+  const departmentIds = useMemo(() => departments.map((d) => d.id), [departments])
+  const {
+    searchTerm,
+    setSearchTerm,
+    communes: searchResults,
+    isLoading: isLoadingSearch,
   } = useCommuneSearch({
     departmentIds,
     debounceDelay: 300,
     limit: 50,
   })
 
-  const isLoading = isLoadingSearch || isLoadingDepartments
-  
-  // Trouver la commune sélectionnée dans les résultats de recherche
-  // Si elle n'est pas dans les résultats (car pas recherchée), on peut la charger individuellement
-  const selectedCommune = useMemo(() => {
-    // D'abord chercher dans les résultats de recherche
-    const foundInResults = searchResults.find(c => c.id === selectedCommuneId)
-    if (foundInResults) return foundInResults
-    
-    // Si pas trouvée et qu'on a un ID, on retourne undefined
-    // (la commune sera affichée via le nom stocké dans le formulaire)
-    return undefined
-  }, [searchResults, selectedCommuneId])
+  const isLoading = isLoadingSearch || isLoadingDepartments || isLoadingInitialCommunes
 
-  // Communes à afficher : résultats de recherche
-  const filteredCommunes = searchResults
+  // Communes à afficher : initiales si pas de recherche, sinon résultats de recherche
+  const filteredCommunes = useMemo(() => {
+    if (searchTerm.trim().length >= 2) {
+      return searchResults
+    }
+    return initialCommunes
+  }, [searchTerm, searchResults, initialCommunes])
+
+  // Trouver la commune sélectionnée (dans filteredCommunes ou initialCommunes)
+  const selectedCommune = useMemo(() => {
+    const found = filteredCommunes.find((c) => c.id === selectedCommuneId)
+    if (found) return found
+    // Fallback : chercher dans initialCommunes (si sélectionnée avant recherche)
+    const foundInInitial = initialCommunes.find((c) => c.id === selectedCommuneId)
+    if (foundInInitial) return foundInInitial
+    return undefined
+  }, [filteredCommunes, initialCommunes, selectedCommuneId])
 
   const handleSelect = (value: string) => {
     // cmdk passe la valeur du prop 'value' (commune.name), on doit trouver l'ID correspondant
@@ -127,7 +155,7 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
                 )}>
                   {!selectedProvinceId 
                     ? "Sélectionnez d'abord une province..." 
-                    : selectedCommune?.name || watch('address.city') || "Rechercher une ville"}
+                    : selectedCommune?.name || watch('address.city') || "Sélectionnez une ville"}
                 </span>
               </div>
               {isLoading ? (
@@ -144,7 +172,7 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
           >
             <Command shouldFilter={false}>
               <CommandInput 
-                placeholder="Rechercher une ville (min 2 caractères)..." 
+                placeholder="Rechercher ou parcourir les villes..." 
                 className="h-9"
                 value={searchTerm}
                 onValueChange={setSearchTerm}
@@ -159,12 +187,6 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
                   <CommandEmpty>
                     <div className="p-4 text-center text-sm text-gray-500" data-testid="step2-address-commune-locked-message">
                       Sélectionnez d'abord une province
-                    </div>
-                  </CommandEmpty>
-                ) : searchTerm.trim().length < 2 ? (
-                  <CommandEmpty>
-                    <div className="p-4 text-center text-sm text-gray-500">
-                      Tapez au moins 2 caractères pour rechercher...
                     </div>
                   </CommandEmpty>
                 ) : filteredCommunes.length === 0 ? (

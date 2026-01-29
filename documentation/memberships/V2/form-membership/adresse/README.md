@@ -27,20 +27,28 @@ L'idée du composant est **excellente** :
 |--------|--------|-----------|-----------|
 | **Provinces** | 9 | Chargement complet | ❌ Non |
 | **Départements** | ~50-60 | Chargement par province | 🟡 Optionnelle |
-| **Communes** | Très élevé | **Recherche uniquement** (min 2 chars) | ✅ Obligatoire |
+| **Communes** | Élevé par province | **Chargement initial + Recherche** (hybride) | 🟡 Optionnelle |
 | **Districts** | Max 7/commune | Chargement complet | ❌ Non |
 | **Quarters** | Très élevé | **Recherche uniquement** (min 2 chars) | ✅ Obligatoire |
 
 **Gestion du cache** :
 - **Provinces** : Cache 30 min (données stables)
 - **Départements** : Cache 30 min par province
-- **Communes** : Cache 5 min par terme de recherche (si on revient à une recherche précédente, utilise le cache)
+- **Communes** : Cache 5 min par département (chargement initial) + cache 5 min par terme de recherche
 - **Districts** : Cache 30 min par commune
 - **Quarters** : Cache 5 min par terme de recherche
 
 Voir **[CACHE-ET-CAS-CRITIQUES.md](./CACHE-ET-CAS-CRITIQUES.md)** pour les détails complets.
 
 ## 🐛 Problèmes Identifiés
+
+### 0. **Combobox Ville vide à l'ouverture** (priorité haute)
+
+**Symptôme** : Quand une province (ex. ESTUAIRE) est sélectionnée, le combobox Ville reste **vide**. L'utilisateur doit taper au moins 2 caractères pour voir des communes.
+
+**Cause** : Stratégie "recherche uniquement" — les communes ne sont chargées que lors d'une recherche (min 2 chars).
+
+**Solution** : Approche hybride — chargement initial des communes de la province + recherche optionnelle pour filtrer. Voir **[COMMUNES-COMBOBOX-VIDE.md](./COMMUNES-COMBOBOX-VIDE.md)**.
 
 ### 1. **Ajout de ville/commune qui ne passe pas**
 
