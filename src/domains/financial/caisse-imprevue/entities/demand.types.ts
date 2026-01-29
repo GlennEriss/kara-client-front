@@ -40,8 +40,12 @@ export interface CaisseImprevueDemand {
   memberMatricule: string
   memberPhone?: string
 
-  /** Texte de recherche normalisé (lastName + firstName + matricule) pour recherche par préfixe Firestore */
+  /** Texte de recherche normalisé (lastName firstName matricule) pour recherche par préfixe Firestore */
   searchableText?: string
+  /** Variante prénom en premier — permet recherche "alain owono" */
+  searchableTextFirstNameFirst?: string
+  /** Variante matricule en premier — permet recherche "8438" */
+  searchableTextMatriculeFirst?: string
   
   // Motif de la demande (obligatoire, min 10, max 500 caractères)
   cause: string

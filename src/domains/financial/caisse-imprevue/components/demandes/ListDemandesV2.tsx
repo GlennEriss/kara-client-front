@@ -1,6 +1,6 @@
 /**
  * Composant principal de liste des demandes Caisse Imprévue V2
- * 
+ *
  * Responsive : Mobile, Tablette, Desktop
  * Intègre : Stats, Tabs, Filtres, Recherche, Tri, Pagination, Vue Grid/Table
  * Layout moderne et bien structuré avec Card header
@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useDebounce } from '@/hooks/shared/useDebounce'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatusFilterChips } from './StatusFilterChips'
@@ -52,6 +53,8 @@ export function ListDemandesV2({
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [filters, setFilters] = useState<DemandFilters>({
     status: 'all',
     paymentFrequency: 'all',
@@ -66,10 +69,11 @@ export function ListDemandesV2({
   })
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
-  // Mettre à jour le filtre de statut selon l'onglet actif
+  // Mettre à jour le filtre de statut selon l'onglet actif + searchQuery
   const effectiveFilters: DemandFilters = {
     ...filters,
     status: activeTab === 'all' ? 'all' : (activeTab as any),
+    searchQuery: debouncedSearchQuery.trim().length >= 2 ? debouncedSearchQuery.trim() : undefined,
   }
 
   const { data: demandsData, isLoading } = useCaisseImprevueDemands(
@@ -80,7 +84,12 @@ export function ListDemandesV2({
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    setPagination({ ...pagination, page: 1 }) // Reset à la page 1
+    setPagination({ ...pagination, page: 1 })
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    setPagination({ ...pagination, page: 1 })
   }
 
   const handlePageChange = (page: number) => {
@@ -115,7 +124,11 @@ export function ListDemandesV2({
             <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
               {/* Recherche - Prend plus d'espace */}
               <div className="flex-1 min-w-0 lg:max-w-xl">
-                <DemandSearchV2 filters={effectiveFilters} className="w-full" />
+                <DemandSearchV2
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="w-full"
+                />
               </div>
 
               {/* Actions : Tri + Vue */}
@@ -247,11 +260,17 @@ export function ListDemandesV2({
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
-              <p className="text-kara-neutral-500 text-lg">Aucune demande trouvée</p>
+              <p className="text-kara-neutral-500 text-lg">
+                {effectiveFilters.searchQuery
+                  ? `Aucun résultat pour "${effectiveFilters.searchQuery}"`
+                  : 'Aucune demande trouvée'}
+              </p>
               <p className="text-kara-neutral-400 text-sm mt-2">
-                {effectiveFilters.status !== 'all'
-                  ? 'Essayez de changer de filtre ou de créer une nouvelle demande.'
-                  : 'Créez votre première demande pour commencer.'}
+                {effectiveFilters.searchQuery
+                  ? 'Essayez une autre recherche ou modifiez les filtres.'
+                  : effectiveFilters.status !== 'all'
+                    ? 'Essayez de changer de filtre ou de créer une nouvelle demande.'
+                    : 'Créez votre première demande pour commencer.'}
               </p>
             </div>
           </CardContent>

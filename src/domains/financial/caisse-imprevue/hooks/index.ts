@@ -5,7 +5,7 @@
 export * from './useCaisseImprevueDemands'
 export * from './useCaisseImprevueDemandsStats'
 export * from './useDemandDetail'
-export * from './useDemandSearch'
+// useDemandSearch déprécié : recherche intégrée à useCaisseImprevueDemands via searchQuery dans filters
 export * from './useSubscriptionsCICache'
 export * from './useDemandForm'
 export * from './useDemandFormPersistence'

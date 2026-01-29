@@ -24,7 +24,7 @@ import {
   Timestamp,
 } from '@/firebase/firestore'
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
-import { generateDemandSearchableText } from '@/utils/demandSearchableText'
+import { generateAllDemandSearchableTexts } from '@/utils/demandSearchableText'
 import type { IDemandCIRepository } from './IDemandCIRepository'
 import type {
   CaisseImprevueDemand,
@@ -126,33 +126,153 @@ export class DemandCIRepository implements IDemandCIRepository {
     return priorities[status] || 99
   }
 
+  /**
+   * Normalise une query de recherche (lowercase, trim, sans accents)
+   */
+  private normalizeSearchQuery(q: string): string {
+    return String(q)
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+  }
+
+  /**
+   * Recherche avec 3 variantes searchableText (nom, prénom ou matricule en premier)
+   * Fusionne les résultats des 3 requêtes pour permettre recherche flexible
+   */
+  private async getPaginatedWithSearchMerge(
+    filters: DemandFilters,
+    pagination: PaginationParams,
+    sort: SortParams,
+    normalizedQuery: string
+  ): Promise<PaginatedDemands> {
+    const collectionRef = collection(db, this.collectionName)
+    const searchFields = [
+      'searchableText',
+      'searchableTextFirstNameFirst',
+      'searchableTextMatriculeFirst',
+    ] as const
+    const fetchLimit = Math.min(100, pagination.limit * 3) // Suffisant pour déduplication
+
+    const buildConstraints = (searchField: string) => {
+      const c: any[] = []
+      if (filters.status && filters.status !== 'all') {
+        c.push(where('status', '==', filters.status))
+      }
+      if (filters.paymentFrequency && filters.paymentFrequency !== 'all') {
+        c.push(where('paymentFrequency', '==', filters.paymentFrequency))
+      }
+      if (filters.subscriptionCIID) {
+        c.push(where('subscriptionCIID', '==', filters.subscriptionCIID))
+      }
+      if (filters.memberId) {
+        c.push(where('memberId', '==', filters.memberId))
+      }
+      c.push(where(searchField, '>=', normalizedQuery))
+      c.push(where(searchField, '<=', normalizedQuery + '\uf8ff'))
+      c.push(orderBy(searchField, 'asc'))
+      if (sort.sortBy === 'date') {
+        c.push(orderBy('createdAt', sort.sortOrder))
+      } else {
+        c.push(orderBy('memberLastName', sort.sortOrder))
+        c.push(orderBy('memberFirstName', sort.sortOrder))
+      }
+      return c
+    }
+
+    const [snap1, snap2, snap3] = await Promise.all(
+      searchFields.map((field) =>
+        getDocs(query(collectionRef, ...buildConstraints(field), fbLimit(fetchLimit)))
+      )
+    )
+
+    const seen = new Set<string>()
+    const merged: CaisseImprevueDemand[] = []
+    for (const snap of [snap1, snap2, snap3]) {
+      snap.forEach((docSnap) => {
+        if (!seen.has(docSnap.id)) {
+          seen.add(docSnap.id)
+          merged.push(this.transformDocument(docSnap))
+        }
+      })
+    }
+
+    // Trier
+    if (filters.status === 'all' || !filters.status) {
+      merged.sort((a, b) => {
+        const pA = this.getStatusPriority(a.status)
+        const pB = this.getStatusPriority(b.status)
+        if (pA !== pB) return pA - pB
+        return sort.sortOrder === 'desc'
+          ? b.createdAt.getTime() - a.createdAt.getTime()
+          : a.createdAt.getTime() - b.createdAt.getTime()
+      })
+    } else if (sort.sortBy === 'alphabetical') {
+      merged.sort((a, b) => {
+        const ln = (a.memberLastName || '').localeCompare(b.memberLastName || '')
+        if (ln !== 0) return sort.sortOrder === 'desc' ? -ln : ln
+        const fn = (a.memberFirstName || '').localeCompare(b.memberFirstName || '')
+        return sort.sortOrder === 'desc' ? -fn : fn
+      })
+    } else {
+      merged.sort((a, b) =>
+        sort.sortOrder === 'desc'
+          ? b.createdAt.getTime() - a.createdAt.getTime()
+          : a.createdAt.getTime() - b.createdAt.getTime()
+      )
+    }
+
+    const total = merged.length
+    const totalPages = Math.ceil(total / pagination.limit)
+    const start = (pagination.page - 1) * pagination.limit
+    const items = merged.slice(start, start + pagination.limit)
+    const lastItem = items[items.length - 1]
+    const firstItem = items[0]
+
+    return {
+      items,
+      pagination: {
+        page: pagination.page,
+        limit: pagination.limit,
+        total,
+        totalPages,
+        hasNextPage: pagination.page < totalPages,
+        hasPreviousPage: pagination.page > 1,
+        nextCursor: lastItem?.id,
+        previousCursor: firstItem?.id,
+      },
+    }
+  }
+
   async getPaginated(
     filters: DemandFilters = {},
     pagination: PaginationParams = { page: 1, limit: 10 },
     sort: SortParams = { sortBy: 'date', sortOrder: 'desc' }
   ): Promise<PaginatedDemands> {
     try {
+      const hasSearchQuery = Boolean(filters.searchQuery && filters.searchQuery.trim().length >= 2)
+      const normalizedQuery = hasSearchQuery ? this.normalizeSearchQuery(filters.searchQuery!) : ''
+
+      if (hasSearchQuery) {
+        return this.getPaginatedWithSearchMerge(filters, pagination, sort, normalizedQuery)
+      }
+
       const collectionRef = collection(db, this.collectionName)
       const constraints: any[] = []
 
-      // Filtres
       if (filters.status && filters.status !== 'all') {
         constraints.push(where('status', '==', filters.status))
       }
-
       if (filters.paymentFrequency && filters.paymentFrequency !== 'all') {
         constraints.push(where('paymentFrequency', '==', filters.paymentFrequency))
       }
-
       if (filters.subscriptionCIID) {
         constraints.push(where('subscriptionCIID', '==', filters.subscriptionCIID))
       }
-
       if (filters.memberId) {
         constraints.push(where('memberId', '==', filters.memberId))
       }
-
-      // Tri
       if (sort.sortBy === 'date') {
         constraints.push(orderBy('createdAt', sort.sortOrder))
       } else if (sort.sortBy === 'alphabetical') {
@@ -160,47 +280,34 @@ export class DemandCIRepository implements IDemandCIRepository {
         constraints.push(orderBy('memberFirstName', sort.sortOrder))
       }
 
-      // Calculer le total
       const countQuery = query(collectionRef, ...constraints)
       const countSnapshot = await getCountFromServer(countQuery)
       const total = countSnapshot.data().count
 
-      // Pagination cursor-based
       let queryRef = query(collectionRef, ...constraints)
-
-      // Si on n'est pas à la première page, utiliser startAfter
       if (pagination.page > 1 && pagination.cursor) {
         const cursorDoc = await getDoc(doc(db, this.collectionName, pagination.cursor))
         if (cursorDoc.exists()) {
           queryRef = query(queryRef, startAfter(cursorDoc))
         }
       }
-
-      // Limite
       queryRef = query(queryRef, fbLimit(pagination.limit))
 
-      // Exécuter la requête
       const snapshot = await getDocs(queryRef)
       const items: CaisseImprevueDemand[] = []
-
       snapshot.forEach((docSnap) => {
         items.push(this.transformDocument(docSnap))
       })
 
-      // Si tab "Toutes", trier par priorité de statut puis par date
       if (filters.status === 'all' || !filters.status) {
         items.sort((a, b) => {
           const priorityA = this.getStatusPriority(a.status)
           const priorityB = this.getStatusPriority(b.status)
-          if (priorityA !== priorityB) {
-            return priorityA - priorityB
-          }
-          // Si même priorité, trier par date décroissante
+          if (priorityA !== priorityB) return priorityA - priorityB
           return b.createdAt.getTime() - a.createdAt.getTime()
         })
       }
 
-      // Calculer les métadonnées de pagination
       const totalPages = Math.ceil(total / pagination.limit)
       const lastDoc = items.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null
       const firstDoc = items.length > 0 ? snapshot.docs[0] : null
@@ -248,8 +355,8 @@ export class DemandCIRepository implements IDemandCIRepository {
       // Générer l'ID standardisé
       const demandId = this.generateDemandId(memberMatricule)
 
-      // Générer searchableText pour la recherche (lastName + firstName + matricule)
-      const searchableText = generateDemandSearchableText(
+      // Générer les 3 variantes searchableText pour recherche flexible (nom, prénom ou matricule en premier)
+      const searchableTexts = generateAllDemandSearchableTexts(
         data.memberLastName ?? '',
         data.memberFirstName ?? '',
         memberMatricule
@@ -259,7 +366,7 @@ export class DemandCIRepository implements IDemandCIRepository {
       const demandData: any = {
         ...data,
         id: demandId,
-        searchableText,
+        ...searchableTexts,
         status: 'PENDING' as CaisseImprevueDemandStatus,
         priority: this.getStatusPriority('PENDING'),
         createdAt: serverTimestamp(),
@@ -441,20 +548,26 @@ export class DemandCIRepository implements IDemandCIRepository {
     convertedBy: string
   ): Promise<CaisseImprevueDemand> {
     try {
+      if (!input.contractId) {
+        throw new Error('contractId est requis pour convertir une demande en contrat')
+      }
+
       const demandRef = doc(db, this.collectionName, id)
       const now = Timestamp.now()
 
-      await updateDoc(demandRef, {
+      // Firestore rejette les valeurs undefined - ne pas les inclure
+      const updateData: Record<string, unknown> = {
         status: 'CONVERTED' as CaisseImprevueDemandStatus,
         priority: this.getStatusPriority('CONVERTED'),
         contractId: input.contractId,
-        // Traçabilité V2
         convertedBy,
         convertedAt: now,
         convertedDate: now,
         updatedBy: convertedBy,
         updatedAt: serverTimestamp(),
-      })
+      }
+
+      await updateDoc(demandRef, updateData)
 
       const updated = await this.getById(id)
       if (!updated) {
