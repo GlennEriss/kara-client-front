@@ -57,6 +57,24 @@ export async function updateRefund(contractId: string, refundId: string, updates
   return true
 }
 
+/**
+ * Met à jour un remboursement CI (contractsCI/{contractId}/earlyRefunds).
+ */
+export async function updateRefundCI(contractId: string, refundId: string, updates: any) {
+  const { db, doc, updateDoc, serverTimestamp } = await getFirestore() as any
+  const ref = doc(db, `${firebaseCollectionNames.contractsCI}/${contractId}/earlyRefunds`, refundId)
+  const payload: any = { ...updates, updatedAt: serverTimestamp() }
+  if (updates.status === 'APPROVED') {
+    payload.approvedAt = payload.approvedAt || new Date()
+  }
+  if (updates.status === 'PAID') {
+    payload.paidAt = payload.paidAt || new Date()
+  }
+  Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
+  await updateDoc(ref, payload)
+  return true
+}
+
 export async function deleteRefund(contractId: string, refundId: string) {
   const { db, doc, deleteDoc } = await getFirestore() as any
   const ref = doc(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`, refundId)

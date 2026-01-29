@@ -521,6 +521,7 @@ export interface ContractsCIFilters {
 
 - **Architecture globale** : [`../architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md)
 - **Module caisse-imprevue** : Composants existants dans `src/components/caisse-imprevue/`
+- **Remboursements (retrait anticipé, remboursement final)** : [`REMBOURSEMENTS_CI.md`](./REMBOURSEMENTS_CI.md)
 - **Système de notifications** : [`../notifications/ARCHITECTURE_NOTIFICATIONS.md`](../notifications/ARCHITECTURE_NOTIFICATIONS.md)
 - **Jobs planifiés** : [`../notifications/NF6_JOBS_PLANIFIES.md`](../notifications/NF6_JOBS_PLANIFIES.md)
 

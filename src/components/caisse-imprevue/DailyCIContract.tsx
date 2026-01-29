@@ -41,7 +41,7 @@ import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-uti
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
-import { listRefundsCI } from '@/db/caisse/refunds.db'
+import { listRefundsCI, updateRefundCI } from '@/db/caisse/refunds.db'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
 import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
@@ -299,6 +299,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
   const [showReconnaissanceAccompagnement, setShowReconnaissanceAccompagnement] = useState(false)
+  const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -688,12 +689,12 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
 
   // Calculer les conditions pour les remboursements
   const paidCount = payments.filter((p: any) => p.status === 'PAID').length
-  const allPaid = payments.length > 0 && paidCount === payments.length
+  const totalMonths = contract.subscriptionCIDuration || 0
+  const allPaid = totalMonths > 0 && paidCount >= totalMonths
   const canEarly = paidCount >= 1 && !allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
   const canFinal = allPaid && contract.status !== 'CANCELED' && contract.status !== 'FINISHED'
 
   // Calculer la progression des mois payés
-  const totalMonths = contract.subscriptionCIDuration || 0
   const progress = totalMonths > 0 ? Math.min(100, (paidCount / totalMonths) * 100) : 0
   const hasFinalRefund = refunds.some((r: any) => r.type === 'FINAL' && r.status !== 'ARCHIVED')
   const hasEarlyRefund = refunds.some((r: any) => r.type === 'EARLY' && r.status !== 'ARCHIVED')
@@ -1431,6 +1432,16 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {r.status === 'PENDING' ? 'En attente' : r.status === 'APPROVED' ? 'Approuvé' : r.status === 'PAID' ? 'Payé' : 'Archivé'}
                             </Badge>
+                            {r.status === 'PENDING' && (
+                              <p className="text-xs text-amber-600 mt-1.5">
+                                En attente d&apos;approbation par l&apos;administrateur
+                              </p>
+                            )}
+                            {r.status === 'APPROVED' && (
+                              <p className="text-xs text-blue-600 mt-1.5">
+                                En attente du versement effectif au membre
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1449,6 +1460,52 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                           <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
                         </div>
                       </div>
+
+                      {(r.status === 'PENDING' || r.status === 'APPROVED') && (
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                          {r.status === 'PENDING' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-green-300 text-green-600 hover:bg-green-50"
+                                onClick={() => setConfirmApproveRefundId(r.id)}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approuver
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                                onClick={() => setShowRemboursementPdf(true)}
+                              >
+                                <Download className="h-4 w-4 mr-1" />
+                                Document de remboursement
+                              </Button>
+                            </>
+                          )}
+                          {r.status === 'APPROVED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-green-300 text-green-600 hover:bg-green-50"
+                              onClick={async () => {
+                                try {
+                                  await updateRefundCI(contract.id, r.id, { status: 'PAID' })
+                                  await reloadRefunds()
+                                  toast.success('Remboursement marqué comme payé')
+                                } catch (err: any) {
+                                  toast.error(err?.message || 'Erreur lors de la mise à jour')
+                                }
+                              }}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Marquer comme payé
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })
@@ -1456,6 +1513,38 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal de confirmation d'approbation du remboursement */}
+        {confirmApproveRefundId && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
+              <div className="text-base font-semibold">Confirmer l&apos;approbation</div>
+              <p className="mt-1 text-sm text-slate-600">Voulez-vous approuver ce remboursement ?</p>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setConfirmApproveRefundId(null)}>
+                  Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-gradient-to-r from-[#234D65] to-[#2c5a73] text-white"
+                  onClick={async () => {
+                    if (!confirmApproveRefundId) return
+                    try {
+                      await updateRefundCI(contract.id, confirmApproveRefundId, { status: 'APPROVED' })
+                      setConfirmApproveRefundId(null)
+                      await reloadRefunds()
+                      toast.success('Remboursement approuvé')
+                    } catch (err: any) {
+                      toast.error(err?.message || 'Erreur lors de l\'approbation')
+                    }
+                  }}
+                >
+                  Confirmer
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modale de saisie de la cause du retrait */}
         {showReasonModal && (
