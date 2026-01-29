@@ -548,20 +548,26 @@ export class DemandCIRepository implements IDemandCIRepository {
     convertedBy: string
   ): Promise<CaisseImprevueDemand> {
     try {
+      if (!input.contractId) {
+        throw new Error('contractId est requis pour convertir une demande en contrat')
+      }
+
       const demandRef = doc(db, this.collectionName, id)
       const now = Timestamp.now()
 
-      await updateDoc(demandRef, {
+      // Firestore rejette les valeurs undefined - ne pas les inclure
+      const updateData: Record<string, unknown> = {
         status: 'CONVERTED' as CaisseImprevueDemandStatus,
         priority: this.getStatusPriority('CONVERTED'),
         contractId: input.contractId,
-        // Traçabilité V2
         convertedBy,
         convertedAt: now,
         convertedDate: now,
         updatedBy: convertedBy,
         updatedAt: serverTimestamp(),
-      })
+      }
+
+      await updateDoc(demandRef, updateData)
 
       const updated = await this.getById(id)
       if (!updated) {
