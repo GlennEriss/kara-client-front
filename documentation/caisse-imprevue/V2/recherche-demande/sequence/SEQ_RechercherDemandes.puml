@@ -1,0 +1,193 @@
+@startuml SEQ_RechercherDemandes
+title Séquence : Rechercher des Demandes avec searchableText (V2)
+
+actor "Admin" as Admin
+participant "ListDemandesV2\n(Component)" as List
+participant "DemandSearchV2\n(Component)" as Search
+participant "useDebounce\n(Hook)" as Debounce
+participant "useCaisseImprevueDemands\n(Hook)" as ListHook
+participant "DemandCIRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+participant "PaginationWithEllipses\n(Component)" as Pagination
+
+Admin -> List: Accède à /caisse-imprevue/demandes
+activate List
+
+List -> List: État : searchQuery = ''
+List -> List: État : activeTab, filters, pagination, sort
+List -> List: effectiveFilters = { ...filters, status: activeTab, searchQuery }
+
+' ============================================
+' CHARGEMENT INITIAL (sans recherche)
+' ============================================
+List -> ListHook: useCaisseImprevueDemands(effectiveFilters, pagination, sort)
+activate ListHook
+
+ListHook -> QueryCache: queryKey: ['caisse-imprevue-demands', filters, pagination, sort]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 5 min)
+
+alt Cache absent ou stale
+    ListHook -> Repo: getPaginated(filters, pagination, sort)
+    activate Repo
+    
+    Repo -> Repo: constraints = []
+    Repo -> Repo: if status != 'all': where('status', '==', filters.status)
+    Repo -> Repo: if paymentFrequency: where('paymentFrequency', '==', X)
+    Repo -> Repo: orderBy selon sortBy/sortOrder
+    
+    Repo -> Firestore: getCountFromServer(query)
+    Firestore --> Repo: totalCount
+    
+    Repo -> Firestore: query(..., limit(pageSize), startAfter(cursor))
+    Firestore --> Repo: QuerySnapshot
+    
+    Repo --> ListHook: PaginatedDemands { items, pagination }
+    deactivate Repo
+    
+    ListHook -> QueryCache: Mettre en cache (5 min)
+end
+
+ListHook --> List: { data: PaginatedDemands, isLoading }
+deactivate ListHook
+
+List --> Admin: Afficher liste (Grid ou Table)
+List -> Pagination: Render pagination (haut et bas)
+
+' ============================================
+' ADMIN TAPE DANS LA RECHERCHE
+' ============================================
+Admin -> Search: Tape "Dupont" dans recherche
+activate Search
+
+Search -> Search: value = "Dupont"
+Search -> List: onChange("Dupont")
+List -> List: searchQuery = "Dupont"
+List -> List: page = 1 (reset)
+
+Search -> Debounce: useDebounce("Dupont", 300ms)
+activate Debounce
+Debounce -> Debounce: Attendre 300ms
+Debounce --> Search: debouncedQuery = "Dupont"
+deactivate Debounce
+
+' ============================================
+' REFETCH AVEC SEARCHQUERY
+' ============================================
+List -> List: effectiveFilters.searchQuery = "dupont" (normalized)
+List -> ListHook: Refetch avec searchQuery dans filters
+activate ListHook
+
+ListHook -> QueryCache: queryKey: ['caisse-imprevue-demands', filters avec searchQuery, pagination, sort]
+QueryCache -> QueryCache: Cache invalidé (nouveaux filters)
+
+ListHook -> Repo: getPaginated(filters avec searchQuery, pagination, sort)
+activate Repo
+
+Repo -> Repo: normalizedQuery = "dupont".toLowerCase().trim().normalize('NFD')
+Repo -> Repo: constraints = []
+
+' Filtres equality
+alt status != 'all'
+    Repo -> Repo: constraints.push(where('status', '==', filters.status))
+end
+alt paymentFrequency
+    Repo -> Repo: constraints.push(where('paymentFrequency', '==', filters.paymentFrequency))
+end
+
+' Recherche searchableText (range)
+Repo -> Repo: constraints.push(where('searchableText', '>=', normalizedQuery))
+Repo -> Repo: constraints.push(where('searchableText', '<=', normalizedQuery + '\uf8ff'))
+
+' OrderBy (searchableText obligatoire pour range)
+Repo -> Repo: constraints.push(orderBy('searchableText', 'asc'))
+alt sortBy == 'date'
+    Repo -> Repo: constraints.push(orderBy('createdAt', sortOrder))
+else sortBy == 'alphabetical'
+    Repo -> Repo: constraints.push(orderBy('memberLastName', sortOrder))
+    Repo -> Repo: constraints.push(orderBy('memberFirstName', sortOrder))
+end
+
+' Total
+Repo -> Firestore: getCountFromServer(query(collectionRef, ...constraints))
+Firestore --> Repo: totalCount
+
+' Pagination
+alt page > 1
+    Repo -> Firestore: getDoc(cursor)
+    Firestore --> Repo: cursorDoc
+    Repo -> Repo: constraints.push(startAfter(cursorDoc))
+end
+Repo -> Repo: constraints.push(limit(pageSize))
+
+' Exécuter requête
+Repo -> Firestore: query(collectionRef, ...constraints)
+Firestore --> Repo: QuerySnapshot
+
+Repo -> Repo: Transform documents → CaisseImprevueDemand[]
+Repo --> ListHook: PaginatedDemands { items, pagination: { nextCursor, previousCursor, totalPages, ... } }
+deactivate Repo
+
+ListHook -> QueryCache: Mettre en cache (5 min)
+ListHook --> List: { data: PaginatedDemands, isLoading: false }
+deactivate ListHook
+
+List --> Admin: Afficher résultats filtrés (pagination correcte)
+deactivate Search
+
+' ============================================
+' PAGINATION (page suivante)
+' ============================================
+Admin -> Pagination: Clique "Suivant"
+activate Pagination
+
+Pagination -> List: onPageChange(page + 1)
+List -> List: page = page + 1
+List -> List: pagination.cursor = nextCursor
+
+List -> ListHook: Refetch avec page + 1 et cursor
+ListHook -> Repo: getPaginated(filters, { page: 2, cursor: nextCursor }, sort)
+Repo -> Firestore: query(..., startAfter(lastDoc), limit(pageSize))
+Firestore --> Repo: Page 2
+
+Repo --> ListHook: PaginatedDemands
+ListHook --> List: Nouvelles données
+List --> Admin: Afficher page 2
+deactivate Pagination
+
+' ============================================
+' ADMIN EFFACE LA RECHERCHE
+' ============================================
+Admin -> Search: Efface le champ
+Search -> List: onChange("")
+List -> List: searchQuery = ''
+List -> List: effectiveFilters.searchQuery = undefined
+List -> List: page = 1 (reset)
+
+List -> ListHook: Refetch sans searchQuery
+ListHook -> Repo: getPaginated(filters sans searchQuery, pagination, sort)
+Repo -> Firestore: query SANS where searchableText
+Firestore --> Repo: Liste complète
+
+List --> Admin: Afficher liste complète
+deactivate List
+
+note right of QueryCache
+  **Stratégie cache** :
+  - Une seule source : useCaisseImprevueDemands
+  - queryKey inclut searchQuery dans filters
+  - staleTime: 5 min
+  - Pas de useDemandSearch séparé
+end note
+
+note right of Repo
+  **Recherche Firestore searchableText** :
+  - where('searchableText', '>=', X)
+  - where('searchableText', '<=', X + '\uf8ff')
+  - orderBy('searchableText', 'asc') obligatoire
+  - Pagination cursor-based (startAfter)
+  - Index composites requis
+  - Pas de filtre côté client
+end note
+
+@enduml

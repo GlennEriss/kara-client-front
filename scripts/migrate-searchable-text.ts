@@ -1,21 +1,28 @@
 /**
  * Script de migration pour ajouter le champ `searchableText` aux documents existants
- * 
+ *
  * Ce champ est utilisé pour la recherche côté serveur avec préfixe
- * 
+ *
  * Usage:
- *   npx ts-node scripts/migrate-searchable-text.ts
- * 
- * Ou avec Firebase Admin SDK directement si problèmes de permissions
+ *   pnpm migrate-searchable-text:dev   # Base DEV (kara-gabon-dev)
+ *   pnpm migrate-searchable-text:prod  # Base PROD (kara-gabon)
+ *
+ * Ou directement :
+ *   pnpm tsx scripts/migrate-searchable-text.ts dev
+ *   pnpm tsx scripts/migrate-searchable-text.ts prod
  */
 
 import { initializeApp, cert, getApps } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import * as path from 'path'
+import * as fs from 'fs'
 
-// Configuration
-const SERVICE_ACCOUNT_PATH = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-  path.join(__dirname, '../service-accounts/kara-gabon-dev-firebase-adminsdk-fbsvc-449838b888.json')
+// Configuration des environnements
+const ENV_CONFIG: Record<string, { projectId: string; description: string }> = {
+  dev: { projectId: 'kara-gabon-dev', description: 'Développement' },
+  preprod: { projectId: 'kara-gabon-preprod', description: 'Pré-production' },
+  prod: { projectId: 'kara-gabon', description: 'Production' },
+}
 
 const COLLECTIONS = [
   { name: 'provinces', fields: ['name', 'code'] },
@@ -37,20 +44,59 @@ function generateSearchableText(...fields: (string | undefined | null)[]): strin
     .replace(/[\u0300-\u036f]/g, '') // Supprime les accents
 }
 
-async function migrate() {
-  console.log('🚀 Démarrage de la migration...\n')
+function getServiceAccountPath(env: string): string {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return process.env.GOOGLE_APPLICATION_CREDENTIALS
+  }
+  const serviceAccountsDir = path.join(process.cwd(), 'service-accounts')
+  if (fs.existsSync(serviceAccountsDir)) {
+    const files = fs.readdirSync(serviceAccountsDir)
+    let serviceAccountFile: string | undefined
+    if (env === 'dev') {
+      serviceAccountFile = files.find((f) => f.includes('kara-gabon-dev') && f.endsWith('.json'))
+    } else if (env === 'preprod') {
+      serviceAccountFile = files.find((f) => f.includes('kara-gabon-preprod') && f.endsWith('.json'))
+    } else if (env === 'prod') {
+      serviceAccountFile = files.find(
+        (f) => f.includes('kara-gabon') && !f.includes('dev') && !f.includes('preprod') && f.endsWith('.json')
+      )
+    }
+    if (serviceAccountFile) {
+      return path.join(serviceAccountsDir, serviceAccountFile)
+    }
+  }
+  throw new Error(
+    `Fichier service account non trouvé pour "${env}". ` +
+      `Placez le fichier JSON dans service-accounts/ (ex: kara-gabon-dev-xxx.json pour dev, kara-gabon-xxx.json pour prod).`
+  )
+}
 
-  // Initialiser Firebase Admin
+async function migrate() {
+  const env = process.argv[2] || 'dev'
+  const config = ENV_CONFIG[env]
+
+  if (!config) {
+    console.error(`❌ Environnement invalide: "${env}"`)
+    console.log('   Usage: pnpm tsx scripts/migrate-searchable-text.ts [dev|preprod|prod]')
+    process.exit(1)
+  }
+
+  console.log(`🚀 Migration searchableText - ${config.description} (${config.projectId})\n`)
+
+  const serviceAccountPath = getServiceAccountPath(env)
+
   if (getApps().length === 0) {
     try {
+      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'))
       initializeApp({
-        credential: cert(SERVICE_ACCOUNT_PATH),
+        credential: cert(serviceAccount),
+        projectId: serviceAccount.project_id || config.projectId,
       })
       console.log('✅ Firebase Admin initialisé\n')
     } catch (error) {
       console.error('❌ Erreur lors de l\'initialisation de Firebase Admin:', error)
       console.log('\n💡 Assurez-vous que le fichier service account existe:')
-      console.log(`   ${SERVICE_ACCOUNT_PATH}`)
+      console.log(`   ${serviceAccountPath}`)
       process.exit(1)
     }
   }

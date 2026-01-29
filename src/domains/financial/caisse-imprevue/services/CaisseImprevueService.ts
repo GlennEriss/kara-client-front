@@ -7,6 +7,8 @@
 
 import { DemandCIRepository } from '../repositories/DemandCIRepository'
 import { RepositoryFactory } from '@/factories/RepositoryFactory'
+import type { IContractCIRepository } from '@/repositories/caisse-imprevu/IContractCIRepository'
+import type { ContractCI } from '@/types/types'
 import type {
   CaisseImprevueDemand,
   CreateCaisseImprevueDemandInput,
@@ -26,10 +28,12 @@ import type {
 export class CaisseImprevueService {
   private static instance: CaisseImprevueService
   private demandRepository: DemandCIRepository
+  private contractRepository: IContractCIRepository
   private memberRepository: ReturnType<typeof RepositoryFactory.getMemberRepository>
 
   private constructor() {
     this.demandRepository = DemandCIRepository.getInstance()
+    this.contractRepository = RepositoryFactory.getContractCIRepository()
     this.memberRepository = RepositoryFactory.getMemberRepository()
   }
 
@@ -223,13 +227,13 @@ export class CaisseImprevueService {
 
   /**
    * Crée un contrat depuis une demande acceptée avec traçabilité
-   * Note: Cette méthode sera implémentée dans le service de contrats
+   * Conforme à la doc : SEQ_CreerContrat.puml et CreerContrat.puml
    */
   async createContractFromDemand(
     demandId: string,
     convertedBy: string
   ): Promise<{ contractId: string; demand: CaisseImprevueDemand }> {
-    // Vérifier que la demande est acceptée
+    // Validation : la demande doit être acceptée
     const demand = await this.demandRepository.getById(demandId)
     if (!demand) {
       throw new Error('Demande non trouvée')
@@ -239,19 +243,62 @@ export class CaisseImprevueService {
       throw new Error(`Impossible de créer un contrat depuis une demande en statut ${demand.status}`)
     }
 
-    // TODO: Implémenter la création du contrat
-    // Pour l'instant, on marque juste la demande comme convertie
+    if (demand.contractId) {
+      throw new Error('Cette demande a déjà été convertie en contrat')
+    }
+
+    // Générer l'ID du contrat : MK_CI_CONTRACT_{memberId}_{DDMMYY}_{HHMM}
+    const now = new Date()
+    const day = String(now.getDate()).padStart(2, '0')
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const year = String(now.getFullYear()).slice(-2)
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const contractId = `MK_CI_CONTRACT_${demand.memberId}_${day}${month}${year}_${hours}${minutes}`
+
+    // Créer le contrat à partir des données de la demande
+    // demandId requis par les règles Firestore pour traçabilité
+    const contractData: Omit<ContractCI, 'createdAt' | 'updatedAt'> & { demandId: string } = {
+      id: contractId,
+      demandId,
+      memberId: demand.memberId,
+      memberFirstName: demand.memberFirstName || '',
+      memberLastName: demand.memberLastName || '',
+      memberContacts: demand.memberContacts || [],
+      memberEmail: demand.memberEmail,
+      subscriptionCIID: demand.subscriptionCIID,
+      subscriptionCICode: demand.subscriptionCICode,
+      subscriptionCILabel: demand.subscriptionCILabel,
+      subscriptionCIAmountPerMonth: demand.subscriptionCIAmountPerMonth,
+      subscriptionCINominal: demand.subscriptionCINominal ?? demand.subscriptionCIAmountPerMonth * demand.subscriptionCIDuration,
+      subscriptionCIDuration: demand.subscriptionCIDuration,
+      subscriptionCISupportMin: demand.subscriptionCISupportMin ?? 0,
+      subscriptionCISupportMax: demand.subscriptionCISupportMax ?? 0,
+      paymentFrequency: demand.paymentFrequency,
+      firstPaymentDate: demand.firstPaymentDate || demand.desiredStartDate,
+      emergencyContact: {
+        ...demand.emergencyContact,
+        documentPhotoUrl: demand.emergencyContact.documentPhotoUrl ?? '',
+      },
+      status: 'ACTIVE',
+      totalMonthsPaid: 0,
+      isEligibleForSupport: false,
+      supportHistory: [],
+      createdBy: convertedBy,
+      updatedBy: convertedBy,
+    }
+
+    const contract = await this.contractRepository.createContract(contractData)
+
+    // Mettre à jour la demande : status CONVERTED + contractId (traçabilité)
     const converted = await this.demandRepository.convert(
       demandId,
-      {
-        contractId: undefined, // TODO: Remplacer par l'ID réel du contrat créé
-      },
+      { contractId: contract.id },
       convertedBy
     )
 
-    // TODO: Retourner le contractId réel une fois la création de contrat implémentée
     return {
-      contractId: converted.contractId || '',
+      contractId: contract.id,
       demand: converted,
     }
   }

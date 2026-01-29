@@ -14,7 +14,7 @@
 7. ✅ `SEQ_SupprimerDemande.puml` - Supprimer une demande
 8. ✅ `SEQ_ModifierDemande.puml` - Modifier une demande
 9. ✅ `SEQ_CreerContrat.puml` - Créer un contrat
-10. ✅ `SEQ_RechercherDemandes.puml` - Rechercher des demandes
+10. ✅ `recherche-demande/sequence/SEQ_RechercherDemandes.puml` - Rechercher des demandes
 11. ✅ `SEQ_TrierDemandes.puml` - Trier des demandes
 12. ✅ `SEQ_FiltrerDemandes.puml` - Filtrer des demandes
 13. ✅ `SEQ_ExporterDemandes.puml` - Exporter les demandes
@@ -30,7 +30,7 @@
 7. ✅ `SupprimerDemande.puml` - Workflow suppression
 8. ✅ `ModifierDemande.puml` - Workflow modification
 9. ✅ `CreerContrat.puml` - Workflow création contrat
-10. ✅ `RechercherDemandes.puml` - Workflow recherche
+10. ✅ `recherche-demande/activite/RechercherDemandes.puml` - Workflow recherche
 11. ✅ `TrierDemandes.puml` - Workflow tri
 12. ✅ `FiltrerDemandes.puml` - Workflow filtres
 13. ✅ `ExporterDemandes.puml` - Workflow export liste
@@ -81,7 +81,7 @@
 - ✅ Scroll vers le haut lors du changement de page
 
 #### Points à vérifier :
-- ⚠️ La recherche : Le diagramme montre `onSearch(results)` qui filtre la liste, mais actuellement la recherche est séparée. À vérifier si c'est intentionnel ou si la recherche doit filtrer la liste principale.
+- ✅ La recherche : Voir `recherche-demande/RECHERCHE_ANALYSE.md` — proposition searchableText intégrée à getPaginated (une seule source).
 
 ---
 
@@ -159,7 +159,7 @@
 
 ---
 
-### 9. SEQ_RechercherDemandes / RechercherDemandes
+### 9. SEQ_RechercherDemandes / RechercherDemandes (recherche-demande/)
 
 #### Points vérifiés :
 - ✅ Debounce 300ms
@@ -170,7 +170,8 @@
 - ✅ Cache utilisé si présent (< 2 min)
 
 #### Points à vérifier :
-- ⚠️ Le diagramme montre `onSearch(results)` qui filtre la liste. Actuellement, la recherche est séparée. À vérifier si la recherche doit filtrer la liste principale ou rester séparée.
+- ✅ **Architecture** : useCaisseImprevueDemands avec searchQuery dans filters (une seule source).
+- 📋 **Analyse** : Voir `../recherche-demande/RECHERCHE_ANALYSE.md` — searchableText intégré à getPaginated.
 
 ---
 
@@ -220,7 +221,7 @@
 
 ## 🔍 Points à Clarifier
 
-1. **Recherche** : Le diagramme `SEQ_RechercherDemandes` montre `onSearch(results)` qui filtre la liste. Actuellement, la recherche est séparée. Faut-il que la recherche filtre la liste principale ou reste-t-elle séparée ?
+1. **Recherche** : Voir `../recherche-demande/RECHERCHE_ANALYSE.md` pour l'analyse et la proposition (searchableText intégré à getPaginated).
 
 2. **Validation Step 3** : Le diagramme montre que la Card contact devient verte quand valide. `EmergencyContactMemberSelector` gère déjà cela avec `isFormValid`.
 
@@ -240,7 +241,7 @@
 5. ✅ Prefetch détails au survol implémenté
 
 **Points restants** :
-- ⚠️ Intégration recherche dans liste : Le diagramme `SEQ_RechercherDemandes` montre `onSearch(results)` qui filtre la liste. Actuellement, la recherche est séparée via `useDemandSearch`. À clarifier si la recherche doit filtrer la liste principale ou rester séparée.
+- ✅ Intégration recherche : Voir `../recherche-demande/RECHERCHE_ANALYSE.md` (searchableText intégré à getPaginated).
 
 **Corrections finales apportées** :
 - ✅ Ajout bouton Export PDF dans DemandDetailV2 (conforme SEQ_ExporterDetailsDemande)

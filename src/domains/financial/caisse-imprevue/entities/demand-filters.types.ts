@@ -15,6 +15,8 @@ export interface DemandFilters {
   decisionMadeBy?: string
   dateStart?: string // Format: YYYY-MM-DD
   dateEnd?: string // Format: YYYY-MM-DD
+  /** Recherche par nom/prénom (préfixe sur memberLastName côté serveur) */
+  searchQuery?: string
 }
 
 /**

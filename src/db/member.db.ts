@@ -250,15 +250,21 @@ export async function getMembers(
     // Appliquer les filtres côté client
     let filteredMembers = members
 
-    // Filtre de recherche textuelle
+    // Filtre de recherche textuelle (champs optionnels pour certains users)
     if (filters.searchQuery) {
       const searchLower = filters.searchQuery.toLowerCase()
-      filteredMembers = filteredMembers.filter(member =>
-        member.firstName.toLowerCase().includes(searchLower) ||
-        member.lastName.toLowerCase().includes(searchLower) ||
-        member.matricule.toLowerCase().includes(searchLower) ||
-        member.email?.toLowerCase().includes(searchLower)
-      )
+      filteredMembers = filteredMembers.filter(member => {
+        const firstName = (member.firstName || '').toLowerCase()
+        const lastName = (member.lastName || '').toLowerCase()
+        const matricule = (member.matricule || '').toLowerCase()
+        const email = (member.email || '').toLowerCase()
+        return (
+          firstName.includes(searchLower) ||
+          lastName.includes(searchLower) ||
+          matricule.includes(searchLower) ||
+          email.includes(searchLower)
+        )
+      })
     }
 
     // Filtres d'adresse
@@ -791,12 +797,16 @@ export async function searchMembers(searchTerm: string, limit: number = 10): Pro
         updatedAt: convertFirestoreDate(data.updatedAt) || new Date()
       } as User
 
-      // Filtrer par terme de recherche
+      // Filtrer par terme de recherche (champs optionnels pour certains users)
+      const firstName = (member.firstName || '').toLowerCase()
+      const lastName = (member.lastName || '').toLowerCase()
+      const matricule = (member.matricule || '').toLowerCase()
+      const email = (member.email || '').toLowerCase()
       if (
-        member.firstName.toLowerCase().includes(searchLower) ||
-        member.lastName.toLowerCase().includes(searchLower) ||
-        member.matricule.toLowerCase().includes(searchLower) ||
-        member.email?.toLowerCase().includes(searchLower)
+        firstName.includes(searchLower) ||
+        lastName.includes(searchLower) ||
+        matricule.includes(searchLower) ||
+        email.includes(searchLower)
       ) {
         members.push(member)
       }

@@ -1,0 +1,151 @@
+@startuml RechercherDemandes
+title Workflow : Rechercher des Demandes avec searchableText (V2)
+
+start
+
+:Admin accède à la liste des demandes;
+
+:Afficher champ de recherche :
+- Input avec placeholder "Rechercher par nom, prénom ou matricule..."
+- Debounce 300ms
+- Composant contrôlé (value, onChange);
+
+:Admin sélectionne un tab (statut) :
+- Toutes (all)
+- En attente (PENDING)
+- Acceptées (APPROVED)
+- Refusées (REJECTED)
+- Réouverte (REOPENED);
+
+:effectiveFilters = { status, paymentFrequency, searchQuery };
+
+:Admin commence à taper dans le champ;
+
+:Debounce 300ms :
+- Attendre que l'utilisateur arrête de taper;
+
+if (Query >= 2 caractères ?) then (oui)
+  :Normaliser la query :
+  - toLowerCase()
+  - trim()
+  - normalize('NFD') + remove accents;
+  
+  :searchQuery = normalizedQuery;
+  :effectiveFilters.searchQuery = searchQuery;
+  :page = 1 (reset pagination);
+  
+  :Vérifier cache React Query :
+  - useCaisseImprevueDemands(effectiveFilters, pagination, sort)
+  - queryKey: ['caisse-imprevue-demands', filters, pagination, sort]
+  - Cache 5 min;
+  
+  if (Cache présent et frais ?) then (oui)
+    :Afficher résultats depuis cache IMMÉDIATEMENT;
+    :Pas de requête serveur;
+  else (non)
+    :Afficher loading state;
+    
+    :Repository.getPaginated(filters avec searchQuery) :
+    - where('searchableText', '>=', normalizedQuery)
+    - where('searchableText', '<=', normalizedQuery + '\uf8ff')
+    - where('status', '==', tab) si tab != 'all'
+    - where('paymentFrequency', '==', X) si filtre fréquence
+    - orderBy('searchableText', 'asc') [obligatoire pour range]
+    - orderBy('createdAt' ou 'memberLastName') selon tri
+    - limit(pageSize)
+    - startAfter(cursor) si page > 1;
+    
+    :Calculer total avec getCountFromServer :
+    - Même contraintes (sans limit/startAfter);
+    
+    :Retourner PaginatedDemands :
+    - items[]
+    - pagination { page, totalPages, hasNextPage, nextCursor, previousCursor };
+    
+    :Mettre en cache React Query (5 min);
+    
+    :Afficher résultats paginés;
+  endif
+  
+  if (Résultats trouvés ?) then (oui)
+    :Afficher liste filtrée :
+    - Grid ou Table selon vue
+    - Pagination haut et bas
+    - Total correct;
+  else (non)
+    :Afficher "Aucun résultat pour 'query'";
+  endif
+else (non)
+  :searchQuery = '';
+  :effectiveFilters.searchQuery = undefined;
+  :Afficher liste complète (non filtrée) :
+  - useCaisseImprevueDemands sans searchQuery;
+endif
+
+' ============================================
+' COMBINAISON AVEC FILTRES
+' ============================================
+if (Admin change filtre fréquence ?) then (oui)
+  :filters.paymentFrequency = nouvelle valeur;
+  :page = 1 (reset);
+  :Refetch avec effectiveFilters;
+endif
+
+if (Admin change filtre forfait ?) then (oui)
+  :filters.subscriptionCIID = nouvelle valeur;
+  :page = 1 (reset);
+  :Refetch avec effectiveFilters;
+endif
+
+' ============================================
+' COMBINAISON AVEC TRI
+' ============================================
+if (Admin change tri ?) then (oui)
+  :sortBy = nouvelle valeur ('date' ou 'alphabetical');
+  :sortOrder = nouvelle valeur ('asc' ou 'desc');
+  :page = 1 (reset);
+  :Refetch avec nouveau tri;
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' PAGINATION
+' ============================================
+if (Admin clique "Suivant" ?) then (oui)
+  :page = page + 1;
+  :cursor = lastDoc.id (nextCursor);
+  :Refetch avec pagination;
+  :Scroll vers le haut;
+elseif (Admin clique "Précédent" ?) then (oui)
+  :page = page - 1;
+  :cursor = previousCursor;
+  :Refetch avec pagination;
+  :Scroll vers le haut;
+elseif (Admin clique numéro de page ?) then (oui)
+  :page = numéro cliqué;
+  :Refetch avec pagination;
+  :Scroll vers le haut;
+endif
+
+if (Admin efface la recherche ?) then (oui)
+  :searchQuery = '';
+  :effectiveFilters.searchQuery = undefined;
+  :page = 1 (reset);
+  :Afficher liste complète;
+  :Refetch sans searchQuery;
+endif
+
+note right
+  **Fonctionnalités clés** :
+  - searchableText (nom + prénom + matricule)
+  - Recherche par préfixe Firestore (pas de filtre côté client)
+  - Debounce 300ms
+  - Une seule source : useCaisseImprevueDemands
+  - Pagination cursor-based (limit + startAfter)
+  - Tabs par statut (recherche dans le tab actif)
+  - Filtres combinés (fréquence, forfait)
+  - Tri (date, A-Z, Z-A)
+  - Index Firestore composites requis
+end note
+
+@enduml

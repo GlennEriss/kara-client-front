@@ -1,8 +1,9 @@
 /**
- * Hook React Query pour rechercher des demandes par nom/prénom
- * 
- * Cache : staleTime 2 min, gcTime 5 min
- * Debounce : 300ms (géré dans le composant)
+ * @deprecated Recherche intégrée à useCaisseImprevueDemands via searchQuery dans filters.
+ * La liste utilise une seule source de données (getPaginated avec searchableText).
+ * Voir documentation/caisse-imprevue/V2/recherche-demande/RECHERCHE_ANALYSE.md
+ *
+ * Hook React Query pour rechercher des demandes par nom/prénom (ancienne implémentation)
  */
 
 import { useQuery } from '@tanstack/react-query'

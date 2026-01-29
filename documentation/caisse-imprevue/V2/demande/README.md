@@ -5,35 +5,48 @@
 ## 📁 Structure des Diagrammes
 
 ```
-V2/demande/
-├── USE_CASES.puml                    # Diagramme de use cases global
-├── activite/                         # Diagrammes d'activité
-│   ├── CreerDemande.puml
-│   ├── ListerDemandes.puml
-│   ├── VoirDetails.puml
-│   ├── AccepterDemande.puml
-│   ├── RefuserDemande.puml
-│   ├── ReouvrirDemande.puml
-│   ├── SupprimerDemande.puml
-│   ├── ModifierDemande.puml
-│   ├── CreerContrat.puml
-│   ├── RechercherDemandes.puml
-│   ├── FiltrerDemandes.puml
-│   └── TrierDemandes.puml
-├── sequence/                         # Diagrammes de séquence
-│   ├── SEQ_CreerDemande.puml
-│   ├── SEQ_ListerDemandes.puml
-│   ├── SEQ_VoirDetails.puml
-│   ├── SEQ_AccepterDemande.puml
-│   ├── SEQ_RefuserDemande.puml
-│   ├── SEQ_ReouvrirDemande.puml
-│   ├── SEQ_SupprimerDemande.puml
-│   ├── SEQ_ModifierDemande.puml
-│   ├── SEQ_CreerContrat.puml
-│   ├── SEQ_RechercherDemandes.puml
-│   ├── SEQ_FiltrerDemandes.puml
-│   └── SEQ_TrierDemandes.puml
-└── README.md                         # Ce fichier
+V2/
+├── demande/                           # Module Demandes
+│   ├── USE_CASES.puml                # Diagramme de use cases global
+│   ├── activite/                     # Diagrammes d'activité
+│   │   ├── CreerDemande.puml
+│   │   ├── ListerDemandes.puml
+│   │   ├── VoirDetails.puml
+│   │   ├── AccepterDemande.puml
+│   │   ├── RefuserDemande.puml
+│   │   ├── ReouvrirDemande.puml
+│   │   ├── SupprimerDemande.puml
+│   │   ├── ModifierDemande.puml
+│   │   ├── CreerContrat.puml
+│   │   ├── FiltrerDemandes.puml
+│   │   └── TrierDemandes.puml
+│   ├── sequence/                     # Diagrammes de séquence
+│   │   ├── SEQ_CreerDemande.puml
+│   │   ├── SEQ_ListerDemandes.puml
+│   │   ├── SEQ_VoirDetails.puml
+│   │   ├── SEQ_AccepterDemande.puml
+│   │   ├── SEQ_RefuserDemande.puml
+│   │   ├── SEQ_ReouvrirDemande.puml
+│   │   ├── SEQ_SupprimerDemande.puml
+│   │   ├── SEQ_ModifierDemande.puml
+│   │   ├── SEQ_CreerContrat.puml
+│   │   ├── SEQ_FiltrerDemandes.puml
+│   │   └── SEQ_TrierDemandes.puml
+│   └── README.md                     # Ce fichier
+├── recherche-demande/                 # Module Recherche (searchableText)
+│   ├── RECHERCHE_ANALYSE.md          # Analyse et cahier des charges
+│   ├── README.md
+│   ├── activite/
+│   │   └── RechercherDemandes.puml
+│   ├── sequence/
+│   │   └── SEQ_RechercherDemandes.puml
+│   ├── firebase/                      # Index Firestore recherche
+│   │   ├── INDEXES.md
+│   │   └── indexes.recherche.json
+│   └── tests/                         # Tests recherche
+│       ├── TESTS_UNITAIRES.md
+│       ├── TESTS_INTEGRATION.md
+│       └── TESTS_E2E.md
 ```
 
 ## 📊 Diagrammes Disponibles
@@ -121,12 +134,13 @@ V2/demande/
 - Création contrat + mise à jour demande
 - Transaction atomique
 
-#### 2.10. Rechercher des Demandes (`RechercherDemandes.puml`)
-**Description** : Workflow de recherche avec cache :
-- Debounce 300ms
-- Normalisation query
-- Cache 2 min
-- Recherche par préfixe Firestore
+#### 2.10. Rechercher des Demandes
+**📂 Dossier dédié** : Voir `../recherche-demande/` pour la documentation complète de la recherche :
+- **Analyse** : `recherche-demande/RECHERCHE_ANALYSE.md`
+- **Activité** : `recherche-demande/activite/RechercherDemandes.puml`
+- **Séquence** : `recherche-demande/sequence/SEQ_RechercherDemandes.puml`
+
+**Points clés** : searchableText (nom, prénom, matricule), pagination cursor-based, intégration avec tabs et filtres.
 
 #### 2.11. Filtrer les Demandes (`FiltrerDemandes.puml`)
 **Description** : Workflow de filtrage multiple :
