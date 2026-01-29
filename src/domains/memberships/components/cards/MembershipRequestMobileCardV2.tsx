@@ -19,6 +19,7 @@ import {
 } from '../shared'
 import { MembershipRequestActionsV2 } from '../actions'
 import { User, Phone, Mail, CheckCircle2, Calendar } from 'lucide-react'
+import { formatNamePairs } from '../../utils/formatNamePairs'
 
 interface MembershipRequestMobileCardV2Props {
   request: MembershipRequest
@@ -111,10 +112,16 @@ export function MembershipRequestMobileCardV2({
     approvedAt,
   } = request
 
-  const fullName = `${identity.firstName || ''} ${identity.lastName || ''}`.trim() || 'N/A'
-  const initials = `${identity.firstName?.[0] || ''}${identity.lastName?.[0] || ''}`.toUpperCase()
+  const firstName = identity.firstName || ''
+  const lastName = identity.lastName || ''
+  const fullName = `${firstName} ${lastName}`.trim() || 'N/A'
+  const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase()
   const phoneNumber = identity.contacts?.[0] || ''
   const email = identity.email || ''
+  
+  // Diviser les noms et prénoms en paires de 2 mots
+  const lastNamePairs = formatNamePairs(lastName)
+  const firstNamePairs = formatNamePairs(firstName)
 
   return (
     <Card
@@ -141,10 +148,26 @@ export function MembershipRequestMobileCardV2({
           </Avatar>
 
           <div className="flex-1 min-w-0 space-y-2">
-            <div>
-              <h3 className="font-semibold text-base text-kara-primary-dark truncate">
-                {fullName}
-              </h3>
+            <div className="space-y-1">
+              {/* Nom divisé en paires */}
+              {lastNamePairs.map((namePair, index) => (
+                <h3
+                  key={`lastname-${index}`}
+                  className="font-semibold text-base text-kara-primary-dark"
+                >
+                  {namePair}
+                </h3>
+              ))}
+              
+              {/* Prénom divisé en paires */}
+              {firstNamePairs.map((namePair, index) => (
+                <h3
+                  key={`firstname-${index}`}
+                  className="font-semibold text-base text-kara-primary-dark"
+                >
+                  {namePair}
+                </h3>
+              ))}
               {/* Traçabilité : Matricule uniquement avec # (P0.3) */}
               {matricule && (
                 <span className="text-xs text-gray-400 mt-0.5 font-mono" title={`Matricule: ${matricule}`}>

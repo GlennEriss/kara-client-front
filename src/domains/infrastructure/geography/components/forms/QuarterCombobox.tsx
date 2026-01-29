@@ -2,7 +2,9 @@
 
 import React, { useState, useMemo } from 'react'
 import { UseFormReturn } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import { RegisterFormData } from '@/schemas/schemas'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useQuarterSearch } from '../../hooks/useQuarterSearch'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -36,29 +38,53 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
   
   const selectedQuarterId = watch('address.quarterId') || ''
   const selectedDistrictId = districtId || watch('address.districtId') || ''
-  
-  // **IMPORTANT** : Recherche uniquement (pas de chargement complet)
-  // Stratégie : min 2 chars, debounce 300ms, limit 50, cache 5 min
-  const { 
-    searchTerm, 
-    setSearchTerm, 
-    quarters: searchResults, 
-    isLoading 
+
+  // Chargement initial : Quartiers de l'arrondissement sélectionné (approche hybride)
+  const { data: initialQuarters = [], isLoading: isLoadingInitial } = useQuery({
+    queryKey: ['quarters', selectedDistrictId],
+    queryFn: () => ServiceFactory.getGeographieService().getQuartersByDistrictId(selectedDistrictId),
+    enabled: !!selectedDistrictId,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const sortedInitialQuarters = useMemo(
+    () =>
+      [...initialQuarters].sort((a, b) =>
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      ),
+    [initialQuarters]
+  )
+
+  // Recherche : Pour filtrer quand l'utilisateur tape (optionnel)
+  const {
+    searchTerm,
+    setSearchTerm,
+    quarters: searchResults,
+    isLoading: isLoadingSearch,
   } = useQuarterSearch({
     districtId: selectedDistrictId || undefined,
     debounceDelay: 300,
     limit: 50,
   })
 
-  // Trouver le quarter sélectionné dans les résultats de recherche
-  const selectedQuarter = useMemo(() => {
-    const foundInResults = searchResults.find(q => q.id === selectedQuarterId)
-    if (foundInResults) return foundInResults
-    return undefined
-  }, [searchResults, selectedQuarterId])
+  const isLoading = isLoadingSearch || isLoadingInitial
 
-  // Quarters à afficher : résultats de recherche
-  const filteredQuarters = searchResults
+  // Quarters à afficher : initiales si pas de recherche, sinon résultats de recherche
+  const filteredQuarters = useMemo(() => {
+    if (searchTerm.trim().length >= 2) {
+      return searchResults
+    }
+    return sortedInitialQuarters
+  }, [searchTerm, searchResults, sortedInitialQuarters])
+
+  // Trouver le quartier sélectionné (dans filteredQuarters ou initialQuarters)
+  const selectedQuarter = useMemo(() => {
+    const found = filteredQuarters.find((q) => q.id === selectedQuarterId)
+    if (found) return found
+    const foundInInitial = sortedInitialQuarters.find((q) => q.id === selectedQuarterId)
+    if (foundInInitial) return foundInInitial
+    return undefined
+  }, [filteredQuarters, sortedInitialQuarters, selectedQuarterId])
 
   const handleSelect = (value: string) => {
     // cmdk passe la valeur du prop 'value' (quarter.name), on doit trouver l'ID correspondant
@@ -108,7 +134,7 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
                 )}>
                   {!selectedDistrictId 
                     ? "Sélectionnez d'abord un arrondissement..." 
-                    : selectedQuarter?.name || watch('address.district') || "Rechercher un quartier"}
+                    : selectedQuarter?.name || watch('address.district') || "Sélectionnez un quartier"}
                 </span>
               </div>
               {isLoading ? (
@@ -125,7 +151,7 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
           >
             <Command shouldFilter={false}>
               <CommandInput 
-                placeholder="Rechercher un quartier (min 2 caractères)..." 
+                placeholder="Rechercher ou parcourir les quartiers..." 
                 className="h-9"
                 value={searchTerm}
                 onValueChange={setSearchTerm}
@@ -140,12 +166,6 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
                   <CommandEmpty>
                     <div className="p-4 text-center text-sm text-gray-500" data-testid="step2-address-quarter-locked-message">
                       Sélectionnez d'abord un arrondissement
-                    </div>
-                  </CommandEmpty>
-                ) : searchTerm.trim().length < 2 ? (
-                  <CommandEmpty>
-                    <div className="p-4 text-center text-sm text-gray-500">
-                      Tapez au moins 2 caractères pour rechercher...
                     </div>
                   </CommandEmpty>
                 ) : filteredQuarters.length === 0 ? (

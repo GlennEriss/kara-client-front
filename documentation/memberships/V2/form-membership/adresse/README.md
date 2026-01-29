@@ -27,20 +27,28 @@ L'idée du composant est **excellente** :
 |--------|--------|-----------|-----------|
 | **Provinces** | 9 | Chargement complet | ❌ Non |
 | **Départements** | ~50-60 | Chargement par province | 🟡 Optionnelle |
-| **Communes** | Très élevé | **Recherche uniquement** (min 2 chars) | ✅ Obligatoire |
+| **Communes** | Élevé par province | **Chargement initial + Recherche** (hybride) | 🟡 Optionnelle |
 | **Districts** | Max 7/commune | Chargement complet | ❌ Non |
-| **Quarters** | Très élevé | **Recherche uniquement** (min 2 chars) | ✅ Obligatoire |
+| **Quarters** | Variable par arrondissement | **Chargement initial + Recherche** (hybride) | 🟡 Optionnelle |
 
 **Gestion du cache** :
 - **Provinces** : Cache 30 min (données stables)
 - **Départements** : Cache 30 min par province
-- **Communes** : Cache 5 min par terme de recherche (si on revient à une recherche précédente, utilise le cache)
+- **Communes** : Cache 5 min par département (chargement initial) + cache 5 min par terme de recherche
 - **Districts** : Cache 30 min par commune
-- **Quarters** : Cache 5 min par terme de recherche
+- **Quarters** : Cache 5 min par arrondissement (chargement initial) + cache 5 min par terme de recherche
 
 Voir **[CACHE-ET-CAS-CRITIQUES.md](./CACHE-ET-CAS-CRITIQUES.md)** pour les détails complets.
 
 ## 🐛 Problèmes Identifiés
+
+### 0. **Combobox Ville et Quartier vides à l'ouverture** (priorité haute) ✅ Résolu
+
+**Symptôme** : Quand une province/commune/arrondissement est sélectionné, les combobox Ville et Quartier restent **vides**. L'utilisateur doit taper au moins 2 caractères pour voir des options.
+
+**Cause** : Stratégie "recherche uniquement" — les données ne sont chargées que lors d'une recherche (min 2 chars).
+
+**Solution** : Approche hybride — chargement initial + recherche optionnelle. Implémenté dans `CommuneCombobox` et `QuarterCombobox`. Voir **[COMMUNES-COMBOBOX-VIDE.md](./COMMUNES-COMBOBOX-VIDE.md)**.
 
 ### 1. **Ajout de ville/commune qui ne passe pas**
 

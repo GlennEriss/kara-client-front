@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Eye, FileText, MessageSquare, Edit, IdCard, CreditCard, Download, FileSpreadsheet, CheckCircle2, XCircle, FileEdit, RotateCcw, Trash2 } from 'lucide-react'
 import type { MembershipRequestStatus } from '@/types/types'
+import { formatNamePairs } from '../../utils/formatNamePairs'
 
 // Composant helper pour le dropdown d'actions (même logique que MembershipRequestActionsV2)
 interface MembershipRequestActionsDropdownProps {
@@ -448,26 +449,37 @@ export function MembershipRequestsGridView({
                   />
                 </div>
 
-                {/* Deuxième ligne : Nom */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
-                    <span className="block truncate" title={lastName || ''}>
-                      {lastName || ''}
-                    </span>
-                  </h3>
+                {/* Nom et Prénom divisés en paires de 2 mots */}
+                <div className="space-y-1">
+                  {/* Nom divisé en paires */}
+                  {formatNamePairs(lastName).map((namePair, index) => (
+                    <h3
+                      key={`lastname-${index}`}
+                      className="font-semibold text-gray-900 text-sm sm:text-base leading-tight"
+                    >
+                      <span className="block truncate" title={lastName || ''}>
+                        {namePair}
+                      </span>
+                    </h3>
+                  ))}
 
-                  {/* Troisième ligne : Prénom */}
-                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">
-                    <span className="block truncate" title={firstName || ''}>
-                      {firstName || ''}
-                    </span>
-                  </h3>
+                  {/* Prénom divisé en paires */}
+                  {formatNamePairs(firstName).map((namePair, index) => (
+                    <h3
+                      key={`firstname-${index}`}
+                      className="font-semibold text-gray-900 text-sm sm:text-base leading-tight"
+                    >
+                      <span className="block truncate" title={firstName || ''}>
+                        {namePair}
+                      </span>
+                    </h3>
+                  ))}
+                </div>
 
-                  {/* Quatrième ligne : Statuts */}
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <StatusBadgeV2 status={request.status} />
-                    <PaymentBadgeV2 isPaid={request.isPaid || false} />
-                  </div>
+                {/* Quatrième ligne : Statuts */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <StatusBadgeV2 status={request.status} />
+                  <PaymentBadgeV2 isPaid={request.isPaid || false} />
                 </div>
               </div>
             </CardHeader>

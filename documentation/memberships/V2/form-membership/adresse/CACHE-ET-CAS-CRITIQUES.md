@@ -57,49 +57,66 @@ const { data: departments } = useQuery({
 - ✅ Tri alphabétique
 - ✅ Affichage direct dans le Combobox (liste filtrée par province)
 
-### 3. Communes (Volume très élevé)
+### 3. Communes (Volume élevé par province)
 
-**Volume** : Très élevé (plusieurs centaines)  
-**Stratégie** : **Recherche uniquement (pas de chargement complet)**
+**Volume** : Élevé au niveau national (plusieurs centaines), mais **raisonnable par province** (~50-200 communes)  
+**Stratégie** : **Chargement initial par province + Recherche pour filtrer** (approche hybride)
+
+> ⚠️ **Problème identifié** : Avec la stratégie "recherche uniquement", le combobox reste **vide** à l'ouverture quand une province est sélectionnée. L'utilisateur doit taper au moins 2 caractères pour voir des communes. Voir [COMMUNES-COMBOBOX-VIDE.md](./COMMUNES-COMBOBOX-VIDE.md).
 
 ```typescript
-// Recherche avec debounce : Pas de chargement initial
-const [searchTerm, setSearchTerm] = useState('')
-const debouncedSearch = useDebounce(searchTerm, 300)
+// APPROCHE HYBRIDE : Chargement initial + Recherche
 
-const { data: communes, isLoading } = useQuery({
-  queryKey: ['communes', 'search', debouncedSearch, departmentIds],
-  queryFn: () => geographieService.searchCommunes({
-    search: debouncedSearch,
-    departmentIds: departments.map(d => d.id),
-    limit: 50 // Limiter les résultats
-  }),
-  enabled: debouncedSearch.length >= 2 && departments.length > 0, // Minimum 2 caractères
-  staleTime: 5 * 60 * 1000, // 5 minutes
-  cacheTime: 10 * 60 * 1000, // 10 minutes
+// 1. Chargement initial : Communes des départements de la province sélectionnée
+const communeQueries = useQueries({
+  queries: departments.length > 0 && selectedProvinceId
+    ? departments.map(dept => ({
+        queryKey: ['communes', dept.id],
+        queryFn: () => geographieService.getCommunesByDepartmentId(dept.id),
+        enabled: !!selectedProvinceId && departments.length > 0,
+        staleTime: 5 * 60 * 1000,
+      }))
+    : []
 })
 
-// Tri : Alphabétique par nom
+const initialCommunes = useMemo(() => {
+  const all: Commune[] = []
+  communeQueries.forEach(q => { if (q.data) all.push(...q.data) })
+  const unique = all.filter((c, i, arr) => i === arr.findIndex(x => x.id === c.id))
+  return unique.sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+}, [communeQueries])
+
+// 2. Recherche : Pour filtrer quand l'utilisateur tape (optionnel)
+const { communes: searchResults } = useCommuneSearch({
+  departmentIds: departments.map(d => d.id),
+  debounceDelay: 300,
+  limit: 50,
+})
+
+// 3. Affichage : Initiales si pas de recherche, sinon résultats de recherche
+const communesToDisplay = searchTerm.trim().length >= 2 ? searchResults : initialCommunes
 ```
 
 **Caractéristiques** :
-- ❌ **Pas de chargement complet** (trop de communes)
-- ✅ Recherche obligatoire (minimum 2 caractères)
-- ✅ Debounce de 300ms pour éviter trop de requêtes
-- ✅ Limite de résultats (50 max)
-- ✅ Cache par terme de recherche
+- ✅ **Chargement initial par province** (communes des départements de la province)
+- ✅ **Combobox rempli à l'ouverture** (liste visible sans taper)
+- ✅ Recherche optionnelle (pour filtrer/affiner)
+- ✅ Debounce de 300ms pour la recherche
+- ✅ Cache par département (5 min)
 - ✅ Tri alphabétique
-- ✅ Affichage uniquement après recherche
+- ✅ Affichage direct dans le Combobox (comme Province et Département)
 
 **Gestion du cache** :
 ```typescript
-// Scénario : Recherche "Libreville" → Sélection → Change → Revient à "Libreville"
-// 1. Première recherche "Libreville" : Requête Firestore → Cache ['communes', 'search', 'Libreville', ...]
-// 2. Sélection de "Libreville" : Cache toujours présent
-// 3. Changement de commune : Cache toujours présent
-// 4. Retour à "Libreville" : 
-//    - Si le cache est encore valide (staleTime) → Utilise le cache (pas de requête)
-//    - Si le cache est stale → Refetch en arrière-plan, mais affiche le cache d'abord
+// Scénario 1 : Province sélectionnée → Ouverture combobox
+// - Chargement initial : useQueries(['communes', dept.id]) pour chaque département
+// - Cache par département (staleTime 5 min)
+// - Affichage immédiat des communes de la province
+
+// Scénario 2 : Recherche "Libreville" (si l'utilisateur tape)
+// - useCommuneSearch : Cache ['communes', 'search', 'Libreville', departmentIds]
+// - Résultats filtrés affichés
+// - Si on efface la recherche → Retour aux communes initiales (déjà en cache)
 ```
 
 ### 4. Districts/Arrondissements (Max 7 par commune)
@@ -128,39 +145,43 @@ const { data: districts } = useQuery({
 - ✅ Tri alphabétique
 - ✅ Affichage direct dans le Combobox
 
-### 5. Quarters (Volume très élevé)
+### 5. Quarters (Volume variable par arrondissement)
 
-**Volume** : Très élevé (plusieurs centaines/milliers)  
-**Stratégie** : **Recherche uniquement (pas de chargement complet)**
+**Volume** : Variable par arrondissement (quelques dizaines à centaines)  
+**Stratégie** : **Chargement initial par arrondissement + Recherche pour filtrer** (approche hybride)
+
+> ⚠️ **Même problème que Communes** : Avec "recherche uniquement", le combobox Quartier restait vide à l'ouverture. Voir [COMMUNES-COMBOBOX-VIDE.md](./COMMUNES-COMBOBOX-VIDE.md).
 
 ```typescript
-// Recherche avec debounce : Pas de chargement initial
-const [searchTerm, setSearchTerm] = useState('')
-const debouncedSearch = useDebounce(searchTerm, 300)
+// APPROCHE HYBRIDE : Chargement initial + Recherche
 
-const { data: quarters, isLoading } = useQuery({
-  queryKey: ['quarters', 'search', debouncedSearch, districtId],
-  queryFn: () => geographieService.searchQuarters({
-    search: debouncedSearch,
-    districtId: districtId,
-    limit: 50 // Limiter les résultats
-  }),
-  enabled: debouncedSearch.length >= 2 && !!districtId, // Minimum 2 caractères
-  staleTime: 5 * 60 * 1000, // 5 minutes
-  cacheTime: 10 * 60 * 1000, // 10 minutes
+// 1. Chargement initial : Quartiers de l'arrondissement sélectionné
+const { data: initialQuarters = [] } = useQuery({
+  queryKey: ['quarters', districtId],
+  queryFn: () => geographieService.getQuartersByDistrictId(districtId),
+  enabled: !!districtId,
+  staleTime: 5 * 60 * 1000,
 })
 
-// Tri : Alphabétique par nom
+// 2. Recherche : Pour filtrer quand l'utilisateur tape (optionnel)
+const { quarters: searchResults } = useQuarterSearch({
+  districtId,
+  debounceDelay: 300,
+  limit: 50,
+})
+
+// 3. Affichage : Initiales si pas de recherche, sinon résultats de recherche
+const quartersToDisplay = searchTerm.trim().length >= 2 ? searchResults : initialQuarters
 ```
 
 **Caractéristiques** :
-- ❌ **Pas de chargement complet** (trop de quarters)
-- ✅ Recherche obligatoire (minimum 2 caractères)
-- ✅ Debounce de 300ms
-- ✅ Limite de résultats (50 max)
-- ✅ Cache par terme de recherche
+- ✅ **Chargement initial par arrondissement** (quartiers du district)
+- ✅ **Combobox rempli à l'ouverture** (liste visible sans taper)
+- ✅ Recherche optionnelle (pour filtrer/affiner)
+- ✅ Debounce de 300ms pour la recherche
+- ✅ Cache par arrondissement (5 min)
 - ✅ Tri alphabétique
-- ✅ Affichage uniquement après recherche
+- ✅ Affichage direct dans le Combobox
 
 ## 🔄 Gestion du cache React Query
 
