@@ -17,10 +17,12 @@ interface SupportRecognitionPDFModalProps {
     memberLastName: string
     subscriptionCICode: string
     subscriptionCIAmountPerMonth: number
+    firstPaymentDate?: string
+    createdAt?: Date
   }
-  support: {
+  support?: {
     approvedAt: Date
-  }
+  } | null
 }
 
 const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
@@ -44,12 +46,20 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
-  // Calculer la date limite de remboursement (approuvée + 30 jours)
+  // Date de référence : support approuvé ou date du contrat
+  const supportDate = React.useMemo(() => {
+    if (support?.approvedAt) return new Date(support.approvedAt)
+    if (contract.firstPaymentDate) return new Date(contract.firstPaymentDate)
+    if (contract.createdAt) return new Date(contract.createdAt)
+    return new Date()
+  }, [support?.approvedAt, contract.firstPaymentDate, contract.createdAt])
+
+  // Calculer la date limite de remboursement (référence + 30 jours)
   const dueDate = React.useMemo(() => {
-    const date = new Date(support.approvedAt)
+    const date = new Date(supportDate)
     date.setDate(date.getDate() + 30)
     return date
-  }, [support.approvedAt])
+  }, [supportDate])
 
   const handleDownloadPDF = async () => {
     setIsExporting(true)
@@ -58,7 +68,7 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
       const blob = await pdf(
         <SupportRecognitionPDF
           contract={contract}
-          supportDate={support.approvedAt}
+          supportDate={supportDate}
           dueDate={dueDate}
         />
       ).toBlob()
@@ -172,7 +182,7 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
                 document={
                   <SupportRecognitionPDF
                     contract={contract}
-                    supportDate={support.approvedAt}
+                    supportDate={supportDate}
                     dueDate={dueDate}
                   />
                 }
@@ -235,7 +245,7 @@ const SupportRecognitionPDFModal: React.FC<SupportRecognitionPDFModalProps> = ({
             }}>
               <SupportRecognitionPDF
                 contract={contract}
-                supportDate={support.approvedAt}
+                supportDate={supportDate}
                 dueDate={dueDate}
               />
             </PDFViewer>

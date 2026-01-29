@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
 import { useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import RemboursementCIPDF from './RemboursementCIPDF'
-import { listRefunds } from '@/db/caisse/refunds.db'
+import { listRefundsCI } from '@/db/caisse/refunds.db'
 
 interface RemboursementCIPDFModalProps {
   isOpen: boolean
@@ -39,7 +39,7 @@ const RemboursementCIPDFModal: React.FC<RemboursementCIPDFModalProps> = ({
     const loadRefunds = async () => {
       if (contractId) {
         try {
-          const refundsData = await listRefunds(contractId)
+          const refundsData = await listRefundsCI(contractId)
           setRefunds(refundsData)
         } catch (error) {
           console.error('Error loading refunds:', error)

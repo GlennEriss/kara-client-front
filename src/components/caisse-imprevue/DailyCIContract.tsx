@@ -41,8 +41,9 @@ import { calculateMonthIndex, getMonthPeriod } from '@/utils/caisse-imprevue-uti
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { requestFinalRefund, requestEarlyRefund } from '@/services/caisse/mutations'
-import { listRefunds } from '@/db/caisse/refunds.db'
+import { listRefundsCI } from '@/db/caisse/refunds.db'
 import RemboursementCIPDFModal from './RemboursementCIPDFModal'
+import SupportRecognitionPDFModal from './SupportRecognitionPDFModal'
 import EmergencyContact from '@/components/contract/standard/EmergencyContact'
 
 // Helper pour formater les montants correctement
@@ -297,6 +298,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [refunds, setRefunds] = useState<any[]>([])
   const [showEarlyRefundModal, setShowEarlyRefundModal] = useState(false)
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
+  const [showReconnaissanceAccompagnement, setShowReconnaissanceAccompagnement] = useState(false)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -307,7 +309,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   // Récupérer le support actif et l'éligibilité
   const { data: activeSupport, refetch: refetchActiveSupport } = useActiveSupport(contract.id)
   const { data: isEligible, refetch: refetchEligibility } = useCheckEligibilityForSupport(contract.id)
-  useSupportHistory(contract.id)
+  const { data: supportHistory = [] } = useSupportHistory(contract.id)
   
   // Récupérer les statistiques de paiement
   const { data: paymentStats } = useContractPaymentStats(contract.id)
@@ -316,7 +318,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const reloadRefunds = React.useCallback(async () => {
     if (contract.id) {
       try {
-        const refundsData = await listRefunds(contract.id)
+        const refundsData = await listRefundsCI(contract.id)
         setRefunds(refundsData)
       } catch (error) {
         console.error('Error loading refunds:', error)
@@ -1375,6 +1377,15 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                 <FileSignature className="h-5 w-5" />
                 PDF Remboursement
               </Button>
+
+              <Button
+                variant="outline"
+                className="flex items-center justify-center gap-2 border-teal-300 text-teal-700 hover:bg-teal-50"
+                onClick={() => setShowReconnaissanceAccompagnement(true)}
+              >
+                <FileSignature className="h-5 w-5" />
+                Reconnaissance d&apos;accompagnement
+              </Button>
             </div>
             
             {/* Liste des remboursements */}
@@ -1533,6 +1544,25 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           onClose={() => setShowRemboursementPdf(false)}
           contractId={contract.id}
           contractData={contract}
+        />
+
+        {/* Modal Reconnaissance d'accompagnement */}
+        <SupportRecognitionPDFModal
+          isOpen={showReconnaissanceAccompagnement}
+          onClose={() => setShowReconnaissanceAccompagnement(false)}
+          contract={{
+            memberFirstName: contract.memberFirstName,
+            memberLastName: contract.memberLastName,
+            subscriptionCICode: contract.subscriptionCICode,
+            subscriptionCIAmountPerMonth: contract.subscriptionCIAmountPerMonth,
+            firstPaymentDate: contract.firstPaymentDate,
+            createdAt: contract.createdAt,
+          }}
+          support={
+            activeSupport || supportHistory[0]
+              ? { approvedAt: (activeSupport || supportHistory[0]).approvedAt }
+              : null
+          }
         />
 
         {/* Modal de demande de retrait anticipé */}

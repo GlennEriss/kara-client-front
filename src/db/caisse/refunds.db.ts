@@ -1,6 +1,29 @@
 import { firebaseCollectionNames } from '@/constantes/firebase-collection-names'
 const getFirestore = () => import('@/firebase/firestore')
 
+/**
+ * Liste les remboursements d'un contrat Caisse Imprévue.
+ * Lit depuis contractsCI/{contractId}/earlyRefunds (EARLY et FINAL).
+ */
+export async function listRefundsCI(contractId: string) {
+  const { db, collection, getDocs, orderBy, query } = await getFirestore() as any
+  const colRef = collection(db, `${firebaseCollectionNames.contractsCI}/${contractId}/earlyRefunds`)
+  const q = query(colRef, orderBy('createdAt', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map((d: any) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      ...data,
+      type: data.type || 'EARLY',
+      deadlineAt: (typeof data.deadlineAt?.toDate === 'function') ? data.deadlineAt.toDate() : (data.deadlineAt ? new Date(data.deadlineAt) : undefined),
+      createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
+      approvedAt: (typeof data.approvedAt?.toDate === 'function') ? data.approvedAt.toDate() : (data.approvedAt ? new Date(data.approvedAt) : undefined),
+      paidAt: (typeof data.paidAt?.toDate === 'function') ? data.paidAt.toDate() : (data.paidAt ? new Date(data.paidAt) : undefined),
+    }
+  })
+}
+
 export async function addRefund(contractId: string, input: any) {
   const { db, collection, addDoc, serverTimestamp } = await getFirestore() as any
   const colRef = collection(db, `${firebaseCollectionNames.caisseContracts}/${contractId}/refunds`)
