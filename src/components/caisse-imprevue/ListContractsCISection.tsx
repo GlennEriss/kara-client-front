@@ -44,6 +44,14 @@ const FREQUENCY_LABELS = {
   MONTHLY: 'Mensuel'
 }
 
+/** Formate une date contrat (string YYYY-MM-DD, Timestamp, Date) en fr-FR ou "—" si invalide */
+function formatContractDate(value: string | Date | { toDate?: () => Date } | undefined): string {
+  if (!value) return '—'
+  const date = typeof value === 'string' ? new Date(value) : value instanceof Date ? value : (value as { toDate?: () => Date })?.toDate?.() ?? null
+  if (!date || isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('fr-FR')
+}
+
 // Composant skeleton moderne
 const ModernSkeleton = () => (
   <Card className="group animate-pulse bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-md">
@@ -254,7 +262,7 @@ export default function ListContractsCISection() {
       const statusLabel = CONTRACT_CI_STATUS_LABELS[contract.status]
       
       const startDate = contract.firstPaymentDate ? new Date(contract.firstPaymentDate) : null
-      const endDate = startDate ? new Date(startDate) : null
+      const endDate = startDate && !isNaN(startDate.getTime()) ? new Date(startDate) : null
       if (endDate) {
         endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
       }
@@ -267,7 +275,7 @@ export default function ListContractsCISection() {
         new Intl.NumberFormat('fr-FR').format(contract.subscriptionCIAmountPerMonth),
         new Intl.NumberFormat('fr-FR').format(contract.subscriptionCINominal),
         contract.subscriptionCIDuration,
-        contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '',
+        formatContractDate(contract.firstPaymentDate).replace('—', ''),
         endDate ? endDate.toLocaleDateString('fr-FR') : '',
         contract.totalMonthsPaid,
         contract.subscriptionCIDuration - contract.totalMonthsPaid,
@@ -579,7 +587,7 @@ export default function ListContractsCISection() {
                         <span className="text-gray-500">Premier versement:</span>
                         <div className="flex items-center gap-1 text-gray-700">
                           <Calendar className="h-3 w-3" />
-                          {contract.firstPaymentDate ? new Date(contract.firstPaymentDate).toLocaleDateString('fr-FR') : '—'}
+                          {formatContractDate(contract.firstPaymentDate)}
                         </div>
                       </div>
 
@@ -589,6 +597,7 @@ export default function ListContractsCISection() {
                           <CalendarDays className="h-3 w-3" />
                           {contract.firstPaymentDate ? (() => {
                             const startDate = new Date(contract.firstPaymentDate)
+                            if (isNaN(startDate.getTime())) return '—'
                             const endDate = new Date(startDate)
                             endDate.setMonth(endDate.getMonth() + (contract.subscriptionCIDuration || 0))
                             return endDate.toLocaleDateString('fr-FR')

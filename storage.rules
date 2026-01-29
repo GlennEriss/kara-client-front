@@ -13,13 +13,10 @@ service firebase.storage {
     
     function isAdmin() {
       return isAuthenticated() && (
-        // Méthode 1 : Vérifier via custom claims (token.role)
+        // Vérifier via custom claims (token.role)
+        // Inclut Administrateur pour cohérence avec Firestore
         (request.auth.token.role != null && 
-         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary']) ||
-        // Méthode 2 : Vérifier via collection admins (fallback si custom claims non définis)
-        // Note: Storage rules ne supportent pas exists() directement, donc on se base sur token.role
-        // Si token.role n'est pas défini, l'utilisateur devra se reconnecter pour obtenir les custom claims
-        false
+         request.auth.token.role in ['Admin', 'SuperAdmin', 'Secretary', 'Administrateur'])
       );
     }
     
@@ -41,6 +38,11 @@ service firebase.storage {
     // Limite de taille : 10 MB pour les PDFs
     function isPDFSizeValid() {
       return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Limite de taille : 5 MB pour les contrats CI (conforme à l'UI)
+    function isContractPDFSizeValid() {
+      return request.resource.size < 5 * 1024 * 1024;
     }
     
     // ==========================================
@@ -132,22 +134,37 @@ service firebase.storage {
     // ==========================================
     // DOCUMENTS CONTRATS (CONTRACTS-CI)
     // ==========================================
-    // Documents uploadés pour les contrats et demandes d'adhésion
-    // Supporte les chemins : contracts-ci/{memberId}/{contractId}/{fileName}
-    // Utilisé pour les photos de profil et documents d'identité des demandes d'adhésion
+    // Contrats signés PDF + preuves de paiement (images) uploadés par les admins
+    // Chemin : contracts-ci/{memberId}/{fileName}
+    // - PDF : contrats (ADHESION_CI), supports, remboursements - max 5MB
+    // - Images : preuves de paiement (PROOF_PAYMENT_CI) - max 5MB
+    
+    match /contracts-ci/{memberId}/{fileName} {
+      // Lecture : Admins uniquement (documents sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement - PDF (max 5MB) OU image (max 5MB)
+      allow write: if isAdmin() && (
+        (isPDF() && isContractPDFSizeValid()) ||
+        (isImage() && isImageSizeValid())
+      );
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // Photos de pièces d'identité des contacts d'urgence (chemin avec contractId)
+    // Chemin : contracts-ci/{memberId}/{contractId}/{fileName}
     
     match /contracts-ci/{memberId}/{contractId}/{fileName} {
-      // Lecture : Publique (nécessaire pour afficher les documents dans le formulaire)
-      // La sécurité est gérée côté application
-      allow read: if true;
+      // Lecture : Admins uniquement
+      allow read: if isAdmin();
       
-      // Écriture : Publique avec validation (image, max 5MB)
-      // Permet l'upload lors de l'inscription et les corrections
-      allow write: if isImage() && isImageSizeValid();
+      // Écriture : Admins uniquement avec validation (image, max 5MB)
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
       
-      // Suppression : Publique (pour permettre le remplacement lors des corrections)
-      // Sécurité gérée côté application
-      allow delete: if true;
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
     }
     
     // ============================================

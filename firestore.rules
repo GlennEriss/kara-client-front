@@ -561,10 +561,27 @@ service cloud.firestore {
       allow read: if isAdmin() || isAuthenticated();
       
       // Création et mise à jour : Admin uniquement
-      // Validation minimale pour déboguer - à renforcer après
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isAdmin();
+      
+      // Sous-collection : versements/paiements par mois
+      // Nécessaire pour /caisse-imprevue/contrats/[id] et /versements
+      match /payments/{paymentId} {
+        allow read: if isAdmin() || isAuthenticated();
+        allow create, update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+      
+      // Sous-collections : supports, earlyRefunds, etc.
+      match /supports/{supportId} {
+        allow read: if isAdmin() || isAuthenticated();
+        allow write: if isAdmin();
+      }
+      match /earlyRefunds/{refundId} {
+        allow read: if isAdmin() || isAuthenticated();
+        allow write: if isAdmin();
+      }
     }
     
     // ==========================================

@@ -226,6 +226,16 @@ export class CaisseImprevueService {
   }
 
   /**
+   * Convertit une date (Date, Timestamp Firestore, string) en string YYYY-MM-DD
+   */
+  private toDateString(value: Date | string | { toDate?: () => Date } | undefined): string {
+    if (!value) return new Date().toISOString().split('T')[0]
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.split('T')[0]
+    const date = value instanceof Date ? value : (value as { toDate?: () => Date })?.toDate?.() ?? new Date(value as string)
+    return date.toISOString().split('T')[0]
+  }
+
+  /**
    * Crée un contrat depuis une demande acceptée avec traçabilité
    * Conforme à la doc : SEQ_CreerContrat.puml et CreerContrat.puml
    */
@@ -275,7 +285,7 @@ export class CaisseImprevueService {
       subscriptionCISupportMin: demand.subscriptionCISupportMin ?? 0,
       subscriptionCISupportMax: demand.subscriptionCISupportMax ?? 0,
       paymentFrequency: demand.paymentFrequency,
-      firstPaymentDate: demand.firstPaymentDate || demand.desiredStartDate,
+      firstPaymentDate: this.toDateString(demand.firstPaymentDate ?? demand.desiredStartDate),
       emergencyContact: {
         ...demand.emergencyContact,
         documentPhotoUrl: demand.emergencyContact.documentPhotoUrl ?? '',

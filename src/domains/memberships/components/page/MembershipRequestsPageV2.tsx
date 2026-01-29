@@ -65,7 +65,9 @@ import { useApproveMembershipRequest } from '../../hooks/useApproveMembershipReq
 import type { MembershipRequest, MembershipRequestFilters } from '../../entities'
 import {
   MEMBERSHIP_REQUEST_MESSAGES,
+  MEMBERSHIP_REQUEST_SEARCH,
 } from '@/constantes/membership-requests'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useAuth } from '@/hooks/useAuth'
 import routes from '@/constantes/routes'
 import MemberDetailsModal from '@/components/memberships/MemberDetailsModal'
@@ -179,6 +181,7 @@ export function MembershipRequestsPageV2() {
   // États des filtres et pagination
   const [filters, setFilters] = useState<MembershipRequestFilters>({})
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, MEMBERSHIP_REQUEST_SEARCH.DEBOUNCE_MS)
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTab, setActiveTab] = useState<string>('all')
   
@@ -210,8 +213,20 @@ export function MembershipRequestsPageV2() {
   // États de chargement des actions
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({})
 
+  // Filtres effectifs : recherche debouncée pour limiter les requêtes Algolia pendant la saisie
+  const effectiveFilters = useMemo(
+    () => ({
+      ...filters,
+      search:
+        debouncedSearchQuery.trim().length >= MEMBERSHIP_REQUEST_SEARCH.MIN_SEARCH_LENGTH
+          ? debouncedSearchQuery.trim()
+          : undefined,
+    }),
+    [filters, debouncedSearchQuery]
+  )
+
   // Hooks de données
-  const { data, isLoading, refetch } = useMembershipRequestsV2(filters, currentPage)
+  const { data, isLoading, refetch } = useMembershipRequestsV2(effectiveFilters, currentPage)
   const { data: stats } = useMembershipStatsV2()
   const {
     rejectMutation,
@@ -307,12 +322,7 @@ export function MembershipRequestsPageV2() {
 
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value)
-    // Mettre à jour les filtres avec la recherche
-    setFilters((prev) => ({
-      ...prev,
-      search: value.trim() || undefined,
-    }))
-    // Réinitialiser à la page 1 lors d'une recherche
+    // Note: search est appliqué via effectiveFilters (debounced) pour limiter les requêtes Algolia
     setCurrentPage(1)
   }, [])
 
