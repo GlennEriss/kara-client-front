@@ -73,6 +73,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "departments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "searchableText",
           "order": "ASCENDING"
         },
@@ -127,6 +145,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "communes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "searchableText",
           "order": "ASCENDING"
         },
@@ -181,6 +217,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "districts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "searchableText",
           "order": "ASCENDING"
         },
@@ -226,6 +280,24 @@
         },
         {
           "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quarters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchableText",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
           "order": "ASCENDING"
         }
       ]
