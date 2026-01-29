@@ -53,13 +53,15 @@ export default function ProvinceCombobox({ form, onAddNew, disabled = false }: P
   const selectedProvince = filteredProvinces.find(p => p.id === selectedProvinceId)
 
   const handleSelect = useCallback((value: string) => {
-    // cmdk passe la valeur du prop 'value' (province.name), on doit trouver l'ID correspondant
-    const province = filteredProvinces.find(p => p.name.toLowerCase() === value.toLowerCase())
+    // cmdk passe la valeur du prop 'value'
+    // On utilise province.id pour éviter les problèmes d'accents (ex: OGOOUÉ-MARITIME)
+    const province = filteredProvinces.find(p => p.id === value) ??
+      filteredProvinces.find(p => p.name.toLowerCase() === value.toLowerCase())
     if (!province) {
       console.warn('Province not found for value:', value)
       return
     }
-    
+
     // Sélectionner la province (sans toggle pour éviter les bugs de double-clic)
     setValue('address.provinceId', province.id, { shouldValidate: true })
     // Réinitialiser les sélections en cascade
@@ -137,8 +139,9 @@ export default function ProvinceCombobox({ form, onAddNew, disabled = false }: P
                     {filteredProvinces.map((province) => (
                       <CommandItem
                         key={province.id}
-                        value={province.name}
+                        value={province.id}
                         onSelect={handleSelect}
+                        keywords={[province.name, province.code]}
                       >
                         <Check
                           className={cn(
