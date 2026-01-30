@@ -4,7 +4,7 @@ import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { getNationalityName } from '@/constantes/nationality'
 
-// Styles
+// Styles - identiques à CaisseSpecialePDF pour cohérence visuelle
 const styles = StyleSheet.create({
   page: {
     fontFamily: 'Times-Roman',
@@ -48,14 +48,6 @@ const styles = StyleSheet.create({
     border: '1px solid black',
     marginBottom: 10,
   },
-  sectionHeader: {
-    backgroundColor: '#234D65',
-    color: 'white',
-    textAlign: 'center',
-    padding: 5,
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
   row: {
     flexDirection: 'row',
     borderBottom: '1px solid #ccc',
@@ -81,7 +73,7 @@ const styles = StyleSheet.create({
   articleText: {
     fontSize: 12,
     marginBottom: 6,
-    textAlign: 'center',
+    textAlign: 'justify',
   },
   bulletList: {
     marginBottom: 6,
@@ -159,26 +151,13 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     textAlign: 'center',
   },
-  table: {
-    width: '100%',
-    border: '1px solid black',
-    marginTop: 10,
-  },
-  tableRow: {
-    flexDirection: 'row',
-  },
-  tableCell: {
-    flex: 1,
-    borderRight: '1px solid black',
-    borderBottom: '1px solid black',
-    padding: 5,
-    fontSize: 10,
-  },
 })
 
-// PDF identique au document "Caisse spéciale"
-const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
-  // Fonctions utilitaires pour formater les données
+/**
+ * PDF Caisse Spéciale V2 - Basé sur CAISSE_SPECIALE_MUTUELLE_N.docx
+ * Nouveau document conforme au modèle officiel de la mutuelle
+ */
+const CaisseSpecialePDFV2 = ({ contract }: { contract?: any }) => {
   const formatDate = (date: any) => {
     if (!date) return '—'
     try {
@@ -195,111 +174,56 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
 
   const numberToWords = (num: number) => {
     if (num === 0) return 'zéro'
-
     const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
     const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt']
-    const _hundreds = ['', 'cent', 'deux cents', 'trois cents', 'quatre cents', 'cinq cents', 'six cents', 'sept cents', 'huit cents', 'neuf cents']
 
     const convertHundreds = (n: number) => {
       let result = ''
-
       if (n >= 100) {
         const hundredDigit = Math.floor(n / 100)
-        if (hundredDigit === 1) {
-          result += 'cent'
-        } else {
-          result += ones[hundredDigit] + ' cent'
-        }
+        result += hundredDigit === 1 ? 'cent' : ones[hundredDigit] + ' cent'
         if (n % 100 !== 0) result += ' '
         n %= 100
       }
-
       if (n >= 20) {
         const tenDigit = Math.floor(n / 10)
-        if (tenDigit === 7) {
-          result += 'soixante'
-          n += 10
-        } else if (tenDigit === 9) {
-          result += 'quatre-vingt'
-          n += 10
-        } else {
-          result += tens[tenDigit]
-        }
-
-        if (n % 10 !== 0) {
-          if (tenDigit === 8 && n % 10 === 1) {
-            result += '-un'
-          } else {
-            result += '-' + ones[n % 10]
-          }
-        } else if (tenDigit === 8) {
-          result += 's'
-        }
-      } else if (n > 0) {
-        result += ones[n]
-      }
-
+        if (tenDigit === 7) { result += 'soixante'; n += 10 }
+        else if (tenDigit === 9) { result += 'quatre-vingt'; n += 10 }
+        else result += tens[tenDigit]
+        if (n % 10 !== 0) result += (tenDigit === 8 && n % 10 === 1) ? '-un' : '-' + ones[n % 10]
+        else if (tenDigit === 8) result += 's'
+      } else if (n > 0) result += ones[n]
       return result
     }
 
-    if (num < 1000) {
-      return convertHundreds(num)
-    } else if (num < 1000000) {
+    if (num < 1000) return convertHundreds(num)
+    if (num < 1000000) {
       const thousands = Math.floor(num / 1000)
       const remainder = num % 1000
-      let result = ''
-
-      if (thousands === 1) {
-        result = 'mille'
-      } else {
-        result = convertHundreds(thousands) + ' mille'
-      }
-
-      if (remainder > 0) {
-        result += ' ' + convertHundreds(remainder)
-      }
-
-      return result
-    } else {
-      const millions = Math.floor(num / 1000000)
-      const remainder = num % 1000000
-      let result = ''
-
-      if (millions === 1) {
-        result = 'un million'
-      } else {
-        result = convertHundreds(millions) + ' millions'
-      }
-
-      if (remainder > 0) {
-        if (remainder < 1000) {
-          result += ' ' + convertHundreds(remainder)
-        } else {
-          const thousands = Math.floor(remainder / 1000)
-          const lastPart = remainder % 1000
-          if (thousands > 0) {
-            if (thousands === 1) {
-              result += ' mille'
-            } else {
-              result += ' ' + convertHundreds(thousands) + ' mille'
-            }
-          }
-          if (lastPart > 0) {
-            result += ' ' + convertHundreds(lastPart)
-          }
-        }
-      }
-
+      let result = thousands === 1 ? 'mille' : convertHundreds(thousands) + ' mille'
+      if (remainder > 0) result += ' ' + convertHundreds(remainder)
       return result
     }
+    const millions = Math.floor(num / 1000000)
+    const remainder = num % 1000000
+    let result = millions === 1 ? 'un million' : convertHundreds(millions) + ' millions'
+    if (remainder > 0) {
+      if (remainder < 1000) result += ' ' + convertHundreds(remainder)
+      else {
+        const thousands = Math.floor(remainder / 1000)
+        const lastPart = remainder % 1000
+        if (thousands > 0) result += ' ' + (thousands === 1 ? 'mille' : convertHundreds(thousands) + ' mille')
+        if (lastPart > 0) result += ' ' + convertHundreds(lastPart)
+      }
+    }
+    return result
   }
 
   return (
     <Document>
-      {/* PAGE 1 - Informations personnelles */}
+      {/* PAGE 1 - Informations personnelles + Contact urgent (CAISSE_SPECIALE_MUTUELLE_N.docx) */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContainer}>
-          {/* En-tête avec logo */}
           <View style={styles.header}>
             <View style={styles.logo}>
               <Image
@@ -317,8 +241,6 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             <View style={styles.row}>
               <Text style={styles.cell}>MATRICULE :</Text>
               <Text style={styles.cell}>{contract?.memberId || '—'}</Text>
-            </View>
-            <View style={styles.row}>
               <Text style={styles.cell}>MEMBRE :</Text>
               <Text style={styles.cell}>{contract?.member?.membershipType?.toUpperCase() || '—'}</Text>
             </View>
@@ -331,51 +253,45 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
               <Text style={styles.cell}>{contract?.member?.firstName || '—'}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>DATE / LIEU DE NAISSANCE :</Text>
-              <Text style={styles.cell}>{formatDate(contract?.member?.birthDate)} A {contract?.member?.birthPlace || '—'}</Text>
+              <Text style={styles.cell}>LIEU / NAISSANCE :</Text>
+              <Text style={styles.cell}>{contract?.member?.birthPlace || '—'}</Text>
+              <Text style={styles.cell}>DATE / NAISSANCE :</Text>
+              <Text style={styles.cell}>{formatDate(contract?.member?.birthDate)}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>NATIONALITÉ :</Text>
               <Text style={styles.cell}>{getNationalityName(contract?.member?.nationality)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.cell}>{contract?.member?.identityDocument || '—'}</Text>
+              <Text style={styles.cell}>N°CNI/PASS/CS :</Text>
               <Text style={styles.cell}>{contract?.member?.identityDocumentNumber || '—'}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
               <Text style={styles.cell}>{contract?.member?.contacts?.[0] || '—'}</Text>
-            </View>
-            <View style={styles.row}>
               <Text style={styles.cell}>TÉLÉPHONE 2 :</Text>
               <Text style={styles.cell}>{contract?.member?.contacts?.[1] || '—'}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>SEXE :</Text>
               <Text style={styles.cell}>{contract?.member?.gender || '—'}</Text>
-            </View>
-            <View style={styles.row}>
               <Text style={styles.cell}>ÂGE :</Text>
               <Text style={styles.cell}>{contract?.member?.age || '—'} ANS</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>QUARTIER :</Text>
               <Text style={styles.cell}>{contract?.member?.address?.district || '—'}</Text>
-            </View>
-            <View style={styles.row}>
               <Text style={styles.cell}>PROFESSION :</Text>
               <Text style={styles.cell}>{contract?.member?.profession || '—'}</Text>
             </View>
           </View>
 
-          <Text style={styles.title}>Informations Concernant le Contact Urgent</Text>
+          <Text style={styles.title}>Informations Concernant Le Contact Urgent</Text>
           <View style={styles.section}>
             <View style={styles.row}>
-              <Text style={styles.cell}>NOM  :</Text>
+              <Text style={styles.cell}>NOM :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.lastName || '—'}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>PRÉNOM  :</Text>
+              <Text style={styles.cell}>PRÉNOM :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.firstName || '—'}</Text>
             </View>
             <View style={styles.row}>
@@ -383,36 +299,37 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
               <Text style={styles.cell}>{contract?.emergencyContact?.relationship || '—'}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.cell}>TÉLÉPHONE(S) :</Text>
+              <Text style={styles.cell}>TÉLÉPHONE :</Text>
               <Text style={styles.cell}>{contract?.emergencyContact?.phone1 || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>N°CNI/PASS/CS :</Text>
+              <Text style={styles.cell}>{contract?.emergencyContact?.idNumber || '—'}</Text>
             </View>
           </View>
         </View>
       </Page>
 
-      {/* PAGE 2 - Contrat */}
+      {/* PAGE 2 - CAISSE SPÉCIALE (nouveau texte CAISSE_SPECIALE_MUTUELLE_N.docx) */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContainer}>
           <Text style={styles.title}>CAISSE SPÉCIALE</Text>
 
           <Text style={styles.articleText}>
-            Dans le cadre d'une démarche purement sociale, l'Association LE KARA lance le volet « Caisse spéciale »,
-            qui est un contrat par lequel l'association permet aux membres épargnants de faire des épargnes,
-            individuelles et volontaires sur un compte fermé, destinés à prévenir les différents aléas de leurs vies.
+            Dans le cadre d'une démarche purement sociale et en lien à sa mission de promouvoir la solidarité et l'appui mutuel entre ses membres, l'Association LE KARA met en place le volet « Caisse spéciale ». Ce dispositif permet à chaque adhérent volontaire, appelé épargnant, de constituer progressivement une réserve financière personnelle destinée à faire face sereinement aux imprévus de la vie : difficultés passagères, besoins urgents, projets essentiels ou situations fragilisantes.
           </Text>
           <Text style={styles.articleText}>
-            L'Association LE KARA s'engage en contrepartie des versements mensuels, à assurer la conservation et la mise
-            à disposition de ces fonds aux épargnants en cas de besoin.
+            L'Association LE KARA s'engage avec transparence, à sécuriser les fonds épargnés et à les mettre à la disposition de l'épargnant au moindre besoin, conformément aux dispositions qui suivent.
           </Text>
           <View style={styles.definitionList}>
             <View style={styles.definitionItem}>
-              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.definitionSymbol}>•</Text>
               <Text style={styles.definitionText}>
-                <Text style={styles.bold}>L'épargnant :</Text> Dénomination donnée au Membre de l'association qui souscrit au volet Caisse spéciale.
+                <Text style={styles.bold}>L'épargnant :</Text> Dénomination donnée au membre de l'association qui souscrit au volet caisse spéciale.
               </Text>
             </View>
             <View style={styles.definitionItem}>
-              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.definitionSymbol}>•</Text>
               <Text style={styles.definitionText}>
                 <Text style={styles.bold}>Le nominal :</Text> Globalité des versements mensuels de l'épargnant.
               </Text>
@@ -421,12 +338,10 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
         </View>
       </Page>
 
-      {/* PAGE 3 - Les Contraintes */}
+      {/* PAGE 3 - Fonctionnement général de la Caisse Spéciale (CAISSE_SPECIALE_MUTUELLE_N.docx) */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContainer}>
-          <Text style={styles.title}>LES CONTRAINTES</Text>
-
-          <Text style={{ marginBottom: 15 }}></Text>
+          <Text style={styles.title}>Fonctionnement général de la Caisse Spéciale</Text>
 
           <View style={styles.bulletList}>
             <View style={styles.bulletItem}>
@@ -435,42 +350,43 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
                 <Text style={styles.bold}>Durée du contrat :</Text> Chaque contrat est conclu sur une période maximale de douze (12) mois.
               </Text>
             </View>
-
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>•</Text>
               <Text style={styles.bulletText}>
                 <Text style={styles.bold}>Début du contrat :</Text> Le contrat court pour une durée déterminée à partir de la date du premier versement.
               </Text>
             </View>
-
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>•</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Terme du contrat :</Text> Le contrat prend fin à la date prévue par le contrat. A cette date, l'épargnant reçoit le remboursement des sommes qu'il a eu à verser.
+                <Text style={styles.bold}>Terme du contrat :</Text> Le contrat prend fin à la date prévue par le contrat. A cette date, l'épargnant reçoit le remboursement de l'intégralité des sommes qu'il a eu à verser.
               </Text>
             </View>
-
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>•</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Remboursement :</Text> Le remboursement des sommes versées, à l'initiative de l'association et au bénéfice de l'épargnant, intervient sur une durée maximale de <Text style={styles.bold}>trente (30) jours</Text> à compter de la date du terme du contrat.
+                <Text style={styles.bold}>Déroulement des versements mensuels :</Text> L'épargnant effectue chaque mois un versement librement déterminé, mais dont le montant doit être supérieur ou égal à 100 000 FCFA. Les fonds versés sont déposés sur un compte fermé, ce qui signifie que tout retrait avant le 12ᵉ mois n'est pas autorisé, sauf situations exceptionnelles prévues ci-dessous. Afin d'assurer la stabilité de la caisse, aucun retrait n'est autorisé avant la fin du douzième mois.
               </Text>
             </View>
-
             <View style={styles.bulletItem}>
               <Text style={styles.bulletSymbol}>•</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Déroulement des versements mensuels :</Text> L'épargnant s'engage à verser chaque mois une somme indéterminée, égale ou supérieure à 100.000 franc CFA, sur un compte fermé c'est-à-dire sans possibilité pour lui de les récupérer avant le terme du contrat. Avant le douzième mois, aucun retrait n'est autorisé. Il est accordé à tout épargnant, à compter de la date d'échéance contractuellement prévue pour chaque versement mensuel, un délai de retard de trois(3) jours pour procéder à son versement. Le versement intervenu dans ledit délai ne donne lieu à aucune pénalité.
+                <Text style={styles.bold}>Remboursement :</Text> Le remboursement du nominal, à l'initiative de l'association et au bénéfice de l'épargnant, intervient sur une durée maximale de <Text style={styles.bold}>trente (30) jours</Text> à compter de la date du terme du contrat. Ce délai permet une gestion saine, responsable et transparente de la trésorerie.
+              </Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Tolérance de retard :</Text> Il est accordé à tout épargnant, à compter de la date d'échéance contractuellement prévue pour chaque versement mensuel, un délai de retard de trois (3) jours pour procéder à son versement. Le versement intervenu dans ledit délai ne donne lieu à aucune pénalité.
               </Text>
             </View>
           </View>
 
           <Text style={styles.articleText}>
-            À compter du <Text style={styles.bold}>quatrième jour</Text> jusqu'à <Text style={styles.bold}>douzième jour</Text> succédant l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires.
+            À compter du <Text style={styles.bold}>quatrième jour</Text> jusqu'au <Text style={styles.bold}>douzième jour</Text> succédant l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver l'équilibre et la bonne tenue de la caisse commune.
           </Text>
-
           <Text style={styles.articleText}>
-            Tout versement intervenu après le douzième jour sus-mentionné est irrecevable et s'assimile à un manquement substantiel de l'épargnant à ses obligations contractuelles. Ainsi, il entraîne la résiliation du contrat à l'initiative du secrétaire exécutif, comme précisé ci-après.
+            Tout versement intervenu après le douzième jour est irrecevable et s'assimile à un manquement substantiel de l'épargnant à ses obligations contractuelles. Ainsi, il entraîne la résiliation du contrat à l'initiative du secrétaire exécutif, comme précisé ci-après.
           </Text>
 
           <View style={styles.bulletList}>
@@ -481,7 +397,6 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
               </Text>
             </View>
           </View>
-
           <View style={styles.subBulletList}>
             <View style={styles.subBulletItem}>
               <Text style={styles.subBulletSymbol}>-</Text>
@@ -496,45 +411,38 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
           <Text style={styles.articleText}>
             Le remboursement du nominal suite à une demande de retrait intervenue avant terme, est réalisé dans un intervalle de <Text style={styles.bold}>quarante-cinq jours</Text> à compter de la demande.
           </Text>
-          <Text style={styles.articleText}>
-          </Text>
-          <Text style={styles.articleText}>
-          </Text>
-          <Text style={{ fontSize: 12, textAlign: 'right' }}>
-            <Text style={styles.bold}>
-              [Signature de l'épargnant précédée de la mention "Lu et Approuvé"]
-            </Text>
+
+          <Text style={{ fontSize: 12, textAlign: 'right', marginTop: 15 }}>
+            <Text style={styles.bold}>[Signature de l'épargnant précédée de la mention « lu et approuvé »]</Text>
           </Text>
         </View>
       </Page>
 
-      {/* PAGE 4 - Fiche d'adhésion et articles */}
+      {/* PAGE 4 - Fiche d'adhésion (CAISSE_SPECIALE_MUTUELLE_N.docx) */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageContainer}>
-
           <Text style={styles.title}>FICHE D'ADHÉSION</Text>
 
           <Text>Je soussigné(e),</Text>
           <Text>
             <Text style={styles.bold}>{contract?.member?.lastName || '—'} {contract?.member?.firstName || '—'} </Text>
-            Membre de l'Association LE KARA, domicilié : {contract?.member?.address?.district || '—'} et 
-            joignable au {contract?.member?.contacts?.[0] || '—'}</Text>
+            membre de l'association KARA, domicilié à {contract?.member?.address?.district || '—'} et joignable au {contract?.member?.contacts?.[0] || '—'}
+          </Text>
 
           <Text style={styles.articleTitle}>Article 1 : Objet du contrat</Text>
           <Text style={styles.articleText}>
-            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'Association KARA.
+            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'association Kara.
           </Text>
 
           <Text style={styles.articleTitle}>Article 2 : Durée du contrat</Text>
           <Text style={styles.articleText}>
-            Que cet engagement est valable pour une durée de <Text style={styles.bold}>{contract?.monthsPlanned || 12} mois</Text>;
+            Que cet engagement est valable pour une durée de <Text style={styles.bold}>{contract?.monthsPlanned || 12} mois</Text> ;
           </Text>
           <Text>
             Qu'il a été conclu en date du <Text style={styles.bold}>{formatDate(contract?.firstPaymentDate)}</Text> et prend donc fin en date du <Text style={styles.bold}>{formatDate(contract?.lastPaymentDate)}</Text>
           </Text>
 
           <Text style={styles.articleTitle}>Article 3 : Termes contractuels</Text>
-
           <Text style={styles.articleText}>
             L'épargnant souscrit à la formule :
           </Text>
@@ -595,42 +503,11 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             CE DOCUMENT EST ÉTABLI POUR FAIRE VALOIR CE QUE DE DROIT
           </Text>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 }}>
-            <Text style={[styles.bold, { width: '45%' }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF :</Text>
-            <Text style={[styles.bold, { width: '45%', textAlign: 'right' }]}>[Signature de l'épargnant précédée de la mention « lu et approuvé »]</Text>
+          <View style={{ marginTop: 25 }}>
+            <Text style={[styles.bold, { fontSize: 12 }]}>Signature de l'épargnant précédée de la mention « lu et approuvé »</Text>
           </View>
-        </View>
-      </Page>
-
-      {/* PAGE 5 - Récapitulatif des versements */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageContainer}>
-          <Text style={styles.title}>RÉCAPITULATIF DES VERSEMENTS MENSUELS</Text>
-
-          <Text style={styles.articleText}>
-            CE DOCUMENT PREND ACTE DES DIFFÉRENTS VERSEMENTS MENSUELS EFFECTUÉS PAR L'ÉPARGNANT DANS LA CAISSE SPECIALE.
-          </Text>
-          <View style={styles.table}>
-            <View style={styles.tableRow}>
-              <Text style={styles.tableCell}>NOMBRE DE MOIS</Text>
-              <Text style={styles.tableCell}>MONTANT VERSÉ</Text>
-              <Text style={styles.tableCell}>DATE DE VERSEMENT</Text>
-              <Text style={styles.tableCell}>SIGNATURE DE L'ÉPARGNANT</Text>
-            </View>
-            {[...Array(contract?.monthsPlanned || 12)].map((_, i) => (
-              <View key={i} style={styles.tableRow}>
-                <Text style={styles.tableCell}>{i + 1}</Text>
-                <Text style={styles.tableCell}>
-                  {contract?.payments?.[i] ? formatAmount(contract.payments[i].amount) : ''}
-                </Text>
-                <Text style={styles.tableCell}>
-                  {contract?.payments?.[i] ? formatDate(contract.payments[i].paidAt) : ''}
-                </Text>
-                <Text style={styles.tableCell}>
-                  {contract?.payments?.[i] ? '✓' : ''}
-                </Text>
-              </View>
-            ))}
+          <View style={{ marginTop: 15 }}>
+            <Text style={[styles.bold, { fontSize: 12 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
           </View>
         </View>
       </Page>
@@ -638,4 +515,4 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
   )
 }
 
-export default CaisseSpecialePDF
+export default CaisseSpecialePDFV2

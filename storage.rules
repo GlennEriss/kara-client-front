@@ -167,6 +167,109 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
     
+    // ==========================================
+    // CAISSE SPÉCIALE - PREUVES DE PAIEMENT ET REMBOURSEMENTS
+    // ==========================================
+    // Preuves de paiement (images) et documents de remboursement
+    // Utilisé par : pay(), payGroup(), updatePaymentContribution(), markRefundPaid()
+    // Chemins :
+    //   - caisse/{contractId}/payments/{paymentId}/{fileName}
+    //   - caisse/{contractId}/payments/{paymentId}/contributions/{fileName}
+    //   - caisse/{contractId}/refunds/{refundId}/{fileName}
+    
+    match /caisse/{contractId}/payments/{paymentId}/{fileName} {
+      // Lecture : Admins uniquement (preuves sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (image, max 5MB)
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    match /caisse/{contractId}/payments/{paymentId}/contributions/{fileName} {
+      // Lecture : Admins uniquement
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (image, max 5MB)
+      allow write: if isAdmin() && isImage() && isImageSizeValid();
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    match /caisse/{contractId}/refunds/{refundId}/{fileName} {
+      // Lecture : Admins uniquement
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement - PDF ou image (max 5MB)
+      allow write: if isAdmin() && (
+        (isPDF() && isContractPDFSizeValid()) ||
+        (isImage() && isImageSizeValid())
+      );
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // DOCUMENTS DE REMBOURSEMENT (CONTRACT-DOCUMENTS)
+    // ==========================================
+    // PDFs de remboursement final/anticipé uploadés via PdfDocumentModal
+    // Utilisé par : StandardContract, DailyContract, FreeContract (remboursements CS)
+    // Chemin : contract-documents/{contractId}/{refundId}/{fileName}
+    
+    match /contract-documents/{contractId}/{refundId}/{fileName} {
+      // Lecture : Admins uniquement (documents sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (PDF, max 10MB)
+      allow write: if isAdmin() && isPDF() && isPDFSizeValid();
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // CAISSE SPÉCIALE - CONTRATS PDF (PAGE /caisse-speciale)
+    // ==========================================
+    // PDFs de contrats signés uploadés via ContractPdfUploadModal
+    // Chemin : contracts/{contractId}/{fileName}
+    
+    match /contracts/{contractId}/{fileName} {
+      // Lecture : Admins uniquement (documents sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (PDF, max 10MB)
+      allow write: if isAdmin() && isPDF() && isPDFSizeValid();
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ============================================
+    // CAISSE SPÉCIALE - CONTACTS D'URGENCE (DEMANDES)
+    // ============================================
+    // Photos de pièces d'identité des contacts d'urgence
+    // Utilisé par : EmergencyContactForm, EmergencyContactMemberSelector (création contrat CS)
+    // Chemin : emergency-contacts/{fileName}
+    
+    match /emergency-contacts/{fileName} {
+      // Lecture : Admins uniquement (documents sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation
+      // - Type : image (jpeg, jpg, png, webp)
+      // - Taille max : 5 MB
+      allow write: if isAdmin() && 
+        request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
+        request.resource.size < 5 * 1024 * 1024;
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
     // ============================================
     // CAISSE IMPRÉVUE - DOCUMENTS CONTACTS D'URGENCE (V2)
     // ============================================

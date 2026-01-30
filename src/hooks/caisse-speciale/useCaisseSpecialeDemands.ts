@@ -76,7 +76,8 @@ export function useCaisseSpecialeDemandMutations() {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
-            toast.success('Demande acceptée avec succès')
+            qc.invalidateQueries({ queryKey: ['caisseContracts'] })
+            toast.success('Demande acceptée et contrat créé avec succès')
         },
         onError: (error: any) => {
             if (error instanceof z.ZodError) {
@@ -131,15 +132,15 @@ export function useCaisseSpecialeDemandMutations() {
     })
 
     const convert = useMutation({
-        mutationFn: ({ demandId, contractData }: { demandId: string; contractData?: any }) => {
+        mutationFn: ({ demandId }: { demandId: string }) => {
             if (!user?.uid) throw new Error('Utilisateur non authentifié')
-            return service.convertDemandToContract(demandId, user.uid, contractData)
+            return service.convertDemandToContract(demandId, user.uid)
         },
         onSuccess: (result) => {
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
             qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
-            if (result?.contract) {
+            if (result?.contractId) {
                 qc.invalidateQueries({ queryKey: ['caisseContracts'] })
             }
             toast.success('Contrat créé avec succès')

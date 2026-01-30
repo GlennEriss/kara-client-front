@@ -6,6 +6,7 @@ import { IAdminRepository } from "@/repositories/admins/IAdminRepository";
 import { RepositoryFactory } from "@/factories/RepositoryFactory";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
+import { subscribe } from "@/services/caisse/mutations";
 
 export class CaisseSpecialeService implements ICaisseSpecialeService {
     readonly name = "CaisseSpecialeService";
@@ -96,69 +97,97 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
     }
 
     async approveDemand(demandId: string, adminId: string, reason: string): Promise<CaisseSpecialeDemand | null> {
+        // Récupérer la demande
+        const demand = await this.getDemandById(demandId);
+        if (!demand) {
+            throw new Error('Demande introuvable');
+        }
+        if (demand.status !== 'PENDING') {
+            throw new Error('Seules les demandes en attente peuvent être acceptées');
+        }
+        if (!demand.memberId) {
+            throw new Error('La demande doit être associée à un membre');
+        }
+
         // Récupérer le nom de l'admin
         const admin = await this.adminRepository.getAdminById(adminId);
         const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
 
-        const demand = await this.caisseSpecialeDemandRepository.updateDemandStatus(
+        // 1. Mettre à jour le statut de la demande à APPROVED
+        const approvedDemand = await this.caisseSpecialeDemandRepository.updateDemandStatus(
             demandId,
             'APPROVED',
             adminId,
             reason,
             adminName
         );
+        if (!approvedDemand) {
+            throw new Error('Erreur lors de l\'acceptation de la demande');
+        }
 
-        if (demand) {
-            // Récupérer le nom du membre
-            let memberName = "Membre inconnu";
-            if (demand.memberId) {
-                const member = await this.memberRepository.getMemberById(demand.memberId);
-                if (member) {
-                    memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
-                }
-            }
+        // 2. Créer le contrat Caisse Spéciale à partir de la demande
+        const contractId = await subscribe({
+            memberId: demand.memberId,
+            monthlyAmount: demand.monthlyAmount,
+            monthsPlanned: demand.monthsPlanned,
+            caisseType: demand.caisseType,
+            firstPaymentDate: demand.desiredDate,
+        });
 
-            // Notification au membre et à l'admin créateur
-            try {
-                await this.notificationService.createNotification({
-                    module: 'caisse_speciale',
-                    entityId: demand.id,
-                    type: 'status_update' as any, // Utiliser 'status_update' comme type générique
-                    title: 'Demande acceptée',
-                    message: `Votre demande de contrat Caisse Spéciale a été acceptée. Raison : ${reason}`,
-                    metadata: {
-                        demandId: demand.id,
-                        decisionMadeBy: adminId,
-                        decisionMadeByName: adminName,
-                        decisionReason: reason,
-                        decisionMadeAt: demand.decisionMadeAt?.toISOString(),
-                        memberId: demand.memberId,
-                    },
-                });
+        // 3. Mettre à jour la demande : statut CONVERTED + contractId
+        const convertedDemand = await this.caisseSpecialeDemandRepository.updateDemand(demandId, {
+            status: 'CONVERTED',
+            contractId,
+            updatedBy: adminId,
+        });
 
-                // Notification à l'admin créateur si différent
-                if (demand.createdBy !== adminId) {
-                    await this.notificationService.createNotification({
-                        module: 'caisse_speciale',
-                        entityId: demand.id,
-                        type: 'status_update' as any, // Utiliser 'status_update' comme type générique
-                        title: 'Demande acceptée',
-                        message: `La demande ${demand.id} de ${memberName} a été acceptée par ${adminName}`,
-                        metadata: {
-                            demandId: demand.id,
-                            decisionMadeBy: adminId,
-                            decisionMadeByName: adminName,
-                            decisionReason: reason,
-                            createdBy: demand.createdBy,
-                        },
-                    });
-                }
-            } catch (error) {
-                console.error('Erreur lors de la création de la notification:', error);
+        // 4. Notifications
+        let memberName = "Membre inconnu";
+        if (demand.memberId) {
+            const member = await this.memberRepository.getMemberById(demand.memberId);
+            if (member) {
+                memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
             }
         }
 
-        return demand;
+        try {
+            await this.notificationService.createNotification({
+                module: 'caisse_speciale',
+                entityId: demand.id,
+                type: 'status_update' as any,
+                title: 'Demande acceptée - Contrat créé',
+                message: `Votre demande a été acceptée. Le contrat ${contractId} a été créé.`,
+                metadata: {
+                    demandId: demand.id,
+                    contractId,
+                    decisionMadeBy: adminId,
+                    decisionMadeByName: adminName,
+                    decisionReason: reason,
+                    memberId: demand.memberId,
+                },
+            });
+
+            if (demand.createdBy !== adminId) {
+                await this.notificationService.createNotification({
+                    module: 'caisse_speciale',
+                    entityId: demand.id,
+                    type: 'status_update' as any,
+                    title: 'Demande acceptée - Contrat créé',
+                    message: `La demande ${demand.id} de ${memberName} a été acceptée par ${adminName}. Contrat ${contractId} créé.`,
+                    metadata: {
+                        demandId: demand.id,
+                        contractId,
+                        decisionMadeBy: adminId,
+                        decisionMadeByName: adminName,
+                        createdBy: demand.createdBy,
+                    },
+                });
+            }
+        } catch (error) {
+            console.error('Erreur lors de la création de la notification:', error);
+        }
+
+        return convertedDemand;
     }
 
     async rejectDemand(demandId: string, adminId: string, reason: string): Promise<CaisseSpecialeDemand | null> {
@@ -303,7 +332,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         return updatedDemand;
     }
 
-    async convertDemandToContract(demandId: string, adminId: string, contractData?: Partial<CaisseContract>): Promise<{ demand: CaisseSpecialeDemand; contract: CaisseContract } | null> {
+    async convertDemandToContract(demandId: string, adminId: string): Promise<{ demand: CaisseSpecialeDemand; contractId: string } | null> {
         const demand = await this.getDemandById(demandId);
         if (!demand || demand.status !== 'APPROVED') {
             throw new Error('La demande doit être acceptée pour être convertie en contrat');
@@ -313,66 +342,82 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             throw new Error('Cette demande a déjà été convertie en contrat');
         }
 
-        // TODO: Créer le contrat à partir de la demande
-        // Pour l'instant, on retourne null car la création de contrat nécessite plus de logique
-        // Cette méthode sera complétée lors de l'intégration avec le système de création de contrats existant
-        
-        // Mettre à jour la demande pour indiquer qu'elle a été convertie
+        if (!demand.memberId) {
+            throw new Error('La demande doit être associée à un membre');
+        }
+
+        // Créer le contrat Caisse Spéciale à partir de la demande (même logique que approveDemand)
+        const contractId = await subscribe({
+            memberId: demand.memberId,
+            monthlyAmount: demand.monthlyAmount,
+            monthsPlanned: demand.monthsPlanned,
+            caisseType: demand.caisseType,
+            firstPaymentDate: demand.desiredDate,
+        });
+
+        // Mettre à jour la demande : statut CONVERTED + contractId
         const updatedDemand = await this.caisseSpecialeDemandRepository.updateDemand(demandId, {
             status: 'CONVERTED',
-            contractId: contractData?.id, // L'ID du contrat créé
+            contractId,
             updatedBy: adminId,
         });
 
-        if (updatedDemand && contractData?.id) {
-            // Récupérer le nom du membre
-            let memberName = "Membre inconnu";
-            if (demand.memberId) {
-                const member = await this.memberRepository.getMemberById(demand.memberId);
-                if (member) {
-                    memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
-                }
-            }
+        if (!updatedDemand) {
+            throw new Error('Erreur lors de la mise à jour de la demande');
+        }
 
-            // Notification au membre et à tous les admins
-            try {
-                await this.notificationService.createNotification({
-                    module: 'caisse_speciale',
-                    entityId: contractData.id,
-                    type: 'contract_created' as any, // Utiliser 'contract_created' comme type générique
-                    title: 'Contrat créé depuis votre demande',
-                    message: `Votre demande a été convertie en contrat. Le contrat ${contractData.id} est maintenant actif.`,
-                    metadata: {
-                        demandId: demand.id,
-                        contractId: contractData.id,
-                        memberId: demand.memberId,
-                        convertedBy: adminId,
-                    },
-                });
-
-                // Notification globale pour tous les admins
-                await this.notificationService.createNotification({
-                    module: 'caisse_speciale',
-                    entityId: contractData.id,
-                    type: 'contract_created' as any, // Utiliser 'contract_created' comme type générique
-                    title: 'Contrat créé depuis une demande',
-                    message: `La demande ${demand.id} de ${memberName} a été convertie en contrat ${contractData.id}`,
-                    metadata: {
-                        demandId: demand.id,
-                        contractId: contractData.id,
-                        memberId: demand.memberId,
-                        convertedBy: adminId,
-                    },
-                });
-            } catch (error) {
-                console.error('Erreur lors de la création de la notification:', error);
+        // Récupérer le nom du membre et de l'admin
+        const admin = await this.adminRepository.getAdminById(adminId);
+        const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+        let memberName = "Membre inconnu";
+        if (demand.memberId) {
+            const member = await this.memberRepository.getMemberById(demand.memberId);
+            if (member) {
+                memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
             }
         }
 
-        return updatedDemand && contractData ? {
+        // Notifications
+        try {
+            await this.notificationService.createNotification({
+                module: 'caisse_speciale',
+                entityId: demand.id,
+                type: 'status_update' as any,
+                title: 'Contrat créé depuis votre demande',
+                message: `Votre demande a été convertie en contrat. Le contrat ${contractId} est maintenant actif.`,
+                metadata: {
+                    demandId: demand.id,
+                    contractId,
+                    decisionMadeBy: adminId,
+                    decisionMadeByName: adminName,
+                    memberId: demand.memberId,
+                },
+            });
+
+            if (demand.createdBy !== adminId) {
+                await this.notificationService.createNotification({
+                    module: 'caisse_speciale',
+                    entityId: demand.id,
+                    type: 'status_update' as any,
+                    title: 'Contrat créé depuis une demande',
+                    message: `La demande ${demand.id} de ${memberName} a été convertie en contrat ${contractId} par ${adminName}.`,
+                    metadata: {
+                        demandId: demand.id,
+                        contractId,
+                        decisionMadeBy: adminId,
+                        decisionMadeByName: adminName,
+                        createdBy: demand.createdBy,
+                    },
+                });
+            }
+        } catch (error) {
+            console.error('Erreur lors de la création de la notification:', error);
+        }
+
+        return {
             demand: updatedDemand,
-            contract: contractData as CaisseContract,
-        } : null;
+            contractId,
+        };
     }
 }
 

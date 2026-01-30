@@ -14,12 +14,13 @@ import {
   Clock,
   FileText,
   User,
-  Users,
   AlertCircle,
   RotateCcw,
+  FilePlus2,
+  Loader2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useCaisseSpecialeDemand } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
+import { useCaisseSpecialeDemand, useCaisseSpecialeDemandMutations } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
 import { CaisseSpecialeDemandStatus } from '@/types/types'
 import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
@@ -35,10 +36,25 @@ interface DemandDetailProps {
 export default function DemandDetail({ demandId }: DemandDetailProps) {
   const router = useRouter()
   const { data: demand, isLoading, error } = useCaisseSpecialeDemand(demandId)
+  const { convert } = useCaisseSpecialeDemandMutations()
   
   const [acceptModalOpen, setAcceptModalOpen] = useState(false)
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [reopenModalOpen, setReopenModalOpen] = useState(false)
+
+  const handleConvertToContract = () => {
+    if (!demand?.id) return
+    convert.mutate(
+      { demandId: demand.id },
+      {
+        onSuccess: (result) => {
+          if (result?.contractId) {
+            router.push(routes.admin.caisseSpecialeContractDetails(result.contractId))
+          }
+        },
+      }
+    )
+  }
 
   const getStatusColor = (status: CaisseSpecialeDemandStatus) => {
     const colors = {
@@ -323,6 +339,37 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
                 Refuser la demande
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Bouton Convertir en contrat pour les demandes acceptées sans contrat */}
+      {demand.status === 'APPROVED' && !demand.contractId && (
+        <Card>
+          <CardContent className="p-6">
+            <Alert className="mb-4 border-amber-200 bg-amber-50/50">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription>
+                Cette demande a été acceptée mais aucun contrat n&apos;a été créé. Cliquez sur le bouton ci-dessous pour créer le contrat.
+              </AlertDescription>
+            </Alert>
+            <Button
+              onClick={handleConvertToContract}
+              disabled={convert.isPending}
+              className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
+            >
+              {convert.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Création du contrat...
+                </>
+              ) : (
+                <>
+                  <FilePlus2 className="h-4 w-4 mr-2" />
+                  Convertir en contrat
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
       )}

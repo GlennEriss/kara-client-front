@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
-import CaisseSpecialePDF from './CaisseSpecialePDF'
+import CaisseSpecialePDFV2 from './CaisseSpecialePDFV2'
 
 interface CaisseSpecialePDFModalProps {
   isOpen: boolean
@@ -104,7 +104,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<CaisseSpecialePDF contract={enrichedContract} />).toBlob()
+      const blob = await pdf(<CaisseSpecialePDFV2 contract={enrichedContract} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -153,7 +153,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-lg lg:text-2xl font-bold bg-gradient-to-r from-[#234D65] to-[#2c5a73] bg-clip-text text-transparent">
-                  📋 Contrat Caisse Spéciale
+                  Contrat Caisse Spéciale
                 </DialogTitle>
                 <p className="text-sm lg:text-base text-gray-600 truncate">
                   Contrat #{contractId.slice(-6)}
@@ -236,7 +236,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                   </div>
 
                   {/* Boutons d'action mobile */}
-                  <BlobProvider document={<CaisseSpecialePDF contract={enrichedContract} />}>
+                  <BlobProvider document={<CaisseSpecialePDFV2 contract={enrichedContract} />}>
                     {({ url, loading }) => (
                       <div className="w-full space-y-2">
                         <Button
@@ -293,7 +293,7 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
                   border: 'none',
                   borderRadius: '0.75rem'
                 }}>
-                  <CaisseSpecialePDF contract={enrichedContract} />
+                  <CaisseSpecialePDFV2 contract={enrichedContract} />
                 </PDFViewer>
               </div>
             </>

@@ -353,6 +353,56 @@ service cloud.firestore {
     }
     
     // ==========================================
+    // PARAMÈTRES CAISSE SPÉCIALE (CAISSE SETTINGS)
+    // ==========================================
+    // Lecture par subscribe() lors de la création de contrat depuis une demande
+    match /caisseSettings/{settingsId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // DEMANDES CAISSE SPÉCIALE (CAISSE SPECIALE DEMANDS)
+    // ==========================================
+    // Page /caisse-speciale/demandes - Gestion des demandes de contrats CS
+    
+    match /caisseSpecialeDemands/{demandId} {
+      // LECTURE : Admin uniquement
+      allow read: if isAdmin();
+      
+      // CRÉATION : Admin uniquement avec validation des champs requis
+      allow create: if isAdmin() &&
+        // Champs obligatoires
+        request.resource.data.memberId is string &&
+        request.resource.data.contractType == 'INDIVIDUAL' &&
+        request.resource.data.caisseType is string &&
+        request.resource.data.caisseType in ['STANDARD', 'JOURNALIERE', 'LIBRE'] &&
+        request.resource.data.monthlyAmount is number &&
+        request.resource.data.monthlyAmount >= 1000 &&
+        request.resource.data.monthlyAmount <= 10000000 &&
+        request.resource.data.monthsPlanned is number &&
+        request.resource.data.monthsPlanned >= 1 &&
+        request.resource.data.monthsPlanned <= 120 &&
+        request.resource.data.desiredDate is string &&
+        request.resource.data.desiredDate.size() > 0 &&
+        request.resource.data.status == 'PENDING' &&
+        request.resource.data.createdBy is string &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.updatedAt is timestamp &&
+        // Pas de champs de décision à la création
+        !('decisionMadeBy' in request.resource.data) &&
+        !('decisionMadeAt' in request.resource.data) &&
+        !('contractId' in request.resource.data);
+      
+      // MISE À JOUR : Admin uniquement (approbation, refus, réouverture, conversion)
+      allow update: if isAdmin();
+      
+      // SUPPRESSION : Admin uniquement (seulement demandes REJECTED)
+      allow delete: if isAdmin() && resource.data.status == 'REJECTED';
+    }
+    
+    // ==========================================
     // CONTRATS CAISSE SPÉCIALE (CAISSE CONTRACTS)
     // ==========================================
     
@@ -361,6 +411,18 @@ service cloud.firestore {
       allow read: if isAdmin();
       // Écriture : Admin uniquement
       allow write: if isAdmin();
+      
+      // Sous-collection : versements (échéances mensuelles)
+      // Utilisée lors de la création de contrat depuis une demande acceptée
+      match /payments/{paymentId} {
+        allow read, write: if isAdmin();
+      }
+      
+      // Sous-collection : remboursements (retrait anticipé, remboursement final)
+      // Utilisée par ListContracts, page /caisse-speciale
+      match /refunds/{refundId} {
+        allow read, write: if isAdmin();
+      }
     }
     
     // ==========================================

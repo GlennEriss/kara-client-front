@@ -2737,16 +2737,24 @@
       ]
     },
     {
-      "collectionGroup": "payments",
-      "queryScope": "COLLECTION_GROUP",
+      "collectionGroup": "caisseSettings",
+      "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "status",
+          "fieldPath": "caisseType",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "__name__",
+          "fieldPath": "isActive",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "effectiveAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
         }
       ]
     }
