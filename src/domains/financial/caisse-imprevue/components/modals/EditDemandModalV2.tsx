@@ -163,7 +163,6 @@ export function EditDemandModalV2({
               type="date"
               value={desiredStartDate}
               onChange={(e) => setDesiredStartDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
               disabled={isLoading}
               data-testid="edit-demand-date-input"
             />

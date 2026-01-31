@@ -162,10 +162,10 @@ export class CreditContractRepository implements ICreditContractRepository {
             if (filters?.search) {
                 const searchLower = filters.search.toLowerCase();
                 contracts = contracts.filter((c) =>
-                    c.id.toLowerCase().includes(searchLower) ||
-                    c.clientFirstName.toLowerCase().includes(searchLower) ||
-                    c.clientLastName.toLowerCase().includes(searchLower) ||
-                    c.clientContacts.some(contact => contact.toLowerCase().includes(searchLower))
+                    (c.id || '').toLowerCase().includes(searchLower) ||
+                    (c.clientFirstName || '').toLowerCase().includes(searchLower) ||
+                    (c.clientLastName || '').toLowerCase().includes(searchLower) ||
+                    (c.clientContacts || []).some(contact => (contact || '').toLowerCase().includes(searchLower))
                 );
             }
 
