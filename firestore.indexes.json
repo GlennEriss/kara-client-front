@@ -3345,6 +3345,63 @@
         { "fieldPath": "createdAt", "order": "DESCENDING" },
         { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "caisseSpecialeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caisseType", "order": "ASCENDING" },
+        { "fieldPath": "searchableText", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "caisseSpecialeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caisseType", "order": "ASCENDING" },
+        { "fieldPath": "searchableTextFirstNameFirst", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "caisseSpecialeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caisseType", "order": "ASCENDING" },
+        { "fieldPath": "searchableTextMatriculeFirst", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "caisseSpecialeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "searchableText", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "caisseSpecialeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "searchableTextFirstNameFirst", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "caisseSpecialeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "searchableTextMatriculeFirst", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -130,26 +130,26 @@ git checkout -b refactor/caisse-speciale-demandes-v2
 
 #### Repository
 
-- [ ] **1.1** Modifier `getDemandsWithFilters` pour retourner `{ items: Demand[], total: number }` (pagination côté Firestore)
-- [ ] **1.2** Implémenter `getCountFromServer` ou requête dédiée pour le total
-- [ ] **1.3** Optimiser `getDemandsStats` : requêtes Firestore dédiées par statut (éviter `getDemandsWithFilters({})`)
+- [x] **1.1** Modifier `getDemandsWithFilters` pour retourner `{ items: Demand[], total: number }` (pagination côté Firestore)
+- [x] **1.2** Implémenter `getCountFromServer` ou requête dédiée pour le total
+- [x] **1.3** Optimiser `getDemandsStats` : requêtes Firestore dédiées par statut (éviter `getDemandsWithFilters({})`)
 
 #### Hooks
 
-- [ ] **1.4** Adapter `useCaisseSpecialeDemands` : `{ data: { items, total }, isLoading }`
-- [ ] **1.5** Adapter `useCaisseSpecialeDemandsStats` : cache 2 min, chargement unique
-- [ ] **1.6** Implémenter `queryClient.invalidateQueries` sur "Actualiser"
+- [x] **1.4** Adapter `useCaisseSpecialeDemands` : `{ data: { items, total }, isLoading }`
+- [x] **1.5** Adapter `useCaisseSpecialeDemandsStats` : cache 2 min, chargement unique
+- [x] **1.6** Implémenter `queryClient.invalidateQueries` sur "Actualiser"
 
 #### Composants
 
-- [ ] **1.7** Inverser l'ordre : **StatisticsCaisseSpecialeDemandes** AVANT les onglets (C.1)
-- [ ] **1.8** Implémenter vue **tableau** (colonnes : Matricule, Nom, Prénom, Contacts demandeur, Montant, Durée, Date souhaitée, Statut, Contact d'urgence, Actions) (C.5)
-- [ ] **1.9** Afficher **contacts du demandeur** (téléphone, email) via `useMember(demand.memberId)` sur cards et tableau (1.3)
-- [ ] **1.10** Afficher **contact d'urgence** sur cards et tableau via `demand.emergencyContact` (1.4)
-- [ ] **1.11** Bouton "Nouvelle Demande" → `router.push('/caisse-speciale/demandes/nouvelle')` (C.6)
-- [ ] **1.12** Boutons "Exporter PDF" et "Exporter Excel" (barre d'actions) (1.6)
-- [ ] **1.13** Pagination : "Affichage 1-12 sur X", Précédent/Suivant
-- [ ] **1.14** Breadcrumbs : `/caisse-speciale/demandes` → "Demandes"
+- [x] **1.7** Inverser l'ordre : **StatisticsCaisseSpecialeDemandes** AVANT les onglets (C.1)
+- [x] **1.8** Implémenter vue **tableau** (colonnes : Matricule, Nom, Prénom, Contacts demandeur, Montant, Durée, Date souhaitée, Statut, Contact d'urgence, Actions) (C.5)
+- [x] **1.9** Afficher **contacts du demandeur** (téléphone, email) via `useMember(demand.memberId)` sur cards et tableau (1.3)
+- [x] **1.10** Afficher **contact d'urgence** sur cards et tableau via `demand.emergencyContact` (1.4)
+- [x] **1.11** Bouton "Nouvelle Demande" → `router.push('/caisse-speciale/demandes/nouvelle')` (C.6)
+- [x] **1.12** Boutons "Exporter PDF" et "Exporter Excel" (barre d'actions) (1.6) — placeholders Phase 6
+- [x] **1.13** Pagination : "Affichage 1-12 sur X", Précédent/Suivant
+- [x] **1.14** Breadcrumbs : `/caisse-speciale/demandes` → "Demandes"
 
 ### Tests
 
@@ -173,23 +173,23 @@ git checkout -b refactor/caisse-speciale-demandes-v2
 
 #### Repository
 
-- [ ] **2.1** Implémenter `getPaginatedWithSearchMerge` : 3 requêtes parallèles sur `searchableText`, `searchableTextFirstNameFirst`, `searchableTextMatriculeFirst` (C.8)
-- [ ] **2.2** Fusionner et dédupliquer les résultats des 3 requêtes
-- [ ] **2.3** Appliquer filtres Firestore : `status`, `caisseType`, `createdAt` (range), `desiredDate` (range si possible)
-- [ ] **2.4** Pagination : `limit`, `startAfter` / `startAt`
+- [x] **2.1** Implémenter `getPaginatedWithSearchMerge` : 3 requêtes parallèles sur `searchableText`, `searchableTextFirstNameFirst`, `searchableTextMatriculeFirst` (C.8)
+- [x] **2.2** Fusionner et dédupliquer les résultats des 3 requêtes
+- [x] **2.3** Appliquer filtres Firestore : `status`, `caisseType`, `createdAt` (range), `desiredDate` (range si possible)
+- [x] **2.4** Pagination : `limit`, `startAfter` / `startAt`
 
 #### Hooks
 
-- [ ] **2.5** Adapter `useCaisseSpecialeDemands` pour passer `search` aux filtres
-- [ ] **2.6** Debounce 300 ms sur le champ de recherche
-- [ ] **2.7** Reset `page = 1` à chaque changement de filtre ou recherche
+- [x] **2.5** Adapter `useCaisseSpecialeDemands` pour passer `search` aux filtres
+- [x] **2.6** Debounce 300 ms sur le champ de recherche
+- [x] **2.7** Reset `page = 1` à chaque changement de filtre ou recherche
 
 #### Composants
 
-- [ ] **2.8** Barre de filtres : recherche (placeholder "Rechercher par nom, prénom ou matricule..."), statut, dates (création, souhaitée), type caisse
-- [ ] **2.9** Recherche : minimum 2 caractères pour lancer
-- [ ] **2.10** Badge "X filtres actifs" si filtres appliqués
-- [ ] **2.11** Bouton "Réinitialiser filtres"
+- [x] **2.8** Barre de filtres : recherche (placeholder "Rechercher par nom, prénom ou matricule..."), statut, dates (création, souhaitée), type caisse
+- [x] **2.9** Recherche : minimum 2 caractères pour lancer
+- [x] **2.10** Badge "X filtres actifs" si filtres appliqués
+- [x] **2.11** Bouton "Réinitialiser filtres"
 
 ### Tests
 
@@ -213,17 +213,17 @@ git checkout -b refactor/caisse-speciale-demandes-v2
 
 #### Page
 
-- [ ] **3.1** Créer page `/caisse-speciale/demandes/[id]`
-- [ ] **3.2** Breadcrumbs : `/caisse-speciale/demandes/[id]` → "Détails"
+- [x] **3.1** Créer page `/caisse-speciale/demandes/[id]`
+- [x] **3.2** Breadcrumbs : `/caisse-speciale/demandes/[id]` → "Détails"
 
 #### Composants
 
-- [ ] **3.3** Carte "Informations du membre" : nom, prénom, matricule, contacts via `useMember(demand.memberId)` (2.1, 2.2)
-- [ ] **3.4** Carte "Contact d'urgence" : nom, prénom, téléphones, lien de parenté depuis `demand.emergencyContact` (2.3)
-- [ ] **3.5** Tableau récapitulatif des versements (Mois, Date, Montant FCFA, Cumulé, Total) calculé depuis `monthlyAmount`, `monthsPlanned`, `desiredDate`
-- [ ] **3.6** Affichage traçabilité : "Accepté par X le DD/MM/YYYY", "Refusé par Y le DD/MM/YYYY", etc.
-- [ ] **3.7** Boutons d'action : Accepter, Refuser, Réouvrir, Convertir (selon statut)
-- [ ] **3.8** Bouton "Exporter en PDF" (détails complets)
+- [x] **3.3** Carte "Informations du membre" : nom, prénom, matricule, contacts via `useMember(demand.memberId)` (2.1, 2.2)
+- [x] **3.4** Carte "Contact d'urgence" : nom, prénom, téléphones, lien de parenté depuis `demand.emergencyContact` (2.3)
+- [x] **3.5** Tableau récapitulatif des versements (Mois, Date, Montant FCFA, Cumulé, Total) calculé depuis `monthlyAmount`, `monthsPlanned`, `desiredDate`
+- [x] **3.6** Affichage traçabilité : "Accepté par X le DD/MM/YYYY", "Refusé par Y le DD/MM/YYYY", etc.
+- [x] **3.7** Boutons d'action : Accepter, Refuser, Réouvrir, Convertir (selon statut)
+- [x] **3.8** Bouton "Exporter en PDF" (détails complets) — placeholder Phase 6
 
 ### Tests
 
@@ -245,27 +245,27 @@ git checkout -b refactor/caisse-speciale-demandes-v2
 
 #### Page
 
-- [ ] **4.1** Créer page `/caisse-speciale/demandes/nouvelle` (C.6)
-- [ ] **4.2** Référence : `caisse-imprevue/demandes/add/page.tsx`
+- [x] **4.1** Créer page `/caisse-speciale/demandes/nouvelle` (C.6)
+- [x] **4.2** Référence : `caisse-imprevue/demandes/add/page.tsx`
 
 #### Formulaire
 
-- [ ] **4.3** Formulaire 3 étapes : (1) Sélection membre, (2) Infos demande, (3) Contact d'urgence (C.0)
-- [ ] **4.4** Étape 3 : `EmergencyContactMemberSelector` (réutiliser Caisse Imprévue)
-- [ ] **4.5** Validation `emergencyContactCISchema` et `caisseSpecialeDemandFormSchema`
-- [ ] **4.6** Persistance localStorage (éviter perte si fermeture accidentelle)
+- [x] **4.3** Formulaire 3 étapes : (1) Sélection membre, (2) Infos demande, (3) Contact d'urgence (C.0)
+- [x] **4.4** Étape 3 : `EmergencyContactMemberSelector` (réutiliser Caisse Imprévue)
+- [x] **4.5** Validation `emergencyContactCISchema` et `caisseSpecialeDemandFormSchema`
+- [x] **4.6** Persistance localStorage (éviter perte si fermeture accidentelle)
 
 #### Service & Repository
 
-- [ ] **4.7** `createDemand` : enregistrer `createdBy: adminId` (C.7)
-- [ ] **4.8** `createDemand` : calculer et stocker `searchableText`, `searchableTextFirstNameFirst`, `searchableTextMatriculeFirst` via `generateAllDemandSearchableTexts()` (C.8)
-- [ ] **4.9** Générer ID custom : `MK_DEMANDE_CS_{matricule}_{DDMMYY}_{HHMM}`
+- [x] **4.7** `createDemand` : enregistrer `createdBy: adminId` (C.7)
+- [x] **4.8** `createDemand` : calculer et stocker `searchableText`, `searchableTextFirstNameFirst`, `searchableTextMatriculeFirst` via `generateAllDemandSearchableTexts()` (C.8)
+- [x] **4.9** Générer ID custom : `MK_DEMANDE_CS_{matricule}_{DDMMYY}_{HHMM}`
 
 #### Post-création
 
-- [ ] **4.10** Notification : `createNotification(module: 'caisse_speciale', type: 'new_request')`
-- [ ] **4.11** Redirection vers `/caisse-speciale/demandes` + toast succès
-- [ ] **4.12** Invalidation cache : `invalidateQueries(['caisseSpecialeDemands', 'caisseSpecialeDemandsStats'])`
+- [x] **4.10** Notification : `createNotification(module: 'caisse_speciale', type: 'new_request')`
+- [x] **4.11** Redirection vers `/caisse-speciale/demandes` + toast succès
+- [x] **4.12** Invalidation cache : `invalidateQueries(['caisseSpecialeDemands', 'caisseSpecialeDemandsStats'])`
 
 ### Tests
 
@@ -286,33 +286,33 @@ git checkout -b refactor/caisse-speciale-demandes-v2
 
 ### Tâches communes
 
-- [ ] **5.0** Traçabilité : enregistrer **qui** (adminId, adminName) et **quand** (timestamp) pour chaque action
+- [x] **5.0** Traçabilité : enregistrer **qui** (adminId, adminName) et **quand** (timestamp) pour chaque action
 
 ### AccepterDemande
 
-- [ ] **5.1** Enregistrer `approvedBy`, `approvedAt`, `approvedByName`, `approveReason`
-- [ ] **5.2** Créer contrat via `subscribe()` (Caisse Spéciale)
-- [ ] **5.3** Mettre à jour demande : `status: 'CONVERTED'`, `contractId`
-- [ ] **5.4** Notification membre et admin créateur
+- [x] **5.1** Enregistrer `approvedBy`, `approvedAt`, `approvedByName`, `approveReason`
+- [x] **5.2** Créer contrat via `subscribe()` (Caisse Spéciale)
+- [x] **5.3** Mettre à jour demande : `status: 'CONVERTED'`, `contractId`
+- [x] **5.4** Notification membre et admin créateur
 
 ### RefuserDemande
 
-- [ ] **5.5** Enregistrer `rejectedBy`, `rejectedAt`, `rejectedByName`, `rejectReason`
-- [ ] **5.6** Mettre à jour `status: 'REJECTED'`
-- [ ] **5.7** Validation : motif min 10 caractères
+- [x] **5.5** Enregistrer `rejectedBy`, `rejectedAt`, `rejectedByName`, `rejectReason`
+- [x] **5.6** Mettre à jour `status: 'REJECTED'`
+- [x] **5.7** Validation : motif min 10 caractères
 
 ### ReouvrirDemande
 
-- [ ] **5.8** Vérifier `status === 'REJECTED'`
-- [ ] **5.9** Enregistrer `reopenedBy`, `reopenedAt`, `reopenedByName`, `reopenReason`
-- [ ] **5.10** Mettre à jour `status: 'PENDING'`
+- [x] **5.8** Vérifier `status === 'REJECTED'`
+- [x] **5.9** Enregistrer `reopenedBy`, `reopenedAt`, `reopenedByName`, `reopenReason`
+- [x] **5.10** Mettre à jour `status: 'PENDING'`
 
 ### ConvertirContrat
 
-- [ ] **5.11** Vérifier `status === 'APPROVED'` et pas de `contractId`
-- [ ] **5.12** Créer contrat via `subscribe()`
-- [ ] **5.13** Enregistrer `convertedBy`, `convertedAt`, `convertedByName`, `contractId`
-- [ ] **5.14** Mettre à jour `status: 'CONVERTED'`
+- [x] **5.11** Vérifier `status === 'APPROVED'` et pas de `contractId`
+- [x] **5.12** Créer contrat via `subscribe()`
+- [x] **5.13** Enregistrer `convertedBy`, `convertedAt`, `convertedByName`, `contractId`
+- [x] **5.14** Mettre à jour `status: 'CONVERTED'`
 
 ### Tests
 
@@ -333,9 +333,9 @@ git checkout -b refactor/caisse-speciale-demandes-v2
 
 ### Tâches
 
-- [ ] **6.1** Service `DemandExportService.exportDemandDetailsToPDF` (détails + tableau versements)
-- [ ] **6.2** Export PDF du tableau versements (optionnel : Excel)
-- [ ] **6.3** Référence : Caisse Imprévue `DemandExportService`
+- [x] **6.1** Service `CaisseSpecialeDemandExportService.exportDemandDetailsToPDF` (détails + tableau versements)
+- [x] **6.2** Export PDF du tableau versements (optionnel : Excel)
+- [x] **6.3** Référence : Caisse Imprévue `DemandExportService`
 
 ### Tests
 

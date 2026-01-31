@@ -28,6 +28,8 @@ const routeLabels: Record<string, string> = {
   '/groups': 'Groupes',
   '/memberships/add': 'Nouveau membre',
   '/caisse-speciale': 'Caisse Spéciale',
+  '/caisse-speciale/demandes': 'Demandes',
+  '/caisse-speciale/demandes/nouvelle': 'Nouvelle demande',
   '/caisse-speciale/contrats': 'Contrats',
   '/caisse-speciale/settings': 'Paramètres Caisse',
   '/caisse-imprevue': 'Caisse Imprévue',
@@ -77,6 +79,9 @@ const getRouteLabel = (path: string): string => {
   }
   if (path.match(/^\/groups\/[^\/]+$/)) {
     return 'Détails'
+  }
+  if (path.match(/^\/caisse-speciale\/demandes\/[^\/]+$/)) {
+    return path.endsWith('/nouvelle') ? 'Nouvelle demande' : 'Détails'
   }
   if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+$/)) {
     return 'Détails'
