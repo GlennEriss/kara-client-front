@@ -7,6 +7,7 @@ import { RepositoryFactory } from "@/factories/RepositoryFactory";
 import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { subscribe } from "@/services/caisse/mutations";
+import { generateAllDemandSearchableTexts } from "@/utils/demandSearchableText";
 
 export class CaisseSpecialeService implements ICaisseSpecialeService {
     readonly name = "CaisseSpecialeService";
@@ -28,13 +29,21 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         // Générer l'ID au format: MK_DEMANDE_CS_{matricule}_{date}_{heure}
         let matriculeFormatted = "0000";
         let memberName = "Membre inconnu";
-        
+        let memberLastName = '';
+        let memberFirstName = '';
+        let memberMatricule = '';
+
         if (data.memberId) {
             const member = await this.memberRepository.getMemberById(data.memberId);
-            if (member && member.matricule) {
-                const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
-                matriculeFormatted = matriculePart.padStart(4, '0');
-                memberName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+            if (member) {
+                memberLastName = member.lastName || '';
+                memberFirstName = member.firstName || '';
+                memberMatricule = member.matricule || '';
+                memberName = `${memberFirstName} ${memberLastName}`.trim();
+                if (member.matricule) {
+                    const matriculePart = member.matricule.split('.')[0] || member.matricule.replace(/[^0-9]/g, '').slice(0, 4);
+                    matriculeFormatted = matriculePart.padStart(4, '0');
+                }
             }
         }
 
@@ -50,11 +59,15 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
 
         const customId = `MK_DEMANDE_CS_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`;
 
+        // C.8 : Générer les 3 searchableText pour la recherche nom/prénom/matricule
+        const searchableTexts = generateAllDemandSearchableTexts(memberLastName, memberFirstName, memberMatricule);
+
         const demandData = {
             ...data,
             contractType: 'INDIVIDUAL' as const, // Toujours individuel
             status: 'PENDING' as const,
             createdBy: adminId,
+            ...searchableTexts,
         };
 
         const demand = await this.caisseSpecialeDemandRepository.createDemand(demandData, customId);
@@ -88,7 +101,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         return await this.caisseSpecialeDemandRepository.getDemandById(id);
     }
 
-    async getDemandsWithFilters(filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemand[]> {
+    async getDemandsWithFilters(filters?: CaisseSpecialeDemandFilters): Promise<{ items: CaisseSpecialeDemand[]; total: number }> {
         return await this.caisseSpecialeDemandRepository.getDemandsWithFilters(filters);
     }
 
@@ -134,10 +147,13 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             firstPaymentDate: demand.desiredDate,
         });
 
-        // 3. Mettre à jour la demande : statut CONVERTED + contractId
+        // 3. Mettre à jour la demande : statut CONVERTED + contractId + traçabilité
         const convertedDemand = await this.caisseSpecialeDemandRepository.updateDemand(demandId, {
             status: 'CONVERTED',
             contractId,
+            convertedBy: adminId,
+            convertedAt: new Date(),
+            convertedByName: adminName,
             updatedBy: adminId,
         });
 
@@ -355,10 +371,17 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             firstPaymentDate: demand.desiredDate,
         });
 
-        // Mettre à jour la demande : statut CONVERTED + contractId
+        // Récupérer le nom de l'admin pour la traçabilité
+        const admin = await this.adminRepository.getAdminById(adminId);
+        const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
+
+        // Mettre à jour la demande : statut CONVERTED + contractId + traçabilité (5.12)
         const updatedDemand = await this.caisseSpecialeDemandRepository.updateDemand(demandId, {
             status: 'CONVERTED',
             contractId,
+            convertedBy: adminId,
+            convertedAt: new Date(),
+            convertedByName: adminName,
             updatedBy: adminId,
         });
 
@@ -366,9 +389,6 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             throw new Error('Erreur lors de la mise à jour de la demande');
         }
 
-        // Récupérer le nom du membre et de l'admin
-        const admin = await this.adminRepository.getAdminById(adminId);
-        const adminName = admin ? `${admin.firstName || ''} ${admin.lastName || ''}`.trim() : adminId;
         let memberName = "Membre inconnu";
         if (demand.memberId) {
             const member = await this.memberRepository.getMemberById(demand.memberId);
@@ -418,6 +438,17 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             demand: updatedDemand,
             contractId,
         };
+    }
+
+    async deleteDemand(demandId: string): Promise<void> {
+        const demand = await this.getDemandById(demandId);
+        if (!demand) {
+            throw new Error('Demande introuvable');
+        }
+        if (demand.status === 'CONVERTED' && demand.contractId) {
+            throw new Error('Impossible de supprimer une demande déjà convertie en contrat');
+        }
+        await this.caisseSpecialeDemandRepository.deleteDemand(demandId);
     }
 }
 

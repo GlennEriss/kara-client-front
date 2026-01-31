@@ -362,18 +362,22 @@ service cloud.firestore {
     }
     
     // ==========================================
-    // DEMANDES CAISSE SPÉCIALE (CAISSE SPECIALE DEMANDS)
+    // DEMANDES CAISSE SPÉCIALE (CAISSE SPECIALE DEMANDS) - V2
     // ==========================================
     // Page /caisse-speciale/demandes - Gestion des demandes de contrats CS
+    // Workflows : ListerDemandes, FiltrerDemandes, RechercherDemandes, CreerDemande,
+    //            AccepterDemande, RefuserDemande, ReouvrirDemande, ConvertirContrat,
+    //            VoirDetails, ExporterDetailsDemande
     
     match /caisseSpecialeDemands/{demandId} {
       // LECTURE : Admin uniquement
       allow read: if isAdmin();
       
-      // CRÉATION : Admin uniquement avec validation des champs requis
+      // CRÉATION : Admin uniquement avec validation des champs requis (V2)
       allow create: if isAdmin() &&
         // Champs obligatoires
         request.resource.data.memberId is string &&
+        request.resource.data.memberId.size() > 0 &&
         request.resource.data.contractType == 'INDIVIDUAL' &&
         request.resource.data.caisseType is string &&
         request.resource.data.caisseType in ['STANDARD', 'JOURNALIERE', 'LIBRE'] &&
@@ -391,8 +395,14 @@ service cloud.firestore {
         request.resource.data.createdAt is timestamp &&
         request.resource.data.updatedAt is timestamp &&
         // Pas de champs de décision à la création
-        !('decisionMadeBy' in request.resource.data) &&
-        !('decisionMadeAt' in request.resource.data) &&
+        !('approvedBy' in request.resource.data) &&
+        !('approvedAt' in request.resource.data) &&
+        !('rejectedBy' in request.resource.data) &&
+        !('rejectedAt' in request.resource.data) &&
+        !('reopenedBy' in request.resource.data) &&
+        !('reopenedAt' in request.resource.data) &&
+        !('convertedBy' in request.resource.data) &&
+        !('convertedAt' in request.resource.data) &&
         !('contractId' in request.resource.data);
       
       // MISE À JOUR : Admin uniquement (approbation, refus, réouverture, conversion)

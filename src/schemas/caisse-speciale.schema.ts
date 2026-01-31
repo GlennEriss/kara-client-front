@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { emergencyContactCISchema } from './emergency-contact.schema'
 
 // ================== SCHÉMA DEMANDE DE CAISSE SPÉCIALE ==================
 
@@ -62,6 +63,8 @@ export const caisseSpecialeDemandFormSchema = z.object({
   cause: z.string()
     .max(500, 'La cause ne peut pas dépasser 500 caractères')
     .optional(),
+  // C.0 : Contact d'urgence obligatoire (réutiliser EmergencyContactMemberSelector)
+  emergencyContact: emergencyContactCISchema,
 })
 
 export type CaisseSpecialeDemandFormInput = z.infer<typeof caisseSpecialeDemandFormSchema>
@@ -88,5 +91,15 @@ export const caisseSpecialeDemandDefaultValues: Partial<CaisseSpecialeDemandForm
   caisseType: 'STANDARD',
   monthsPlanned: 12,
   desiredDate: new Date().toISOString().split('T')[0], // Date du jour par défaut
+  emergencyContact: {
+    lastName: '',
+    firstName: '',
+    phone1: '',
+    phone2: '',
+    relationship: '',
+    idNumber: '',
+    typeId: '',
+    documentPhotoUrl: '',
+  },
 }
 

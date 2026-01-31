@@ -1,5 +1,5 @@
 import { ICaisseSpecialeDemandRepository } from "./ICaisseSpecialeDemandRepository";
-import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStats } from "@/types/types";
+import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStats, CaisseSpecialeDemandsPaginated } from "@/types/types";
 import { firebaseCollectionNames } from "@/constantes/firebase-collection-names";
 
 const getFirestore = () => import("@/firebase/firestore");
@@ -52,13 +52,17 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
             }
             
             const data = docSnap.data();
+            const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
             return {
                 id: docSnap.id,
                 ...(data as any),
                 createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                 updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
-                decisionMadeAt: (data.decisionMadeAt as any)?.toDate ? (data.decisionMadeAt as any).toDate() : undefined,
-                reopenedAt: (data.reopenedAt as any)?.toDate ? (data.reopenedAt as any).toDate() : undefined,
+                decisionMadeAt: toDate(data.decisionMadeAt),
+                reopenedAt: toDate(data.reopenedAt),
+                approvedAt: toDate(data.approvedAt),
+                rejectedAt: toDate(data.rejectedAt),
+                convertedAt: toDate(data.convertedAt),
             } as CaisseSpecialeDemand;
         } catch (error) {
             console.error("Erreur lors de la récupération de la demande:", error);
@@ -66,12 +70,22 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
         }
     }
 
-    async getDemandsWithFilters(filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemand[]> {
+    async getDemandsWithFilters(filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandsPaginated> {
         try {
-            const { collection, db, getDocs, query, where, orderBy } = await getFirestore();
+            const hasSearch = Boolean(filters?.search && filters.search.trim().length >= 2);
+            const normalizedSearch = hasSearch
+                ? filters!.search!.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                : '';
 
+            if (hasSearch) {
+                return this.getPaginatedWithSearchMerge(filters!, normalizedSearch);
+            }
+
+            const { collection, db, getDocs, getCountFromServer, query, where, orderBy, limit, startAfter } = await getFirestore();
+
+            const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
             const constraints: any[] = [];
-            
+
             if (filters?.status && filters.status !== 'all') {
                 constraints.push(where("status", "==", filters.status));
             }
@@ -96,78 +110,168 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 constraints.push(where("decisionMadeBy", "==", filters.decisionMadeBy));
             }
 
+            if (filters?.createdAtFrom) {
+                constraints.push(where("createdAt", ">=", filters.createdAtFrom));
+            }
+            if (filters?.createdAtTo) {
+                constraints.push(where("createdAt", "<=", filters.createdAtTo));
+            }
+
             constraints.push(orderBy("createdAt", "desc"));
 
-            const q = query(
-                collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands"),
-                ...constraints
-            );
+            const baseQuery = query(colRef, ...constraints);
 
-            const querySnapshot = await getDocs(q);
-            let demands: CaisseSpecialeDemand[] = [];
+            let total = 0;
+            try {
+                const countSnapshot = await getCountFromServer(baseQuery);
+                total = countSnapshot.data().count;
+            } catch (countError) {
+                console.warn("getCountFromServer failed:", countError);
+            }
 
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
+            const pageSize = filters?.limit || 12;
+            const currentPage = filters?.page || 1;
+            const offset = (currentPage - 1) * pageSize;
+
+            let paginatedQuery = query(baseQuery, limit(pageSize));
+
+            if (offset > 0) {
+                const offsetQuery = query(baseQuery, limit(offset));
+                const offsetSnapshot = await getDocs(offsetQuery);
+                if (offsetSnapshot.docs.length > 0) {
+                    const lastDoc = offsetSnapshot.docs[offsetSnapshot.docs.length - 1];
+                    paginatedQuery = query(baseQuery, startAfter(lastDoc), limit(pageSize));
+                }
+            }
+
+            const querySnapshot = await getDocs(paginatedQuery);
+            const demands: CaisseSpecialeDemand[] = [];
+
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
                 demands.push({
-                    id: doc.id,
+                    id: docSnap.id,
                     ...(data as any),
                     createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
                     updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
-                    decisionMadeAt: (data.decisionMadeAt as any)?.toDate ? (data.decisionMadeAt as any).toDate() : undefined,
+                    decisionMadeAt: toDate(data.decisionMadeAt),
+                    reopenedAt: toDate(data.reopenedAt),
+                    approvedAt: toDate(data.approvedAt),
+                    rejectedAt: toDate(data.rejectedAt),
+                    convertedAt: toDate(data.convertedAt),
                 } as CaisseSpecialeDemand);
             });
 
-            // Filtrage côté client pour recherche textuelle et dates
-            if (filters?.search) {
-                const searchLower = filters.search.toLowerCase();
-                demands = demands.filter((d) =>
-                    d.id.toLowerCase().includes(searchLower)
-                );
-            }
-
-            if (filters?.createdAtFrom) {
-                demands = demands.filter((d) => d.createdAt >= filters.createdAtFrom!);
-            }
-
-            if (filters?.createdAtTo) {
-                demands = demands.filter((d) => d.createdAt <= filters.createdAtTo!);
-            }
-
+            let filteredDemands = demands;
             if (filters?.desiredDateFrom) {
-                demands = demands.filter((d) => new Date(d.desiredDate) >= filters.desiredDateFrom!);
+                filteredDemands = filteredDemands.filter((d) => new Date(d.desiredDate) >= filters.desiredDateFrom!);
             }
-
             if (filters?.desiredDateTo) {
-                demands = demands.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
+                filteredDemands = filteredDemands.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
             }
 
-            // Pagination
-            if (filters?.page && filters?.limit) {
-                const start = (filters.page - 1) * filters.limit;
-                const end = start + filters.limit;
-                demands = demands.slice(start, end);
-            }
-
-            return demands;
+            return { items: filteredDemands, total };
         } catch (error) {
             console.error("Erreur lors de la récupération des demandes filtrées:", error);
-            return [];
+            // Propager l'erreur pour afficher un message à l'utilisateur (ex: index Firestore manquant)
+            throw error;
         }
     }
 
-    async getDemandsStats(filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandStats> {
+    private async getPaginatedWithSearchMerge(filters: CaisseSpecialeDemandFilters, normalizedQuery: string): Promise<CaisseSpecialeDemandsPaginated> {
+        const { collection, db, getDocs, query, where, orderBy, limit } = await getFirestore();
+        const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
+        const searchFields = ['searchableText', 'searchableTextFirstNameFirst', 'searchableTextMatriculeFirst'] as const;
+        const fetchLimit = Math.min(100, (filters.limit || 12) * 5);
+
+        const buildConstraints = (searchField: string) => {
+            const c: any[] = [];
+            if (filters.status && filters.status !== 'all') {
+                c.push(where('status', '==', filters.status));
+            }
+            if (filters.caisseType && filters.caisseType !== 'all') {
+                c.push(where('caisseType', '==', filters.caisseType));
+            }
+            if (filters.memberId) {
+                c.push(where('memberId', '==', filters.memberId));
+            }
+            c.push(where(searchField, '>=', normalizedQuery));
+            c.push(where(searchField, '<=', normalizedQuery + '\uf8ff'));
+            c.push(orderBy(searchField, 'asc'));
+            c.push(orderBy('createdAt', 'desc'));
+            return c;
+        };
+
+        const [snap1, snap2, snap3] = await Promise.all(
+            searchFields.map((field) =>
+                getDocs(query(colRef, ...buildConstraints(field), limit(fetchLimit)))
+            )
+        );
+
+        const seen = new Set<string>();
+        const merged: CaisseSpecialeDemand[] = [];
+        const addDoc = (docSnap: any) => {
+            if (!seen.has(docSnap.id)) {
+                seen.add(docSnap.id);
+                const data = docSnap.data();
+                const toDate = (v: unknown) => (v as any)?.toDate ? (v as any).toDate() : undefined;
+                merged.push({
+                    id: docSnap.id,
+                    ...(data as any),
+                    createdAt: (data.createdAt as any)?.toDate ? (data.createdAt as any).toDate() : new Date(),
+                    updatedAt: (data.updatedAt as any)?.toDate ? (data.updatedAt as any).toDate() : new Date(),
+                    decisionMadeAt: toDate(data.decisionMadeAt),
+                    reopenedAt: toDate(data.reopenedAt),
+                    approvedAt: toDate(data.approvedAt),
+                    rejectedAt: toDate(data.rejectedAt),
+                    convertedAt: toDate(data.convertedAt),
+                } as CaisseSpecialeDemand);
+            }
+        };
+        [snap1, snap2, snap3].forEach((snap) => snap.forEach(addDoc));
+
+        let filtered = merged;
+        if (filters.createdAtFrom) {
+            filtered = filtered.filter((d) => d.createdAt >= filters.createdAtFrom!);
+        }
+        if (filters.createdAtTo) {
+            filtered = filtered.filter((d) => d.createdAt <= filters.createdAtTo!);
+        }
+        if (filters.desiredDateFrom) {
+            filtered = filtered.filter((d) => new Date(d.desiredDate) >= filters.desiredDateFrom!);
+        }
+        if (filters.desiredDateTo) {
+            filtered = filtered.filter((d) => new Date(d.desiredDate) <= filters.desiredDateTo!);
+        }
+
+        filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+        const total = filtered.length;
+        const pageSize = filters.limit || 12;
+        const currentPage = filters.page || 1;
+        const start = (currentPage - 1) * pageSize;
+        const items = filtered.slice(start, start + pageSize);
+
+        return { items, total };
+    }
+
+    async getDemandsStats(_filters?: CaisseSpecialeDemandFilters): Promise<CaisseSpecialeDemandStats> {
         try {
-            const demands = await this.getDemandsWithFilters(filters);
+            const { collection, db, getCountFromServer, query, where } = await getFirestore();
+            const colRef = collection(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands");
 
-            const stats: CaisseSpecialeDemandStats = {
-                total: demands.length,
-                pending: demands.filter(d => d.status === 'PENDING').length,
-                approved: demands.filter(d => d.status === 'APPROVED').length,
-                rejected: demands.filter(d => d.status === 'REJECTED').length,
-                converted: demands.filter(d => d.status === 'CONVERTED').length,
-            };
+            const statuses = ['PENDING', 'APPROVED', 'REJECTED', 'CONVERTED'] as const;
+            const countPromises = statuses.map((status) => {
+                const q = query(colRef, where("status", "==", status));
+                return getCountFromServer(q);
+            });
 
-            return stats;
+            const results = await Promise.all(countPromises);
+            const [pending, approved, rejected, converted] = results.map((r) => r.data().count);
+            const total = pending + approved + rejected + converted;
+
+            return { total, pending, approved, rejected, converted };
         } catch (error) {
             console.error("Erreur lors du calcul des statistiques:", error);
             return {
@@ -192,7 +296,7 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
 
             const demandRef = doc(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands", id);
 
-            await updateDoc(demandRef, {
+            const baseUpdate: Record<string, unknown> = {
                 status,
                 decisionMadeAt: serverTimestamp(),
                 decisionMadeBy: adminId,
@@ -200,7 +304,21 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
                 decisionReason: reason,
                 updatedBy: adminId,
                 updatedAt: serverTimestamp(),
-            });
+            };
+
+            if (status === 'APPROVED') {
+                baseUpdate.approvedBy = adminId;
+                baseUpdate.approvedAt = serverTimestamp();
+                baseUpdate.approvedByName = adminName;
+                baseUpdate.approveReason = reason;
+            } else if (status === 'REJECTED') {
+                baseUpdate.rejectedBy = adminId;
+                baseUpdate.rejectedAt = serverTimestamp();
+                baseUpdate.rejectedByName = adminName;
+                baseUpdate.rejectReason = reason;
+            }
+
+            await updateDoc(demandRef, baseUpdate);
 
             return await this.getDemandById(id);
         } catch (error) {
@@ -230,6 +348,17 @@ export class CaisseSpecialeDemandRepository implements ICaisseSpecialeDemandRepo
             return await this.getDemandById(id);
         } catch (error) {
             console.error("Erreur lors de la mise à jour de la demande:", error);
+            throw error;
+        }
+    }
+
+    async deleteDemand(id: string): Promise<void> {
+        try {
+            const { doc, deleteDoc, db } = await getFirestore();
+            const demandRef = doc(db, firebaseCollectionNames.caisseSpecialeDemands || "caisseSpecialeDemands", id);
+            await deleteDoc(demandRef);
+        } catch (error) {
+            console.error("Erreur lors de la suppression de la demande:", error);
             throw error;
         }
     }

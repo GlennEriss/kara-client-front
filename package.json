@@ -45,6 +45,10 @@
     "migrate-demands-searchable-text:dev": "tsx scripts/migrate-demands-searchable-text.ts dev",
     "migrate-demands-searchable-text:preprod": "tsx scripts/migrate-demands-searchable-text.ts preprod",
     "migrate-demands-searchable-text:prod": "tsx scripts/migrate-demands-searchable-text.ts prod",
+    "migrate-caisse-speciale-demands-created-at": "tsx scripts/migrate-caisse-speciale-demands-created-at.ts",
+    "migrate-caisse-speciale-demands-created-at:dev": "tsx scripts/migrate-caisse-speciale-demands-created-at.ts dev",
+    "migrate-caisse-speciale-demands-created-at:preprod": "tsx scripts/migrate-caisse-speciale-demands-created-at.ts preprod",
+    "migrate-caisse-speciale-demands-created-at:prod": "tsx scripts/migrate-caisse-speciale-demands-created-at.ts prod",
     "sync-vercel-env:preview": "tsx scripts/sync-vercel-env.ts preview",
     "sync-vercel-env:prod": "tsx scripts/sync-vercel-env.ts production"
   },
