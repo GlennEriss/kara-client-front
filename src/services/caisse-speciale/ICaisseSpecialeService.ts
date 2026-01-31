@@ -1,4 +1,4 @@
-import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStats, CaisseContract } from "@/types/types";
+import { CaisseSpecialeDemand, CaisseSpecialeDemandFilters, CaisseSpecialeDemandStats } from "@/types/types";
 
 export interface ICaisseSpecialeService {
     readonly name: string;
@@ -10,6 +10,6 @@ export interface ICaisseSpecialeService {
     approveDemand(demandId: string, adminId: string, reason: string): Promise<CaisseSpecialeDemand | null>;
     rejectDemand(demandId: string, adminId: string, reason: string): Promise<CaisseSpecialeDemand | null>;
     reopenDemand(demandId: string, adminId: string, reason: string): Promise<CaisseSpecialeDemand | null>;
-    convertDemandToContract(demandId: string, adminId: string, contractData?: Partial<CaisseContract>): Promise<{ demand: CaisseSpecialeDemand; contract: CaisseContract } | null>;
+    convertDemandToContract(demandId: string, adminId: string): Promise<{ demand: CaisseSpecialeDemand; contractId: string } | null>;
 }
 

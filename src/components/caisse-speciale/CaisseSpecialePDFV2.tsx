@@ -1,0 +1,518 @@
+'use client'
+
+import React from 'react'
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { getNationalityName } from '@/constantes/nationality'
+
+// Styles - identiques à CaisseSpecialePDF pour cohérence visuelle
+const styles = StyleSheet.create({
+  page: {
+    fontFamily: 'Times-Roman',
+    fontSize: 11,
+    padding: 25,
+    lineHeight: 1.4,
+    position: 'relative',
+  },
+  pageContainer: {
+    width: '100%',
+    height: '100%',
+    border: '2px solid #265169',
+    position: 'relative',
+    padding: 15,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    width: '100%',
+  },
+  logo: {
+    width: 500,
+    height: 200,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 15,
+    border: '1px solid #265169',
+    backgroundColor: '#234D65',
+    color: 'white',
+    padding: 5
+  },
+  section: {
+    border: '1px solid black',
+    marginBottom: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    borderBottom: '1px solid #ccc',
+    padding: 5,
+  },
+  cell: {
+    flex: 1,
+    fontSize: 11,
+  },
+  bold: {
+    fontWeight: 'bold',
+  },
+  articleTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginTop: 8,
+    marginBottom: 4,
+    textAlign: 'center',
+    border: '1px solid #265169',
+    backgroundColor: '#265169',
+    color: 'white',
+  },
+  articleText: {
+    fontSize: 12,
+    marginBottom: 6,
+    textAlign: 'justify',
+  },
+  bulletList: {
+    marginBottom: 6,
+    paddingLeft: 0,
+  },
+  bulletItem: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  bulletSymbol: {
+    width: 15,
+    marginRight: 5,
+  },
+  bulletText: {
+    flex: 1,
+    textAlign: 'justify',
+  },
+  definitionList: {
+    marginBottom: 6,
+  },
+  definitionItem: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  definitionSymbol: {
+    width: 15,
+    marginRight: 5,
+  },
+  definitionText: {
+    flex: 1,
+    textAlign: 'justify',
+  },
+  subBulletList: {
+    marginLeft: 20,
+    marginTop: 4,
+  },
+  subBulletItem: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  subBulletSymbol: {
+    width: 15,
+    marginRight: 5,
+  },
+  subBulletText: {
+    flex: 1,
+    textAlign: 'justify',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 15,
+    height: 15,
+    border: '1px solid black',
+    borderRadius: 50,
+    marginRight: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxText: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  blankLine: {
+    borderBottom: '1px solid black',
+    minWidth: 100,
+    height: 12,
+    marginHorizontal: 5,
+  },
+  formSection: {
+    marginVertical: 10,
+    textAlign: 'center',
+  },
+})
+
+/**
+ * PDF Caisse Spéciale V2 - Basé sur CAISSE_SPECIALE_MUTUELLE_N.docx
+ * Nouveau document conforme au modèle officiel de la mutuelle
+ */
+const CaisseSpecialePDFV2 = ({ contract }: { contract?: any }) => {
+  const formatDate = (date: any) => {
+    if (!date) return '—'
+    try {
+      const dateObj = date?.toDate ? date.toDate() : new Date(date)
+      return dateObj.toLocaleDateString('fr-FR')
+    } catch {
+      return '—'
+    }
+  }
+
+  const formatAmount = (amount: number) => {
+    return amount ? amount.toLocaleString('fr-FR') : '0'
+  }
+
+  const numberToWords = (num: number) => {
+    if (num === 0) return 'zéro'
+    const ones = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
+    const tens = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt']
+
+    const convertHundreds = (n: number) => {
+      let result = ''
+      if (n >= 100) {
+        const hundredDigit = Math.floor(n / 100)
+        result += hundredDigit === 1 ? 'cent' : ones[hundredDigit] + ' cent'
+        if (n % 100 !== 0) result += ' '
+        n %= 100
+      }
+      if (n >= 20) {
+        const tenDigit = Math.floor(n / 10)
+        if (tenDigit === 7) { result += 'soixante'; n += 10 }
+        else if (tenDigit === 9) { result += 'quatre-vingt'; n += 10 }
+        else result += tens[tenDigit]
+        if (n % 10 !== 0) result += (tenDigit === 8 && n % 10 === 1) ? '-un' : '-' + ones[n % 10]
+        else if (tenDigit === 8) result += 's'
+      } else if (n > 0) result += ones[n]
+      return result
+    }
+
+    if (num < 1000) return convertHundreds(num)
+    if (num < 1000000) {
+      const thousands = Math.floor(num / 1000)
+      const remainder = num % 1000
+      let result = thousands === 1 ? 'mille' : convertHundreds(thousands) + ' mille'
+      if (remainder > 0) result += ' ' + convertHundreds(remainder)
+      return result
+    }
+    const millions = Math.floor(num / 1000000)
+    const remainder = num % 1000000
+    let result = millions === 1 ? 'un million' : convertHundreds(millions) + ' millions'
+    if (remainder > 0) {
+      if (remainder < 1000) result += ' ' + convertHundreds(remainder)
+      else {
+        const thousands = Math.floor(remainder / 1000)
+        const lastPart = remainder % 1000
+        if (thousands > 0) result += ' ' + (thousands === 1 ? 'mille' : convertHundreds(thousands) + ' mille')
+        if (lastPart > 0) result += ' ' + convertHundreds(lastPart)
+      }
+    }
+    return result
+  }
+
+  return (
+    <Document>
+      {/* PAGE 1 - Informations personnelles + Contact urgent (CAISSE_SPECIALE_MUTUELLE_N.docx) */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageContainer}>
+          <View style={styles.header}>
+            <View style={styles.logo}>
+              <Image
+                src={window.location.origin + '/Logo-Kara.jpg'}
+                style={{ width: 200, height: 200, objectFit: 'cover' }}
+                cache={false}
+              />
+            </View>
+            <View style={{ flex: 1 }} />
+          </View>
+
+          <Text style={styles.title}>Informations Personnelles du Membre</Text>
+
+          <View style={styles.section}>
+            <View style={styles.row}>
+              <Text style={styles.cell}>MATRICULE :</Text>
+              <Text style={styles.cell}>{contract?.memberId || '—'}</Text>
+              <Text style={styles.cell}>MEMBRE :</Text>
+              <Text style={styles.cell}>{contract?.member?.membershipType?.toUpperCase() || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>NOM :</Text>
+              <Text style={styles.cell}>{contract?.member?.lastName?.toUpperCase() || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>PRÉNOM :</Text>
+              <Text style={styles.cell}>{contract?.member?.firstName || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>LIEU / NAISSANCE :</Text>
+              <Text style={styles.cell}>{contract?.member?.birthPlace || '—'}</Text>
+              <Text style={styles.cell}>DATE / NAISSANCE :</Text>
+              <Text style={styles.cell}>{formatDate(contract?.member?.birthDate)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>NATIONALITÉ :</Text>
+              <Text style={styles.cell}>{getNationalityName(contract?.member?.nationality)}</Text>
+              <Text style={styles.cell}>N°CNI/PASS/CS :</Text>
+              <Text style={styles.cell}>{contract?.member?.identityDocumentNumber || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>TÉLÉPHONE 1 :</Text>
+              <Text style={styles.cell}>{contract?.member?.contacts?.[0] || '—'}</Text>
+              <Text style={styles.cell}>TÉLÉPHONE 2 :</Text>
+              <Text style={styles.cell}>{contract?.member?.contacts?.[1] || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>SEXE :</Text>
+              <Text style={styles.cell}>{contract?.member?.gender || '—'}</Text>
+              <Text style={styles.cell}>ÂGE :</Text>
+              <Text style={styles.cell}>{contract?.member?.age || '—'} ANS</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>QUARTIER :</Text>
+              <Text style={styles.cell}>{contract?.member?.address?.district || '—'}</Text>
+              <Text style={styles.cell}>PROFESSION :</Text>
+              <Text style={styles.cell}>{contract?.member?.profession || '—'}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.title}>Informations Concernant Le Contact Urgent</Text>
+          <View style={styles.section}>
+            <View style={styles.row}>
+              <Text style={styles.cell}>NOM :</Text>
+              <Text style={styles.cell}>{contract?.emergencyContact?.lastName || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>PRÉNOM :</Text>
+              <Text style={styles.cell}>{contract?.emergencyContact?.firstName || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>LIENS :</Text>
+              <Text style={styles.cell}>{contract?.emergencyContact?.relationship || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>TÉLÉPHONE :</Text>
+              <Text style={styles.cell}>{contract?.emergencyContact?.phone1 || '—'}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.cell}>N°CNI/PASS/CS :</Text>
+              <Text style={styles.cell}>{contract?.emergencyContact?.idNumber || '—'}</Text>
+            </View>
+          </View>
+        </View>
+      </Page>
+
+      {/* PAGE 2 - CAISSE SPÉCIALE (nouveau texte CAISSE_SPECIALE_MUTUELLE_N.docx) */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageContainer}>
+          <Text style={styles.title}>CAISSE SPÉCIALE</Text>
+
+          <Text style={styles.articleText}>
+            Dans le cadre d'une démarche purement sociale et en lien à sa mission de promouvoir la solidarité et l'appui mutuel entre ses membres, l'Association LE KARA met en place le volet « Caisse spéciale ». Ce dispositif permet à chaque adhérent volontaire, appelé épargnant, de constituer progressivement une réserve financière personnelle destinée à faire face sereinement aux imprévus de la vie : difficultés passagères, besoins urgents, projets essentiels ou situations fragilisantes.
+          </Text>
+          <Text style={styles.articleText}>
+            L'Association LE KARA s'engage avec transparence, à sécuriser les fonds épargnés et à les mettre à la disposition de l'épargnant au moindre besoin, conformément aux dispositions qui suivent.
+          </Text>
+          <View style={styles.definitionList}>
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>•</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>L'épargnant :</Text> Dénomination donnée au membre de l'association qui souscrit au volet caisse spéciale.
+              </Text>
+            </View>
+            <View style={styles.definitionItem}>
+              <Text style={styles.definitionSymbol}>•</Text>
+              <Text style={styles.definitionText}>
+                <Text style={styles.bold}>Le nominal :</Text> Globalité des versements mensuels de l'épargnant.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Page>
+
+      {/* PAGE 3 - Fonctionnement général de la Caisse Spéciale (CAISSE_SPECIALE_MUTUELLE_N.docx) */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageContainer}>
+          <Text style={styles.title}>Fonctionnement général de la Caisse Spéciale</Text>
+
+          <View style={styles.bulletList}>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Durée du contrat :</Text> Chaque contrat est conclu sur une période maximale de douze (12) mois.
+              </Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Début du contrat :</Text> Le contrat court pour une durée déterminée à partir de la date du premier versement.
+              </Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Terme du contrat :</Text> Le contrat prend fin à la date prévue par le contrat. A cette date, l'épargnant reçoit le remboursement de l'intégralité des sommes qu'il a eu à verser.
+              </Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Déroulement des versements mensuels :</Text> L'épargnant effectue chaque mois un versement librement déterminé, mais dont le montant doit être supérieur ou égal à 100 000 FCFA. Les fonds versés sont déposés sur un compte fermé, ce qui signifie que tout retrait avant le 12ᵉ mois n'est pas autorisé, sauf situations exceptionnelles prévues ci-dessous. Afin d'assurer la stabilité de la caisse, aucun retrait n'est autorisé avant la fin du douzième mois.
+              </Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Remboursement :</Text> Le remboursement du nominal, à l'initiative de l'association et au bénéfice de l'épargnant, intervient sur une durée maximale de <Text style={styles.bold}>trente (30) jours</Text> à compter de la date du terme du contrat. Ce délai permet une gestion saine, responsable et transparente de la trésorerie.
+              </Text>
+            </View>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Tolérance de retard :</Text> Il est accordé à tout épargnant, à compter de la date d'échéance contractuellement prévue pour chaque versement mensuel, un délai de retard de trois (3) jours pour procéder à son versement. Le versement intervenu dans ledit délai ne donne lieu à aucune pénalité.
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.articleText}>
+            À compter du <Text style={styles.bold}>quatrième jour</Text> jusqu'au <Text style={styles.bold}>douzième jour</Text> succédant l'expiration du délai de retard, tout versement intervenu dans cet intervalle est passible de pénalités pécuniaires, destinées à préserver l'équilibre et la bonne tenue de la caisse commune.
+          </Text>
+          <Text style={styles.articleText}>
+            Tout versement intervenu après le douzième jour est irrecevable et s'assimile à un manquement substantiel de l'épargnant à ses obligations contractuelles. Ainsi, il entraîne la résiliation du contrat à l'initiative du secrétaire exécutif, comme précisé ci-après.
+          </Text>
+
+          <View style={styles.bulletList}>
+            <View style={styles.bulletItem}>
+              <Text style={styles.bulletSymbol}>•</Text>
+              <Text style={styles.bulletText}>
+                <Text style={styles.bold}>Résiliation :</Text> Le contrat est de plein droit résolu si :
+              </Text>
+            </View>
+          </View>
+          <View style={styles.subBulletList}>
+            <View style={styles.subBulletItem}>
+              <Text style={styles.subBulletSymbol}>-</Text>
+              <Text style={styles.subBulletText}>l'épargnant omet le versement d'un mois.</Text>
+            </View>
+            <View style={styles.subBulletItem}>
+              <Text style={styles.subBulletSymbol}>-</Text>
+              <Text style={styles.subBulletText}>l'épargnant exige le remboursement du nominal avant le terme du contrat.</Text>
+            </View>
+          </View>
+
+          <Text style={styles.articleText}>
+            Le remboursement du nominal suite à une demande de retrait intervenue avant terme, est réalisé dans un intervalle de <Text style={styles.bold}>quarante-cinq jours</Text> à compter de la demande.
+          </Text>
+
+          <Text style={{ fontSize: 12, textAlign: 'right', marginTop: 15 }}>
+            <Text style={styles.bold}>[Signature de l'épargnant précédée de la mention « lu et approuvé »]</Text>
+          </Text>
+        </View>
+      </Page>
+
+      {/* PAGE 4 - Fiche d'adhésion (CAISSE_SPECIALE_MUTUELLE_N.docx) */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageContainer}>
+          <Text style={styles.title}>FICHE D'ADHÉSION</Text>
+
+          <Text>Je soussigné(e),</Text>
+          <Text>
+            <Text style={styles.bold}>{contract?.member?.lastName || '—'} {contract?.member?.firstName || '—'} </Text>
+            membre de l'association KARA, domicilié à {contract?.member?.address?.district || '—'} et joignable au {contract?.member?.contacts?.[0] || '—'}
+          </Text>
+
+          <Text style={styles.articleTitle}>Article 1 : Objet du contrat</Text>
+          <Text style={styles.articleText}>
+            Je reconnais avoir adhéré par ce contrat au volet Caisse spéciale de l'association Kara.
+          </Text>
+
+          <Text style={styles.articleTitle}>Article 2 : Durée du contrat</Text>
+          <Text style={styles.articleText}>
+            Que cet engagement est valable pour une durée de <Text style={styles.bold}>{contract?.monthsPlanned || 12} mois</Text> ;
+          </Text>
+          <Text>
+            Qu'il a été conclu en date du <Text style={styles.bold}>{formatDate(contract?.firstPaymentDate)}</Text> et prend donc fin en date du <Text style={styles.bold}>{formatDate(contract?.lastPaymentDate)}</Text>
+          </Text>
+
+          <Text style={styles.articleTitle}>Article 3 : Termes contractuels</Text>
+          <Text style={styles.articleText}>
+            L'épargnant souscrit à la formule :
+          </Text>
+
+          <View style={styles.formSection}>
+            <View style={styles.checkboxContainer}>
+              <View style={styles.checkbox}>
+                {(contract?.caisseType === 'LIBRE' || contract?.caisseType === 'JOURNALIERE') && (
+                  <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
+                )}
+              </View>
+              <Text style={styles.checkboxText}>Changeable</Text>
+            </View>
+            <View style={styles.checkboxContainer}>
+              <View style={styles.checkbox}>
+                {contract?.caisseType !== 'LIBRE' && contract?.caisseType !== 'JOURNALIERE' && (
+                  <View style={{ width: 9, height: 9, backgroundColor: 'black', borderRadius: 50 }} />
+                )}
+              </View>
+              <Text style={styles.checkboxText}>Non Changeable</Text>
+            </View>
+          </View>
+
+          <Text style={styles.articleText}>
+            Par cet engagement, je prends la décision de mettre à la disposition de l'association la somme déterminée de :
+          </Text>
+
+          {contract?.caisseType !== 'LIBRE' && contract?.caisseType !== 'JOURNALIERE' && (
+            <View style={{ marginVertical: 8 }}>
+              <Text style={styles.articleText}>
+                <Text style={styles.bold}>{numberToWords(contract?.monthlyAmount || 0)} francs CFA</Text> (Lettres)
+              </Text>
+              <Text style={styles.articleText}>
+                <Text style={styles.bold}>{formatAmount(contract?.monthlyAmount || 0)} FCFA</Text> (Chiffres)
+              </Text>
+            </View>
+          )}
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
+            <Text style={styles.articleText}>A l'échéance prévue pour le </Text>
+            <View style={[styles.blankLine, { width: 80 }]}></View>
+          </View>
+
+          <Text style={styles.articleText}>
+            Et ce durant les <Text style={styles.bold}>12 mois</Text> correspondant à la durée du contrat.
+          </Text>
+
+          <Text style={styles.articleTitle}>Article 4 : Montant de remboursement</Text>
+          <Text style={styles.articleText}>
+            L'association LE KARA s'engage à la date de fin du contrat à verser au membre le nominal correspondant aux sommes versées durant toute la durée du contrat.
+          </Text>
+
+          <Text style={styles.articleText}>
+            Je prends acte des clauses contractuelles et des conséquences qui pourraient résulter de tout agissement défaillant de ma part.
+          </Text>
+
+          <Text style={[styles.articleText, { textAlign: 'center', fontWeight: 'bold', marginTop: 15 }]}>
+            CE DOCUMENT EST ÉTABLI POUR FAIRE VALOIR CE QUE DE DROIT
+          </Text>
+
+          <View style={{ marginTop: 25 }}>
+            <Text style={[styles.bold, { fontSize: 12 }]}>Signature de l'épargnant précédée de la mention « lu et approuvé »</Text>
+          </View>
+          <View style={{ marginTop: 15 }}>
+            <Text style={[styles.bold, { fontSize: 12 }]}>SIGNATURE DU SECRÉTAIRE EXÉCUTIF</Text>
+          </View>
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
+export default CaisseSpecialePDFV2

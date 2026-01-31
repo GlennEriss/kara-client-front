@@ -353,7 +353,6 @@ export function Step2Forfait({ form }: Step2ForfaitProps) {
                 id="desiredStartDate"
                 type="date"
                 {...form.register('desiredStartDate', { required: 'La date est requise' })}
-                min={new Date().toISOString().split('T')[0]}
                 className={cn(
                   'w-full bg-transparent border-none outline-none text-lg font-medium',
                   'text-gray-900 cursor-pointer',

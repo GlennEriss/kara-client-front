@@ -56,16 +56,16 @@ export default function CreateCreditDemandModal({
   const [guarantorSearch, setGuarantorSearch] = useState('')
   
   const filteredClients = members.filter(m =>
-    m.firstName.toLowerCase().includes(clientSearch.toLowerCase()) ||
-    m.lastName.toLowerCase().includes(clientSearch.toLowerCase()) ||
-    m.matricule.toLowerCase().includes(clientSearch.toLowerCase())
+    (m.firstName || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+    (m.lastName || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+    (m.matricule || '').toLowerCase().includes(clientSearch.toLowerCase())
   ).slice(0, 10)
   
   const filteredGuarantors = members.filter(m =>
     m.id !== selectedClientId && (
-      m.firstName.toLowerCase().includes(guarantorSearch.toLowerCase()) ||
-      m.lastName.toLowerCase().includes(guarantorSearch.toLowerCase()) ||
-      m.matricule.toLowerCase().includes(guarantorSearch.toLowerCase())
+      (m.firstName || '').toLowerCase().includes(guarantorSearch.toLowerCase()) ||
+      (m.lastName || '').toLowerCase().includes(guarantorSearch.toLowerCase()) ||
+      (m.matricule || '').toLowerCase().includes(guarantorSearch.toLowerCase())
     )
   ).slice(0, 10)
 

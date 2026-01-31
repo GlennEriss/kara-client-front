@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
-import RemboursementNormalPDF from './RemboursementNormalPDF'
+import RemboursementNormalPDFV2 from './RemboursementNormalPDFV2'
 import { listRefunds } from '@/db/caisse/refunds.db'
 
 interface RemboursementNormalPDFModalProps {
@@ -122,7 +122,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
     setIsExporting(true)
 
     try {
-      const blob = await pdf(<RemboursementNormalPDF contract={enrichedContract} />).toBlob()
+      const blob = await pdf(<RemboursementNormalPDFV2 contract={enrichedContract} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -238,12 +238,12 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Pages:</span>
-                      <span className="font-medium text-gray-900">3 pages</span>
+                      <span className="font-medium text-gray-900">2 pages</span>
                     </div>
                   </div>
 
                   {/* Boutons d'action mobile */}
-                  <BlobProvider document={<RemboursementNormalPDF contract={enrichedContract} />}>
+                  <BlobProvider document={<RemboursementNormalPDFV2 contract={enrichedContract} />}>
                     {({ url, loading }) => (
                       <div className="w-full space-y-2">
                         <Button
@@ -300,7 +300,7 @@ const RemboursementNormalPDFModal: React.FC<RemboursementNormalPDFModalProps> = 
                   border: 'none',
                   borderRadius: '0.75rem'
                 }}>
-                  <RemboursementNormalPDF contract={enrichedContract} />
+                  <RemboursementNormalPDFV2 contract={enrichedContract} />
                 </PDFViewer>
               </div>
             </>

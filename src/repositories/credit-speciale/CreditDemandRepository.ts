@@ -141,10 +141,10 @@ export class CreditDemandRepository implements ICreditDemandRepository {
             if (filters?.search) {
                 const searchLower = filters.search.toLowerCase();
                 demands = demands.filter((d) =>
-                    d.id.toLowerCase().includes(searchLower) ||
-                    d.clientFirstName.toLowerCase().includes(searchLower) ||
-                    d.clientLastName.toLowerCase().includes(searchLower) ||
-                    d.clientContacts.some(c => c.toLowerCase().includes(searchLower))
+                    (d.id || '').toLowerCase().includes(searchLower) ||
+                    (d.clientFirstName || '').toLowerCase().includes(searchLower) ||
+                    (d.clientLastName || '').toLowerCase().includes(searchLower) ||
+                    (d.clientContacts || []).some(c => (c || '').toLowerCase().includes(searchLower))
                 );
             }
 

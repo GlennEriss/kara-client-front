@@ -294,32 +294,6 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
     }
   }
 
-
-  const _getContractTypeLabel = (type: string) => {
-    switch (type) {
-      case 'STANDARD': return 'Standard'
-      case 'JOURNALIERE': return 'Journalière'
-      case 'LIBRE': return 'Libre'
-      default: return type || 'Standard'
-    }
-  }
-
-  const _getContractStatusLabel = (status: string) => {
-    const labels = {
-      DRAFT: 'En cours',
-      ACTIVE: 'Actif',
-      LATE_NO_PENALTY: 'Retard (J+0..3)',
-      LATE_WITH_PENALTY: 'Retard (J+4..12)',
-      DEFAULTED_AFTER_J12: 'Résilié (>J+12)',
-      EARLY_WITHDRAW_REQUESTED: 'Retrait anticipé',
-      FINAL_REFUND_PENDING: 'Remboursement final',
-      EARLY_REFUND_PENDING: 'Remboursement anticipé',
-      RESCINDED: 'Résilié',
-      CLOSED: 'Clos'
-    }
-    return labels[status as keyof typeof labels] || status || 'En cours'
-  }
-
   return (
     <Document>
       {/* PAGE 1 - Informations personnelles */}
@@ -346,11 +320,11 @@ const CaisseSpecialePDF = ({ contract }: { contract?: any }) => {
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>MEMBRE :</Text>
-              <Text style={styles.cell}>{contract?.member?.membershipType.toUpperCase() || '—'}</Text>
+              <Text style={styles.cell}>{contract?.member?.membershipType?.toUpperCase() || '—'}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>NOM :</Text>
-              <Text style={styles.cell}>{contract?.member?.lastName.toUpperCase() || '—'}</Text>
+              <Text style={styles.cell}>{contract?.member?.lastName?.toUpperCase() || '—'}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.cell}>PRÉNOM :</Text>
