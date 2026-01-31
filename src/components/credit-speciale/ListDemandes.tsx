@@ -24,7 +24,6 @@ import {
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import routes from '@/constantes/routes'
@@ -48,7 +47,7 @@ import { Shield, CheckCircle2 } from 'lucide-react'
 
 type ViewMode = 'grid' | 'list'
 
-// Composant pour afficher les infos garant avec statut CI
+// Composant pour afficher les infos garant (Garant: nom, prénom, statut CI sur lignes séparées)
 const GuarantorInfo = ({ 
   guarantorId, 
   guarantorFirstName, 
@@ -62,49 +61,48 @@ const GuarantorInfo = ({
 }) => {
   const { isUpToDate, hasActiveContract, isLoading } = useMemberCIStatus(guarantorIsMember ? guarantorId : undefined)
 
+  const getStatutCILabel = () => {
+    if (!guarantorIsMember || isLoading) return null
+    if (!hasActiveContract) return 'Pas de contrat CI'
+    return isUpToDate ? 'À jour' : 'En retard'
+  }
+
+  const statutCI = getStatutCILabel()
+
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-sm">
+    <>
+      <div className="text-sm">
         <span className="text-gray-500 flex items-center gap-1">
           <Shield className="h-3.5 w-3.5" />
           Garant:
         </span>
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900">
-            {guarantorFirstName} {guarantorLastName}
-          </span>
-          {guarantorIsMember && (
-            <Badge className="bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
-          )}
-        </div>
+        <span className="font-medium text-gray-900 block">{guarantorLastName || '—'}</span>
+        <span className="font-medium text-gray-900 block">{guarantorFirstName || '—'}</span>
+        {guarantorIsMember && (
+          <Badge className="mt-1 bg-blue-100 text-blue-700 text-xs border border-blue-300">Membre</Badge>
+        )}
       </div>
-      {guarantorIsMember && !isLoading && (
-        <div className="flex items-center justify-between text-xs pl-5">
-          <span className="text-gray-400">Statut CI:</span>
-          <div className="flex items-center gap-1.5">
-            {hasActiveContract ? (
-              <>
-                {isUpToDate ? (
-                  <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    À jour
-                  </Badge>
-                ) : (
-                  <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    En retard
-                  </Badge>
-                )}
-              </>
-            ) : (
-              <Badge className="bg-gray-50 text-gray-500 border border-gray-300 text-xs">
-                Pas de contrat CI
+      {statutCI !== null && (
+        <div className="text-sm">
+          <span className="text-gray-500">Statut CI:</span>
+          <span className="ml-1">
+            {statutCI === 'À jour' ? (
+              <Badge className="bg-green-50 text-green-700 border border-green-300 text-xs">
+                <CheckCircle2 className="h-3 w-3 inline mr-1" />
+                À jour
               </Badge>
+            ) : statutCI === 'En retard' ? (
+              <Badge className="bg-orange-50 text-orange-700 border border-orange-300 text-xs">
+                <AlertCircle className="h-3 w-3 inline mr-1" />
+                En retard
+              </Badge>
+            ) : (
+              <span className="text-gray-600">{statutCI}</span>
             )}
-          </div>
+          </span>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -827,88 +825,106 @@ const ListDemandes = () => {
                 key={demande.id}
                 className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white via-gray-50/30 to-white border-0 shadow-lg overflow-hidden relative h-full flex flex-col"
               >
-                <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <h3 className="font-mono text-sm font-bold text-gray-900 cursor-help">#{demande.id.slice(-6)}</h3>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-mono text-xs">{demande.id}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 mt-1">
-                        {getCreditTypeLabel(demande.creditType)}
-                      </span>
-                    </div>
+                <CardContent className="p-6 relative z-10 flex-1 flex flex-col gap-4">
+                  {/* Ligne 1: Matricule complet (sans troncature) */}
+                  <h3 className="font-mono text-sm font-bold text-gray-900 break-all min-w-0">
+                    #{demande.id}
+                  </h3>
+
+                  {/* Ligne 2: Badges alignés horizontalement avec flex-wrap */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                      {getCreditTypeLabel(demande.creditType)}
+                    </span>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(demande.status)}`}>
                       {getStatusLabel(demande.status)}
                     </span>
                   </div>
 
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Client:</span>
-                      <span className="font-medium text-gray-900">{demande.clientFirstName} {demande.clientLastName}</span>
-                    </div>
+                  {/* Ligne 3: Nom du client (sans "Client:") */}
+                  <div className="text-sm font-medium text-gray-900">
+                    {demande.clientLastName}
+                  </div>
 
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Montant:</span>
-                      <span className="font-semibold text-green-600">
-                        {demande.amount.toLocaleString('fr-FR')} FCFA
-                      </span>
-                    </div>
+                  {/* Ligne 4: Prénom du client */}
+                  <div className="text-sm font-medium text-gray-900">
+                    {demande.clientFirstName}
+                  </div>
 
-                    {demande.desiredDate && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500 flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          Date souhaitée:
-                        </span>
-                        <span className="font-medium text-gray-900">
-                          {new Date(demande.desiredDate).toLocaleDateString('fr-FR', { 
+                  {/* Ligne 5: Montant */}
+                  <div className="text-sm">
+                    <span className="text-gray-500">Montant: </span>
+                    <span className="font-semibold text-green-600">
+                      {demande.amount.toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </div>
+
+                  {/* Ligne 6: Date souhaitée */}
+                  <div className="text-sm flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                    <span className="text-gray-500">Date souhaitée:</span>
+                    <span className="font-medium text-gray-900">
+                      {demande.desiredDate
+                        ? new Date(demande.desiredDate).toLocaleDateString('fr-FR', { 
                             day: '2-digit', 
                             month: '2-digit', 
                             year: 'numeric' 
-                          })}
-                        </span>
-                      </div>
-                    )}
+                          })
+                        : '—'}
+                    </span>
+                  </div>
 
-                    {demande.guarantorId && (
+                  {/* Lignes 7-9: Garant (nom, prénom) + Statut CI */}
+                  {demande.guarantorId ? (
+                    <>
                       <GuarantorInfo 
                         guarantorId={demande.guarantorId}
                         guarantorFirstName={demande.guarantorFirstName}
                         guarantorLastName={demande.guarantorLastName}
                         guarantorIsMember={demande.guarantorIsMember}
                       />
-                    )}
+                      {!demande.guarantorIsMember && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Statut CI: </span>
+                          <span className="text-gray-600">—</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm">
+                        <span className="text-gray-500">Garant: </span>
+                        <span className="text-gray-600">—</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-gray-500">Statut CI: </span>
+                        <span className="text-gray-600">—</span>
+                      </div>
+                    </>
+                  )}
 
-                    {/* Score toujours affiché pour admin */}
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Score:</span>
-                      <Badge className={cn(
-                        "font-bold text-sm px-2.5 py-1",
-                        demande.score !== undefined && demande.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
-                        demande.score !== undefined && demande.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
-                        demande.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
-                        "bg-gray-100 text-gray-500 border border-gray-300"
-                      )}>
-                        {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
-                      </Badge>
-                    </div>
+                  {/* Ligne 10: Score */}
+                  <div className="text-sm">
+                    <span className="text-gray-500">Score: </span>
+                    <Badge className={cn(
+                      "font-bold text-sm px-2.5 py-1 ml-1",
+                      demande.score !== undefined && demande.score >= 8 ? "bg-green-100 text-green-700 border border-green-300" :
+                      demande.score !== undefined && demande.score >= 5 ? "bg-yellow-100 text-yellow-700 border border-yellow-300" :
+                      demande.score !== undefined ? "bg-red-100 text-red-700 border border-red-300" :
+                      "bg-gray-100 text-gray-500 border border-gray-300"
+                    )}>
+                      {demande.score !== undefined ? `${demande.score}/10` : 'N/A'}
+                    </Badge>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100 mt-auto space-y-2">
+                  {/* Actions alignées verticalement */}
+                  <div className="pt-3 border-t border-gray-100 mt-auto flex flex-col gap-2">
                     {demande.status === 'PENDING' && (
-                      <div className="flex gap-2">
+                      <>
                         <Button
                           size="sm"
                           onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'approve' })}
-                          className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                          className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Approuver
@@ -916,12 +932,12 @@ const ListDemandes = () => {
                         <Button
                           size="sm"
                           onClick={() => setValidateModalState({ isOpen: true, demand: demande, action: 'reject' })}
-                          className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                          className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300"
                         >
                           <XCircle className="h-4 w-4 mr-1" />
                           Rejeter
                         </Button>
-                      </div>
+                      </>
                     )}
                     {demande.status === 'APPROVED' && (
                       demande.contractId ? (

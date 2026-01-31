@@ -1,0 +1,69 @@
+@startuml SEQ_ExporterDetailsDemande
+title Séquence : Exporter les Détails d'une Demande en PDF (V2)
+' Référence : ExporterDetailsDemande.puml (activité), VoirDetails.puml
+
+actor "Admin" as Admin
+participant "DemandDetail\n(Component)" as Detail
+participant "DemandExportService\n(Service)" as ExportService
+participant "DemandSimulationService\n(Service)" as SimService
+participant "useCaisseSpecialeDemand\n(Hook)" as DemandHook
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Detail: Clique "Exporter en PDF"
+activate Detail
+
+Detail -> Detail: Vérifier demand !== null
+
+alt Demande non chargée
+    Detail --> Admin: toast.error("Impossible d'exporter")
+else Demande chargée
+    Detail -> Detail: Afficher loading (spinner, "Génération...")
+    
+    Detail -> DemandHook: useCaisseSpecialeDemand(demandId)
+    DemandHook -> QueryCache: queryKey: ['caisseSpecialeDemand', demandId]
+    QueryCache --> DemandHook: Demand (depuis cache ou Firestore)
+    DemandHook --> Detail: { data: demand }
+    
+    Detail -> ExportService: exportDemandDetailsToPDF(demand)
+    activate ExportService
+    
+    ExportService -> SimService: calculatePaymentSchedule(demand)
+    activate SimService
+    SimService -> SimService: monthlyAmount, monthsPlanned, desiredDate → plan prévisionnel
+    SimService --> ExportService: PaymentSchedule (items, totalAmount, totalMonths)
+    deactivate SimService
+    
+    ExportService -> ExportService: jsPDF() - créer document A4
+    ExportService -> ExportService: En-tête (logo, titre, numéro demande)
+    ExportService -> ExportService: Section Statut (createdAt, createdBy, approvedAt, rejectedAt, etc.)
+    ExportService -> ExportService: Section Informations demandeur (member)
+    ExportService -> ExportService: Section Contact d'urgence
+    ExportService -> ExportService: Section Informations générales
+    ExportService -> ExportService: autoTable - Tableau récapitulatif versements (Mois, Date, Montant, Cumulé, Total)
+    ExportService -> ExportService: Section Historique et traçabilité
+    ExportService -> ExportService: Pied de page
+    ExportService -> ExportService: doc.save('demande_[id]_[date].pdf')
+    
+    ExportService --> Detail: Blob PDF
+    deactivate ExportService
+    
+    Detail -> Detail: Créer lien <a> download, déclencher click()
+    Detail --> Admin: Télécharger PDF
+    
+    Detail -> Detail: Restaurer bouton (icône, "Exporter en PDF")
+    Detail --> Admin: toast.success("PDF généré avec succès")
+end
+
+deactivate Detail
+
+note right of ExportService
+  **Contenu PDF** :
+  - Détails complets de la demande
+  - Tableau récapitulatif des versements (plan prévisionnel)
+  - Historique et traçabilité (approvedBy/At, rejectedBy/At, etc.)
+  Référence : Caisse Imprévue DemandExportService
+end note
+
+@enduml

@@ -1,0 +1,132 @@
+@startuml SEQ_FiltrerDemandes
+title Séquence : Filtrer les Demandes Caisse Spéciale (V2)
+' Référence : FiltrerDemandes.puml, RechercherDemandes.puml (activité)
+' C.2, C.3, C.4 : filtres, recherche, dates | C.8 : 3 searchableText
+
+actor "Admin" as Admin
+participant "DemandFiltersV2\n(Component)" as Filters
+participant "DemandSearchV2\n(Component)" as Search
+participant "ListDemandes\n(Component)" as List
+participant "useCaisseSpecialeDemands\n(Hook)" as Hook
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+' ============================================
+' C.3 : RECHERCHE
+' ============================================
+Admin -> Search: Tape "Bernadette" dans recherche
+activate Search
+
+Search -> Search: useDebounce(query, 300ms)
+Search -> Search: Attendre 300ms
+
+Search -> List: onSearchChange("Bernadette")
+activate List
+
+List -> List: searchQuery = "bernadette" (normalisé)
+List -> List: page = 1 (reset)
+
+List -> Hook: Refetch avec filters.search = "bernadette"
+activate Hook
+
+Hook -> QueryCache: queryKey: ['caisseSpecialeDemands', { search: 'bernadette', status, dates, caisseType }]
+QueryCache -> QueryCache: Vérifier cache
+
+note right of Hook
+  **Recherche COMBINÉE** :
+  search + filtres actifs (status, dates, caisseType)
+  Résultats PAGINÉS { items, total }
+end note
+
+alt Cache absent
+    Hook -> Repo: getDemandsWithFilters(search: 'bernadette', status, dates, caisseType, page: 1, limit: 12)
+    activate Repo
+    
+    Repo -> Repo: getPaginatedWithSearchMerge (C.8) : 3 requêtes parallèles sur searchableText, searchableTextFirstNameFirst, searchableTextMatriculeFirst
+    Repo -> Repo: Fusion + déduplication des résultats
+    Repo -> Repo: Appliquer status + dates + caisseType + limit(12)
+    Repo -> Firestore: 3 queries parallèles (ou 1 si search vide) + limit(12)
+    Firestore --> Repo: QuerySnapshot (max 12 docs)
+    Repo -> Firestore: getCountFromServer (pour total)
+    Firestore --> Repo: totalCount
+    
+    Repo --> Hook: { items: Demand[] (page 1), total: number }
+    deactivate Repo
+    
+    Hook -> QueryCache: Mettre en cache
+end
+
+Hook --> List: Nouvelles données
+deactivate Hook
+
+List --> Admin: Afficher demandes de Bernadette
+deactivate List
+deactivate Search
+
+' ============================================
+' C.4 : FILTRES PAR DATE
+' ============================================
+Admin -> Filters: Change filtre date création → du 01/01/2026 au 31/01/2026
+activate Filters
+
+Filters -> List: onFilterChange(createdAtFrom, createdAtTo)
+activate List
+
+List -> List: filters.createdAtFrom = 01/01/2026
+List -> List: filters.createdAtTo = 31/01/2026
+List -> List: page = 1 (reset pagination)
+
+List -> Hook: Refetch PAGINÉ avec filtres date
+Hook -> Repo: getDemandsWithFilters(createdAtFrom, createdAtTo, page=1, limit=12)
+
+Repo -> Repo: constraints.push(where('createdAt', '>=', createdAtFrom))
+Repo -> Repo: constraints.push(where('createdAt', '<=', createdAtTo))
+Repo -> Repo: constraints.push(limit(12)) - pagination page 1
+Repo -> Firestore: query avec filtres date + limit
+Firestore --> Repo: QuerySnapshot (max 12 docs)
+
+Repo -> Firestore: getCountFromServer (pour total)
+Firestore --> Repo: totalCount
+
+Repo --> Hook: { items: Demand[] (page 1), total: number }
+Hook --> List: Nouvelles données
+List --> Admin: Afficher demandes de janvier 2026
+deactivate List
+deactivate Filters
+
+' ============================================
+' FILTRE PAR STATUT
+' ============================================
+Admin -> Filters: Change filtre statut → "PENDING"
+Filters -> List: onFilterChange(status: PENDING)
+List -> List: filters.status = PENDING
+List -> List: page = 1 (reset pagination)
+List -> Hook: Refetch PAGINÉ
+Hook -> Repo: getDemandsWithFilters(status: PENDING, page: 1, limit: 12)
+Repo -> Firestore: query where('status', '==', 'PENDING') + limit(12) (page 1)
+Firestore --> Repo: QuerySnapshot (max 12 docs)
+Repo -> Firestore: getCountFromServer (pour total)
+Firestore --> Repo: totalCount
+Repo --> Hook: { items: Demand[] (page 1), total: number }
+Hook --> List: Nouvelles données
+List --> Admin: Afficher demandes PENDING
+
+note right of Repo
+  **C.8 : Index Firestore requis** :
+  - status + searchableText + createdAt
+  - status + searchableTextFirstNameFirst + createdAt
+  - status + searchableTextMatriculeFirst + createdAt
+  - createdAt (pour filtres date)
+  Référence : DemandCIRepository.getPaginatedWithSearchMerge
+end note
+
+note over Admin, Firestore
+  **Pagination avec filtres** :
+  - Chaque changement de filtre → page = 1
+  - getDemandsWithFilters retourne TOUJOURS { items (page demandée), total }
+  - Affichage : "Affichage 1-12 sur X" + Précédent/Suivant
+  - Les résultats filtrés sont TOUJOURS paginés (jamais tout charger)
+end note
+
+@enduml

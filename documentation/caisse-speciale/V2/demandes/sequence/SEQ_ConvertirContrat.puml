@@ -1,0 +1,71 @@
+@startuml SEQ_ConvertirContrat
+title Séquence : Convertir une Demande Acceptée en Contrat (V2)
+' Référence : ConvertirContrat.puml (activité)
+' Cas : Demande APPROVED sans contractId
+' Traçabilité : convertedBy, convertedAt, convertedByName
+
+actor "Admin" as Admin
+participant "DemandDetail\n(Component)" as Detail
+participant "useCaisseSpecialeDemandMutations\n(Hook)" as Mutations
+participant "CaisseSpecialeService\n(Service)" as Service
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+participant "subscribe\n(Engine)" as Subscribe
+participant "NotificationService\n(Service)" as Notif
+database "Firestore" as Firestore
+
+Admin -> Detail: Accède page détails demande APPROVED sans contractId
+activate Detail
+
+Detail --> Admin: Afficher alerte "Aucun contrat créé" + bouton "Convertir en contrat"
+
+Admin -> Detail: Clique "Convertir en contrat"
+activate Detail
+
+Detail -> Mutations: convert.mutateAsync({ demandId })
+activate Mutations
+
+Mutations -> Service: convertDemandToContract(demandId, adminId)
+activate Service
+
+Service -> Repo: getDemandById(demandId)
+Repo -> Firestore: getDoc(demandId)
+Firestore --> Repo: Demand
+Repo --> Service: CaisseSpecialeDemand
+
+Service -> Service: Vérifier status === 'APPROVED' et !contractId
+
+Service -> Subscribe: subscribe(memberId, monthlyAmount, monthsPlanned, caisseType, firstPaymentDate)
+activate Subscribe
+Subscribe -> Firestore: Créer contrat + versements
+Firestore --> Subscribe: contractId
+deactivate Subscribe
+
+Service -> Repo: updateDemand(demandId, { status: CONVERTED, contractId, convertedBy, convertedAt, convertedByName })
+activate Repo
+Repo -> Firestore: updateDoc(status, contractId, convertedBy, convertedAt, convertedByName)
+note right of Repo
+  **Traçabilité** :
+  convertedBy = adminId
+  convertedAt = ServerTimestamp
+  convertedByName = nom admin
+end note
+Firestore --> Repo: OK
+deactivate Repo
+
+Service -> Notif: createNotification(contrat créé depuis demande)
+Notif -> Firestore: addDoc(notifications, ...)
+Firestore --> Notif: OK
+
+Service --> Mutations: { demand, contractId }
+deactivate Service
+
+Mutations -> Mutations: invalidateQueries(liste, stats, détail, contrats)
+Mutations -> Mutations: toast.success('Contrat créé avec succès')
+Mutations --> Detail: Success
+deactivate Mutations
+
+Detail -> Detail: router.push(/caisse-speciale/contrats/[contractId])
+Detail --> Admin: Redirection vers détails du contrat
+deactivate Detail
+
+@enduml

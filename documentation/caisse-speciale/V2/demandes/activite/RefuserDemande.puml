@@ -1,0 +1,76 @@
+@startuml RefuserDemande
+title Workflow : Refuser une Demande Caisse Spéciale (V2)
+
+start
+
+:Admin clique "Refuser" sur une demande PENDING;
+
+:Ouvrir RejectDemandModal;
+
+:Afficher informations du membre (useMember) :
+- Nom complet
+- Matricule
+- Contacts;
+
+:Afficher section "Résumé de la demande" :
+- Type de caisse, montant, durée, date souhaitée
+- Cause / Motif (si présent);
+
+:Afficher section "Contact d'urgence" (C.0) :
+- Nom complet, téléphones, lien de parenté;
+
+:Champ "Raison du refus" :
+- Textarea obligatoire
+- Validation Zod (rejectDemandSchema)
+- Min 10 caractères;
+
+if (Admin saisit raison ?) then (oui)
+  :Valider avec rejectDemandSchema.parse({ reason });
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Refuser" activé;
+  else (non)
+    :Afficher erreur de validation;
+    :Bouton "Refuser" désactivé;
+  endif
+endif
+
+if (Admin clique "Refuser" ?) then (oui)
+  :Hook useCaisseSpecialeDemandMutations().reject;
+  
+  :Service.rejectDemand(demandId, adminId, reason) :
+  - Repository.updateDemandStatus(demandId, 'REJECTED', adminId, reason, adminName)
+  - **Traçabilité (obligatoire)** :
+    * rejectedBy = adminId (uid de l'admin connecté)
+    * rejectedAt = timestamp (ServerTimestamp)
+    * rejectedByName = nom de l'admin (affichage)
+    * rejectReason = raison saisie;
+  
+  :Notifications :
+  - Au membre : "Demande refusée" + raison
+  - À l'admin créateur si différent;
+  
+  :Invalider cache (liste, stats, détail);
+  
+  :Fermer le modal;
+  :Afficher toast "Demande refusée";
+  
+  :Mettre à jour l'UI :
+  - Statut → REJECTED
+  - Badge rouge
+  - Bouton "Réouvrir" apparaît;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Traçabilité (audit)** :
+  - rejectedBy, rejectedAt, rejectedByName, rejectReason
+  - Qui a refusé ? Quand ? Pourquoi ?
+  - Affichage sur page de détails et historique
+end note
+
+@enduml

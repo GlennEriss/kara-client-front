@@ -1,0 +1,114 @@
+@startuml RechercherDemandes
+title Workflow : Rechercher les Demandes par Membre (V2)
+' Référence : POINTS_PROBLEMATIQUES C.3 (recherche nom, prénom, matricule)
+' IMPORTANT : Recherche COMBINÉE avec filtres actifs + résultats PAGINÉS
+
+start
+
+:Admin accède à la liste des demandes;
+
+:Afficher champ de recherche :
+- Placeholder : "Rechercher par nom, prénom ou matricule..."
+- Icône loupe
+- Bouton effacer (X) si texte saisi;
+
+:searchQuery = '';
+:filters = état actuel (status, dates, caisseType, etc.);
+
+' ============================================
+' SAISIE RECHERCHE
+' ============================================
+:Admin tape dans le champ (ex: "Bernadette");
+
+:Debounce 300ms :
+- Éviter requêtes à chaque frappe
+- Attendre fin de saisie;
+
+:Normaliser la requête :
+- toLowerCase()
+- trim()
+- (query || '').toLowerCase() pour éviter TypeError;
+
+if (query.length >= 2 ?) then (oui)
+  :Lancer recherche;
+else (non)
+  :Afficher message "Minimum 2 caractères";
+  :Ne pas lancer de requête;
+  stop
+endif
+
+' ============================================
+' RECHERCHE COMBINÉE AVEC FILTRES ACTIFS
+' ============================================
+:filters.search = query normalisée;
+:page = 1 (reset pagination à chaque recherche);
+
+:getDemandsWithFilters(filters, page=1, limit=12) :
+- filters inclut : search + status + createdAtFrom/To + desiredDateFrom/To + caisseType
+- La recherche s'APPLIQUE EN PLUS des filtres déjà sélectionnés
+- Exemple : statut PENDING + recherche "Bernadette" = demandes PENDING dont membre contient "Bernadette";
+
+:Repository applique TOUS les critères :
+- Filtre statut (si != 'all')
+- Filtres dates (si définis)
+- Filtre type caisse (si != 'all')
+- Recherche nom/prénom/matricule (searchableText ou jointure)
+- Pagination (page, limit);
+
+:Retourne { items: Demand[] (page 1), total: number };
+
+' ============================================
+' C.8 : STRATÉGIE DE RECHERCHE (3 searchableText)
+' Référence : Caisse Imprévue, RECHERCHE_ANALYSE.md
+' ============================================
+note right
+  **Solution Caisse Imprévue (obligatoire)** :
+  Firestore préfixe = ordre obligatoire. Un seul champ :
+  - "dupont" matche, "dupont jean" matche
+  - "jean" seul NE matche pas (chaîne commence par dupont)
+  - "8438" seul NE matche pas
+  
+  **3 champs dénormalisés** (comme Caisse Imprévue) :
+  - searchableText = "dupont jean 8438" (nom prénom matricule)
+  - searchableTextFirstNameFirst = "jean dupont 8438" (prénom nom matricule)
+  - searchableTextMatriculeFirst = "8438 jean dupont" (matricule prénom nom)
+  
+  **getPaginatedWithSearchMerge** :
+  - 3 requêtes Firestore parallèles (une par champ)
+  - Fusion + déduplication des résultats
+  - Référence : DemandCIRepository, src/utils/demandSearchableText.ts
+end note
+
+' ============================================
+' AFFICHAGE RÉSULTATS PAGINÉS
+' ============================================
+:Afficher résultats PAGINÉS :
+- "Affichage 1-12 sur X" (si total > limit)
+- Boutons Précédent / Suivant
+- Page 1 sur Y;
+
+:Afficher message "X résultat(s) pour 'Bernadette'" (total);
+
+:Scroll vers le haut;
+
+' ============================================
+' EFFACER RECHERCHE
+' ============================================
+if (Admin clique X ou efface le champ ?) then (oui)
+  :searchQuery = '';
+  :filters.search = '';
+  :page = 1 (reset);
+  :Refetch PAGINÉ : getDemandsWithFilters(filters sans search, page=1, limit);
+  :Retourne { items, total };
+  :Afficher liste (filtres restants conservés, paginée);
+endif
+
+note right
+  **Points clés** :
+  - Recherche COMBINÉE avec filtres actifs (status, dates, caisseType)
+  - Résultats TOUJOURS paginés { items, total }
+  - page = 1 à chaque nouvelle recherche
+  - (field || '').toLowerCase() pour éviter TypeError
+end note
+
+@enduml

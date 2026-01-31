@@ -1,0 +1,146 @@
+@startuml FiltrerDemandes
+title Workflow : Filtrer les Demandes Caisse Spéciale (V2)
+' Référence : POINTS_PROBLEMATIQUES C.2, C.3, C.4 (filtres, recherche, dates)
+' IMPORTANT : Les résultats filtrés sont TOUJOURS paginés (page, limit)
+
+start
+
+:Admin accède à la liste des demandes;
+
+:Paramètres de pagination :
+- limit = 12 (fixe, ou valeur sélectionnée)
+- page = 1 au chargement initial ET à chaque changement de filtre
+- Le dépôt retourne TOUJOURS { items: Demand[] (page demandée), total: number };
+
+:Afficher barre de filtres :
+- Champ de recherche (nom, prénom, matricule)
+- Filtre par statut (Select ou Tabs)
+- Filtre date de création (DatePicker : du / au)
+- Filtre date souhaitée (DatePicker : du / au)
+- Filtre type de caisse (Standard, Journalière, Libre);
+
+:Initialiser filtres :
+- filters = { status: 'all', search: '', createdAtFrom: null, createdAtTo: null, desiredDateFrom: null, desiredDateTo: null, caisseType: 'all' };
+
+' ============================================
+' C.3 : RECHERCHE (nom, prénom, matricule)
+' ============================================
+if (Admin saisit recherche ?) then (oui)
+  :Debounce 300ms;
+  
+  :searchQuery = valeur normalisée (toLowerCase, trim);
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ avec search :
+  - getDemandsWithFilters(filters, page=1, limit=12)
+  - Repository applique filtres + pagination
+  - Retourne { items: Demand[] (page 1), total: number };
+  
+  :Afficher résultats filtrés (page 1, paginés);
+  :Afficher pagination "Affichage 1-12 sur X" (si total > limit);
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' FILTRE PAR STATUT
+' ============================================
+if (Admin change filtre statut ?) then (oui)
+  :filters.status = nouvelle valeur;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Retourne { items (page 1), total };
+  
+  :Afficher résultats filtrés (paginés);
+  :Afficher pagination (Précédent/Suivant, "Page 1 sur Y");
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' C.4 : FILTRES PAR DATE
+' ============================================
+if (Admin change filtre date création début ?) then (oui)
+  :filters.createdAtFrom = nouvelle date;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Afficher résultats filtrés (paginés);
+endif
+
+if (Admin change filtre date création fin ?) then (oui)
+  :filters.createdAtTo = nouvelle date;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Afficher résultats filtrés (paginés);
+endif
+
+if (Admin change filtre date souhaitée début ?) then (oui)
+  :filters.desiredDateFrom = nouvelle date;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Afficher résultats filtrés (paginés);
+endif
+
+if (Admin change filtre date souhaitée fin ?) then (oui)
+  :filters.desiredDateTo = nouvelle date;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Afficher résultats filtrés (paginés);
+endif
+
+' ============================================
+' FILTRE PAR TYPE DE CAISSE
+' ============================================
+if (Admin change filtre type caisse ?) then (oui)
+  :filters.caisseType = nouvelle valeur (STANDARD, JOURNALIERE, LIBRE);
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Afficher résultats filtrés (paginés);
+endif
+
+' ============================================
+' COMBINAISON DE FILTRES
+' ============================================
+if (Plusieurs filtres actifs ?) then (oui)
+  :Combiner tous les filtres :
+  - where('status', '==', filters.status) si != 'all'
+  - where('caisseType', '==', filters.caisseType) si != 'all'
+  - where('createdAt', '>=', filters.createdAtFrom) si défini
+  - where('createdAt', '<=', filters.createdAtTo) si défini
+  - Filtre desiredDate côté client ou Firestore;
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters combinés, page=1, limit);
+  :Afficher résultats (paginés);
+endif
+
+' ============================================
+' RÉINITIALISER FILTRES
+' ============================================
+if (Admin clique "Réinitialiser filtres" ?) then (oui)
+  :filters = valeurs par défaut;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(sans filtres, page=1, limit);
+  :Afficher liste complète (paginée);
+endif
+
+note right
+  **Pagination** :
+  - TOUS les refetch passent page=1 et limit
+  - Repository retourne { items (page courante), total }
+  - Affichage : "Affichage 1-12 sur X" + Précédent/Suivant
+  - Changer de filtre = toujours page 1
+  
+  **Points critiques résolus** :
+  - C.2 : Filtres disponibles
+  - C.3 : Recherche membre (nom, prénom, matricule)
+  - C.4 : Filtres par date (création, souhaitée)
+  - Badge "X filtres actifs"
+  - Index Firestore requis pour combinaisons
+end note
+
+@enduml

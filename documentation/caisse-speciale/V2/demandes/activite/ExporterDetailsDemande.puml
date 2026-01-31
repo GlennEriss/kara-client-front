@@ -1,0 +1,122 @@
+@startuml ExporterDetailsDemande
+title Workflow : Exporter les Détails d'une Demande en PDF (V2)
+' Référence : Caisse Imprévue ExporterDetailsDemande.puml, DemandExportService
+
+start
+
+:Admin clique sur bouton "Exporter en PDF" dans la page de détails;
+
+:Vérifier que la demande est chargée :
+- demand !== null
+- demand !== undefined;
+
+if (Demande non chargée ?) then (oui)
+  :Afficher toast.error :
+  - "Impossible d'exporter : demande non chargée";
+  stop
+endif
+
+:Afficher état loading sur le bouton :
+- Remplacer icône par spinner
+- Texte "Génération...";
+
+:Service.exportDemandDetailsToPDF(demand) :
+- Récupérer demande complète depuis cache ou Firestore
+- Inclure toutes les informations nécessaires;
+
+' ============================================
+' CONSTRUCTION DES DONNÉES PDF
+' ============================================
+:Construire objet données PDF :
+- En-tête (logo, titre, numéro demande)
+- Statut (badge, dates, créateur)
+- Informations demandeur (nom, prénom, téléphone, matricule)
+- Contact d'urgence (nom, prénom, téléphone, lien, type pièce, numéro pièce)
+- Informations générales (type caisse, montant mensuel, durée, date souhaitée)
+- **Tableau récapitulatif des versements** (plan prévisionnel)
+- Historique et traçabilité (approvedBy/At, rejectedBy/At, reopenedBy/At, convertedBy/At);
+
+' ============================================
+' GÉNÉRATION DU PDF (jsPDF + autoTable)
+' ============================================
+:Générer PDF avec jsPDF :
+- Créer document A4 portrait
+- Marges 20mm;
+
+:Ajouter en-tête :
+- Logo KARA (si disponible)
+- Titre "DÉTAILS DE LA DEMANDE CAISSE SPÉCIALE"
+- Numéro de demande;
+
+:Ajouter section Statut :
+- Badge statut avec couleur
+- Date de création (createdAt)
+- Créateur (createdBy)
+- Dates d'actions (approvedAt, rejectedAt, reopenedAt, convertedAt);
+
+:Ajouter section Informations demandeur :
+- Nom, prénom (member)
+- Téléphone, matricule;
+
+:Ajouter section Contact d'urgence :
+- Nom, prénom
+- Téléphone
+- Lien avec le demandeur
+- Type et numéro de pièce d'identité;
+
+:Ajouter section Informations générales :
+- Type de caisse (Standard/Journalière/Libre)
+- Montant mensuel
+- Durée prévue
+- Date souhaitée;
+
+:Ajouter section Tableau récapitulatif des versements :
+- Plan prévisionnel (monthlyAmount, monthsPlanned, desiredDate)
+- Colonnes : Mois | Date | Montant (FCFA) | Cumulé | Total
+- Ligne total en bas
+- jspdf-autotable;
+
+:Ajouter section Historique et traçabilité :
+- Accepté par X le DD/MM/YYYY (si applicable)
+- Refusé par Y le DD/MM/YYYY (si applicable)
+- Réouvert par Z le DD/MM/YYYY (si applicable)
+- Converti par W le DD/MM/YYYY (si applicable);
+
+:Ajouter pied de page :
+- Date de génération du PDF
+- Nom de l'organisation "KARA - Caisse Spéciale";
+
+' ============================================
+' TÉLÉCHARGEMENT
+' ============================================
+:Générer nom de fichier :
+- "demande_[id]_[YYYYMMDD_HHMMSS].pdf";
+
+:Créer Blob PDF depuis jsPDF;
+
+:Télécharger le fichier :
+- Créer lien <a> avec download
+- Déclencher click() programmatique
+- Supprimer lien après téléchargement;
+
+:Restaurer état normal du bouton :
+- Remplacer spinner par icône
+- Texte "Exporter en PDF";
+
+:Afficher toast.success :
+- "PDF généré avec succès";
+
+stop
+
+note right
+  **Fonctionnalités clés** :
+  - Export direct (pas de modal)
+  - Génération côté client (jsPDF)
+  - Utilise cache React Query si disponible
+  - PDF complet avec toutes les informations
+  - Tableau récapitulatif des versements formaté
+  - Historique et traçabilité complets
+  - Référence : Caisse Imprévue DemandExportService
+end note
+
+@enduml

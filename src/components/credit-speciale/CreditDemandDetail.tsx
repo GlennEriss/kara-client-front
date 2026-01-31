@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/table'
 import { Percent, Users, Phone, ExternalLink } from 'lucide-react'
 import MemberActivitySummary from './MemberActivitySummary'
+import { useMember } from '@/hooks/useMembers'
 import { calculateSchedule as calculateScheduleUtil, customRound } from '@/utils/credit-speciale-calculations'
 
 interface CreditDemandDetailProps {
@@ -98,6 +99,9 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
   
   // Récupérer le contrat si il existe
   const { data: contract, isLoading: isLoadingContract } = useCreditContract(demand.contractId || '')
+  
+  // Récupérer les contacts du garant (membre) pour affichage
+  const { data: guarantorMember } = useMember(demand.guarantorId)
 
   const statusConfig = getStatusConfig(demand.status)
   const formatDate = (date: Date | undefined | null | any) => {
@@ -382,6 +386,17 @@ export default function CreditDemandDetail({ demand }: CreditDemandDetailProps) 
                   <p className="text-lg font-semibold">{demand.guarantorRelation}</p>
                 </div>
               )}
+              {guarantorMember?.contacts?.length ? (
+                <div>
+                  <p className="text-sm text-gray-600 flex items-center gap-1">
+                    <Phone className="h-4 w-4" />
+                    Contacts
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {guarantorMember.contacts.join(', ')}
+                  </p>
+                </div>
+              ) : null}
               <div>
                 <p className="text-sm text-gray-600">Type</p>
                 <Badge variant="outline" className="mt-1">

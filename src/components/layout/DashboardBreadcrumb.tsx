@@ -40,6 +40,16 @@ const routeLabels: Record<string, string> = {
   '/bienfaiteur/create': 'Créer',
   '/vehicules': 'Véhicules',
   '/vehicules/create': 'Créer',
+  // Crédit Spéciale
+  '/credit-speciale': 'Crédit Spéciale',
+  '/credit-speciale/demandes': 'Demandes',
+  '/credit-speciale/simulations': 'Simulations',
+  '/credit-speciale/contrats': 'Contrats',
+  '/credit-speciale/demandes/add': 'Créer une demande',
+  // Placements
+  '/placements': 'Placements',
+  '/placements/demandes': 'Demandes',
+  '/placements/add': 'Nouveau placement',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -73,6 +83,18 @@ const getRouteLabel = (path: string): string => {
   }
   if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+\/versements$/)) {
     return 'Versements'
+  }
+  if (path.match(/^\/credit-speciale\/demandes\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/credit-speciale\/contrats\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/placements\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/placements\/demandes\/[^\/]+$/)) {
+    return 'Détails'
   }
   if (path.match(/^\/caisse-imprevue\/contrats\/[^\/]+$/)) {
     return 'Détails'
