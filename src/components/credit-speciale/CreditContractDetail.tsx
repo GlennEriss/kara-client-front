@@ -42,6 +42,10 @@ import PaymentReceiptModal from './PaymentReceiptModal'
 import PaymentSummaryModal from './PaymentSummaryModal'
 import CreditExtensionModal from './CreditExtensionModal'
 import CreditSpecialeContractPDFModal from './CreditSpecialeContractPDFModal'
+import FinalRepaymentModal from './FinalRepaymentModal'
+import SignedQuittanceUploadModal from './SignedQuittanceUploadModal'
+import CloseContractModal from './CloseContractModal'
+import QuittanceCreditSpecialePDFModal from './QuittanceCreditSpecialePDFModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { ServiceFactory } from '@/factories/ServiceFactory'
@@ -383,7 +387,11 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
   const [contractFile, setContractFile] = useState<File | undefined>()
   const [isCompressing] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
-  const { uploadSignedContract } = useCreditContractMutations()
+  const [showFinalRepaymentModal, setShowFinalRepaymentModal] = useState(false)
+  const [showSignedQuittanceUploadModal, setShowSignedQuittanceUploadModal] = useState(false)
+  const [showCloseContractModal, setShowCloseContractModal] = useState(false)
+  const [showQuittanceModal, setShowQuittanceModal] = useState(false)
+  const { uploadSignedContract, validateFinalRepayment, generateQuittancePDF, uploadSignedQuittance, closeContract } = useCreditContractMutations()
   
   // États pour les modals
   const [showContractPDFModal, setShowContractPDFModal] = useState(false)
@@ -1182,7 +1190,7 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
             Retour aux contrats
           </Button>
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Bouton d'augmentation - si le contrat est ACTIVE ou PARTIAL */}
+            {/* Bouton d'augmentation - masqué pour DISCHARGED/CLOSED */}
             {(contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && (
               <Button
                 variant="outline"
@@ -2189,6 +2197,102 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
           </CardContent>
         </Card>
 
+        {/* Section Remboursement final - visible quand montant restant = 0 et contrat non déchargé/clos */}
+        {realRemainingAmount <= 0.1 &&
+          contract.status !== 'DISCHARGED' &&
+          contract.status !== 'CLOSED' &&
+          (contract.status === 'ACTIVE' || contract.status === 'PARTIAL') && (
+            <Card className="border-0 shadow-xl bg-gradient-to-r from-emerald-50 to-green-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-emerald-800">
+                  <CheckCircle className="h-5 w-5" />
+                  Remboursement final
+                </CardTitle>
+                <p className="text-sm text-emerald-700">
+                  Le montant restant est à 0. Validez le remboursement final pour passer à l&apos;étape de clôture.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={() => setShowFinalRepaymentModal(true)}
+                  disabled={validateFinalRepayment.isPending}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {validateFinalRepayment.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Remboursement final
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+        {/* Section Déchargé - visible quand contrat DISCHARGED ou CLOSED */}
+        {(contract.status === 'DISCHARGED' || contract.status === 'CLOSED') && (
+          <Card className="border-0 shadow-xl bg-gradient-to-r from-blue-50 to-cyan-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-800">
+                <FileSignature className="h-5 w-5" />
+                Déchargé
+              </CardTitle>
+              {contract.dischargeMotif && (
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <span className="font-medium text-gray-700">Motif :</span>{' '}
+                    {contract.dischargeMotif}
+                  </p>
+                  {contract.dischargedAt && (
+                    <p>
+                      <span className="font-medium text-gray-700">Date :</span>{' '}
+                      {format(new Date(contract.dischargedAt), 'dd MMMM yyyy', { locale: fr })}
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowQuittanceModal(true)}
+                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Générer la quittance
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSignedQuittanceUploadModal(true)}
+                  disabled={uploadSignedQuittance.isPending}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Téléverser la quittance signée
+                </Button>
+                {contract.signedQuittanceUrl && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCloseContractModal(true)}
+                    disabled={closeContract.isPending || contract.status === 'CLOSED'}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Clôturer le contrat
+                  </Button>
+                )}
+              </div>
+              {contract.status === 'CLOSED' && contract.closedAt && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-gray-700">Contrat clôturé</p>
+                  <p className="text-sm text-gray-600">
+                    Le {format(new Date(contract.closedAt), 'dd MMMM yyyy', { locale: fr })}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Documents */}
         <Card className="border-0 shadow-xl">
           <CardHeader>
@@ -2242,6 +2346,16 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
                   >
                     <FileSignature className="h-4 w-4 mr-2" />
                     Contrat signé
+                  </Button>
+                )}
+                {contract.signedQuittanceUrl && (
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => window.open(contract.signedQuittanceUrl, '_blank')}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Quittance signée
                   </Button>
                 )}
                 {contract.dischargeUrl && (
@@ -2468,6 +2582,42 @@ export default function CreditContractDetail({ contract }: CreditContractDetailP
       <CreditSpecialeContractPDFModal
         isOpen={showContractPDFModal}
         onClose={() => setShowContractPDFModal(false)}
+        contract={contract}
+      />
+      <FinalRepaymentModal
+        isOpen={showFinalRepaymentModal}
+        onClose={() => setShowFinalRepaymentModal(false)}
+        contract={contract}
+        onValidate={async (motif) => {
+          await validateFinalRepayment.mutateAsync({ contractId: contract.id, motif })
+        }}
+        isPending={validateFinalRepayment.isPending}
+      />
+      <SignedQuittanceUploadModal
+        isOpen={showSignedQuittanceUploadModal}
+        onClose={() => setShowSignedQuittanceUploadModal(false)}
+        contract={contract}
+        onUpload={async (file) => {
+          await uploadSignedQuittance.mutateAsync({ contractId: contract.id, file })
+        }}
+        isPending={uploadSignedQuittance.isPending}
+      />
+      <CloseContractModal
+        isOpen={showCloseContractModal}
+        onClose={() => setShowCloseContractModal(false)}
+        contract={contract}
+        onCloseContract={async (data) => {
+          await closeContract.mutateAsync({
+            contractId: contract.id,
+            closedAt: data.closedAt,
+            motifCloture: data.motifCloture,
+          })
+        }}
+        isPending={closeContract.isPending}
+      />
+      <QuittanceCreditSpecialePDFModal
+        isOpen={showQuittanceModal}
+        onClose={() => setShowQuittanceModal(false)}
         contract={contract}
       />
     </div>

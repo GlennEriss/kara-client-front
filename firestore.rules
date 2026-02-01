@@ -700,13 +700,38 @@ service cloud.firestore {
     
     // ==========================================
     // CRÉDIT SPÉCIALE - CONTRATS (CREDIT CONTRACTS)
+    // Validation des transitions DISCHARGED et CLOSED (clôture de contrat)
     // ==========================================
-    
     match /creditContracts/{contractId} {
-      // Lecture : Admin uniquement
       allow read: if isAdmin();
-      // Écriture : Admin uniquement
-      allow write: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && (
+        // Transition vers DISCHARGED : motif obligatoire (10-500 car.), dischargedBy = admin, dischargedAt timestamp
+        // Ou : contrat déjà DISCHARGED (mise à jour partielle ex. signedQuittanceUrl)
+        (request.resource.data.status != 'DISCHARGED' ||
+         (resource.data.status == 'DISCHARGED') ||
+         (resource.data.status != 'DISCHARGED' &&
+          request.resource.data.dischargeMotif is string &&
+          request.resource.data.dischargeMotif.size() >= 10 &&
+          request.resource.data.dischargeMotif.size() <= 500 &&
+          request.resource.data.dischargedBy is string &&
+          request.resource.data.dischargedBy == request.auth.uid &&
+          request.resource.data.dischargedAt is timestamp)) &&
+        // Transition vers CLOSED : contrat DISCHARGED, quittance signée, motif obligatoire
+        // Ou : contrat déjà CLOSED (mise à jour partielle)
+        (request.resource.data.status != 'CLOSED' ||
+         (resource.data.status == 'CLOSED') ||
+         (resource.data.status == 'DISCHARGED' &&
+          request.resource.data.signedQuittanceUrl is string &&
+          request.resource.data.signedQuittanceUrl.size() > 0 &&
+          request.resource.data.motifCloture is string &&
+          request.resource.data.motifCloture.size() >= 10 &&
+          request.resource.data.motifCloture.size() <= 500 &&
+          request.resource.data.closedBy is string &&
+          request.resource.data.closedBy == request.auth.uid &&
+          request.resource.data.closedAt is timestamp))
+      );
+      allow delete: if isAdmin();
     }
     
     // ==========================================

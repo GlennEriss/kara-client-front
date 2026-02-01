@@ -1,0 +1,144 @@
+@startuml
+title Séquence – Clôture de contrat (Admin) – Crédit spéciale
+skinparam sequenceMessageAlign center
+
+note over Admin, Cache
+  **Architecture domains** (voir documentation/architecture/PLAN_MIGRATION_DOMAINS.md)
+  - domains/financial/credit-speciale : composants, hooks, services, repositories
+  - domains/infrastructure/documents : DocumentService, DocumentRepository
+end note
+
+actor Admin
+
+box "domains/financial/credit-speciale" #E8F4FD
+  participant "CreditContractDetail" as Page
+  participant "useCreditContract\nuseClotureContrat" as Hook
+  participant "CreditSpecialeService" as Service
+  database "CreditContractRepository" as Repo
+end box
+
+box "domains/infrastructure/documents" #F0F8E8
+  participant "DocumentService" as DocService
+  database "DocumentRepository" as DocRepo
+end box
+
+participant "Firebase Storage" as Storage
+participant "React Query Cache" as Cache
+
+== Phase 1 : Remboursement final (Décharge) ==
+
+Admin -> Page : Accède fiche contrat (montant restant = 0)
+Page -> Hook : useCreditContract(contractId)
+Hook -> Service : getContractById(contractId)
+Service -> Repo : getContractById(contractId)
+Repo --> Service : CreditContract
+Service --> Hook : contract
+Hook -> Cache : Cache result (React Query)
+Hook --> Page : { data: contract, amountRemaining: 0 }
+
+Page -> Admin : Affiche bouton "Remboursement final"\n(juste avant section Documents)
+
+Admin -> Page : Clique "Remboursement final"
+Page -> Page : Ouvre FinalRepaymentModal
+Page -> Admin : Modal : "Acceptez-vous de valider le remboursement\nfinal de l'emprunt du membre [nom prénom] ?"
+
+Admin -> Page : Saisit motif (obligatoire)
+Admin -> Page : Clique "Valider le remboursement final"
+
+Page -> Hook : validateFinalRepayment({ contractId, motif, adminId })
+Hook -> Service : validateDischarge(contractId, motif, adminId)
+Service -> Repo : getContractById(contractId)
+Repo --> Service : contract
+
+alt Montant restant = 0
+  Service -> Repo : updateContract(contractId, { status: 'DISCHARGED', dischargeMotif, dischargedAt, dischargedBy })
+  Repo --> Service : updated
+  Service --> Hook : { success: true, contract }
+  Hook -> Cache : invalidateQueries(['creditContract', contractId])
+  Hook --> Page : onSuccess()
+  Page -> Admin : Ferme modal, affiche section Déchargé\n(motif, admin déchargeur, date décharge)
+  Page -> Page : Désactive bouton "Augmenter le crédit"
+else Montant restant > 0
+  Service --> Hook : throw Error("Montant restant doit être 0")
+  Hook --> Page : onError()
+  Page -> Admin : Affiche erreur
+end
+
+== Phase 2 : Télécharger quittance remplie ==
+
+Admin -> Page : Clique "Télécharger la quittance"
+Page -> Hook : downloadQuittance(contractId)
+Hook -> Service : generateQuittancePDF(contractId)
+Service -> Repo : getContractById(contractId)
+Repo --> Service : contract
+Service -> Service : Remplir template QUITTANCE_CREDIT_SPECIALE\navec infos contrat (client, montant, dates, etc.)
+Service -> DocService : uploadDocument(file, CREDIT_SPECIALE_QUITTANCE)
+DocService -> DocRepo : createDocument(metadata)
+DocRepo -> Storage : uploadFile(file, path)
+Storage --> DocRepo : url
+DocRepo --> DocService : document
+DocService --> Service : { url, documentId }
+Service --> Hook : { url, blob } (PDF téléchargeable)
+Hook --> Page : Téléchargement PDF proposé
+Page -> Admin : PDF quittance remplie téléchargé
+
+note right of Admin
+  Admin envoie au membre (WhatsApp, mail, impression)
+  Membre signe et renvoie à l'admin
+end note
+
+== Phase 3 : Téléverser quittance signée ==
+
+Admin -> Page : Clique "Téléverser la quittance signée"
+Page -> Page : Ouvre dialogue upload (PDF)
+Admin -> Page : Sélectionne fichier quittance signée
+
+Page -> Hook : uploadSignedQuittance(contractId, file)
+Hook -> Service : uploadSignedQuittance(contractId, file, adminId)
+Service -> Service : Valide fichier (type PDF, taille)
+
+alt Fichier valide
+  Service -> DocService : uploadDocument(file, CREDIT_SPECIALE_QUITTANCE_SIGNED)
+  DocService -> DocRepo : createDocument(metadata)
+  DocRepo -> Storage : uploadFile(file, path)
+  Storage --> DocRepo : url
+  DocRepo --> DocService : document
+  DocService --> Service : { url, documentId }
+  Service -> Repo : updateContract(contractId, { signedQuittanceUrl, signedQuittanceDocumentId })
+  Repo --> Service : updated
+  Service --> Hook : { success: true }
+  Hook -> Cache : invalidateQueries(['creditContract', contractId])
+  Hook --> Page : onSuccess()
+  Page -> Admin : Affiche bouton "Quittance signée" dans section Documents
+else Fichier invalide
+  Service --> Hook : throw Error("Fichier invalide")
+  Page -> Admin : Affiche erreur upload
+end
+
+== Phase 4 : Clôturer le contrat ==
+
+Admin -> Page : Remplit formulaire : date clôture, heure, motif
+Admin -> Page : Clique "Clôturer le contrat"
+Page -> Page : Ouvre modal double validation :\n"Êtes-vous d'accord pour clôturer ce contrat ?"
+
+Admin -> Page : Confirme clôture
+
+Page -> Hook : closeContract({ contractId, closedAt, closedBy, motifCloture })
+Hook -> Service : closeContract(contractId, data)
+Service -> Repo : getContractById(contractId)
+Repo --> Service : contract
+
+alt Contrat DISCHARGED et quittance signée téléversée
+  Service -> Repo : updateContract(contractId, { status: 'CLOSED', closedAt, closedBy, motifCloture })
+  Repo --> Service : updated
+  Service --> Hook : { success: true }
+  Hook -> Cache : invalidateQueries(['creditContract', 'creditContracts'])
+  Hook --> Page : onSuccess()
+  Page -> Admin : Affiche infos clôture (admin, date)\nBouton "Quittance signée" après "Contrat signé"
+  Page -> Page : Désactive bouton "Augmenter le crédit"
+else Conditions non remplies
+  Service --> Hook : throw Error("Contrat doit être déchargé et quittance signée téléversée")
+  Page -> Admin : Affiche erreur
+end
+
+@enduml

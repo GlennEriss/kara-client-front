@@ -1,0 +1,79 @@
+@startuml
+title Activité – Clôture de contrat (Admin) – Crédit spéciale
+
+start
+
+' === Phase 1 : Remboursement final (Décharge) ===
+:UI affiche bouton "Remboursement final"\n(montant restant = 0, juste avant section Documents);
+
+:Admin clique "Remboursement final";
+
+:UI ouvre modal de validation;
+
+:Modal affiche : "Acceptez-vous de valider le remboursement\nfinal de l'emprunt du membre [nom prénom] ?";
+
+:Admin saisit motif (obligatoire);
+
+if (Motif saisi ?) then (oui)
+  :Admin clique "Valider le remboursement final";
+  :Service met à jour contrat (status=DISCHARGED, motif, dischargedAt, dischargedBy);
+  :UI affiche section Déchargé : motif, admin déchargeur, date décharge;
+  :UI désactive bouton "Augmenter le crédit";
+else (non)
+  :UI affiche erreur "Motif obligatoire";
+  stop
+endif
+
+' === Phase 2 : Quittance et clôture ===
+:UI affiche formulaire section Déchargé\n(télécharger quittance, téléverser quittance signée, formulaire clôture);
+
+:Admin clique "Télécharger la quittance";
+
+:Service génère PDF quittance remplie\n(template QUITTANCE_CREDIT_SPECIALE.docx + infos contrat);
+
+:Documents/Storage stocke PDF (metadata);
+
+:UI propose téléchargement PDF;
+
+note right
+  Quittance préremplie avec infos contrat
+  Admin envoie au membre (WhatsApp, mail, impression)
+  Membre signe et renvoie à l'admin
+end note
+
+:Admin clique "Téléverser la quittance signée";
+
+:UI ouvre dialogue upload (PDF);
+
+:Admin sélectionne fichier quittance signée;
+
+:UI valide fichier (type PDF, taille);
+
+if (Fichier valide ?) then (oui)
+  :Documents/Storage téléverse quittance signée;
+  :Service met à jour contrat (signedQuittanceUrl);
+  :UI affiche bouton "Quittance signée" dans section Documents;
+else (non)
+  :UI affiche erreur upload;
+  stop
+endif
+
+:Admin remplit formulaire clôture :\n- Date clôture (défaut : aujourd'hui, modifiable)\n- Heure (défaut : heure actuelle)\n- Motif clôture (obligatoire);
+
+:Admin clique "Clôturer le contrat";
+
+:UI ouvre modal double validation :\n"Êtes-vous d'accord pour clôturer ce contrat ?";
+
+if (Admin confirme ?) then (oui)
+  :Service met à jour contrat (status=CLOSED, closedAt, closedBy, motifCloture);
+  :UI affiche infos clôture : admin clôturant, date clôture;
+  :UI désactive bouton "Augmenter le crédit";
+  :UI affiche bouton "Quittance signée" après "Contrat signé" dans Documents;
+else (non)
+  :Modal se ferme, aucune action;
+  stop
+endif
+
+stop
+
+@enduml

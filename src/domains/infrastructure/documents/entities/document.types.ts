@@ -37,6 +37,8 @@ export type DocumentType =
   | 'CREDIT_SPECIALE_CONTRACT_SIGNED' // Contrat crédit spéciale signé
   | 'CREDIT_SPECIALE_RECEIPT'      // Reçu de paiement crédit spéciale
   | 'CREDIT_SPECIALE_DISCHARGE'    // Décharge crédit spéciale
+  | 'CREDIT_SPECIALE_QUITTANCE'    // Quittance remplie (template + infos contrat)
+  | 'CREDIT_SPECIALE_QUITTANCE_SIGNED' // Quittance signée par le membre
 
 /**
  * Formats de documents possibles

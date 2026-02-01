@@ -65,6 +65,8 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   CREDIT_SPECIALE_CONTRACT_SIGNED: 'Contrat crédit spéciale signé',
   CREDIT_SPECIALE_RECEIPT: 'Reçu de paiement crédit spéciale',
   CREDIT_SPECIALE_DISCHARGE: 'Décharge crédit spéciale',
+  CREDIT_SPECIALE_QUITTANCE: 'Quittance crédit spéciale',
+  CREDIT_SPECIALE_QUITTANCE_SIGNED: 'Quittance crédit spéciale signée',
 }
 
 // Labels pour les formats
@@ -92,6 +94,8 @@ const DOCUMENT_TYPE_COLORS: Record<string, string> = {
   CHARITY_EVENT_MEDIA: 'bg-pink-100 text-pink-700',
   CHARITY_CONTRIBUTION_RECEIPT: 'bg-indigo-100 text-indigo-700',
   CHARITY_EVENT_REPORT: 'bg-cyan-100 text-cyan-700',
+  CREDIT_SPECIALE_QUITTANCE: 'bg-cyan-100 text-cyan-700',
+  CREDIT_SPECIALE_QUITTANCE_SIGNED: 'bg-emerald-100 text-emerald-700',
 }
 
 export default function ContractsHistoryPage() {

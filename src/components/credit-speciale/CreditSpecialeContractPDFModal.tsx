@@ -7,17 +7,17 @@ import { Button } from '@/components/ui/button'
 import { Download, Loader2, FileText, Monitor, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMember } from '@/hooks/useMembers'
-import CreditSpecialeContractPDF from './CreditSpecialeContractPDF'
+import AdhesionCreditSpecialeV2 from './AdhesionCreditSpecialeV2'
 import { CreditContract } from '@/types/types'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 
-interface CreditSpecialeContractPDFModalProps {
+interface AdhesionCreditSpecialeV2ModalProps {
   isOpen: boolean
   onClose: () => void
   contract: CreditContract
 }
 
-const CreditSpecialeContractPDFModal: React.FC<CreditSpecialeContractPDFModalProps> = ({
+const AdhesionCreditSpecialeV2Modal: React.FC<AdhesionCreditSpecialeV2ModalProps> = ({
   isOpen,
   onClose,
   contract
@@ -50,7 +50,7 @@ const CreditSpecialeContractPDFModal: React.FC<CreditSpecialeContractPDFModalPro
       toast.info('Génération du PDF en cours...')
 
       const doc = (
-        <CreditSpecialeContractPDF
+        <AdhesionCreditSpecialeV2
           contract={contract}
           memberData={memberData}
           guarantorData={guarantorData}
@@ -83,7 +83,7 @@ const CreditSpecialeContractPDFModal: React.FC<CreditSpecialeContractPDFModalPro
       toast.info('Génération et enregistrement du PDF en cours...')
 
       const doc = (
-        <CreditSpecialeContractPDF
+        <AdhesionCreditSpecialeV2
           contract={contract}
           memberData={memberData}
           guarantorData={guarantorData}
@@ -204,7 +204,7 @@ const CreditSpecialeContractPDFModal: React.FC<CreditSpecialeContractPDFModalPro
                   {/* Boutons d'action mobile */}
                   <BlobProvider 
                     document={
-                      <CreditSpecialeContractPDF
+                      <AdhesionCreditSpecialeV2
                         contract={contract}
                         memberData={memberData}
                         guarantorData={guarantorData}
@@ -267,7 +267,7 @@ const CreditSpecialeContractPDFModal: React.FC<CreditSpecialeContractPDFModalPro
                   border: 'none',
                   borderRadius: '0.75rem'
                 }}>
-                  <CreditSpecialeContractPDF
+                  <AdhesionCreditSpecialeV2
                     contract={contract}
                     memberData={memberData}
                     guarantorData={guarantorData}
@@ -307,4 +307,4 @@ const CreditSpecialeContractPDFModal: React.FC<CreditSpecialeContractPDFModalPro
   )
 }
 
-export default CreditSpecialeContractPDFModal
+export default AdhesionCreditSpecialeV2Modal
