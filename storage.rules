@@ -155,6 +155,21 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
     
+    // Preuves de paiement des remboursements CI (Marquer comme payé)
+    // Chemin : contracts-ci/refunds/{contractId}/{refundId}/{fileName}
+    // Utilisé par : MarkAsPaidRefundCIModal (preuve de paiement, max 20MB)
+    
+    match /contracts-ci/refunds/{contractId}/{refundId}/{fileName} {
+      // Lecture : Admins uniquement (preuves sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (image, max 20MB)
+      allow write: if isAdmin() && isImage() && request.resource.size < 20 * 1024 * 1024;
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
     // Photos de pièces d'identité des contacts d'urgence (chemin avec contractId)
     // Chemin : contracts-ci/{memberId}/{contractId}/{fileName}
     

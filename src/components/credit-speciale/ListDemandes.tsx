@@ -841,14 +841,10 @@ const ListDemandes = () => {
                     </span>
                   </div>
 
-                  {/* Ligne 3: Nom du client (sans "Client:") */}
-                  <div className="text-sm font-medium text-gray-900">
-                    {demande.clientLastName}
-                  </div>
-
-                  {/* Ligne 4: Prénom du client */}
-                  <div className="text-sm font-medium text-gray-900">
-                    {demande.clientFirstName}
+                  {/* Nom et prénom du client (espacement réduit) */}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-gray-900">{demande.clientLastName}</span>
+                    <span className="text-sm font-medium text-gray-900">{demande.clientFirstName}</span>
                   </div>
 
                   {/* Ligne 5: Montant */}

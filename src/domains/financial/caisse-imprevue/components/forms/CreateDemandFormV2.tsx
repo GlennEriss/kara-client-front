@@ -8,6 +8,7 @@
 
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { UseFormReturn } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -45,6 +46,22 @@ export function CreateDemandFormV2({
   onResetAll,
 }: CreateDemandFormV2Props) {
   const handleSubmit = form.handleSubmit(onSubmit)
+  const formTopRef = useRef<HTMLDivElement>(null)
+
+  // Scroll vers le haut à chaque changement d'étape (après le rendu du nouveau step)
+  useEffect(() => {
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      formTopRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }
+    // Délai pour s'exécuter après le rendu et les effets de layout (ex: chargement async Step 3)
+    const t1 = setTimeout(scrollToTop, 0)
+    const t2 = setTimeout(scrollToTop, 150)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [currentStep])
 
   // Gérer la réinitialisation de l'étape
   const handleResetStep = () => {
@@ -55,7 +72,7 @@ export function CreateDemandFormV2({
   }
 
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div ref={formTopRef} className="space-y-6 md:space-y-8">
       {/* Stepper moderne avec cercles et lignes */}
       <Card className="border-0 shadow-lg bg-gradient-to-r from-white via-gray-50/50 to-white">
         <CardContent className="p-6 md:p-8">

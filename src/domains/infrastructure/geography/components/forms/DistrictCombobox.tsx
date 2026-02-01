@@ -58,8 +58,9 @@ export default function DistrictCombobox({ form, communeId, onAddNew, disabled =
   const selectedDistrict = filteredDistricts.find(d => d.id === selectedDistrictId)
 
   const handleSelect = (value: string) => {
-    // cmdk passe la valeur du prop 'value' (district.name), on doit trouver l'ID correspondant
-    const district = filteredDistricts.find(d => d.name.toLowerCase() === value.toLowerCase())
+    // cmdk passe la valeur du prop 'value' (district.id), on trouve par ID pour éviter les problèmes de caractères spéciaux
+    const district = filteredDistricts.find(d => d.id === value) ??
+      filteredDistricts.find(d => d.name.toLowerCase() === value.toLowerCase())
     if (!district) return
     
     // Sélectionner l'arrondissement (sans toggle pour éviter les bugs de double-clic)
@@ -142,7 +143,8 @@ export default function DistrictCombobox({ form, communeId, onAddNew, disabled =
                     {filteredDistricts.map((district) => (
                       <CommandItem
                         key={district.id}
-                        value={district.name}
+                        value={district.id}
+                        keywords={[district.name]}
                         onSelect={handleSelect}
                       >
                         <Check

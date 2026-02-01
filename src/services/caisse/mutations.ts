@@ -107,6 +107,11 @@ export async function subscribe(input: {
     memberMatricule = 'GRP' + input.groupeId.slice(-3).padStart(3, '0')
   }
   
+  // Calculer la date de début et la prochaine échéance AVANT la création du contrat
+  const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
+  // Pour un nouveau contrat (currentMonthIndex=0), nextDueAt = première échéance = startDate
+  const nextDueAt = new Date(startDate)
+
   // Nettoyer les données pour éviter les valeurs undefined dans Firestore
   const cleanData: any = {
     contractType,
@@ -115,6 +120,8 @@ export async function subscribe(input: {
     caisseType: input.caisseType,
     firstPaymentDate: input.firstPaymentDate,
     memberMatricule, // Ajouter le matricule pour la génération d'ID
+    contractStartAt: startDate, // Requis pour computeNextDueAt et affichage "Prochaine échéance"
+    nextDueAt, // Prochaine date d'échéance (premier versement pour un contrat neuf)
     ...(settings?.id ? { settingsVersion: settings.id } : {}),
     ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {})
   }
@@ -157,10 +164,7 @@ export async function subscribe(input: {
     }
   }
   
-  // Calculer la date de début basée sur firstPaymentDate ou maintenant
-  const startDate = input.firstPaymentDate ? new Date(input.firstPaymentDate) : new Date()
-  
-  // Pré-générer les paiements DUE avec dueAt calculé
+  // Pré-générer les paiements DUE avec dueAt calculé (startDate déjà calculé ci-dessus)
   for (let i = 0; i < input.monthsPlanned; i++) {
     const dueDate = new Date(startDate)
     dueDate.setMonth(dueDate.getMonth() + i)

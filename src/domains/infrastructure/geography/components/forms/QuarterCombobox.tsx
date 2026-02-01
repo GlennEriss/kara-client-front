@@ -87,8 +87,9 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
   }, [filteredQuarters, sortedInitialQuarters, selectedQuarterId])
 
   const handleSelect = (value: string) => {
-    // cmdk passe la valeur du prop 'value' (quarter.name), on doit trouver l'ID correspondant
-    const quarter = filteredQuarters.find(q => q.name.toLowerCase() === value.toLowerCase())
+    // cmdk passe la valeur du prop 'value' (quarter.id), on trouve par ID pour éviter les problèmes de caractères spéciaux
+    const quarter = filteredQuarters.find(q => q.id === value) ??
+      filteredQuarters.find(q => q.name.toLowerCase() === value.toLowerCase())
     if (!quarter) return
     
     // Sélectionner le quartier (sans toggle pour éviter les bugs de double-clic)
@@ -179,7 +180,8 @@ export default function QuarterCombobox({ form, districtId, onAddNew, disabled =
                     {filteredQuarters.map((quarter) => (
                       <CommandItem
                         key={quarter.id}
-                        value={quarter.name}
+                        value={quarter.id}
+                        keywords={[quarter.name]}
                         onSelect={handleSelect}
                         data-testid={`step2-address-quarter-result-item-${quarter.id}`}
                         className={cn(

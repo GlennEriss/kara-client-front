@@ -566,8 +566,8 @@ export class CaisseImprevueService implements ICaisseImprevueService {
             // 1. Récupérer tous les paiements
             const payments = await this.paymentCIRepository.getPaymentsByContractId(contractId)
             
-            // 2. Calculer le montant total versé (somme des targetAmount)
-            const totalAmountPaid = payments.reduce((sum, payment) => sum + (payment.targetAmount || 0), 0)
+            // 2. Calculer le montant total versé (somme des accumulatedAmount = montant réellement payé)
+            const totalAmountPaid = payments.reduce((sum, payment) => sum + (payment.accumulatedAmount || 0), 0)
             
             // 3. Nombre de versements (nombre de documents dans la collection payments)
             const paymentCount = payments.length
