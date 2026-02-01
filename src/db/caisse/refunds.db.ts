@@ -20,6 +20,9 @@ export async function listRefundsCI(contractId: string) {
       createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
       approvedAt: (typeof data.approvedAt?.toDate === 'function') ? data.approvedAt.toDate() : (data.approvedAt ? new Date(data.approvedAt) : undefined),
       paidAt: (typeof data.paidAt?.toDate === 'function') ? data.paidAt.toDate() : (data.paidAt ? new Date(data.paidAt) : undefined),
+      paymentProofUrl: data.paymentProofUrl,
+      paidBy: data.paidBy,
+      paidByName: data.paidByName,
     }
   })
 }

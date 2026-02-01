@@ -51,12 +51,14 @@ interface FinalRefundCIModalProps {
   isOpen: boolean
   onClose: () => void
   contract: ContractCI
+  onSuccess?: () => void | Promise<void>
 }
 
 export default function FinalRefundCIModal({
   isOpen,
   onClose,
   contract,
+  onSuccess,
 }: FinalRefundCIModalProps) {
   const { user } = useAuth()
   const requestFinalRefundCIMutation = useRequestFinalRefundCI()
@@ -178,6 +180,8 @@ export default function FinalRefundCIModal({
       reset(defaultFinalRefundCIValues)
       setWithdrawalProofFile(null)
       setDocumentPdfFile(null)
+      toast.success('Demande de remboursement final soumise avec succès')
+      await onSuccess?.()
       onClose()
     } catch (error) {
       console.error('Erreur lors de la demande de remboursement final:', error)

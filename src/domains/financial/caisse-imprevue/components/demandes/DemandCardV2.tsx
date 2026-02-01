@@ -194,20 +194,16 @@ export function DemandCardV2({
           </DropdownMenu>
         </div>
 
-        {/* Infos Membre - Nom et prénom sur lignes séparées en mobile */}
+        {/* Infos Membre - Prénom puis nom sur lignes séparées */}
         <div className="space-y-2 mb-4">
           <div className="flex items-start gap-2">
             <User className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              {/* Mobile: prénom et nom sur 2 lignes, Desktop: sur 1 ligne */}
-              <span className="font-semibold text-gray-900 text-base block sm:hidden">
+            <div className="min-w-0 flex flex-col gap-0.5">
+              <span className="font-semibold text-gray-900 text-base block">
                 {demand.memberFirstName}
               </span>
-              <span className="font-semibold text-gray-900 text-base block sm:hidden">
+              <span className="font-semibold text-gray-900 text-base block">
                 {demand.memberLastName}
-              </span>
-              <span className="font-semibold text-gray-900 text-base hidden sm:block truncate">
-                {demand.memberFirstName} {demand.memberLastName}
               </span>
             </div>
           </div>
@@ -219,21 +215,22 @@ export function DemandCardV2({
           )}
         </div>
 
-        {/* Infos Financières - Layout adaptatif pour éviter le débordement */}
+        {/* Infos Financières - Montant sur une ligne, fréquence et badge sur la ligne d'en dessous */}
         <div className="space-y-3 mb-4 p-3 bg-gray-50 rounded-lg">
-          {/* Montant et fréquence - Stack en mobile, flex en desktop */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <Banknote className="w-4 h-4 text-green-600 shrink-0" />
               <span className="font-semibold text-gray-900 text-sm sm:text-base">
                 {demand.subscriptionCIAmountPerMonth.toLocaleString('fr-FR')} FCFA
               </span>
-              <span className="text-gray-500 text-sm">/{frequencyInfo.shortLabel}</span>
             </div>
-            <Badge variant="outline" className="text-xs font-medium bg-white w-fit">
-              <Repeat className="w-3 h-3 mr-1" />
-              {frequencyInfo.label}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 text-sm">/{frequencyInfo.shortLabel}</span>
+              <Badge variant="outline" className="text-xs font-medium bg-white w-fit">
+                <Repeat className="w-3 h-3 mr-1" />
+                {frequencyInfo.label}
+              </Badge>
+            </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
@@ -251,7 +248,7 @@ export function DemandCardV2({
         {demand.cause && (
           <div className="mb-4">
             <div className="flex items-start gap-2">
-              <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+              <FileText className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
               <div>
                 <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Motif</span>
                 <p className="text-sm text-gray-700 line-clamp-2 mt-0.5">
@@ -265,15 +262,15 @@ export function DemandCardV2({
         {/* Séparateur */}
         <div className="border-t border-gray-200 my-4" />
 
-        {/* Boutons d'action principaux - Taille uniforme mobile/desktop */}
-        <div className="space-y-2">
+        {/* Boutons d'action principaux - Alignés verticalement */}
+        <div className="flex flex-col gap-2">
           {/* Actions selon le statut */}
           {canAcceptOrReject && (
-            <div className="flex flex-col sm:flex-row gap-2">
+            <>
               {onAccept && (
                 <Button
                   onClick={() => onAccept(demand.id)}
-                  className="flex-1 h-11 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
+                  className="w-full h-11 text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Accepter
@@ -283,13 +280,13 @@ export function DemandCardV2({
                 <Button
                   variant="outline"
                   onClick={() => onReject(demand.id)}
-                  className="flex-1 h-11 text-sm font-medium border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  className="w-full h-11 text-sm font-medium border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                 >
                   <XCircle className="w-4 h-4 mr-2" />
                   Refuser
                 </Button>
               )}
-            </div>
+            </>
           )}
 
           {canReopen && onReopen && (
