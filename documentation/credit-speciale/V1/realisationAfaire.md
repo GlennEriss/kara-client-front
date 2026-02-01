@@ -207,8 +207,9 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
 ### 2.10 Archivage et traçabilité
 
 ### 2.11 Augmentation de crédit en cours de contrat
-- [ ] Fonctionnalité d'augmentation de crédit pour un contrat actif
+- [x] Fonctionnalité d'augmentation de crédit pour un contrat actif
   - Use case : UC12 – Augmenter le montant d'un crédit en cours (Admin)
+  - Implémentation : Bouton "Augmenter le crédit" dans `CreditContractDetail.tsx`, modal `CreditExtensionModal.tsx` avec vérification d'éligibilité, saisie montant supplémentaire et cause, simulation obligatoire (standard/personnalisée/proposée), méthode `extendContract` dans `CreditSpecialeService.ts`, statut `EXTENDED` et champ `parentContractId` pour lier les contrats
   - **Préconditions** :
     - Contrat actif (`ACTIVE`)
     - Si des échéances ont été payées : Toutes les échéances payées doivent l'avoir été sans retard (ou avec un retard < 3 jours)
@@ -260,12 +261,12 @@ Ce fichier liste les fonctionnalités à implémenter pour le module Crédit sp�
     - Si aucune échéance n'a été payée : Aucune échéance n'est considérée comme payée, toutes les échéances sont à venir
     - L'historique complet est conservé (contrat initial + nouveau contrat + simulations)
     - Le montant supplémentaire est remis au client après signature du nouveau contrat
-  - **Implémentation prévue** :
-    - Nouveau statut `EXTENDED` pour `CreditContract`
+  - **Implémentation réalisée** :
+    - Statut `EXTENDED` pour `CreditContract`
     - Champ `parentContractId` dans `CreditContract` pour lier les contrats
     - Nouvelle demande automatique avec statut `APPROVED` pour les extensions
     - Modal d'augmentation de crédit dans `CreditContractDetail.tsx`
-    - Service `extendCreditContract` dans `CreditSpecialeService.ts`
+    - Méthode `extendContract` dans `CreditSpecialeService.ts`
     - Validation des conditions d'éligibilité avant autorisation
     - Génération automatique du nouveau contrat PDF
     - Conservation de l'historique des paiements du contrat initial

@@ -281,6 +281,8 @@ enum DocumentType {
   CREDIT_SPECIALE_CONTRACT_SIGNED
   CREDIT_SPECIALE_RECEIPT
   CREDIT_SPECIALE_DISCHARGE
+  CREDIT_SPECIALE_QUITTANCE
+  CREDIT_SPECIALE_QUITTANCE_SIGNED
 }
 
 enum DocumentFormat {
@@ -364,6 +366,8 @@ note right of Document
   - ADHESION: PDF d'adhésion (créé lors de l'approbation)
   - ADHESION_CS: Contrat d'adhésion Caisse Spéciale
   - ADHESION_CI: Contrat d'adhésion Caisse Imprévue
+  - CREDIT_SPECIALE_QUITTANCE: Quittance remplie (template + infos contrat)
+  - CREDIT_SPECIALE_QUITTANCE_SIGNED: Quittance signée par le membre
   - Autres types selon module
   
   **Workflow d'approbation:**

@@ -1,0 +1,89 @@
+@startuml
+title Cas d'utilisation – Clôture de contrat (Crédit spéciale)
+left to right direction
+skinparam actorStyle awesome
+
+actor "Admin" as Admin
+
+rectangle "Clôture de contrat – Crédit spéciale" {
+  ' === Phase 1 : Remboursement final (Décharge) ===
+  usecase "Valider le remboursement final\n(décharge)" as UC_ValiderRemboursementFinal
+  note right of UC_ValiderRemboursementFinal
+    **Précondition** : Montant restant = 0
+    **Déclencheur** : Bouton "Remboursement final" visible
+    (juste avant section Documents)
+    ----
+    Modal : "Acceptez-vous de valider le remboursement
+    final de l'emprunt du membre [nom prénom] ?"
+    Admin saisit : motif (obligatoire)
+    ----
+    **Postcondition** : Statut → DISCHARGED
+    Affichage : motif, admin déchargeur, date décharge
+  end note
+
+  ' === Phase 2 : Quittance et clôture ===
+  usecase "Télécharger la quittance remplie" as UC_TelechargerQuittance
+  note right of UC_TelechargerQuittance
+    **Précondition** : Contrat DISCHARGED
+    ----
+    Génère PDF à partir du template
+    QUITTANCE_CREDIT_SPECIALE.docx
+    prérempli avec infos du contrat
+    (pour que le membre la signe)
+    ----
+    Admin envoie au membre (WhatsApp, mail, impression)
+    Membre signe et renvoie à l'admin
+  end note
+
+  usecase "Téléverser la quittance signée" as UC_TeleverserQuittanceSignee
+  note right of UC_TeleverserQuittanceSignee
+    **Précondition** : Contrat DISCHARGED
+    ----
+    Admin récupère quittance signée du membre
+    et la téléverse via le bouton dédié
+  end note
+
+  usecase "Clôturer le contrat" as UC_CloturerContrat
+  note right of UC_CloturerContrat
+    **Précondition** : Contrat DISCHARGED,
+    quittance signée téléversée
+    ----
+    Formulaire :
+    - Date de clôture (défaut : aujourd'hui,
+      peut être passée si membre a signé hier)
+    - Heure (défaut : heure actuelle)
+    - Motif de clôture (obligatoire)
+    ----
+    Bouton "Clôturer" → double validation :
+    "Êtes-vous d'accord pour clôturer ce contrat ?"
+    ----
+    **Postcondition** : Statut → CLOSED
+    Affichage : admin clôturant, date clôture
+    Section Documents : bouton "Quittance signée"
+    après "Contrat signé"
+  end note
+}
+
+' Relations
+Admin --> UC_ValiderRemboursementFinal
+Admin --> UC_TelechargerQuittance
+Admin --> UC_TeleverserQuittanceSignee
+Admin --> UC_CloturerContrat
+
+note bottom of UC_CloturerContrat
+  **Règle métier** : Quand contrat DISCHARGED
+  ou CLOSED, le bouton "Augmenter le crédit"
+  doit être désactivé (disabled)
+end note
+
+note as Flux
+  **Ordre du flux** :
+  1. Valider remboursement final (DISCHARGED)
+  2. Télécharger quittance → envoyer au membre
+  3. Membre signe → renvoie à l'admin
+  4. Téléverser quittance signée
+  5. Remplir formulaire (date, heure, motif)
+  6. Clôturer (double validation → CLOSED)
+end note
+
+@enduml

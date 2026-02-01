@@ -99,6 +99,13 @@ class CreditContract {
   + contractUrl?: string
   + signedContractUrl?: string
   + dischargeUrl?: string
+  + dischargeMotif?: string
+  + dischargedBy?: string
+  + signedQuittanceUrl?: string
+  + signedQuittanceDocumentId?: string
+  + closedAt?: Date
+  + closedBy?: string
+  + motifCloture?: string
   + activatedAt?: Date
   + fundsReleasedAt?: Date
   + dischargedAt?: Date
@@ -295,6 +302,67 @@ CreditPayment --> CreditPenalty : pays
 ' CreditContract référence Document (via contractUrl, etc.)
 CreditContract --> Document : references
 
+' ============================================
+' ARCHITECTURE DOMAINS – Clôture de contrat
+' (voir sequence/UC_ClotureContrat_sequence.puml)
+' ============================================
+package "domains/financial/credit-speciale" {
+  class CreditContractDetail {
+    + contractId: string
+    + Affiche bouton "Remboursement final" (si amountRemaining=0)
+    + Ouvre FinalRepaymentModal
+    + Ouvre dialogue upload quittance signée
+    + Ouvre modal double validation clôture
+  }
+
+  class useCreditContract {
+    + contractId: string
+    + data: CreditContract | undefined
+    + isLoading: boolean
+    + useQuery(['creditContract', contractId])
+  }
+
+  class useClotureContrat {
+    + validateFinalRepayment({ contractId, motif, adminId }): void
+    + downloadQuittance(contractId): void
+    + uploadSignedQuittance(contractId, file): void
+    + closeContract({ contractId, closedAt, closedBy, motifCloture }): void
+  }
+
+  class CreditSpecialeService {
+    + getContractById(contractId): Promise<CreditContract>
+    + validateDischarge(contractId, motif, adminId): Promise<void>
+    + generateQuittancePDF(contractId): Promise<{ url, blob }>
+    + uploadSignedQuittance(contractId, file, adminId): Promise<void>
+    + closeContract(contractId, data): Promise<void>
+  }
+
+  class CreditContractRepository {
+    + getContractById(id): Promise<CreditContract | null>
+    + updateContract(id, updates): Promise<CreditContract | null>
+  }
+}
+
+package "domains/infrastructure/documents" {
+  class DocumentService {
+    + uploadDocument(file, type: DocumentType): Promise<{ url, documentId }>
+  }
+
+  class DocumentRepository {
+    + createDocument(metadata): Promise<Document>
+  }
+}
+
+' Relations architecture cloture
+CreditContractDetail ..> useCreditContract : uses
+CreditContractDetail ..> useClotureContrat : uses
+useCreditContract ..> CreditSpecialeService : uses
+useClotureContrat ..> CreditSpecialeService : uses
+CreditSpecialeService ..> CreditContractRepository : uses
+CreditSpecialeService ..> DocumentService : uses
+DocumentService ..> DocumentRepository : uses
+CreditSpecialeService ..> CreditContract : manipulates
+
 ' CreditDemand référence User (client, agrégation)
 User "1" --> "*" CreditDemand : creates_demands
 
@@ -331,6 +399,8 @@ note bottom of CreditContract
   **Transformation:** Après 7 mois, un crédit spéciale peut être transformé en crédit fixe
   **Extension:** Un contrat peut être étendu (augmentation de crédit) via parentContractId
   **Garant parrain:** Si guarantorIsParrain=true, rémunération de 2% (par défaut) du montant versé
+  **Clôture:** dischargeMotif/dischargedBy (décharge), signedQuittanceUrl (quittance signée),
+  closedAt/closedBy/motifCloture (clôture finale) – voir UC_ClotureContrat
 end note
 
 @enduml
