@@ -228,7 +228,65 @@ export function useCreditContractMutations() {
         },
     })
 
-    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract }
+    // Clôture de contrat - Quittance
+    const generateQuittancePDF = useMutation({
+        mutationFn: ({ contractId, pdfFile }: { contractId: string; pdfFile: File }) => {
+            return service.generateQuittancePDF(contractId, pdfFile)
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la génération de la quittance')
+        },
+    })
+
+    // Clôture de contrat
+    const validateFinalRepayment = useMutation({
+        mutationFn: ({ contractId, motif }: { contractId: string; motif: string }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.validateDischarge(contractId, motif, user.uid)
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            toast.success('Remboursement final validé')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la validation du remboursement final')
+        },
+    })
+
+    const uploadSignedQuittance = useMutation({
+        mutationFn: ({ contractId, file }: { contractId: string; file: File }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.uploadSignedQuittance(contractId, file, user.uid)
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            toast.success('Quittance signée téléversée')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors du téléversement de la quittance')
+        },
+    })
+
+    const closeContract = useMutation({
+        mutationFn: ({ contractId, closedAt, motifCloture }: { contractId: string; closedAt: Date; motifCloture: string }) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.closeContract(contractId, { closedAt, closedBy: user.uid, motifCloture })
+        },
+        onSuccess: (_, variables) => {
+            qc.invalidateQueries({ queryKey: ['creditContract', variables.contractId] })
+            qc.invalidateQueries({ queryKey: ['creditContracts'] })
+            qc.invalidateQueries({ queryKey: ['creditContractsStats'] })
+            toast.success('Contrat clôturé')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la clôture du contrat')
+        },
+    })
+
+    return { createFromDemand, updateStatus, generateContractPDF, uploadSignedContract, generateQuittancePDF, validateFinalRepayment, uploadSignedQuittance, closeContract }
 }
 
 // ==================== ÉCHÉANCES (INSTALLMENTS) ====================

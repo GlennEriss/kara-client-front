@@ -32,6 +32,12 @@ export interface ICreditSpecialeService {
     // Génération et upload de contrats PDF
     generateContractPDF(contractId: string, blank?: boolean, pdfFile?: File): Promise<{ url: string; path: string; documentId: string }>;
     uploadSignedContract(contractId: string, signedContractFile: File, adminId: string): Promise<CreditContract>;
+
+    // Clôture de contrat (remboursement final, quittance, clôture)
+    validateDischarge(contractId: string, motif: string, adminId: string): Promise<CreditContract>;
+    generateQuittancePDF(contractId: string, pdfFile: File): Promise<{ url: string; documentId: string }>;
+    uploadSignedQuittance(contractId: string, file: File, adminId: string): Promise<CreditContract>;
+    closeContract(contractId: string, data: { closedAt: Date; closedBy: string; motifCloture: string }): Promise<CreditContract>;
     
     // Simulations
     calculateStandardSimulation(amount: number, interestRate: number, monthlyPayment: number, firstPaymentDate: Date, creditType: CreditType): Promise<StandardSimulation>;

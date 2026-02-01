@@ -137,7 +137,8 @@ service firebase.storage {
     // Contrats signés PDF + preuves de paiement (images) uploadés par les admins
     // Chemin : contracts-ci/{memberId}/{fileName}
     // - Caisse Imprévue : contrats (ADHESION_CI), supports, remboursements
-    // - Crédit Spéciale : contrats (CREDIT_SPECIALE_CONTRACT), signés (CREDIT_SPECIALE_CONTRACT_SIGNED), reçus (CREDIT_SPECIALE_RECEIPT)
+    // - Crédit Spéciale : contrats (CREDIT_SPECIALE_CONTRACT), signés (CREDIT_SPECIALE_CONTRACT_SIGNED),
+    //   reçus (CREDIT_SPECIALE_RECEIPT), quittances (CREDIT_SPECIALE_QUITTANCE, CREDIT_SPECIALE_QUITTANCE_SIGNED)
     // - Page /credit-speciale/demandes/[id] : affichage documentPhotoUrl du contact d'urgence (contracts-ci ou emergency-contacts)
     // - PDF max 5MB, Images max 5MB
     

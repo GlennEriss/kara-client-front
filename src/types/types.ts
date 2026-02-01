@@ -1388,6 +1388,8 @@ export type DocumentType =
   | 'CREDIT_SPECIALE_CONTRACT_SIGNED' // Contrat crédit spéciale signé
   | 'CREDIT_SPECIALE_RECEIPT'      // Reçu de paiement crédit spéciale
   | 'CREDIT_SPECIALE_DISCHARGE'    // Décharge crédit spéciale
+  | 'CREDIT_SPECIALE_QUITTANCE'    // Quittance remplie (template + infos contrat)
+  | 'CREDIT_SPECIALE_QUITTANCE_SIGNED' // Quittance signée par le membre
 
 /**
  * Formats de documents possibles
@@ -1502,6 +1504,13 @@ export interface CreditContract {
   contractUrl?: string // URL du contrat PDF généré
   signedContractUrl?: string // URL du contrat signé téléversé
   dischargeUrl?: string // URL de la décharge
+  dischargeMotif?: string // Motif de la décharge (remboursement final)
+  dischargedBy?: string // Admin UID ayant validé la décharge
+  signedQuittanceUrl?: string // URL de la quittance signée par le membre
+  signedQuittanceDocumentId?: string // ID du document quittance signée
+  closedAt?: Date // Date de clôture du contrat
+  closedBy?: string // Admin UID ayant clôturé le contrat
+  motifCloture?: string // Motif de clôture
   activatedAt?: Date
   fundsReleasedAt?: Date
   dischargedAt?: Date

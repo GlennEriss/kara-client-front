@@ -2131,6 +2131,170 @@ export class CreditSpecialeService implements ICreditSpecialeService {
         return updatedContract;
     }
 
+    // ==================== CLÔTURE DE CONTRAT ====================
+
+    /**
+     * Valide le remboursement final (décharge) - Phase 1
+     * Précondition : montant restant = 0 (calculé à partir des paiements réels)
+     */
+    async validateDischarge(contractId: string, motif: string, adminId: string): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        
+        // Calculer le montant restant réel à partir des paiements (même logique que l'UI)
+        const payments = await this.creditPaymentRepository.getPaymentsByCreditId(contractId);
+        const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+        
+        // Calculer le montant total à rembourser (capital + intérêts)
+        const interestRate = contract.interestRate || 10;
+        const totalInterest = (contract.amount * interestRate) / 100;
+        const totalAmountToRepay = contract.amount + totalInterest;
+        
+        const realRemainingAmount = totalAmountToRepay - totalPaid;
+        
+        // Tolérance de 0.1 pour les erreurs d'arrondi (même que l'UI)
+        if (realRemainingAmount > 0.1) {
+            throw new Error(`Le montant restant doit être 0 pour valider le remboursement final (reste: ${Math.round(realRemainingAmount).toLocaleString('fr-FR')} FCFA)`);
+        }
+        if (!motif || motif.trim().length < 10 || motif.trim().length > 500) {
+            throw new Error('Le motif doit contenir entre 10 et 500 caractères');
+        }
+
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            status: 'DISCHARGED',
+            dischargeMotif: motif.trim(),
+            dischargedAt: new Date(),
+            dischargedBy: adminId,
+            updatedBy: adminId,
+        });
+
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+
+        return updatedContract;
+    }
+
+    /**
+     * Génère et enregistre la quittance remplie - Phase 2
+     * Le PDF est généré côté client et passé en paramètre
+     */
+    async generateQuittancePDF(contractId: string, pdfFile: File): Promise<{ url: string; documentId: string }> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+
+        const { url, path, size } = await this.documentRepository.uploadDocumentFile(
+            pdfFile,
+            contract.clientId,
+            'CREDIT_SPECIALE_QUITTANCE'
+        );
+
+        const document = await this.documentRepository.createDocument({
+            type: 'CREDIT_SPECIALE_QUITTANCE',
+            format: 'pdf',
+            libelle: `Quittance crédit ${contract.creditType} - ${contract.clientFirstName} ${contract.clientLastName}`,
+            path,
+            url,
+            size,
+            memberId: contract.clientId,
+            contractId: contract.id,
+            createdBy: contract.createdBy,
+            updatedBy: contract.createdBy,
+        });
+
+        return {
+            url,
+            documentId: document.id || '',
+        };
+    }
+
+    /**
+     * Téléverse la quittance signée par le membre - Phase 3
+     */
+    async uploadSignedQuittance(contractId: string, file: File, adminId: string): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+
+        if (file.type !== 'application/pdf') {
+            throw new Error('Le fichier doit être un PDF');
+        }
+        const maxSize = 5 * 1024 * 1024; // 5 MB
+        if (file.size > maxSize) {
+            throw new Error('Le fichier ne doit pas dépasser 5 MB');
+        }
+
+        const { url, path, size } = await this.documentRepository.uploadDocumentFile(
+            file,
+            contract.clientId,
+            'CREDIT_SPECIALE_QUITTANCE_SIGNED'
+        );
+
+        const document = await this.documentRepository.createDocument({
+            type: 'CREDIT_SPECIALE_QUITTANCE_SIGNED',
+            format: 'pdf',
+            libelle: `Quittance signée crédit ${contract.creditType} - ${contract.clientFirstName} ${contract.clientLastName}`,
+            path,
+            url,
+            size,
+            memberId: contract.clientId,
+            contractId: contract.id,
+            createdBy: adminId,
+            updatedBy: adminId,
+        });
+
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            signedQuittanceUrl: url,
+            signedQuittanceDocumentId: document.id,
+            updatedBy: adminId,
+        });
+
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+
+        return updatedContract;
+    }
+
+    /**
+     * Clôture le contrat - Phase 4
+     * Précondition : contrat DISCHARGED et quittance signée téléversée
+     */
+    async closeContract(contractId: string, data: { closedAt: Date; closedBy: string; motifCloture: string }): Promise<CreditContract> {
+        const contract = await this.creditContractRepository.getContractById(contractId);
+        if (!contract) {
+            throw new Error('Contrat introuvable');
+        }
+        if (contract.status !== 'DISCHARGED') {
+            throw new Error('Le contrat doit être déchargé avant la clôture');
+        }
+        if (!contract.signedQuittanceUrl) {
+            throw new Error('La quittance signée doit être téléversée avant la clôture');
+        }
+        if (!data.motifCloture || data.motifCloture.trim().length < 10 || data.motifCloture.trim().length > 500) {
+            throw new Error('Le motif de clôture doit contenir entre 10 et 500 caractères');
+        }
+
+        const updatedContract = await this.creditContractRepository.updateContract(contractId, {
+            status: 'CLOSED',
+            closedAt: data.closedAt,
+            closedBy: data.closedBy,
+            motifCloture: data.motifCloture.trim(),
+            updatedBy: data.closedBy,
+        });
+
+        if (!updatedContract) {
+            throw new Error('Erreur lors de la mise à jour du contrat');
+        }
+
+        return updatedContract;
+    }
+
     // ==================== HISTORIQUE ====================
 
     /**
