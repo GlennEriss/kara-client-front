@@ -380,3 +380,29 @@ export const creditPaymentDefaultValues: Partial<CreditPaymentFormData> = {
   mode: 'CASH',
 }
 
+// ================== SCHÉMAS CLÔTURE DE CONTRAT ==================
+
+/** Schéma pour la validation du remboursement final (Phase 1) */
+export const finalRepaymentSchema = z.object({
+  motif: z
+    .string()
+    .min(10, 'Le motif doit contenir au moins 10 caractères')
+    .max(500, 'Le motif ne peut pas dépasser 500 caractères'),
+})
+
+export type FinalRepaymentFormData = z.infer<typeof finalRepaymentSchema>
+
+/** Schéma pour la clôture du contrat (Phase 4) */
+export const closeContractSchema = z.object({
+  closedAtDate: z.string().min(1, 'La date de clôture est requise'),
+  closedAtTime: z
+    .string()
+    .regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Format d'heure invalide (HH:mm)"),
+  motifCloture: z
+    .string()
+    .min(10, 'Le motif de clôture doit contenir au moins 10 caractères')
+    .max(500, 'Le motif ne peut pas dépasser 500 caractères'),
+})
+
+export type CloseContractFormData = z.infer<typeof closeContractSchema>
+
