@@ -1,0 +1,60 @@
+@startuml SEQ_RefuserDemande
+title Séquence : Refuser une Demande Caisse Spéciale (V2)
+' Référence : RefuserDemande.puml (activité)
+' Traçabilité : rejectedBy, rejectedAt, rejectedByName, rejectReason
+
+actor "Admin" as Admin
+participant "RejectDemandModal\n(Component)" as Modal
+participant "useCaisseSpecialeDemandMutations\n(Hook)" as Mutations
+participant "CaisseSpecialeService\n(Service)" as Service
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+participant "NotificationService\n(Service)" as Notif
+database "Firestore" as Firestore
+
+Admin -> Modal: Clique "Refuser" sur demande PENDING
+activate Modal
+
+Modal --> Admin: Afficher modal avec infos membre, résumé demande, champ raison
+
+Admin -> Modal: Saisit raison du refus (min 10 car.)
+Modal -> Modal: rejectDemandSchema.parse({ reason })
+
+Admin -> Modal: Clique "Refuser"
+activate Modal
+
+Modal -> Mutations: reject.mutateAsync({ demandId, reason })
+activate Mutations
+
+Mutations -> Service: rejectDemand(demandId, adminId, reason)
+activate Service
+
+Service -> Repo: updateDemandStatus(demandId, REJECTED, adminId, reason, adminName)
+activate Repo
+Repo -> Firestore: updateDoc(status, rejectedBy, rejectedAt, rejectedByName, rejectReason)
+note right of Repo
+  **Traçabilité** :
+  rejectedBy = adminId
+  rejectedAt = ServerTimestamp
+  rejectedByName = nom admin
+  rejectReason = raison saisie
+end note
+Firestore --> Repo: OK
+deactivate Repo
+
+Service -> Notif: createNotification(demande refusée)
+Notif -> Firestore: addDoc(notifications, ...)
+Firestore --> Notif: OK
+
+Service --> Mutations: CaisseSpecialeDemand
+deactivate Service
+
+Mutations -> Mutations: invalidateQueries(liste, stats, détail)
+Mutations -> Mutations: toast.success('Demande refusée')
+Mutations --> Modal: Success
+deactivate Mutations
+
+Modal -> Modal: onClose()
+Modal --> Admin: Fermer modal, toast, mise à jour UI (bouton Réouvrir)
+deactivate Modal
+
+@enduml

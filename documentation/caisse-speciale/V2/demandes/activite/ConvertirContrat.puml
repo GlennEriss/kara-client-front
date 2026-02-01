@@ -1,0 +1,60 @@
+@startuml ConvertirContrat
+title Workflow : Convertir une Demande Acceptée en Contrat (V2)
+' Cas : Demande APPROVED sans contractId (création manuelle du contrat)
+
+start
+
+:Admin accède à la page de détails d'une demande APPROVED;
+
+:Vérifier : demand.status === 'APPROVED' ET !demand.contractId;
+
+:Afficher alerte :
+- "Cette demande a été acceptée mais aucun contrat n'a été créé"
+- "Cliquez sur le bouton ci-dessous pour créer le contrat";
+
+:Afficher bouton "Convertir en contrat";
+
+if (Admin clique "Convertir en contrat" ?) then (oui)
+  :Hook useCaisseSpecialeDemandMutations().convert;
+  
+  :Service.convertDemandToContract(demandId, adminId) :
+  - Vérifier status === 'APPROVED' et !contractId
+  - Créer contrat via subscribe() :
+    * memberId, monthlyAmount, monthsPlanned
+    * caisseType, firstPaymentDate (desiredDate)
+  - Mettre à jour demande :
+    * status → CONVERTED
+    * contractId = id du contrat créé
+    * **Traçabilité (obligatoire)** :
+      - convertedBy = adminId (uid de l'admin connecté)
+      - convertedAt = timestamp (ServerTimestamp)
+      - convertedByName = nom de l'admin (affichage);
+  
+  :Repository.updateDemand();
+  
+  :Notifications :
+  - Au membre : "Contrat créé depuis votre demande"
+  - À l'admin créateur si différent;
+  
+  :Invalider cache (liste, stats, détail, contrats);
+  
+  :Afficher toast "Contrat créé avec succès";
+  
+  :Rediriger vers /caisse-speciale/contrats/[contractId];
+  
+  stop
+endif
+
+note right
+  **Traçabilité (audit)** :
+  - convertedBy, convertedAt, convertedByName
+  - Qui a converti ? Quand ?
+  - Affichage sur page de détails et historique
+  
+  **Cas d'usage** :
+  - Normalement, approveDemand crée le contrat immédiatement
+  - Ce workflow est pour les cas où le contrat n'a pas été créé
+  - (ex: erreur lors de l'acceptation, migration de données)
+end note
+
+@enduml

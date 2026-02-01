@@ -1,0 +1,84 @@
+@startuml AccepterDemande
+title Workflow : Accepter une Demande Caisse Spéciale (V2)
+
+start
+
+:Admin clique "Accepter" sur une demande PENDING;
+
+:Ouvrir AcceptDemandModal;
+
+:Afficher informations du membre (useMember) :
+- Nom complet
+- Matricule
+- Contacts
+- (Point 1.2, 2.1 : infos membre visibles);
+
+:Afficher section "Résumé de la demande" :
+- Type de caisse (Standard/Journalière/Libre)
+- Montant mensuel
+- Durée prévue
+- Date souhaitée
+- Cause / Motif (si présent);
+
+:Afficher section "Contact d'urgence" (C.0) :
+- Nom complet
+- Téléphones
+- Lien de parenté;
+
+:Champ "Raison d'acceptation" :
+- Textarea obligatoire
+- Validation Zod (approveDemandSchema)
+- Min 10 caractères;
+
+if (Admin saisit raison ?) then (oui)
+  :Valider avec approveDemandSchema.parse({ reason });
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Accepter" activé;
+  else (non)
+    :Afficher erreur de validation;
+    :Bouton "Accepter" désactivé;
+  endif
+endif
+
+if (Admin clique "Accepter" ?) then (oui)
+  :Hook useCaisseSpecialeDemandMutations().approve;
+  
+  :Service.approveDemand(demandId, adminId, reason)
+  1. Mettre à jour statut APPROVED
+  2. Traçabilité approvedBy, approvedAt, approvedByName, approveReason
+  3. Créer contrat via subscribe - memberId, monthlyAmount, monthsPlanned, caisseType, firstPaymentDate
+  4. Mettre à jour demande status CONVERTED, contractId, approvedBy, approvedAt, approvedByName, approveReason;
+  
+  :Repository.updateDemandStatus() puis updateDemand();
+  
+  :Notifications :
+  - Au membre : "Demande acceptée - Contrat créé"
+  - Aux admins : si créateur différent;
+  
+  :Invalider cache (liste, stats, détail);
+  
+  :Fermer le modal;
+  :Afficher toast "Demande acceptée et contrat créé avec succès";
+  
+  :Rediriger vers détails du contrat OU mettre à jour l'UI;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Traçabilité (audit)** :
+  - approvedBy, approvedAt, approvedByName, approveReason
+  - Qui a accepté ? Quand ? Pourquoi ?
+  - Affichage sur page de détails et historique
+  
+  **Différence avec Caisse Imprévue** :
+  - Acceptation = création immédiate du contrat
+  - Statut passe directement à CONVERTED
+  - Pas d'étape "APPROVED" puis "Créer contrat" séparée
+end note
+
+@enduml

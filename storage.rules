@@ -132,12 +132,14 @@ service firebase.storage {
     }
     
     // ==========================================
-    // DOCUMENTS CONTRATS (CONTRACTS-CI)
+    // DOCUMENTS CONTRATS (CONTRACTS-CI) + CRÉDIT SPÉCIALE
     // ==========================================
     // Contrats signés PDF + preuves de paiement (images) uploadés par les admins
     // Chemin : contracts-ci/{memberId}/{fileName}
-    // - PDF : contrats (ADHESION_CI), supports, remboursements - max 5MB
-    // - Images : preuves de paiement (PROOF_PAYMENT_CI) - max 5MB
+    // - Caisse Imprévue : contrats (ADHESION_CI), supports, remboursements
+    // - Crédit Spéciale : contrats (CREDIT_SPECIALE_CONTRACT), signés (CREDIT_SPECIALE_CONTRACT_SIGNED), reçus (CREDIT_SPECIALE_RECEIPT)
+    // - Page /credit-speciale/demandes/[id] : affichage documentPhotoUrl du contact d'urgence (contracts-ci ou emergency-contacts)
+    // - PDF max 5MB, Images max 5MB
     
     match /contracts-ci/{memberId}/{fileName} {
       // Lecture : Admins uniquement (documents sensibles)
@@ -148,6 +150,21 @@ service firebase.storage {
         (isPDF() && isContractPDFSizeValid()) ||
         (isImage() && isImageSizeValid())
       );
+      
+      // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // Preuves de paiement des remboursements CI (Marquer comme payé)
+    // Chemin : contracts-ci/refunds/{contractId}/{refundId}/{fileName}
+    // Utilisé par : MarkAsPaidRefundCIModal (preuve de paiement, max 20MB)
+    
+    match /contracts-ci/refunds/{contractId}/{refundId}/{fileName} {
+      // Lecture : Admins uniquement (preuves sensibles)
+      allow read: if isAdmin();
+      
+      // Écriture : Admins uniquement avec validation (image, max 20MB)
+      allow write: if isAdmin() && isImage() && request.resource.size < 20 * 1024 * 1024;
       
       // Suppression : Admins uniquement
       allow delete: if isAdmin();
@@ -245,6 +262,18 @@ service firebase.storage {
       allow write: if isAdmin() && isPDF() && isPDFSizeValid();
       
       // Suppression : Admins uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // CRÉDIT SPÉCIALE - CONTRATS PDF (FALLBACK)
+    // ==========================================
+    // Chemin alternatif : credit-contracts/{contractId}/{fileName}
+    // Utilisé si génération PDF directe (placeholder ou futur)
+    
+    match /credit-contracts/{contractId}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && isPDF() && isPDFSizeValid();
       allow delete: if isAdmin();
     }
     

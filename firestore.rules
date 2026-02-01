@@ -362,18 +362,22 @@ service cloud.firestore {
     }
     
     // ==========================================
-    // DEMANDES CAISSE SPÉCIALE (CAISSE SPECIALE DEMANDS)
+    // DEMANDES CAISSE SPÉCIALE (CAISSE SPECIALE DEMANDS) - V2
     // ==========================================
     // Page /caisse-speciale/demandes - Gestion des demandes de contrats CS
+    // Workflows : ListerDemandes, FiltrerDemandes, RechercherDemandes, CreerDemande,
+    //            AccepterDemande, RefuserDemande, ReouvrirDemande, ConvertirContrat,
+    //            VoirDetails, ExporterDetailsDemande
     
     match /caisseSpecialeDemands/{demandId} {
       // LECTURE : Admin uniquement
       allow read: if isAdmin();
       
-      // CRÉATION : Admin uniquement avec validation des champs requis
+      // CRÉATION : Admin uniquement avec validation des champs requis (V2)
       allow create: if isAdmin() &&
         // Champs obligatoires
         request.resource.data.memberId is string &&
+        request.resource.data.memberId.size() > 0 &&
         request.resource.data.contractType == 'INDIVIDUAL' &&
         request.resource.data.caisseType is string &&
         request.resource.data.caisseType in ['STANDARD', 'JOURNALIERE', 'LIBRE'] &&
@@ -391,8 +395,14 @@ service cloud.firestore {
         request.resource.data.createdAt is timestamp &&
         request.resource.data.updatedAt is timestamp &&
         // Pas de champs de décision à la création
-        !('decisionMadeBy' in request.resource.data) &&
-        !('decisionMadeAt' in request.resource.data) &&
+        !('approvedBy' in request.resource.data) &&
+        !('approvedAt' in request.resource.data) &&
+        !('rejectedBy' in request.resource.data) &&
+        !('rejectedAt' in request.resource.data) &&
+        !('reopenedBy' in request.resource.data) &&
+        !('reopenedAt' in request.resource.data) &&
+        !('convertedBy' in request.resource.data) &&
+        !('convertedAt' in request.resource.data) &&
         !('contractId' in request.resource.data);
       
       // MISE À JOUR : Admin uniquement (approbation, refus, réouverture, conversion)
@@ -644,6 +654,140 @@ service cloud.firestore {
         allow read: if isAdmin() || isAuthenticated();
         allow write: if isAdmin();
       }
+    }
+    
+    // ==========================================
+    // CRÉDIT SPÉCIALE - DEMANDES (CREDIT DEMANDS)
+    // ==========================================
+    // Page /credit-speciale/demandes - Gestion des demandes de crédit (spéciale, fixe, aide)
+    
+    match /creditDemands/{demandId} {
+      // LECTURE : Admin uniquement
+      allow read: if isAdmin();
+      
+      // CRÉATION : Admin uniquement avec validation des champs requis
+      allow create: if isAdmin() &&
+        request.resource.data.clientId is string &&
+        request.resource.data.clientId.size() > 0 &&
+        request.resource.data.clientFirstName is string &&
+        request.resource.data.clientLastName is string &&
+        request.resource.data.creditType in ['SPECIALE', 'FIXE', 'AIDE'] &&
+        request.resource.data.amount is number &&
+        request.resource.data.amount >= 1000 &&
+        request.resource.data.amount <= 10000000 &&
+        request.resource.data.desiredDate is string &&
+        request.resource.data.desiredDate.size() > 0 &&
+        request.resource.data.cause is string &&
+        request.resource.data.cause.size() >= 10 &&
+        request.resource.data.cause.size() <= 500 &&
+        request.resource.data.guarantorId is string &&
+        request.resource.data.guarantorId.size() > 0 &&
+        request.resource.data.guarantorFirstName is string &&
+        request.resource.data.guarantorLastName is string &&
+        request.resource.data.guarantorRelation is string &&
+        request.resource.data.status == 'PENDING' &&
+        request.resource.data.createdBy is string &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.updatedAt is timestamp;
+      
+      // MISE À JOUR : Admin uniquement (approbation, refus, réouverture)
+      allow update: if isAdmin();
+      
+      // SUPPRESSION : Admin uniquement (seulement demandes REJECTED)
+      allow delete: if isAdmin() && resource.data.status == 'REJECTED';
+    }
+    
+    // ==========================================
+    // CRÉDIT SPÉCIALE - CONTRATS (CREDIT CONTRACTS)
+    // ==========================================
+    
+    match /creditContracts/{contractId} {
+      // Lecture : Admin uniquement
+      allow read: if isAdmin();
+      // Écriture : Admin uniquement
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // CRÉDIT SPÉCIALE - ÉCHÉANCES (CREDIT INSTALLMENTS)
+    // ==========================================
+    
+    match /creditInstallments/{installmentId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // ==========================================
+    // CRÉDIT SPÉCIALE - PAIEMENTS (CREDIT PAYMENTS)
+    // ==========================================
+    
+    match /creditPayments/{paymentId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // ==========================================
+    // CRÉDIT SPÉCIALE - PÉNALITÉS (CREDIT PENALTIES)
+    // ==========================================
+    
+    match /creditPenalties/{penaltyId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // ==========================================
+    // CRÉDIT SPÉCIALE - RÉMUNÉRATIONS GARANTS (GUARANTOR REMUNERATIONS)
+    // ==========================================
+    
+    match /guarantorRemunerations/{remunerationId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // ==========================================
+    // CHARITÉS / BIENFAITEUR (MEMBER ACTIVITY SUMMARY)
+    // ==========================================
+    // Utilisé par MemberActivitySummary sur /credit-speciale/demandes/[id]
+    
+    match /charity-events/{eventId} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin();
+      
+      match /contributions/{contributionId} {
+        allow read: if isAdmin() || isAuthenticated();
+        allow write: if isAdmin();
+      }
+      
+      match /participants/{participantId} {
+        allow read: if isAdmin() || isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+    
+    // ==========================================
+    // PLACEMENTS (MEMBER ACTIVITY SUMMARY)
+    // ==========================================
+    // Utilisé par MemberActivitySummary sur /credit-speciale/demandes/[id]
+    
+    match /placements/{placementId} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin();
+      
+      match /commissions/{commissionId} {
+        allow read, write: if isAdmin();
+      }
+    }
+    
+    match /placementDemands/{demandId} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // GROUPES (CHARITY CONTRIBUTION SERVICE)
+    // ==========================================
+    // Utilisé par CharityContributionService pour enrichir les contributions
+    
+    match /groups/{groupId} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow write: if isAdmin();
     }
     
     // ==========================================

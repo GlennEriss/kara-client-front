@@ -32,6 +32,21 @@ function generateCustomContractId(
   return `MK_CS_${typeFormatted}_${matriculeFormatted}_${dateFormatted}_${timeFormatted}`
 }
 
+/**
+ * Calcule nextDueAt pour les contrats qui n'ont pas ce champ (contrats créés avant la correction).
+ * Utilise contractStartAt ou firstPaymentDate + currentMonthIndex.
+ */
+function computeNextDueAtFallback(data: any): Date | undefined {
+  const start = data.contractStartAt
+    ? (typeof data.contractStartAt?.toDate === 'function' ? data.contractStartAt.toDate() : new Date(data.contractStartAt))
+    : (data.firstPaymentDate ? new Date(data.firstPaymentDate) : null)
+  if (!start || isNaN(start.getTime())) return undefined
+  const m = data.currentMonthIndex ?? 0
+  const next = new Date(start)
+  next.setMonth(next.getMonth() + m)
+  return next
+}
+
 export async function createContract(input: any) {
   const { db, collection, doc, setDoc, serverTimestamp } = await getFirestore() as any
   const now = serverTimestamp()
@@ -78,12 +93,16 @@ export async function getContract(id: string) {
   const snap = await getDoc(ref)
   if (!snap.exists()) return null
   const data = snap.data()
+  const contractStartAt = (typeof data.contractStartAt?.toDate === 'function') ? data.contractStartAt.toDate() : (data.contractStartAt ? new Date(data.contractStartAt) : undefined)
+  const rawNextDueAt = (typeof data.nextDueAt?.toDate === 'function') ? data.nextDueAt.toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined)
+  const nextDueAt = rawNextDueAt ?? computeNextDueAtFallback({ ...data, contractStartAt })
+
   return {
     id: snap.id,
     ...data,
-    contractStartAt: (typeof data.contractStartAt?.toDate === 'function') ? data.contractStartAt.toDate() : (data.contractStartAt ? new Date(data.contractStartAt) : undefined),
+    contractStartAt,
     contractEndAt: (typeof data.contractEndAt?.toDate === 'function') ? data.contractEndAt.toDate() : (data.contractEndAt ? new Date(data.contractEndAt) : undefined),
-    nextDueAt: (typeof data.nextDueAt?.toDate === 'function') ? data.nextDueAt.toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined),
+    nextDueAt,
     createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
     updatedAt: (typeof data.updatedAt?.toDate === 'function') ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : undefined),
   }
@@ -133,12 +152,16 @@ export async function getAllContracts() {
   const snap = await getDocs(q)
   return snap.docs.map((d: any) => {
     const data = d.data()
+    const contractStartAt = (typeof data.contractStartAt?.toDate === 'function') ? data.contractStartAt.toDate() : (data.contractStartAt ? new Date(data.contractStartAt) : undefined)
+    const rawNextDueAt = (typeof data.nextDueAt?.toDate === 'function') ? data.nextDueAt.toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined)
+    const nextDueAt = rawNextDueAt ?? computeNextDueAtFallback({ ...data, contractStartAt })
+
     return {
       id: d.id,
       ...data,
-      contractStartAt: (typeof data.contractStartAt?.toDate === 'function') ? data.contractStartAt.toDate() : (data.contractStartAt ? new Date(data.contractStartAt) : undefined),
+      contractStartAt,
       contractEndAt: (typeof data.contractEndAt?.toDate === 'function') ? data.contractEndAt.toDate() : (data.contractEndAt ? new Date(data.contractEndAt) : undefined),
-      nextDueAt: (typeof data.nextDueAt?.toDate === 'function') ? data.nextDueAt.toDate() : (data.nextDueAt ? new Date(data.nextDueAt) : undefined),
+      nextDueAt,
       createdAt: (typeof data.createdAt?.toDate === 'function') ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : undefined),
       updatedAt: (typeof data.updatedAt?.toDate === 'function') ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : undefined),
     }

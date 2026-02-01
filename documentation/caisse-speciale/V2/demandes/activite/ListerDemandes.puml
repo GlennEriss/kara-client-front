@@ -1,0 +1,195 @@
+@startuml ListerDemandes
+title Workflow : Lister les Demandes Caisse Spéciale (V2)
+' Référence : POINTS_PROBLEMATIQUES C.1 (Stats AVANT Tabs), C.5 (Vue tableau)
+
+start
+
+:Admin accède à /caisse-speciale/demandes;
+
+:Initialisation :
+- filters = { status: 'all', page: 1, limit: 12 }
+- sortBy = 'createdAt'
+- sortOrder = 'desc'
+- searchQuery = ''
+- dateFilters = { createdAtFrom, createdAtTo, desiredDateFrom, desiredDateTo };
+
+' ============================================
+' C.1 : STATISTIQUES D'ABORD (globales, chargées UNE SEULE FOIS)
+' ============================================
+:Charger les statistiques GLOBALES :
+- useCaisseSpecialeDemandsStats({})
+- Cache 2 min
+- Chargées UNE SEULE FOIS (pas de rechargement au changement d'onglet);
+
+:Afficher les statistiques EN PREMIER :
+- Total
+- En attente (PENDING)
+- Acceptées (APPROVED)
+- Refusées (REJECTED)
+- Converties (CONVERTED);
+
+' ============================================
+' ONGLETS EN SECOND (filtres de la liste)
+' ============================================
+:Afficher les onglets APRÈS les stats :
+- Toutes (avec count)
+- En attente (avec count)
+- Acceptées (avec count)
+- Refusées (avec count)
+- Converties (avec count);
+
+:Charger la liste des demandes :
+- useCaisseSpecialeDemands(filters, pagination, sort)
+- Repository retourne { items[], total } pour pagination correcte;
+
+if (Cache présent et frais ?) then (oui)
+  :Afficher données depuis cache;
+else (non)
+  :Repository.getDemandsWithFilters() :
+  - Construire contraintes Firestore
+  - Calculer total avec getCountFromServer (ou requête dédiée)
+  - Paginer (page, limit)
+  - Trier par createdAt desc;
+  
+  :Retourner { items: Demand[], total: number };
+  
+  :Mettre en cache React Query (30 s);
+endif
+
+' ============================================
+' EXPORT PDF ET EXCEL AU NIVEAU DE LA LISTE
+' ============================================
+:Afficher boutons d'export (barre d'actions, en-tête liste) :
+- "Exporter PDF" : liste des demandes affichées (ou filtrées) en PDF
+- "Exporter Excel" : liste des demandes affichées (ou filtrées) en Excel
+- Colonnes export : Matricule, Nom, Prénom, Contacts demandeur, Montant, Durée, Date souhaitée, Statut, Contact d'urgence;
+
+' ============================================
+' C.5 : VUE LISTE = VRAI TABLEAU (comme membership-requests)
+' C.0 : AFFICHER CONTACT D'URGENCE
+' 1.3 : CONTACTS DU DEMANDEUR (téléphones, email)
+' ============================================
+:Afficher la liste selon mode :
+- Vue Grille : cards avec Matricule, Nom, Prénom, **Contacts du demandeur** (téléphones, email via useMember), Montant, Durée, Statut, **Contact d'urgence** (nom + téléphone)
+- Vue Liste : TABLEAU avec colonnes :
+  * Matricule (complet)
+  * Nom
+  * Prénom
+  * **Contacts du demandeur** (téléphones, email)
+  * Montant mensuel
+  * Durée (mois)
+  * Date souhaitée
+  * Type caisse (Standard/Journalière/Libre)
+  * Statut
+  * **Contact d'urgence** (nom, prénom, téléphone principal)
+  * Actions;
+
+:Afficher pagination :
+- "Affichage 1-12 sur X demandes"
+- Boutons Précédent / Suivant
+- Page X sur Y;
+
+' ============================================
+' C.3 : RECHERCHE (nom, prénom, matricule)
+' ============================================
+if (Admin saisit recherche ?) then (oui)
+  :Debounce 300ms;
+  
+  :Normaliser query : toLowerCase(), trim();
+  
+  :Recherche :
+  - Champ searchQuery (nom, prénom, matricule)
+  - Repository : filtrer par memberLastName, memberFirstName, matricule
+  - Ou champ dénormalisé searchableText sur la demande;
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Retourne { items (page 1), total };
+  :page = 1 (reset pagination);
+endif
+
+' ============================================
+' C.4 : FILTRES PAR DATE
+' ============================================
+if (Admin change filtre date création ?) then (oui)
+  :filters.createdAtFrom / createdAtTo = nouvelles dates;
+  :page = 1 (reset pagination);
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Retourne { items (page 1), total };
+endif
+
+if (Admin change filtre date souhaitée ?) then (oui)
+  :filters.desiredDateFrom / desiredDateTo = nouvelles dates;
+  :page = 1 (reset pagination);
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Retourne { items (page 1), total };
+endif
+
+' ============================================
+' FILTRE PAR STATUT (onglets)
+' ============================================
+if (Admin change onglet ?) then (oui)
+  :filters.status = nouvelle valeur;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getDemandsWithFilters(filters, page=1, limit);
+  :Retourne { items (page 1), total };
+  :Les STATS ne se rechargent PAS (déjà affichées en haut);
+  :Afficher pagination "Page 1 sur Y";
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' PAGINATION
+' ============================================
+if (Admin clique "Précédent" ?) then (oui)
+  :page = page - 1;
+  :Refetch avec nouvelle page;
+  :Scroll vers le haut;
+elseif (Admin clique "Suivant" ?) then (oui)
+  :page = page + 1;
+  :Refetch avec nouvelle page;
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' ACTIONS
+' ============================================
+if (Admin clique "Voir détails" ?) then (oui)
+  :Rediriger vers /caisse-speciale/demandes/[id];
+  stop
+endif
+
+if (Admin clique "Accepter" ?) then (oui)
+  :Ouvrir AcceptDemandModal;
+  stop
+endif
+
+if (Admin clique "Refuser" ?) then (oui)
+  :Ouvrir RejectDemandModal;
+  stop
+endif
+
+if (Admin clique "Réouvrir" ?) then (oui)
+  :Ouvrir ReopenDemandModal;
+  stop
+endif
+
+if (Admin clique "Actualiser" ?) then (oui)
+  :queryClient.invalidateQueries(['caisseSpecialeDemands']);
+  :queryClient.invalidateQueries(['caisseSpecialeDemandsStats']);
+  :Refetch liste et stats;
+endif
+
+note right
+  **Points critiques résolus** :
+  - C.0 : Contact d'urgence affiché sur cards et tableau
+  - C.1 : Stats AVANT Tabs, chargées une seule fois
+  - C.5 : Vue Liste = vrai tableau (colonnes)
+  - C.3 : Recherche nom/prénom/matricule
+  - C.4 : Filtres par date
+  - Pagination : { items, total } pour affichage correct
+  - **1.3** : Contacts du demandeur (téléphones, email) sur cards et tableau
+  - **Export** : PDF et Excel au niveau de la liste (demandes affichées/filtrées)
+end note
+
+@enduml

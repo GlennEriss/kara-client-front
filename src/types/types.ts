@@ -1272,20 +1272,45 @@ export interface CaisseSpecialeDemand {
   // Statut et décision
   status: CaisseSpecialeDemandStatus
   
-  // Traçabilité de l'acceptation/refus
-  decisionMadeAt?: Date // Date de la décision
-  decisionMadeBy?: string // ID de l'agent qui a pris la décision
-  decisionMadeByName?: string // Nom complet de l'agent (prénom + nom)
-  decisionReason?: string // Raison de l'acceptation ou du refus
+  // Traçabilité de l'acceptation (5.1)
+  approvedBy?: string
+  approvedAt?: Date
+  approvedByName?: string
+  approveReason?: string
   
-  // Traçabilité de la réouverture (si refusée puis réouverte)
-  reopenedAt?: Date // Date de la réouverture
-  reopenedBy?: string // ID de l'agent qui a réouvert la demande
-  reopenedByName?: string // Nom complet de l'agent qui a réouvert (prénom + nom)
-  reopenReason?: string // Motif de la réouverture
+  // Traçabilité du refus (5.5)
+  rejectedBy?: string
+  rejectedAt?: Date
+  rejectedByName?: string
+  rejectReason?: string
+  
+  // Traçabilité de la conversion (5.12)
+  convertedBy?: string
+  convertedAt?: Date
+  convertedByName?: string
+  
+  // Traçabilité générique (rétrocompatibilité)
+  decisionMadeAt?: Date
+  decisionMadeBy?: string
+  decisionMadeByName?: string
+  decisionReason?: string
+  
+  // Traçabilité de la réouverture (5.9)
+  reopenedAt?: Date
+  reopenedBy?: string
+  reopenedByName?: string
+  reopenReason?: string
   
   // Lien vers le contrat créé (si convertie)
   contractId?: string // ID du contrat créé depuis cette demande
+  
+  // Contact d'urgence (C.0 - V2)
+  emergencyContact?: EmergencyContact
+  
+  // Champs de recherche dénormalisés (C.8 - V2)
+  searchableText?: string
+  searchableTextFirstNameFirst?: string
+  searchableTextMatriculeFirst?: string
   
   // Métadonnées
   createdAt: Date
@@ -1308,9 +1333,17 @@ export interface CaisseSpecialeDemandFilters {
   createdAtTo?: Date // Filtre par date de création (fin)
   desiredDateFrom?: Date // Filtre par date souhaitée (début)
   desiredDateTo?: Date // Filtre par date souhaitée (fin)
-  search?: string // Recherche textuelle (nom du membre, ID de la demande, etc.)
+  search?: string // Recherche textuelle (nom, prénom, matricule via searchableText*)
   page?: number
   limit?: number
+}
+
+/**
+ * Résultat paginé des demandes Caisse Spéciale
+ */
+export interface CaisseSpecialeDemandsPaginated {
+  items: CaisseSpecialeDemand[]
+  total: number
 }
 
 /**

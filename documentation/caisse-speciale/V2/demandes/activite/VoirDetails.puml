@@ -1,0 +1,118 @@
+@startuml VoirDetails
+title Workflow : Voir les Détails d'une Demande (V2)
+' Référence : POINTS_PROBLEMATIQUES 2.1, 2.2 (infos membre)
+' Référence : Caisse Imprévue DemandDetailV2, PaymentScheduleTable, ExporterDetailsDemande
+
+start
+
+:Admin clique "Voir détails" sur une demande;
+
+:Rediriger vers /caisse-speciale/demandes/[id];
+
+:Charger la demande :
+- useCaisseSpecialeDemand(demandId)
+- Cache 30 s;
+
+if (Demande trouvée ?) then (oui)
+  :Charger les infos du membre :
+  - useMember(demand.memberId)
+  - (Point 2.1, 2.2 : afficher infos membre);
+  
+  :Afficher section "Informations du membre" :
+  - Nom complet
+  - Matricule
+  - Contacts (téléphones, email);
+  
+  :Afficher section "Contact d'urgence" (C.0, 2.3) :
+  - Nom complet (emergencyContact.lastName + firstName)
+  - Téléphones (phone1, phone2)
+  - Lien de parenté (relationship)
+  - Type et numéro de pièce (typeId, idNumber)
+  - Photo du document (documentPhotoUrl) si présente;
+  
+  :Afficher section "Informations générales" :
+  - Type de contrat (Individuel)
+  - Type de caisse (Standard/Journalière/Libre)
+  - Montant mensuel
+  - Durée prévue
+  - Date souhaitée;
+  
+  ' ============================================
+  ' TABLEAU RÉCAPITULATIF DES VERSEMENTS
+  ' Comme Caisse Imprévue PaymentScheduleTable
+  ' ============================================
+  :Afficher section "Tableau récapitulatif des versements" :
+  - Plan prévisionnel calculé depuis monthlyAmount, monthsPlanned, desiredDate
+  - Colonnes : Mois | Date | Montant (FCFA) | Cumulé | Total
+  - Ligne total en bas (durée, montant total, nb versements)
+  - Référence : PaymentScheduleTable (Caisse Imprévue);
+  
+  :Boutons d'export du tableau :
+  - "Exporter PDF" (icône FileText)
+  - "Exporter Excel" (icône FileSpreadsheet)
+  - Dropdown ou boutons séparés;
+  
+  :Afficher section "Historique" (traçabilité) :
+  - Créée le (createdAt, createdBy)
+  - Accepté le (approvedAt, approvedByName) si applicable
+  - Refusé le (rejectedAt, rejectedByName) si applicable
+  - Réouvert le (reopenedAt, reopenedByName) si applicable
+  - Converti le (convertedAt, convertedByName) si applicable
+  - Contrat créé (lien si contractId);
+  
+  if (demand.cause ?) then (oui)
+    :Afficher section "Cause / Motif";
+  endif
+  
+  if (demand.approveReason ?) then (oui)
+    :Afficher section "Raison de l'acceptation";
+  endif
+  
+  if (demand.rejectReason ?) then (oui)
+    :Afficher section "Raison du refus";
+  endif
+  
+  if (demand.reopenReason ?) then (oui)
+    :Afficher section "Motif de réouverture";
+  endif
+  
+  ' ============================================
+  ' EXPORT PDF DES DÉTAILS COMPLETS
+  ' Comme Caisse Imprévue ExporterDetailsDemande
+  ' ============================================
+  :Afficher bouton "Exporter en PDF" (en-tête ou barre d'actions) :
+  - Export des détails complets de la demande
+  - Inclut : infos membre, contact urgence, infos générales
+  - Inclut : tableau récapitulatif des versements
+  - Inclut : historique et traçabilité
+  - Génération jsPDF côté client
+  - Référence : DemandExportService.exportDemandDetailsToPDF (Caisse Imprévue);
+  
+  ' Actions selon statut
+  if (status === PENDING ?) then (oui)
+    :Afficher boutons "Accepter" et "Refuser";
+  elseif (status === APPROVED && !contractId ?) then (oui)
+    :Afficher bouton "Convertir en contrat";
+  elseif (status === REJECTED ?) then (oui)
+    :Afficher bouton "Réouvrir";
+  endif
+  
+  :Afficher bouton "Retour" vers liste;
+else (non)
+  :Afficher erreur "Demande non trouvée";
+  :Afficher bouton "Retour à la liste";
+endif
+
+note right
+  **Export PDF** :
+  - Bouton "Exporter en PDF" → détails complets (comme Caisse Imprévue)
+  - Référence : ExporterDetailsDemande.puml, DemandExportService
+  
+  **Tableau récapitulatif** :
+  - Plan prévisionnel : Mois, Date, Montant, Cumulé, Total
+  - Export PDF du tableau (jspdf-autotable)
+  - Export Excel du tableau (xlsx)
+  - Référence : PaymentScheduleTable (Caisse Imprévue)
+end note
+
+@enduml

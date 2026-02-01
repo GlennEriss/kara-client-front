@@ -1,0 +1,76 @@
+@startuml ReouvrirDemande
+title Workflow : Réouvrir une Demande Refusée (V2)
+
+start
+
+:Admin clique "Réouvrir" sur une demande REJECTED;
+
+:Ouvrir ReopenDemandModal;
+
+:Afficher informations du membre (useMember) :
+- Nom complet
+- Matricule;
+
+:Afficher motif du refus initial :
+- decisionReason (lecture seule);
+
+:Afficher section "Contact d'urgence" (C.0) :
+- Nom complet, téléphones, lien de parenté;
+
+:Champ "Motif de réouverture" :
+- Textarea obligatoire
+- Validation Zod (reopenDemandSchema)
+- Min 10 caractères;
+
+if (Admin saisit motif ?) then (oui)
+  :Valider avec reopenDemandSchema.parse({ reason });
+  
+  if (Validation OK ?) then (oui)
+    :Bouton "Réouvrir" activé;
+  else (non)
+    :Afficher erreur de validation;
+    :Bouton "Réouvrir" désactivé;
+  endif
+endif
+
+if (Admin clique "Réouvrir" ?) then (oui)
+  :Hook useCaisseSpecialeDemandMutations().reopen;
+  
+  :Service.reopenDemand(demandId, adminId, reason) :
+  - Vérifier status === 'REJECTED'
+  - Repository.updateDemand() :
+    * status → PENDING
+    * **Traçabilité (obligatoire)** :
+      - reopenedBy = adminId (uid de l'admin connecté)
+      - reopenedAt = timestamp (ServerTimestamp)
+      - reopenedByName = nom de l'admin (affichage)
+      - reopenReason = motif saisi;
+  
+  :Notifications :
+  - Au membre : "Demande réouverte"
+  - À tous les admins;
+  
+  :Invalider cache (liste, stats, détail);
+  
+  :Fermer le modal;
+  :Afficher toast "Demande réouverte";
+  
+  :Mettre à jour l'UI :
+  - Statut → PENDING
+  - Badge jaune
+  - Boutons Accepter/Refuser réapparaissent;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Traçabilité (audit)** :
+  - reopenedBy, reopenedAt, reopenedByName, reopenReason
+  - Qui a réouvert ? Quand ? Pourquoi ?
+  - Affichage sur page de détails et historique
+end note
+
+@enduml

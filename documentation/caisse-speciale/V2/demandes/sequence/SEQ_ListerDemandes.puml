@@ -1,0 +1,174 @@
+@startuml SEQ_ListerDemandes
+title Séquence : Lister les Demandes Caisse Spéciale (V2)
+' Référence : ListerDemandes.puml (activité)
+' C.1 : Stats AVANT Tabs | C.5 : Vue tableau | C.6 : Nouvelle Demande → page
+
+actor "Admin" as Admin
+participant "CaisseSpecialeDemandesPage\n(/demandes)" as Page
+participant "ListDemandes\n(Component)" as List
+participant "StatisticsCaisseSpecialeDemandes\n(Component)" as Stats
+participant "useCaisseSpecialeDemandsStats\n(Hook)" as StatsHook
+participant "useCaisseSpecialeDemands\n(Hook)" as ListHook
+participant "DemandSearchV2\n(Component)" as Search
+participant "DemandFiltersV2\n(Component)" as Filters
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Page: Accéder à /caisse-speciale/demandes
+activate Page
+
+Page -> List: Render ListDemandes
+activate List
+
+' ============================================
+' C.1 : STATISTIQUES D'ABORD (chargées UNE FOIS)
+' ============================================
+List -> Stats: Render StatisticsCaisseSpecialeDemandes
+activate Stats
+
+Stats -> StatsHook: useCaisseSpecialeDemandsStats({})
+activate StatsHook
+
+StatsHook -> QueryCache: queryKey: ['caisseSpecialeDemandsStats', {}]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 2 min)
+
+alt Cache présent et frais
+    QueryCache --> StatsHook: Stats depuis cache
+else Cache absent ou stale
+    StatsHook -> Repo: getDemandsStats({})
+    activate Repo
+    
+    Repo -> Firestore: getDemandsWithFilters({}) OU requêtes getCountFromServer par statut
+    Firestore --> Repo: demands ou counts
+    
+    Repo -> Repo: Calculer total, pending, approved, rejected, converted
+    Repo --> StatsHook: CaisseSpecialeDemandStats
+    
+    deactivate Repo
+    
+    StatsHook -> QueryCache: Mettre en cache (2 min)
+    QueryCache --> StatsHook: Cache mis à jour
+end
+
+StatsHook --> Stats: { data: stats, isLoading: false }
+deactivate StatsHook
+
+Stats --> Admin: Afficher statistiques EN PREMIER (AVANT tabs)
+deactivate Stats
+
+' ============================================
+' ONGLETS EN SECOND
+' ============================================
+List --> Admin: Afficher onglets (Toutes, En attente, Acceptées, Refusées, Converties)
+
+' ============================================
+' CHARGEMENT LISTE
+' ============================================
+List -> ListHook: useCaisseSpecialeDemands(filters, page, limit)
+activate ListHook
+
+ListHook -> QueryCache: queryKey: ['caisseSpecialeDemands', filters, page, limit]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 30 s)
+
+alt Cache présent et frais
+    QueryCache --> ListHook: Données depuis cache
+else Cache absent ou stale
+    ListHook -> Repo: getDemandsWithFilters(filters, page, limit)
+    activate Repo
+    
+    Repo -> Repo: Construire contraintes Firestore
+    Repo -> Firestore: query avec where, orderBy, limit
+    Firestore --> Repo: QuerySnapshot
+    
+    Repo -> Firestore: getCountFromServer (pour total)
+    Firestore --> Repo: totalCount
+    
+    Repo -> Repo: Transform → CaisseSpecialeDemand[]
+    Repo --> ListHook: { items: Demand[], total: number }
+    
+    deactivate Repo
+    
+    ListHook -> QueryCache: Mettre en cache (30 s)
+    QueryCache --> ListHook: Cache mis à jour
+end
+
+ListHook --> List: { data: { items, total }, isLoading: false }
+deactivate ListHook
+
+' ============================================
+' C.5 : VUE LISTE = TABLEAU
+' 1.3 : CONTACTS DU DEMANDEUR sur cards et tableau
+' ============================================
+List -> List: Pour chaque demande : useMember(demand.memberId) → member.contacts, member.phone, member.email
+alt Vue Grille sélectionnée
+    List --> Admin: Afficher cards (Matricule, Nom, Prénom, **Contacts demandeur** (tél, email), Montant, Statut, Contact d'urgence)
+else Vue Liste sélectionnée
+    List --> Admin: Afficher TABLEAU (colonnes : Matricule, Nom, Prénom, **Contacts demandeur**, Montant, Durée, Date souhaitée, Statut, Contact d'urgence, Actions)
+end
+
+List --> Admin: Afficher boutons "Exporter PDF" et "Exporter Excel" (barre d'actions)
+List -> List: Render Pagination ("Affichage 1-12 sur X", Précédent/Suivant)
+
+' ============================================
+' EXPORT PDF ET EXCEL AU NIVEAU DE LA LISTE
+' ============================================
+Admin -> List: Clique "Exporter PDF" ou "Exporter Excel"
+List -> List: ListExportService.exportToPDF(items) ou exportToExcel(items)
+List -> List: Colonnes : Matricule, Nom, Prénom, Contacts demandeur, Montant, Durée, Date souhaitée, Statut, Contact d'urgence
+List --> Admin: Télécharger fichier (demandes affichées/filtrées)
+
+' ============================================
+' C.6 : NOUVELLE DEMANDE → PAGE (pas de modal)
+' ============================================
+Admin -> List: Clique "Nouvelle Demande"
+List -> List: router.push('/caisse-speciale/demandes/nouvelle')
+List --> Admin: Navigation vers page création (pas d'ouverture modal)
+
+' ============================================
+' CHANGEMENT D'ONGLET (Stats NE SE RECHARGENT PAS)
+' C.3, C.4 : Voir SEQ_FiltrerDemandes pour recherche et filtres date
+' ============================================
+Admin -> List: Clique onglet "En attente"
+List -> List: filters.status = 'PENDING'
+List -> List: page = 1 (reset pagination)
+
+List -> ListHook: Refetch avec filters.status = PENDING
+ListHook -> QueryCache: Invalider cache liste (pas stats)
+ListHook -> Repo: getDemandsWithFilters(status PENDING, page 1, limit 12)
+Repo -> Firestore: query where('status', '==', 'PENDING') + limit(12)
+Firestore --> Repo: QuerySnapshot (max 12 docs)
+Repo -> Firestore: getCountFromServer (pour total)
+Firestore --> Repo: totalCount
+Repo --> ListHook: { items, total }
+ListHook --> List: Nouvelles données
+List --> Admin: Afficher demandes PENDING (page 1)
+
+' ============================================
+' ACTUALISER
+' ============================================
+Admin -> List: Clique "Actualiser"
+List -> List: queryClient.invalidateQueries(['caisseSpecialeDemands', 'caisseSpecialeDemandsStats'])
+List -> ListHook: Refetch liste
+List -> StatsHook: Refetch stats
+List --> Admin: Données actualisées
+
+note right of StatsHook
+  **C.1 : Stats chargées UNE FOIS**
+  - Pas de refetch au changement d'onglet
+  - Cache 2 min
+  - Stats = globales, pas par tab
+end note
+
+note right of List
+  **C.5** : Vue Liste = vrai tableau (colonnes complètes)
+  **1.3** : Contacts du demandeur (tél, email) sur cards et tableau via useMember
+  **1.6** : Export PDF et Excel au niveau de la liste
+  **C.6** : "Nouvelle Demande" → router.push (page, pas modal)
+  **C.3, C.4** : Recherche + filtres date → SEQ_FiltrerDemandes
+end note
+
+deactivate List
+deactivate Page
+
+@enduml

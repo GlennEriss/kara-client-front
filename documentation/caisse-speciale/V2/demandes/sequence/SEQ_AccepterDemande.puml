@@ -1,0 +1,75 @@
+@startuml SEQ_AccepterDemande
+title Séquence : Accepter une Demande Caisse Spéciale (V2)
+' Référence : AccepterDemande.puml (activité)
+' Traçabilité : approvedBy, approvedAt, approvedByName, approveReason
+
+actor "Admin" as Admin
+participant "AcceptDemandModal\n(Component)" as Modal
+participant "useCaisseSpecialeDemandMutations\n(Hook)" as Mutations
+participant "CaisseSpecialeService\n(Service)" as Service
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+participant "subscribe\n(Engine)" as Subscribe
+participant "NotificationService\n(Service)" as Notif
+database "Firestore" as Firestore
+
+Admin -> Modal: Clique "Accepter" sur demande PENDING
+activate Modal
+
+Modal -> Modal: useMember(demand.memberId) - afficher infos membre
+Modal --> Admin: Afficher modal avec infos membre, résumé demande, champ raison
+
+Admin -> Modal: Saisit raison d'acceptation (min 10 car.)
+Modal -> Modal: approveDemandSchema.parse({ reason })
+
+Admin -> Modal: Clique "Accepter"
+activate Modal
+
+Modal -> Mutations: approve.mutateAsync({ demandId, reason })
+activate Mutations
+
+Mutations -> Service: approveDemand(demandId, adminId, reason)
+activate Service
+
+Service -> Repo: getDemandById(demandId)
+Repo -> Firestore: getDoc(demandId)
+Firestore --> Repo: Demand
+Repo --> Service: CaisseSpecialeDemand
+
+Service -> Repo: updateDemandStatus(demandId, APPROVED, adminId, reason, adminName)
+Repo -> Firestore: updateDoc(status, approvedBy, approvedAt, approvedByName, approveReason)
+note right of Repo
+  **Traçabilité** :
+  approvedBy = adminId
+  approvedAt = ServerTimestamp
+  approvedByName = nom admin
+  approveReason = raison saisie
+end note
+Firestore --> Repo: OK
+
+Service -> Subscribe: subscribe(memberId, monthlyAmount, monthsPlanned, caisseType, firstPaymentDate)
+activate Subscribe
+Subscribe -> Firestore: Créer contrat + versements
+Firestore --> Subscribe: contractId
+deactivate Subscribe
+
+Service -> Repo: updateDemand(demandId, { status: CONVERTED, contractId, approvedBy, approvedAt, approvedByName, approveReason })
+Repo -> Firestore: updateDoc(status, contractId, approvedBy, approvedAt, approvedByName, approveReason)
+Firestore --> Repo: OK
+
+Service -> Notif: createNotification(demande acceptée, contrat créé)
+Notif -> Firestore: addDoc(notifications, ...)
+Firestore --> Notif: OK
+
+Service --> Mutations: CaisseSpecialeDemand
+deactivate Service
+
+Mutations -> Mutations: invalidateQueries(liste, stats, détail, contrats)
+Mutations -> Mutations: toast.success('Demande acceptée et contrat créé')
+Mutations --> Modal: Success
+deactivate Mutations
+
+Modal -> Modal: onClose()
+Modal --> Admin: Fermer modal, toast, redirection ou mise à jour UI
+deactivate Modal
+
+@enduml

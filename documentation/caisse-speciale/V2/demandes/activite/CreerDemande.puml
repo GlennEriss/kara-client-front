@@ -1,0 +1,152 @@
+@startuml CreerDemande
+title Workflow : Créer une Demande Caisse Spéciale (V2)
+' Référence : POINTS_PROBLEMATIQUES C.0, C.6, C.7, C.8
+' C.6 : PAGE au lieu de modal | C.7 : createdBy | C.8 : 3 searchableText (comme Caisse Imprévue)
+
+start
+
+:Admin accède à /caisse-speciale/demandes;
+
+:Admin clique "Nouvelle Demande";
+
+:C.6 : Naviguer vers PAGE (pas de modal) :
+- router.push('/caisse-speciale/demandes/nouvelle')
+- Ou /caisse-speciale/demandes/add (comme Caisse Imprévue)
+- Page dédiée avec formulaire multi-étapes
+- Persistance localStorage (formulaire non perdu si fermeture accidentelle);
+
+:Afficher page /caisse-speciale/demandes/nouvelle :
+- Formulaire en 3 étapes (comme Caisse Imprévue)
+- useDemandForm (persistance localStorage);
+
+' ============================================
+' ÉTAPE 1 : SÉLECTION DU MEMBRE
+' ============================================
+:Admin recherche un membre :
+- Input avec debounce
+- useEntitySearch('INDIVIDUAL')
+- Résultats : nom, prénom, matricule;
+
+if (Membre trouvé ?) then (oui)
+  :Sélectionner le membre;
+  :form.setValue('memberId', memberId);
+  :Afficher "Membre sélectionné" (badge vert);
+else (non)
+  :Afficher "Aucun membre trouvé";
+  :Bouton "Créer" désactivé;
+  stop
+endif
+
+' ============================================
+' ÉTAPE 2 : INFORMATIONS DE LA DEMANDE
+' ============================================
+:Admin saisit les informations :
+- Type de caisse (Standard, Journalière, Libre)
+- Montant mensuel (FCFA)
+- Durée prévue (mois)
+- Date souhaitée (obligatoire)
+- Cause / Motif (optionnel);
+
+:Valider Step 2;
+
+' ============================================
+' C.0 : ÉTAPE 3 : CONTACT D'URGENCE (obligatoire)
+' Même logique que Caisse Imprévue
+' ============================================
+:Admin accède à l'étape "Contact d'urgence";
+
+:Afficher EmergencyContactMemberSelector :
+- Exclure le membre sélectionné (excludeMemberIds = [memberId])
+- Recherche membre OU saisie manuelle
+- Champs : Nom, Prénom, Téléphone 1, Téléphone 2
+- Lien de parenté (relationship)
+- Type de pièce (typeId)
+- Numéro de pièce (idNumber)
+- Photo du document (documentPhotoUrl);
+
+if (Contact sélectionné depuis membre ?) then (oui)
+  :Remplir automatiquement depuis le membre :
+  - lastName, firstName, phone1, phone2, relationship, typeId, idNumber;
+  :form.setValue('emergencyContact', data);
+elseif (Contact saisi manuellement ?) then (oui)
+  :Admin saisit tous les champs du contact d'urgence;
+  :form.setValue('emergencyContact', data);
+endif
+
+:Valider avec emergencyContactCISchema (Zod);
+
+:Valider formulaire complet avec caisseSpecialeDemandFormSchema (incluant emergencyContact);
+
+if (Validation OK ?) then (oui)
+  :Bouton "Créer la demande" activé;
+else (non)
+  :Afficher erreurs de validation;
+  :Bouton "Créer" désactivé;
+  stop
+endif
+
+' ============================================
+' SOUMISSION
+' ============================================
+if (Admin clique "Créer la demande" ?) then (oui)
+  :Hook useCaisseSpecialeDemandMutations().create;
+  
+  :Service.createDemand(data, adminId) :
+  - Générer ID : MK_DEMANDE_CS_{4 chiffres matricule}_{DDMMYY}_{HHMM}
+  - Ex: MK_DEMANDE_CS_8438_300126_1430;
+  
+  :Repository.createDemand() :
+  - Firestore setDoc avec customId
+  - status = 'PENDING'
+  - contractType = 'INDIVIDUAL'
+  - **C.7 : createdBy = adminId** (admin créateur, traçabilité)
+  - **emergencyContact** (lastName, firstName, phone1, phone2, relationship, typeId, idNumber, documentPhotoUrl)
+  - **C.8 : 3 attributs searchableText** (comme Caisse Imprévue) :
+    * searchableText = "dupont jean 8438.mk.160126" (nom prénom matricule)
+    * searchableTextFirstNameFirst = "jean dupont 8438.mk.160126" (prénom nom matricule)
+    * searchableTextMatriculeFirst = "8438.mk.160126 jean dupont" (matricule prénom nom)
+  - generateAllDemandSearchableTexts(memberLastName, memberFirstName, memberMatricule)
+  - Référence : src/utils/demandSearchableText.ts, DemandCIRepository (Caisse Imprévue);
+  
+  :Notification :
+  - Créer notification pour tous les admins
+  - "Nouvelle demande de contrat Caisse Spéciale";
+  
+  :Invalider cache :
+  - caisseSpecialeDemands
+  - caisseSpecialeDemandsStats;
+  
+  :form.reset();
+  :clearFormData() (localStorage);
+  :router.push('/caisse-speciale/demandes');
+  :Afficher toast "Demande créée avec succès";
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :router.back() ou router.push('/caisse-speciale/demandes');
+  stop
+endif
+
+note right
+  **C.0 : Contact d'urgence** :
+  - Réutiliser EmergencyContactMemberSelector (comme Step3Contact Caisse Imprévue)
+  - Référence : src/domains/financial/caisse-imprevue/components/forms/steps/Step3Contact.tsx
+  - Schéma : emergencyContactCISchema
+  
+  **C.6 : PAGE au lieu de modal** :
+  - Référence : caisse-imprevue/demandes/add/page.tsx
+  - Route : /caisse-speciale/demandes/nouvelle
+  
+  **C.7 : createdBy** : adminId (uid de l'admin connecté)
+  
+  **C.8 : 3 searchableText** (Firestore préfixe = ordre obligatoire) :
+  - Un seul champ : "jean" ou "8438" ne matche pas si ordre = nom prénom matricule
+  - Solution : 3 champs + 3 requêtes parallèles fusionnées (getPaginatedWithSearchMerge)
+  - Référence : documentation/caisse-imprevue/V2/recherche-demande/RECHERCHE_ANALYSE.md
+  
+  **ID demande (standard)** :
+  MK_DEMANDE_CS_{4 premiers chiffres matricule}_{DDMMYY}_{HHMM}
+  Ex: MK_DEMANDE_CS_8438_300126_1430
+end note
+
+@enduml

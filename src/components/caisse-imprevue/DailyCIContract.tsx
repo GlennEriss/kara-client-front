@@ -34,6 +34,7 @@ import SupportHistoryCIModal from './SupportHistoryCIModal'
 import RepaySupportCIModal from './RepaySupportCIModal'
 import EarlyRefundCIModal from './EarlyRefundCIModal'
 import FinalRefundCIModal from './FinalRefundCIModal'
+import MarkAsPaidRefundCIModal from './MarkAsPaidRefundCIModal'
 import { toast } from 'sonner'
 import { usePaymentsCI, useCreateVersement, useActiveSupport, useCheckEligibilityForSupport, useSupportHistory, useContractPaymentStats } from '@/hooks/caisse-imprevue'
 import { useAuth } from '@/hooks/useAuth'
@@ -300,6 +301,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
   const [showFinalRefundModal, setShowFinalRefundModal] = useState(false)
   const [showReconnaissanceAccompagnement, setShowReconnaissanceAccompagnement] = useState(false)
   const [confirmApproveRefundId, setConfirmApproveRefundId] = useState<string | null>(null)
+  const [refundToMarkAsPaid, setRefundToMarkAsPaid] = useState<{ id: string; label: string } | null>(null)
 
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -1349,7 +1351,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           </CardHeader>
           <CardContent className="p-6">
             {/* Boutons d'action */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-6">
               <Button
                 variant="outline"
                 className="flex items-center justify-center gap-2 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
@@ -1459,6 +1461,28 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                           <span className="text-gray-600">Échéance:</span>
                           <span className="font-semibold">{r.deadlineAt ? new Date(r.deadlineAt).toLocaleDateString('fr-FR') : '—'}</span>
                         </div>
+                        {r.status === 'PAID' && r.paymentProofUrl && (
+                          <div className="pt-3 border-t border-gray-100">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-gray-600">Preuve de paiement:</span>
+                              <a
+                                href={r.paymentProofUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-indigo-600 hover:underline font-medium flex items-center gap-1"
+                              >
+                                <Download className="h-4 w-4" />
+                                Télécharger
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        {r.status === 'PAID' && (r.paidByName || r.paidAt) && (
+                          <div className="pt-2 space-y-1 text-xs text-gray-500">
+                            {r.paidByName && <p>Marqué par: {r.paidByName}</p>}
+                            {r.paidAt && <p>Le {new Date(r.paidAt).toLocaleDateString('fr-FR')} à {new Date(r.paidAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>}
+                          </div>
+                        )}
                       </div>
 
                       {(r.status === 'PENDING' || r.status === 'APPROVED') && (
@@ -1490,15 +1514,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
                               variant="outline"
                               size="sm"
                               className="border-green-300 text-green-600 hover:bg-green-50"
-                              onClick={async () => {
-                                try {
-                                  await updateRefundCI(contract.id, r.id, { status: 'PAID' })
-                                  await reloadRefunds()
-                                  toast.success('Remboursement marqué comme payé')
-                                } catch (err: any) {
-                                  toast.error(err?.message || 'Erreur lors de la mise à jour')
-                                }
-                              }}
+                              onClick={() => setRefundToMarkAsPaid({ id: r.id, label: r.type === 'FINAL' ? 'Remboursement Final' : 'Retrait Anticipé' })}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Marquer comme payé
@@ -1666,7 +1682,21 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           isOpen={showFinalRefundModal}
           onClose={() => setShowFinalRefundModal(false)}
           contract={contract}
+          onSuccess={reloadRefunds}
         />
+
+        {/* Modal Marquer comme payé */}
+        {refundToMarkAsPaid && user?.uid && (
+          <MarkAsPaidRefundCIModal
+            isOpen={!!refundToMarkAsPaid}
+            onClose={() => setRefundToMarkAsPaid(null)}
+            contractId={contract.id}
+            refundId={refundToMarkAsPaid.id}
+            refundLabel={refundToMarkAsPaid.label}
+            onSuccess={reloadRefunds}
+            userId={user.uid}
+          />
+        )}
       </div>
     </div>
   )

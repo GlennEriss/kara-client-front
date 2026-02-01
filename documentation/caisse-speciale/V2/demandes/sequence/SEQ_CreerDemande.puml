@@ -1,0 +1,117 @@
+@startuml SEQ_CreerDemande
+title Séquence : Créer une Demande Caisse Spéciale (V2)
+' Référence : CreerDemande.puml (activité)
+' C.6 : PAGE au lieu de modal | C.7 : createdBy | C.8 : 3 searchableText
+
+actor "Admin" as Admin
+participant "ListDemandes\n(Component)" as List
+participant "CreateDemandPage\n(/demandes/nouvelle)" as Page
+participant "CreateDemandFormV2\n(Component)" as Form
+participant "useCaisseSpecialeDemandMutations\n(Hook)" as Mutations
+participant "CaisseSpecialeService\n(Service)" as Service
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+participant "MemberRepository\n(Repository)" as MemberRepo
+participant "NotificationService\n(Service)" as Notif
+database "Firestore" as Firestore
+
+' ============================================
+' C.6 : NAVIGATION VERS PAGE (pas de modal)
+' ============================================
+Admin -> List: Clique "Nouvelle Demande"
+activate List
+List -> List: router.push('/caisse-speciale/demandes/nouvelle')
+List --> Admin: Navigation vers page
+deactivate List
+
+Admin -> Page: Accède à /caisse-speciale/demandes/nouvelle
+activate Page
+
+Page -> Form: Render CreateDemandFormV2 (useDemandForm, persistance localStorage)
+activate Form
+
+Form --> Admin: Afficher formulaire 3 étapes (page dédiée, pas modal)
+
+' Étape 1 : Sélection membre
+Admin -> Form: Recherche "Bernadette"
+Form -> Form: useEntitySearch('INDIVIDUAL')
+Form --> Admin: Afficher résultats
+
+Admin -> Form: Sélectionne membre
+Form -> Form: form.setValue('memberId', memberId)
+
+' Étape 2 : Informations demande
+Admin -> Form: Saisit type caisse, montant, durée, date souhaitée, cause
+Form -> Form: Validation Step 2
+
+' C.0 : Étape 3 : Contact d'urgence
+Admin -> Form: Accède étape "Contact d'urgence"
+Form -> Form: Afficher EmergencyContactMemberSelector (excludeMemberIds = [memberId])
+Admin -> Form: Sélectionne contact (membre) OU saisit manuellement
+Form -> Form: form.setValue('emergencyContact', data)
+Form -> Form: Validation emergencyContactCISchema
+Form -> Form: Validation complète (caisseSpecialeDemandFormSchema incluant emergencyContact)
+
+Admin -> Form: Clique "Créer la demande"
+activate Form
+
+Form -> Mutations: create.mutateAsync({ data, createdBy: adminId })
+activate Mutations
+
+Mutations -> Service: createDemand(data, adminId)
+activate Service
+
+Service -> MemberRepo: getMemberById(memberId)
+MemberRepo -> Firestore: getDoc(members/memberId)
+Firestore --> MemberRepo: Member
+MemberRepo --> Service: { matricule, firstName, lastName }
+
+Service -> Service: Générer ID : MK_DEMANDE_CS_{4 chiffres matricule}_{DDMMYY}_{HHMM}
+
+Service -> Repo: createDemand(demandData, adminId)
+activate Repo
+
+Repo -> Repo: generateAllDemandSearchableTexts(memberLastName, memberFirstName, memberMatricule)
+note right of Repo
+  **C.8 : 3 searchableText** :
+  searchableText, searchableTextFirstNameFirst, searchableTextMatriculeFirst
+  Référence : src/utils/demandSearchableText.ts
+end note
+
+Repo -> Firestore: setDoc(customId, { status, contractType, **createdBy**, emergencyContact, **searchableText**, **searchableTextFirstNameFirst**, **searchableTextMatriculeFirst** })
+note right of Repo
+  **C.7 : createdBy** = adminId (traçabilité)
+end note
+Firestore --> Repo: OK
+
+Repo -> Firestore: getDoc(customId)
+Firestore --> Repo: Demand
+Repo --> Service: CaisseSpecialeDemand
+
+deactivate Repo
+
+Service -> Notif: createNotification(module: caisse_speciale, type: new_request)
+Notif -> Firestore: addDoc(notifications, ...)
+Firestore --> Notif: OK
+
+Service --> Mutations: CaisseSpecialeDemand
+deactivate Service
+
+Mutations -> Mutations: invalidateQueries(['caisseSpecialeDemands', 'caisseSpecialeDemandsStats'])
+Mutations -> Mutations: toast.success('Demande créée avec succès')
+Mutations --> Form: Success
+deactivate Mutations
+
+Form -> Form: clearFormData() (localStorage)
+Form -> Form: router.push('/caisse-speciale/demandes')
+Form --> Admin: Redirection vers liste, toast
+deactivate Form
+deactivate Page
+
+note over Admin, Firestore
+  **C.6** : PAGE /demandes/nouvelle (pas CreateDemandModal)
+  **C.7** : createdBy = adminId dans document Firestore
+  **C.8** : 3 searchableText pour recherche nom/prénom/matricule
+  Référence : caisse-imprevue/demandes/add/page.tsx
+end note
+
+@enduml

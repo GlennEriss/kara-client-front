@@ -103,8 +103,9 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
   }, [filteredCommunes, initialCommunes, selectedCommuneId])
 
   const handleSelect = (value: string) => {
-    // cmdk passe la valeur du prop 'value' (commune.name), on doit trouver l'ID correspondant
-    const commune = filteredCommunes.find(c => c.name.toLowerCase() === value.toLowerCase())
+    // cmdk passe la valeur du prop 'value' (commune.id), on trouve par ID pour éviter les problèmes de caractères spéciaux
+    const commune = filteredCommunes.find(c => c.id === value) ??
+      filteredCommunes.find(c => c.name.toLowerCase() === value.toLowerCase())
     if (!commune) return
     
     // Sélectionner la commune (sans toggle pour éviter les bugs de double-clic)
@@ -200,7 +201,8 @@ export default function CommuneCombobox({ form, provinceId, onAddNew, disabled =
                     {filteredCommunes.map((commune) => (
                       <CommandItem
                         key={commune.id}
-                        value={commune.name}
+                        value={commune.id}
+                        keywords={[commune.name, commune.postalCode ?? ''].filter(Boolean)}
                         onSelect={handleSelect}
                         data-testid={`step2-address-commune-result-item-${commune.id}`}
                         className={cn(

@@ -1,0 +1,118 @@
+@startuml SEQ_VoirDetails
+title Séquence : Voir les Détails d'une Demande (V2)
+' Référence : VoirDetails.puml, ExporterDetailsDemande.puml (activité)
+' 2.1, 2.2 : infos membre | Tableau versements | Export PDF/Excel
+
+actor "Admin" as Admin
+participant "DemandDetailPage\n(/demandes/[id])" as Page
+participant "DemandDetail\n(Component)" as Detail
+participant "useCaisseSpecialeDemand\n(Hook)" as DemandHook
+participant "useMember\n(Hook)" as MemberHook
+participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
+participant "MemberRepository\n(Repository)" as MemberRepo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Page: Accéder à /caisse-speciale/demandes/[id]
+activate Page
+
+Page -> Detail: Render DemandDetail(demandId)
+activate Detail
+
+Detail -> DemandHook: useCaisseSpecialeDemand(demandId)
+activate DemandHook
+
+DemandHook -> QueryCache: queryKey: ['caisseSpecialeDemand', demandId]
+QueryCache -> QueryCache: Vérifier cache (staleTime: 30 s)
+
+alt Cache présent
+    QueryCache --> DemandHook: Demand depuis cache
+else Cache absent
+    DemandHook -> Repo: getDemandById(demandId)
+    activate Repo
+    Repo -> Firestore: getDoc(caisseSpecialeDemands/demandId)
+    Firestore --> Repo: DocumentSnapshot
+    Repo --> DemandHook: CaisseSpecialeDemand
+    deactivate Repo
+    DemandHook -> QueryCache: Mettre en cache
+end
+
+DemandHook --> Detail: { data: demand, isLoading: false }
+deactivate DemandHook
+
+' ============================================
+' 2.1, 2.2 : CHARGER INFOS MEMBRE
+' ============================================
+Detail -> MemberHook: useMember(demand.memberId)
+activate MemberHook
+
+MemberHook -> QueryCache: queryKey: ['member', memberId]
+QueryCache -> QueryCache: Vérifier cache
+
+alt Cache présent
+    QueryCache --> MemberHook: Member depuis cache
+else Cache absent
+    MemberHook -> MemberRepo: getMemberById(memberId)
+    MemberRepo -> Firestore: getDoc(members/memberId)
+    Firestore --> MemberRepo: Member
+    MemberRepo --> MemberHook: Member
+    MemberHook -> QueryCache: Mettre en cache
+end
+
+MemberHook --> Detail: { data: member (firstName, lastName, matricule, contacts) }
+deactivate MemberHook
+
+Detail --> Admin: Afficher section "Informations du membre" :
+Detail --> Admin: - Nom complet (member.firstName + member.lastName)
+Detail --> Admin: - Matricule (member.matricule)
+Detail --> Admin: - Contacts (member.contacts)
+Detail --> Admin: Afficher section "Contact d'urgence" (C.0, 2.3) :
+Detail --> Admin: - Nom complet, téléphones, lien de parenté (demand.emergencyContact)
+Detail --> Admin: Afficher sections : Infos générales, Historique (traçabilité), Cause, Décision
+
+' ============================================
+' TABLEAU RÉCAPITULATIF DES VERSEMENTS
+' ============================================
+Detail -> Detail: calculatePaymentSchedule(demand) : monthlyAmount, monthsPlanned, desiredDate
+Detail --> Admin: Afficher tableau récapitulatif : Mois | Date | Montant | Cumulé | Total
+Detail --> Admin: Boutons "Exporter PDF" et "Exporter Excel" du tableau
+
+' ============================================
+' EXPORT PDF DES DÉTAILS COMPLETS
+' ============================================
+Admin -> Detail: Clique "Exporter en PDF"
+Detail -> Detail: DemandExportService.exportDemandDetailsToPDF(demand)
+Detail -> Detail: jsPDF + autoTable (détails + tableau versements)
+Detail --> Admin: Télécharger PDF (demande_[id]_[date].pdf)
+
+' ============================================
+' EXPORT PDF/EXCEL DU TABLEAU VERSEMENTS
+' ============================================
+Admin -> Detail: Clique "Exporter PDF" ou "Exporter Excel" (tableau)
+Detail -> Detail: PaymentScheduleTable.handleExportPDF() ou handleExportExcel()
+Detail -> Detail: jsPDF + autoTable (tableau seul) OU xlsx (Excel)
+Detail --> Admin: Télécharger fichier
+
+Detail --> Admin: Afficher actions selon statut (Accepter, Refuser, Réouvrir, Convertir)
+Detail --> Admin: Bouton "Exporter en PDF" (détails complets)
+
+deactivate Detail
+deactivate Page
+
+note right of Detail
+  **Points 2.1, 2.2 résolus** :
+  - useMember(demand.memberId) pour récupérer infos membre
+  - Section "Informations du membre" avec nom, matricule, contacts
+  - Comme CreditDemandDetail
+  
+  **Tableau récapitulatif** (comme Caisse Imprévue) :
+  - Plan prévisionnel : Mois, Date, Montant, Cumulé, Total
+  - Export PDF et Excel du tableau
+  - Référence : PaymentScheduleTable
+  
+  **Export PDF détails** :
+  - Détails complets + tableau versements
+  - Référence : DemandExportService (Caisse Imprévue)
+end note
+
+@enduml

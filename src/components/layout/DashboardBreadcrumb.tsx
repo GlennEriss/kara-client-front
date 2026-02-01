@@ -28,6 +28,8 @@ const routeLabels: Record<string, string> = {
   '/groups': 'Groupes',
   '/memberships/add': 'Nouveau membre',
   '/caisse-speciale': 'Caisse Spéciale',
+  '/caisse-speciale/demandes': 'Demandes',
+  '/caisse-speciale/demandes/nouvelle': 'Nouvelle demande',
   '/caisse-speciale/contrats': 'Contrats',
   '/caisse-speciale/settings': 'Paramètres Caisse',
   '/caisse-imprevue': 'Caisse Imprévue',
@@ -40,6 +42,16 @@ const routeLabels: Record<string, string> = {
   '/bienfaiteur/create': 'Créer',
   '/vehicules': 'Véhicules',
   '/vehicules/create': 'Créer',
+  // Crédit Spéciale
+  '/credit-speciale': 'Crédit Spéciale',
+  '/credit-speciale/demandes': 'Demandes',
+  '/credit-speciale/simulations': 'Simulations',
+  '/credit-speciale/contrats': 'Contrats',
+  '/credit-speciale/demandes/add': 'Créer une demande',
+  // Placements
+  '/placements': 'Placements',
+  '/placements/demandes': 'Demandes',
+  '/placements/add': 'Nouveau placement',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -68,11 +80,26 @@ const getRouteLabel = (path: string): string => {
   if (path.match(/^\/groups\/[^\/]+$/)) {
     return 'Détails'
   }
+  if (path.match(/^\/caisse-speciale\/demandes\/[^\/]+$/)) {
+    return path.endsWith('/nouvelle') ? 'Nouvelle demande' : 'Détails'
+  }
   if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+$/)) {
     return 'Détails'
   }
   if (path.match(/^\/caisse-speciale\/contrats\/[^\/]+\/versements$/)) {
     return 'Versements'
+  }
+  if (path.match(/^\/credit-speciale\/demandes\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/credit-speciale\/contrats\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/placements\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/placements\/demandes\/[^\/]+$/)) {
+    return 'Détails'
   }
   if (path.match(/^\/caisse-imprevue\/contrats\/[^\/]+$/)) {
     return 'Détails'

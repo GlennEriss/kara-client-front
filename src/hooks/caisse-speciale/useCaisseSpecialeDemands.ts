@@ -9,7 +9,8 @@ import { z } from 'zod'
 const service = ServiceFactory.getCaisseSpecialeService()
 
 /**
- * Hook pour récupérer la liste des demandes avec filtres
+ * Hook pour récupérer la liste des demandes avec filtres (paginée)
+ * Retourne { data: { items, total }, isLoading, refetch }
  */
 export function useCaisseSpecialeDemands(filters?: CaisseSpecialeDemandFilters) {
     return useQuery({
@@ -36,9 +37,9 @@ export function useCaisseSpecialeDemand(id: string) {
  */
 export function useCaisseSpecialeDemandsStats(filters?: CaisseSpecialeDemandFilters) {
     return useQuery({
-        queryKey: ['caisseSpecialeDemandsStats', filters],
+        queryKey: ['caisseSpecialeDemandsStats'],
         queryFn: () => service.getDemandsStats(filters),
-        staleTime: 2 * 60 * 1000, // 2 minutes
+        staleTime: 2 * 60 * 1000, // 2 minutes - cache unique pour stats globales
     })
 }
 
@@ -150,12 +151,29 @@ export function useCaisseSpecialeDemandMutations() {
         },
     })
 
+    const deleteDemand = useMutation({
+        mutationFn: (demandId: string) => {
+            if (!user?.uid) throw new Error('Utilisateur non authentifié')
+            return service.deleteDemand(demandId)
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['caisseSpecialeDemands'] })
+            qc.invalidateQueries({ queryKey: ['caisseSpecialeDemandsStats'] })
+            qc.invalidateQueries({ queryKey: ['caisseSpecialeDemand'] })
+            toast.success('Demande supprimée définitivement')
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || 'Erreur lors de la suppression de la demande')
+        },
+    })
+
     return {
         create,
         approve,
         reject,
         reopen,
         convert,
+        deleteDemand,
     }
 }
 
