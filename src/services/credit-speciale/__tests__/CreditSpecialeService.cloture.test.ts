@@ -52,6 +52,8 @@ const mockContractActive = {
   ...mockContractDischarged,
   status: 'ACTIVE' as const,
   amountRemaining: 50000,
+  amount: 100000,
+  interestRate: 10,
   signedQuittanceUrl: undefined,
   signedQuittanceDocumentId: undefined,
   dischargeMotif: undefined,
@@ -82,7 +84,9 @@ describe('CreditSpecialeService - Clôture de contrat', () => {
     }
 
     mockCreditDemandRepository = {}
-    mockCreditPaymentRepository = {}
+    mockCreditPaymentRepository = {
+      getPaymentsByCreditId: vi.fn(),
+    }
     mockCreditPenaltyRepository = {}
     mockGuarantorRemunerationRepository = {}
 
@@ -106,6 +110,10 @@ describe('CreditSpecialeService - Clôture de contrat', () => {
         dischargedAt: new Date(),
         dischargedBy: 'admin-1',
       } as any)
+      // Montant total à rembourser = 100000 + 10% = 110000
+      vi.mocked(mockCreditPaymentRepository.getPaymentsByCreditId!).mockResolvedValue([
+        { id: 'p1', amount: 110000 } as any,
+      ])
 
       const result = await service.validateDischarge('contract-1', 'Remboursement intégral validé', 'admin-1')
 
@@ -124,6 +132,10 @@ describe('CreditSpecialeService - Clôture de contrat', () => {
     it('devrait lever une erreur si montant restant > 0', async () => {
       const contract = { ...mockContractActive, amountRemaining: 1000 }
       vi.mocked(mockCreditContractRepository.getContractById!).mockResolvedValue(contract as any)
+      // Paiements insuffisants : 100000 payé sur 110000 à rembourser
+      vi.mocked(mockCreditPaymentRepository.getPaymentsByCreditId!).mockResolvedValue([
+        { id: 'p1', amount: 100000 } as any,
+      ])
 
       await expect(
         service.validateDischarge('contract-1', 'Motif valide avec assez de caractères', 'admin-1')
@@ -135,6 +147,10 @@ describe('CreditSpecialeService - Clôture de contrat', () => {
     it('devrait lever une erreur si motif trop court', async () => {
       const contract = { ...mockContractActive, amountRemaining: 0 }
       vi.mocked(mockCreditContractRepository.getContractById!).mockResolvedValue(contract as any)
+      // Montant total remboursé pour passer la validation du montant
+      vi.mocked(mockCreditPaymentRepository.getPaymentsByCreditId!).mockResolvedValue([
+        { id: 'p1', amount: 110000 } as any,
+      ])
 
       await expect(service.validateDischarge('contract-1', 'Court', 'admin-1')).rejects.toThrow(
         'Le motif doit contenir entre 10 et 500 caractères'

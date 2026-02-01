@@ -32,6 +32,11 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
   )
   const guarantorPhone = guarantorData?.contacts?.[0] || '—'
 
+  // Nom du fichier : Quittance_Empunt_Nom_Prenom_du_membre.pdf
+  const lastName = (contract.clientLastName || 'Membre').replace(/[\s/\\?*:|"<>]/g, '_').trim()
+  const firstName = (contract.clientFirstName || 'Inconnu').replace(/[\s/\\?*:|"<>]/g, '_').trim()
+  const quittanceFilename = `Quittance_Empunt_${lastName}_${firstName}_du_membre.pdf`
+
   // Détecter si on est sur mobile
   React.useEffect(() => {
     const checkMobile = () => {
@@ -54,7 +59,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Quittance_Credit_Speciale_${contract.id}.pdf`
+      a.download = quittanceFilename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -78,7 +83,7 @@ const QuittanceCreditSpecialePDFModal: React.FC<QuittanceCreditSpecialePDFModalP
       const doc = <QuittanceCreditSpecialePDF contract={contract} guarantorPhone={guarantorPhone} />
 
       const blob = await pdf(doc).toBlob()
-      const file = new File([blob], `Quittance_Credit_Speciale_${contract.id}.pdf`, { type: 'application/pdf' })
+      const file = new File([blob], quittanceFilename, { type: 'application/pdf' })
 
       // Upload via le service
       const service = ServiceFactory.getCreditSpecialeService()

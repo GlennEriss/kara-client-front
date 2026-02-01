@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
 import { CreditContract } from '@/types/types'
@@ -113,7 +114,11 @@ export default function CloseContractModal({
               <Button type="button" variant="outline" onClick={() => setShowConfirm(false)} disabled={isPending}>
                 Annuler
               </Button>
-              <Button onClick={handleConfirm} disabled={isPending}>
+              <Button
+                onClick={handleConfirm}
+                disabled={isPending}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
                 {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -166,7 +171,7 @@ export default function CloseContractModal({
           </div>
           <div className="space-y-2">
             <Label htmlFor="motifCloture">Motif de clôture (obligatoire, 10-500 caractères)</Label>
-            <Input
+            <Textarea
               id="motifCloture"
               value={motifCloture}
               onChange={(e) => setMotifCloture(e.target.value)}
@@ -175,7 +180,8 @@ export default function CloseContractModal({
               maxLength={500}
               required
               disabled={isPending}
-              className={error ? 'border-red-500' : ''}
+              rows={4}
+              className={error ? 'border-red-500 resize-y' : 'resize-y'}
             />
             {error && <p className="text-sm text-red-500">{error}</p>}
             <p className="text-xs text-gray-500">{motifCloture.length}/500 caractères</p>
@@ -184,7 +190,11 @@ export default function CloseContractModal({
             <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isPending || motifCloture.trim().length < 10}>
+            <Button
+              type="submit"
+              disabled={isPending || motifCloture.trim().length < 10}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
               Clôturer le contrat
             </Button>
           </DialogFooter>

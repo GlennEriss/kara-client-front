@@ -78,7 +78,7 @@ export default function SignedQuittanceUploadModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Téléverser la quittance signée</DialogTitle>
           <DialogDescription>
@@ -112,7 +112,11 @@ export default function SignedQuittanceUploadModal({
             <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isPending || !file}>
+            <Button
+              type="submit"
+              disabled={isPending || !file}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
