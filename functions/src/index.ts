@@ -5,6 +5,7 @@ import { checkAndNotifyOverdueCommissions } from './scheduled/overdueCommissions
 import { checkAndNotifyCreditPaymentDue } from './scheduled/creditPaymentDue'
 import { checkAndNotifyCIPaymentDue } from './scheduled/ciPaymentDue'
 import { checkAndNotifyVehicleInsuranceExpiring } from './scheduled/vehicleInsuranceExpiring'
+import { generateAgentRecouvrementNotifications } from './scheduled/agentRecouvrementNotifications'
 import { transformCreditSpecialeToFixe } from './scheduled/transformCreditSpeciale'
 import { remindPendingCaisseSpecialeDemands, remindApprovedNotConvertedCaisseSpecialeDemands } from './scheduled/caisseSpecialeDemandReminders'
 import { remindPendingCaisseImprevueDemands, remindApprovedNotConvertedCaisseImprevueDemands } from './scheduled/caisseImprevueDemandReminders'
@@ -17,7 +18,6 @@ import { transformMembersAlgoliaPayload } from './algolia/transformMembersAlgoli
 import { transformMembershipRequestsAlgoliaPayload } from './algolia/transformMembershipRequestsAlgoliaPayload'
 
 // Job quotidien à 8h00 (heure locale Gabon, UTC+1)
-// Format cron : "0 8 * * *" (tous les jours à 8h00)
 export const dailyBirthdayNotifications = onSchedule(
   {
     schedule: '0 8 * * *', // 8h00 tous les jours
@@ -28,6 +28,21 @@ export const dailyBirthdayNotifications = onSchedule(
   async (event) => {
     console.log('Démarrage du job quotidien pour les anniversaires')
     await generateBirthdayNotifications()
+    console.log('Job terminé avec succès')
+  }
+)
+
+// Job quotidien à 8h30 pour les notifications agents de recouvrement (anniversaire + pièce expirée)
+export const dailyAgentRecouvrementNotifications = onSchedule(
+  {
+    schedule: '30 8 * * *', // 8h30 tous les jours
+    timeZone: 'Africa/Libreville',
+    memory: '512MiB',
+    timeoutSeconds: 540,
+  },
+  async () => {
+    console.log('Démarrage des notifications agents de recouvrement')
+    await generateAgentRecouvrementNotifications()
     console.log('Job terminé avec succès')
   }
 )

@@ -38,6 +38,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import { useQueryClient } from '@tanstack/react-query'
+import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 
 interface CreditPaymentModalProps {
   isOpen: boolean
@@ -118,6 +119,7 @@ export default function CreditPaymentModal({
   const [selectedPenalties, setSelectedPenalties] = useState<string[]>([])
   const [penaltyOnlyMode, setPenaltyOnlyMode] = useState(defaultPenaltyOnlyMode)
   const [penaltyNote, setPenaltyNote] = useState<number | undefined>(undefined)
+  const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
 
   const { user } = useAuth()
   const { create: createPayment } = useCreditPaymentMutations()
@@ -201,6 +203,7 @@ export default function CreditPaymentModal({
       setSelectedPenalties([])
       setPenaltyOnlyMode(defaultPenaltyOnlyMode)
       setPenaltyNote(undefined)
+      setAgentRecouvrementId('')
       // Mettre à jour la date de paiement, la note et le commentaire selon le retard
       if (defaultPaymentDate) {
         // Convertir la date en format YYYY-MM-DD pour l'input date
@@ -386,6 +389,7 @@ export default function CreditPaymentModal({
         comment: finalComment,
         createdBy: user.uid,
         installmentId: installmentId, // Passer l'ID de l'échéance spécifique
+        agentRecouvrementId: agentRecouvrementId || undefined,
       };
       
       console.log('[CreditPaymentModal] Données du paiement à envoyer:', {
@@ -410,6 +414,7 @@ export default function CreditPaymentModal({
       setSelectedPenalties([])
       setPenaltyOnlyMode(false)
       setPenaltyNote(undefined)
+      setAgentRecouvrementId('')
       onSuccess?.()
       onClose()
     } catch (error: any) {
@@ -579,6 +584,19 @@ export default function CreditPaymentModal({
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Agent de recouvrement */}
+          <div>
+            <Label htmlFor="agent-recouvrement" className="flex items-center gap-2 mb-2">
+              Agent de recouvrement (optionnel)
+            </Label>
+            <AgentRecouvrementSelect
+              value={agentRecouvrementId}
+              onValueChange={setAgentRecouvrementId}
+              placeholder="Sélectionner l'agent ayant collecté le paiement"
+              required={false}
+            />
           </div>
 
           {/* Preuve de paiement */}

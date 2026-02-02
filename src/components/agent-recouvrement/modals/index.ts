@@ -1,0 +1,5 @@
+export { CreateAgentModal } from './CreateAgentModal'
+export { EditAgentModal } from './EditAgentModal'
+export { DesactiverAgentModal } from './DesactiverAgentModal'
+export { ReactiverAgentModal } from './ReactiverAgentModal'
+export { SupprimerAgentModal } from './SupprimerAgentModal'

@@ -1,0 +1,42 @@
+@startuml SEQ_SelectionnerAgentCaisse
+title Diagramme de séquence : Sélectionner l'agent lors d'une contribution Caisse spéciale (UC-AR-006)
+
+actor Admin
+participant "Formulaire\nPaiement" as Form
+participant "useAgentsRecouvrement" as HookAgents
+participant "caisse/mutations" as Mutations
+participant "Repository" as Repo
+database "Firestore" as DB
+
+Admin -> Form : ouvre formulaire paiement contributions
+Form -> HookAgents : useAgentsRecouvrement({ actif: true })
+HookAgents -> Repo : getAgentsWithFilters({ actif: true })
+Repo -> DB : query(agentsRecouvrement, actif == true)
+DB --> Repo : agents actifs
+Repo --> HookAgents : { items }
+HookAgents --> Form : liste agents actifs (cache 5 min)
+
+Form -> Admin : afficher formulaire contribution + select "Agent de recouvrement"
+Note right of Form : Options du select : Nom Prénom - Tel1\n(ou Nom Prénom si tel absent)\npour chaque agent actif
+
+Admin -> Form : remplit champs + sélectionne agent
+Form -> Form : contributionData.agentRecouvrementId = agentId
+
+Admin -> Form : clique "Enregistrer" / "Payer"
+Form -> Form : valider formulaire
+
+alt Validation KO
+    Form -> Admin : afficher erreurs
+else Validation OK
+    Form -> Mutations : pay(..., agentRecouvrementId)
+    Mutations -> Mutations : créer IndividualPaymentContribution / GroupPaymentContribution
+    Mutations -> Repo : updatePayment(contribution avec agentRecouvrementId)
+    Repo -> DB : updateDoc(payment, { contributions: [...] })
+    DB --> Repo : ok
+    Repo --> Mutations : success
+    Mutations --> Form : success
+    Form -> Form : fermer modal / rafraîchir UI
+    Form -> Admin : toast "Paiement enregistré"
+end
+
+@enduml

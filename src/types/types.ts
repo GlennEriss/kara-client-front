@@ -619,6 +619,9 @@ export interface VersementCI {
   createdAt: Date
   createdBy: string
   
+  // Optionnel : Agent de recouvrement ayant collecté le versement
+  agentRecouvrementId?: string
+  
   // Optionnel : Pénalités (si versement en retard)
   penalty?: number
   daysLate?: number
@@ -1567,6 +1570,7 @@ export interface CreditPayment {
   note?: number // Note sur 10
   reference?: string // Référence unique du paiement
   receiptUrl?: string // URL du reçu PDF
+  agentRecouvrementId?: string // ID de l'agent ayant collecté le paiement
   createdAt: Date
   updatedAt: Date
   createdBy: string
@@ -2362,4 +2366,79 @@ export interface Quarter {
   updatedAt: Date
   createdBy: string
   updatedBy?: string
+}
+
+// ================== TYPES AGENTS DE RECOUVREMENT ==================
+
+/**
+ * Type de pièce d'identité
+ */
+export type PieceIdentiteType = 'CNI' | 'Passport' | 'Carte scolaire' | 'Carte étrangère' | 'Carte consulaire'
+
+/**
+ * Pièce d'identité d'un agent de recouvrement
+ */
+export interface PieceIdentite {
+  type: PieceIdentiteType
+  numero: string
+  dateDelivrance: Date
+  dateExpiration: Date
+}
+
+/**
+ * Sexe de l'agent
+ */
+export type AgentRecouvrementSexe = 'M' | 'F'
+
+/**
+ * Agent de recouvrement - personne chargée de collecter les paiements terrain
+ */
+export interface AgentRecouvrement {
+  id: string
+  nom: string
+  prenom: string
+  sexe: AgentRecouvrementSexe
+  pieceIdentite: PieceIdentite
+  dateNaissance: Date
+  birthMonth?: number // 1-12, dérivé de dateNaissance (tab Anniversaires)
+  birthDay?: number // 1-31, dérivé de dateNaissance (tab Anniversaires)
+  lieuNaissance: string
+  tel1: string
+  tel2?: string
+  photoUrl?: string | null
+  photoPath?: string | null
+  actif: boolean
+  searchableTextLastNameFirst: string
+  searchableTextFirstNameFirst: string
+  searchableTextNumeroFirst: string
+  createdBy: string
+  createdAt: Date
+  updatedBy?: string
+  updatedAt: Date
+}
+
+/**
+ * Filtres pour la liste des agents
+ */
+export type AgentRecouvrementFilterTab = 'actifs' | 'tous' | 'inactifs' | 'anniversaires'
+
+export interface AgentsFilters {
+  tab?: AgentRecouvrementFilterTab
+  searchQuery?: string
+  orderByField?: 'nom' | 'prenom' | 'createdAt'
+  orderByDirection?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+}
+
+/**
+ * Statistiques des agents
+ */
+export interface AgentsStats {
+  total: number
+  actifs: number
+  inactifs: number
+  hommes: number
+  femmes: number
+  anniversairesMois: number
 }

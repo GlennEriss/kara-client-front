@@ -1,0 +1,63 @@
+@startuml SelectionnerAgentCredit
+title Workflow : Sélectionner l'agent lors d'un paiement Crédit spéciale (UC-AR-005)
+
+start
+
+:Admin ouvre CreditPaymentModal pour enregistrer un paiement d'échéance;
+
+:Charger la liste des agents actifs :
+- useAgentsRecouvrement({ actif: true })
+- Cache 5 min
+- Inclus dans le flux du modal;
+
+:Afficher formulaire paiement :
+- Date, Heure, Montant, Mode
+- Preuve de paiement
+- **Select "Agent de recouvrement"** (nouveau champ);
+
+:Admin remplit les champs du paiement;
+
+:Admin sélectionne l'agent de recouvrement :
+- Select avec liste des agents actifs
+- Affichage : Nom Prénom (ou Nom Prénom - Tel1);
+
+if (Agent sélectionné ?) then (oui)
+  :form.setValue('agentRecouvrementId', agentId);
+  :agentRecouvrementId stocké dans les données du paiement;
+else (non)
+  :Champ optionnel ou obligatoire selon règle métier;
+  :Si obligatoire : bouton "Enregistrer" désactivé;
+endif
+
+:Admin clique "Enregistrer le paiement";
+
+:Valider formulaire complet :
+- creditPaymentFormSchema inclut agentRecouvrementId;
+
+if (Validation OK ?) then (oui)
+  :Hook useCreditPaymentMutations().create :
+  - Service.createPayment(data, proofFile, penaltyIds, installmentNumber);
+  
+  :Repository.createPayment() :
+  - Firestore creditPayments
+  - **agentRecouvrementId** inclus dans CreditPayment;
+  
+  :Paiement enregistré avec traçabilité agent;
+  
+  :Fermer le modal;
+  :Afficher toast "Paiement enregistré";
+  
+  stop
+else (non)
+  :Afficher erreurs de validation;
+  :Rester dans le modal;
+endif
+
+note right
+  **Contexte** : Modal CreditPaymentModal
+  **Composant** : CreditContractDetail
+  **Champ** : agentRecouvrementId sur CreditPayment
+  **Entité** : src/types/types.ts CreditPayment
+end note
+
+@enduml

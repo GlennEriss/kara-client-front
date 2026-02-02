@@ -1,0 +1,75 @@
+@startuml ModifierAgent
+title Workflow : Modifier un agent de recouvrement (UC-AR-003)
+
+start
+
+:Admin clique "Modifier" sur un agent dans la liste;
+
+:Ouvrir EditAgentModal :
+- Modal responsive (max-w-2xl)
+- Formulaire pré-rempli;
+
+:Charger les données de l'agent :
+- useAgentRecouvrement(agentId)
+- Cache 5 min;
+
+:Préremplir le formulaire :
+- form.reset(agentData)
+- Nom, Prénom, Sexe, Pièce d'identité (type, numéro, dates), Date naissance, Lieu naissance, Tel1, Tel2, Photo;
+
+:Admin modifie les champs souhaités;
+
+:Valider formulaire avec agentRecouvrementSchema (Zod);
+
+if (Validation OK ?) then (oui)
+  :Bouton "Enregistrer" activé;
+else (non)
+  :Afficher erreurs de validation;
+  :Bouton "Enregistrer" désactivé;
+  stop
+endif
+
+if (Admin clique "Enregistrer les modifications" ?) then (oui)
+  :Hook useUpdateAgentRecouvrement :
+  - Service.updateAgent(agentId, formData, currentAdminId);
+  
+  :Repository.update() :
+  - Firestore.updateDoc()
+  - Mettre à jour tous les champs modifiés
+  - Recalculer **searchableTextLastNameFirst**, **searchableTextFirstNameFirst**, **searchableTextNumeroFirst** (si nom/prénom/numéro/tel modifiés)
+  - Recalculer **birthMonth**, **birthDay** (si dateNaissance modifiée, pour tab Anniversaires)
+  - **photoUrl** / **photoPath** (optionnel) : si photo modifiée, upload Storage puis suppression ancienne
+  - **updatedBy** = currentAdminId (admin modificateur, traçabilité)
+  - **updatedAt** = now() (date/heure de modification);
+  
+  :Invalider cache :
+  - queryClient.invalidateQueries(['agentsRecouvrement']);
+  - queryClient.invalidateQueries(['agentRecouvrement', agentId]);
+  - queryClient.invalidateQueries(['agentsRecouvrementStats']);
+  
+  :Fermer le modal;
+  
+  :Afficher toast "Agent modifié avec succès";
+  
+  :Mettre à jour la liste et les selects;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Champs modifiables** :
+  - Nom, Prénom, Sexe, Pièce d'identité (type, numéro, dates)
+  - Date de naissance, Lieu de naissance
+  - Tel1, Tel2
+  - Photo (optionnel, upload Storage agents-recouvrement/{agentId}/{fileName})
+  
+  **Traçabilité** :
+  - updatedBy : ID de l'admin qui a modifié l'agent
+  - updatedAt : Date/heure de modification
+  - L'historique des versements reste inchangé
+end note
+
+@enduml

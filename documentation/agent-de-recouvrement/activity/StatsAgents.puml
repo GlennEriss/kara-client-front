@@ -1,0 +1,68 @@
+@startuml StatsAgents
+title Workflow : Statistiques des agents de recouvrement
+' Stats : actifs, inactifs, total, hommes, femmes
+' Chargées EN PREMIER, UNE SEULE FOIS (avant liste)
+
+start
+
+:Admin accède à /admin/agents-recouvrement;
+
+' ============================================
+' STATISTIQUES EN PREMIER (globales)
+' ============================================
+:Charger les statistiques GLOBALES :
+- useAgentsRecouvrementStats({})
+- Cache 2 min
+- Chargées UNE SEULE FOIS (pas de rechargement au changement d'onglet);
+
+if (Cache présent et frais ?) then (oui)
+  :Afficher stats depuis cache;
+else (non)
+  :Repository.getAgentsStats() :
+  - Firestore : collection agentsRecouvrement
+  - Compter actif == true → **totalActifs**
+  - Compter actif == false → **totalInactifs**
+  - Compter tous → **total**
+  - Compter sexe == 'M' → **totalHommes**
+  - Compter sexe == 'F' → **totalFemmes**
+  - Compter actif==true, birthMonth==mois_courant → **totalAnniversairesMois**;
+  
+  :Retourner AgentsStats :
+  - total: number
+  - totalActifs: number
+  - totalInactifs: number
+  - totalHommes: number
+  - totalFemmes: number
+  - totalAnniversairesMois: number;
+  
+  :Mettre en cache React Query (2 min);
+endif
+
+:Afficher les statistiques EN PREMIER (cards ou badges) :
+- **Total** : X agents
+- **Actifs** : X agents
+- **Inactifs** : X agents
+- **Hommes** : X agents
+- **Femmes** : X agents;
+
+:Afficher la liste APRÈS les stats :
+- Onglets : Actifs | Tous | Inactifs | Anniversaires du mois (count: totalAnniversairesMois)
+- Vue par défaut : Cards;
+
+if (Admin change onglet ?) then (oui)
+  :Les STATS ne se rechargent PAS
+  (déjà affichées en haut);
+endif
+
+note right
+  **Stats** : Chargées AVANT la liste
+  - total, totalActifs, totalInactifs
+  - totalHommes, totalFemmes
+  - totalAnniversairesMois (pour badge/tab Anniversaires)
+  - Cache 2 min, pas de refetch au changement d'onglet
+  - sexe : 'M' (homme) | 'F' (femme)
+end note
+
+stop
+
+@enduml

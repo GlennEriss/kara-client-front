@@ -48,6 +48,7 @@ export function PaymentSidebarCI({ payment, onClose }: PaymentSidebarCIProps) {
           time: data.time,
           amount: data.amount,
           mode: data.mode,
+          agentRecouvrementId: data.agentRecouvrementId,
         },
         data.proofFile,
         user.uid

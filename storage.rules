@@ -323,6 +323,21 @@ service firebase.storage {
     }
     
     // ==========================================
+    // PHOTOS AGENTS DE RECOUVREMENT
+    // ==========================================
+    // Photos des agents (champ optionnel)
+    // Utilisé par : CreateAgentModal, EditAgentModal
+    // Chemin : agents-recouvrement/{agentId}/{fileName}
+    
+    match /agents-recouvrement/{agentId}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && 
+        request.resource.contentType.matches('image/(jpeg|jpg|png|webp)') &&
+        request.resource.size < 5 * 1024 * 1024;
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
     // RÈGLE PAR DÉFAUT
     // ==========================================
     // Refuser tout accès non explicitement autorisé

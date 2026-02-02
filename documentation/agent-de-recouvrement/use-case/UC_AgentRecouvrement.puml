@@ -1,0 +1,139 @@
+@startuml UC_AgentRecouvrement
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
+}
+
+title Cas d'utilisation – Module Agent de recouvrement\nKARA Mutuelle
+
+left to right direction
+
+' ============================================
+' ACTEURS
+' ============================================
+actor "Admin" as Admin
+
+' ============================================
+' PACKAGE : GESTION DES AGENTS
+' ============================================
+package "Gestion des agents de recouvrement" {
+  usecase "UC-AR-001\nLister les agents\nde recouvrement\n(actifs uniquement)" as UC_LIST
+  
+  usecase "UC-AR-002\nCréer un agent\nde recouvrement\n(nom, prénom, pièce d'identité, etc.)" as UC_CREATE
+  
+  usecase "UC-AR-003\nModifier un agent\nde recouvrement\n(édition des champs)" as UC_EDIT
+  
+  usecase "UC-AR-004\nDésactiver un agent\nde recouvrement\n(sans supprimer l'historique)" as UC_DEACTIVATE
+  
+  usecase "UC-AR-010\nSupprimer un agent\nde recouvrement\n(irréversible)" as UC_DELETE
+  
+  usecase "UC-AR-008\nVoir les détails\nd'un agent" as UC_DETAIL
+  
+  usecase "UC-AR-009\nConsulter les stats\n(actifs, inactifs, total,\nhommes, femmes)" as UC_STATS
+}
+
+' ============================================
+' PACKAGE : TRACABILITÉ DES VERSEMENTS
+' ============================================
+package "Traçabilité lors des versements" {
+  usecase "UC-AR-005\nSélectionner l'agent\nlors d'un paiement\nCrédit spéciale" as UC_SELECT_CREDIT
+  
+  usecase "UC-AR-006\nSélectionner l'agent\nlors d'une contribution\nCaisse spéciale" as UC_SELECT_CAISSE
+  
+  usecase "UC-AR-007\nSélectionner l'agent\nlors d'un versement\nCaisse imprévue" as UC_SELECT_CI
+}
+
+' ============================================
+' RELATIONS ACTEURS - USE CASES
+' ============================================
+Admin --> UC_LIST
+Admin --> UC_CREATE
+Admin --> UC_EDIT
+Admin --> UC_DEACTIVATE
+Admin --> UC_DELETE
+Admin --> UC_DETAIL
+Admin --> UC_STATS
+Admin --> UC_SELECT_CREDIT
+Admin --> UC_SELECT_CAISSE
+Admin --> UC_SELECT_CI
+
+' ============================================
+' RELATIONS ENTRE USE CASES
+' ============================================
+UC_LIST ..> UC_STATS : <<include>>\n(stats chargées en premier)
+UC_SELECT_CREDIT ..> UC_LIST : <<include>>\n(liste des agents actifs)
+UC_SELECT_CAISSE ..> UC_LIST : <<include>>\n(liste des agents actifs)
+UC_SELECT_CI ..> UC_LIST : <<include>>\n(liste des agents actifs)
+
+UC_EDIT ..> UC_LIST : <<extend>>\n(après sélection)
+UC_DEACTIVATE ..> UC_LIST : <<extend>>\n(après sélection)
+UC_DELETE ..> UC_LIST : <<extend>>\n(après sélection)
+UC_DETAIL ..> UC_LIST : <<extend>>\n(après sélection)
+
+' ============================================
+' NOTES
+' ============================================
+note right of UC_CREATE
+  **Préconditions** :
+  - Admin authentifié
+  
+  **Champs** :
+  - Nom (obligatoire)
+  - Prénom (obligatoire)
+  - Sexe (obligatoire) : M | F
+  - Pièce d'identité (obligatoire) :
+    type (CNI, Passport, Carte scolaire, etc.)
+    numéro, date délivrance, date expiration
+  - Date de naissance (obligatoire)
+  - Lieu de naissance (obligatoire)
+  - Tel1 (obligatoire)
+  - Tel2 (optionnel)
+  
+  **Postconditions** :
+  - Agent créé avec actif = true
+  - Agent disponible dans les selects
+end note
+
+note right of UC_SELECT_CREDIT
+  **Contexte** : Modal CreditPaymentModal
+  **Moment** : Lors de l'enregistrement
+  d'un paiement d'échéance
+  **Champ** : agentRecouvrementId
+  sur CreditPayment
+end note
+
+note right of UC_SELECT_CAISSE
+  **Contexte** : Formulaire paiement
+  contributions (pay)
+  **Moment** : Lors de l'enregistrement
+  d'une contribution
+  **Champ** : agentRecouvrementId
+  sur IndividualPaymentContribution
+  ou GroupPaymentContribution
+end note
+
+note right of UC_SELECT_CI
+  **Contexte** : Formulaire versement
+  DailyCIContract
+  **Moment** : Lors de createVersement
+  **Champ** : agentRecouvrementId
+  sur VersementCI
+end note
+
+note bottom of UC_DEACTIVATE
+  **Règle métier** : Désactivation
+  = actif = false. L'historique
+  des versements reste lié
+  à l'agent (traçabilité).
+end note
+
+note bottom of UC_DELETE
+  **Règle métier** : Suppression
+  = deleteDoc Firestore.
+  **Irréversible**. Préférer
+  désactiver pour traçabilité.
+end note
+
+@enduml

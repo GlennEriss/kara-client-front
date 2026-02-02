@@ -1,0 +1,37 @@
+@startuml SEQ_DesactiverAgent
+title Diagramme de séquence : Désactiver un agent de recouvrement (UC-AR-004)
+
+actor Admin
+participant "Page\nAgents" as Page
+participant "DesactiverAgentModal" as Modal
+participant "useDeactivateAgentRecouvrement" as Hook
+participant "AgentRecouvrementService" as Service
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+Admin -> Page : clique "Désactiver" sur un agent
+Page -> Modal : ouvrir modal (agentId, nom, prénom)
+Modal -> Admin : afficher avertissement + confirmation
+
+alt Admin clique "Annuler"
+    Admin -> Modal : clique "Annuler"
+    Modal -> Modal : fermer modal
+else Admin clique "Confirmer"
+    Admin -> Modal : clique "Confirmer"
+    Modal -> Hook : deactivateAgent(agentId, currentAdminId)
+    Hook -> Service : deactivateAgent(agentId, currentAdminId)
+    Service -> Repo : update(agentId, { actif: false }, currentAdminId)
+    
+    Repo -> DB : updateDoc(agentsRecouvrement/agentId, { actif: false, updatedBy, updatedAt })
+    DB --> Repo : ok
+    Repo --> Service : void
+    Service --> Hook : void
+    
+    Hook -> Hook : invalidateQueries(['agentsRecouvrement', 'agentsRecouvrementStats'])
+    Hook --> Modal : success
+    Modal -> Modal : fermer modal
+    Modal -> Admin : toast "Agent désactivé"
+    Note over Page : Agent retiré des selects (filtre actif=true)
+end
+
+@enduml

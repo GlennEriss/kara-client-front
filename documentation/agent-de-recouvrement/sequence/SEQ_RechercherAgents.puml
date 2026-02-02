@@ -1,0 +1,45 @@
+@startuml SEQ_RechercherAgents
+title Diagramme de séquence : Rechercher les agents de recouvrement (UC-AR-001)
+
+actor Admin
+participant "Page\nAgents" as Page
+participant "Champ\nRecherche" as Search
+participant "useAgentsRecouvrement" as Hook
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+Admin -> Page : accède à la liste des agents
+Page -> Admin : afficher champ recherche
+
+Admin -> Search : tape "Jean" / "1234567890" / "AB123456"
+Search -> Search : debounce 300ms
+Search -> Search : normaliser : toLowerCase(), trim()
+
+alt query.length < 2
+    Search -> Admin : afficher "Minimum 2 caractères"
+else query.length >= 2
+    Search -> Page : filters.searchQuery = query, page = 1
+    Page -> Hook : refetch(filters avec searchQuery)
+    Hook -> Repo : getAgentsWithFilters(filters)
+    
+    Note over Repo : Recherche COMBINÉE avec filtres actifs
+    Repo -> Repo : appliquer filtre actif + searchQuery + tri + pagination
+    Repo -> DB : query sur searchableTextLastNameFirst, searchableTextFirstNameFirst, searchableTextNumeroFirst
+    DB --> Repo : docs
+    Repo --> Hook : { items (page 1), total }
+    Hook --> Page : résultats paginés
+    Page -> Admin : afficher "X résultat(s) pour '[query]'" + liste
+end
+
+== Effacer recherche ==
+Admin -> Search : clique X ou efface le champ
+Search -> Page : searchQuery = '', page = 1
+Page -> Hook : refetch(filters sans searchQuery)
+Hook -> Repo : getAgentsWithFilters(filters)
+Repo -> DB : query(...)
+DB --> Repo : docs
+Repo --> Hook : { items, total }
+Hook --> Page : liste complète
+Page -> Admin : afficher liste (filtres conservés)
+
+@enduml

@@ -23,6 +23,13 @@ package "Shared" <<Cloud>> {
     + type: DocumentType
     ...
   }
+  
+  class AgentRecouvrement {
+    + id: string
+    + nom: string
+    + prenom: string
+    ...
+  }
 }
 
 ' ============================================
@@ -162,6 +169,7 @@ class CreditPayment {
   + note?: number
   + reference?: string
   + receiptUrl?: string
+  + agentRecouvrementId?: string
   + createdAt: Date
   + updatedAt: Date
   + createdBy: string
@@ -301,6 +309,9 @@ CreditPayment --> CreditPenalty : pays
 
 ' CreditContract référence Document (via contractUrl, etc.)
 CreditContract --> Document : references
+
+' CreditPayment référence AgentRecouvrement (optionnel)
+CreditPayment --> AgentRecouvrement : collected_by
 
 ' ============================================
 ' ARCHITECTURE DOMAINS – Clôture de contrat

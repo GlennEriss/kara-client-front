@@ -89,6 +89,7 @@ export function PaymentSidebar({ payment, onClose }: PaymentSidebarProps) {
         paidAt: new Date(data.date),
         time: data.time,
         mode: data.mode,
+        agentRecouvrementId: data.agentRecouvrementId,
       })
 
       toast.success("Versement enregistré avec succès")

@@ -1,0 +1,165 @@
+@startuml GestionErreursAgents
+title Workflow : Gestion des erreurs – Module Agent de recouvrement
+
+start
+
+' ============================================
+' ERREURS DE VALIDATION (formulaires)
+' ============================================
+partition "Erreurs de validation (Zod)" {
+  :CreerAgent / ModifierAgent :
+  Validation formulaire agentRecouvrementSchema;
+  
+  if (Champs invalides ?) then (oui)
+    :Afficher erreurs sous les champs concernés;
+    :Bouton "Créer" / "Enregistrer" désactivé;
+    :Rester dans le modal;
+    stop
+  endif
+  
+  :SelectionnerAgent (Crédit / Caisse / CI) :
+  Validation formulaire versement;
+  
+  if (Champs invalides ?) then (oui)
+    :Afficher erreurs de validation;
+    :Rester dans le modal / formulaire;
+    stop
+  endif
+}
+
+' ============================================
+' ERREURS RECHERCHE
+' ============================================
+partition "Erreurs recherche" {
+  :RechercherAgents : query.length < 2;
+  
+  if (Moins de 2 caractères ?) then (oui)
+    :Afficher message "Minimum 2 caractères";
+    :Ne pas lancer de requête;
+    stop
+  endif
+  
+  :RechercherAgents : (query || '').toLowerCase();
+  
+  if (query undefined/null ?) then (oui)
+    :Éviter TypeError avec (query || '');
+    stop
+  endif
+}
+
+' ============================================
+' ERREURS RESSOURCE INTROUVABLE (404)
+' ============================================
+partition "Agent introuvable" {
+  :VoirDetailsAgent : useAgentRecouvrement(agentId);
+  
+  if (Agent trouvé ?) then (non)
+    :Afficher erreur "Agent non trouvé";
+    :Afficher bouton "Retour à la liste";
+    :Redirection vers /admin/agents-recouvrement;
+    stop
+  endif
+  
+  :ModifierAgent / DesactiverAgent :
+  Agent supprimé entre-temps;
+  
+  if (Agent introuvable ?) then (oui)
+    :Afficher toast.error "Agent introuvable";
+    :Fermer le modal;
+    :Refetch liste;
+    stop
+  endif
+}
+
+' ============================================
+' ERREURS RÉSEAU / FIRESTORE
+' ============================================
+partition "Erreurs réseau / Firestore" {
+  :Hook (create / update / deactivate / get) :
+  Appel Firestore;
+  
+  if (Erreur réseau ?) then (oui)
+    :Hook retourne isError=true, error=NetworkError;
+    :Afficher toast.error "Erreur de connexion. Vérifiez votre connexion internet.";
+    :Afficher bouton "Réessayer" (si applicable);
+    stop
+  endif
+  
+  if (Erreur permissions ?) then (oui)
+    :Hook retourne isError=true, error=PermissionDenied;
+    :Afficher toast.error "Vous n'avez pas les droits pour effectuer cette action.";
+    stop
+  endif
+  
+  if (Erreur serveur Firestore ?) then (oui)
+    :Hook retourne isError=true, error=InternalError;
+    :Afficher toast.error "Une erreur est survenue. Veuillez réessayer.";
+    :Afficher bouton "Réessayer" (si applicable);
+    stop
+  endif
+}
+
+' ============================================
+' ERREURS RÈGLES MÉTIER
+' ============================================
+partition "Erreurs règles métier" {
+  :ModifierAgent : Agent déjà désactivé;
+  
+  if (Agent inactif ?) then (oui)
+    :Option 1 : Afficher erreur "Impossible de modifier un agent désactivé";
+    :Option 2 : Permettre modification (sans réactivation);
+    stop
+  endif
+  
+  :DesactiverAgent : Agent déjà désactivé;
+  
+  if (Agent déjà inactif ?) then (oui)
+    :Afficher toast.info "Cet agent est déjà désactivé";
+    :Fermer le modal;
+    :Refetch liste;
+    stop
+  endif
+  
+  :CreerAgent : Numéro pièce déjà existant ?;
+  
+  if (Doublon détecté ?) then (oui)
+    :Afficher erreur "Un agent avec ce numéro de pièce existe déjà";
+    :Rester dans le modal;
+    stop
+  endif
+}
+
+' ============================================
+' ÉTATS VIDES / AUCUN RÉSULTAT
+' ============================================
+partition "États vides" {
+  :ListerAgents : Aucun agent;
+  
+  if (Liste vide ?) then (oui)
+    :Afficher message "Aucun agent de recouvrement";
+    :Afficher bouton "Nouvel agent";
+    stop
+  endif
+  
+  :RechercherAgents : Aucun résultat;
+  
+  if (Aucun résultat ?) then (oui)
+    :Afficher "Aucun résultat pour '[query]'";
+    :Conserver filtres, proposer "Effacer la recherche";
+    stop
+  endif
+}
+
+note right
+  **Stratégie globale** :
+  - Validation Zod côté client (feedback immédiat)
+  - Toast pour erreurs serveur/réseau
+  - Bouton "Réessayer" pour erreurs récupérables
+  - Messages explicites et en français
+  - Pas de rollback nécessaire (pas d'optimistic update
+    sur create/update agent)
+end note
+
+stop
+
+@enduml

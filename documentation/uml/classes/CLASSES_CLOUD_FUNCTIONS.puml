@@ -145,6 +145,16 @@ package "Scheduled Functions" <<Frame>> {
     - Assurances expiring dans 30j
   }
   
+  class dailyAgentRecouvrementNotifications <<scheduled>> {
+    + schedule: "30 8 * * *"
+    + module: Agents de Recouvrement
+    + memory: 512MiB
+    --
+    **Notifications:**
+    - Anniversaire: J-2, J, J+1
+    - Pièce expirée: J-30, J-7, J, J+1
+  }
+  
   class dailyTransformCreditSpeciale <<scheduled>> {
     + schedule: "0 11 * * *"
     + module: Crédit Spéciale
@@ -241,6 +251,7 @@ dailyOverdueCommissions --> Firestore : creates notifications
 dailyCreditPaymentDue --> Firestore : creates notifications
 dailyCIPaymentDue --> Firestore : creates notifications
 dailyVehicleInsuranceExpiring --> Firestore : creates notifications
+dailyAgentRecouvrementNotifications --> Firestore : creates notifications
 dailyTransformCreditSpeciale --> Firestore : updates contracts
 dailyCaisseSpecialePendingReminders --> Firestore : creates notifications
 dailyCaisseSpecialeApprovedNotConvertedReminders --> Firestore : creates notifications
@@ -273,6 +284,7 @@ note right of dailyBirthdayNotifications
   | Heure | Job |
   |-------|-----|
   | 08:00 | Anniversaires |
+  | 08:30 | Agents recouvrement (anniv + pièce) |
   | 09:00 | Commissions retard + CS pending |
   | 09:30 | Crédit échéances |
   | 10:00 | CI échéances + CS non converties |
@@ -296,6 +308,7 @@ note bottom of Firestore
   - credit-speciale-contracts
   - placements
   - vehicles
+  - agentsRecouvrement
 end note
 
 @enduml

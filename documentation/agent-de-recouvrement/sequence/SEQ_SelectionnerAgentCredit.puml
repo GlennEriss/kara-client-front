@@ -1,0 +1,44 @@
+@startuml SEQ_SelectionnerAgentCredit
+title Diagramme de séquence : Sélectionner l'agent lors d'un paiement Crédit spéciale (UC-AR-005)
+
+actor Admin
+participant "CreditPaymentModal" as Modal
+participant "useAgentsRecouvrement" as HookAgents
+participant "useCreditPaymentMutations" as HookPayment
+participant "CreditSpecialeService" as Service
+participant "Repository" as Repo
+database "Firestore" as DB
+
+Admin -> Modal : ouvre CreditPaymentModal
+Modal -> HookAgents : useAgentsRecouvrement({ actif: true })
+HookAgents -> Repo : getAgentsWithFilters({ actif: true })
+Repo -> DB : query(agentsRecouvrement, actif == true)
+DB --> Repo : agents actifs
+Repo --> HookAgents : { items }
+HookAgents --> Modal : liste agents actifs (cache 5 min)
+
+Modal -> Admin : afficher formulaire paiement + select "Agent de recouvrement"
+Note right of Modal : Options du select : Nom Prénom - Tel1\n(ou Nom Prénom si tel absent)\npour chaque agent actif
+
+Admin -> Modal : remplit champs + sélectionne agent
+Modal -> Modal : form.setValue('agentRecouvrementId', agentId)
+
+Admin -> Modal : clique "Enregistrer le paiement"
+Modal -> Modal : valider (creditPaymentFormSchema)
+
+alt Validation KO
+    Modal -> Admin : afficher erreurs
+else Validation OK
+    Modal -> HookPayment : create(data, proofFile, penaltyIds, installmentNumber)
+    HookPayment -> Service : createPayment(...)
+    Service -> Repo : createPayment(...)
+    Repo -> DB : addDoc(creditPayments, { ...data, agentRecouvrementId })
+    DB --> Repo : docRef
+    Repo --> Service : CreditPayment
+    Service --> HookPayment : success
+    HookPayment --> Modal : success
+    Modal -> Modal : fermer modal
+    Modal -> Admin : toast "Paiement enregistré"
+end
+
+@enduml

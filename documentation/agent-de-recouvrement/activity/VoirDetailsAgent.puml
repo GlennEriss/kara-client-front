@@ -1,0 +1,86 @@
+@startuml VoirDetailsAgent
+title Workflow : Voir les détails d'un agent de recouvrement
+
+start
+
+:Admin clique "Voir détails" sur un agent
+(depuis liste ou card);
+
+:Rediriger vers /admin/agents-recouvrement/[id];
+
+:Charger l'agent :
+- useAgentRecouvrement(agentId)
+- Cache 5 min;
+
+if (Agent trouvé ?) then (oui)
+  ' ============================================
+  ' NOTIFICATIONS (voir NotificationsAgent.puml)
+  ' ============================================
+  :Calculer et afficher les notifications :
+  - **Anniversaire** : si jour+mois dateNaissance == aujourd'hui → badge "Anniversaire aujourd'hui"
+  - **Carte expirée** : si pieceIdentite.dateExpiration < aujourd'hui → alerte "Carte d'identité expirée"
+  - **Expiration prochaine** : si dateExpiration dans les 30 prochains jours → alerte "Expiration prochaine";
+  
+  :Afficher zone "Alertes" en haut (si au moins une notification);
+  
+  :Afficher section "Informations personnelles" :
+  - **Photo** (si présente) : afficher photoUrl
+  - Nom complet (nom + prénom)
+  - Sexe (Homme / Femme)
+  - **Pièce d'identité** : type, numéro, date délivrance, date expiration
+  - Date de naissance
+  - Lieu de naissance;
+  
+  :Afficher section "Contacts" :
+  - Tel1 (obligatoire)
+  - Tel2 (si présent);
+  
+  :Afficher section "Statut" :
+  - Actif / Inactif (badge);
+  
+  :Afficher section "Traçabilité" :
+  - Créé le (createdAt)
+  - Créé par (createdBy → nom admin)
+  - Modifié le (updatedAt) si applicable
+  - Modifié par (updatedBy → nom admin) si applicable
+  - Désactivé le (updatedAt) si inactif
+  - Désactivé par (updatedBy) si inactif;
+  
+  :Afficher boutons d'action :
+  - "Modifier" (si actif)
+  - "Désactiver" (si actif)
+  - "Réactiver" (si inactif - optionnel)
+  - "Retour" vers liste;
+  
+  if (Admin clique "Modifier" ?) then (oui)
+    :Ouvrir EditAgentModal;
+    stop
+  endif
+  
+  if (Admin clique "Désactiver" ?) then (oui)
+    :Ouvrir DesactiverAgentModal;
+    stop
+  endif
+  
+  if (Admin clique "Retour" ?) then (oui)
+    :Retour vers /admin/agents-recouvrement;
+    stop
+  endif
+else (non)
+  :Afficher erreur "Agent non trouvé";
+  :Afficher bouton "Retour à la liste";
+endif
+
+note right
+  **Informations affichées** :
+  - Toutes les infos de l'agent
+  - Traçabilité (création, modification, désactivation)
+  - Actions selon statut (actif/inactif)
+  
+  **Notifications** (voir NotificationsAgent.puml) :
+  - Anniversaire aujourd'hui (badge festif)
+  - Carte d'identité expirée (alerte rouge)
+  - Carte expire bientôt (< 30 jours, alerte orange)
+end note
+
+@enduml

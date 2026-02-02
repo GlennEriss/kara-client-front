@@ -1,0 +1,66 @@
+@startuml SupprimerAgent
+title Workflow : Supprimer un agent de recouvrement (UC-AR-010)
+
+start
+
+:Admin clique "Supprimer" sur un agent dans la liste ou page détails;
+
+:Ouvrir SupprimerAgentModal :
+- Modal de confirmation (max-w-md)
+- Afficher infos de l'agent (nom, prénom);
+
+:Afficher avertissement **IRRÉVERSIBLE** :
+- "La suppression est **définitive et irréversible**"
+- "L'agent et toutes ses données seront supprimés de la base"
+- "Les versements déjà enregistrés avec cet agent garderont la référence (agentRecouvrementId) mais l'agent n'existera plus"
+- "Cette action ne peut pas être annulée";
+
+:Demander confirmation :
+- "Êtes-vous absolument sûr de vouloir supprimer cet agent ?";
+
+if (Admin clique "Confirmer la suppression" ?) then (oui)
+  :Hook useDeleteAgentRecouvrement :
+  - Service.deleteAgent(agentId);
+  
+  :Repository.delete() :
+  - Firestore.deleteDoc(agentsRecouvrement/agentId)
+  - **Suppression physique** du document;
+  
+  opt Photo existante
+    :Supprimer photo Storage :
+    - Storage.delete(photoPath) si photoPath présent;
+  end
+  
+  :Invalider cache :
+  - queryClient.invalidateQueries(['agentsRecouvrement']);
+  - queryClient.invalidateQueries(['agentsRecouvrementStats']);
+  
+  :Fermer le modal;
+  
+  :Afficher toast "Agent supprimé";
+  
+  :Mettre à jour la liste :
+  - Agent retiré de la liste;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Règle métier** : Suppression = deleteDoc Firestore
+  Action **irréversible**.
+  
+  **Impact** :
+  - Document agentsRecouvrement supprimé
+  - Photo Storage supprimée (si présente)
+  - Les versements (CreditPayment, VersementCI, etc.)
+    gardent agentRecouvrementId mais l'agent n'existe plus
+    (référence orpheline - à gérer en affichage)
+  
+  **Précaution** : Préférer désactiver plutôt que supprimer
+  pour conserver la traçabilité complète.
+end note
+
+@enduml

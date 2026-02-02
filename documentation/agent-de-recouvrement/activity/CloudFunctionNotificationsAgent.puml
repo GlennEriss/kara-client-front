@@ -1,0 +1,102 @@
+@startuml CloudFunctionNotificationsAgent
+title Workflow : Cloud Function – Notifications agents (anniversaire, pièce expirée)
+
+' Déclencheur : Job planifié quotidien (ex: 8h30 Africa/Libreville)
+' Référence : functions/src/scheduled/agentRecouvrementNotifications.ts
+
+start
+
+:Scheduler déclenche job quotidien (cron 8h30);
+
+:today = date du jour (sans heure);
+
+' ============================================
+' ANNIVERSAIRES (J-2, J, J+1)
+' ============================================
+partition "Anniversaires" {
+  :Récupérer tous les agents actifs avec dateNaissance valide :
+  - collection agentsRecouvrement
+  - actif == true
+  - dateNaissance != null;
+  
+  repeat
+    :Pour chaque agent;
+    :daysUntil = jours jusqu'au prochain anniversaire (jour+mois);
+    
+    if (daysUntil == 2 ?) then (oui)
+      :Créer notification J-2 "Anniversaire dans 2 jours" :
+      - module: 'agentsRecouvrement'
+      - type: 'birthday_reminder'
+      - metadata: agentId, nom, prenom, daysUntil: 2;
+    elseif (daysUntil == 0 ?) then (oui)
+      :Créer notification J "Anniversaire aujourd'hui" :
+      - type: 'birthday_reminder'
+      - metadata: agentId, nom, prenom, daysUntil: 0;
+    elseif (daysUntil == -1 ?) then (oui)
+      :Vérifier si notification J déjà créée hier;
+      if (Pas de notification J hier ?) then (oui)
+        :Créer notification J+1 "Anniversaire hier" (rattrapage);
+      endif
+    endif
+  repeat while (Agents restants ?)
+}
+
+' ============================================
+' PIÈCE D'IDENTITÉ (J-30, J-7, J, J+1)
+' ============================================
+partition "Pièce d'identité" {
+  :Récupérer tous les agents actifs avec pieceIdentite.dateExpiration valide :
+  - collection agentsRecouvrement
+  - actif == true
+  - pieceIdentite.dateExpiration != null;
+  
+  repeat
+    :Pour chaque agent;
+    :daysUntil = jours jusqu'à expiration (dateExpiration - today);
+    
+    if (daysUntil == 30 ?) then (oui)
+      :Créer notification J-30 "Pièce expire dans 30 jours";
+    elseif (daysUntil == 7 ?) then (oui)
+      :Créer notification J-7 "Pièce expire dans 7 jours";
+    elseif (daysUntil == 0 ?) then (oui)
+      :Créer notification J "Pièce expire aujourd'hui";
+    elseif (daysUntil == -1 ?) then (oui)
+      :Créer notification J+1 "Pièce expirée hier";
+    endif
+    
+    :Vérifier doublon (notification déjà créée pour ce jour + daysUntil);
+    if (Doublon ?) then (oui)
+      :Ignorer (éviter doublons);
+    endif
+  repeat while (Agents restants ?)
+}
+
+' ============================================
+' PERSISTANCE
+' ============================================
+:Notifications créées dans collection 'notifications';
+:Admin reçoit les notifications via useNotifications (centre de notifications);
+
+stop
+
+note right
+  **Règles anniversaire** (aligné birthdayNotifications) :
+  - J-2 : 2 jours avant
+  - J : jour même
+  - J+1 : rattrapage si J manqué
+  
+  **Règles pièce** (aligné vehicleInsuranceExpiring) :
+  - J-30 : 30 jours avant
+  - J-7 : 7 jours avant
+  - J : expire aujourd'hui
+  - J+1 : expirée hier
+  
+  **Collection** : notifications
+  **Module** : agentsRecouvrement
+  **Types** : birthday_reminder, id_card_expiring
+  
+  **Page détails** : affichage complémentaire (voir NotificationsAgent.puml)
+  La Cloud Function est la source principale des notifications.
+end note
+
+@enduml

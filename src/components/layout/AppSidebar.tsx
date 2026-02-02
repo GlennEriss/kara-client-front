@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin, FileText, CreditCard, Calendar, Calculator } from "lucide-react"
+import { Home, Settings, Users, Shield, LogOut, UserPlus, Briefcase, Building, Wallet, HeartHandshake, HandCoins, Car, ChevronDown, MapPin, FileText, CreditCard, Calendar, Calculator, UserCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
@@ -173,6 +173,11 @@ const systemMenuItems: any[] = [
         icon: Shield,
     },
     {
+        title: "Agents de recouvrement",
+        url: routes.admin.agentsRecouvrement,
+        icon: UserCheck,
+    },
+    {
         title: "Groupes",
         url: routes.admin.groups,
         icon: Users,
@@ -253,6 +258,9 @@ export function AppSidebar() {
             return pathname === url || pathname.startsWith(url + '/')
         }
         if (url === routes.admin.geographie) {
+            return pathname === url || pathname.startsWith(url + '/')
+        }
+        if (url === routes.admin.agentsRecouvrement) {
             return pathname === url || pathname.startsWith(url + '/')
         }
         // Cas particulier: Métiers/Entreprises (même page avec onglets différents)

@@ -1,0 +1,54 @@
+@startuml SEQ_ModifierAgent
+title Diagramme de séquence : Modifier un agent de recouvrement (UC-AR-003)
+
+actor Admin
+participant "Page\nAgents" as Page
+participant "EditAgentModal" as Modal
+participant "useAgentRecouvrement" as HookGet
+participant "useUpdateAgentRecouvrement" as HookUpdate
+participant "AgentRecouvrementService" as Service
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+Admin -> Page : clique "Modifier" sur un agent
+Page -> Modal : ouvrir modal (agentId)
+Modal -> HookGet : useAgentRecouvrement(agentId)
+HookGet -> Repo : getById(agentId)
+Repo -> DB : getDoc(agentsRecouvrement/agentId)
+DB --> Repo : doc
+Repo --> HookGet : AgentRecouvrement
+HookGet --> Modal : agentData
+
+Modal -> Modal : form.reset(agentData)
+Modal -> Admin : afficher formulaire pré-rempli (incl. photo si présente)
+
+Admin -> Modal : modifie les champs (+ photo si optionnel)
+Modal -> Modal : valider (agentRecouvrementSchema Zod)
+
+alt Validation KO
+    Modal -> Admin : afficher erreurs, bouton désactivé
+else Validation OK
+    Admin -> Modal : clique "Enregistrer"
+    Modal -> HookUpdate : updateAgent(agentId, formData, currentAdminId)
+    HookUpdate -> Service : updateAgent(agentId, formData, currentAdminId)
+    Service -> Repo : update(agentId, formData, currentAdminId)
+    
+    Repo -> Repo : recalculer searchableText* si nom/prénom/numéro modifiés
+    Repo -> Repo : recalculer birthMonth, birthDay si dateNaissance modifiée
+    opt Photo modifiée
+        Repo -> Repo : upload Storage agents-recouvrement/{agentId}/{fileName}
+        Repo -> Repo : supprimer ancienne photo (photoPath) si existante
+        Repo -> Repo : photoUrl, photoPath
+    end
+    Repo -> DB : updateDoc(agentsRecouvrement/agentId, { ...formData, birthMonth?, birthDay?, photoUrl?, photoPath?, updatedBy, updatedAt })
+    DB --> Repo : ok
+    Repo --> Service : void
+    Service --> HookUpdate : void
+    
+    HookUpdate -> HookUpdate : invalidateQueries(['agentsRecouvrement', 'agentRecouvrement', agentId, 'agentsRecouvrementStats'])
+    HookUpdate --> Modal : success
+    Modal -> Modal : fermer modal
+    Modal -> Admin : toast "Agent modifié avec succès"
+end
+
+@enduml

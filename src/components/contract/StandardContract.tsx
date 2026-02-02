@@ -295,7 +295,8 @@ export default function StandardContract({ id }: Props) {
         file: paymentData.proofFile,
         paidAt: new Date(`${paymentData.date}T${paymentData.time}`),
         time: paymentData.time,
-        mode: paymentData.mode
+        mode: paymentData.mode,
+        agentRecouvrementId: paymentData.agentRecouvrementId
       })
       await refetch()
       toast.success('Contribution enregistrée')

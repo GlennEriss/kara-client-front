@@ -23,6 +23,13 @@ package "Shared" <<Cloud>> {
     + type: DocumentType
     ...
   }
+  
+  class AgentRecouvrement {
+    + id: string
+    + nom: string
+    + prenom: string
+    ...
+  }
 }
 
 ' ============================================
@@ -123,6 +130,7 @@ class VersementCI {
   + daysLate?: number
   + supportRepaymentAmount?: number
   + supportRepaymentId?: string
+  + agentRecouvrementId?: string
   + createdAt: Date
   + createdBy: string
 }
@@ -414,6 +422,9 @@ EarlyRefundCI --> Document : references
 ' FinalRefundCI référence Document (via documentId)
 FinalRefundCI --> Document : references
 
+' VersementCI référence AgentRecouvrement (optionnel)
+VersementCI --> AgentRecouvrement : collected_by
+
 note right of ContractCI
   **Collection Firestore:** contractsCI
   Clé primaire: id
@@ -437,6 +448,12 @@ note right of SupportCI
   **Sous-collection:** contractsCI/{contractId}/supports
   Éligibilité: totalMonthsPaid >= 3 && !currentSupportId
   Remboursement déduit des 3 derniers mois
+end note
+
+note right of VersementCI
+  **Sous-collection:** contractsCI/{contractId}/payments
+  agentRecouvrementId: Agent ayant collecté le versement
+  Voir: documentation/agent-de-recouvrement/
 end note
 
 note right of CaisseImprevueDemand

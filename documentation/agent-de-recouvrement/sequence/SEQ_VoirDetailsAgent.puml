@@ -1,0 +1,56 @@
+@startuml SEQ_VoirDetailsAgent
+title Diagramme de séquence : Voir les détails d'un agent de recouvrement
+
+actor Admin
+participant "Page\nListe" as Liste
+participant "Page\nDétails" as Details
+participant "useAgentRecouvrement" as Hook
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+Admin -> Liste : clique "Voir détails" sur un agent
+Liste -> Details : rediriger vers /admin/agents-recouvrement/[id]
+
+Details -> Hook : useAgentRecouvrement(agentId)
+Hook -> Repo : getById(agentId)
+Repo -> DB : getDoc(agentsRecouvrement/agentId)
+DB --> Repo : doc
+
+alt Agent trouvé
+    Repo --> Hook : AgentRecouvrement
+    Hook --> Details : agentData
+    
+    == Notifications (voir SEQ_NotificationsAgent.puml) ==
+    Details -> Details : calculer : anniversaire aujourd'hui ? carte expirée ? expiration prochaine ?
+    alt Anniversaire aujourd'hui
+        Details -> Admin : afficher badge "Anniversaire aujourd'hui"
+    end
+    alt Carte expirée
+        Details -> Admin : afficher alerte "Carte d'identité expirée"
+    else Expiration prochaine (< 30j)
+        Details -> Admin : afficher alerte "Expiration prochaine"
+    end
+    
+    Details -> Admin : afficher zone Alertes (si notifications)
+    Details -> Admin : afficher infos personnelles, contacts, statut, traçabilité
+    Details -> Admin : afficher actions (Modifier, Désactiver, Retour)
+    
+    alt Admin clique "Modifier"
+        Admin -> Details : clique "Modifier"
+        Details -> Details : ouvrir EditAgentModal
+    else Admin clique "Désactiver"
+        Admin -> Details : clique "Désactiver"
+        Details -> Details : ouvrir DesactiverAgentModal
+    else Admin clique "Retour"
+        Admin -> Details : clique "Retour"
+        Details -> Liste : rediriger vers /admin/agents-recouvrement
+    end
+else Agent non trouvé
+    Repo --> Hook : null
+    Hook --> Details : undefined
+    Details -> Admin : afficher "Agent non trouvé" + bouton "Retour à la liste"
+    Admin -> Details : clique "Retour"
+    Details -> Liste : rediriger vers /admin/agents-recouvrement
+end
+
+@enduml
