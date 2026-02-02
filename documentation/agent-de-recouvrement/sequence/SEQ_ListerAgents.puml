@@ -1,0 +1,60 @@
+@startuml SEQ_ListerAgents
+title Diagramme de séquence : Lister les agents de recouvrement (UC-AR-001)
+
+actor Admin
+participant "Page\nAgents" as Page
+participant "useAgentsRecouvrementStats" as HookStats
+participant "useAgentsRecouvrement" as HookList
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+Admin -> Page : accède à /admin/agents-recouvrement
+
+== Chargement initial ==
+Page -> HookStats : useAgentsRecouvrementStats({})
+HookStats -> Repo : getAgentsStats()
+Repo -> DB : collection(agentsRecouvrement) + count queries
+DB --> Repo : total, totalActifs, totalInactifs, totalHommes, totalFemmes
+Repo --> HookStats : AgentsStats
+HookStats --> Page : stats (cache 2 min)
+Page -> Admin : afficher statistiques (cards/badges)
+
+Page -> HookList : useAgentsRecouvrement(filters)
+HookList -> Repo : getAgentsWithFilters(filters)
+Repo -> DB : query(agentsRecouvrement, actif, searchQuery, sortBy, sortOrder, limit, offset)
+DB --> Repo : docs
+Repo --> HookList : { items, total }
+HookList --> Page : { items, total } (cache 5 min)
+Page -> Admin : afficher liste (cards ou tableau) + pagination
+
+== Changement filtre / recherche / tri ==
+Admin -> Page : change onglet / badge / saisit recherche / change tri
+Page -> Page : filters.searchQuery / filters.actif / sortBy, sortOrder, page=1
+alt filters.actif == anniversaires
+  Page -> HookList : refetch(filters)
+  HookList -> Repo : getAgentsAnniversairesMois(mois_courant)
+  Repo -> DB : query(actif==true, birthMonth==mois, orderBy birthDay)
+  DB --> Repo : docs
+  Repo --> HookList : { items (triés par jour proche), total }
+else filters.actif != anniversaires
+  Page -> HookList : refetch(filters)
+  HookList -> Repo : getAgentsWithFilters(filters)
+  Repo -> DB : query(...)
+  DB --> Repo : docs
+  Repo --> HookList : { items, total }
+end
+HookList --> Page : nouvelles données
+Page -> Admin : afficher liste mise à jour
+
+== Pagination ==
+Admin -> Page : clique "Suivant" / "Précédent"
+Page -> Page : page = page ± 1
+Page -> HookList : refetch(filters avec nouvelle page)
+HookList -> Repo : getAgentsWithFilters(filters)
+Repo -> DB : query(...)
+DB --> Repo : docs
+Repo --> HookList : { items, total }
+HookList --> Page : données page N
+Page -> Admin : afficher liste page N
+
+@enduml

@@ -1,0 +1,67 @@
+@startuml SelectionnerAgentCaisse
+title Workflow : Sélectionner l'agent lors d'une contribution Caisse spéciale (UC-AR-006)
+
+start
+
+:Admin ouvre le formulaire/modal de paiement des contributions Caisse spéciale;
+
+:Charger la liste des agents actifs :
+- useAgentsRecouvrement({ actif: true })
+- Cache 5 min
+- Inclus dans le flux du paiement;
+
+:Afficher formulaire contribution :
+- Montant, Date, Heure, Mode
+- Preuve de paiement (si applicable)
+- **Select "Agent de recouvrement"** (nouveau champ);
+
+:Admin remplit les champs de la contribution;
+
+:Admin sélectionne l'agent de recouvrement :
+- Select avec liste des agents actifs
+- Affichage : Nom Prénom (ou Nom Prénom - Tel1);
+
+if (Agent sélectionné ?) then (oui)
+  :agentRecouvrementId stocké dans les données de la contribution;
+else (non)
+  :Champ optionnel ou obligatoire selon règle métier;
+  :Si obligatoire : bouton "Enregistrer" désactivé;
+endif
+
+:Admin clique "Enregistrer" / "Payer";
+
+:Valider formulaire :
+- Données contribution incluent agentRecouvrementId;
+
+if (Validation OK ?) then (oui)
+  :Appeler pay() dans caisse/mutations.ts :
+  - Paramètre agentRecouvrementId ajouté;
+  
+  :Créer contribution :
+  - IndividualPaymentContribution ou GroupPaymentContribution
+  - **agentRecouvrementId** inclus dans chaque contribution;
+  
+  :Repository.updatePayment() :
+  - Firestore : ajouter contribution au paiement
+  - agentRecouvrementId stocké dans contrib;
+  
+  :Contribution enregistrée avec traçabilité agent;
+  
+  :Fermer le modal / rafraîchir l'UI;
+  :Afficher toast "Paiement enregistré";
+  
+  stop
+else (non)
+  :Afficher erreurs de validation;
+  :Rester dans le formulaire;
+endif
+
+note right
+  **Contexte** : Formulaire paiement contributions
+  **Service** : src/services/caisse/mutations.ts pay()
+  **Champ** : agentRecouvrementId sur IndividualPaymentContribution
+  ou GroupPaymentContribution
+  **Entité** : src/services/caisse/types.ts
+end note
+
+@enduml

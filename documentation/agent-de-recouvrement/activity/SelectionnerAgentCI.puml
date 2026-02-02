@@ -1,0 +1,68 @@
+@startuml SelectionnerAgentCI
+title Workflow : Sélectionner l'agent lors d'un versement Caisse imprévue (UC-AR-007)
+
+start
+
+:Admin ouvre le formulaire de versement dans DailyCIContract;
+
+:Charger la liste des agents actifs :
+- useAgentsRecouvrement({ actif: true })
+- Cache 5 min
+- Inclus dans le flux du versement;
+
+:Afficher formulaire versement :
+- Date, Heure, Montant, Mode
+- Preuve de paiement
+- **Select "Agent de recouvrement"** (nouveau champ);
+
+:Admin remplit les champs du versement;
+
+:Admin sélectionne l'agent de recouvrement :
+- Select avec liste des agents actifs
+- Affichage : Nom Prénom (ou Nom Prénom - Tel1);
+
+if (Agent sélectionné ?) then (oui)
+  :versementData.agentRecouvrementId = agentId;
+  :agentRecouvrementId inclus dans VersementFormData;
+else (non)
+  :Champ optionnel ou obligatoire selon règle métier;
+  :Si obligatoire : bouton "Enregistrer" désactivé;
+endif
+
+:Admin clique "Enregistrer le versement";
+
+:Valider formulaire :
+- versementFormSchema inclut agentRecouvrementId;
+
+if (Validation OK ?) then (oui)
+  :Hook useCreateVersement :
+  - Service.createVersement(contractId, monthIndex, versementData, proofFile, userId);
+  
+  :Créer VersementCI :
+  - id, date, time, amount, mode
+  - proofUrl, proofPath
+  - **agentRecouvrementId** inclus dans VersementCI;
+  
+  :Repository.addVersement() :
+  - Firestore : sous-collection payments du contrat CI
+  - VersementCI stocké avec agentRecouvrementId;
+  
+  :Versement enregistré avec traçabilité agent;
+  
+  :Fermer le formulaire / rafraîchir l'UI;
+  :Afficher toast "Versement enregistré";
+  
+  stop
+else (non)
+  :Afficher erreurs de validation;
+  :Rester dans le formulaire;
+endif
+
+note right
+  **Contexte** : Formulaire versement DailyCIContract
+  **Service** : CaisseImprevueService.createVersement()
+  **Champ** : agentRecouvrementId sur VersementCI
+  **Entité** : src/types/types.ts VersementCI
+end note
+
+@enduml

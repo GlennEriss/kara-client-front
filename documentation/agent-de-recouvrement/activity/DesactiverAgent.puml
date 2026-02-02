@@ -1,0 +1,58 @@
+@startuml DesactiverAgent
+title Workflow : Désactiver un agent de recouvrement (UC-AR-004)
+
+start
+
+:Admin clique "Désactiver" sur un agent dans la liste;
+
+:Ouvrir DesactiverAgentModal :
+- Modal de confirmation
+- Afficher infos de l'agent (nom, prénom);
+
+:Afficher avertissement :
+- "L'agent ne sera plus disponible dans les selects de versement"
+- "L'historique des versements reste lié à l'agent (traçabilité)";
+
+:Demander confirmation :
+- "Êtes-vous sûr de vouloir désactiver cet agent ?";
+
+if (Admin clique "Confirmer" ?) then (oui)
+  :Hook useDeactivateAgentRecouvrement :
+  - Service.deactivateAgent(agentId, currentAdminId);
+  
+  :Repository.update() :
+  - Firestore.updateDoc()
+  - actif = false
+  - **updatedBy** = currentAdminId (admin désactivateur, traçabilité)
+  - **updatedAt** = now() (date/heure de désactivation);
+  
+  note right
+    **Règle métier** : Désactivation = actif = false
+    Pas de suppression physique.
+    L'historique des versements reste lié
+    à l'agent (traçabilité).
+    
+    **Traçabilité** :
+    - updatedBy : ID de l'admin qui a désactivé l'agent
+    - updatedAt : Date/heure de désactivation
+  end note
+  
+  :Invalider cache :
+  - queryClient.invalidateQueries(['agentsRecouvrement']);
+  - queryClient.invalidateQueries(['agentsRecouvrementStats']);
+  
+  :Fermer le modal;
+  
+  :Afficher toast "Agent désactivé";
+  
+  :Mettre à jour la liste :
+  - Agent retiré des selects (filtre actif = true)
+  - Agent disparaît de la liste (ou affiché avec badge "Inactif");
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+@enduml

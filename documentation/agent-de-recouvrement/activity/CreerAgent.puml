@@ -1,0 +1,93 @@
+@startuml CreerAgent
+title Workflow : Créer un agent de recouvrement (UC-AR-002)
+
+start
+
+:Admin clique "Nouvel agent" sur la page agents-recouvrement;
+
+:Ouvrir CreateAgentModal :
+- Modal responsive (max-w-2xl)
+- Formulaire avec tous les champs;
+
+:Afficher formulaire :
+- Nom (obligatoire)
+- Prénom (obligatoire)
+- Sexe (obligatoire) : Homme | Femme
+- **Pièce d'identité** (obligatoire) :
+  * Type : Passport | CNI | Carte scolaire | Carte étrangère | Carte consulaire
+  * Numéro (obligatoire)
+  * Date de délivrance (obligatoire)
+  * Date d'expiration (obligatoire)
+- Date de naissance (obligatoire)
+- Lieu de naissance (obligatoire)
+- Tel1 (obligatoire)
+- Tel2 (optionnel)
+- **Photo** (optionnel) : upload image (jpeg, png, webp, max 5 MB);
+
+:Admin saisit les informations;
+
+:Valider formulaire avec agentRecouvrementSchema (Zod);
+
+if (Validation OK ?) then (oui)
+  :Bouton "Créer" activé;
+else (non)
+  :Afficher erreurs de validation;
+  :Bouton "Créer" désactivé;
+  stop
+endif
+
+if (Admin clique "Créer" ?) then (oui)
+  :Hook useCreateAgentRecouvrement :
+  - Service.createAgent(data, currentAdminId);
+  
+  :Repository.create() :
+  - Firestore.addDoc() collection agentsRecouvrement
+  - actif = true
+  - **searchableTextLastNameFirst**, **searchableTextFirstNameFirst**, **searchableTextNumeroFirst** (recherche nom/prénom/numéro/tel)
+  - **birthMonth**, **birthDay** (dérivés de dateNaissance, pour tab Anniversaires)
+  - **photoUrl** (optionnel) : URL Storage agents-recouvrement/{agentId}/{fileName}
+  - **photoPath** (optionnel) : chemin Storage pour suppression
+  - **createdBy** = currentAdminId (admin créateur, traçabilité)
+  - **createdAt** = now() (date de création)
+  - **updatedAt** = now() (date de mise à jour);
+  
+  :Invalider cache :
+  - queryClient.invalidateQueries(['agentsRecouvrement']);
+  - queryClient.invalidateQueries(['agentsRecouvrementStats']);
+  
+  :Fermer le modal;
+  
+  :Afficher toast "Agent créé avec succès";
+  
+  :Mettre à jour la liste :
+  - Agent disponible dans les selects de versement;
+  
+  stop
+elseif (Admin clique "Annuler" ?) then (oui)
+  :Fermer le modal;
+  stop
+endif
+
+note right
+  **Champs obligatoires** :
+  - Nom, Prénom, Sexe (M/F)
+  - Pièce d'identité : type, numéro, date délivrance, date expiration
+  - Date de naissance, Lieu de naissance
+  - Tel1
+  
+  **Champs optionnels** :
+  - Tel2
+  - Photo (upload Storage agents-recouvrement/{agentId}/{fileName})
+  
+  **Traçabilité** :
+  - createdBy : ID de l'admin qui a créé l'agent
+  - createdAt : Date/heure de création
+  - updatedAt : Date/heure de mise à jour
+  
+  **Postconditions** :
+  - Agent créé avec actif = true
+  - Agent disponible dans les selects
+  (Crédit spéciale, Caisse spéciale, Caisse imprévue)
+end note
+
+@enduml

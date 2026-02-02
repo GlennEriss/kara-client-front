@@ -59,6 +59,7 @@ Documentation spécifique à chaque module :
 - `credit-speciale/` - Module crédit spéciale (141 fichiers)
 - `caisse-imprevue/` - Module caisse imprévue
 - `caisse-speciale/` - Module caisse spéciale
+- `agent-de-recouvrement/` - Agent de recouvrement (traçabilité des collectes)
 - `calendrier/` - Module calendrier
 - `notifications/` - Module notifications
 - `vehicule/` - Module véhicules

@@ -22,6 +22,7 @@ documentation/uml/
 │   ├── CLASSES_PLACEMENT.puml       # Module Placement
 │   ├── CLASSES_BIENFAITEUR.puml     # Module Bienfaiteur
 │   ├── CLASSES_VEHICULE.puml        # Module Véhicule
+│   ├── CLASSES_AGENTS_RECOUVREMENT.puml  # Module Agents de Recouvrement
 │   ├── CLASSES_GEOGRAPHIE.puml      # Infrastructure Géographie (V2)
 │   ├── CLASSES_AUTH.puml            # Authentification
 │   ├── CLASSES_SHARED.puml          # Classes partagées (User, Notification, etc.)
@@ -78,19 +79,26 @@ documentation/uml/
 - **Use cases** : Gérer véhicules, créer assurances
 - **Collections Firestore** : `vehicles`, `vehicleInsurances`
 
-### 8. Infrastructure — Géographie
+### 8. Infrastructure — Agents de Recouvrement
+- **Diagramme de classes** : `classes/CLASSES_AGENTS_RECOUVREMENT.puml`
+- **Use cases** : Lister, créer, modifier, désactiver agents ; sélectionner agent lors des versements (Crédit, Caisse Spéciale, Caisse Imprévue)
+- **Collections Firestore** : `agentsRecouvrement`
+- **Storage** : `agents-recouvrement/{agentId}/{fileName}` (photos)
+- **Documentation** : `../agent-de-recouvrement/`
+
+### 9. Infrastructure — Géographie
 - **Diagramme de classes** : `classes/CLASSES_GEOGRAPHIE.puml`
 - **Use cases** : Gérer provinces, départements, communes, districts, quarters
 - **Collections Firestore** : `provinces`, `departments`, `communes`, `districts`, `quarters`
 
-### 9. Infrastructure — Shared
+### 10. Infrastructure — Shared
 - **Diagramme de classes** : `classes/CLASSES_SHARED.puml`
 - **Entités partagées** : `User`, `Document`, `Notification`, référentiels (companies, professions)
 - **Services** : `NotificationService`, `NotificationRepository`
 - **Hooks** : `useNotifications`, `useUnreadCount`, `useMarkNotificationAsRead`, etc.
 - **Collections Firestore** : `users`, `documents`, `companies`, `professions`, `notifications`
 
-### 10. Infrastructure — Cloud Functions
+### 11. Infrastructure — Cloud Functions
 - **Diagramme de classes** : `classes/CLASSES_CLOUD_FUNCTIONS.puml`
 - **Fonctions Callable** : `approveMembershipRequest`, `deleteMembershipRequest`, `verifySecurityCode`, `submitCorrections`, `renewSecurityCode`, `syncToAlgolia`
 - **Fonctions Scheduled (Cron)** :
@@ -101,6 +109,7 @@ documentation/uml/
   - Caisse Imprévue : `dailyCIPaymentDue` (10:00), reminders (11:00, 11:30)
   - Caisse Spéciale : reminders (09:00, 10:00)
   - Véhicule : `dailyVehicleInsuranceExpiring` (10:30)
+  - Agents de Recouvrement : `dailyAgentRecouvrementNotifications` (08:30)
 - **Documentation** : `../functions/README.md`
 
 ---
@@ -193,6 +202,7 @@ plantuml documentation/uml/classes/CLASSES_*.puml
 - [x] `classes/CLASSES_PLACEMENT.puml` - Classes Placement
 - [x] `classes/CLASSES_BIENFAITEUR.puml` - Classes Bienfaiteur
 - [x] `classes/CLASSES_VEHICULE.puml` - Classes Véhicule
+- [x] `classes/CLASSES_AGENTS_RECOUVREMENT.puml` - Classes Agents de Recouvrement
 - [x] `classes/CLASSES_GEOGRAPHIE.puml` - Classes Géographie (V2 avec Hooks + Combobox)
 - [x] `classes/CLASSES_AUTH.puml` - Classes Authentification
 - [x] `classes/CLASSES_CLOUD_FUNCTIONS.puml` - **NEW** Cloud Functions (Callable + Scheduled)
@@ -200,7 +210,7 @@ plantuml documentation/uml/classes/CLASSES_*.puml
 
 ### 📅 Dernière mise à jour
 
-- **2025-01-22** : Mise à jour de CLASSES_GEOGRAPHIE.puml (ajout hooks, combobox, repository)
+- **2025-02-02** : Création de CLASSES_AGENTS_RECOUVREMENT.puml ; mise à jour CLASSES_CREDIT_SPECIALE, CLASSES_CAISSE_SPECIALE, CLASSES_CAISSE_IMPREVUE, CLASSES_CLOUD_FUNCTIONS (agentRecouvrementId)
 - **2025-01-22** : Mise à jour de CLASSES_SHARED.puml (ajout NotificationService, hooks notifications)
 - **2025-01-22** : Création de CLASSES_CLOUD_FUNCTIONS.puml (callable + scheduled functions)
 

@@ -1,0 +1,44 @@
+@startuml SEQ_SelectionnerAgentCI
+title Diagramme de séquence : Sélectionner l'agent lors d'un versement Caisse imprévue (UC-AR-007)
+
+actor Admin
+participant "Formulaire\nVersement" as Form
+participant "useAgentsRecouvrement" as HookAgents
+participant "useCreateVersement" as HookVersement
+participant "CaisseImprevueService" as Service
+participant "Repository" as Repo
+database "Firestore" as DB
+
+Admin -> Form : ouvre formulaire versement DailyCIContract
+Form -> HookAgents : useAgentsRecouvrement({ actif: true })
+HookAgents -> Repo : getAgentsWithFilters({ actif: true })
+Repo -> DB : query(agentsRecouvrement, actif == true)
+DB --> Repo : agents actifs
+Repo --> HookAgents : { items }
+HookAgents --> Form : liste agents actifs (cache 5 min)
+
+Form -> Admin : afficher formulaire versement + select "Agent de recouvrement"
+Note right of Form : Options du select : Nom Prénom - Tel1\n(ou Nom Prénom si tel absent)\npour chaque agent actif
+
+Admin -> Form : remplit champs + sélectionne agent
+Form -> Form : versementData.agentRecouvrementId = agentId
+
+Admin -> Form : clique "Enregistrer le versement"
+Form -> Form : valider (versementFormSchema)
+
+alt Validation KO
+    Form -> Admin : afficher erreurs
+else Validation OK
+    Form -> HookVersement : createVersement(contractId, monthIndex, versementData, proofFile, userId)
+    HookVersement -> Service : createVersement(...)
+    Service -> Repo : addVersement(contractId, monthIndex, VersementCI avec agentRecouvrementId)
+    Repo -> DB : addDoc(contrat/payments, { ...versement, agentRecouvrementId })
+    DB --> Repo : docRef
+    Repo --> Service : VersementCI
+    Service --> HookVersement : success
+    HookVersement --> Form : success
+    Form -> Form : fermer formulaire / rafraîchir UI
+    Form -> Admin : toast "Versement enregistré"
+end
+
+@enduml

@@ -1,0 +1,44 @@
+@startuml SEQ_CreerAgent
+title Diagramme de séquence : Créer un agent de recouvrement (UC-AR-002)
+
+actor Admin
+participant "Page\nAgents" as Page
+participant "CreateAgentModal" as Modal
+participant "useCreateAgentRecouvrement" as Hook
+participant "AgentRecouvrementService" as Service
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+Admin -> Page : clique "Nouvel agent"
+Page -> Modal : ouvrir modal
+Modal -> Admin : afficher formulaire (nom, prénom, sexe, pièce d'identité..., photo optionnelle)
+
+Admin -> Modal : saisit les informations (+ upload photo si optionnel)
+Modal -> Modal : valider (agentRecouvrementSchema Zod)
+
+alt Validation KO
+    Modal -> Admin : afficher erreurs, bouton désactivé
+else Validation OK
+    Admin -> Modal : clique "Créer"
+    Modal -> Hook : createAgent(data, currentAdminId)
+    Hook -> Service : createAgent(data, currentAdminId)
+    Service -> Repo : create(data, currentAdminId)
+    
+    Repo -> Repo : générer searchableTextLastNameFirst, searchableTextFirstNameFirst, searchableTextNumeroFirst
+    Repo -> Repo : calculer birthMonth (1-12), birthDay (1-31) depuis dateNaissance
+    opt Photo fournie
+        Repo -> Repo : upload Storage agents-recouvrement/{agentId}/{fileName}
+        Repo -> Repo : photoUrl, photoPath
+    end
+    Repo -> DB : addDoc(agentsRecouvrement, { ...data, actif: true, birthMonth?, birthDay?, photoUrl?, photoPath?, createdBy, createdAt, updatedAt })
+    DB --> Repo : docRef
+    Repo --> Service : AgentRecouvrement
+    Service --> Hook : AgentRecouvrement
+    
+    Hook -> Hook : invalidateQueries(['agentsRecouvrement', 'agentsRecouvrementStats'])
+    Hook --> Modal : success
+    Modal -> Modal : fermer modal
+    Modal -> Admin : toast "Agent créé avec succès"
+end
+
+@enduml

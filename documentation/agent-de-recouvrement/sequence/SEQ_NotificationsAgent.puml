@@ -1,0 +1,53 @@
+@startuml SEQ_NotificationsAgent
+title Diagramme de séquence : Notifications sur la page détails agent (anniversaire, carte expirée)
+
+actor Admin
+participant "Page\nDétails Agent" as Details
+participant "useAgentRecouvrement" as Hook
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+== Chargement de l'agent ==
+Admin -> Details : accède à /admin/agents-recouvrement/[id]
+Details -> Hook : useAgentRecouvrement(agentId)
+Hook -> Repo : getById(agentId)
+Repo -> DB : getDoc(agentsRecouvrement/agentId)
+DB --> Repo : doc
+Repo --> Hook : AgentRecouvrement
+Hook --> Details : agentData
+
+== Calcul des notifications (côté client) ==
+Details -> Details : today = new Date() (jour actuel)
+Details -> Details : extraire dateNaissance, pieceIdentite.dateExpiration
+
+== Notification Anniversaire ==
+Details -> Details : isBirthdayToday = (jour+mois dateNaissance) == (jour+mois today)
+alt Anniversaire aujourd'hui
+    Details -> Admin : afficher badge "Anniversaire aujourd'hui"
+    Details -> Admin : message "C'est l'anniversaire de [Nom Prénom] aujourd'hui !"
+else Pas d'anniversaire
+    Details -> Details : pas de notification anniversaire
+end
+
+== Notification Carte d'identité ==
+Details -> Details : isExpired = dateExpiration < today
+Details -> Details : expiresSoon = dateExpiration dans [today, today+30j]
+
+alt Carte expirée
+    Details -> Admin : afficher alerte "Carte d'identité expirée"
+    Details -> Admin : message "La pièce a expiré le [date]" + suggestion "Modifier"
+else Expiration prochaine (< 30 jours)
+    Details -> Admin : afficher alerte "Expiration prochaine"
+    Details -> Admin : message "La pièce expire le [date] (dans X jours)"
+else Carte valide
+    Details -> Details : pas de notification carte
+end
+
+== Affichage final ==
+Details -> Admin : afficher zone Alertes (si au moins une notification)
+Details -> Admin : afficher sections Infos personnelles, Contacts, Statut, Traçabilité
+Details -> Admin : afficher actions (Modifier, Désactiver, Retour)
+
+Note over Details : Priorité : Carte expirée > Expiration prochaine > Anniversaire
+
+@enduml

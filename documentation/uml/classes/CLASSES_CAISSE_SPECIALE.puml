@@ -29,6 +29,13 @@ package "Shared" <<Cloud>> {
     + name: string
     ...
   }
+  
+  class AgentRecouvrement {
+    + id: string
+    + nom: string
+    + prenom: string
+    ...
+  }
 }
 
 ' ============================================
@@ -216,11 +223,16 @@ User "1" --> "*" CaisseSpecialeDemand : creates_demands
 ' CaisseSpecialeDemand référence Group (optionnel, agrégation)
 Group "1" --> "*" CaisseSpecialeDemand : creates_demands
 
+' CaisseContract payments/contributions référencent AgentRecouvrement
+CaisseContract ..> AgentRecouvrement : contributions_collected_by
+
 note right of CaisseContract
   **Collection Firestore:** caisse-contracts
   Clé primaire: id
   Index sur: memberId, groupeId, status, contractStartAt
   Note: Les paiements sont dans un tableau payments
+  Les contributions (IndividualPaymentContribution, GroupPaymentContribution)
+  incluent agentRecouvrementId (voir CLASSES_AGENTS_RECOUVREMENT)
   Les remboursements sont dans un tableau refunds
 end note
 

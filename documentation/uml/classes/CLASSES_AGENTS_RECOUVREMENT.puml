@@ -1,0 +1,238 @@
+@startuml CLASSES_AGENTS_RECOUVREMENT
+skinparam packageStyle rectangle
+skinparam class {
+  BackgroundColor LightGoldenRodYellow
+  BorderColor DarkBlue
+  ArrowColor DarkBlue
+}
+
+title Diagramme de Classes - Module Agents de Recouvrement
+
+' ============================================
+' RÉFÉRENCE AUX CLASSES PARTAGÉES
+' ============================================
+package "Shared" <<Cloud>> {
+  class Admin {
+    + id: string
+    + role: AdminRole
+    ...
+  }
+  
+  class Document {
+    + id: string
+    + type: DocumentType
+    ...
+  }
+}
+
+' ============================================
+' CLASSE : AGENT_RECOUVREMENT
+' ============================================
+class AgentRecouvrement {
+  + id: string
+  + nom: string
+  + prenom: string
+  + sexe: Sexe
+  + pieceIdentite: PieceIdentite
+  + dateNaissance: Date
+  + birthMonth?: number
+  + birthDay?: number
+  + lieuNaissance: string
+  + tel1: string
+  + tel2?: string
+  + photoUrl?: string
+  + photoPath?: string
+  + actif: boolean
+  + searchableTextLastNameFirst: string
+  + searchableTextFirstNameFirst: string
+  + searchableTextNumeroFirst: string
+  + createdBy: string
+  + createdAt: Date
+  + updatedBy?: string
+  + updatedAt: Date
+}
+
+' ============================================
+' CLASSE : PIECE_IDENTITE (Composition)
+' ============================================
+class PieceIdentite {
+  + type: PieceIdentiteType
+  + numero: string
+  + dateDelivrance: Date
+  + dateExpiration: Date
+}
+
+' ============================================
+' TYPES ENUMERÉS
+' ============================================
+enum Sexe {
+  M
+  F
+}
+
+enum PieceIdentiteType {
+  Passport
+  CNI
+  Carte scolaire
+  Carte étrangère
+  Carte consulaire
+}
+
+' ============================================
+' ARCHITECTURE DOMAINS
+' ============================================
+package "domains/agents-recouvrement" {
+  class AgentRecouvrementService {
+    + createAgent(data, adminId): Promise<AgentRecouvrement>
+    + updateAgent(agentId, data, adminId): Promise<void>
+    + deactivateAgent(agentId, adminId): Promise<void>
+    + deleteAgent(agentId): Promise<void>
+    + getAgentById(agentId): Promise<AgentRecouvrement | null>
+    + getAgentsWithFilters(filters): Promise<{ items, total }>
+    + getAgentsAnniversairesMois(mois: number): Promise<{ items, total }>
+    + getAgentsStats(): Promise<AgentsStats>
+  }
+
+  class AgentRecouvrementRepository {
+    + create(data, adminId): Promise<AgentRecouvrement>
+    + update(agentId, data, adminId): Promise<void>
+    + delete(agentId): Promise<void>
+    + getById(agentId): Promise<AgentRecouvrement | null>
+    + getAgentsWithFilters(filters): Promise<{ items, total }>
+    + getAgentsAnniversairesMois(mois: number): Promise<{ items, total }>
+    + getAgentsStats(): Promise<AgentsStats>
+  }
+
+  class useAgentsRecouvrement <<hook>> {
+    + filters: AgentsFilters
+    + data: { items, total }
+    + isLoading: boolean
+    + useQuery(['agentsRecouvrement', filters])
+  }
+
+  class useAgentRecouvrement <<hook>> {
+    + agentId: string
+    + data: AgentRecouvrement | undefined
+    + isLoading: boolean
+    + useQuery(['agentRecouvrement', agentId])
+  }
+
+  class useAgentsRecouvrementStats <<hook>> {
+    + data: AgentsStats | undefined
+    + useQuery(['agentsRecouvrementStats'])
+  }
+
+  class useCreateAgentRecouvrement <<hook>> {
+    + createAgent(data): void
+    + mutateAsync(data)
+  }
+
+  class useUpdateAgentRecouvrement <<hook>> {
+    + updateAgent(agentId, data): void
+    + mutateAsync(agentId, data)
+  }
+
+  class useDeactivateAgentRecouvrement <<hook>> {
+    + deactivateAgent(agentId): void
+    + mutateAsync(agentId)
+  }
+
+  class useDeleteAgentRecouvrement <<hook>> {
+    + deleteAgent(agentId): void
+    + mutateAsync(agentId)
+  }
+}
+
+' ============================================
+' RELATIONS INTERNES
+' ============================================
+
+AgentRecouvrement *-- PieceIdentite : has
+
+AgentRecouvrementService ..> AgentRecouvrementRepository : uses
+useAgentsRecouvrement ..> AgentRecouvrementService : uses
+useAgentRecouvrement ..> AgentRecouvrementService : uses
+useAgentsRecouvrementStats ..> AgentRecouvrementService : uses
+useCreateAgentRecouvrement ..> AgentRecouvrementService : uses
+useUpdateAgentRecouvrement ..> AgentRecouvrementService : uses
+useDeactivateAgentRecouvrement ..> AgentRecouvrementService : uses
+useDeleteAgentRecouvrement ..> AgentRecouvrementService : uses
+
+' ============================================
+' RELATIONS AVEC AUTRES MODULES
+' ============================================
+
+' CreditPayment référence AgentRecouvrement (Crédit Spéciale)
+package "Crédit Spéciale" <<Frame>> {
+  class CreditPayment {
+    + id: string
+    + creditId: string
+    + amount: number
+    + agentRecouvrementId?: string
+    ...
+  }
+}
+
+' VersementCI référence AgentRecouvrement (Caisse Imprévue)
+package "Caisse Imprévue" <<Frame>> {
+  class VersementCI {
+    + id: string
+    + amount: number
+    + agentRecouvrementId?: string
+    ...
+  }
+}
+
+' PaymentContribution référence AgentRecouvrement (Caisse Spéciale)
+package "Caisse Spéciale" <<Frame>> {
+  class PaymentContribution {
+    + amount: number
+    + agentRecouvrementId?: string
+    ...
+  }
+}
+
+CreditPayment --> AgentRecouvrement : collected_by
+VersementCI --> AgentRecouvrement : collected_by
+PaymentContribution --> AgentRecouvrement : collected_by
+
+' Admin crée/modifie AgentRecouvrement
+Admin "1" --> "*" AgentRecouvrement : manages
+
+' AgentRecouvrement référence Document (via photoUrl)
+AgentRecouvrement --> Document : photo_references
+
+' ============================================
+' NOTES
+' ============================================
+
+note right of AgentRecouvrement
+  **Collection Firestore:** agentsRecouvrement
+  Clé primaire: id
+  Index: actif, searchableText*, nom, createdAt, dateNaissance, birthMonth, birthDay
+  Storage: agents-recouvrement/{agentId}/{fileName} (photo)
+  
+  **Recherche:** 3 champs dénormalisés
+  - searchableTextLastNameFirst
+  - searchableTextFirstNameFirst
+  - searchableTextNumeroFirst
+end note
+
+note right of PieceIdentite
+  **Types:** Passport, CNI, Carte scolaire,
+  Carte étrangère, Carte consulaire
+  **Notifications:** Cloud Function J-30, J-7, J, J+1
+end note
+
+note bottom of AgentRecouvrement
+  **Utilisé dans:**
+  - Crédit Spéciale: CreditPaymentModal
+  - Caisse Spéciale: pay() contributions
+  - Caisse Imprévue: createVersement()
+  
+  **Notifications Cloud Function:**
+  - Anniversaire: J-2, J, J+1
+  - Pièce expirée: J-30, J-7, J, J+1
+end note
+
+@enduml

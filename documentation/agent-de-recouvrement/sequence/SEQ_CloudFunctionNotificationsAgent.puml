@@ -1,0 +1,61 @@
+@startuml SEQ_CloudFunctionNotificationsAgent
+title Diagramme de séquence : Cloud Function – Notifications agents (anniversaire, pièce expirée)
+
+participant "Scheduler\n(cron 8h30)" as Scheduler
+participant "agentRecouvrementNotifications" as CF
+participant "Firestore\nagentsRecouvrement" as DB_Agents
+participant "Firestore\nnotifications" as DB_Notif
+participant "Admin\n(centre notifs)" as Admin
+
+== Déclenchement ==
+Scheduler -> CF : déclenche job quotidien
+CF -> CF : today = new Date() (sans heure)
+
+== Anniversaires ==
+CF -> DB_Agents : query(actif == true, dateNaissance != null)
+DB_Agents --> CF : agents[]
+
+loop Pour chaque agent
+    CF -> CF : daysUntil = jours jusqu'au prochain anniversaire
+    alt daysUntil == 2 (J-2)
+        CF -> DB_Notif : addDoc(notification birthday_reminder, daysUntil: 2)
+        DB_Notif --> CF : ok
+    else daysUntil == 0 (J)
+        CF -> DB_Notif : addDoc(notification birthday_reminder, daysUntil: 0)
+        DB_Notif --> CF : ok
+    else daysUntil == -1 (J+1 rattrapage)
+        CF -> DB_Notif : vérifier si notification J créée hier
+        DB_Notif --> CF : résultat
+        alt Pas de notification J hier
+            CF -> DB_Notif : addDoc(notification birthday_reminder, daysUntil: -1)
+            DB_Notif --> CF : ok
+        end
+    end
+end
+
+== Pièce d'identité ==
+CF -> DB_Agents : query(actif == true, pieceIdentite.dateExpiration != null)
+DB_Agents --> CF : agents[]
+
+loop Pour chaque agent
+    CF -> CF : daysUntil = (dateExpiration - today) en jours
+    alt daysUntil == 30 (J-30)
+        CF -> DB_Notif : addDoc(notification id_card_expiring, daysUntil: 30)
+    else daysUntil == 7 (J-7)
+        CF -> DB_Notif : addDoc(notification id_card_expiring, daysUntil: 7)
+    else daysUntil == 0 (J)
+        CF -> DB_Notif : addDoc(notification id_card_expiring, daysUntil: 0)
+    else daysUntil == -1 (J+1)
+        CF -> DB_Notif : addDoc(notification id_card_expiring, daysUntil: -1)
+    end
+    DB_Notif --> CF : ok
+end
+
+== Réception par l'admin ==
+Admin -> DB_Notif : useNotifications (query module == 'agentsRecouvrement')
+DB_Notif --> Admin : notifications
+Admin -> Admin : afficher dans centre de notifications
+
+Note over CF, DB_Notif : Vérification doublons avant création\n(notificationDate + daysUntil + agentId)
+
+@enduml

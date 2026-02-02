@@ -1,0 +1,107 @@
+@startuml RechercherAgents
+title Workflow : Rechercher les agents de recouvrement (UC-AR-001)
+' IMPORTANT : Recherche COMBINÉE avec filtres actifs + résultats PAGINÉS
+
+start
+
+:Admin accède à la liste des agents (/admin/agents-recouvrement);
+
+:Afficher champ de recherche :
+- Placeholder : "Rechercher par nom, prénom, numéro pièce ou téléphone..."
+- Icône loupe
+- Bouton effacer (X) si texte saisi;
+
+:searchQuery = '';
+:filters = état actuel (actif, sortBy, sortOrder);
+
+' ============================================
+' SAISIE RECHERCHE
+' ============================================
+:Admin tape dans le champ (ex: "Jean", "1234567890", "AB123456");
+
+:Debounce 300ms :
+- Éviter requêtes à chaque frappe
+- Attendre fin de saisie;
+
+:Normaliser la requête :
+- toLowerCase()
+- trim()
+- (query || '').toLowerCase() pour éviter TypeError;
+
+if (query.length >= 2 ?) then (oui)
+  :Lancer recherche;
+else (non)
+  :Afficher message "Minimum 2 caractères";
+  :Ne pas lancer de requête;
+  stop
+endif
+
+' ============================================
+' RECHERCHE COMBINÉE AVEC FILTRES ACTIFS
+' ============================================
+:filters.searchQuery = query normalisée;
+:page = 1 (reset pagination à chaque recherche);
+
+:getAgentsWithFilters(filters) :
+- filters inclut : searchQuery + actif + sortBy + sortOrder
+- La recherche s'APPLIQUE EN PLUS des filtres déjà sélectionnés
+- Exemple : onglet Actifs + recherche "Jean" = agents actifs dont nom/prénom/numéro pièce/tel contient "Jean";
+
+:Repository applique TOUS les critères :
+- Filtre actif (actifs / tous / inactifs)
+- Recherche nom, prénom, numéro pièce, tel1, tel2
+- Tri (sortBy, sortOrder)
+- Pagination (page, limit);
+
+:Retourne { items: AgentRecouvrement[] (page 1), total: number };
+
+' ============================================
+' STRATÉGIE DE RECHERCHE
+' ============================================
+note right
+  **Attributs de recherche** (obligatoires) :
+  - searchableTextLastNameFirst = "nom prenom numero tel1 tel2" (recherche par nom)
+  - searchableTextFirstNameFirst = "prenom nom numero tel1 tel2" (recherche par prénom)
+  - searchableTextNumeroFirst = "numero tel1 tel2 nom prenom" (recherche par numéro pièce ou téléphone)
+  - 3 requêtes parallèles → fusion + déduplication (getPaginatedWithSearchMerge)
+  
+  **Options Firestore** :
+  - Champ dénormalisé searchableText
+  - Ou requêtes sur plusieurs champs
+  - Préfixe / contains selon index
+end note
+
+' ============================================
+' AFFICHAGE RÉSULTATS PAGINÉS
+' ============================================
+:Afficher résultats PAGINÉS :
+- "Affichage 1-12 sur X" (si total > limit)
+- Boutons Précédent / Suivant
+- Page 1 sur Y;
+
+:Afficher message "X résultat(s) pour '[query]'" (total);
+
+:Scroll vers le haut;
+
+' ============================================
+' EFFACER RECHERCHE
+' ============================================
+if (Admin clique X ou efface le champ ?) then (oui)
+  :searchQuery = '';
+  :filters.searchQuery = '';
+  :page = 1 (reset);
+  :Refetch PAGINÉ : getAgentsWithFilters(filters sans searchQuery, page=1, limit);
+  :Retourne { items, total };
+  :Afficher liste (filtres restants conservés, paginée);
+endif
+
+note right
+  **Points clés** :
+  - Recherche COMBINÉE avec filtres actifs (onglet Actifs/Tous/Inactifs)
+  - Résultats TOUJOURS paginés { items, total }
+  - page = 1 à chaque nouvelle recherche
+  - Minimum 2 caractères pour lancer la recherche
+  - (query || '').toLowerCase() pour éviter TypeError
+end note
+
+@enduml

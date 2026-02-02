@@ -1,0 +1,193 @@
+@startuml ListerAgents
+title Workflow : Lister les agents de recouvrement (UC-AR-001)
+
+start
+
+:Admin accède à /admin/agents-recouvrement;
+
+' ============================================
+' STATISTIQUES EN PREMIER (voir StatsAgents.puml)
+' ============================================
+:Charger les statistiques GLOBALES :
+- useAgentsRecouvrementStats({})
+- Cache 2 min
+- Stats : Total, Actifs, Inactifs, Hommes, Femmes;
+
+:Afficher les statistiques EN PREMIER (cards/badges);
+
+:Initialisation :
+- filters = { actif: 'actifs', page: 1, limit: 12 }
+- sortBy = 'nom', sortOrder = 'asc'
+- searchQuery = ''
+- **viewMode = 'card'** (défaut : affichage en cards);
+
+:Afficher barre de filtres :
+- **Onglets** : Actifs | Tous | Inactifs | **Anniversaires du mois**
+  - Mobile/Tablette : badges cliquables dans carousel (StatusFilterBadgesCarousel-like)
+  - Desktop : TabsList classique
+- Champ recherche (nom, prénom, numéro pièce, tel)
+- Tri : Nom A-Z / Z-A, Date création
+- **Toggle vue : Cards | Liste** (défaut : Cards);
+
+:Charger la liste des agents :
+- useAgentsRecouvrement(filters)
+- Hook React Query
+- Repository retourne { items[], total } pour pagination;
+
+if (Cache présent et frais ?) then (oui)
+  :Afficher données depuis cache;
+else (non)
+  :Repository.getAgentsWithFilters(filters) :
+  - Firestore : collection agentsRecouvrement
+  - Filtrer selon actif (actifs / tous / inactifs / **anniversaires**)
+  - Si anniversaires : actif==true, birthMonth==mois_courant, tri par birthDay (plus proche)
+  - Filtrer selon searchQuery (nom, prénom, numéro pièce, tel)
+  - Paginer (page, limit)
+  - Trier selon sortBy, sortOrder;
+  
+  :Retourner { items: AgentRecouvrement[], total: number };
+  
+  :Mettre en cache React Query (5 min);
+endif
+
+:Afficher la liste des agents selon viewMode :
+- **Vue Cards (défaut)** : cards avec Nom, Prénom, Sexe, Pièce d'identité (type + numéro), Date naissance, Lieu naissance, Tel1, Tel2, Actions
+- **Vue Liste** : tableau avec colonnes Nom, Prénom, Sexe, Pièce d'identité (type + numéro), Date naissance, Lieu naissance, Tel1, Tel2, Actions;
+
+:Afficher pagination **en haut ET en bas** de la liste :
+- "Affichage 1-12 sur X agents"
+- Boutons Précédent / Suivant
+- Page X sur Y
+- (comme /memberships, /membership-requests);
+
+:Afficher boutons d'action :
+- "Nouvel agent" (création)
+- "Voir détails" (par card/ligne)
+- "Modifier" (par card/ligne)
+- "Désactiver" (par card/ligne)
+- "Supprimer" (par card/ligne, modal confirmation irréversible);
+
+' ============================================
+' RECHERCHE
+' ============================================
+if (Admin saisit recherche ?) then (oui)
+  :Debounce 300ms;
+  
+  :Normaliser query : toLowerCase(), trim();
+  
+  :filters.searchQuery = nouvelle valeur;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getAgentsWithFilters(filters);
+  :Retourne { items (page 1), total };
+endif
+
+' ============================================
+' FILTRE PAR STATUT (onglets / badges)
+' ============================================
+if (Admin change onglet / badge ?) then (oui)
+  :filters.actif = nouvelle valeur
+  (actifs | tous | inactifs | **anniversaires**);
+  :page = 1 (reset pagination);
+  
+  if (filters.actif == anniversaires ?) then (oui)
+    :getAgentsAnniversairesMois(mois_courant) :
+    - actif==true, birthMonth==mois, tri birthDay (plus proche);
+  else (non)
+    :Refetch PAGINÉ : getAgentsWithFilters(filters);
+  endif
+  :Retourne { items (page 1), total };
+  :Scroll vers le haut;
+endif
+
+' ============================================
+' TRI
+' ============================================
+if (Admin change tri ?) then (oui)
+  :sortBy = colonne (nom, prenom, createdAt);
+  :sortOrder = asc | desc;
+  :page = 1 (reset pagination);
+  
+  :Refetch PAGINÉ : getAgentsWithFilters(filters);
+  :Retourne { items (page 1), total };
+endif
+
+' ============================================
+' CHANGEMENT DE VUE (Cards / Liste)
+' ============================================
+if (Admin clique toggle vue ?) then (oui)
+  :viewMode = (viewMode === 'card' ? 'list' : 'card');
+  :Réafficher la liste selon nouveau mode;
+  :Persister préférence (localStorage optionnel);
+endif
+
+' ============================================
+' ACTIONS
+' ============================================
+if (Admin clique "Nouvel agent" ?) then (oui)
+  :Ouvrir modal CréerAgent;
+  stop
+endif
+
+if (Admin clique "Voir détails" sur une card/ligne ?) then (oui)
+  :Rediriger vers /admin/agents-recouvrement/[id];
+  stop
+endif
+
+if (Admin clique "Modifier" sur une card/ligne ?) then (oui)
+  :Ouvrir modal ModifierAgent;
+  stop
+endif
+
+if (Admin clique "Désactiver" sur une card/ligne ?) then (oui)
+  :Ouvrir modal DesactiverAgent;
+  stop
+endif
+
+if (Admin clique "Supprimer" sur une card/ligne ?) then (oui)
+  :Ouvrir modal SupprimerAgent (confirmation irréversible);
+  stop
+endif
+
+' ============================================
+' PAGINATION
+' ============================================
+if (Admin clique "Précédent" ?) then (oui)
+  :page = page - 1;
+  :Refetch avec nouvelle page;
+  :Scroll vers le haut;
+elseif (Admin clique "Suivant" ?) then (oui)
+  :page = page + 1;
+  :Refetch avec nouvelle page;
+  :Scroll vers le haut;
+endif
+
+if (Admin clique "Actualiser" ?) then (oui)
+  :queryClient.invalidateQueries(['agentsRecouvrement']);
+  :queryClient.invalidateQueries(['agentsRecouvrementStats']);
+  :Refetch liste et stats;
+endif
+
+note right
+  **Vue par défaut** : Cards (toggle pour Liste)
+  
+  **Stats** : voir StatsAgents.puml (diagramme dédié)
+  
+  **Filtres** : Intégrés au flux principal
+  - Onglets : Actifs | Tous | Inactifs | Anniversaires du mois
+  - Mobile/Tablette : badges carousel (StatusFilterBadgesCarousel-like)
+  - Anniversaires : agents du mois, triés par jour le plus proche
+  - Recherche : voir RechercherAgents.puml (diagramme dédié)
+  - Tri : nom, prénom, date création (asc/desc)
+  
+  **Pagination** :
+  - Affichée **en haut ET en bas** de la liste (comme /memberships)
+  - page, limit dans filters
+  - Repository retourne { items, total }
+  - Boutons Précédent / Suivant
+  - page = 1 à chaque changement filtre/recherche/tri
+end note
+
+stop
+
+@enduml

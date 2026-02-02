@@ -1,0 +1,44 @@
+@startuml SEQ_SupprimerAgent
+title Diagramme de séquence : Supprimer un agent de recouvrement (UC-AR-010)
+
+actor Admin
+participant "Page\nAgents" as Page
+participant "SupprimerAgentModal" as Modal
+participant "useDeleteAgentRecouvrement" as Hook
+participant "AgentRecouvrementService" as Service
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+participant "Storage" as Storage
+
+Admin -> Page : clique "Supprimer" sur un agent
+Page -> Modal : ouvrir modal (agentId, nom, prénom)
+Modal -> Admin : afficher avertissement "Suppression irréversible"
+
+alt Admin clique "Annuler"
+    Admin -> Modal : clique "Annuler"
+    Modal -> Modal : fermer modal
+else Admin clique "Confirmer la suppression"
+    Admin -> Modal : clique "Confirmer la suppression"
+    Modal -> Hook : deleteAgent(agentId)
+    Hook -> Service : deleteAgent(agentId)
+    Service -> Repo : delete(agentId)
+    
+    opt Photo existante (photoPath)
+        Repo -> Repo : récupérer photoPath avant delete
+        Repo -> Storage : delete(photoPath)
+        Storage --> Repo : ok
+    end
+    
+    Repo -> DB : deleteDoc(agentsRecouvrement/agentId)
+    DB --> Repo : ok
+    Repo --> Service : void
+    Service --> Hook : void
+    
+    Hook -> Hook : invalidateQueries(['agentsRecouvrement', 'agentsRecouvrementStats'])
+    Hook --> Modal : success
+    Modal -> Modal : fermer modal
+    Modal -> Admin : toast "Agent supprimé"
+    Note over Page : Agent retiré de la liste
+end
+
+@enduml

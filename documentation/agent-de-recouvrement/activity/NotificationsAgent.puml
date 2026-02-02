@@ -1,0 +1,83 @@
+@startuml NotificationsAgent
+title Workflow : Notifications sur la page détails agent (affichage complémentaire)
+
+' Contexte : Page détails agent chargée avec agentData
+' Déclencheur : Affichage des détails après chargement de l'agent
+' NOTE : La source principale des notifications est la Cloud Function (voir CloudFunctionNotificationsAgent.puml)
+'       qui notifie avant, jour J et après. Cette page affiche un rappel visuel complémentaire.
+
+start
+
+:Agent chargé (agentData disponible);
+
+:today = date du jour (sans heure);
+
+' ============================================
+' NOTIFICATION ANNIVERSAIRE
+' ============================================
+partition "Anniversaire" {
+  :birthday = agent.dateNaissance (jour + mois);
+  :todayBirthday = today (jour + mois);
+  
+  if (birthday == todayBirthday ?) then (oui)
+    :Afficher badge/alerte "Anniversaire aujourd'hui" :
+    - Badge festif (ex: icône cadeau, couleur douce)
+    - Message : "C'est l'anniversaire de [Nom Prénom] aujourd'hui !";
+    :Position : en haut de la page ou section "Informations personnelles";
+  else (non)
+    :Ne pas afficher de notification anniversaire;
+  endif
+}
+
+' ============================================
+' NOTIFICATION CARTE D'IDENTITÉ EXPIRÉE
+' ============================================
+partition "Pièce d'identité" {
+  :expirationDate = agent.pieceIdentite.dateExpiration;
+  
+  if (expirationDate < today ?) then (oui)
+    :Afficher alerte "Carte d'identité expirée" :
+    - Badge/alerte rouge ou orange (attention)
+    - Message : "La pièce d'identité a expiré le [date]"
+    - Recommandation : "Veuillez demander à l'agent de renouveler sa pièce";
+    :Position : section "Pièce d'identité" ou en haut de la page;
+    :Action suggérée : bouton "Modifier" pour mettre à jour la pièce;
+  elseif (expirationDate dans les 30 prochains jours ?) then (oui)
+    :Afficher alerte "Expiration prochaine" :
+    - Badge/alerte orange (avertissement)
+    - Message : "La pièce d'identité expire le [date] (dans X jours)";
+    :Position : section "Pièce d'identité";
+  else (non)
+    :Ne pas afficher de notification carte;
+  endif
+}
+
+' ============================================
+' AFFICHAGE COMBINÉ
+' ============================================
+:Afficher les notifications EN PREMIER (avant ou au-dessus des sections détaillées);
+
+if (Au moins une notification ?) then (oui)
+  :Zone "Alertes" visible en haut de la page détails;
+else (non)
+  :Pas de zone alertes;
+endif
+
+stop
+
+note right
+  **Source principale** : Cloud Function (CloudFunctionNotificationsAgent.puml)
+  - Notifie J-2, J, J+1 (anniversaire)
+  - Notifie J-30, J-7, J, J+1 (pièce d'identité)
+  - Les admins reçoivent via le centre de notifications
+  
+  **Cette page** : Affichage complémentaire à la visite
+  - Anniversaire : comparer jour+mois (ignorer année)
+  - Carte expirée : dateExpiration < aujourd'hui
+  - Expiration prochaine : dateExpiration dans [today, today+30 jours]
+  
+  **Priorité** : Carte expirée > Expiration prochaine > Anniversaire
+  **UI** : Badges/alertes non bloquants
+end note
+
+@enduml

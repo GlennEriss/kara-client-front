@@ -3402,6 +3402,73 @@
         { "fieldPath": "createdAt", "order": "DESCENDING" },
         { "fieldPath": "__name__", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "agentsRecouvrement",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "searchableTextLastNameFirst", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agentsRecouvrement",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "searchableTextFirstNameFirst", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agentsRecouvrement",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "searchableTextNumeroFirst", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agentsRecouvrement",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "nom", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agentsRecouvrement",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agentsRecouvrement",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "dateNaissance", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agentsRecouvrement",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actif", "order": "ASCENDING" },
+        { "fieldPath": "birthMonth", "order": "ASCENDING" },
+        { "fieldPath": "birthDay", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

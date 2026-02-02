@@ -1,0 +1,34 @@
+@startuml SEQ_StatsAgents
+title Diagramme de séquence : Statistiques des agents de recouvrement
+
+actor Admin
+participant "Page\nAgents" as Page
+participant "useAgentsRecouvrementStats" as Hook
+participant "AgentRecouvrementRepository" as Repo
+database "Firestore" as DB
+
+Admin -> Page : accède à /admin/agents-recouvrement
+
+Page -> Hook : useAgentsRecouvrementStats({})
+
+alt Cache présent et frais (< 2 min)
+    Hook --> Page : stats depuis cache
+else Cache absent ou expiré
+    Hook -> Repo : getAgentsStats()
+    Repo -> DB : collection(agentsRecouvrement)
+    Repo -> DB : count actif == true (totalActifs)
+    Repo -> DB : count actif == false (totalInactifs)
+    Repo -> DB : count total
+    Repo -> DB : count sexe == 'M' (totalHommes)
+    Repo -> DB : count sexe == 'F' (totalFemmes)
+    Repo -> DB : count actif==true, birthMonth==mois_courant (totalAnniversairesMois)
+    DB --> Repo : résultats
+    Repo --> Hook : AgentsStats { total, totalActifs, totalInactifs, totalHommes, totalFemmes, totalAnniversairesMois }
+    Hook --> Page : stats (cache 2 min)
+end
+
+Page -> Admin : afficher Total, Actifs, Inactifs, Hommes, Femmes, Anniversaires (count)
+
+Note over Page, DB : Stats chargées UNE FOIS, pas de refetch au changement d'onglet
+
+@enduml
