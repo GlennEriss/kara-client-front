@@ -621,6 +621,7 @@ export default function DailyCIContract({ contract, document: _document, isLoadi
           time: paymentData.time,
           amount: paymentData.amount,
           mode: paymentData.mode,
+          agentRecouvrementId: paymentData.agentRecouvrementId,
         },
         proofFile: paymentData.proofFile,
         userId: user.uid,

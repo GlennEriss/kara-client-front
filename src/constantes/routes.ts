@@ -72,6 +72,9 @@ const routes = {
         placementDemandDetails: (id: string) => `/placements/demandes/${id}`,
         // Géographie
         geographie: '/geographie',
+        // Agents de recouvrement
+        agentsRecouvrement: '/admin/agents-recouvrement',
+        agentRecouvrementDetails: (id: string) => `/admin/agents-recouvrement/${id}`,
     },
     member: {
         home: '/',

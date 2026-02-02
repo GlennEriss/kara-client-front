@@ -25,6 +25,8 @@ import { IRegistrationService } from '@/domains/auth/registration/services/IRegi
 import { RegistrationService } from '@/domains/auth/registration/services/RegistrationService'
 import { IRegistrationCacheService } from '@/domains/auth/registration/services/IRegistrationCacheService'
 import { RegistrationCacheService } from '@/domains/auth/registration/services/RegistrationCacheService'
+import { IAgentRecouvrementService } from '@/services/agent-recouvrement/IAgentRecouvrementService'
+import { AgentRecouvrementService } from '@/services/agent-recouvrement/AgentRecouvrementService'
 
 /**
  * Factory statique pour créer et gérer tous les services en singleton
@@ -234,6 +236,18 @@ export class ServiceFactory {
     if (!this.services.has(key)) {
       const registrationRepository = RepositoryFactory.getRegistrationRepository()
       this.services.set(key, new RegistrationService(registrationRepository))
+    }
+    return this.services.get(key)
+  }
+
+  /**
+   * Obtient le service des agents de recouvrement
+   */
+  static getAgentRecouvrementService(): IAgentRecouvrementService {
+    const key = 'AgentRecouvrementService'
+    if (!this.services.has(key)) {
+      const repository = RepositoryFactory.getAgentRecouvrementRepository()
+      this.services.set(key, new AgentRecouvrementService(repository))
     }
     return this.services.get(key)
   }

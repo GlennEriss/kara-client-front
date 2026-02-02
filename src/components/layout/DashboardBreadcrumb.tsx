@@ -52,6 +52,8 @@ const routeLabels: Record<string, string> = {
   '/placements': 'Placements',
   '/placements/demandes': 'Demandes',
   '/placements/add': 'Nouveau placement',
+  // Agents de recouvrement
+  '/admin/agents-recouvrement': 'Agents de recouvrement',
 }
 
 // Fonction pour obtenir le label d'une route
@@ -96,6 +98,9 @@ const getRouteLabel = (path: string): string => {
     return 'Détails'
   }
   if (path.match(/^\/placements\/[^\/]+$/)) {
+    return 'Détails'
+  }
+  if (path.match(/^\/admin\/agents-recouvrement\/[^\/]+$/)) {
     return 'Détails'
   }
   if (path.match(/^\/placements\/demandes\/[^\/]+$/)) {

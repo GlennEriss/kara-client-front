@@ -29,6 +29,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { earlyRefundSchema, earlyRefundDefaultValues, type EarlyRefundFormData } from '@/schemas/schemas'
+import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -89,6 +90,7 @@ export default function DailyContract({ id }: Props) {
   const [paymentMode, setPaymentMode] = useState<'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'>('airtel_money')
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [selectedGroupMemberId, setSelectedGroupMemberId] = useState<string>('')
+  const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
   const [isEditing, setIsEditing] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
   const [isRefunding, setIsRefunding] = useState(false)
@@ -996,7 +998,8 @@ export default function DailyContract({ id }: Props) {
           file: paymentFile,
           paidAt: selectedDate,
           time: paymentTime,
-          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
+          agentRecouvrementId: agentRecouvrementId || undefined
         })
 
         console.log('✅ payGroup terminé avec succès')
@@ -1013,7 +1016,8 @@ export default function DailyContract({ id }: Props) {
           file: paymentFile,
           paidAt: selectedDate,
           time: paymentTime,
-          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer'
+          mode: paymentMode as 'airtel_money' | 'mobicash' | 'cash' | 'bank_transfer',
+          agentRecouvrementId: agentRecouvrementId || undefined
         })
 
         console.log('✅ pay terminé avec succès')
@@ -1028,6 +1032,7 @@ export default function DailyContract({ id }: Props) {
       setPaymentMode('airtel_money')
       setPaymentFile(undefined)
       setSelectedGroupMemberId('')
+      setAgentRecouvrementId('')
     } catch (err: any) {
       toast.error(err?.message || 'Erreur lors de l\'enregistrement')
     } finally {
@@ -1863,6 +1868,19 @@ export default function DailyContract({ id }: Props) {
               <p className="text-xs text-muted-foreground mt-1">
                 💡 Pour les paiements quotidiens, le montant peut varier chaque jour. Montant minimum: 100 FCFA
               </p>
+            </div>
+
+            {/* Agent de recouvrement */}
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                Agent de recouvrement (optionnel)
+              </Label>
+              <AgentRecouvrementSelect
+                value={agentRecouvrementId}
+                onValueChange={setAgentRecouvrementId}
+                placeholder="Sélectionner l'agent ayant collecté le versement"
+                required={false}
+              />
             </div>
 
             {/* Sélection du membre du groupe (si contrat de groupe) */}

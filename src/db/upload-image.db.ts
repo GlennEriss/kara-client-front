@@ -230,6 +230,39 @@ export async function updateFileStatus(filePath: string, newStatus: string = 'Ar
   }
 }
 
+/** Validation upload photo agent (security-review: size 5MB, types jpeg/png/webp) */
+const AGENT_PHOTO_MAX_SIZE = 5 * 1024 * 1024
+const AGENT_PHOTO_ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+const AGENT_PHOTO_ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.webp']
+
+export function validateAgentPhotoFile(file: File): void {
+  if (file.size > AGENT_PHOTO_MAX_SIZE) {
+    throw new Error('Le fichier est trop volumineux (max 5 MB)')
+  }
+  if (!AGENT_PHOTO_ALLOWED_TYPES.includes(file.type)) {
+    throw new Error('Type de fichier invalide. Utilisez jpeg, png ou webp')
+  }
+  const ext = file.name.toLowerCase().match(/\.[^.]+$/)?.[0]
+  if (!ext || !AGENT_PHOTO_ALLOWED_EXT.includes(ext)) {
+    throw new Error('Extension invalide. Utilisez .jpg, .jpeg, .png ou .webp')
+  }
+}
+
+/**
+ * Upload photo agent de recouvrement
+ * Chemin: agents-recouvrement/{agentId}/photo.{ext}
+ */
+export async function uploadAgentPhoto(file: File, agentId: string): Promise<{ url: string; path: string }> {
+  validateAgentPhotoFile(file)
+  const storage = getStorageInstance()
+  const ext = file.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '.jpg'
+  const filePath = `agents-recouvrement/${agentId}/photo${ext}`
+  const storageRef = ref(storage, filePath)
+  const snapshot = await uploadBytes(storageRef, file)
+  const url = await getDownloadURL(snapshot.ref)
+  return { url, path: filePath }
+}
+
 /**
  * Deletes a file from Firebase Storage.
  */

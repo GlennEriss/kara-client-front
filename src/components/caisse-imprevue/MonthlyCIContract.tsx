@@ -388,6 +388,7 @@ export default function MonthlyCIContract({ contract, document: _document, isLoa
           time: data.time,
           amount: data.amount,
           mode: data.mode,
+          agentRecouvrementId: data.agentRecouvrementId,
         },
         proofFile: data.proofFile,
         userId: user.uid,

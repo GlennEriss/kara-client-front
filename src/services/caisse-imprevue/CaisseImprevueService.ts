@@ -259,6 +259,7 @@ export class CaisseImprevueService implements ICaisseImprevueService {
                 supportRepaymentId,
                 createdAt: now,
                 createdBy: userId,
+                ...(versementData.agentRecouvrementId && { agentRecouvrementId: versementData.agentRecouvrementId }),
             }
 
             // 6. Vérifier si le paiement du mois existe

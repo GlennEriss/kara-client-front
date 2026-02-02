@@ -188,7 +188,7 @@ export async function subscribe(input: {
   return id
 }
 
-export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode }) {
+export async function pay(input: { contractId: string; dueMonthIndex: number; memberId: string; amount?: number; file?: File; paidAt?: Date; time?: string; mode?: PaymentMode; agentRecouvrementId?: string }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
   const settings = await getActiveSettings((contract as any).caisseType)
@@ -315,6 +315,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
       memberId: input.memberId, // Ajouter l'ID du membre du groupe
       penalty: penalty || 0, // Montant de la pénalité pour cette contribution
       penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
+      ...(input.agentRecouvrementId && { agentRecouvrementId: input.agentRecouvrementId }),
       createdAt: new Date()
     }
     console.log('💾 [pay] Contribution créée:', {
@@ -722,7 +723,8 @@ export async function payGroup(input: {
   file?: File; 
   paidAt?: Date; 
   time: string; 
-  mode: PaymentMode 
+  mode: PaymentMode;
+  agentRecouvrementId?: string;
 }) {
   const contract = await getContract(input.contractId)
   if (!contract) throw new Error('Contrat introuvable')
@@ -815,6 +817,7 @@ export async function payGroup(input: {
     proofUrl,
     penalty: penalty || 0, // Montant de la pénalité pour cette contribution
     penaltyDays: delayDays > 0 ? delayDays : 0, // Jours de retard pour cette contribution
+    ...(input.agentRecouvrementId && { agentRecouvrementId: input.agentRecouvrementId }),
     createdAt: now,
     updatedAt: now
   }

@@ -213,6 +213,7 @@ export const creditPaymentSchema = z.object({
     .optional(),
   reference: z.string().max(100, 'La référence ne peut pas dépasser 100 caractères').optional(),
   receiptUrl: z.string().url('L\'URL du reçu doit être valide').optional(),
+  agentRecouvrementId: z.string().optional(),
   createdBy: z.string().min(1, 'L\'ID du créateur est requis'),
   updatedBy: z.string().optional(),
 })

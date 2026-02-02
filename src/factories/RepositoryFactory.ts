@@ -49,6 +49,8 @@ import { IProfessionRepository } from '@/domains/infrastructure/references/repos
 import { ProfessionRepository } from '@/domains/infrastructure/references/repositories/ProfessionRepository'
 import { IRegistrationRepository } from '@/domains/auth/registration/repositories/IRegistrationRepository'
 import { RegistrationRepository } from '@/domains/auth/registration/repositories/RegistrationRepository'
+import { IAgentRecouvrementRepository } from '@/repositories/agent-recouvrement/IAgentRecouvrementRepository'
+import { AgentRecouvrementRepository } from '@/repositories/agent-recouvrement/AgentRecouvrementRepository'
 
 /**
  * Factory statique pour créer et gérer tous les repositories en singleton
@@ -354,6 +356,17 @@ export class RepositoryFactory {
       this.repositories.set(key, new PlacementDemandRepository())
     }
     return this.repositories.get(key) as IPlacementDemandRepository
+  }
+
+  /**
+   * Obtient le repository des agents de recouvrement
+   */
+  static getAgentRecouvrementRepository(): IAgentRecouvrementRepository {
+    const key = 'AgentRecouvrementRepository'
+    if (!this.repositories.has(key)) {
+      this.repositories.set(key, new AgentRecouvrementRepository())
+    }
+    return this.repositories.get(key) as IAgentRecouvrementRepository
   }
 
   /**

@@ -10,6 +10,7 @@ export interface VersementFormData {
   mode: PaymentMode
   penalty?: number
   daysLate?: number
+  agentRecouvrementId?: string
 }
 
 export interface ICaisseImprevueService extends IService{

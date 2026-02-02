@@ -95,6 +95,7 @@ export interface GroupPaymentContribution {
   proofUrl?: string
   penalty?: number // Montant de la pénalité pour cette contribution
   penaltyDays?: number // Nombre de jours de retard pour cette contribution
+  agentRecouvrementId?: string // ID de l'agent ayant collecté la contribution
   createdAt: Date
   updatedAt?: Date
 }
@@ -112,6 +113,7 @@ export interface IndividualPaymentContribution {
   memberPhotoURL?: string
   penalty?: number // Montant de la pénalité pour cette contribution
   penaltyDays?: number // Nombre de jours de retard pour cette contribution
+  agentRecouvrementId?: string // ID de l'agent ayant collecté la contribution
 }
 
 export interface CaisseRefund {

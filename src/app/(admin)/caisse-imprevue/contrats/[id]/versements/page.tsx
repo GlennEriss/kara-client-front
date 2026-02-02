@@ -35,6 +35,8 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { ServiceFactory } from '@/factories/ServiceFactory'
 import Image from 'next/image'
+import { useAgentsActifs } from '@/hooks/agent-recouvrement'
+import { UserCircle } from 'lucide-react'
 
 const PAYMENT_MODE_LABELS: Record<string, string> = {
   airtel_money: 'Airtel Money',
@@ -58,6 +60,8 @@ export default function ContractCIPaymentsPage() {
   // Récupération des données
   const { data: contract, isLoading: isLoadingContract, isError: isErrorContract, error: errorContract } = useContractCI(contractId)
   const { data: payments = [], isLoading: isLoadingPayments, isError: isErrorPayments, error: errorPayments } = usePaymentsCI(contractId)
+  const { data: agents = [] } = useAgentsActifs()
+  const agentsMap = Object.fromEntries(agents.map((a) => [a.id, a]))
   
   // Calcul des statistiques
   const stats = usePaymentsCIStats(contract || null, payments)
@@ -150,6 +154,9 @@ export default function ContractCIPaymentsPage() {
           'Pénalité': versement.penalty || 0,
           'Jours de retard': versement.daysLate || 0,
           'Créé par': getAdminDisplayName(versement.createdBy),
+          'Agent de recouvrement': versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId]
+            ? `${agentsMap[versement.agentRecouvrementId].nom} ${agentsMap[versement.agentRecouvrementId].prenom}`
+            : '-',
           'Statut du mois': PAYMENT_STATUS_LABELS[payment.status],
           'Cumulé du mois': payment.accumulatedAmount,
           'Objectif du mois': payment.targetAmount,
@@ -234,13 +241,16 @@ export default function ContractCIPaymentsPage() {
           versement.penalty && versement.penalty > 0 ? `${versement.penalty.toLocaleString('fr-FR')} FCFA` : '-',
           PAYMENT_STATUS_LABELS[payment.status],
           getAdminDisplayName(versement.createdBy),
+          versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId]
+            ? `${agentsMap[versement.agentRecouvrementId].nom} ${agentsMap[versement.agentRecouvrementId].prenom}`
+            : '-',
         ])
       })
     })
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Mois', 'N°', 'Date', 'Heure', 'Mode', 'Montant', 'Pénalité', 'Statut', 'Créé par']],
+      head: [['Mois', 'N°', 'Date', 'Heure', 'Mode', 'Montant', 'Pénalité', 'Statut', 'Créé par', 'Agent recouvrement']],
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -255,15 +265,16 @@ export default function ContractCIPaymentsPage() {
         halign: 'center'
       },
       columnStyles: {
-        0: { cellWidth: 18, halign: 'center' },
-        1: { cellWidth: 15, halign: 'center' },
-        2: { cellWidth: 28 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 35 },
-        5: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
-        6: { cellWidth: 30, halign: 'right' },
-        7: { cellWidth: 25 },
-        8: { cellWidth: 50, halign: 'left' },
+        0: { cellWidth: 16, halign: 'center' },
+        1: { cellWidth: 12, halign: 'center' },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 32 },
+        5: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+        6: { cellWidth: 28, halign: 'right' },
+        7: { cellWidth: 22 },
+        8: { cellWidth: 42, halign: 'left' },
+        9: { cellWidth: 38, halign: 'left' },
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245]
@@ -329,11 +340,14 @@ export default function ContractCIPaymentsPage() {
       `${versement.amount.toLocaleString('fr-FR')} FCFA`,
       versement.penalty && versement.penalty > 0 ? `${versement.penalty.toLocaleString('fr-FR')} FCFA` : '-',
       getAdminDisplayName(versement.createdBy),
+      versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId]
+        ? `${agentsMap[versement.agentRecouvrementId].nom} ${agentsMap[versement.agentRecouvrementId].prenom}`
+        : '-',
     ])
 
     autoTable(doc, {
       startY: yPos,
-      head: [['N°', 'Date', 'Heure', 'Mode', 'Montant', 'Pénalité', 'Créé par']],
+      head: [['N°', 'Date', 'Heure', 'Mode', 'Montant', 'Pénalité', 'Créé par', 'Agent recouvrement']],
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -348,13 +362,14 @@ export default function ContractCIPaymentsPage() {
         halign: 'center'
       },
       columnStyles: {
-        0: { cellWidth: 15 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 35 },
-        4: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
-        5: { cellWidth: 30, halign: 'right' },
-        6: { cellWidth: 45, halign: 'left' },
+        0: { cellWidth: 12 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+        5: { cellWidth: 25, halign: 'right' },
+        6: { cellWidth: 35, halign: 'left' },
+        7: { cellWidth: 40, halign: 'left' },
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245]
@@ -709,8 +724,8 @@ export default function ContractCIPaymentsPage() {
                                   )}
                                 </div>
 
-                                {/* Informations admin */}
-                                <div className="pt-2 border-t border-gray-200">
+                                {/* Informations admin et agent */}
+                                <div className="pt-2 border-t border-gray-200 space-y-2">
                                   <div className="flex items-center gap-2 text-sm text-gray-600">
                                     <User className="h-4 w-4" />
                                     <span>Enregistré par:</span>
@@ -718,6 +733,15 @@ export default function ContractCIPaymentsPage() {
                                       {getAdminDisplayName(versement.createdBy)}
                                     </span>
                                   </div>
+                                  {versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId] && (
+                                    <div className="flex items-center gap-2 text-sm text-[#234D65]">
+                                      <UserCircle className="h-4 w-4" />
+                                      <span>Agent de recouvrement:</span>
+                                      <span className="font-medium">
+                                        {agentsMap[versement.agentRecouvrementId].nom} {agentsMap[versement.agentRecouvrementId].prenom}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 

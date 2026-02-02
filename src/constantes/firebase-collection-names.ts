@@ -49,6 +49,8 @@ export const firebaseCollectionNames = {
     guarantorRemunerations: "guarantorRemunerations",
     // Collection centralisée pour tous les versements
     payments: "payments",
+    // Agents de recouvrement
+    agentsRecouvrement: "agentsRecouvrement",
 }
 
 // Export également en majuscules pour compatibilité
@@ -95,4 +97,6 @@ export const FIREBASE_COLLECTION_NAMES = {
     GUARANTOR_REMUNERATIONS: firebaseCollectionNames.guarantorRemunerations,
     // Collection centralisée pour tous les versements
     PAYMENTS: firebaseCollectionNames.payments,
+    // Agents de recouvrement
+    AGENTS_RECOUVREMENT: firebaseCollectionNames.agentsRecouvrement,
 }

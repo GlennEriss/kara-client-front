@@ -28,6 +28,7 @@ import {
 import { PaymentMode } from '@/types/types'
 import { toast } from 'sonner'
 import { compressImage, IMAGE_COMPRESSION_PRESETS } from '@/lib/utils'
+import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 
 export interface PaymentCSFormData {
   date: string
@@ -35,6 +36,7 @@ export interface PaymentCSFormData {
   amount: number
   mode: PaymentMode
   proofFile: File
+  agentRecouvrementId?: string
 }
 
 interface PaymentCSModalProps {
@@ -70,6 +72,7 @@ export default function PaymentCSModal({
   const [proofFile, setProofFile] = useState<File | undefined>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
+  const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
 
   // Réinitialiser le formulaire quand le modal s'ouvre
   useEffect(() => {
@@ -84,6 +87,7 @@ export default function PaymentCSModal({
         mode: 'airtel_money',
       })
       setProofFile(undefined)
+      setAgentRecouvrementId('')
     }
   }, [isOpen, defaultAmount])
 
@@ -154,6 +158,7 @@ export default function PaymentCSModal({
         amount: formData.amount!,
         mode: formData.mode!,
         proofFile: proofFile!,
+        agentRecouvrementId: agentRecouvrementId || undefined,
       })
       
       // Réinitialiser le formulaire
@@ -167,6 +172,7 @@ export default function PaymentCSModal({
         mode: 'airtel_money',
       })
       setProofFile(undefined)
+      setAgentRecouvrementId('')
       
       onClose()
     } catch (error) {
@@ -228,6 +234,19 @@ export default function PaymentCSModal({
                 required
               />
             </div>
+          </div>
+
+          {/* Agent de recouvrement */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              Agent de recouvrement (optionnel)
+            </Label>
+            <AgentRecouvrementSelect
+              value={agentRecouvrementId}
+              onValueChange={setAgentRecouvrementId}
+              placeholder="Sélectionner l'agent ayant collecté le versement"
+              required={false}
+            />
           </div>
 
           {/* Montant */}

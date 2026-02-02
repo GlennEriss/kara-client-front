@@ -29,6 +29,7 @@ import { toast } from 'sonner'
 import type { PaymentMode } from '@/types/types'
 import { ImageCompressionService } from '@/services/imageCompressionService'
 import { useActiveSupport } from '@/hooks/caisse-imprevue'
+import { AgentRecouvrementSelect } from '@/components/agent-recouvrement/AgentRecouvrementSelect'
 
 interface PaymentCIModalProps {
   isOpen: boolean
@@ -49,6 +50,7 @@ export interface PaymentFormData {
   amount: number
   mode: PaymentMode
   proofFile: File
+  agentRecouvrementId?: string
 }
 
 export default function PaymentCIModal({
@@ -73,6 +75,7 @@ export default function PaymentCIModal({
   const [paymentFile, setPaymentFile] = useState<File | undefined>()
   const [isPaying, setIsPaying] = useState(false)
   const [isCompressing, setIsCompressing] = useState(false)
+  const [agentRecouvrementId, setAgentRecouvrementId] = useState<string>('')
 
   // Récupérer le support actif
   const { data: activeSupport } = useActiveSupport(contractId)
@@ -152,6 +155,7 @@ export default function PaymentCIModal({
         amount: Number(paymentAmount),
         mode: paymentMode,
         proofFile: paymentFile,
+        agentRecouvrementId: agentRecouvrementId || undefined,
       }
 
       await onSubmit(formData)
@@ -165,6 +169,7 @@ export default function PaymentCIModal({
       setPaymentAmount('')
       setPaymentMode('airtel_money')
       setPaymentFile(undefined)
+      setAgentRecouvrementId('')
       
       onClose()
     } catch (error) {
@@ -363,6 +368,19 @@ export default function PaymentCIModal({
               </div>
             </div>
           )}
+
+          {/* Agent de recouvrement */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              Agent de recouvrement (optionnel)
+            </Label>
+            <AgentRecouvrementSelect
+              value={agentRecouvrementId}
+              onValueChange={setAgentRecouvrementId}
+              placeholder="Sélectionner l'agent ayant collecté le versement"
+              required={false}
+            />
+          </div>
 
           {/* Mode de paiement */}
           <div>

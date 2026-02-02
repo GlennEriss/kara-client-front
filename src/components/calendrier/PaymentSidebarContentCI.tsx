@@ -3,9 +3,10 @@
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-import { Calendar, CreditCard, Clock, CheckCircle2, PiggyBank, Receipt } from "lucide-react"
+import { Calendar, CreditCard, Clock, CheckCircle2, PiggyBank, Receipt, User } from "lucide-react"
 import type { CalendarPaymentItemCI } from "@/hooks/useCalendarCaisseImprevue"
 import { usePaymentsCI } from "@/hooks/caisse-imprevue/usePaymentsCI"
+import { useAgentsActifs } from "@/hooks/agent-recouvrement"
 
 interface PaymentSidebarContentCIProps {
   payment: CalendarPaymentItemCI
@@ -34,6 +35,8 @@ export function PaymentSidebarContentCI({
   const { data: allPayments = [], isLoading } = usePaymentsCI(
     payment.contract.id
   )
+  const { data: agents = [] } = useAgentsActifs()
+  const agentsMap = Object.fromEntries(agents.map((a) => [a.id, a]))
 
   // Filtrer les versements précédents et suivants
   const previousPayments = allPayments
@@ -186,6 +189,12 @@ export function PaymentSidebarContentCI({
                     <div className="text-xs text-gray-500">
                       {PAYMENT_MODE_LABELS[versement.mode] || versement.mode}
                     </div>
+                    {versement.agentRecouvrementId && agentsMap[versement.agentRecouvrementId] && (
+                      <div className="flex items-center gap-1 mt-1 text-xs text-[#234D65]">
+                        <User className="h-3 w-3" />
+                        {agentsMap[versement.agentRecouvrementId].nom} {agentsMap[versement.agentRecouvrementId].prenom}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
