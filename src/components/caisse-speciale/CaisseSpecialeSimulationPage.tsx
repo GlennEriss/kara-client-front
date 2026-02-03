@@ -331,12 +331,30 @@ function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulat
 function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimulationResult }) {
   const handleShare = () => {
     if (!result?.rows.length) return
+    
+    const separator = '━━━━━━━━━━━━━━━━━━━━━━'
     const lines = [
-      'Simulation Caisse Spéciale',
-      `Total à verser: ${formatAmount(result.totalAmount)} FCFA`,
-      `Total bonus: ${formatAmount(result.totalBonus)} FCFA`,
+      '📊 *TABLEAU RÉCAPITULATIF*',
+      '🏦 Caisse Spéciale KARA',
+      separator,
       '',
-      ...result.rows.slice(0, 12).map((r) => `${r.monthLabel} ${formatDateFr(r.dueAt)} ${formatAmount(r.amount)} FCFA | Bonus ${r.bonusRatePercent}% = ${formatAmount(r.bonusAmount)} FCFA`),
+      '💰 *RÉSUMÉ*',
+      `▪️ Total versements : *${formatAmount(result.totalAmount)} FCFA*`,
+      `▪️ Total bonus : *${formatAmount(result.totalBonus)} FCFA*`,
+      `▪️ Montant final : *${formatAmount(result.totalAmount + result.totalBonus)} FCFA*`,
+      '',
+      separator,
+      '📅 *ÉCHÉANCIER*',
+      separator,
+      '',
+      ...result.rows.map((r) => {
+        const bonusIcon = r.bonusRatePercent > 0 ? '✅' : '⏳'
+        return `${bonusIcon} *${r.monthLabel}* — ${formatDateFr(r.dueAt)}\n    💵 ${formatAmount(r.amount)} FCFA | Bonus ${r.bonusRatePercent}% = ${formatAmount(r.bonusAmount)} FCFA`
+      }),
+      '',
+      separator,
+      '📌 Fait le ' + formatDateFr(new Date()) + '_',
+      '🔗 _KARA - Mutuelle de solidarité_',
     ]
     const text = lines.join('\n')
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`
