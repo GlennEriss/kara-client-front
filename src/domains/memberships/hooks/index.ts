@@ -13,6 +13,7 @@ export { useBirthdaySearch } from './useBirthdaySearch'
 export { useMembershipStats } from './useMembershipStats'
 export { useMembershipRequest } from './useMembershipRequest'
 export { useIntermediaryCodeSearch } from './useIntermediaryCodeSearch'
+export { useGenererIdentifiant } from './useGenererIdentifiant'
 export type {
   UseMembershipsListV2Options,
   UseMembershipsListV2Result,
@@ -64,3 +65,7 @@ export type {
   UseIntermediaryCodeSearchResult,
   IntermediarySearchResult,
 } from './useIntermediaryCodeSearch'
+export type {
+  UseGenererIdentifiantOptions,
+  UseGenererIdentifiantResult,
+} from './useGenererIdentifiant'

@@ -123,6 +123,27 @@ Référence visuelle : `/caisse-speciale/demandes` (organisation des cards).
 - **Stats** : `TrendingUp`, `BarChart3`
 - **Pagination carousel stats** : `ChevronLeft`, `ChevronRight`
 
+### Mapping icônes → sections UI
+
+- **Header module** : `FileText`
+- **Recherche** : `Search`
+- **Filtres** : `Filter`
+- **Tabs desktop** : `FileText` (si icône utilisée), `AlertCircle` (Retard)
+- **Badges carousel mobile/tablette** : `FileText`, `Clock`, `CheckCircle`, `XCircle` (si reprise du modèle demandes)
+- **Cards contrats** :
+  - **Avatar fallback** : `User` (individuel), `Users` (groupe)
+  - **Retard** : `AlertCircle`
+  - **Actif** : `CheckCircle`
+  - **Dates** : `Calendar`
+  - **Montants** : `DollarSign`
+- **Actions** :
+  - **Ouvrir** : `Eye`
+  - **Téléverser PDF** : `Upload`
+  - **Télécharger contrat** : `FileText`
+  - **Exporter** : `Download`
+  - **Actualiser** : `RefreshCw`
+  - **Nouveau contrat** : `Plus`
+
 **Toggle Grille/Liste (desktop)** :
 - **Container** : `flex items-center bg-gray-100 rounded-xl p-1 shadow-inner hidden md:flex`
 - **Bouton actif** : `bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg scale-105`

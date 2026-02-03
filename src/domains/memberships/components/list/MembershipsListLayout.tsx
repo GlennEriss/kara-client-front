@@ -12,6 +12,7 @@ interface MembershipsListLayoutProps {
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
   onPreviewAdhesion: (url: string | null) => void
+  onGenererIdentifiant?: (memberId: string, matricule: string) => void
   isLoading?: boolean
 }
 
@@ -21,6 +22,7 @@ export function MembershipsListLayout({
   onViewSubscriptions,
   onViewDetails,
   onPreviewAdhesion,
+  onGenererIdentifiant,
   isLoading = false,
 }: MembershipsListLayoutProps) {
   // Vue liste : tableau
@@ -32,6 +34,7 @@ export function MembershipsListLayout({
         onViewSubscriptions={onViewSubscriptions}
         onViewDetails={onViewDetails}
         onPreviewAdhesion={onPreviewAdhesion}
+        onGenererIdentifiant={onGenererIdentifiant}
       />
     )
   }
@@ -54,6 +57,7 @@ export function MembershipsListLayout({
             onViewSubscriptions={onViewSubscriptions}
             onViewDetails={onViewDetails}
             onPreviewAdhesion={onPreviewAdhesion}
+            onGenererIdentifiant={onGenererIdentifiant}
           />
         </div>
       ))}

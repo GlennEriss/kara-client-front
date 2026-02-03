@@ -24,7 +24,7 @@ import { MEMBERSHIP_TYPE_LABELS } from '@/types/types'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { getNationalityName } from '@/constantes/nationality'
-import { User, Phone, Mail, MapPin, Car, Calendar, FileText, CheckCircle, XCircle, Cake } from 'lucide-react'
+import { User, Phone, Mail, MapPin, Car, Calendar, FileText, CheckCircle, XCircle, Cake, KeyRound } from 'lucide-react'
 import Link from 'next/link'
 import routes from '@/constantes/routes'
 
@@ -34,6 +34,7 @@ interface MembershipsTableViewProps {
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
   onPreviewAdhesion: (url: string | null) => void
+  onGenererIdentifiant?: (memberId: string, matricule: string) => void
   className?: string
 }
 
@@ -143,6 +144,7 @@ export function MembershipsTableView({
   onViewSubscriptions,
   onViewDetails,
   onPreviewAdhesion,
+  onGenererIdentifiant,
   className,
 }: MembershipsTableViewProps) {
   if (isLoading) {
@@ -308,6 +310,18 @@ export function MembershipsTableView({
                         Documents
                       </Link>
                     </Button>
+                    {onGenererIdentifiant && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onGenererIdentifiant(member.id!, member.matricule)}
+                        className="h-8 text-xs"
+                        data-testid={`generer-identifiant-button-${member.id}`}
+                      >
+                        <KeyRound className="h-3 w-3 mr-1" />
+                        Générer identifiant
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
