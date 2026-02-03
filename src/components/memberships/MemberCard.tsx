@@ -23,7 +23,8 @@ import {
   Plus,
   AlertTriangle,
   ExternalLink,
-  Cake
+  Cake,
+  KeyRound,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -48,6 +49,7 @@ interface MemberCardProps {
   onViewSubscriptions: (memberId: string) => void
   onViewDetails: (memberId: string) => void
   onPreviewAdhesion: (url: string | null) => void
+  onGenererIdentifiant?: (memberId: string, matricule: string) => void
 }
 
 // Fonction utilitaire pour vérifier si c'est l'anniversaire d'un membre
@@ -66,7 +68,7 @@ const isBirthdayToday = (birthDate: string): boolean => {
   }
 }
 
-const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion }: MemberCardProps) => {
+const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhesion, onGenererIdentifiant }: MemberCardProps) => {
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
 
@@ -173,6 +175,15 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                   Liste des filleuls
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {onGenererIdentifiant && (
+                  <DropdownMenuItem
+                    onClick={() => onGenererIdentifiant(member.id!, member.matricule)}
+                    data-testid={`generer-identifiant-dropdown-${member.id}`}
+                  >
+                    <KeyRound className="h-4 w-4 mr-2" />
+                    Générer identifiant
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => onPreviewAdhesion(member.lastSubscription?.adhesionPdfURL || null)}>
                   <FileText className="h-4 w-4 mr-2" />
                   Fiche d'adhésion
@@ -320,6 +331,17 @@ const MemberCard = ({ member, onViewSubscriptions, onViewDetails, onPreviewAdhes
                 Voir documents
               </Link>
             </Button>
+            {onGenererIdentifiant && (
+              <Button
+                size="sm"
+                onClick={() => onGenererIdentifiant(member.id!, member.matricule)}
+                className="w-full bg-kara-primary-dark text-white hover:bg-kara-primary-dark/90"
+                data-testid={`generer-identifiant-button-${member.id}`}
+              >
+                <KeyRound className="h-4 w-4 mr-2" />
+                Générer identifiant
+              </Button>
+            )}
           </div>
 
           

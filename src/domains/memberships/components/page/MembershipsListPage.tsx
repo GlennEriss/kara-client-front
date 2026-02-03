@@ -39,6 +39,7 @@ import { createTestUserWithSubscription, createTestUserWithExpiredSubscription, 
 import { debugFirebaseData, debugUserSubscriptions } from '@/utils/debug-data'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import ExportMembershipModal from '@/components/memberships/ExportMembershipModal'
+import { GenererIdentifiantModal } from '@/domains/memberships/components/modals'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'list'
@@ -92,6 +93,11 @@ export function MembershipsListPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isExportOpen, setIsExportOpen] = useState(false)
+  const [genererIdentifiantOpen, setGenererIdentifiantOpen] = useState(false)
+  const [genererIdentifiantMember, setGenererIdentifiantMember] = useState<{
+    memberId: string
+    matricule: string
+  } | null>(null)
 
   // React Query V2
   const { 
@@ -219,6 +225,11 @@ export function MembershipsListPage() {
   }
 
   const handleExport = () => setIsExportOpen(true)
+
+  const handleGenererIdentifiant = (memberId: string, matricule: string) => {
+    setGenererIdentifiantMember({ memberId, matricule })
+    setGenererIdentifiantOpen(true)
+  }
 
   // Fonctions de test (en développement uniquement)
   const handleCreateTestUser = async () => {
@@ -447,6 +458,7 @@ export function MembershipsListPage() {
             onViewSubscriptions={handleViewSubscriptions}
             onViewDetails={handleViewDetails}
             onPreviewAdhesion={handlePreviewAdhesion}
+            onGenererIdentifiant={handleGenererIdentifiant}
             isLoading={isLoading}
           />
 
@@ -497,6 +509,17 @@ export function MembershipsListPage() {
         </DialogContent>
       </Dialog>
       <ExportMembershipModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} filters={filters} />
+      {genererIdentifiantMember && (
+        <GenererIdentifiantModal
+          open={genererIdentifiantOpen}
+          onOpenChange={(open) => {
+            setGenererIdentifiantOpen(open)
+            if (!open) setGenererIdentifiantMember(null)
+          }}
+          memberId={genererIdentifiantMember.memberId}
+          matricule={genererIdentifiantMember.matricule}
+        />
+      )}
     </div>
   )
 }

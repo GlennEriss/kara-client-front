@@ -1,0 +1,176 @@
+# Wireframe – Liste des Contrats Caisse Spéciale (Desktop)
+
+> Wireframe pour la **liste des contrats** – Desktop (≥ 1024px)
+
+## 📋 Vue d'ensemble
+
+**Page** : `/caisse-speciale` (liste contrats)  
+**Organisation** : alignée sur `/caisse-speciale/demandes`  
+**Design System** : palette KARA (bleu primaire #234D65, bleu secondaire #2c5a73, fonds clairs)
+
+---
+
+## 🖥️ Desktop (≥ 1024px)
+
+### Icons Legend
+
+- `FileText` = Titre module / Télécharger contrat
+- `Search` = Recherche
+- `Filter` = Filtres
+- `User` / `Users` = Avatar fallback
+- `AlertCircle` = Retard
+- `CheckCircle` = Actif/validé
+- `Calendar` = Dates
+- `DollarSign` = Montants
+- `Eye` = Ouvrir
+- `Upload` = Téléverser PDF
+- `Download` = Export
+- `RefreshCw` = Actualiser
+- `Plus` = Nouveau contrat
+- `Grid3X3` / `List` = Toggle Grille/Liste
+
+### Tabs Legend (desktop)
+
+- **Tous** : `FileText`
+- **Standard** : `FileText`
+- **Journalier** : `Calendar`
+- **Libre** : `FileText`
+- **Standard Charitable** : `FileText`
+- **Journalier Charitable** : `Calendar`
+- **Libre Charitable** : `FileText`
+- **Mois en cours** : `Calendar`
+- **Retard** : `AlertCircle`
+
+### Structure Générale
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [Header KARA + Breadcrumbs]                                  │
+│  [FileText] Contrats Caisse Spéciale                          │ ← Titre module
+│  Gérez les contrats en cours                                  │ ← Brève description
+│  2 contrats • Page 1                                          │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Stats Carousel]                                             │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Tabs]                                                      │
+│  Tous | Standard | Journalier | Libre | Charitable | ...     │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Recherche + Filtres]                                       │
+│  🔍 Rechercher (nom, prénom, matricule)                      │
+│  [Statut ▼] [Type ▼] [Type caisse ▼]                         │
+│  [Date création: du ▢ au ▢] [Date échéance: du ▢ au ▢]       │
+│  [Retard uniquement ☐] [Réinitialiser filtres]               │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Barre d’actions]                                            │
+│  [Grille] [Liste] [Actualiser] [Exporter Excel] [Nouveau]     │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Pagination]                                                │ ← Avant la liste
+│  Affichage 1-12 sur 24 contrats                                │
+│  [◀ Préc] [1] [2] [Suiv ▶]                                    │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Cards - 3 colonnes]                                         │
+│  ┌───────────────────────────┐ ┌──────────────────────────┐   │
+│  │ [User] Matricule contrat   │ │ [User] Matricule contrat │   │
+│  │ [Badges état]             │ │ [Badges état]            │   │
+│  │ Type de contrat           │ │ Type de contrat          │   │
+│  │ Nom / Prénom / Matricule  │ │ ...                      │   │
+│  │ Contacts                  │ │ ...                      │   │
+│  │ Contact urgent            │ │ ...                      │   │
+│  │ Mensualité / Durée / Dates│ │ ...                      │   │
+│  │ PDF / Versé               │ │ ...                      │   │
+│  │ Actions verticales        │ │ Actions verticales       │   │
+│  └───────────────────────────┘ └──────────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Vue Liste - Tableau]                                        │
+│  | Matricule contrat | Statut | Type | Membre | Contacts | ...│
+│  | MK_...            | Actif  | Std  | Etoundi| 06..     | ...│
+│  | MK_...            | Retard | Jour | Obiang | 07..     | ...│
+│  Actions alignées verticalement dans la dernière colonne      │
+└──────────────────────────────────────────────────────────────┘
+
+### Vue Liste (Tableau) – Détails colonnes
+
+**Colonnes (ordre strict)** :
+
+1. **Photo** (avatar membre)
+2. **Matricule contrat** (non tronqué)
+3. **Badges d’état** (Individuel/Collectif, Retard, Actif…)
+4. **Type de contrat** (Standard, Journalier, Libre, Charitable…)
+5. **Nom**
+6. **Prénom**
+7. **Matricule membre**
+8. **Contacts membre** (téléphones + email si dispo)
+9. **Contact urgent** (Nom, Prénom, Téléphone)
+10. **Mensualité**
+11. **Durée**
+12. **Début d’échéance**
+13. **Prochaine échéance**
+14. **État contrat PDF** (Disponible / À téléverser)
+15. **Versé**
+16. **Actions** (colonne verticale)
+
+**Actions (verticales, ordre)** :
+
+- Ouvrir
+- Contrat d’inscription
+- Téléverser le document PDF (si manquant)
+- Télécharger contrat
+
+**Alignements** :
+
+- Colonnes texte : gauche
+- Montants/dates : droite
+- Badges : centre
+- Actions : colonne à droite (sticky si possible)
+
+┌──────────────────────────────────────────────────────────────┐
+│  [Pagination]                                                │ ← Après la liste
+│  Affichage 1-12 sur 24 contrats                                │
+│  [◀ Préc] [1] [2] [Suiv ▶]                                    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Spécifications Desktop
+
+| Élément | Spécifications |
+|---------|----------------|
+| **Grille** | 3 cards par ligne |
+| **Avatar** | photo membre, fallback initiales |
+| **Matricule contrat** | non tronqué, monospace recommandé |
+| **Toggle Grille/Liste** | **Disponible** uniquement sur desktop |
+| **Tabs** | Tous, Standard, Journalier, Libre, Standard Charitable, Journalier Charitable, Libre Charitable, Mois en cours, Retard |
+| **Recherche** | input + debounce 300ms, min 2 caractères |
+| **Filtres** | statut, type, type caisse, dates création/échéance, overdueOnly |
+| **Pagination** | affichée **avant** et **après** la liste |
+| **Badges** | ligne dédiée (Individuel, Retard, Actif...) |
+| **Actions** | colonne verticale alignée à gauche |
+
+### Icônes Lucide – mapping (desktop)
+
+- **Header module** : `FileText`
+- **Recherche** : `Search`
+- **Tabs** : `FileText` (si icône utilisée), `AlertCircle` (Retard)
+- **Avatar fallback** : `User` (individuel), `Users` (groupe)
+- **Badge Retard** : `AlertCircle`
+- **Dates** : `Calendar`
+- **Montants** : `DollarSign`
+- **Actions** : `Eye` (Ouvrir), `Upload` (Téléverser), `FileText` (Télécharger), `Download` (Exporter), `RefreshCw` (Actualiser), `Plus` (Nouveau contrat)
+- **Toggle Grille/Liste** : `Grid3X3`, `List`
+
+---
+
+*Dernière mise à jour : 2026-02-03*

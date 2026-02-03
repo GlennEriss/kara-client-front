@@ -1,0 +1,45 @@
+@startuml GenererIdentifiant - Flux principal (V2)
+Title Générer identifiant / Réinitialiser mot de passe (V2)
+
+start
+
+:Admin sur la liste des membres (/memberships);
+
+:Admin clique sur "Générer identifiant" pour un membre;
+
+:Ouverture du modal de confirmation;
+
+:Affichage du message :
+- Réinitialisation du mot de passe à la valeur du matricule
+- Champ "Recopiez le matricule du membre";
+
+:Admin saisit ou colle le matricule dans le champ;
+
+if (Matricule saisi == matricule du membre ?) then (non)
+  :Bouton "Accepter" resté désactivé;
+  :Admin corrige la saisie ou annule;
+  stop
+else (oui)
+  :Bouton "Accepter" activé;
+endif
+
+:Admin clique sur "Accepter";
+
+:Mise à jour du mot de passe du membre
+(mot de passe = matricule)
+via API / Cloud Function (Firebase Admin);
+
+if (Mise à jour OK ?) then (non)
+  :Afficher message d'erreur;
+  :Modal reste ouvert;
+  stop
+else (oui)
+  :Génération du PDF (matricule, identifiant, mot de passe);
+  :Téléchargement du PDF (ou ouverture dans un nouvel onglet);
+  :Message de succès;
+  :Fermeture du modal;
+endif
+
+stop
+
+@enduml

@@ -116,8 +116,10 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 #### UI
 - [ ] **1.4** Stats affichées AVANT les tabs (C.1)
-- [ ] **1.5** Pagination standard (Affichage 1-12 sur X)
-- [ ] **1.6** Bouton Actualiser → invalidateQueries
+- [ ] **1.5** Tabs mobile = badges carousel (sans boutons)
+- [ ] **1.6** Toggle Grille/Liste uniquement desktop
+- [ ] **1.7** Pagination AVANT et APRÈS la liste (Affichage 1-12 sur X)
+- [ ] **1.8** Bouton Actualiser → invalidateQueries
 
 ---
 

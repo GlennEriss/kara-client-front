@@ -33,6 +33,11 @@ V2/contrats/
 │   └── README.md
 ├── firebase/                 # Règles et index Firebase
 │   └── FIREBASE.md
+├── wireframes/               # Wireframes UI (mobile/tablette/desktop)
+│   ├── README.md
+│   ├── WIREFRAME_LISTE_CONTRATS_MOBILE.md
+│   ├── WIREFRAME_LISTE_CONTRATS_TABLETTE.md
+│   └── WIREFRAME_LISTE_CONTRATS_DESKTOP.md
 ├── workflow/                 # Plan d'implémentation par séquence
 │   └── WORKFLOW.md
 └── README.md (ce fichier)
