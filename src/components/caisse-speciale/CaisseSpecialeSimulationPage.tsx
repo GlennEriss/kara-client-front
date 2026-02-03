@@ -40,6 +40,11 @@ function formatAmount(n: number): string {
   return n.toLocaleString('fr-FR')
 }
 
+/** Formater les montants pour le PDF (évite les problèmes d'espace insécable avec jsPDF) */
+function formatAmountForPDF(amount: number): string {
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
 function CaisseSpecialeSimulationPage() {
   const [result, setResult] = useState<CaisseSpecialeSimulationResult | null>(null)
   const runSimulation = useCaisseSpecialeSimulation()
@@ -267,16 +272,16 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
     const autoTable = (await import('jspdf-autotable')).default
     const doc = new jsPDF('l', 'mm', 'a4')
     doc.setFontSize(14)
-    doc.text('Simulation Caisse Spéciale', 14, 12)
+    doc.text('Tableau récapitulatif des versements', 14, 12)
     doc.setFontSize(10)
     doc.text(`Exporté le ${formatDateFr(new Date())}`, 14, 18)
     const body = result.rows.map((r) => [
       r.monthLabel,
       formatDateFr(r.dueAt),
       r.bonusEffectiveLabel,
-      formatAmount(r.amount),
+      formatAmountForPDF(r.amount),
       String(r.bonusRatePercent),
-      formatAmount(r.bonusAmount),
+      formatAmountForPDF(r.bonusAmount),
     ])
     autoTable(doc, {
       head: [['N° Échéance', 'Date échéance', 'Date bonus', 'Montant (FCFA)', 'Taux %', 'Bonus (FCFA)']],
@@ -287,8 +292,8 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
     const finalY = (doc as any).lastAutoTable?.finalY ?? 24
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.text(`Total montants: ${formatAmount(result.totalAmount)} FCFA`, 14, finalY + 8)
-    doc.text(`Total bonus: ${formatAmount(result.totalBonus)} FCFA`, 14, finalY + 14)
+    doc.text(`Total montants: ${formatAmountForPDF(result.totalAmount)} FCFA`, 14, finalY + 8)
+    doc.text(`Total bonus: ${formatAmountForPDF(result.totalBonus)} FCFA`, 14, finalY + 14)
     const fileName = `simulation_caisse_speciale_${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
     toast.success('PDF exporté')
