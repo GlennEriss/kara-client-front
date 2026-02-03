@@ -11,6 +11,7 @@ participant "CaisseSpecialeService\n(Service)" as Service
 participant "CaisseSpecialeDemandRepository\n(Repository)" as Repo
 participant "subscribe\n(Engine)" as Subscribe
 participant "NotificationService\n(Service)" as Notif
+participant "CaisseSettings\n(Repository)" as SettingsRepo
 database "Firestore" as Firestore
 
 Admin -> Detail: Accède page détails demande APPROVED sans contractId
@@ -34,7 +35,17 @@ Repo --> Service: CaisseSpecialeDemand
 
 Service -> Service: Vérifier status === 'APPROVED' et !contractId
 
-Service -> Subscribe: subscribe(memberId, monthlyAmount, monthsPlanned, caisseType, firstPaymentDate)
+Service -> SettingsRepo: getActiveSettings(caisseType)
+SettingsRepo -> Firestore: query(caisseSettings where caisseType & isActive)
+Firestore --> SettingsRepo: settings | null
+SettingsRepo --> Service: activeSettings
+note right of Service
+  Si aucun paramètre actif :
+  - Bloquer conversion
+  - Message "Configurer les paramètres d'abord"
+end note
+
+Service -> Subscribe: subscribe(memberId, monthlyAmount, monthsPlanned, caisseType, firstPaymentDate, settingsVersion)
 activate Subscribe
 Subscribe -> Firestore: Créer contrat + versements
 Firestore --> Subscribe: contractId

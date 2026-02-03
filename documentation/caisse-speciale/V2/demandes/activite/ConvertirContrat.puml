@@ -19,9 +19,12 @@ if (Admin clique "Convertir en contrat" ?) then (oui)
   
   :Service.convertDemandToContract(demandId, adminId) :
   - Vérifier status === 'APPROVED' et !contractId
+  - Récupérer `caisseSettings` actif pour demand.caisseType
+  - Si aucun paramètre actif → erreur + arrêt
   - Créer contrat via subscribe() :
     * memberId, monthlyAmount, monthsPlanned
     * caisseType, firstPaymentDate (desiredDate)
+    * settingsVersion = settings.id
   - Mettre à jour demande :
     * status → CONVERTED
     * contractId = id du contrat créé

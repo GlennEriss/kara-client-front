@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation'
 import { useCaisseSpecialeDemand, useCaisseSpecialeDemandMutations } from '@/hooks/caisse-speciale/useCaisseSpecialeDemands'
 import { useExportCaisseSpecialeDemandDetails } from '@/hooks/caisse-speciale/useExportCaisseSpecialeDemandDetails'
 import { useMember } from '@/hooks/useMembers'
+import { useActiveCaisseSettingsByType } from '@/hooks/useCaisseSettings'
 import { CaisseSpecialeDemandStatus } from '@/types/types'
 import { cn } from '@/lib/utils'
 import routes from '@/constantes/routes'
@@ -33,6 +34,7 @@ import AcceptDemandModal from './AcceptDemandModal'
 import RejectDemandModal from './RejectDemandModal'
 import ReopenDemandModal from './ReopenDemandModal'
 import { useState, useMemo } from 'react'
+import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -50,6 +52,7 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
   const router = useRouter()
   const { data: demand, isLoading, error } = useCaisseSpecialeDemand(demandId)
   const { data: member } = useMember(demand?.memberId)
+  const activeSettings = useActiveCaisseSettingsByType(demand?.caisseType as any)
   const { convert } = useCaisseSpecialeDemandMutations()
   const { exportDetails, isExporting } = useExportCaisseSpecialeDemandDetails()
 
@@ -78,6 +81,10 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
 
   const handleConvertToContract = () => {
     if (!demand?.id) return
+    if (!activeSettings.data) {
+      toast.error('Paramètres non configurés pour ce type de caisse')
+      return
+    }
     convert.mutate(
       { demandId: demand.id },
       {
@@ -115,6 +122,9 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
       STANDARD: 'Standard',
       JOURNALIERE: 'Journalière',
       LIBRE: 'Libre',
+      STANDARD_CHARITABLE: 'Standard Charitable',
+      JOURNALIERE_CHARITABLE: 'Journalière Charitable',
+      LIBRE_CHARITABLE: 'Libre Charitable',
     }
     return labels[type as keyof typeof labels] || type
   }
@@ -533,9 +543,23 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
                 Cette demande a été acceptée mais aucun contrat n&apos;a été créé. Cliquez sur le bouton ci-dessous pour créer le contrat.
               </AlertDescription>
             </Alert>
+            {!activeSettings.isLoading && !activeSettings.data && (
+              <Alert className="mb-4 border-red-200 bg-red-50/50">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span>Paramètres non configurés pour ce type de caisse. Veuillez activer une version avant conversion.</span>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/caisse-speciale/settings')}
+                  >
+                    Aller configurer les paramètres
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             <Button
               onClick={handleConvertToContract}
-              disabled={convert.isPending}
+              disabled={convert.isPending || activeSettings.isLoading || !activeSettings.data}
               className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
             >
               {convert.isPending ? (
@@ -599,4 +623,3 @@ export default function DemandDetail({ demandId }: DemandDetailProps) {
     </div>
   )
 }
-

@@ -1,0 +1,69 @@
+@startuml SEQ_LancerSimulation
+title Séquence : Lancer une Simulation Caisse Spéciale (Standard / Standard Charitable)
+' Référence : LancerSimulation.puml (activité)
+' Architecture : domains/financial/caisse-speciale (Page → Domain Component → Hook → Service → Repository → Firestore)
+
+actor "Admin" as Admin
+participant "SimulationPage\n(app/(admin)/caisse-speciale/simulation)" as Page
+
+box "domains/financial/caisse-speciale" #E8F4FD
+  participant "SimulationForm\n(Domain Component)" as Form
+  participant "useSimulationRun\n(Domain Hook)" as Hook
+  participant "CaisseSpecialeSimulationService\n(Domain Service)" as Service
+  participant "CaisseSettingsRepository\n(Domain Repository)" as Repo
+end box
+
+database "Firestore\ncaisseSettings" as Firestore
+
+Admin -> Page: Accède à /caisse-speciale/simulation
+activate Page
+
+Page -> Form: Render SimulationForm
+activate Form
+Form --> Admin: Afficher formulaire (type, montant, durée, date souhaitée)
+
+Admin -> Form: Saisit type caisse (Standard | Standard Charitable), montant, durée 1-12, date
+Form -> Form: Validation Zod (montant > 0, durée 1-12, date valide)
+
+Admin -> Form: Clique "Lancer la simulation"
+activate Form
+
+Form -> Hook: runSimulation({ caisseType, monthlyAmount, monthsPlanned, desiredDate })
+activate Hook
+
+Hook -> Service: runSimulation(params)
+activate Service
+
+Service -> Repo: getActiveSettings(caisseType)
+activate Repo
+Repo -> Firestore: query caisseSettings where caisseType = X and isActive = true
+Firestore --> Repo: settings doc (bonusTable M4-M12)
+Repo --> Service: CaisseSettings | null
+deactivate Repo
+
+alt Aucun paramètre actif
+  Service --> Hook: { error: "Aucun paramètre actif", rows: [] }
+  Hook --> Form: { error, rows: [] }
+  Form --> Admin: Afficher message "Aucun paramètre actif pour ce type"
+else Paramètres trouvés
+  Service -> Service: Calcul échéancier (1..N mois) : date échéance, montant, taux bonus (computeBonus), bonus FCFA
+  Service --> Hook: { rows: [{ month, dueDate, bonusEffectiveDate, amount, bonusRate, bonusAmount }], totals }
+  deactivate Service
+  Hook --> Form: { rows, totals }
+  deactivate Hook
+
+  Form --> Admin: Afficher tableau récapitulatif (N° Échéance, Date échéance, Date prise d'effet bonus, Montant, Taux %, Bonus FCFA) + totaux + actions (Export PDF/Excel, Partager WhatsApp)
+end
+
+deactivate Form
+deactivate Page
+
+note over Admin, Firestore
+  **Architecture domains** : Page (app) → Domain Component → Domain Hook → Domain Service → Domain Repository → Firestore.
+  **Aucune écriture** : simulation = calcul + affichage uniquement.
+  **Référence** : computeBonus (engine.ts), bonusTable M4–M12.
+  **Package cible** : src/domains/financial/caisse-speciale/
+  (components/, hooks/, services/, repositories/)
+end note
+
+@enduml

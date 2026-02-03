@@ -8,6 +8,7 @@ import { ServiceFactory } from "@/factories/ServiceFactory";
 import { NotificationService } from "@/services/notifications/NotificationService";
 import { subscribe } from "@/services/caisse/mutations";
 import { generateAllDemandSearchableTexts } from "@/utils/demandSearchableText";
+import { getActiveSettings } from "@/db/caisse/settings.db";
 
 export class CaisseSpecialeService implements ICaisseSpecialeService {
     readonly name = "CaisseSpecialeService";
@@ -362,6 +363,11 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             throw new Error('La demande doit être associée à un membre');
         }
 
+        const settings = await getActiveSettings(demand.caisseType as any);
+        if (!settings?.id) {
+            throw new Error('Paramètres non configurés pour ce type de caisse');
+        }
+
         // Créer le contrat Caisse Spéciale à partir de la demande (même logique que approveDemand)
         const contractId = await subscribe({
             memberId: demand.memberId,
@@ -369,6 +375,7 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
             monthsPlanned: demand.monthsPlanned,
             caisseType: demand.caisseType,
             firstPaymentDate: demand.desiredDate,
+            settingsVersion: settings.id,
         });
 
         // Récupérer le nom de l'admin pour la traçabilité
@@ -451,4 +458,3 @@ export class CaisseSpecialeService implements ICaisseSpecialeService {
         await this.caisseSpecialeDemandRepository.deleteDemand(demandId);
     }
 }
-

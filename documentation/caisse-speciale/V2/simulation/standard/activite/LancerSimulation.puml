@@ -1,0 +1,104 @@
+@startuml LancerSimulation
+title Workflow : Lancer une Simulation Caisse Spéciale (Standard / Standard Charitable)
+' Référence : README.md simulation/standard – Formulaire, tableau récapitulatif, bonus
+
+start
+
+:Admin accède à /caisse-speciale/simulation;
+
+:Afficher page Simulation :
+- Titre "Simulation Caisse Spéciale"
+- Breadcrumbs : Caisse Spéciale > Simulation
+- Formulaire (type, montant, durée, date souhaitée);
+
+' ============================================
+' FORMULAIRE
+' ============================================
+:Admin saisit les champs :
+- **Type de caisse** : liste (Standard | Standard Charitable)
+- **Montant mensuel** : nombre FCFA, > 0
+- **Durée prévue** : entier 1 à 12 mois
+- **Date souhaitée** : date (prise d'effet / 1er mois);
+
+:Valider formulaire (Zod) :
+- montant > 0
+- durée entre 1 et 12
+- date valide;
+
+if (Validation OK ?) then (non)
+  :Afficher erreurs de validation;
+  :Bouton "Lancer la simulation" désactivé ou message;
+  stop
+endif
+
+:Admin clique "Lancer la simulation" (ou "Valider");
+
+' ============================================
+' RÉCUPÉRATION DES PARAMÈTRES (lecture seule)
+' ============================================
+:Récupérer CaisseSettings actif pour le type choisi :
+- caisseType = STANDARD ou STANDARD_CHARITABLE
+- Hook / Service existant : getActiveSettings(caisseType)
+- Firestore : caisseSettings, isActive = true, même caisseType;
+
+if (Paramètres actifs trouvés ?) then (non)
+  :Afficher message "Aucun paramètre actif pour ce type de caisse";
+  :Tableau vide ou désactivé (bonus à 0 %);
+  stop
+endif
+
+:Extraire bonusTable (M4 à M12) depuis settings;
+
+' ============================================
+' CALCUL ÉCHÉANCIER + BONUS
+' ============================================
+:Calculer pour chaque mois i = 1..N (durée) :
+- N° échéance : M1, M2, ... MN
+- Date d'échéance : date souhaitée + (i-1) mois (même jour)
+- Montant à verser : montant mensuel saisi
+- Taux bonus (%) : 0 si i ≤ 3 ; sinon bonusTable[M{i}] (référence computeBonus)
+- Bonus gagné (FCFA) : montant × (taux/100) pour mois ≥ 4;
+
+:Construire lignes du tableau récapitulatif;
+
+' ============================================
+' AFFICHAGE TABLEAU RÉCAPITULATIF
+' ============================================
+:Afficher tableau avec colonnes :
+- N° Échéance
+- Date d'échéance
+- Date de prise d'effet du bonus (ou libellé M4, M5...)
+- Montant à verser (FCFA)
+- Taux bonus (%)
+- Bonus gagné (FCFA);
+
+:Afficher ligne totaux (optionnel) :
+- Somme montants à verser
+- Somme bonus gagnés;
+
+:Afficher boutons d'action :
+- "Exporter PDF" / "Exporter Excel" (si implémentés)
+- **"Partager sur WhatsApp"** (tableau récapitulatif);
+
+if (Admin clique "Partager sur WhatsApp" ?) then (oui)
+  :Préparer contenu partageable :
+  - Option A : texte formaté (résumé simulation + lignes du tableau : échéance, date, montant, bonus)
+  - Option B : image du tableau (capture ou génération) + texte court;
+  :Ouvrir lien WhatsApp (wa.me ou api.whatsapp.com) :
+  - Pré-remplir le message avec le contenu (option A)
+  - Ou proposer partage de fichier image (option B);
+  :Admin envoie le message dans WhatsApp (contact, groupe, etc.);
+endif
+
+stop
+
+note right
+  **Aucune persistance** : aucune écriture Firestore pour la simulation.
+  **Partage WhatsApp** : lien https://wa.me/?text=... (message encodé URL) ou partage de fichier image.
+  **Références** :
+  - computeBonus : src/services/caisse/engine.ts
+  - bonusTable M4–M12 : documentation/caisse-speciale/V1/settings/README.md
+  - Affichage versements : contrats/[id]/versements (colonnes bonus)
+end note
+
+@enduml

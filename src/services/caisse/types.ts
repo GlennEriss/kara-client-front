@@ -1,6 +1,12 @@
 import type { PaymentMode } from "@/types/types"
 
-export type CaisseType = 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+export type CaisseType =
+  | 'STANDARD'
+  | 'JOURNALIERE'
+  | 'LIBRE'
+  | 'STANDARD_CHARITABLE'
+  | 'JOURNALIERE_CHARITABLE'
+  | 'LIBRE_CHARITABLE'
 export type CaisseContractStatus =
   | 'DRAFT'
   | 'ACTIVE'
@@ -77,6 +83,9 @@ export interface CaissePayment {
   // Extensions pour les contrats de groupe
   isGroupPayment?: boolean
   groupContributions?: GroupPaymentContribution[]
+
+  // Agent de recouvrement ayant collecté le paiement (contrats individuels)
+  agentRecouvrementId?: string
 }
 
 export interface GroupPaymentContribution {
@@ -131,4 +140,3 @@ export interface CaisseRefund {
   withdrawalDate?: Date
   withdrawalTime?: string
 }
-

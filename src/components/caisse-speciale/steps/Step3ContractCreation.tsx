@@ -150,7 +150,10 @@ export function Step3ContractCreation() {
         return
       }
 
-      if (formData.caisseType === 'LIBRE' && formData.monthlyAmount < 100000) {
+      if (
+        (formData.caisseType === 'LIBRE' || formData.caisseType === 'LIBRE_CHARITABLE') &&
+        formData.monthlyAmount < 100000
+      ) {
         toast.error('Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA.')
         return
       }

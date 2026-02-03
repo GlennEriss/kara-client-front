@@ -1,0 +1,11 @@
+@startuml ExporterListeContrats
+'title Workflow : Exporter la liste des Contrats (V2)
+
+start
+:Admin clique "Exporter";
+:Appliquer filtres actifs + onglet;
+:Préparer dataset export (colonnes standard);
+:Exporter CSV/Excel (+ option PDF);
+:Afficher toast succès/erreur;
+stop
+@enduml

@@ -1,0 +1,13 @@
+@startuml SEQ_ExporterVersements
+title Séquence : Exporter les Versements (V2)
+' Référence : ExporterVersements.puml (activité)
+
+actor "Admin" as Admin
+participant "PaymentsList\n(Domain Component)" as List
+participant "PaymentsExportService\n(Domain Service)" as Exporter
+
+Admin -> List: Clique "Exporter versements"
+List -> Exporter: exportPayments(payments, format)
+Exporter --> List: fichier prêt (PDF/Excel)
+List --> Admin: Télécharger fichier
+@enduml

@@ -32,19 +32,32 @@ export function Step2ContractConfiguration() {
       formData.caisseType &&
       formData.monthlyAmount > 0 &&
       formData.monthsPlanned > 0 &&
-      (formData.caisseType !== 'LIBRE' || formData.monthlyAmount >= 100000)
+      (
+        (formData.caisseType !== 'LIBRE' && formData.caisseType !== 'LIBRE_CHARITABLE') ||
+        formData.monthlyAmount >= 100000
+      )
     )
     validateCurrentStep(isValid)
   }, [formData.caisseType, formData.monthlyAmount, formData.monthsPlanned, validateCurrentStep])
 
   // Gestion du changement de type de caisse
-  const handleCaisseTypeChange = (type: 'STANDARD' | 'JOURNALIERE' | 'LIBRE') => {
+  const handleCaisseTypeChange = (
+    type:
+      | 'STANDARD'
+      | 'JOURNALIERE'
+      | 'LIBRE'
+      | 'STANDARD_CHARITABLE'
+      | 'JOURNALIERE_CHARITABLE'
+      | 'LIBRE_CHARITABLE'
+  ) => {
+    const isLibreType = type === 'LIBRE' || type === 'LIBRE_CHARITABLE'
+    const isDailyType = type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE'
     updateFormData({ 
       caisseType: type,
       // Ajuster le montant minimum pour LIBRE
-      monthlyAmount: type === 'LIBRE' && formData.monthlyAmount < 100000 ? 100000 : formData.monthlyAmount,
+      monthlyAmount: isLibreType && formData.monthlyAmount < 100000 ? 100000 : formData.monthlyAmount,
       // Ajuster la durée pour JOURNALIERE
-      monthsPlanned: type === 'JOURNALIERE' && formData.monthsPlanned > 12 ? 12 : formData.monthsPlanned
+      monthsPlanned: isDailyType && formData.monthsPlanned > 12 ? 12 : formData.monthsPlanned
     })
   }
 
@@ -68,13 +81,17 @@ export function Step2ContractConfiguration() {
       return
     }
 
-    const maxMonths = formData.caisseType === 'JOURNALIERE' ? 12 : 60
+    const maxMonths =
+      formData.caisseType === 'JOURNALIERE' || formData.caisseType === 'JOURNALIERE_CHARITABLE'
+        ? 12
+        : 60
     const sanitizedMonths = Math.max(0, Math.floor(months))
     updateFormData({ monthsPlanned: Math.min(sanitizedMonths, maxMonths) })
   }
 
-  const isDaily = formData.caisseType === 'JOURNALIERE'
-  const isLibre = formData.caisseType === 'LIBRE'
+  const isDaily = formData.caisseType === 'JOURNALIERE' || formData.caisseType === 'JOURNALIERE_CHARITABLE'
+  const isLibre = formData.caisseType === 'LIBRE' || formData.caisseType === 'LIBRE_CHARITABLE'
+  const isCharitable = formData.caisseType?.endsWith('_CHARITABLE')
 
   return (
     <div className="space-y-6">
@@ -145,6 +162,54 @@ export function Step2ContractConfiguration() {
               <span className="font-semibold">Libre</span>
               <span className="text-xs opacity-80">Versements flexibles</span>
             </Button>
+
+            {/* Caisse Standard Charitable */}
+            <Button
+              variant={formData.caisseType === 'STANDARD_CHARITABLE' ? 'default' : 'outline'}
+              onClick={() => handleCaisseTypeChange('STANDARD_CHARITABLE')}
+              className={cn(
+                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
+                formData.caisseType === 'STANDARD_CHARITABLE'
+                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+              )}
+            >
+              <DollarSign className="w-6 h-6" />
+              <span className="font-semibold">Standard Charitable</span>
+              <span className="text-xs opacity-80">Versement mensuel fixe</span>
+            </Button>
+
+            {/* Caisse Journalière Charitable */}
+            <Button
+              variant={formData.caisseType === 'JOURNALIERE_CHARITABLE' ? 'default' : 'outline'}
+              onClick={() => handleCaisseTypeChange('JOURNALIERE_CHARITABLE')}
+              className={cn(
+                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
+                formData.caisseType === 'JOURNALIERE_CHARITABLE'
+                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+              )}
+            >
+              <Calendar className="w-6 h-6" />
+              <span className="font-semibold">Journalière Charitable</span>
+              <span className="text-xs opacity-80">Contributions quotidiennes</span>
+            </Button>
+
+            {/* Caisse Libre Charitable */}
+            <Button
+              variant={formData.caisseType === 'LIBRE_CHARITABLE' ? 'default' : 'outline'}
+              onClick={() => handleCaisseTypeChange('LIBRE_CHARITABLE')}
+              className={cn(
+                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
+                formData.caisseType === 'LIBRE_CHARITABLE'
+                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+              )}
+            >
+              <DollarSign className="w-6 h-6" />
+              <span className="font-semibold">Libre Charitable</span>
+              <span className="text-xs opacity-80">Versements flexibles</span>
+            </Button>
           </div>
 
           {/* Informations sur le type sélectionné */}
@@ -165,6 +230,26 @@ export function Step2ContractConfiguration() {
                 {formData.caisseType === 'LIBRE' && (
                   <p>
                     <strong>Caisse Libre :</strong> Versements flexibles avec un minimum de 100 000 FCFA par mois. Vous pouvez verser plus selon vos possibilités.
+                  </p>
+                )}
+                {formData.caisseType === 'STANDARD_CHARITABLE' && (
+                  <p>
+                    <strong>Caisse Standard Charitable :</strong> Même règles que la caisse standard, appliquées aux contrats caritatifs.
+                  </p>
+                )}
+                {formData.caisseType === 'JOURNALIERE_CHARITABLE' && (
+                  <p>
+                    <strong>Caisse Journalière Charitable :</strong> Même règles que la caisse journalière, appliquées aux contrats caritatifs.
+                  </p>
+                )}
+                {formData.caisseType === 'LIBRE_CHARITABLE' && (
+                  <p>
+                    <strong>Caisse Libre Charitable :</strong> Même règles que la caisse libre, appliquées aux contrats caritatifs.
+                  </p>
+                )}
+                {isCharitable && (
+                  <p className="mt-2 text-xs text-blue-600">
+                    Variante caritative : les bonus et pénalités sont définis dans les paramètres dédiés.
                   </p>
                 )}
               </div>

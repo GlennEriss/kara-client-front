@@ -380,7 +380,14 @@ service cloud.firestore {
         request.resource.data.memberId.size() > 0 &&
         request.resource.data.contractType == 'INDIVIDUAL' &&
         request.resource.data.caisseType is string &&
-        request.resource.data.caisseType in ['STANDARD', 'JOURNALIERE', 'LIBRE'] &&
+        request.resource.data.caisseType in [
+          'STANDARD',
+          'JOURNALIERE',
+          'LIBRE',
+          'STANDARD_CHARITABLE',
+          'JOURNALIERE_CHARITABLE',
+          'LIBRE_CHARITABLE'
+        ] &&
         request.resource.data.monthlyAmount is number &&
         request.resource.data.monthlyAmount >= 1000 &&
         request.resource.data.monthlyAmount <= 10000000 &&
@@ -419,8 +426,12 @@ service cloud.firestore {
     match /caisseContracts/{contractId} {
       // Lecture : Admin uniquement
       allow read: if isAdmin();
-      // Écriture : Admin uniquement
-      allow write: if isAdmin();
+      // Création : Admin uniquement + settingsVersion obligatoire
+      allow create: if isAdmin() &&
+        request.resource.data.settingsVersion is string &&
+        request.resource.data.settingsVersion.size() > 0;
+      // Mises à jour/Suppression : Admin uniquement
+      allow update, delete: if isAdmin();
       
       // Sous-collection : versements (échéances mensuelles)
       // Utilisée lors de la création de contrat depuis une demande acceptée

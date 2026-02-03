@@ -1,0 +1,13 @@
+@startuml ConsulterVersements
+'title Workflow : Consulter les Versements (V2)
+
+start
+:Admin ouvre /caisse-speciale/contrats/{id}/versements;
+:Charger contrat + settings + paiements;
+:Afficher résumé (bonus/pénalités);
+:Afficher historique des versements;
+if (Admin exporte ?) then (oui)
+  :Exporter PDF / Excel;
+endif
+stop
+@enduml

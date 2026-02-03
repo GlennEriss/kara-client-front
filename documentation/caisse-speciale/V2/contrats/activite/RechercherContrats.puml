@@ -1,0 +1,16 @@
+@startuml RechercherContrats
+'title Workflow : Rechercher un Contrat (V2)
+
+start
+:Admin saisit une recherche;
+if (Longueur < 2) then (oui)
+  :Ne rien lancer;
+  stop
+endif
+:Débounce 300 ms;
+:Créer variantes searchableText (nom/prénom/matricule);
+:Exécuter requêtes parallèles;
+:Dédupliquer et fusionner;
+:Afficher liste paginée;
+stop
+@enduml

@@ -772,15 +772,22 @@ function CreateGroupCaisseContractButton({
     const router = useRouter()
     const [amount, setAmount] = React.useState(10000)
     const [months, setMonths] = React.useState(12)
-    const [caisseType, setCaisseType] = React.useState<'STANDARD' | 'JOURNALIERE' | 'LIBRE'>('STANDARD')
+    const [caisseType, setCaisseType] = React.useState<
+      | 'STANDARD'
+      | 'JOURNALIERE'
+      | 'LIBRE'
+      | 'STANDARD_CHARITABLE'
+      | 'JOURNALIERE_CHARITABLE'
+      | 'LIBRE_CHARITABLE'
+    >('STANDARD')
     const [firstPaymentDate, setFirstPaymentDate] = React.useState('')
     const [loading, setLoading] = React.useState(false)
 
     // Validation des paramètres de la Caisse Spéciale
     const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(caisseType)
 
-    const isDaily = caisseType === 'JOURNALIERE'
-    const isLibre = caisseType === 'LIBRE'
+    const isDaily = caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
+    const isLibre = caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
 
     React.useEffect(() => {
         if (isLibre && amount < 100000) {
@@ -837,7 +844,11 @@ function CreateGroupCaisseContractButton({
                 <div className="space-y-3">
                     <div>
                         <label className="block text-sm mb-1">
-                            {caisseType === 'STANDARD' ? 'Montant mensuel' : caisseType === 'JOURNALIERE' ? 'Objectif mensuel' : 'Montant mensuel (minimum 100 000)'}
+                            {caisseType === 'STANDARD' || caisseType === 'STANDARD_CHARITABLE'
+                              ? 'Montant mensuel'
+                              : caisseType === 'JOURNALIERE' || caisseType === 'JOURNALIERE_CHARITABLE'
+                                ? 'Objectif mensuel'
+                                : 'Montant mensuel (minimum 100 000)'}
                         </label>
                         <input
                             type="number"
@@ -860,10 +871,17 @@ function CreateGroupCaisseContractButton({
                     </div>
                     <div>
                         <label className="block text-sm mb-1">Caisse</label>
-                        <select className="border rounded p-2 w-full" value={caisseType} onChange={(e) => setCaisseType(e.target.value as 'STANDARD' | 'JOURNALIERE' | 'LIBRE')}>
+                        <select
+                          className="border rounded p-2 w-full"
+                          value={caisseType}
+                          onChange={(e) => setCaisseType(e.target.value as any)}
+                        >
                             <option value="STANDARD">Standard</option>
                             <option value="JOURNALIERE">Journalière</option>
                             <option value="LIBRE">Libre</option>
+                            <option value="STANDARD_CHARITABLE">Standard Charitable</option>
+                            <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
+                            <option value="LIBRE_CHARITABLE">Libre Charitable</option>
                         </select>
                         
                         {/* Validation des paramètres */}

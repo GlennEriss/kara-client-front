@@ -1,0 +1,31 @@
+@startuml SEQ_VoirDetailsContrat
+title Séquence : Voir Détails Contrat (V2)
+' Référence : VoirDetailsContrat.puml (activité)
+
+actor "Admin" as Admin
+participant "ContratDetailsPage" as Page
+participant "ContractDetail\n(Domain Component)" as Detail
+participant "useCaisseContract\n(Domain Hook)" as Hook
+participant "CaisseContractsService\n(Domain Service)" as Service
+participant "CaisseContractsRepository\n(Domain Repository)" as Repo
+database "Firestore" as Firestore
+
+Admin -> Page: Accéder à /caisse-speciale/contrats/{id}
+Page -> Detail: Render ContractDetail
+Detail -> Hook: useCaisseContract(id)
+Hook -> Service: getContract(id)
+Service -> Repo: getContract(id)
+Repo -> Firestore: doc(caisseContracts/{id})
+Firestore --> Repo: contract
+Repo --> Service: contract
+Service --> Hook: contract
+Hook --> Detail: { data: contract }
+
+alt PDF manquant
+  Detail --> Admin: Afficher CTA "Téléverser PDF signé"
+else PDF présent
+  Detail --> Admin: Afficher lien "Voir PDF signé"
+end
+
+Detail --> Admin: Afficher infos générales + actions
+@enduml

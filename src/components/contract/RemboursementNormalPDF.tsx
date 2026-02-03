@@ -97,6 +97,9 @@ const RemboursementNormalPDF = ({ contract }: { contract?: any }) => {
       case 'STANDARD': return 'Standard'
       case 'JOURNALIERE': return 'Journalière'
       case 'LIBRE': return 'Libre'
+      case 'STANDARD_CHARITABLE': return 'Standard Charitable'
+      case 'JOURNALIERE_CHARITABLE': return 'Journalière Charitable'
+      case 'LIBRE_CHARITABLE': return 'Libre Charitable'
       default: return type || 'Standard'
     }
   }

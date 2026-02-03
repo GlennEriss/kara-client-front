@@ -24,6 +24,9 @@ const CAISSE_TYPE_CONFIG: Record<CaisseType, { label: string; color: string; ico
   JOURNALIERE: { label: "Journalier", color: "blue", icon: Calendar },
   STANDARD: { label: "Standard", color: "purple", icon: Wallet },
   LIBRE: { label: "Libre", color: "amber", icon: Users },
+  STANDARD_CHARITABLE: { label: "Standard Charitable", color: "purple", icon: Wallet },
+  JOURNALIERE_CHARITABLE: { label: "Journalière Charitable", color: "blue", icon: Calendar },
+  LIBRE_CHARITABLE: { label: "Libre Charitable", color: "amber", icon: Users },
 }
 
 const COLOR_CONFIG = {

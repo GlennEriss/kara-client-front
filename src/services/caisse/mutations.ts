@@ -78,6 +78,7 @@ export async function subscribe(input: {
   firstPaymentDate: string;
   contractPdf?: File;
   emergencyContact?: EmergencyContact;
+  settingsVersion?: string;
 }) {
   // Validation : doit avoir soit memberId soit groupeId, mais pas les deux
   if (!input.memberId && !input.groupeId) {
@@ -91,6 +92,7 @@ export async function subscribe(input: {
   const contractType = input.memberId ? 'INDIVIDUAL' : 'GROUP'
   
   const settings = await getActiveSettings(input.caisseType)
+  const settingsVersion = input.settingsVersion ?? settings?.id
   
   // Récupérer le matricule du membre si c'est un contrat individuel
   let memberMatricule = '0000' // Fallback par défaut
@@ -122,7 +124,7 @@ export async function subscribe(input: {
     memberMatricule, // Ajouter le matricule pour la génération d'ID
     contractStartAt: startDate, // Requis pour computeNextDueAt et affichage "Prochaine échéance"
     nextDueAt, // Prochaine date d'échéance (premier versement pour un contrat neuf)
-    ...(settings?.id ? { settingsVersion: settings.id } : {}),
+    ...(settingsVersion ? { settingsVersion } : {}),
     ...(input.emergencyContact ? { emergencyContact: input.emergencyContact } : {})
   }
   
@@ -255,7 +257,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
 
   // Gestion des montants selon type
   const type = (contract as any).caisseType || 'STANDARD'
-  const targetForMonth = type === 'LIBRE' ? Math.max(100000, payment.targetAmount || 0) : contract.monthlyAmount
+  const isLibreType = type === 'LIBRE' || type === 'LIBRE_CHARITABLE'
+  const isDailyType = type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE'
+  const targetForMonth = isLibreType ? Math.max(100000, payment.targetAmount || 0) : contract.monthlyAmount
   let newAccumulated = payment.accumulatedAmount || 0
   if (typeof input.amount === 'number' && input.amount > 0) {
     newAccumulated += input.amount
@@ -269,9 +273,9 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
   // Bonus
   // Pour LIBRE, utiliser le montant accumulé AVANT ce paiement (le montant du mois précédent)
   // Pour STANDARD et JOURNALIERE, utiliser le montant mensuel
-  const baseForBonus = type === 'STANDARD'
+  const baseForBonus = type === 'STANDARD' || type === 'STANDARD_CHARITABLE'
     ? contract.monthlyAmount
-    : type === 'JOURNALIERE'
+    : isDailyType
       ? Math.min(newAccumulated, contract.monthlyAmount)
       : /* LIBRE */ (payment.accumulatedAmount || 0) // Utiliser le montant accumulé AVANT ce paiement
   // Utiliser le taux du mois précédent (pour le mois 5, utiliser le taux du mois 4)
@@ -299,7 +303,7 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     paymentUpdates.accumulatedAmount = newAccumulated
     // Pour les contrats LIBRE, amount représente le montant total accumulé versé
     // Pour les contrats STANDARD, amount reste égal au montant mensuel
-    if (type === 'LIBRE') {
+    if (isLibreType) {
       paymentUpdates.amount = newAccumulated
     } else {
       // Pour STANDARD et JOURNALIERE, amount = montant mensuel (fixe)
@@ -329,12 +333,19 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     console.log('📦 [pay] Total contribs après ajout:', paymentUpdates.contribs.length)
   }
   // Statut payé si objectif atteint
-  const reached = newAccumulated >= targetForMonth || type === 'STANDARD'
+  const reached =
+    newAccumulated >= targetForMonth ||
+    type === 'STANDARD' ||
+    type === 'STANDARD_CHARITABLE'
   if (reached) {
     paymentUpdates.status = 'PAID'
     paymentUpdates.paidAt = now
     // Stocker le bonus appliqué dans le paiement
     paymentUpdates.bonusApplied = bonus || 0
+    // Pour les contrats individuels, stocker l'agent au niveau du paiement pour l'affichage
+    if (input.agentRecouvrementId) {
+      paymentUpdates.agentRecouvrementId = input.agentRecouvrementId
+    }
   }
   await updatePayment(input.contractId, payment.id, paymentUpdates)
   console.log('✅ [pay] Payment mis à jour dans Firestore:', {
@@ -355,7 +366,13 @@ export async function pay(input: { contractId: string; dueMonthIndex: number; me
     }
   }
   // Si on a un start connu, on peut remplir les dueAt des prochains paiements si nécessaire (non requis dans cette itération)
-  const incrementNominal = reached ? (type === 'STANDARD' ? contract.monthlyAmount : Math.min(newAccumulated, targetForMonth) - (payment.accumulatedAmount || 0)) : 0
+  const incrementNominal = reached
+    ? (
+        type === 'STANDARD' || type === 'STANDARD_CHARITABLE'
+          ? contract.monthlyAmount
+          : Math.min(newAccumulated, targetForMonth) - (payment.accumulatedAmount || 0)
+      )
+    : 0
   const updated = {
     nominalPaid: (contract.nominalPaid || 0) + Math.max(0, incrementNominal),
     penaltiesTotal: (contract.penaltiesTotal || 0) + (penalty || 0),
@@ -457,7 +474,7 @@ export async function requestEarlyRefund(contractId: string, input?: {
   // Montant global versé (toutes contributions)
   let totalPaid = 0
   const type = (c as any).caisseType || 'STANDARD'
-  if (type === 'STANDARD') {
+  if (type === 'STANDARD' || type === 'STANDARD_CHARITABLE') {
     totalPaid = paidCount * (c.monthlyAmount || 0)
   } else {
     for (const p of payments) {
@@ -465,7 +482,7 @@ export async function requestEarlyRefund(contractId: string, input?: {
         totalPaid += (p as any).contribs.reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0)
       } else if (typeof (p as any).accumulatedAmount === 'number') {
         totalPaid += Number((p as any).accumulatedAmount) || 0
-      } else if (p.status === 'PAID' && type === 'JOURNALIERE') {
+      } else if (p.status === 'PAID' && (type === 'JOURNALIERE' || type === 'JOURNALIERE_CHARITABLE')) {
         totalPaid += c.monthlyAmount || 0
       }
     }
@@ -853,7 +870,10 @@ export async function payGroup(input: {
 
   // Vérifier si l'objectif du mois est atteint
   const type = (contract as any).caisseType || 'STANDARD'
-  const targetForMonth = type === 'LIBRE' ? Math.max(100000, payment.targetAmount || 0) : contract.monthlyAmount
+  const targetForMonth =
+    type === 'LIBRE' || type === 'LIBRE_CHARITABLE'
+      ? Math.max(100000, payment.targetAmount || 0)
+      : contract.monthlyAmount
   
   if (newTotalAmount >= targetForMonth) {
     paymentUpdates.status = 'PAID'
@@ -906,4 +926,3 @@ export async function payGroup(input: {
     totalAmount: newTotalAmount
   }
 }
-

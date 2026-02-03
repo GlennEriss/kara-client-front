@@ -1,0 +1,43 @@
+@startuml SEQ_ExporterSimulation
+title Séquence : Exporter le Tableau de Simulation (PDF / Excel)
+' Référence : ExporterSimulation.puml (activité)
+' Architecture : domains/financial/caisse-speciale
+
+actor "Admin" as Admin
+
+box "domains/financial/caisse-speciale" #E8F4FD
+  participant "SimulationForm\nou SimulationTableView\n(Domain Component)" as Table
+  participant "SimulationExportService\n(Domain Service)" as Exporter
+end box
+
+Admin -> Table: Tableau récapitulatif affiché (après simulation)
+
+Admin -> Table: Clique "Exporter en PDF" ou "Exporter en Excel"
+activate Table
+
+Table -> Table: Vérifier rows.length > 0
+
+alt Tableau vide
+  Table --> Admin: toast "Aucune donnée à exporter"
+else Données présentes
+  Table -> Exporter: exportToPDF(rows, totals) ou exportToExcel(rows, totals)
+  activate Exporter
+  Exporter -> Exporter: Construire document (en-tête + tableau + totaux) avec jsPDF/autoTable ou XLSX
+  Exporter --> Table: Blob (PDF ou Excel)
+  deactivate Exporter
+
+  Table -> Table: Créer lien <a> download, nom fichier simulation_caisse_speciale_YYYY-MM-DD.pdf|xlsx
+  Table -> Admin: Déclencher téléchargement
+  Table --> Admin: toast.success("PDF/Excel généré avec succès")
+end
+
+deactivate Table
+
+note over Admin, Exporter
+  **Architecture domains** : Domain Component → Domain Service (export).
+  **Optionnel** (Phase 4). Aucune persistance.
+  **Package cible** : src/domains/financial/caisse-speciale/services/ (SimulationExportService)
+  Référence : page versements export PDF/Excel.
+end note
+
+@enduml

@@ -27,7 +27,14 @@ export default function AdminCaisseSettingsPage() {
   })
   const [perDay, setPerDay] = React.useState(0)
   const [effectiveAt, setEffectiveAt] = React.useState<string>('')
-  const [caisseType, setCaisseType] = React.useState<'STANDARD' | 'JOURNALIERE' | 'LIBRE'>('STANDARD')
+  const [caisseType, setCaisseType] = React.useState<
+    | 'STANDARD'
+    | 'JOURNALIERE'
+    | 'LIBRE'
+    | 'STANDARD_CHARITABLE'
+    | 'JOURNALIERE_CHARITABLE'
+    | 'LIBRE_CHARITABLE'
+  >('STANDARD')
 
   // Éditeur détaillé de la version active
   const [bonusTable, setBonusTable] = React.useState<Record<string, number>>({})
@@ -127,6 +134,9 @@ export default function AdminCaisseSettingsPage() {
       case 'STANDARD': return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'JOURNALIERE': return 'bg-green-100 text-green-800 border-green-200'
       case 'LIBRE': return 'bg-purple-100 text-purple-800 border-purple-200'
+      case 'STANDARD_CHARITABLE': return 'bg-amber-100 text-amber-800 border-amber-200'
+      case 'JOURNALIERE_CHARITABLE': return 'bg-teal-100 text-teal-800 border-teal-200'
+      case 'LIBRE_CHARITABLE': return 'bg-rose-100 text-rose-800 border-rose-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
@@ -299,6 +309,9 @@ export default function AdminCaisseSettingsPage() {
                     <option value="STANDARD">Standard</option>
                     <option value="JOURNALIERE">Journalière</option>
                     <option value="LIBRE">Libre</option>
+                    <option value="STANDARD_CHARITABLE">Standard Charitable</option>
+                    <option value="JOURNALIERE_CHARITABLE">Journalière Charitable</option>
+                    <option value="LIBRE_CHARITABLE">Libre Charitable</option>
                   </select>
                 </div>
 

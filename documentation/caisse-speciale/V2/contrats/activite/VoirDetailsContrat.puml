@@ -1,0 +1,15 @@
+@startuml VoirDetailsContrat
+'title Workflow : Voir Détails Contrat (V2)
+
+start
+:Admin ouvre /caisse-speciale/contrats/{id};
+:Charger contrat + membre/groupe + settings;
+if (PDF signé manquant ?) then (oui)
+  :Afficher bannière/CTA
+"Téléverser le PDF signé";
+endif
+:Afficher fiche contrat (infos générales,
+montants, dates, statut, contact d'urgence);
+:Afficher liens vers versements et exports;
+stop
+@enduml

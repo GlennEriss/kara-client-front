@@ -24,6 +24,9 @@ export default function CalendrierPage() {
     "JOURNALIERE",
     "STANDARD",
     "LIBRE",
+    "STANDARD_CHARITABLE",
+    "JOURNALIERE_CHARITABLE",
+    "LIBRE_CHARITABLE",
   ])
   
   // Filtres Caisse Imprévue - Tous activés par défaut

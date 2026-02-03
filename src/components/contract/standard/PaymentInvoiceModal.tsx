@@ -15,6 +15,7 @@ import GroupPaymentInvoice from "./GroupPaymentInvoice"
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { toast } from 'sonner'
+import { ServiceFactory } from '@/factories/ServiceFactory'
 
 // Helper pour formater les montants correctement dans les PDFs
 const formatAmount = (amount: number): string => {
@@ -140,6 +141,18 @@ export default function PaymentInvoiceModal({
       const displayedAmount = payment.amount || payment.accumulatedAmount || contractData.monthlyAmount || 0
       doc.text(`Montant : ${formatAmount(displayedAmount)} FCFA`, 14, yPos)
       yPos += 6
+      
+      // Agent de recouvrement (payment.agentRecouvrementId ou contribs)
+      const agentId = payment.agentRecouvrementId ?? payment.contribs?.find((c: any) => c.agentRecouvrementId)?.agentRecouvrementId
+      if (agentId) {
+        try {
+          const agent = await ServiceFactory.getAgentRecouvrementService().getAgentById(agentId)
+          if (agent) {
+            doc.text(`Agent de recouvrement : ${agent.nom} ${agent.prenom}`, 14, yPos)
+            yPos += 6
+          }
+        } catch { /* ignorer si agent non trouvé */ }
+      }
       
       if (payment.penaltyApplied && payment.penaltyApplied > 0) {
         doc.setTextColor(220, 38, 38)

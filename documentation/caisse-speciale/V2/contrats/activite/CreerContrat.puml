@@ -1,0 +1,15 @@
+@startuml CreerContrat
+'title Workflow : Créer un Contrat Caisse Spéciale (V2)
+
+start
+:Admin ouvre /caisse-speciale/contrats/nouveau;
+:Step 1 - Type contrat (INDIVIDUAL / GROUP);
+:Step 2 - Configuration (type caisse, montant, durée);
+:Step 3 - Dates + contact d'urgence + validation;
+:Valider données (Zod);
+:Créer contrat via Service;
+:Créer versements planifiés;
+:Afficher toast succès;
+:Rediriger vers /caisse-speciale/contrats/{id};
+stop
+@enduml

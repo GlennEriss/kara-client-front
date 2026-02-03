@@ -69,6 +69,11 @@ const adminMenuItems: SidebarItem[] = [
         icon: Wallet,
         children: [
             {
+                title: "Simulation",
+                url: routes.admin.caisseSpecialeSimulation,
+                icon: Calculator,
+            },
+            {
                 title: "Demandes",
                 url: routes.admin.caisseSpecialeDemandes,
                 icon: FileText,

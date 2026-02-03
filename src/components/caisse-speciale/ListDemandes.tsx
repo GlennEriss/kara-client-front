@@ -490,7 +490,15 @@ const ListDemandes = () => {
     page: currentPage,
     limit: itemsPerPage,
     search: debouncedSearch.trim().length >= 2 ? debouncedSearch.trim() : undefined,
-    caisseType: caisseTypeFilter !== 'all' ? (caisseTypeFilter as 'STANDARD' | 'JOURNALIERE' | 'LIBRE') : undefined,
+    caisseType: caisseTypeFilter !== 'all'
+      ? (caisseTypeFilter as
+          | 'STANDARD'
+          | 'JOURNALIERE'
+          | 'LIBRE'
+          | 'STANDARD_CHARITABLE'
+          | 'JOURNALIERE_CHARITABLE'
+          | 'LIBRE_CHARITABLE')
+      : undefined,
     createdAtFrom: createdAtFrom ? new Date(createdAtFrom) : undefined,
     createdAtTo: createdAtTo ? new Date(createdAtTo + 'T23:59:59') : undefined,
   }
@@ -548,6 +556,9 @@ const ListDemandes = () => {
       STANDARD: 'Standard',
       JOURNALIERE: 'Journalière',
       LIBRE: 'Libre',
+      STANDARD_CHARITABLE: 'Standard Charitable',
+      JOURNALIERE_CHARITABLE: 'Journalière Charitable',
+      LIBRE_CHARITABLE: 'Libre Charitable',
     }
     return labels[type as keyof typeof labels] || type
   }
@@ -707,6 +718,9 @@ const ListDemandes = () => {
       STANDARD: 'Standard',
       JOURNALIERE: 'Journalière',
       LIBRE: 'Libre',
+      STANDARD_CHARITABLE: 'Standard Charitable',
+      JOURNALIERE_CHARITABLE: 'Journalière Charitable',
+      LIBRE_CHARITABLE: 'Libre Charitable',
     }
     return labels[type as keyof typeof labels] || type
   }
@@ -827,6 +841,9 @@ const ListDemandes = () => {
                   <SelectItem value="STANDARD">Standard</SelectItem>
                   <SelectItem value="JOURNALIERE">Journalière</SelectItem>
                   <SelectItem value="LIBRE">Libre</SelectItem>
+                  <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                  <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                  <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
                 </SelectContent>
               </Select>
               <Input
@@ -1130,4 +1147,3 @@ const ListDemandes = () => {
 }
 
 export default ListDemandes
-

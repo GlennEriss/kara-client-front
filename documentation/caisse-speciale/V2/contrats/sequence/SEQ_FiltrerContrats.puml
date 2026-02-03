@@ -1,0 +1,21 @@
+@startuml SEQ_FiltrerContrats
+title Séquence : Filtrer les Contrats (V2)
+' Référence : FiltrerContrats.puml (activité)
+
+actor "Admin" as Admin
+participant "FiltersContrats\n(Domain Component)" as Filters
+participant "useCaisseContracts\n(Domain Hook)" as Hook
+participant "CaisseContractsService\n(Domain Service)" as Service
+participant "CaisseContractsRepository\n(Domain Repository)" as Repo
+database "Firestore" as Firestore
+
+Admin -> Filters: Modifie filtres (statut, type, caisse, dates, retard)
+Filters -> Hook: onFiltersChange(filters)
+Hook -> Service: getContractsWithFilters(filters, page=1, limit)
+Service -> Repo: getContractsWithFilters(filters, page, limit)
+Repo -> Firestore: query avec where/orderBy/limit
+Firestore --> Repo: items + total
+Repo --> Service: { items, total }
+Service --> Hook: { items, total }
+Hook --> Filters: Render liste filtrée
+@enduml

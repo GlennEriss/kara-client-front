@@ -109,16 +109,16 @@ const CaisseSpecialePDFModal: React.FC<CaisseSpecialePDFModalProps> = ({
       const link = document.createElement('a')
       link.href = url
       
-      // Générer le nom du fichier au format MK_CS_FIRSTNAME_LASTNAME
-      let fileName = 'MK_CS'
-      if (memberData?.firstName && memberData?.lastName) {
-        const firstName = memberData.firstName.toUpperCase().replace(/\s+/g, '_')
-        const lastName = memberData.lastName.toUpperCase().replace(/\s+/g, '_')
-        fileName = `MK_CS_${firstName}_${lastName}.pdf`
+      // Nom du fichier : LASTNAME_FIRSTNAME_CAISSE_SPECIALE_MK_YYYY.pdf (ex: OBIANG_ELLA_CAISSE_SPECIALE_MK_2026.pdf)
+      const year = new Date().getFullYear()
+      let fileName: string
+      if (memberData?.firstName != null && memberData?.lastName != null) {
+        const first = String(memberData.firstName).toUpperCase().replace(/\s+/g, '_')
+        const last = String(memberData.lastName).toUpperCase().replace(/\s+/g, '_')
+        fileName = `${last}_${first}_CAISSE_SPECIALE_MK_${year}.pdf`
       } else {
-        fileName = `MK_CS_${contractId}.pdf`
+        fileName = `CAISSE_SPECIALE_MK_${contractId}_${year}.pdf`
       }
-      
       link.download = fileName
       document.body.appendChild(link)
       link.click()

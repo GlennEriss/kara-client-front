@@ -1,0 +1,24 @@
+@startuml SEQ_ConsulterVersements
+title Séquence : Consulter les Versements (V2)
+' Référence : ConsulterVersements.puml (activité)
+
+actor "Admin" as Admin
+participant "PaymentsPage" as Page
+participant "PaymentsList\n(Domain Component)" as List
+participant "useContractPayments\n(Domain Hook)" as Hook
+participant "CaisseContractsService\n(Domain Service)" as Service
+participant "CaisseContractsRepository\n(Domain Repository)" as Repo
+database "Firestore" as Firestore
+
+Admin -> Page: Accéder à /caisse-speciale/contrats/{id}/versements
+Page -> List: Render PaymentsList
+List -> Hook: useContractPayments(contractId)
+Hook -> Service: getContractPayments(contractId)
+Service -> Repo: getContractPayments(contractId)
+Repo -> Firestore: query payments subcollection
+Firestore --> Repo: payments
+Repo --> Service: payments
+Service --> Hook: payments
+Hook --> List: { data: payments }
+List --> Admin: Afficher historique + actions export
+@enduml
