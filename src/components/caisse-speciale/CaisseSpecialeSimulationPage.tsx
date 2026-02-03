@@ -280,11 +280,10 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
       formatDateFr(r.dueAt),
       r.bonusEffectiveLabel,
       formatAmountForPDF(r.amount),
-      String(r.bonusRatePercent),
       formatAmountForPDF(r.bonusAmount),
     ])
     autoTable(doc, {
-      head: [['N° Échéance', 'Date échéance', 'Date bonus', 'Montant (FCFA)', 'Taux %', 'Bonus (FCFA)']],
+      head: [['N° Échéance', 'Date échéance', 'Date taxi', 'Montant (FCFA)', 'Taxi (FCFA)']],
       body,
       startY: 24,
       headStyles: { fillColor: [35, 77, 101] },
@@ -293,7 +292,7 @@ function SimulationExportPDFButton({ result }: { result: CaisseSpecialeSimulatio
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.text(`Total montants: ${formatAmountForPDF(result.totalAmount)} FCFA`, 14, finalY + 8)
-    doc.text(`Total bonus: ${formatAmountForPDF(result.totalBonus)} FCFA`, 14, finalY + 14)
+    doc.text(`Total taxi: ${formatAmountForPDF(result.totalBonus)} FCFA`, 14, finalY + 14)
     const fileName = `simulation_caisse_speciale_${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
     toast.success('PDF exporté')
@@ -313,10 +312,9 @@ function SimulationExportExcelButton({ result }: { result: CaisseSpecialeSimulat
     const data = result.rows.map((r) => ({
       'N° Échéance': r.monthLabel,
       'Date d\'échéance': formatDateFr(r.dueAt),
-      'Date prise d\'effet bonus': r.bonusEffectiveLabel,
+      'Date prise d\'effet taxi': r.bonusEffectiveLabel,
       'Montant (FCFA)': r.amount,
-      'Taux %': r.bonusRatePercent,
-      'Bonus (FCFA)': r.bonusAmount,
+      'Taxi (FCFA)': r.bonusAmount,
     }))
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
@@ -345,7 +343,7 @@ function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimul
       '',
       '💰 *RÉSUMÉ*',
       `▪️ Total versements : *${formatAmount(result.totalAmount)} FCFA*`,
-      `▪️ Total bonus : *${formatAmount(result.totalBonus)} FCFA*`,
+      `▪️ Total taxi : *${formatAmount(result.totalBonus)} FCFA*`,
       `▪️ Montant final : *${formatAmount(result.totalAmount + result.totalBonus)} FCFA*`,
       '',
       separator,
@@ -353,12 +351,12 @@ function SimulationShareWhatsAppButton({ result }: { result: CaisseSpecialeSimul
       separator,
       '',
       ...result.rows.map((r) => {
-        const bonusIcon = r.bonusRatePercent > 0 ? '✅' : '⏳'
-        return `${bonusIcon} *${r.monthLabel}* — ${formatDateFr(r.dueAt)}\n    💵 ${formatAmount(r.amount)} FCFA | Bonus ${r.bonusRatePercent}% = ${formatAmount(r.bonusAmount)} FCFA`
+        const taxiIcon = r.bonusAmount > 0 ? '✅' : '⏳'
+        return `${taxiIcon} *${r.monthLabel}* — ${formatDateFr(r.dueAt)}\n    💵 ${formatAmount(r.amount)} FCFA | Taxi = ${formatAmount(r.bonusAmount)} FCFA`
       }),
       '',
       separator,
-      '📌 Fait le ' + formatDateFr(new Date()) + '_',
+      '📌 _Fait le ' + formatDateFr(new Date()) + '_',
       '🔗 _KARA - Mutuelle de solidarité_',
     ]
     const text = lines.join('\n')
