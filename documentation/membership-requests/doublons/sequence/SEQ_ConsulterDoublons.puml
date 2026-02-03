@@ -1,0 +1,72 @@
+@startuml SEQ_ConsulterDoublons
+title Séquence : Consulter et résoudre les doublons (UI Admin)
+
+actor "Admin" as Admin
+participant "MembershipRequestsPage\n(Domain Component)" as Page
+participant "DuplicatesAlert\n(Component)" as Alert
+participant "DuplicatesTab\n(Component)" as Tab
+participant "useDuplicateAlert\n(Domain Hook)" as AlertHook
+participant "useDuplicateGroups\n(Domain Hook)" as GroupsHook
+participant "DuplicateGroupsRepository\n(Domain Repository)" as Repo
+database "Firestore\n(duplicate-groups)" as DG
+
+' === Chargement initial ===
+Admin -> Page: Accéder à la page des demandes
+activate Page
+
+Page -> Alert: Render DuplicatesAlert
+Alert -> AlertHook: useDuplicateAlert()
+activate AlertHook
+
+AlertHook -> Repo: hasUnresolvedGroups()
+Repo -> DG: query where resolvedAt == null\nlimit 1
+DG --> Repo: count > 0 ?
+Repo --> AlertHook: hasDuplicates: boolean
+
+AlertHook --> Alert: { hasDuplicates }
+deactivate AlertHook
+
+alt hasDuplicates === true
+  Alert --> Admin: Afficher bannière :\n"Des dossiers sont en doublon.\nVoir l'onglet Doublons."
+else
+  Alert --> Admin: (pas d'alerte)
+end
+
+Page --> Admin: Afficher Tabs :\nTous | En attente | ... | Doublons
+
+' === Consultation onglet Doublons ===
+Admin -> Page: Cliquer onglet "Doublons"
+Page -> Tab: Render DuplicatesTab
+Tab -> GroupsHook: useDuplicateGroups()
+activate GroupsHook
+
+GroupsHook -> Repo: getUnresolvedGroups()
+Repo -> DG: query where resolvedAt == null\norderBy type, detectedAt desc
+DG --> Repo: groups[]
+Repo --> GroupsHook: groups[]
+
+GroupsHook --> Tab: { groups, isLoading }
+deactivate GroupsHook
+
+Tab --> Admin: Afficher groupes par type :\n- Par téléphone (N groupes)\n- Par email (N groupes)\n- Par pièce d'identité (N groupes)
+
+Tab --> Admin: Pour chaque groupe :\n- Valeur en commun\n- Liste dossiers (matricule, nom, statut)\n- [Voir la fiche] [Marquer comme traité]
+
+' === Résolution d'un groupe ===
+Admin -> Tab: Cliquer "Marquer comme traité" sur un groupe
+Tab -> GroupsHook: resolveGroup(groupId)
+activate GroupsHook
+
+GroupsHook -> Repo: resolveGroup(groupId, adminId)
+Repo -> DG: update(groupId, {\n  resolvedAt: serverTimestamp(),\n  resolvedBy: adminId\n})
+DG --> Repo: success
+Repo --> GroupsHook: success
+
+GroupsHook -> GroupsHook: Invalider cache / refetch
+
+GroupsHook --> Tab: Groupe retiré de la liste
+deactivate GroupsHook
+
+Tab --> Admin: Groupe disparu de l'affichage\nToast "Groupe marqué comme traité"
+
+@enduml

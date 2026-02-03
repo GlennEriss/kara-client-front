@@ -9,6 +9,7 @@ if (Longueur < 2) then (oui)
 endif
 :Débounce 300 ms;
 :Créer variantes searchableText (nom/prénom/matricule);
+:Appliquer filtres actifs (statut, type contrat, type caisse, dates création, dates échéance, overdueOnly);
 :Exécuter requêtes parallèles;
 :Dédupliquer et fusionner;
 :Afficher liste paginée;

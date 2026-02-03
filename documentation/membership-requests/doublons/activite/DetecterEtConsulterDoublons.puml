@@ -1,0 +1,108 @@
+@startuml DetecterEtConsulterDoublons
+title Activité : Détection automatique et consultation des doublons
+
+' ============================================================
+' PARTIE 1 : DÉTECTION (Cloud Function)
+' ============================================================
+
+|#LightBlue|Cloud Function|
+start
+:Demande d'adhésion créée ou mise à jour
+(trigger onWrite);
+
+:Extraire les valeurs de détection :
+- identity.contacts[] (téléphones)
+- identity.email (normalisé)
+- documents.identityDocumentNumber (normalisé);
+
+if (Au moins une valeur non vide ?) then (oui)
+  
+  fork
+    :Requête Firestore :
+    identity.contacts array-contains phone;
+  fork again
+    :Requête Firestore :
+    normalizedEmail == email;
+  fork again
+    :Requête Firestore :
+    normalizedIdentityDocNumber == docNumber;
+  end fork
+  
+  :Agréger les résultats
+  (exclure le dossier courant);
+  
+  if (Doublons détectés ?) then (oui)
+    :Créer ou mettre à jour les groupes
+    dans duplicate-groups;
+    
+    :Marquer les dossiers concernés :
+    - isDuplicate = true
+    - duplicateGroupIds[] = [groupId, ...];
+  else (non)
+    :Vérifier si le dossier était dans des groupes;
+    
+    if (Était dans des groupes ?) then (oui)
+      :Retirer le dossier des groupes;
+      :Supprimer les groupes à 0-1 membre;
+      :Mettre à jour isDuplicate = false si plus de groupe;
+    endif
+  endif
+  
+else (non)
+  :Aucune détection possible
+  (valeurs vides);
+endif
+
+stop
+
+' ============================================================
+' PARTIE 2 : CONSULTATION (UI Admin)
+' ============================================================
+
+|#LightGreen|Admin UI|
+start
+:Admin accède à la page des demandes d'adhésion;
+
+:Chargement via useDuplicateAlert :
+Requête duplicate-groups où resolvedAt == null;
+
+if (Au moins un groupe non résolu ?) then (oui)
+  :Afficher alerte :
+  "Des dossiers sont en doublon. Voir l'onglet Doublons.";
+else (non)
+  :Ne pas afficher l'alerte;
+endif
+
+:Affichage des onglets (Tabs) :
+Tous | En attente | ... | **Doublons**;
+
+if (Admin clique sur onglet "Doublons" ?) then (oui)
+  :Chargement via useDuplicateGroups :
+  Requête duplicate-groups où resolvedAt == null;
+  
+  :Afficher les groupes par type :
+  - Par téléphone
+  - Par email
+  - Par pièce d'identité;
+  
+  :Pour chaque groupe :
+  - Valeur en commun
+  - Liste des dossiers (matricule, nom, statut)
+  - Lien "Voir la fiche"
+  - Action "Marquer comme traité";
+  
+  if (Admin clique "Marquer comme traité" ?) then (oui)
+    :Mettre à jour le groupe :
+    resolvedAt = now()
+    resolvedBy = adminId;
+    
+    :Groupe retiré de la liste affichée;
+  endif
+  
+else (non)
+  :Rester sur l'onglet courant;
+endif
+
+stop
+
+@enduml

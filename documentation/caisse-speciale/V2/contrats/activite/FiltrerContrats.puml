@@ -5,11 +5,12 @@ start
 :Admin modifie les filtres;
 :Réinitialiser page = 1;
 
-:Appliquer filtres :
+:Appliquer filtres actifs :
 - Statut
-- Type (INDIVIDUAL / GROUP)
+- Type contrat (INDIVIDUAL / GROUP)
 - Type de caisse
-- Dates (createdAt / nextDueAt)
+- Dates création (createdAt)
+- Dates échéance (nextDueAt)
 - Retard (overdueOnly);
 
 :Déclencher requête Firestore paginée;

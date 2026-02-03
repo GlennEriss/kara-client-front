@@ -76,6 +76,19 @@ Fonctionnalités diverses.
 - `Statistiques` : Calcul et affichage des statistiques
 - `Legende_Architecture` : Légende de l'architecture refactorisée
 
+### 9. **doublons/**
+Détection et consultation des dossiers en doublon (même téléphone, email ou numéro de pièce d'identité).
+
+**Diagrammes :**
+- `DetecterEtConsulterDoublons` : Flux détection, alerte et consultation onglet Doublons
+- `SEQ_ConsulterDoublons` : Séquence (Domain Component → Hook → Service → Repository)
+
+**Sous-dossiers :**
+- `activite/` : Diagrammes d'activité
+- `sequence/` : Diagrammes de séquence
+- `wireframes/` : Alerte et onglet Doublons (tabs, sections par type d'attribut)
+- `workflow/` : Phases d'implémentation
+
 ## 📝 Convention de Nommage
 
 - **Diagrammes d'activité** : Nom du workflow (ex: `Approuver.puml`)

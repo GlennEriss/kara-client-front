@@ -1,0 +1,73 @@
+@startuml SEQ_DetecterDoublons
+title Séquence : Détection automatique des doublons (Cloud Function)
+
+participant "Firestore Trigger" as Trigger
+participant "Cloud Function\n(detectDuplicates)" as CF
+database "Firestore\n(membership-requests)" as MR
+database "Firestore\n(duplicate-groups)" as DG
+
+Trigger -> CF: onWrite(membership-requests/{requestId})
+activate CF
+
+CF -> CF: Extraire valeurs :\n- contacts[]\n- email (normalize)\n- identityDocNumber (normalize)
+
+alt Valeurs non vides
+
+  par Requêtes parallèles
+    CF -> MR: where("identity.contacts", "array-contains", phone)
+    MR --> CF: matchingByPhone[]
+  and
+    CF -> MR: where("normalizedEmail", "==", email)
+    MR --> CF: matchingByEmail[]
+  and
+    CF -> MR: where("normalizedIdentityDocNumber", "==", docNumber)
+    MR --> CF: matchingByIdentityDoc[]
+  end
+
+  CF -> CF: Filtrer (exclure requestId courant)
+  CF -> CF: Agréger par type (phone, email, identityDoc)
+
+  alt Doublons trouvés
+    
+    loop Pour chaque type avec doublons
+      CF -> DG: Chercher groupe existant\n(type + value)
+      
+      alt Groupe existe
+        CF -> DG: update(groupId, { requestIds: [...], updatedAt })
+      else Groupe n'existe pas
+        CF -> DG: create({ type, value, requestIds, detectedAt })
+      end
+    end
+    
+    CF -> MR: update(requestId, {\n  isDuplicate: true,\n  duplicateGroupIds: [groupId, ...]\n})
+    
+    loop Pour chaque autre dossier concerné
+      CF -> MR: update(otherRequestId, {\n  isDuplicate: true,\n  duplicateGroupIds: [groupId, ...]\n})
+    end
+
+  else Aucun doublon
+    
+    CF -> DG: Chercher groupes contenant requestId
+    
+    alt Était dans des groupes
+      loop Pour chaque groupe
+        CF -> DG: Retirer requestId du groupe
+        
+        alt Groupe a 0-1 membre restant
+          CF -> DG: delete(groupId)
+        end
+      end
+      
+      CF -> MR: update(requestId, {\n  isDuplicate: false,\n  duplicateGroupIds: []\n})
+    end
+    
+  end
+
+else Valeurs vides
+  note right of CF: Pas de détection possible
+end
+
+CF --> Trigger: done
+deactivate CF
+
+@enduml
