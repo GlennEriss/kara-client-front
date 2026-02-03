@@ -1,0 +1,63 @@
+@startuml SEQ_GenererIdentifiant
+title Séquence : Générer identifiant / Réinitialiser mot de passe (V2)
+' Référence : activite/main.puml
+' Architecture : domains (Domain Component, Hook, Service, Repository)
+
+actor "Admin" as Admin
+participant "MembershipsListPage\nou MemberCard\n(Domain Component)" as List
+participant "GenererIdentifiantModal\n(Domain Component)" as Modal
+participant "useGenererIdentifiant\n(Domain Hook)" as Hook
+participant "GenererIdentifiantService\n(Domain Service)" as Service
+participant "MemberRepository\n(Domain Repository)" as MemberRepo
+participant "AuthRepository\nou API Route\n(Domain / Infra)" as Auth
+participant "Firebase Auth\n(Admin)" as FirebaseAuth
+database "Firestore" as Firestore
+participant "IdentifiantsMembrePDF\n+ pdf()\n(@react-pdf/renderer)" as PDFGen
+
+Admin -> List: Clic "Générer identifiant" sur un membre
+List -> Modal: Ouvrir modal (memberId, matricule affiché)
+Modal --> Admin: Afficher message + champ "Recopiez le matricule"
+
+Admin -> Modal: Saisir matricule + clic "Accepter"
+note right of Modal: Validation : matricule saisi == matricule membre
+
+Modal -> Hook: submitGenererIdentifiant(memberId, matriculeSaisi)
+activate Hook
+
+Hook -> Hook: Valider matriculeSaisi === matricule membre
+alt Matricule invalide
+  Hook --> Modal: Erreur validation (ne devrait pas arriver si bouton désactivé)
+else Matricule valide
+  Hook -> Service: resetPasswordAndGeneratePdf(memberId, matricule)
+  activate Service
+
+  Service -> MemberRepo: getById(memberId)
+  MemberRepo -> Firestore: getDoc(users, memberId)
+  Firestore --> MemberRepo: user document
+  MemberRepo --> Service: member (matricule, email, uid)
+
+  Service -> Auth: updatePassword(uid, matricule)
+  activate Auth
+  Auth -> FirebaseAuth: admin.auth().updateUser(uid, { password: matricule })
+  FirebaseAuth --> Auth: OK
+  Auth --> Service: success
+  deactivate Auth
+
+  Service -> PDFGen: Données (matricule, identifiant, mot de passe)
+  activate PDFGen
+  PDFGen -> PDFGen: Document PDF (Document, Page, Text, View)
+  PDFGen --> Service: Blob / stream PDF
+  deactivate PDFGen
+
+  Service --> Hook: { success, pdfBlob }
+  deactivate Service
+
+  Hook -> Modal: onSuccess(pdfBlob)
+  Modal -> Modal: Déclencher téléchargement PDF (ou ouverture viewer)
+  Modal -> Modal: Afficher toast succès + fermer modal
+end
+deactivate Hook
+
+Modal --> Admin: PDF téléchargé, modal fermé
+
+@enduml

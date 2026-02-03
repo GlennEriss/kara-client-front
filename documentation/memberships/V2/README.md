@@ -18,6 +18,7 @@ L'objectif est de **conserver le design actuel (UI/UX)** et de :
   - `form-membership/` ⏳ **À FAIRE** (Priorité 1 - Tests d'intégration restants)
   - `anniversaires-memberships/` ⏳ **À FAIRE** (Priorité 4)
   - `stats-memberships/` ⏳ **À FAIRE** (Priorité 5)
+  - `generer-identifiant/` ⏳ **À FAIRE** (réinitialisation mot de passe + PDF identifiants)
 
 Chaque sous-dossier contiendra :
 

@@ -6,7 +6,7 @@ Ce dossier contient les diagrammes d'activité (workflows) pour la partie Contra
 
 | Fichier | Description | Points couverts |
 |---------|-------------|-----------------|
-| [ListerContrats.puml](./ListerContrats.puml) | Lister avec stats globales, tabs, pagination, actions, export | C.0, C.1 |
+| [ListerContrats.puml](./ListerContrats.puml) | Lister avec stats globales, tabs (badges mobile), pagination haut/bas, actions, export | C.0, C.1 |
 | [FiltrerContrats.puml](./FiltrerContrats.puml) | Filtres (statut, type, caisse, dates, retard) | C.4 |
 | [RechercherContrats.puml](./RechercherContrats.puml) | Recherche Firestore (membre, matricule, groupe) | C.2, C.3 |
 | [VoirDetailsContrat.puml](./VoirDetailsContrat.puml) | Détails contrat + accès versements | C.5, C.6 |

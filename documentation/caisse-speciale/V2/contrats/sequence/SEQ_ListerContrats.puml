@@ -16,6 +16,8 @@ participant "React Query\n(Cache)" as QueryCache
 
 Admin -> Page: Accéder à /caisse-speciale/contrats
 Page -> List: Render ListContrats
+List --> Admin: Mobile/Tablette = badges carousel (tabs sans boutons)
+List --> Admin: Desktop = toggle Grille/Liste disponible
 
 ' Stats globales (cache 2 min)
 List -> Stats: Render StatisticsContrats
@@ -50,5 +52,7 @@ else Cache absent
 end
 ListHook --> List: { data: { items, total } }
 
-List --> Admin: Afficher table + pagination
+List --> Admin: Pagination AVANT la liste
+List --> Admin: Afficher cartes (mobile/tablette) + table (desktop)
+List --> Admin: Pagination APRÈS la liste
 @enduml

@@ -10,6 +10,8 @@ start
 :Afficher tabs (Tous, Standard, Journalier, Libre,
 Charitable, Retard, Mois en cours);
 :Afficher barre de filtres + actions (Nouveau, Export, Actualiser);
+:Mobile/Tablette: tabs en badges carousel (sans boutons);
+:Desktop: toggle Grille/Liste disponible;
 
 if (Admin change onglet ?) then (oui)
   :Appliquer filtre onglet;
@@ -20,6 +22,8 @@ if (Admin change page ?) then (oui)
   :Recharger page N (startAfter);
 endif
 
-:Afficher liste (tableau + cartes);
+:Pagination AVANT la liste;
+:Afficher liste (cartes sur mobile/tablette, cartes+tableau sur desktop);
+:Pagination APRÈS la liste;
 stop
 @enduml
