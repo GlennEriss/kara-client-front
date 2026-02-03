@@ -109,3 +109,16 @@ export const caisseSpecialeDemandDefaultValues: Partial<CaisseSpecialeDemandForm
     documentPhotoUrl: '',
   },
 }
+
+// ================== SCHÉMA SIMULATION CAISSE SPÉCIALE (Standard / Standard Charitable) ==================
+
+export const caisseSpecialeSimulationCaisseTypeEnum = z.enum(['STANDARD', 'STANDARD_CHARITABLE'])
+
+export const caisseSpecialeSimulationFormSchema = z.object({
+  caisseType: caisseSpecialeSimulationCaisseTypeEnum,
+  monthlyAmount: z.number().min(1, 'Le montant doit être strictement positif'),
+  durationMonths: z.number().int().min(1, 'Entre 1 et 12 mois').max(12, 'Entre 1 et 12 mois'),
+  startDate: z.string().min(1, 'La date souhaitée est requise'),
+})
+
+export type CaisseSpecialeSimulationFormInput = z.infer<typeof caisseSpecialeSimulationFormSchema>

@@ -5,8 +5,10 @@ const memberRepository = { getMemberById: vi.fn() }
 const adminRepository = { getAdminById: vi.fn() }
 const notificationService = { createNotification: vi.fn() }
 
-const subscribe = vi.fn()
-const getActiveSettings = vi.fn()
+const { subscribe, getActiveSettings } = vi.hoisted(() => ({
+  subscribe: vi.fn(),
+  getActiveSettings: vi.fn(),
+}))
 
 vi.mock('@/factories/RepositoryFactory', () => ({
   RepositoryFactory: {

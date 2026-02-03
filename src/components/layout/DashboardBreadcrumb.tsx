@@ -31,6 +31,7 @@ const routeLabels: Record<string, string> = {
   '/caisse-speciale/demandes': 'Demandes',
   '/caisse-speciale/demandes/nouvelle': 'Nouvelle demande',
   '/caisse-speciale/contrats': 'Contrats',
+  '/caisse-speciale/simulation': 'Simulation',
   '/caisse-speciale/settings': 'Paramètres Caisse',
   '/caisse-imprevue': 'Caisse Imprévue',
   '/caisse-imprevue/create': 'Créer',
