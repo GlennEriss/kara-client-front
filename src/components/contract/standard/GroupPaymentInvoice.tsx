@@ -2,12 +2,13 @@
 
 import React from "react"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, User, Receipt, Users, Shield } from "lucide-react"
+import { CalendarDays, User, Receipt, Users, Shield, UserCircle } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import Image from "next/image"
 import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
 import { useAdmin } from "@/hooks/admin/useAdmin"
 import { useAuth } from "@/hooks/useAuth"
+import { useAgentsActifs } from "@/hooks/agent-recouvrement"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -33,6 +34,8 @@ export default function GroupPaymentInvoice({
 }: GroupPaymentInvoiceProps) {
   const { user } = useAuth()
   const { data: admin, isLoading: isLoadingAdmin } = useAdmin(payment.updatedBy)
+  const { data: agents = [] } = useAgentsActifs()
+  const agentsMap = Object.fromEntries(agents.map((a) => [a.id, a]))
   
   // Déterminer les informations de l'administrateur
   const adminInfo = React.useMemo(() => {
@@ -237,6 +240,17 @@ export default function GroupPaymentInvoice({
                       <span className="text-slate-600">ID de paiement :</span>
                       <span className="font-medium font-mono text-xs">{contribution.id}</span>
                     </div>
+                    {contribution.agentRecouvrementId && agentsMap[contribution.agentRecouvrementId] && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600 flex items-center gap-2">
+                          <UserCircle className="h-4 w-4" />
+                          Agent de recouvrement :
+                        </span>
+                        <span className="font-medium text-[#234D65]">
+                          {agentsMap[contribution.agentRecouvrementId].nom} {agentsMap[contribution.agentRecouvrementId].prenom}
+                        </span>
+                      </div>
+                    )}
                     {contribution.proofUrl && (
                       <div className="flex justify-between">
                         <span className="text-slate-600">Preuve :</span>

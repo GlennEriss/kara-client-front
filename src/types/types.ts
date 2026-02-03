@@ -1109,7 +1109,13 @@ export interface ContractFormData {
   groupeId?: string
 
   // Étape 2: Configuration de la caisse
-  caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+  caisseType:
+    | 'STANDARD'
+    | 'JOURNALIERE'
+    | 'LIBRE'
+    | 'STANDARD_CHARITABLE'
+    | 'JOURNALIERE_CHARITABLE'
+    | 'LIBRE_CHARITABLE'
   monthlyAmount: number
   monthsPlanned: number
 
@@ -1223,7 +1229,13 @@ export interface CaisseContract {
   memberId: string
   groupeId?: string
   contractType: 'INDIVIDUAL' | 'GROUP'
-  caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+  caisseType:
+    | 'STANDARD'
+    | 'JOURNALIERE'
+    | 'LIBRE'
+    | 'STANDARD_CHARITABLE'
+    | 'JOURNALIERE_CHARITABLE'
+    | 'LIBRE_CHARITABLE'
   monthlyAmount: number
   monthsPlanned: number
   status: string
@@ -1266,7 +1278,13 @@ export interface CaisseSpecialeDemand {
   contractType: 'INDIVIDUAL' | 'GROUP'
   
   // Informations de la demande
-  caisseType: 'STANDARD' | 'JOURNALIERE' | 'LIBRE'
+  caisseType:
+    | 'STANDARD'
+    | 'JOURNALIERE'
+    | 'LIBRE'
+    | 'STANDARD_CHARITABLE'
+    | 'JOURNALIERE_CHARITABLE'
+    | 'LIBRE_CHARITABLE'
   monthlyAmount: number // Montant mensuel souhaité
   monthsPlanned: number // Durée souhaitée (en mois)
   desiredDate: string // Date souhaitée pour le début du contrat (format: YYYY-MM-DD)
@@ -1328,7 +1346,14 @@ export interface CaisseSpecialeDemand {
 export interface CaisseSpecialeDemandFilters {
   status?: CaisseSpecialeDemandStatus | 'all'
   contractType?: 'INDIVIDUAL' | 'GROUP' | 'all'
-  caisseType?: 'STANDARD' | 'JOURNALIERE' | 'LIBRE' | 'all'
+  caisseType?:
+    | 'STANDARD'
+    | 'JOURNALIERE'
+    | 'LIBRE'
+    | 'STANDARD_CHARITABLE'
+    | 'JOURNALIERE_CHARITABLE'
+    | 'LIBRE_CHARITABLE'
+    | 'all'
   memberId?: string
   groupeId?: string
   decisionMadeBy?: string // Filtrer par agent qui a pris la décision

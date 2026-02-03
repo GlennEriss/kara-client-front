@@ -178,6 +178,9 @@ export default function CreateDemandModal({
                             <SelectItem value="STANDARD">Standard</SelectItem>
                             <SelectItem value="JOURNALIERE">Journalière</SelectItem>
                             <SelectItem value="LIBRE">Libre</SelectItem>
+                            <SelectItem value="STANDARD_CHARITABLE">Standard Charitable</SelectItem>
+                            <SelectItem value="JOURNALIERE_CHARITABLE">Journalière Charitable</SelectItem>
+                            <SelectItem value="LIBRE_CHARITABLE">Libre Charitable</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -294,4 +297,3 @@ export default function CreateDemandModal({
     </Dialog>
   )
 }
-

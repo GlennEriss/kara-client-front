@@ -1,0 +1,32 @@
+@startuml SEQ_RechercherContrats
+title Séquence : Rechercher un Contrat (V2)
+' Référence : RechercherContrats.puml (activité)
+
+actor "Admin" as Admin
+participant "SearchContrats\n(Domain Component)" as Search
+participant "useCaisseContracts\n(Domain Hook)" as Hook
+participant "CaisseContractsService\n(Domain Service)" as Service
+participant "CaisseContractsRepository\n(Domain Repository)" as Repo
+database "Firestore" as Firestore
+
+Admin -> Search: Saisit "Bernadette" / "MK1234"
+Search -> Hook: onSearchChange(query)
+Hook -> Service: searchContracts(query, filters, page, limit)
+Service -> Repo: searchContracts(query, filters, page, limit)
+
+par
+  Repo -> Firestore: query searchableText
+  Firestore --> Repo: results A
+and
+  Repo -> Firestore: query searchableTextFirstNameFirst
+  Firestore --> Repo: results B
+and
+  Repo -> Firestore: query searchableTextMatriculeFirst
+  Firestore --> Repo: results C
+end
+
+Repo -> Repo: Fusion + déduplication
+Repo --> Service: { items, total }
+Service --> Hook: { items, total }
+Hook --> Search: Render résultats
+@enduml

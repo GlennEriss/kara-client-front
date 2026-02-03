@@ -1,0 +1,25 @@
+@startuml SEQ_TeleverserContratPDF
+title Séquence : Téléverser le PDF signé (V2)
+' Référence : TeleverserContratPDF.puml (activité)
+
+actor "Admin" as Admin
+participant "UploadContractPdfModal" as Modal
+participant "useUploadContractPdf\n(Domain Hook)" as Hook
+participant "CaisseContractsService\n(Domain Service)" as Service
+participant "CaisseContractsRepository\n(Domain Repository)" as Repo
+database "Storage" as Storage
+
+database "Firestore" as Firestore
+
+Admin -> Modal: Sélectionner PDF
+Modal -> Hook: upload(file)
+Hook -> Service: uploadContractPdf(contractId, file)
+Service -> Repo: uploadContractPdf(contractId, file)
+Repo -> Storage: putFile(contracts/{contractId}/{fileName})
+Storage --> Repo: fileUrl
+Repo -> Firestore: update contractPdf metadata
+Firestore --> Repo: ok
+Repo --> Service: ok
+Service --> Hook: ok
+Hook --> Modal: toast.success + invalidate cache
+@enduml

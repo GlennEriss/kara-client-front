@@ -310,9 +310,12 @@ git checkout -b refactor/caisse-speciale-demandes-v2
 ### ConvertirContrat
 
 - [x] **5.11** Vérifier `status === 'APPROVED'` et pas de `contractId`
-- [x] **5.12** Créer contrat via `subscribe()`
-- [x] **5.13** Enregistrer `convertedBy`, `convertedAt`, `convertedByName`, `contractId`
-- [x] **5.14** Mettre à jour `status: 'CONVERTED'`
+- [x] **5.12** **Contrôle paramètres actifs** : récupérer `caisseSettings` actif pour `demand.caisseType`
+  - Si aucun paramètre actif, **bloquer la conversion** + message explicite
+  - Sinon, utiliser `settings.id` comme `settingsVersion` du contrat
+- [x] **5.13** Créer contrat via `subscribe()` **en appliquant `settingsVersion`**
+- [x] **5.14** Enregistrer `convertedBy`, `convertedAt`, `convertedByName`, `contractId`
+- [x] **5.15** Mettre à jour `status: 'CONVERTED'`
 
 ### Tests
 

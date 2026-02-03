@@ -1,0 +1,54 @@
+@startuml SEQ_ListerContrats
+title Séquence : Lister les Contrats Caisse Spéciale (V2)
+' Référence : ListerContrats.puml (activité)
+' C.0 : Pagination Firestore | C.1 : Stats globales
+
+actor "Admin" as Admin
+participant "CaisseSpecialeContratsPage\n(/contrats)" as Page
+participant "ListContrats\n(Domain Component)" as List
+participant "StatisticsContrats\n(Domain Component)" as Stats
+participant "useCaisseContractsStats\n(Domain Hook)" as StatsHook
+participant "useCaisseContracts\n(Domain Hook)" as ListHook
+participant "CaisseContractsService\n(Domain Service)" as Service
+participant "CaisseContractsRepository\n(Domain Repository)" as Repo
+database "Firestore" as Firestore
+participant "React Query\n(Cache)" as QueryCache
+
+Admin -> Page: Accéder à /caisse-speciale/contrats
+Page -> List: Render ListContrats
+
+' Stats globales (cache 2 min)
+List -> Stats: Render StatisticsContrats
+Stats -> StatsHook: useCaisseContractsStats(filters?)
+StatsHook -> QueryCache: queryKey: ['caisseContractsStats', filters]
+alt Cache présent
+  QueryCache --> StatsHook: Stats depuis cache
+else Cache absent
+  StatsHook -> Service: getContractsStats(filters)
+  Service -> Repo: getContractsStats(filters)
+  Repo -> Firestore: requêtes stats
+  Firestore --> Repo: counts
+  Repo --> Service: Stats
+  Service --> StatsHook: Stats
+  StatsHook -> QueryCache: set cache (2 min)
+end
+StatsHook --> Stats: { data: stats }
+
+' Liste paginée (cache 30 s)
+List -> ListHook: useCaisseContracts(filters, page, limit)
+ListHook -> QueryCache: queryKey: ['caisseContracts', filters, page, limit]
+alt Cache présent
+  QueryCache --> ListHook: Données depuis cache
+else Cache absent
+  ListHook -> Service: getContractsWithFilters(filters, page, limit)
+  Service -> Repo: getContractsWithFilters(filters, page, limit)
+  Repo -> Firestore: query + count
+  Firestore --> Repo: items + total
+  Repo --> Service: { items, total }
+  Service --> ListHook: { items, total }
+  ListHook -> QueryCache: set cache (30 s)
+end
+ListHook --> List: { data: { items, total } }
+
+List --> Admin: Afficher table + pagination
+@enduml

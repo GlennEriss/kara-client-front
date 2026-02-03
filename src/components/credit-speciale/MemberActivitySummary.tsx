@@ -120,9 +120,14 @@ function ContractsSection({ contracts }: { contracts: ContractSummary[] }) {
         {contracts.map((contract) => {
           // Description pour Caisse Spéciale
           const getCaisseSpecialeDescription = () => {
-            const typeLabel = contract.caisseType === 'STANDARD' ? 'Standard' : 
-                            contract.caisseType === 'JOURNALIERE' ? 'Journalière' : 
-                            contract.caisseType === 'LIBRE' ? 'Libre' : 'Caisse Spéciale'
+            const typeLabel =
+              contract.caisseType === 'STANDARD' ? 'Standard' :
+              contract.caisseType === 'JOURNALIERE' ? 'Journalière' :
+              contract.caisseType === 'LIBRE' ? 'Libre' :
+              contract.caisseType === 'STANDARD_CHARITABLE' ? 'Standard Charitable' :
+              contract.caisseType === 'JOURNALIERE_CHARITABLE' ? 'Journalière Charitable' :
+              contract.caisseType === 'LIBRE_CHARITABLE' ? 'Libre Charitable' :
+              'Caisse Spéciale'
             const progress = contract.monthsPlanned && contract.currentMonthIndex !== undefined
               ? `${contract.currentMonthIndex}/${contract.monthsPlanned} mois`
               : contract.monthsPlanned ? `${contract.monthsPlanned} mois prévus` : ''
@@ -419,4 +424,3 @@ function StatsSection({ stats }: { stats: ContractStats[] }) {
     </div>
   )
 }
-

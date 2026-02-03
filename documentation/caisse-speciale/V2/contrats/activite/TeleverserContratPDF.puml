@@ -1,0 +1,14 @@
+@startuml TeleverserContratPDF
+'title Workflow : Téléverser le PDF signé (V2)
+
+start
+:Admin clique "Téléverser PDF";
+:Sélectionner fichier PDF;
+:Valider taille/type (PDF, 10MB max);
+:Uploader vers Storage
+contracts/{contractId}/{fileName};
+:Mettre à jour contrat.contractPdf;
+:Invalider cache (liste + détail);
+:Afficher toast succès;
+stop
+@enduml

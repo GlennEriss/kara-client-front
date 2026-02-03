@@ -1,0 +1,67 @@
+@startuml ExporterSimulation
+title Workflow : Exporter le Tableau de Simulation (PDF / Excel)
+' Référence : README.md simulation/standard – Section 3.3 optionnel
+
+start
+
+:Admin a lancé une simulation (tableau récapitulatif affiché);
+
+:Admin clique "Exporter en PDF" ou "Exporter en Excel";
+
+if (Tableau vide ?) then (oui)
+  :Afficher toast "Aucune donnée à exporter";
+  stop
+endif
+
+' ============================================
+' EXPORT PDF
+' ============================================
+if (Export PDF ?) then (oui)
+  :Afficher état loading (spinner sur bouton);
+  
+  :Construire données pour PDF :
+  - En-tête : "Simulation Caisse Spéciale", type caisse, montant, durée, date souhaitée
+  - Tableau : N° Échéance | Date échéance | Date prise d'effet bonus | Montant (FCFA) | Taux bonus (%) | Bonus gagné (FCFA)
+  - Ligne totaux;
+  
+  :Générer PDF (jsPDF + autoTable ou @react-pdf/renderer) :
+  - Pas de persistance
+  - Côté client uniquement;
+  
+  :Nom du fichier : simulation_caisse_speciale_YYYY-MM-DD.pdf (ou avec type/date souhaitée);
+  
+  :Télécharger le fichier (lien <a> download, click());
+  
+  :toast.success("PDF généré avec succès");
+  stop
+endif
+
+' ============================================
+' EXPORT EXCEL
+' ============================================
+if (Export Excel ?) then (oui)
+  :Afficher état loading (spinner sur bouton);
+  
+  :Construire feuille Excel :
+  - Mêmes colonnes que le tableau
+  - Ligne totaux;
+  
+  :Générer fichier (XLSX ou logique existante page versements);
+  
+  :Nom du fichier : simulation_caisse_speciale_YYYY-MM-DD.xlsx;
+  
+  :Télécharger le fichier;
+  
+  :toast.success("Excel généré avec succès");
+  stop
+endif
+
+stop
+
+note right
+  **Optionnel** : Phase 4 du WORKFLOW.md
+  **Référence** : page versements (export PDF/Excel)
+  Aucune donnée de simulation n'est enregistrée en base.
+end note
+
+@enduml

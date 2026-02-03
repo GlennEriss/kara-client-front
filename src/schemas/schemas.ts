@@ -362,7 +362,14 @@ export const contractCreationSchema = z.object({
   groupeId: z.string().optional(),
 
   // Étape 2: Configuration de la caisse
-  caisseType: z.enum(['STANDARD', 'JOURNALIERE', 'LIBRE']),
+  caisseType: z.enum([
+    'STANDARD',
+    'JOURNALIERE',
+    'LIBRE',
+    'STANDARD_CHARITABLE',
+    'JOURNALIERE_CHARITABLE',
+    'LIBRE_CHARITABLE',
+  ]),
 
   monthlyAmount: z.number()
     .min(100, 'Le montant mensuel doit être au moins 100 FCFA')
@@ -427,7 +434,10 @@ export const contractCreationSchema = z.object({
   }
 
   // Validation spécifique pour le type LIBRE
-  if (data.caisseType === 'LIBRE' && data.monthlyAmount < 100000) {
+  if (
+    (data.caisseType === 'LIBRE' || data.caisseType === 'LIBRE_CHARITABLE') &&
+    data.monthlyAmount < 100000
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Pour un contrat Libre, le montant mensuel doit être au minimum 100 000 FCFA',
@@ -436,7 +446,10 @@ export const contractCreationSchema = z.object({
   }
 
   // Validation de la durée selon le type de caisse
-  if (data.caisseType === 'JOURNALIERE' && data.monthsPlanned > 12) {
+  if (
+    (data.caisseType === 'JOURNALIERE' || data.caisseType === 'JOURNALIERE_CHARITABLE') &&
+    data.monthsPlanned > 12
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'Pour un contrat Journalier, la durée ne peut pas dépasser 12 mois',
@@ -470,7 +483,14 @@ export const step1Schema = z.object({
 })
 
 export const step2Schema = z.object({
-  caisseType: z.enum(['STANDARD', 'JOURNALIERE', 'LIBRE']),
+  caisseType: z.enum([
+    'STANDARD',
+    'JOURNALIERE',
+    'LIBRE',
+    'STANDARD_CHARITABLE',
+    'JOURNALIERE_CHARITABLE',
+    'LIBRE_CHARITABLE',
+  ]),
   monthlyAmount: z.number().min(100).max(1000000),
   monthsPlanned: z.number().min(1).max(60)
 })

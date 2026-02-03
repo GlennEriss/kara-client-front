@@ -1,0 +1,10 @@
+@startuml ExporterVersements
+'title Workflow : Exporter les Versements (V2)
+
+start
+:Admin clique "Exporter versements";
+:Préparer dataset (échéance, montant, statut, pénalités, bonus);
+:Exporter PDF / Excel;
+:Afficher toast succès/erreur;
+stop
+@enduml

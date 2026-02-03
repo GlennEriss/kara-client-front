@@ -1,0 +1,18 @@
+@startuml FiltrerContrats
+'title Workflow : Filtrer les Contrats (V2)
+
+start
+:Admin modifie les filtres;
+:Réinitialiser page = 1;
+
+:Appliquer filtres :
+- Statut
+- Type (INDIVIDUAL / GROUP)
+- Type de caisse
+- Dates (createdAt / nextDueAt)
+- Retard (overdueOnly);
+
+:Déclencher requête Firestore paginée;
+:Afficher résultats filtrés;
+stop
+@enduml

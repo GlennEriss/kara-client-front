@@ -14,6 +14,9 @@ const CAISSE_TYPE_LABELS: Record<CaisseType, string> = {
   JOURNALIERE: "Journaliers",
   STANDARD: "Standard",
   LIBRE: "Libre",
+  STANDARD_CHARITABLE: "Standard Charitable",
+  JOURNALIERE_CHARITABLE: "Journalière Charitable",
+  LIBRE_CHARITABLE: "Libre Charitable",
 }
 
 export function CaisseTypeFilters({

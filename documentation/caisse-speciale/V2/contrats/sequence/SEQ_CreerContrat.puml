@@ -1,0 +1,25 @@
+@startuml SEQ_CreerContrat
+title Séquence : Créer un Contrat Caisse Spéciale (V2)
+' Référence : CreerContrat.puml (activité)
+
+actor "Admin" as Admin
+participant "CreateContractPage" as Page
+participant "ContractWizard\n(Domain Component)" as Wizard
+participant "useCreateCaisseContract\n(Domain Hook)" as Hook
+participant "CaisseContractsService\n(Domain Service)" as Service
+participant "CaisseContractsRepository\n(Domain Repository)" as Repo
+database "Firestore" as Firestore
+
+Admin -> Page: Accéder à /caisse-speciale/contrats/nouveau
+Page -> Wizard: Render wizard
+Admin -> Wizard: Remplit les étapes
+Wizard -> Hook: submit(data)
+Hook -> Service: createContract(data)
+Service -> Repo: createContract(data)
+Repo -> Firestore: addDoc(caisseContracts)
+Firestore --> Repo: contractId
+Repo -> Firestore: create payments subcollection
+Repo --> Service: contractId
+Service --> Hook: contractId
+Hook --> Wizard: toast.success + redirect /contrats/{id}
+@enduml

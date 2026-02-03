@@ -114,6 +114,27 @@ export function Step3PaymentPlan() {
           icon: TrendingUp,
           color: 'bg-purple-100 text-purple-700'
         }
+      case 'STANDARD_CHARITABLE':
+        return {
+          title: 'Versements mensuels (Charitable)',
+          description: 'Un versement fixe de {amount} FCFA sera effectué chaque mois',
+          icon: Calendar,
+          color: 'bg-blue-100 text-blue-700'
+        }
+      case 'JOURNALIERE_CHARITABLE':
+        return {
+          title: 'Versements quotidiens (Charitable)',
+          description: 'Objectif mensuel de {amount} FCFA atteint par des versements quotidiens',
+          icon: Clock,
+          color: 'bg-green-100 text-green-700'
+        }
+      case 'LIBRE_CHARITABLE':
+        return {
+          title: 'Versements flexibles (Charitable)',
+          description: 'Versement minimum de {amount} FCFA par mois, avec possibilité de verser plus',
+          icon: TrendingUp,
+          color: 'bg-purple-100 text-purple-700'
+        }
       default:
         return null
     }

@@ -1106,7 +1106,8 @@ export default function ContractPaymentsPage() {
                           const caisseType = (contract as any)?.caisseType || 'STANDARD'
                           // Pour LIBRE, le bonus est calculé sur le montant accumulé AVANT ce paiement
                           // Pour STANDARD et JOURNALIERE, utiliser monthlyAmount * mois
-                          const baseForBonus = caisseType === 'LIBRE' 
+                          const baseForBonus =
+                            caisseType === 'LIBRE' || caisseType === 'LIBRE_CHARITABLE'
                             ? ((payment as any).accumulatedAmount || payment.amount || 0)
                             : (contract?.monthlyAmount || 0) * (payment.dueMonthIndex + 1)
                           

@@ -153,6 +153,9 @@ export class CaisseSpecialeDemandExportService {
       STANDARD: 'Standard',
       JOURNALIERE: 'Journalière',
       LIBRE: 'Libre',
+      STANDARD_CHARITABLE: 'Standard Charitable',
+      JOURNALIERE_CHARITABLE: 'Journalière Charitable',
+      LIBRE_CHARITABLE: 'Libre Charitable',
     }
     doc.text(`Type de caisse : ${caisseTypeLabels[demand.caisseType] || demand.caisseType}`, 20, y)
     y += 6

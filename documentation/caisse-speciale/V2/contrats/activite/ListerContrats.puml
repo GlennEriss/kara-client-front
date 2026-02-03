@@ -1,0 +1,25 @@
+@startuml ListerContrats
+'title Workflow : Lister les Contrats Caisse Spéciale (V2)
+
+start
+:Admin ouvre /caisse-speciale/contrats;
+:Page charge stats globales (cache 2 min);
+:Page charge la liste paginée (page 1, limit 12);
+
+:Afficher stats AVANT les tabs;
+:Afficher tabs (Tous, Standard, Journalier, Libre,
+Charitable, Retard, Mois en cours);
+:Afficher barre de filtres + actions (Nouveau, Export, Actualiser);
+
+if (Admin change onglet ?) then (oui)
+  :Appliquer filtre onglet;
+  :Recharger liste paginée (page 1);
+endif
+
+if (Admin change page ?) then (oui)
+  :Recharger page N (startAfter);
+endif
+
+:Afficher liste (tableau + cartes);
+stop
+@enduml

@@ -3,7 +3,14 @@ import { emergencyContactCISchema } from './emergency-contact.schema'
 
 // ================== SCHÉMA DEMANDE DE CAISSE SPÉCIALE ==================
 
-export const caisseTypeEnum = z.enum(['STANDARD', 'JOURNALIERE', 'LIBRE'])
+export const caisseTypeEnum = z.enum([
+  'STANDARD',
+  'JOURNALIERE',
+  'LIBRE',
+  'STANDARD_CHARITABLE',
+  'JOURNALIERE_CHARITABLE',
+  'LIBRE_CHARITABLE',
+])
 
 export const caisseSpecialeDemandStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CONVERTED'])
 
@@ -102,4 +109,3 @@ export const caisseSpecialeDemandDefaultValues: Partial<CaisseSpecialeDemandForm
     documentPhotoUrl: '',
   },
 }
-

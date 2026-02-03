@@ -164,7 +164,13 @@ export function useMembershipDetails(
     const allContracts = contractsQuery.data || []
 
     const caisseSpeciale = allContracts.filter(
-      (c) => c.caisseType === 'STANDARD' || c.caisseType === 'JOURNALIERE' || c.caisseType === 'LIBRE',
+      (c) =>
+        c.caisseType === 'STANDARD' ||
+        c.caisseType === 'JOURNALIERE' ||
+        c.caisseType === 'LIBRE' ||
+        c.caisseType === 'STANDARD_CHARITABLE' ||
+        c.caisseType === 'JOURNALIERE_CHARITABLE' ||
+        c.caisseType === 'LIBRE_CHARITABLE',
     )
     const caisseImprevue = allContracts.filter((c) => c.caisseType === 'CAISSE_IMPREVUE')
     const placements = allContracts.filter((c) => c.caisseType === 'PLACEMENT')

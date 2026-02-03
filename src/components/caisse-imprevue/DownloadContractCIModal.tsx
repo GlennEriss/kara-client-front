@@ -274,8 +274,11 @@ export default function DownloadContractCIModal({
         doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, pageWidth / 2, pageHeight - 10, { align: 'center' })
       }
 
-      // Télécharger le PDF
-      const fileName = `MK_CI_${contract.memberFirstName}_${contract.memberLastName}.pdf`
+      // Nom du fichier : LASTNAME_FIRSTNAME_CAISSE_IMPREVUE_MK_YYYY.pdf (ex: OBIANG_ELLA_CAISSE_IMPREVUE_MK_2026.pdf)
+      const last = String(contract.memberLastName ?? '').toUpperCase().replace(/\s+/g, '_')
+      const first = String(contract.memberFirstName ?? '').toUpperCase().replace(/\s+/g, '_')
+      const year = new Date().getFullYear()
+      const fileName = `${last}_${first}_CAISSE_IMPREVUE_MK_${year}.pdf`
       doc.save(fileName)
       
       setTimeout(() => {

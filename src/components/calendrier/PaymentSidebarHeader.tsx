@@ -20,6 +20,9 @@ const CAISSE_TYPE_CONFIG: Record<CaisseType, { label: string; color: string }> =
   JOURNALIERE: { label: "Journalier", color: "blue" },
   STANDARD: { label: "Standard", color: "purple" },
   LIBRE: { label: "Libre", color: "amber" },
+  STANDARD_CHARITABLE: { label: "Standard Charitable", color: "purple" },
+  JOURNALIERE_CHARITABLE: { label: "Journalière Charitable", color: "blue" },
+  LIBRE_CHARITABLE: { label: "Libre Charitable", color: "amber" },
 }
 
 const STATUS_CONFIG: Record<string, { color: string }> = {

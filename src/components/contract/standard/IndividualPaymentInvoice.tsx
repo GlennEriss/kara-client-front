@@ -2,11 +2,12 @@
 
 import React from "react"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, CreditCard, User, Receipt, Shield } from "lucide-react"
+import { CalendarDays, CreditCard, User, Receipt, Shield, UserCircle } from "lucide-react"
 import Image from "next/image"
 import type { CaissePayment, CaisseContract } from "@/services/caisse/types"
 import { useAdmin } from "@/hooks/admin/useAdmin"
 import { useAuth } from "@/hooks/useAuth"
+import { useAgentsActifs, useAgentRecouvrement } from "@/hooks/agent-recouvrement"
 
 // ————————————————————————————————————————————————————————————
 // Helpers UI
@@ -32,6 +33,18 @@ export default function IndividualPaymentInvoice({
 }: IndividualPaymentInvoiceProps) {
   const { user } = useAuth()
   const { data: admin, isLoading: isLoadingAdmin } = useAdmin(payment.updatedBy)
+  const { data: agents = [] } = useAgentsActifs()
+  const agentsMap = Object.fromEntries(agents.map((a) => [a.id, a]))
+  
+  // Pour les contrats individuels, l'agent peut être dans payment.agentRecouvrementId ou payment.contribs
+  // (dernière contribution pour LIBRE, première pour STANDARD)
+  const contribs = payment.contribs
+  const lastContribWithAgent = contribs?.length ? [...contribs].reverse().find((c: any) => c.agentRecouvrementId) : null
+  const agentRecouvrementId = payment.agentRecouvrementId ?? lastContribWithAgent?.agentRecouvrementId ?? contribs?.[0]?.agentRecouvrementId
+  const { data: agentById } = useAgentRecouvrement(agentRecouvrementId)
+  const agentDisplay = agentRecouvrementId
+    ? (agentsMap[agentRecouvrementId] ?? agentById)
+    : null
   
   // Déterminer les informations de l'administrateur
   const adminInfo = React.useMemo(() => {
@@ -161,6 +174,15 @@ export default function IndividualPaymentInvoice({
           <div className="flex justify-between">
             <span className="text-slate-600">Heure :</span>
             <span className="font-medium">{payment.time || '—'}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-600 flex items-center gap-2">
+              <UserCircle className="h-4 w-4" />
+              Agent de recouvrement :
+            </span>
+            <span className="font-medium text-[#234D65]">
+              {agentDisplay ? `${agentDisplay.nom} ${agentDisplay.prenom}` : '—'}
+            </span>
           </div>
           <div className="space-y-1">
             <span className="text-slate-600">ID de paiement :</span>

@@ -48,15 +48,24 @@ export function Step2CaisseConfig() {
       return
     }
 
-    const maxMonths = formData.caisseType === 'JOURNALIERE' ? 12 : 60
+    const maxMonths =
+      formData.caisseType === 'JOURNALIERE' || formData.caisseType === 'JOURNALIERE_CHARITABLE'
+        ? 12
+        : 60
     const sanitizedMonths = Math.max(0, Math.floor(months))
     updateFormData({ monthsPlanned: Math.min(sanitizedMonths, maxMonths) })
   }
 
   // Calculs dérivés
   const totalAmount = formData.monthlyAmount * formData.monthsPlanned
-  const isLibreValid = formData.caisseType === 'LIBRE' ? formData.monthlyAmount >= 100000 : true
-  const isJournaliereValid = formData.caisseType === 'JOURNALIERE' ? formData.monthsPlanned <= 12 : true
+  const isLibreValid =
+    formData.caisseType === 'LIBRE' || formData.caisseType === 'LIBRE_CHARITABLE'
+      ? formData.monthlyAmount >= 100000
+      : true
+  const isJournaliereValid =
+    formData.caisseType === 'JOURNALIERE' || formData.caisseType === 'JOURNALIERE_CHARITABLE'
+      ? formData.monthsPlanned <= 12
+      : true
 
   // Messages d'aide selon le type de caisse
   const getCaisseInfo = () => {
@@ -84,6 +93,30 @@ export function Step2CaisseConfig() {
           icon: TrendingUp,
           color: 'bg-purple-100 text-purple-700',
           features: ['Montant minimum 100 000 FCFA', 'Flexibilité maximale', 'Pas de limite de durée']
+        }
+      case 'STANDARD_CHARITABLE':
+        return {
+          title: 'Caisse Standard Charitable',
+          description: 'Règles standard appliquées aux contrats caritatifs',
+          icon: Target,
+          color: 'bg-blue-100 text-blue-700',
+          features: ['Montant fixe mensuel', 'Objectif défini', 'Variante caritative']
+        }
+      case 'JOURNALIERE_CHARITABLE':
+        return {
+          title: 'Caisse Journalière Charitable',
+          description: 'Règles journalières appliquées aux contrats caritatifs',
+          icon: Calendar,
+          color: 'bg-green-100 text-green-700',
+          features: ['Objectif mensuel', 'Versements quotidiens', 'Variante caritative']
+        }
+      case 'LIBRE_CHARITABLE':
+        return {
+          title: 'Caisse Libre Charitable',
+          description: 'Règles libres appliquées aux contrats caritatifs',
+          icon: TrendingUp,
+          color: 'bg-purple-100 text-purple-700',
+          features: ['Montant minimum 100 000 FCFA', 'Flexibilité maximale', 'Variante caritative']
         }
       default:
         return null
@@ -158,6 +191,54 @@ export function Step2CaisseConfig() {
             >
               <TrendingUp className="w-6 h-6" />
               <span className="font-semibold">Libre</span>
+              <span className="text-xs opacity-80">Flexibilité totale</span>
+            </Button>
+
+            {/* Caisse Standard Charitable */}
+            <Button
+              variant={formData.caisseType === 'STANDARD_CHARITABLE' ? 'default' : 'outline'}
+              onClick={() => updateFormData({ caisseType: 'STANDARD_CHARITABLE' })}
+              className={cn(
+                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
+                formData.caisseType === 'STANDARD_CHARITABLE'
+                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+              )}
+            >
+              <Target className="w-6 h-6" />
+              <span className="font-semibold">Standard Charitable</span>
+              <span className="text-xs opacity-80">Versement fixe</span>
+            </Button>
+
+            {/* Caisse Journalière Charitable */}
+            <Button
+              variant={formData.caisseType === 'JOURNALIERE_CHARITABLE' ? 'default' : 'outline'}
+              onClick={() => updateFormData({ caisseType: 'JOURNALIERE_CHARITABLE' })}
+              className={cn(
+                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
+                formData.caisseType === 'JOURNALIERE_CHARITABLE'
+                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+              )}
+            >
+              <Calendar className="w-6 h-6" />
+              <span className="font-semibold">Journalière Charitable</span>
+              <span className="text-xs opacity-80">Versements quotidiens</span>
+            </Button>
+
+            {/* Caisse Libre Charitable */}
+            <Button
+              variant={formData.caisseType === 'LIBRE_CHARITABLE' ? 'default' : 'outline'}
+              onClick={() => updateFormData({ caisseType: 'LIBRE_CHARITABLE' })}
+              className={cn(
+                "h-24 flex flex-col items-center justify-center gap-2 transition-all duration-300",
+                formData.caisseType === 'LIBRE_CHARITABLE'
+                  ? "bg-[#234D65] hover:bg-[#2c5a73] text-white shadow-lg"
+                  : "border-2 border-gray-300 hover:border-[#234D65] hover:bg-[#234D65]/5"
+              )}
+            >
+              <TrendingUp className="w-6 h-6" />
+              <span className="font-semibold">Libre Charitable</span>
               <span className="text-xs opacity-80">Flexibilité totale</span>
             </Button>
           </div>

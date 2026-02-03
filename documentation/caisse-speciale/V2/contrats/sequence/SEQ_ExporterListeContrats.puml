@@ -1,0 +1,13 @@
+@startuml SEQ_ExporterListeContrats
+title Séquence : Exporter la liste des Contrats (V2)
+' Référence : ExporterListeContrats.puml (activité)
+
+actor "Admin" as Admin
+participant "ListContrats\n(Domain Component)" as List
+participant "ContractsExportService\n(Domain Service)" as Exporter
+
+Admin -> List: Clique "Exporter"
+List -> Exporter: exportContracts(items, format)
+Exporter --> List: fichier prêt (CSV/Excel/PDF)
+List --> Admin: Télécharger fichier
+@enduml
