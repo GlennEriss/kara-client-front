@@ -22,6 +22,8 @@
 import type { UserFilters, MembershipType } from '@/types/types'
 import type { PaginatedMembers } from '@/db/member.db'
 import { getMembers, getMemberWithSubscription } from '@/db/member.db'
+import { getUserById } from '@/db/user.db'
+import type { User } from '@/types/types'
 import type { DocumentSnapshot } from 'firebase/firestore'
 import {
   getMembersAlgoliaSearchService,
@@ -39,6 +41,13 @@ export class MembersRepositoryV2 {
       MembersRepositoryV2.instance = new MembersRepositoryV2()
     }
     return MembersRepositoryV2.instance
+  }
+
+  /**
+   * Récupère un membre par son id (document users / uid Firebase Auth).
+   */
+  async getById(memberId: string): Promise<User | null> {
+    return getUserById(memberId)
   }
 
   /**

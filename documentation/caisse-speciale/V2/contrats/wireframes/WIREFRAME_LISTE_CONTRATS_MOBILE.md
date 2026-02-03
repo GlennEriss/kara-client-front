@@ -12,6 +12,34 @@
 
 ## 📱 Mobile (< 640px)
 
+### Icons Legend
+
+- `FileText` = Titre module / Télécharger contrat
+- `Search` = Recherche
+- `Filter` = Filtres
+- `User` / `Users` = Avatar fallback
+- `AlertCircle` = Retard
+- `CheckCircle` = Actif/validé
+- `Calendar` = Dates
+- `DollarSign` = Montants
+- `Eye` = Ouvrir
+- `Upload` = Téléverser PDF
+- `Download` = Export
+- `RefreshCw` = Actualiser
+- `Plus` = Nouveau contrat
+
+### Badges Carousel Legend (mobile)
+
+- **Tous** : `FileText`
+- **Standard** : `FileText`
+- **Journalier** : `Calendar`
+- **Libre** : `FileText`
+- **Standard Charitable** : `FileText`
+- **Journalier Charitable** : `Calendar`
+- **Libre Charitable** : `FileText`
+- **Mois en cours** : `Calendar`
+- **Retard** : `AlertCircle`
+
 ### Structure Générale
 
 ```
@@ -107,6 +135,17 @@
 | **Contacts** | téléphone(s) + email si dispo |
 | **Contact urgent** | bloc distinct (Nom/Prénom/Téléphone) |
 | **Actions** | colonne verticale, boutons pleine largeur |
+
+### Icônes Lucide – mapping (mobile)
+
+- **Header module** : `FileText`
+- **Recherche** : `Search`
+- **Badges carousel** : `FileText`, `Clock`, `CheckCircle`, `XCircle` (si reprises des badges demandes)
+- **Avatar fallback** : `User` (individuel), `Users` (groupe)
+- **Badge Retard** : `AlertCircle`
+- **Dates** : `Calendar`
+- **Montants** : `DollarSign`
+- **Actions** : `Eye` (Ouvrir), `Upload` (Téléverser), `FileText` (Télécharger), `Download` (Exporter), `RefreshCw` (Actualiser), `Plus` (Nouveau contrat)
 
 ---
 
