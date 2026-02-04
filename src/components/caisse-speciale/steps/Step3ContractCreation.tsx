@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React from 'react'
 import { useContractForm } from '@/providers/ContractFormProvider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ import { useCaisseSettingsValidation } from '@/hooks/useCaisseSettingsValidation
 import EmergencyContactMemberSelector from '@/components/shared/EmergencyContactMemberSelector'
 import { emergencyContactSchema } from '@/schemas/emergency-contact.schema'
 import { useAuth } from '@/hooks/useAuth'
+import { useCreateCaisseContract } from '@/domains/financial/caisse-speciale/contrats/hooks'
 
 export function Step3ContractCreation() {
   const { state, validateCurrentStep, prevStep, updateFormData } = useContractForm()
@@ -48,7 +49,7 @@ export function Step3ContractCreation() {
     }))
   }, [updateFormData])
   const router = useRouter()
-  const [isCreating, setIsCreating] = useState(false)
+  const { mutateAsync: createContract, isPending: isCreating } = useCreateCaisseContract()
   const { user } = useAuth()
   // Validation des paramètres de la Caisse Spéciale
   const { isValid, isLoading: isValidating, error: validationError, settings } = useCaisseSettingsValidation(formData.caisseType)
@@ -97,8 +98,6 @@ export function Step3ContractCreation() {
   // Fonction de création du contrat
   const handleCreateContract = async () => {
     try {
-      setIsCreating(true)
-
       // Validation des paramètres de la Caisse Spéciale
       if (!isValid || isValidating) {
         toast.error('Les paramètres de la Caisse Spéciale ne sont pas configurés. Impossible de créer un contrat.')
@@ -183,9 +182,7 @@ export function Step3ContractCreation() {
 
       console.log('📝 Données du contrat à créer:', contractData)
 
-      // Créer le contrat via la fonction subscribe
-      const { subscribe } = await import('@/services/caisse/mutations')
-      const contractId = await subscribe(contractData)
+      const contractId = await createContract(contractData)
 
       console.log('✅ Contrat créé avec succès, ID personnalisé:', contractId)
 
@@ -213,8 +210,6 @@ export function Step3ContractCreation() {
           onClick: () => handleCreateContract()
         }
       })
-    } finally {
-      setIsCreating(false)
     }
   }
 

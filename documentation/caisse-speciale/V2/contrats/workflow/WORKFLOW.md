@@ -80,8 +80,8 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **Init.1** `git checkout develop` puis `git pull`
-- [ ] **Init.2** `git checkout -b refactor/caisse-speciale-contrats-v2`
+- [x] **Init.1** `git checkout develop` puis `git pull`
+- [x] **Init.2** `git checkout -b refactor/caisse-speciale-contrats-v2`
 
 ---
 
@@ -93,9 +93,9 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **0.1** Intégrer règles Firestore `caisseContracts` + sous-collections `payments`, `refunds`
-- [ ] **0.2** Vérifier règles Storage (PDF contrats, remboursements, preuves paiement)
-- [ ] **0.3** Ajouter index Firestore nécessaires
+- [x] **0.1** Intégrer règles Firestore `caisseContracts` + sous-collections `payments`, `refunds`
+- [x] **0.2** Vérifier règles Storage (PDF contrats, remboursements, preuves paiement)
+- [x] **0.3** Ajouter index Firestore nécessaires
 
 ---
 
@@ -108,18 +108,18 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 ### Tâches
 
 #### Repository / Service
-- [ ] **1.1** `getContractsWithFilters` retourne `{ items, total }` (pagination Firestore)
-- [ ] **1.2** `getContractsStats` côté repo (counts par statut/type)
+- [x] **1.1** `getContractsWithFilters` retourne `{ items, total }` (pagination Firestore)
+- [x] **1.2** `getContractsStats` côté repo (counts par statut/type)
 
 #### Hooks
-- [ ] **1.3** `useCaisseContracts` + `useCaisseContractsStats` (React Query)
+- [x] **1.3** `useCaisseContracts` + `useCaisseContractsStats` (React Query)
 
 #### UI
-- [ ] **1.4** Stats affichées AVANT les tabs (C.1)
-- [ ] **1.5** Tabs mobile = badges carousel (sans boutons)
-- [ ] **1.6** Toggle Grille/Liste uniquement desktop
-- [ ] **1.7** Pagination AVANT et APRÈS la liste (Affichage 1-12 sur X)
-- [ ] **1.8** Bouton Actualiser → invalidateQueries
+- [x] **1.4** Stats affichées AVANT les tabs (C.1)
+- [x] **1.5** Tabs mobile = badges carousel (sans boutons)
+- [x] **1.6** Toggle Grille/Liste uniquement desktop
+- [x] **1.7** Pagination AVANT et APRÈS la liste (Affichage 1-12 sur X)
+- [x] **1.8** Bouton Actualiser → invalidateQueries
 
 ---
 
@@ -131,9 +131,9 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **2.1** Filtres statut / type / caisse / dates
-- [ ] **2.2** `overdueOnly` dans les filtres (UC6)
-- [ ] **2.3** Reset pagination à chaque changement de filtre
+- [x] **2.1** Filtres statut / type / caisse / dates
+- [x] **2.2** `overdueOnly` dans les filtres (UC6)
+- [x] **2.3** Reset pagination à chaque changement de filtre
 
 ---
 
@@ -145,9 +145,9 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **3.1** Ajouter `searchableText*` sur `caisseContracts`
-- [ ] **3.2** Recherche Firestore fusionnée (3 requêtes)
-- [ ] **3.3** Débounce + min 2 caractères
+- [x] **3.1** Ajouter `searchableText*` sur `caisseContracts`
+- [x] **3.2** Recherche Firestore fusionnée (3 requêtes)
+- [x] **3.3** Débounce + min 2 caractères
 
 ---
 
@@ -159,9 +159,9 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **4.1** Détails accessibles même sans PDF (bannière + CTA)
-- [ ] **4.2** Cartes infos membre/groupe + contact d'urgence
-- [ ] **4.3** Lien vers versements / exports
+- [x] **4.1** Détails accessibles même sans PDF (bannière + CTA)
+- [x] **4.2** Cartes infos membre/groupe + contact d'urgence
+- [x] **4.3** Lien vers versements / exports
 
 ---
 
@@ -173,9 +173,9 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **5.1** Page `/caisse-speciale/contrats/nouveau` (wizard)
-- [ ] **5.2** Validation Zod + création contrat
-- [ ] **5.3** Génération versements planifiés
+- [x] **5.1** Page `/caisse-speciale/contrats/nouveau` (wizard)
+- [x] **5.2** Validation Zod + création contrat
+- [x] **5.3** Génération versements planifiés
 
 ---
 
@@ -187,8 +187,8 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **6.1** Upload PDF signé (Storage + metadata contractPdf)
-- [ ] **6.2** Invalidation cache liste + détail
+- [x] **6.1** Upload PDF signé (Storage + metadata contractPdf)
+- [x] **6.2** Invalidation cache liste + détail
 
 ---
 
@@ -200,8 +200,8 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **7.1** Liste versements (paiements) + détails
-- [ ] **7.2** Badges bonus/pénalités
+- [x] **7.1** Liste versements (paiements) + détails
+- [x] **7.2** Badges bonus/pénalités
 
 ---
 
@@ -213,26 +213,26 @@ Phase 4 (Détails) → Phase 5 (Création) → Phase 6 (PDF) → Phase 7 (Versem
 
 ### Tâches
 
-- [ ] **8.1** Export liste contrats (CSV/Excel + PDF)
-- [ ] **8.2** Export versements (PDF + Excel)
+- [x] **8.1** Export liste contrats (CSV/Excel + PDF)
+- [x] **8.2** Export versements (PDF + Excel)
 
 ---
 
 ## Tests à réaliser
 
-- [ ] Stats chargées une seule fois (cache)
-- [ ] Pagination Firestore (page 1/2/3)
-- [ ] Recherche par nom + matricule
-- [ ] Filtres combinés (statut + dates + type)
-- [ ] Détails accessibles sans PDF
-- [ ] Upload PDF + refresh listes
-- [ ] Exports PDF/Excel
+- [x] Stats chargées une seule fois (cache)
+- [x] Pagination Firestore (page 1/2/3)
+- [x] Recherche par nom + matricule
+- [x] Filtres combinés (statut + dates + type)
+- [x] Détails accessibles sans PDF
+- [x] Upload PDF + refresh listes
+- [x] Exports PDF/Excel
 
 ---
 
 ## Definition of Done
 
-- [ ] Diagrammes alignés avec l'implémentation
-- [ ] Rules Firestore/Storage en place
-- [ ] Tests essentiels OK
-- [ ] Documentation mise à jour
+- [x] Diagrammes alignés avec l'implémentation
+- [x] Rules Firestore/Storage en place
+- [x] Tests essentiels OK
+- [x] Documentation mise à jour
