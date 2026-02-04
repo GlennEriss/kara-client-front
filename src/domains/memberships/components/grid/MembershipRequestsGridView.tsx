@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Eye, FileText, MessageSquare, Edit, IdCard, CreditCard, Download, FileSpreadsheet, CheckCircle2, XCircle, FileEdit, RotateCcw, Trash2 } from 'lucide-react'
+import { Eye, FileText, MessageSquare, Edit, IdCard, CreditCard, Download, FileSpreadsheet, CheckCircle2, XCircle, FileEdit, RotateCcw, Trash2, Upload } from 'lucide-react'
 import type { MembershipRequestStatus } from '@/types/types'
 import { formatNamePairs } from '../../utils/formatNamePairs'
 
@@ -43,6 +43,7 @@ interface MembershipRequestActionsDropdownProps {
   onViewDetails?: () => void
   onViewMembershipForm?: () => void
   onViewApprovedMembershipPdf?: () => void
+  onReplaceAdhesionPdf?: () => void
   onViewIdDocument?: () => void
   onViewPaymentDetails?: () => void
   onExportPDF?: () => void
@@ -50,6 +51,7 @@ interface MembershipRequestActionsDropdownProps {
   onSendWhatsApp?: () => void
   onEdit?: () => void
   isApproving?: boolean
+  isApproved?: boolean
   isRejecting?: boolean
   isRequestingCorrections?: boolean
   isPaying?: boolean
@@ -71,6 +73,7 @@ function MembershipRequestActionsDropdown({
   onViewDetails,
   onViewMembershipForm,
   onViewApprovedMembershipPdf,
+  onReplaceAdhesionPdf,
   onViewIdDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -83,6 +86,7 @@ function MembershipRequestActionsDropdown({
   isPaying = false,
   isReopening = false,
   isDeleting = false,
+  isApproved: isApprovedProp,
 }: MembershipRequestActionsDropdownProps) {
   // Même logique que MembershipRequestActionsV2
   const isRejected = status === 'rejected'
@@ -91,13 +95,14 @@ function MembershipRequestActionsDropdown({
   const canReject = !isRejected && (status === 'pending' || status === 'under_review')
   const canRequestCorrections = !isRejected && status === 'pending'
   const primaryAction = canPay && onPay ? 'pay' : canApprove && onApprove ? 'approve' : null
-  const isApproved = status === 'approved'
+  const isApproved = isApprovedProp ?? status === 'approved'
   const isUnderReview = status === 'under_review'
 
   // Vérifier s'il y a des actions à afficher dans le menu
   const hasMenuActions =
     onViewMembershipForm ||
     onViewIdDocument ||
+    (isApproved && isPaid && onReplaceAdhesionPdf) ||
     (onViewPaymentDetails && isPaid) ||
     onExportPDF ||
     onExportExcel ||
@@ -209,6 +214,13 @@ function MembershipRequestActionsDropdown({
           </DropdownMenuItem>
         )}
 
+        {isApproved && isPaid && onReplaceAdhesionPdf && (
+          <DropdownMenuItem onClick={onReplaceAdhesionPdf}>
+            <Upload className="w-4 h-4 mr-2" />
+            Remplacer le PDF d&apos;adhésion
+          </DropdownMenuItem>
+        )}
+
         {onViewPaymentDetails && isPaid && (
           <DropdownMenuItem onClick={onViewPaymentDetails}>
             <CreditCard className="w-4 h-4 mr-2" />
@@ -307,6 +319,7 @@ interface MembershipRequestsGridViewProps {
   onSendWhatsAppRejection?: (request: MembershipRequest) => void
   onViewMembershipForm?: (id: string) => void
   onViewApprovedMembershipPdf?: (id: string) => void
+  onReplaceAdhesionPdf?: (request: MembershipRequest) => void
   onViewIdentityDocument?: (id: string) => void
   onViewPaymentDetails?: (id: string) => void
   onExportPDF?: (id: string) => void
@@ -346,6 +359,7 @@ export function MembershipRequestsGridView({
   onSendWhatsAppRejection,
   onViewMembershipForm,
   onViewApprovedMembershipPdf,
+  onReplaceAdhesionPdf,
   onViewIdentityDocument,
   onViewPaymentDetails,
   onExportPDF,
@@ -434,6 +448,7 @@ export function MembershipRequestsGridView({
                     onViewDetails={onViewDetails ? () => onViewDetails(request.id) : undefined}
                     onViewMembershipForm={onViewMembershipForm ? () => onViewMembershipForm(request.id) : undefined}
                     onViewApprovedMembershipPdf={onViewApprovedMembershipPdf ? () => onViewApprovedMembershipPdf(request.id) : undefined}
+                    onReplaceAdhesionPdf={onReplaceAdhesionPdf ? () => onReplaceAdhesionPdf(request) : undefined}
                     onViewIdDocument={onViewIdentityDocument ? () => onViewIdentityDocument(request.id) : undefined}
                     onViewPaymentDetails={onViewPaymentDetails ? () => onViewPaymentDetails(request.id) : undefined}
                     onExportPDF={onExportPDF ? () => onExportPDF(request.id) : undefined}
@@ -522,6 +537,7 @@ export function MembershipRequestsGridView({
                   onViewDetails={onViewDetails ? () => onViewDetails(request.id) : undefined}
                   onViewMembershipForm={onViewMembershipForm ? () => onViewMembershipForm(request.id) : undefined}
                   onViewApprovedMembershipPdf={onViewApprovedMembershipPdf ? () => onViewApprovedMembershipPdf(request.id) : undefined}
+                  onReplaceAdhesionPdf={onReplaceAdhesionPdf ? () => onReplaceAdhesionPdf(request) : undefined}
                   onViewIdDocument={onViewIdentityDocument ? () => onViewIdentityDocument(request.id) : undefined}
                   onViewPaymentDetails={onViewPaymentDetails ? () => onViewPaymentDetails(request.id) : undefined}
                   onExportPDF={onExportPDF ? () => onExportPDF(request.id) : undefined}

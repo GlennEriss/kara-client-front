@@ -40,6 +40,12 @@ export interface ProcessPaymentParams {
   paymentInfo: PaymentInfo
 }
 
+export interface ReplaceAdhesionPdfParams {
+  requestId: string
+  adminId: string
+  file: File
+}
+
 export interface IMembershipService {
   /**
    * Approuve une demande d'adhésion
@@ -82,4 +88,10 @@ export interface IMembershipService {
     newCode: string
     newExpiry: Date
   }>
+
+  /**
+   * Remplace le PDF d'adhésion d'une demande déjà payée et approuvée.
+   * Upload du fichier puis appel Cloud Function replaceAdhesionPdf.
+   */
+  replaceAdhesionPdf(params: ReplaceAdhesionPdfParams): Promise<void>
 }

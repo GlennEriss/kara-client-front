@@ -67,6 +67,16 @@ export interface Document {
   updatedBy: string
   createdAt: Date
   updatedAt: Date
+  /** ID de la demande source (ex. membership-requests) — pour documents ADHESION */
+  requestId?: string
+  /** Source du document (ex. 'membership-requests') */
+  source?: string
+  /** true pour la version active, false pour les versions archivées (remplacées) */
+  isCurrent?: boolean
+  /** Date de remplacement (quand ce document a été remplacé par un autre) */
+  replacedAt?: Date
+  /** Admin ayant effectué le remplacement */
+  replacedBy?: string
 }
 
 /**

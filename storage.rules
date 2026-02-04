@@ -84,9 +84,11 @@ service firebase.storage {
     // ==========================================
     // PDFs D'ADHÉSION (MEMBERSHIP-ADHESION-PDFS)
     // ==========================================
-    // PDFs générés lors de l'approbation - CONFIDENTIELS
-    // Supporte les chemins avec sous-dossiers (matricule) : membership-adhesion-pdfs/{matricule}/{fileName}
-    
+    // PDFs générés lors de l'approbation ou du remplacement - CONFIDENTIELS
+    // Chemins : membership-adhesion-pdfs/{requestId}/{timestamp}_{fileName}
+    // - Approbation : upload initial du PDF validé
+    // - Remplacement : re-upload par un admin (fonctionnalité "Remplacer le PDF")
+    //
     match /membership-adhesion-pdfs/{allPaths=**} {
       // Lecture : Admins uniquement
       allow read: if isAdmin();

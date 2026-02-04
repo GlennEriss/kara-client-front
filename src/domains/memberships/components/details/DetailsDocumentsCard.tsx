@@ -4,7 +4,7 @@
 
 'use client'
 
-import { IdCard, Calendar, MapPin, FileText, ExternalLink, Download, AlertCircle } from 'lucide-react'
+import { IdCard, Calendar, MapPin, FileText, ExternalLink, Download, AlertCircle, Upload } from 'lucide-react'
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,12 +18,15 @@ interface DetailsDocumentsCardProps {
   request: MembershipRequest
   adhesionPdfUrlResolved?: string | null
   onViewAdhesionPdf?: () => void
+  /** Affiche le bouton "Remplacer le PDF" (demande approuvée et payée) */
+  onReplaceAdhesionPdf?: () => void
 }
 
 export function DetailsDocumentsCard({ 
   request, 
   adhesionPdfUrlResolved,
-  onViewAdhesionPdf 
+  onViewAdhesionPdf,
+  onReplaceAdhesionPdf,
 }: DetailsDocumentsCardProps) {
   const handleViewAdhesionPdf = () => {
     if (adhesionPdfUrlResolved) {
@@ -52,14 +55,28 @@ export function DetailsDocumentsCard({
               PDF d'adhésion validé
             </label>
             {adhesionPdfUrlResolved ? (
-              <Button
-                onClick={handleViewAdhesionPdf}
-                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                data-testid="details-adhesion-pdf-button"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Ouvrir le PDF d'adhésion validé
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  onClick={handleViewAdhesionPdf}
+                  className="flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+                  data-testid="details-adhesion-pdf-button"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Ouvrir le PDF d&apos;adhésion validé
+                </Button>
+                {request.isPaid && onReplaceAdhesionPdf && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                    onClick={onReplaceAdhesionPdf}
+                    data-testid="details-replace-adhesion-pdf-button"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Remplacer le PDF
+                  </Button>
+                )}
+              </div>
             ) : onViewAdhesionPdf ? (
               <Button
                 onClick={handleViewAdhesionPdf}
@@ -67,7 +84,7 @@ export function DetailsDocumentsCard({
                 data-testid="details-adhesion-pdf-button"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                Ouvrir le PDF d'adhésion validé
+                Ouvrir le PDF d&apos;adhésion validé
               </Button>
             ) : (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200">

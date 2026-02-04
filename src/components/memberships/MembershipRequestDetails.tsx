@@ -7,6 +7,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
+import { useState } from 'react'
 import {
   DetailsSkeleton,
   DetailsErrorState,
@@ -20,13 +21,17 @@ import {
   DetailsMetaCard,
   DetailsPhotoCard,
 } from '@/domains/memberships/components/details'
+import { ReplaceAdhesionPdfModal } from '@/domains/memberships/components/modals'
 import { useMembershipRequestDetails } from '@/domains/memberships/hooks/useMembershipRequestDetails'
 import { resolveAdhesionPdfUrl } from '@/domains/memberships/utils/details'
+import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 
 export default function MembershipRequestDetails() {
   const params = useParams()
   const requestId = params.id as string
+  const { user } = useAuth()
+  const [replacePdfModalOpen, setReplacePdfModalOpen] = useState(false)
 
   const {
     request,
@@ -132,7 +137,21 @@ export default function MembershipRequestDetails() {
             request={request}
             adhesionPdfUrlResolved={adhesionPdfUrlResolved}
             onViewAdhesionPdf={handleViewAdhesionPdf}
+            onReplaceAdhesionPdf={
+              request.status === 'approved' && request.isPaid && user?.uid
+                ? () => setReplacePdfModalOpen(true)
+                : undefined
+            }
           />
+          {user?.uid && (
+            <ReplaceAdhesionPdfModal
+              isOpen={replacePdfModalOpen}
+              onClose={() => setReplacePdfModalOpen(false)}
+              request={request}
+              adminId={user.uid}
+              onSuccess={() => setReplacePdfModalOpen(false)}
+            />
+          )}
         </div>
 
         {/* Colonne latérale */}

@@ -221,6 +221,7 @@ export { deleteMembershipRequest } from './membership-requests/deleteMembershipR
 export { onMembershipRequestWrite } from './membership-requests/detectDuplicates'
 export { onDuplicateGroupResolved } from './membership-requests/onDuplicateGroupResolved'
 export { migrateExistingDuplicates } from './membership-requests/migrateExistingDuplicates'
+export { replaceAdhesionPdf } from './membership-requests/replaceAdhesionPdf'
 
 // ✅ ACTIVÉ : Cloud Function pour synchroniser les demandes d'adhésion vers Algolia
 // (L'extension Algolia Firebase pose problème, cette fonction est plus fiable)
